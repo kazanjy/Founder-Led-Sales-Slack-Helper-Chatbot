@@ -52,8 +52,12 @@ Mikey is a Slack bot that provides founder-led sales guidance via a Chatbase AI 
 ### 1. Slack Bot Interaction
 
 **Invocation:**
-- User @mentions `@Mikey` in any channel where the bot is installed
-- Bot responds in a thread under the original message
+- **In channels:** User @mentions `@Mikey` - bot responds in a thread under the original message
+- **In DMs:** User messages Mikey directly (no @mention needed) - bot responds in the DM
+
+**Rate Limiting:**
+- 1,000 messages per user per day (configurable globally and per-workspace)
+- Prevents abuse while being generous for normal use
 
 **Threaded Conversations:**
 - Initial @mention creates a new conversation thread
@@ -276,14 +280,19 @@ interface Referral {
 
 ### 6. Payments (Stripe Integration)
 
-**Products/Plans:**
+**Pricing Model:**
 
-| Plan | Price | Included |
-|------|-------|----------|
-| Individual | $X/month | 1 seat, unlimited messages |
-| Team | $Y/month | Up to 10 seats |
-| Business | $Z/month | Up to 50 seats |
-| Enterprise | Custom | Unlimited seats, priority support |
+| Seats | Price/month |
+|-------|-------------|
+| First seat | $99 |
+| Each additional seat | $39 |
+
+*Pricing is configurable at both global default and per-user/workspace level.*
+
+**Examples:**
+- 1 user: $99/month
+- 5 users: $99 + (4 × $39) = $255/month
+- 10 users: $99 + (9 × $39) = $450/month
 
 **Self-Service Flow:**
 1. User clicks "Upgrade" in Slack DM or web dashboard
@@ -366,6 +375,9 @@ interface Workspace {
   trialDays: number | null;
   trialMessages: number | null;
 
+  // Rate limiting (null = use global default of 1000)
+  dailyMessageLimit: number | null;
+
   // Workspace-level license (optional)
   workspaceLicenseId: string | null;
 }
@@ -384,6 +396,10 @@ interface User {
   // License
   licenseStatus: 'trial' | 'active' | 'expired' | 'suspended';
   licenseId: string | null;
+
+  // Rate limiting
+  messagesToday: number;
+  messageCountResetAt: Date;  // Reset daily
 
   // Referral
   referralCode: string;
@@ -405,6 +421,10 @@ interface License {
   workspaceId: string | null;
   seatLimit: number | null;
   seatsUsed: number;
+
+  // Pricing (null = use global defaults: $99 first, $39 additional)
+  priceFirstSeatCents: number | null;
+  priceAdditionalSeatCents: number | null;
 
   // Billing
   stripeCustomerId: string | null;
@@ -465,6 +485,44 @@ interface Referral {
 
   completedAt: Date | null;
   createdAt: Date;
+}
+
+// Shared Conversation Link
+interface SharedConversation {
+  id: string;
+  conversationId: string;
+  createdByUserId: string;
+
+  shareCode: string;  // e.g., "abc123" for mikey.app/c/abc123
+
+  // Optional protection
+  password: string | null;  // Hashed if set
+  expiresAt: Date | null;   // null = never expires
+
+  viewCount: number;
+
+  createdAt: Date;
+}
+
+// Global Settings (single row)
+interface GlobalSettings {
+  id: string;
+
+  // Default pricing
+  defaultPriceFirstSeatCents: number;       // 9900 = $99
+  defaultPriceAdditionalSeatCents: number;  // 3900 = $39
+
+  // Default trial
+  defaultTrialDays: number;
+  defaultTrialMessages: number;
+
+  // Default rate limit
+  defaultDailyMessageLimit: number;  // 1000
+
+  // Referral
+  referralBonusMessages: number;
+
+  updatedAt: Date;
 }
 ```
 
@@ -653,28 +711,35 @@ ADMIN_SECRET=  # For admin panel access
 
 ---
 
-## Open Questions / Decisions Needed
+## Finalized Decisions
 
-1. **Pricing**: What are the actual price points for Individual/Team/Business plans?
+| Topic | Decision |
+|-------|----------|
+| **Pricing** | $99/month first seat, $39/month each additional (configurable per user/workspace) |
+| **Rate Limiting** | 1,000 messages/day per user (configurable) |
+| **Chat History Retention** | Forever |
+| **Multi-workspace** | Separate licenses per workspace (simple model) |
+| **DMs** | Supported - users can DM Mikey directly or @mention in channels |
+| **Thread Context** | Each thread = one Chatbase conversation (isolated from other threads) |
+| **Export** | Download, copy to clipboard, shareable URLs |
 
-2. **Rate Limiting**: Should there be rate limits even for licensed users (e.g., max 100 messages/day)?
+---
 
-3. **Message Persistence**: How long to retain chat history? Forever? 90 days?
+## Export Features
 
-4. **Multi-workspace Users**: If a user is in multiple workspaces with Mikey, should licenses be separate per workspace?
+Users can share and export their conversations:
 
-5. **Chatbase Conversation Context**: How much history to send to Chatbase per request? Full thread? Last N messages?
-
-6. **Bot Channels**: Should Mikey work in DMs as well as channels? Or channels only?
-
-7. **Export**: Should users be able to export their chat history (PDF, CSV)?
+- **Download** - Export as PDF, Markdown, or plain text
+- **Copy to clipboard** - One-click copy of conversation
+- **Shareable URL** - Generate a public link to share with others (e.g., `https://mikey.app/c/abc123`)
+  - Optional: password protection
+  - Optional: expiration date
+  - Read-only view for recipients
 
 ---
 
 ## Next Steps
 
-1. Review this plan and provide feedback
-2. Finalize open questions
-3. Create Slack app in Slack API dashboard
-4. Set up Vercel project and database
-5. Begin Phase 1 implementation
+1. Create Slack app in Slack API dashboard
+2. Set up Vercel project and database
+3. Begin Phase 1 implementation
