@@ -2,7 +2,12 @@
 
 ## Overview
 
-Mikey is a Slack bot that provides founder-led sales guidance via a Chatbase AI backend. Users interact with Mikey by @mentioning it in Slack channels, and conversations happen in threads to keep channels clean.
+Mikey is an AI-powered founder-led sales assistant. Users can access Mikey through:
+
+1. **Web App** - Chat directly on the website, sign up with email
+2. **Slack App** - @mention or DM Mikey in Slack
+
+Users can start with either entry point and optionally connect the other later. All conversations sync across both interfaces.
 
 ---
 
@@ -10,25 +15,24 @@ Mikey is a Slack bot that provides founder-led sales guidance via a Chatbase AI 
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Slack App     │────▶│  Vercel API     │────▶│    Chatbase     │
-│  (Bot + OAuth)  │◀────│  (Node.js/TS)   │◀────│    Agent        │
-└─────────────────┘     └────────┬────────┘     └─────────────────┘
+│   Web App       │────▶│                 │────▶│                 │
+│  (Chat + Auth)  │◀────│  Vercel API     │────▶│    Chatbase     │
+└─────────────────┘     │  (Node.js/TS)   │◀────│    Agent        │
+                        │                 │     └─────────────────┘
+┌─────────────────┐     │                 │
+│   Slack App     │────▶│                 │
+│  (Bot + OAuth)  │◀────│                 │
+└─────────────────┘     └────────┬────────┘
                                  │
                         ┌────────▼────────┐
                         │    Database     │
                         │  (PostgreSQL)   │
+                        │  - Accounts     │
                         │  - Users        │
                         │  - Workspaces   │
                         │  - Licenses     │
                         │  - Chat History │
                         │  - Referrals    │
-                        └─────────────────┘
-                                 │
-                        ┌────────▼────────┐
-                        │  Web Dashboard  │
-                        │  (Next.js)      │
-                        │  - Chat History │
-                        │  - Account Mgmt │
                         └─────────────────┘
 ```
 
@@ -43,11 +47,63 @@ Mikey is a Slack bot that provides founder-led sales guidance via a Chatbase AI 
 | ORM | Prisma |
 | Slack SDK | @slack/bolt |
 | Payments | Stripe |
-| Auth (Web) | Slack OAuth |
+| Auth (Web) | Email/password + OAuth (Slack, Google) |
 
 ---
 
 ## Core Features
+
+### 0. Account Model & Entry Points
+
+**Two Ways to Start:**
+
+| Entry Point | Flow |
+|-------------|------|
+| **Web App** | Sign up with email → Start chatting → Optionally connect Slack later |
+| **Slack App** | Install to workspace → Start chatting → Optionally access web dashboard |
+
+**Account Structure:**
+
+```
+Account (billing entity)
+├── Email/password login
+├── Connected OAuth providers (Slack, Google)
+├── License/subscription
+├── Billing info
+│
+└── Users (one per Slack workspace connection)
+    ├── Slack User in Workspace A
+    ├── Slack User in Workspace B
+    └── Web-only user (no Slack)
+```
+
+**Key Behaviors:**
+- Account owns the license and billing
+- Account can exist without Slack (web-only users)
+- Account can connect to multiple Slack workspaces
+- Each Slack workspace connection creates a "User" record
+- Chat history syncs across web and Slack
+- Conversations from web show in dashboard alongside Slack conversations
+
+**Web Chat Interface:**
+- Real-time chat UI (similar to ChatGPT/Claude)
+- Same Chatbase backend as Slack
+- Full conversation history
+- No Slack required
+
+**Connecting Slack Later:**
+1. User signs up on web, starts using Mikey
+2. Later clicks "Connect Slack" in settings
+3. OAuth flow links their Slack identity to existing account
+4. Future Slack messages tied to same account/license
+
+**Linking Existing Slack User to Web Account:**
+1. User starts via Slack install
+2. Visits web, clicks "Sign in with Slack"
+3. Account auto-created/linked from Slack identity
+4. Can add email/password for direct web login
+
+---
 
 ### 1. Slack Bot Interaction
 
@@ -282,17 +338,22 @@ interface Referral {
 
 **Pricing Model:**
 
-| Seats | Price/month |
-|-------|-------------|
-| First seat | $99 |
-| Each additional seat | $39 |
+| Billing | First Seat | Additional Seats | Discount |
+|---------|------------|------------------|----------|
+| Monthly | $99/month | $39/month each | - |
+| Annual | $69/month ($828/yr) | $27/month ($324/yr) each | ~30% off |
 
-*Pricing is configurable at both global default and per-user/workspace level.*
+*Pricing is configurable at both global default and per-user/account level.*
 
-**Examples:**
+**Monthly Examples:**
 - 1 user: $99/month
 - 5 users: $99 + (4 × $39) = $255/month
 - 10 users: $99 + (9 × $39) = $450/month
+
+**Annual Examples (paid upfront):**
+- 1 user: $828/year ($69/month effective)
+- 5 users: $828 + (4 × $324) = $2,124/year ($177/month effective)
+- 10 users: $828 + (9 × $324) = $3,744/year ($312/month effective)
 
 **Self-Service Flow:**
 1. User clicks "Upgrade" in Slack DM or web dashboard
@@ -363,33 +424,18 @@ interface Referral {
 ### Core Entities
 
 ```typescript
-// Workspace (Slack workspace)
-interface Workspace {
+// Account (top-level billing entity)
+interface Account {
   id: string;
-  slackTeamId: string;
-  slackTeamName: string;
-  installedAt: Date;
-  installedByUserId: string;
 
-  // Trial config (null = use global defaults)
-  trialDays: number | null;
-  trialMessages: number | null;
+  // Auth - at least one required
+  email: string | null;
+  passwordHash: string | null;
 
-  // Rate limiting (null = use global default of 1000)
-  dailyMessageLimit: number | null;
+  // Profile
+  name: string | null;
 
-  // Workspace-level license (optional)
-  workspaceLicenseId: string | null;
-}
-
-// User
-interface User {
-  id: string;
-  slackUserId: string;
-  slackUserName: string;
-  workspaceId: string;
-
-  // Trial tracking
+  // Trial tracking (account-level)
   trialStartedAt: Date | null;
   trialMessagesRemaining: number;
 
@@ -399,30 +445,72 @@ interface User {
 
   // Rate limiting
   messagesToday: number;
-  messageCountResetAt: Date;  // Reset daily
+  messageCountResetAt: Date;
 
   // Referral
   referralCode: string;
-  referredByUserId: string | null;
+  referredByAccountId: string | null;
   bonusMessagesEarned: number;
 
   createdAt: Date;
+  updatedAt: Date;
+}
+
+// OAuth Connection (Slack, Google, etc.)
+interface OAuthConnection {
+  id: string;
+  accountId: string;
+
+  provider: 'slack' | 'google';
+  providerAccountId: string;  // Slack user ID or Google ID
+  providerEmail: string | null;
+
+  // Slack-specific
+  slackTeamId: string | null;
+  slackTeamName: string | null;
+
+  accessToken: string | null;
+  refreshToken: string | null;
+  expiresAt: Date | null;
+
+  createdAt: Date;
+}
+
+// Workspace (Slack workspace - for bot installation)
+interface Workspace {
+  id: string;
+  slackTeamId: string;
+  slackTeamName: string;
+  installedAt: Date;
+  installedByAccountId: string;
+
+  // Bot token for this workspace
+  botToken: string;
+  botUserId: string | null;
+
+  // Trial config overrides (null = use global defaults)
+  trialDays: number | null;
+  trialMessages: number | null;
+
+  // Rate limiting override (null = use global default)
+  dailyMessageLimit: number | null;
 }
 
 // License
 interface License {
   id: string;
-  type: 'individual' | 'workspace_bundle';
+  accountId: string;  // Licenses belong to accounts
 
-  // For individual
-  userId: string | null;
+  // Billing interval
+  billingInterval: 'monthly' | 'annual';
 
-  // For workspace bundle
-  workspaceId: string | null;
-  seatLimit: number | null;
+  // Seat management
+  seatLimit: number;
   seatsUsed: number;
 
-  // Pricing (null = use global defaults: $99 first, $39 additional)
+  // Pricing override (null = use global defaults)
+  // Monthly: $99 first, $39 additional
+  // Annual: $69 first, $27 additional (~30% off)
   priceFirstSeatCents: number | null;
   priceAdditionalSeatCents: number | null;
 
@@ -436,24 +524,29 @@ interface License {
   notes: string | null;
 
   status: 'active' | 'expired' | 'cancelled' | 'suspended';
-  expiresAt: Date | null; // null = never expires
+  expiresAt: Date | null;
 
   createdAt: Date;
 }
 
-// Conversation (one Slack thread)
+// Conversation (can be from web or Slack)
 interface Conversation {
   id: string;
-  userId: string;
-  workspaceId: string;
+  accountId: string;
 
-  slackChannelId: string;
-  slackThreadTs: string; // Thread timestamp = unique ID
+  // Source - either web or Slack
+  source: 'web' | 'slack';
+
+  // Slack-specific (null for web conversations)
+  workspaceId: string | null;
+  slackChannelId: string | null;
+  slackThreadTs: string | null;
 
   // For Chatbase context
-  chatbaseConversationId: string;
+  chatbaseConversationId: string | null;
 
-  firstMessagePreview: string; // First ~100 chars
+  title: string | null;  // Auto-generated or user-set
+  firstMessagePreview: string | null;
   messageCount: number;
 
   createdAt: Date;
@@ -468,8 +561,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
 
-  // Slack reference
-  slackMessageTs: string;
+  // Slack reference (null for web messages)
+  slackMessageTs: string | null;
 
   createdAt: Date;
 }
@@ -477,8 +570,8 @@ interface Message {
 // Referral
 interface Referral {
   id: string;
-  referrerUserId: string;
-  referredUserId: string;
+  referrerAccountId: string;
+  referredAccountId: string;
 
   bonusAwarded: number;
   status: 'pending' | 'completed';
@@ -491,13 +584,13 @@ interface Referral {
 interface SharedConversation {
   id: string;
   conversationId: string;
-  createdByUserId: string;
+  createdByAccountId: string;
 
   shareCode: string;  // e.g., "abc123" for mikey.app/c/abc123
 
   // Optional protection
-  password: string | null;  // Hashed if set
-  expiresAt: Date | null;   // null = never expires
+  passwordHash: string | null;
+  expiresAt: Date | null;
 
   viewCount: number;
 
@@ -508,9 +601,13 @@ interface SharedConversation {
 interface GlobalSettings {
   id: string;
 
-  // Default pricing
-  defaultPriceFirstSeatCents: number;       // 9900 = $99
-  defaultPriceAdditionalSeatCents: number;  // 3900 = $39
+  // Default pricing - Monthly
+  defaultMonthlyFirstSeatCents: number;       // 9900 = $99
+  defaultMonthlyAdditionalSeatCents: number;  // 3900 = $39
+
+  // Default pricing - Annual (per month, paid yearly)
+  defaultAnnualFirstSeatCents: number;        // 6900 = $69
+  defaultAnnualAdditionalSeatCents: number;   // 2700 = $27
 
   // Default trial
   defaultTrialDays: number;
@@ -639,45 +736,53 @@ interface GlobalSettings {
 
 ## Implementation Phases
 
-### Phase 1: Core Bot Functionality
-- [ ] Project setup (Next.js, Prisma, database)
-- [ ] Slack app creation and OAuth flow
-- [ ] Basic @mention handling
-- [ ] Chatbase integration
-- [ ] Threaded replies
-- [ ] Rich text formatting
+### Phase 1: Core Slack Bot *(DONE)*
+- [x] Project setup (Next.js, Prisma, database)
+- [x] Slack app OAuth flow
+- [x] Basic @mention handling
+- [x] Chatbase integration
+- [x] Threaded replies
+- [ ] Rich text formatting (Slack mrkdwn)
 
-### Phase 2: Licensing & Trials
-- [ ] User and workspace models
+### Phase 2: Account System & Web Auth
+- [ ] Account model (replaces user-centric model)
+- [ ] Email/password signup and login
+- [ ] OAuth connections (Slack, Google)
+- [ ] Session management
+- [ ] Link Slack identity to existing account
+
+### Phase 3: Web Chat Interface
+- [ ] Real-time chat UI
+- [ ] Conversation management
+- [ ] Chat history display
+- [ ] Same Chatbase backend as Slack
+
+### Phase 4: Licensing & Trials
 - [ ] Trial system (days + messages)
 - [ ] License checking middleware
 - [ ] Unlicensed user responses
-- [ ] Manual license granting (admin)
+- [ ] Account-level licensing
 
-### Phase 3: Web Dashboard
-- [ ] Slack OAuth for web
-- [ ] User dashboard UI
-- [ ] Chat history display
-- [ ] License status display
-
-### Phase 4: Payments
+### Phase 5: Payments
 - [ ] Stripe integration
-- [ ] Checkout flow
+- [ ] Monthly vs Annual billing
+- [ ] Checkout flow (self-service)
 - [ ] Webhook handling
 - [ ] Customer portal
+- [ ] Manual license granting (admin)
 
-### Phase 5: Referrals & Growth
+### Phase 6: Referrals & Growth
 - [ ] Referral code generation
 - [ ] Referral tracking
 - [ ] Bonus message crediting
 - [ ] Referral dashboard UI
 
-### Phase 6: Admin Panel
+### Phase 7: Admin Panel
 - [ ] Admin authentication
+- [ ] Account management
 - [ ] Workspace management
-- [ ] User management
 - [ ] Analytics dashboard
-- [ ] Global settings
+- [ ] Global settings (pricing, trials, etc.)
 
 ---
 
@@ -715,10 +820,13 @@ ADMIN_SECRET=  # For admin panel access
 
 | Topic | Decision |
 |-------|----------|
-| **Pricing** | $99/month first seat, $39/month each additional (configurable per user/workspace) |
-| **Rate Limiting** | 1,000 messages/day per user (configurable) |
+| **Entry Points** | Web app (email signup) OR Slack install - can connect both |
+| **Pricing - Monthly** | $99/month first seat, $39/month each additional |
+| **Pricing - Annual** | $69/month first seat, $27/month additional (~30% off, paid upfront) |
+| **Pricing Config** | Configurable at global default and per-account level |
+| **Rate Limiting** | 1,000 messages/day per account (configurable) |
 | **Chat History Retention** | Forever |
-| **Multi-workspace** | Separate licenses per workspace (simple model) |
+| **Multi-workspace** | Accounts can connect multiple Slack workspaces |
 | **DMs** | Supported - users can DM Mikey directly or @mention in channels |
 | **Thread Context** | Each thread = one Chatbase conversation (isolated from other threads) |
 | **Export** | Download, copy to clipboard, shareable URLs |
