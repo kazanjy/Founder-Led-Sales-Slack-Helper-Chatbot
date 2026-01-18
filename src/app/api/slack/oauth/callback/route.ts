@@ -11,6 +11,14 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
+  console.log("OAuth callback started", {
+    hasCode: !!code,
+    error,
+    APP_URL,
+    hasClientId: !!SLACK_CLIENT_ID,
+    hasClientSecret: !!SLACK_CLIENT_SECRET,
+  });
+
   if (error) {
     console.error("OAuth error:", error);
     return NextResponse.redirect(`${APP_URL}?error=${error}`);
@@ -36,10 +44,11 @@ export async function GET(request: NextRequest) {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log("Token exchange response:", { ok: tokenData.ok, error: tokenData.error });
 
     if (!tokenData.ok) {
       console.error("Token exchange error:", tokenData);
-      return NextResponse.redirect(`${APP_URL}?error=token_exchange_failed`);
+      return NextResponse.redirect(`${APP_URL}?error=token_exchange_failed&reason=${encodeURIComponent(tokenData.error || 'unknown')}`);
     }
 
     const {
@@ -106,6 +115,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}?installed=true&workspace=${encodeURIComponent(teamName)}`);
   } catch (err) {
     console.error("OAuth callback error:", err);
-    return NextResponse.redirect(`${APP_URL}?error=server_error`);
+    const errorMessage = err instanceof Error ? err.message : "unknown";
+    return NextResponse.redirect(`${APP_URL}?error=server_error&reason=${encodeURIComponent(errorMessage)}`);
   }
 }
