@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Slack workspace that has installed Mikey
+model Workspace {
+  id                 String    @id @default(cuid())
+  slackTeamId        String    @unique
+  slackTeamName      String
+  installedAt        DateTime  @default(now())
+  installedByUserId  String?
+
+  // Bot token for this workspace (from OAuth)
+  botToken           String
+  botUserId          String?   // The bot's user ID in this workspace
+
+  // Trial config (null = use global defaults)
+  trialDays          Int?
+  trialMessages      Int?
+
+  // Rate limiting (null = use global default of 1000)
+  dailyMessageLimit  Int?
+
+  // Workspace-level license
+  workspaceLicenseId String?
+  workspaceLicense   License?  @relation("WorkspaceLicense", fields: [workspaceLicenseId], references: [id])
+
+  users              User[]
+  conversations      Conversation[]
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("workspaces")
+}
+
+// A user within a workspace
+model User {
+  id              String    @id @default(cuid())
+  slackUserId     String
+  slackUserName   String?
+  slackEmail      String?
+
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Trial tracking
+  trialStartedAt        DateTime?
+  trialMessagesRemaining Int       @default(0)
+
+  // License status
+  licenseStatus   LicenseStatus @default(TRIAL)
+  licenseId       String?
+  license         License?  @relation(fields: [licenseId], references: [id])
+
+  // Rate limiting
+  messagesToday       Int       @default(0)
+  messageCountResetAt DateTime  @default(now())
+
+  // Referral
+  referralCode        String    @unique @default(cuid())
+  referredByUserId    String?
+  referredBy          User?     @relation("Referrals", fields: [referredByUserId], references: [id])
+  referrals           User[]    @relation("Referrals")
+  bonusMessagesEarned Int       @default(0)
+
+  // Relations
+  conversations   Conversation[]
+  messages        Message[]
+  referralsMade   Referral[]    @relation("Referrer")
+  referralsReceived Referral[]  @relation("Referred")
+  sharedConversations SharedConversation[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([slackUserId, workspaceId])
+  @@map("users")
+}
+
+enum LicenseStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+// License for individual or workspace bundle
+model License {
+  id        String      @id @default(cuid())
+  type      LicenseType
+
+  // For individual license
+  userId    String?
+  users     User[]
+
+  // For workspace bundle
+  workspaceId String?
+  workspaces  Workspace[] @relation("WorkspaceLicense")
+  seatLimit   Int?
+  seatsUsed   Int         @default(0)
+
+  // Pricing override (null = use global defaults)
+  priceFirstSeatCents      Int?
+  priceAdditionalSeatCents Int?
+
+  // Billing
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+
+  // Manual override
+  manuallyGranted    Boolean   @default(false)
+  grantedByAdminId   String?
+  notes              String?
+
+  status      LicenseStatusType @default(ACTIVE)
+  expiresAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("licenses")
+}
+
+enum LicenseType {
+  INDIVIDUAL
+  WORKSPACE_BUNDLE
+}
+
+enum LicenseStatusType {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+// A conversation thread (one Slack thread = one conversation)
+model Conversation {
+  id              String    @id @default(cuid())
+
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Slack reference
+  slackChannelId  String
+  slackThreadTs   String    // Thread timestamp = unique thread ID
+
+  // For Chatbase context
+  chatbaseConversationId String?
+
+  // Preview
+  firstMessagePreview String?
+  messageCount        Int       @default(0)
+
+  messages        Message[]
+  sharedLinks     SharedConversation[]
+
+  createdAt       DateTime  @default(now())
+  lastMessageAt   DateTime  @default(now())
+
+  @@unique([workspaceId, slackChannelId, slackThreadTs])
+  @@map("conversations")
+}
+
+// Individual message in a conversation
+model Message {
+  id              String    @id @default(cuid())
+
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+
+  role            MessageRole
+  content         String
+
+  // Slack reference
+  slackMessageTs  String?
+
+  createdAt       DateTime  @default(now())
+
+  @@map("messages")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+// Referral tracking
+model Referral {
+  id              String    @id @default(cuid())
+
+  referrerUserId  String
+  referrer        User      @relation("Referrer", fields: [referrerUserId], references: [id])
+
+  referredUserId  String
+  referred        User      @relation("Referred", fields: [referredUserId], references: [id])
+
+  bonusAwarded    Int       @default(0)
+  status          ReferralStatus @default(PENDING)
+
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([referrerUserId, referredUserId])
+  @@map("referrals")
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+}
+
+// Shared conversation link
+model SharedConversation {
+  id              String    @id @default(cuid())
+
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdBy       User      @relation(fields: [createdByUserId], references: [id])
+
+  shareCode       String    @unique
+
+  // Optional protection
+  passwordHash    String?
+  expiresAt       DateTime?
+
+  viewCount       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  @@map("shared_conversations")
+}
+
+// Global settings (single row)
+model GlobalSettings {
+  id              String    @id @default("global")
+
+  // Default pricing (in cents)
+  defaultPriceFirstSeatCents      Int @default(9900)   // $99
+  defaultPriceAdditionalSeatCents Int @default(3900)   // $39
+
+  // Default trial
+  defaultTrialDays      Int @default(14)
+  defaultTrialMessages  Int @default(50)
+
+  // Default rate limit
+  defaultDailyMessageLimit Int @default(1000)
+
+  // Referral bonus
+  referralBonusMessages Int @default(10)
+
+  updatedAt       DateTime  @updatedAt
+
+  @@map("global_settings")
+}
