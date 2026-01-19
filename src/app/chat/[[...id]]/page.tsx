@@ -138,11 +138,18 @@ export default function ChatPage() {
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messages.length > 0) {
-      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      // Double requestAnimationFrame ensures content is fully painted
       requestAnimationFrame(() => {
-        const behavior = isInitialLoad.current ? "auto" : "smooth";
-        messagesEndRef.current?.scrollIntoView({ behavior });
-        isInitialLoad.current = false;
+        requestAnimationFrame(() => {
+          if (isInitialLoad.current) {
+            // For initial load, scroll instantly without animation
+            messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+            isInitialLoad.current = false;
+          } else {
+            // For new messages, smooth scroll
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+          }
+        });
       });
     }
   }, [messages]);
