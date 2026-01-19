@@ -243,14 +243,15 @@ async function handleMention(
   }
   console.log("Workspace found:", workspace.id);
 
+  const client = getSlackClient(workspace.botToken);
+
   // Get or create user
-  const dbUser = await getOrCreateUser(workspace.id, user);
+  const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
   console.log("User:", dbUser.id);
 
   // Check if user can send messages (license/trial check)
   const canSend = await checkUserCanSendMessage(dbUser);
   console.log("canSend:", canSend);
-  const client = getSlackClient(workspace.botToken);
 
   if (!canSend.allowed) {
     await sendSlackMessage(client, channel, canSend.message, ts);
@@ -302,12 +303,13 @@ async function handleDirectMessage(
     return;
   }
 
+  const client = getSlackClient(workspace.botToken);
+
   // Get or create user
-  const dbUser = await getOrCreateUser(workspace.id, user);
+  const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);
-  const client = getSlackClient(workspace.botToken);
   const threadTs = thread_ts || ts;
 
   if (!canSend.allowed) {
@@ -362,11 +364,12 @@ async function handleThreadReply(
   // Only respond to threads we've already joined
   if (!conversation) return;
 
-  const dbUser = await getOrCreateUser(workspace.id, user);
+  const client = getSlackClient(workspace.botToken);
+
+  const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);
-  const client = getSlackClient(workspace.botToken);
 
   if (!canSend.allowed) {
     await sendSlackMessage(client, channel, canSend.message, thread_ts);
@@ -526,7 +529,7 @@ async function processMessage(
 /**
  * Get or create a user record
  */
-async function getOrCreateUser(workspaceId: string, slackUserId: string) {
+async function getOrCreateUser(workspaceId: string, slackUserId: string, botToken: string) {
   let user = await prisma.user.findUnique({
     where: {
       slackUserId_workspaceId: {
@@ -549,10 +552,31 @@ async function getOrCreateUser(workspaceId: string, slackUserId: string) {
     const trialMessages =
       workspace?.trialMessages ?? settings?.defaultTrialMessages ?? 50;
 
+    // Fetch user info from Slack
+    let slackUserName: string | null = null;
+    let slackEmail: string | null = null;
+
+    try {
+      const client = getSlackClient(botToken);
+      const userInfoResponse = await client.users.info({ user: slackUserId });
+
+      if (userInfoResponse.ok && userInfoResponse.user) {
+        const slackUser = userInfoResponse.user;
+        // Use real_name (full name) or fallback to display name
+        slackUserName = slackUser.real_name || slackUser.profile?.display_name || slackUser.name || null;
+        slackEmail = slackUser.profile?.email || null;
+      }
+    } catch (error) {
+      console.error("Failed to fetch Slack user info:", error);
+      // Continue without user info - we can still create the user
+    }
+
     user = await prisma.user.create({
       data: {
         slackUserId,
         workspaceId,
+        slackUserName,
+        slackEmail,
         trialStartedAt: new Date(),
         trialMessagesRemaining: trialMessages,
         licenseStatus: "TRIAL",
