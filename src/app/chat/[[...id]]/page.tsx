@@ -215,15 +215,13 @@ export default function ChatPage() {
     }
   };
 
-  // Update URL when conversation changes
+  // Update URL when conversation changes (without full page reload)
   const selectConversation = (conversationId: string | null) => {
     setSelectedConversation(conversationId);
     isInitialLoad.current = true; // Reset for new conversation
-    if (conversationId) {
-      router.push(`/chat/${conversationId}`, { scroll: false });
-    } else {
-      router.push('/chat', { scroll: false });
-    }
+    // Use pushState to update URL without triggering Next.js navigation
+    const newUrl = conversationId ? `/chat/${conversationId}` : '/chat';
+    window.history.pushState({}, '', newUrl);
   };
 
   // Scroll to bottom when messages change
