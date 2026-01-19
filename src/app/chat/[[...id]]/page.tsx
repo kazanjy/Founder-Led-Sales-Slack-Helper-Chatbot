@@ -306,16 +306,41 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-6">
           {messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-center">
+              <div className="text-center max-w-[600px]">
+                <img
+                  src="/mikey-avatar.png"
+                  alt="Mikey"
+                  className="w-24 h-24 rounded-2xl mx-auto mb-6"
+                />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Welcome to Mikey
                 </h2>
-                <p className="text-gray-500 mb-4">
+                <p className="text-gray-500 mb-8">
                   Your Founder-Led Sales assistant
                 </p>
-                <p className="text-sm text-gray-400">
-                  Ask me anything about sales strategies, outreach, objection handling, and more.
+
+                <p className="text-sm text-gray-500 mb-4">
+                  Some ideas to start with:
                 </p>
+                <div className="space-y-2">
+                  {[
+                    "🔍 What would be good discovery questions for my product?",
+                    "🎯 Can you help me tighten my ideal customer profile?",
+                    "📧 What would be good outbound messaging for my product?",
+                    "📝 Can you help me write an outbound sequence?",
+                    "📞 Can you help me structure an effective first call?",
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => {
+                        setInputMessage(prompt.slice(2).trim());
+                      }}
+                      className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700 text-sm"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
