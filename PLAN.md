@@ -746,6 +746,7 @@ interface GlobalSettings {
 - [ ] OAuth connections (Slack, Google)
 - [ ] Session management
 - [ ] Link Slack identity to existing account
+- [ ] Allow web-only users without Slack workspace install (Sign in with Slack for identity only)
 
 ### Phase 3: Web Chat Interface
 - [ ] Real-time chat UI
