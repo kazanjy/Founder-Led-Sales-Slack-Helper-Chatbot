@@ -4,6 +4,34 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 
+/**
+ * Format a date as relative time (e.g., "2m ago", "3h ago", "Yesterday", "Jan 15")
+ */
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) {
+    return "Just now";
+  } else if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  } else if (diffDays === 1) {
+    return "Yesterday";
+  } else if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  } else {
+    // Show month and day for older messages
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+}
+
 interface User {
   id: string;
   name: string | null;
@@ -265,7 +293,7 @@ export default function ChatPage() {
                     {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
                   </span>
                   <span className="text-xs text-gray-400">
-                    {new Date(conv.lastMessageAt).toLocaleDateString()}
+                    {formatRelativeTime(conv.lastMessageAt)}
                   </span>
                 </div>
                 <p className="text-sm text-gray-900 truncate">
