@@ -9,8 +9,15 @@ export async function POST(request: NextRequest) {
   try {
     payload = JSON.parse(body);
   } catch {
+    console.error("Failed to parse JSON body");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  console.log("Slack event received:", {
+    type: payload.type,
+    eventType: payload.event?.type,
+    teamId: payload.team_id,
+  });
 
   // Handle URL verification challenge FIRST (before signature verification)
   // This is needed for initial Slack app setup
@@ -28,10 +35,19 @@ export async function POST(request: NextRequest) {
       console.error("Invalid Slack signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
+  } else {
+    console.warn("SLACK_SIGNING_SECRET not set - skipping signature verification");
   }
 
   // Handle events
   if (payload.type === "event_callback") {
+    console.log("Processing event_callback:", {
+      eventType: payload.event?.type,
+      user: payload.event?.user,
+      channel: payload.event?.channel,
+      text: payload.event?.text?.substring(0, 50),
+    });
+
     // Respond immediately to Slack (3 second timeout requirement)
     // Process the event asynchronously
     handleSlackEvent(payload).catch((error) => {
@@ -41,5 +57,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  console.log("Unhandled payload type:", payload.type);
   return NextResponse.json({ ok: true });
 }
