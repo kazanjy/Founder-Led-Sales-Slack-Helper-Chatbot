@@ -74,8 +74,55 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+
+  // Show toast notification
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Copy conversation as markdown
+  const handleCopy = () => {
+    if (messages.length === 0) return;
+
+    const markdown = messages
+      .map((msg) => {
+        if (msg.role === "USER") {
+          return `**You:** ${msg.content}`;
+        } else {
+          return `**Mikey:** ${msg.content}`;
+        }
+      })
+      .join("\n\n---\n\n");
+
+    navigator.clipboard.writeText(markdown);
+    showToast("Copied to clipboard!");
+  };
+
+  // Share conversation
+  const handleShare = async () => {
+    if (!selectedConversation || messages.length === 0) return;
+
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}/share`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.shareUrl) {
+        navigator.clipboard.writeText(data.shareUrl);
+        showToast("Link copied! This chat is now available to anyone with this link.");
+      } else {
+        showToast("Failed to share conversation");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      showToast("Failed to share conversation");
+    }
+  };
 
   // Update URL when conversation changes
   const selectConversation = (conversationId: string | null) => {
@@ -342,6 +389,35 @@ export default function ChatPage() {
 
       {/* Main Chat Area - scrolls independently */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Chat header with Copy/Share buttons */}
+        {messages.length > 0 && (
+          <div className="border-b border-gray-200 px-6 py-3 flex justify-end gap-2 bg-white">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+              Share
+            </button>
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
           {messages.length === 0 ? (
@@ -461,6 +537,13 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
