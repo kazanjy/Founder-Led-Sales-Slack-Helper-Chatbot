@@ -836,11 +836,58 @@ ADMIN_SECRET=  # For admin panel access
 Users can share and export their conversations:
 
 - **Download** - Export as PDF, Markdown, or plain text
-- **Copy to clipboard** - One-click copy of conversation
-- **Shareable URL** - Generate a public link to share with others (e.g., `https://mikey.app/c/abc123`)
+- **Copy to clipboard** - One-click copy of conversation *(implemented)*
+- **Shareable URL** - Generate a public link to share with others *(implemented)*
   - Optional: password protection
   - Optional: expiration date
   - Read-only view for recipients
+
+---
+
+## Shared Conversation Experience (Public View)
+
+When a non-logged-in user accesses a shared conversation link (`/share/[code]`), they see:
+
+### Current Implementation
+- Clean, minimal page with just the conversation
+- Mikey branding in header
+- "Shared conversation" label
+- Same message styling as main app (17px font, user messages right-aligned, Mikey responses with markdown)
+- Footer with "Try Mikey" button
+
+### TODO: Improve Shared Experience & CTA
+
+- [ ] **Header improvements**
+  - [ ] Add Mikey logo/avatar more prominently
+  - [ ] Consider showing conversation title if available
+  - [ ] Add subtle "Powered by Mikey - Founder-Led Sales AI" tagline
+
+- [ ] **CTA merchandising**
+  - [ ] Design compelling CTA block at bottom of shared conversation
+  - [ ] Headline options to test:
+    - "Get your own founder-led sales answers"
+    - "Ask Mikey your sales questions"
+    - "Want sales advice like this? Try Mikey free"
+  - [ ] Include value props: "7-day free trial • No credit card required • Works in Slack"
+  - [ ] Primary CTA button: "Start Your Free Trial" or "Try Mikey Free"
+  - [ ] Secondary link: "Learn more about Mikey"
+
+- [ ] **Social proof on shared pages**
+  - [ ] Consider showing "X people have viewed this conversation"
+  - [ ] Optional: testimonial snippet or trust badges
+
+- [ ] **Inline CTAs**
+  - [ ] After particularly good Mikey responses, show subtle inline prompt
+  - [ ] Example: "💡 Want personalized advice like this? [Try Mikey →]"
+
+- [ ] **Mobile optimization**
+  - [ ] Ensure shared page looks great on mobile
+  - [ ] Sticky CTA on mobile scroll
+
+- [ ] **SEO considerations**
+  - [ ] Add appropriate meta tags for shared pages
+  - [ ] Open Graph tags for social sharing preview
+  - [ ] Consider if shared conversations should be indexable
 
 ---
 
