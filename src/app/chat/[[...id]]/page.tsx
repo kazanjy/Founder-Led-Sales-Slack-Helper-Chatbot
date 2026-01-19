@@ -75,6 +75,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -280,12 +281,15 @@ export default function ChatPage() {
         return;
       }
 
+      setLoadingMessages(true);
       try {
         const res = await fetch(`/api/conversations/${selectedConversation}`);
         const data = await res.json();
         setMessages(data.conversation?.messages || []);
       } catch (error) {
         console.error("Error loading messages:", error);
+      } finally {
+        setLoadingMessages(false);
       }
     }
 
@@ -604,7 +608,18 @@ export default function ChatPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
-          {messages.length === 0 ? (
+          {loadingMessages ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex items-center gap-2 text-gray-500">
+                <div className="flex gap-1">
+                  <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
+                  <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
+                  <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
+                </div>
+                <span>Mikey is thinking...</span>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-[600px]">
                 <img
