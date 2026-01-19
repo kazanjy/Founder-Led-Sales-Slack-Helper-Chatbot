@@ -637,7 +637,7 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500 mb-4">
                   Some ideas to start with:
                 </p>
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     "📏 Can you help me measure my GTM maturity?",
                     "🔍 What would be good discovery questions for my product?",
@@ -652,7 +652,7 @@ export default function ChatPage() {
                     <button
                       key={prompt}
                       onClick={() => sendMessage(prompt.slice(2).trim())}
-                      className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700 text-sm"
+                      className="text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700 text-sm"
                     >
                       {prompt}
                     </button>
