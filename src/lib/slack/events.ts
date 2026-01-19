@@ -418,6 +418,8 @@ async function processMessage(
     },
   });
 
+  const isNewConversation = !conversation;
+
   if (!conversation) {
     conversation = await prisma.conversation.create({
       data: {
@@ -470,7 +472,15 @@ async function processMessage(
     }
 
     // Convert markdown to Slack format and send response
-    const slackResponse = markdownToSlack(response);
+    let slackResponse = markdownToSlack(response);
+
+    // Add web app link for new conversations
+    if (isNewConversation) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+      const webChatUrl = `${appUrl}/chat/${conversation.id}`;
+      slackResponse = `_You can always come back to this discussion in the Mikey web app: ${webChatUrl}_\n\n${slackResponse}`;
+    }
+
     const responseTs = await sendSlackMessage(client, channel, slackResponse, threadTs);
 
     // Save assistant message
