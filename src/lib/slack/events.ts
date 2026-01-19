@@ -165,7 +165,9 @@ async function handleAppHomeOpened(
         ? "✅ *Status:* Licensed"
         : dbUser.licenseStatus === "TRIAL"
         ? `🎁 *Status:* Trial (${dbUser.trialMessagesRemaining} messages remaining)`
-        : "⚠️ *Status:* Trial ended";
+        : dbUser.trialMessagesRemaining > 0
+        ? `⚠️ *Status:* Free tier (${dbUser.trialMessagesRemaining} messages remaining)`
+        : "❌ *Status:* No messages remaining";
 
     blocks.push(
       {
@@ -563,6 +565,9 @@ async function checkUserCanSendMessage(
     return { allowed: true, message: "" };
   }
 
+  // Free tier messages for unlicensed users
+  const FREE_TIER_MESSAGES = 20;
+
   // Check trial status
   if (user.licenseStatus === "TRIAL") {
     // Check days
@@ -577,29 +582,42 @@ async function checkUserCanSendMessage(
 
     // Trial ends when BOTH days and messages are exhausted
     if (trialDaysRemaining <= 0 && trialMessagesRemaining <= 0) {
+      // Transition to EXPIRED but give them free tier messages
       await prisma.user.update({
         where: { id: user.id },
-        data: { licenseStatus: "EXPIRED" },
+        data: {
+          licenseStatus: "EXPIRED",
+          trialMessagesRemaining: FREE_TIER_MESSAGES,
+        },
       });
 
-      return {
-        allowed: false,
-        message:
-          "Your trial has ended. To continue using Mikey, you'll need a license. " +
-          "In the meantime, someone with a license can ask questions on your behalf. " +
-          "Ready to upgrade? Visit your dashboard to get started!",
-      };
+      // Allow this message since we just gave them free tier messages
+      return { allowed: true, message: "" };
     }
 
     return { allowed: true, message: "" };
   }
 
-  // User is expired or suspended
+  // User is expired - check if they have free tier messages remaining
+  if (user.licenseStatus === "EXPIRED") {
+    if (user.trialMessagesRemaining > 0) {
+      return { allowed: true, message: "" };
+    }
+
+    return {
+      allowed: false,
+      message:
+        `You've used your ${FREE_TIER_MESSAGES} free messages. ` +
+        "To continue using Mikey, you'll need a license. " +
+        "In the meantime, someone with a license can ask questions on your behalf!",
+    };
+  }
+
+  // User is suspended or other status
   return {
     allowed: false,
     message:
       "You need a license to ask Mikey questions. " +
-      "In the meantime, someone with a license can ask questions on your behalf. " +
-      "Ready to get started? Visit your dashboard!",
+      "In the meantime, someone with a license can ask questions on your behalf!",
   };
 }
