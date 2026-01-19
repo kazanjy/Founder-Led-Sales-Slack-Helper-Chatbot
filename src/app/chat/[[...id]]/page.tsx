@@ -450,14 +450,14 @@ export default function ChatPage() {
                   className="w-full p-4 text-left transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-gray-400">
+                    <span className="text-[13px] text-gray-400">
                       {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-[13px] text-gray-400">
                       {formatRelativeTime(conv.lastMessageAt)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-900 truncate pr-8">
+                  <p className="text-[15px] text-gray-900 truncate pr-8">
                     {conv.title || conv.firstMessagePreview || "New conversation"}
                   </p>
                 </button>
