@@ -23,13 +23,17 @@ interface SlackEventPayload {
 export async function handleSlackEvent(payload: SlackEventPayload) {
   const { team_id, event } = payload;
 
+  console.log("handleSlackEvent called:", { team_id, eventType: event.type, bot_id: event.bot_id });
+
   // Ignore bot messages to prevent loops
   if (event.bot_id) {
+    console.log("Ignoring bot message");
     return;
   }
 
   // Handle app_mention events (in channels)
   if (event.type === "app_mention") {
+    console.log("Routing to handleMention");
     await handleMention(team_id, event);
     return;
   }
@@ -211,10 +215,16 @@ async function handleMention(
   teamId: string,
   event: SlackEventPayload["event"]
 ) {
+  console.log("handleMention started:", { teamId, event });
+
   const { user, text, channel, ts } = event;
-  if (!user || !text || !channel || !ts) return;
+  if (!user || !text || !channel || !ts) {
+    console.log("Missing required fields:", { user, text, channel, ts });
+    return;
+  }
 
   // Get the workspace
+  console.log("Looking up workspace:", teamId);
   const workspace = await prisma.workspace.findUnique({
     where: { slackTeamId: teamId },
   });
@@ -223,12 +233,15 @@ async function handleMention(
     console.error("Workspace not found:", teamId);
     return;
   }
+  console.log("Workspace found:", workspace.id);
 
   // Get or create user
   const dbUser = await getOrCreateUser(workspace.id, user);
+  console.log("User:", dbUser.id);
 
   // Check if user can send messages (license/trial check)
   const canSend = await checkUserCanSendMessage(dbUser);
+  console.log("canSend:", canSend);
   if (!canSend.allowed) {
     const client = getSlackClient(workspace.botToken);
     await sendSlackMessage(client, channel, canSend.message, ts);
@@ -237,6 +250,7 @@ async function handleMention(
 
   // Strip the bot mention from the message
   const cleanText = text.replace(/<@[A-Z0-9]+>/g, "").trim();
+  console.log("Clean text:", cleanText);
 
   if (!cleanText) {
     const client = getSlackClient(workspace.botToken);
@@ -250,7 +264,9 @@ async function handleMention(
   }
 
   // Process the message
+  console.log("Calling processMessage");
   await processMessage(workspace, dbUser, channel, ts, cleanText);
+  console.log("processMessage completed");
 }
 
 /**
