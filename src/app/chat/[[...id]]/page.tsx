@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 
 interface User {
@@ -34,14 +34,29 @@ interface Conversation {
 
 export default function ChatPage() {
   const router = useRouter();
+  const params = useParams();
+
+  // Get conversation ID from URL params (optional catch-all returns array)
+  const conversationIdFromUrl = params.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : null;
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(conversationIdFromUrl);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Update URL when conversation changes
+  const selectConversation = (conversationId: string | null) => {
+    setSelectedConversation(conversationId);
+    if (conversationId) {
+      router.push(`/chat/${conversationId}`, { scroll: false });
+    } else {
+      router.push('/chat', { scroll: false });
+    }
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -104,7 +119,7 @@ export default function ChatPage() {
 
       if (data.conversation) {
         setConversations([data.conversation, ...conversations]);
-        setSelectedConversation(data.conversation.id);
+        selectConversation(data.conversation.id);
         setMessages([]);
       }
     } catch (error) {
@@ -126,7 +141,7 @@ export default function ChatPage() {
         if (data.conversation) {
           conversationId = data.conversation.id;
           setConversations([data.conversation, ...conversations]);
-          setSelectedConversation(conversationId);
+          selectConversation(conversationId);
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
@@ -230,7 +245,7 @@ export default function ChatPage() {
             conversations.map((conv) => (
               <button
                 key={conv.id}
-                onClick={() => setSelectedConversation(conv.id)}
+                onClick={() => selectConversation(conv.id)}
                 className={`w-full p-4 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
                   selectedConversation === conv.id ? "bg-blue-50" : ""
                 }`}
