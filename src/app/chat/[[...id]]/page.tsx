@@ -127,10 +127,8 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!inputMessage.trim() || sending || !user?.canChat) return;
+  const sendMessage = async (messageText: string) => {
+    if (!messageText.trim() || sending || !user?.canChat) return;
 
     // If no conversation selected, create one first
     let conversationId = selectedConversation;
@@ -149,7 +147,7 @@ export default function ChatPage() {
       }
     }
 
-    const userMessage = inputMessage.trim();
+    const userMessage = messageText.trim();
     setInputMessage("");
     setSending(true);
 
@@ -200,6 +198,11 @@ export default function ChatPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(inputMessage);
   };
 
   const handleLogout = async () => {
@@ -333,9 +336,7 @@ export default function ChatPage() {
                   ].map((prompt) => (
                     <button
                       key={prompt}
-                      onClick={() => {
-                        setInputMessage(prompt.slice(2).trim());
-                      }}
+                      onClick={() => sendMessage(prompt.slice(2).trim())}
                       className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700 text-sm"
                     >
                       {prompt}
