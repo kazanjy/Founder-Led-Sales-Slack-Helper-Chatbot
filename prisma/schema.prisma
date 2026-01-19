@@ -75,6 +75,7 @@ model User {
   referralsMade   Referral[]    @relation("Referrer")
   referralsReceived Referral[]  @relation("Referred")
   sharedConversations SharedConversation[]
+  sessions        Session[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -139,19 +140,25 @@ enum LicenseStatusType {
   SUSPENDED
 }
 
-// A conversation thread (one Slack thread = one conversation)
+// A conversation thread (Slack thread or web chat)
 model Conversation {
   id              String    @id @default(cuid())
 
   userId          String
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  workspaceId     String
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String?   // Null for web-only conversations
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  // Slack reference
-  slackChannelId  String
-  slackThreadTs   String    // Thread timestamp = unique thread ID
+  // Source of the conversation
+  source          ConversationSource @default(SLACK)
+
+  // Slack reference (null for web conversations)
+  slackChannelId  String?
+  slackThreadTs   String?   // Thread timestamp = unique thread ID
+
+  // Title for web conversations (auto-generated or user-set)
+  title           String?
 
   // For Chatbase context
   chatbaseConversationId String?
@@ -168,6 +175,11 @@ model Conversation {
 
   @@unique([workspaceId, slackChannelId, slackThreadTs])
   @@map("conversations")
+}
+
+enum ConversationSource {
+  SLACK
+  WEB
 }
 
 // Individual message in a conversation
@@ -242,6 +254,22 @@ model SharedConversation {
   createdAt       DateTime  @default(now())
 
   @@map("shared_conversations")
+}
+
+// Web session for authenticated users
+model Session {
+  id              String    @id @default(cuid())
+
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session token (stored in cookie)
+  token           String    @unique
+
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+
+  @@map("sessions")
 }
 
 // Global settings (single row)

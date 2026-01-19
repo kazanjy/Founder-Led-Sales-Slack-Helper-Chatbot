@@ -34,23 +34,35 @@ export default async function Home({ searchParams }: HomeProps) {
         {error && (
           <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-red-800 dark:text-red-200">
-              Installation failed: {error}. Please try again.
+              {error === "workspace_not_found"
+                ? "Your workspace hasn't installed Mikey yet. Please install first."
+                : error === "not_logged_in"
+                ? "Please sign in to continue."
+                : `Error: ${error}. Please try again.`}
             </p>
           </div>
         )}
 
         <div className="space-y-4">
-          <a
-            href="/api/slack/oauth"
-            className="inline-block bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            Add to Slack
-          </a>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/api/slack/oauth"
+              className="inline-block bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              Add to Slack
+            </a>
+            <a
+              href="/api/auth/slack"
+              className="inline-block bg-white border-2 border-[#4A154B] text-[#4A154B] hover:bg-gray-50 font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              Sign in with Slack
+            </a>
+          </div>
 
           <p className="text-sm text-gray-500">
-            Already installed?{" "}
-            <a href="/dashboard" className="text-blue-600 hover:underline">
-              Go to Dashboard
+            Already signed in?{" "}
+            <a href="/chat" className="text-blue-600 hover:underline">
+              Go to Chat
             </a>
           </p>
         </div>

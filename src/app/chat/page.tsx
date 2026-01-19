@@ -1,0 +1,365 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+
+interface User {
+  id: string;
+  name: string | null;
+  email: string | null;
+  workspaceName: string | null;
+  licenseStatus: string;
+  trialDaysRemaining: number;
+  canChat: boolean;
+  chatBlockedMessage: string;
+}
+
+interface Message {
+  id: string;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  createdAt: string;
+}
+
+interface Conversation {
+  id: string;
+  source: "SLACK" | "WEB";
+  title: string | null;
+  firstMessagePreview: string | null;
+  messageCount: number;
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export default function ChatPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Load user and conversations on mount
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Get current user
+        const userRes = await fetch("/api/auth/me");
+        const userData = await userRes.json();
+
+        if (!userData.user) {
+          router.push("/?error=not_logged_in");
+          return;
+        }
+
+        setUser(userData.user);
+
+        // Get conversations
+        const convsRes = await fetch("/api/conversations");
+        const convsData = await convsRes.json();
+        setConversations(convsData.conversations || []);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [router]);
+
+  // Load messages when conversation is selected
+  useEffect(() => {
+    async function loadMessages() {
+      if (!selectedConversation) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/conversations/${selectedConversation}`);
+        const data = await res.json();
+        setMessages(data.conversation?.messages || []);
+      } catch (error) {
+        console.error("Error loading messages:", error);
+      }
+    }
+
+    loadMessages();
+  }, [selectedConversation]);
+
+  const handleNewChat = async () => {
+    try {
+      const res = await fetch("/api/conversations", { method: "POST" });
+      const data = await res.json();
+
+      if (data.conversation) {
+        setConversations([data.conversation, ...conversations]);
+        setSelectedConversation(data.conversation.id);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+    }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!inputMessage.trim() || sending || !user?.canChat) return;
+
+    // If no conversation selected, create one first
+    let conversationId = selectedConversation;
+    if (!conversationId) {
+      try {
+        const res = await fetch("/api/conversations", { method: "POST" });
+        const data = await res.json();
+        if (data.conversation) {
+          conversationId = data.conversation.id;
+          setConversations([data.conversation, ...conversations]);
+          setSelectedConversation(conversationId);
+        }
+      } catch (error) {
+        console.error("Error creating conversation:", error);
+        return;
+      }
+    }
+
+    const userMessage = inputMessage.trim();
+    setInputMessage("");
+    setSending(true);
+
+    // Optimistically add user message
+    const tempUserMsg: Message = {
+      id: `temp-${Date.now()}`,
+      role: "USER",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        return;
+      }
+
+      // Add assistant response
+      setMessages((prev) => [...prev, data.message]);
+
+      // Update conversation in list
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
+                messageCount: c.messageCount + 2,
+                lastMessageAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex bg-gray-50">
+      {/* Sidebar */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
+          <p className="text-sm text-gray-500">{user?.workspaceName}</p>
+        </div>
+
+        {/* New Chat Button */}
+        <div className="p-4">
+          <button
+            onClick={handleNewChat}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + New Chat
+          </button>
+        </div>
+
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="p-4 text-center text-gray-500 text-sm">
+              No conversations yet. Start a new chat!
+            </div>
+          ) : (
+            conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => setSelectedConversation(conv.id)}
+                className={`w-full p-4 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                  selectedConversation === conv.id ? "bg-blue-50" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-gray-400">
+                    {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(conv.lastMessageAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-900 truncate">
+                  {conv.title || conv.firstMessagePreview || "New conversation"}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* User Info */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-900">
+              {user?.name || user?.email || "User"}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Sign Out
+            </button>
+          </div>
+          <div className="text-xs text-gray-500">
+            {user?.licenseStatus === "ACTIVE" ? (
+              <span className="text-green-600">✓ Licensed</span>
+            ) : user?.licenseStatus === "TRIAL" ? (
+              <span className="text-blue-600">
+                🎁 Trial ({user.trialDaysRemaining} days left)
+              </span>
+            ) : (
+              <span className="text-red-600">Trial ended</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {messages.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Welcome to Mikey
+                </h2>
+                <p className="text-gray-500 mb-4">
+                  Your Founder-Led Sales assistant
+                </p>
+                <p className="text-sm text-gray-400">
+                  Ask me anything about sales strategies, outreach, objection handling, and more.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.role === "USER" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-4 rounded-lg ${
+                      msg.role === "USER"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white border border-gray-200 text-gray-900"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+              {sending && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-gray-200 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <div className="animate-pulse">●</div>
+                      <span>Mikey is thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-gray-200 p-4 bg-white">
+          {!user?.canChat ? (
+            <div className="max-w-3xl mx-auto text-center py-4">
+              <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
+              <button className="text-blue-600 hover:underline">
+                Subscribe to continue
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ask Mikey anything about founder-led sales..."
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={sending}
+                />
+                <button
+                  type="submit"
+                  disabled={!inputMessage.trim() || sending}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
