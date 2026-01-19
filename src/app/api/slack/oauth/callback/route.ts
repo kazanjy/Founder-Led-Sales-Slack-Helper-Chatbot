@@ -96,14 +96,13 @@ export async function GET(request: NextRequest) {
         await client.chat.postMessage({
           channel: dmResult.channel.id,
           text:
-            "Hey! I'm Mikey, your Founder-Led Sales assistant. Here's what I can help with:\n\n" +
-            "• Crafting cold outreach messages\n" +
-            "• Handling objections\n" +
-            "• Pricing strategy advice\n" +
-            "• Sales call preparation\n" +
-            "• Follow-up sequences\n\n" +
-            "*Get started:* Just @mention me in any channel with your question, or message me directly here!\n\n" +
-            "_Your trial has started. Enjoy exploring!_",
+            "👋 Hey! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
+            "I'm here to help you with everything Pete can help you with - sales strategies, outreach, objection handling, and more.\n\n" +
+            "*How to use me:*\n" +
+            "• Mention me in any channel: `@Mikey how do I handle pricing objections?`\n" +
+            "• Or DM me directly right here!\n\n" +
+            "I'll always respond in a thread to keep conversations organized.\n\n" +
+            "Here's to some founder-led selling success! 🚀",
         });
       }
     } catch (dmError) {
