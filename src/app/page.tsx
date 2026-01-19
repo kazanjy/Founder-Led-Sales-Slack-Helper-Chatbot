@@ -11,6 +11,11 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8">
       <div className="max-w-2xl text-center">
+        <img
+          src="https://avatars.slack-edge.com/2026-01-18/10320553037734_48af7d9ecc580a91efb1_512.png"
+          alt="Mikey"
+          className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+        />
         <h1 className="text-4xl font-bold mb-4">Mikey</h1>
         <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
           Your AI-powered Founder-Led Sales assistant for Slack
