@@ -380,11 +380,11 @@ export default function ChatPage() {
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                        <p className="whitespace-pre-wrap text-gray-900 text-lg">{msg.content}</p>
+                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">{msg.content}</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4">
+                    <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   )}
@@ -425,8 +425,8 @@ export default function ChatPage() {
                       }
                     }
                   }}
-                  placeholder="Ask Mikey anything about founder-led sales... (Enter to send, Shift+Enter for new line)"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-lg"
+                  placeholder="Ask Mikey anything about founder-led sales..."
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px]"
                   disabled={sending}
                   rows={1}
                   style={{ height: 'auto' }}
