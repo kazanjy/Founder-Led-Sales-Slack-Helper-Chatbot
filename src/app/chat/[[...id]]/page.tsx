@@ -91,8 +91,8 @@ export default function ChatPage() {
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messages.length > 0) {
-      // Use instant scroll for initial load, smooth for new messages
-      const behavior = isInitialLoad.current ? "instant" : "smooth";
+      // Use auto (instant) scroll for initial load, smooth for new messages
+      const behavior = isInitialLoad.current ? "auto" : "smooth";
       messagesEndRef.current?.scrollIntoView({ behavior });
       isInitialLoad.current = false;
     }
