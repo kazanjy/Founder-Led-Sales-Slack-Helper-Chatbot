@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
-import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
+import { getSlackClient, sendSlackMessage } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { markdownToSlack } from "./markdown";
 
 interface SlackEventPayload {
   team_id: string;
@@ -425,8 +426,9 @@ async function processMessage(
       });
     }
 
-    // Send response to Slack
-    const responseTs = await sendSlackMessage(client, channel, response, threadTs);
+    // Convert markdown to Slack format and send response
+    const slackResponse = markdownToSlack(response);
+    const responseTs = await sendSlackMessage(client, channel, slackResponse, threadTs);
 
     // Save assistant message
     await prisma.message.create({
