@@ -58,6 +58,7 @@ interface Conversation {
   messageCount: number;
   createdAt: string;
   lastMessageAt: string;
+  archived?: boolean;
 }
 
 export default function ChatPage() {
@@ -75,8 +76,21 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Show toast notification
   const showToast = (message: string) => {
@@ -121,6 +135,83 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error sharing:", error);
       showToast("Failed to share conversation");
+    }
+  };
+
+  // Share a specific conversation from the sidebar menu
+  const handleShareConversation = async (conversationId: string) => {
+    setOpenMenuId(null);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/share`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.shareUrl) {
+        navigator.clipboard.writeText(data.shareUrl);
+        showToast("Link copied! This chat is now available to anyone with this link.");
+      } else {
+        showToast("Failed to share conversation");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      showToast("Failed to share conversation");
+    }
+  };
+
+  // Archive a conversation
+  const handleArchiveConversation = async (conversationId: string) => {
+    setOpenMenuId(null);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      });
+
+      if (res.ok) {
+        // Remove from list
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+        // If this was selected, clear selection
+        if (selectedConversation === conversationId) {
+          selectConversation(null);
+        }
+        showToast("Conversation archived");
+      } else {
+        showToast("Failed to archive conversation");
+      }
+    } catch (error) {
+      console.error("Error archiving:", error);
+      showToast("Failed to archive conversation");
+    }
+  };
+
+  // Delete a conversation
+  const handleDeleteConversation = async (conversationId: string) => {
+    setOpenMenuId(null);
+    if (!confirm("Are you sure you want to delete this conversation? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        // Remove from list
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+        // If this was selected, clear selection
+        if (selectedConversation === conversationId) {
+          selectConversation(null);
+        }
+        showToast("Conversation deleted");
+      } else {
+        showToast("Failed to delete conversation");
+      }
+    } catch (error) {
+      console.error("Error deleting:", error);
+      showToast("Failed to delete conversation");
     }
   };
 
@@ -348,25 +439,102 @@ export default function ChatPage() {
             </div>
           ) : (
             conversations.map((conv) => (
-              <button
+              <div
                 key={conv.id}
-                onClick={() => selectConversation(conv.id)}
-                className={`w-full p-4 text-left border-b border-gray-200 hover:bg-gray-200 transition-colors ${
-                  selectedConversation === conv.id ? "bg-white" : ""
+                className={`relative group border-b border-gray-200 ${
+                  selectedConversation === conv.id ? "bg-white" : "hover:bg-gray-200"
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-gray-400">
-                    {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {formatRelativeTime(conv.lastMessageAt)}
-                  </span>
+                <button
+                  onClick={() => selectConversation(conv.id)}
+                  className="w-full p-4 text-left transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-gray-400">
+                      {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {formatRelativeTime(conv.lastMessageAt)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-900 truncate pr-8">
+                    {conv.title || conv.firstMessagePreview || "New conversation"}
+                  </p>
+                </button>
+
+                {/* Three-dot menu button */}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(openMenuId === conv.id ? null : conv.id);
+                    }}
+                    className={`p-1.5 rounded hover:bg-gray-300 transition-colors ${
+                      openMenuId === conv.id ? "bg-gray-300" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
+                      <circle cx="12" cy="5" r="2"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                      <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {openMenuId === conv.id && (
+                    <div
+                      ref={menuRef}
+                      className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShareConversation(conv.id);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3"></circle>
+                          <circle cx="6" cy="12" r="3"></circle>
+                          <circle cx="18" cy="19" r="3"></circle>
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        Share
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchiveConversation(conv.id);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                          <rect x="1" y="3" width="22" height="5"></rect>
+                          <line x1="10" y1="12" x2="14" y2="12"></line>
+                        </svg>
+                        Archive
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(conv.id);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          <line x1="10" y1="11" x2="10" y2="17"></line>
+                          <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-gray-900 truncate">
-                  {conv.title || conv.firstMessagePreview || "New conversation"}
-                </p>
-              </button>
+              </div>
             ))
           )}
         </div>

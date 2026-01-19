@@ -167,6 +167,9 @@ model Conversation {
   firstMessagePreview String?
   messageCount        Int       @default(0)
 
+  // Archived conversations (hidden from list but not deleted)
+  archived            Boolean   @default(false)
+
   messages        Message[]
   sharedLinks     SharedConversation[]
 

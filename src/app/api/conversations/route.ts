@@ -4,16 +4,24 @@ import { prisma } from "@/lib/db";
 
 /**
  * GET /api/conversations - List user's conversations
+ * Query params:
+ *   - archived: "true" to show only archived, "false" or omit for non-archived
  */
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const showArchived = searchParams.get("archived") === "true";
+
   const conversations = await prisma.conversation.findMany({
-    where: { userId: user.id },
+    where: {
+      userId: user.id,
+      archived: showArchived,
+    },
     orderBy: { lastMessageAt: "desc" },
     select: {
       id: true,
@@ -24,6 +32,7 @@ export async function GET() {
       createdAt: true,
       lastMessageAt: true,
       slackChannelId: true,
+      archived: true,
     },
   });
 

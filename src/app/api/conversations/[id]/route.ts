@@ -81,3 +81,49 @@ export async function DELETE(
 
   return NextResponse.json({ success: true });
 }
+
+/**
+ * PATCH /api/conversations/[id] - Update conversation (archive/unarchive)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const body = await request.json();
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id },
+  });
+
+  if (!conversation) {
+    return NextResponse.json(
+      { error: "Conversation not found" },
+      { status: 404 }
+    );
+  }
+
+  if (conversation.userId !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Only allow updating archived status for now
+  const updatedConversation = await prisma.conversation.update({
+    where: { id },
+    data: {
+      archived: body.archived ?? conversation.archived,
+    },
+    select: {
+      id: true,
+      archived: true,
+    },
+  });
+
+  return NextResponse.json({ conversation: updatedConversation });
+}
