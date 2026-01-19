@@ -247,9 +247,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex bg-white overflow-hidden">
       {/* Sidebar - fixed height, doesn't scroll with chat */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
+      <div className="w-80 bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
           <img
@@ -284,8 +284,8 @@ export default function ChatPage() {
               <button
                 key={conv.id}
                 onClick={() => selectConversation(conv.id)}
-                className={`w-full p-4 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                  selectedConversation === conv.id ? "bg-blue-50" : ""
+                className={`w-full p-4 text-left border-b border-gray-200 hover:bg-gray-200 transition-colors ${
+                  selectedConversation === conv.id ? "bg-white" : ""
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -379,7 +379,7 @@ export default function ChatPage() {
                 <div key={msg.id}>
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
-                      <div className="border border-gray-200 rounded-lg p-4 bg-white max-w-[70%]">
+                      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
                         <p className="whitespace-pre-wrap text-gray-900 text-xl">{msg.content}</p>
                       </div>
                     </div>
