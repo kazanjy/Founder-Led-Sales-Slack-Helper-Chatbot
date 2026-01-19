@@ -392,8 +392,12 @@ export default function ChatPage() {
               ))}
               {sending && (
                 <div className="flex items-center gap-2 text-gray-500 mt-4">
-                  <div className="animate-pulse">●</div>
-                  <span>Mikey is thinking...</span>
+                  <div className="flex gap-1">
+                    <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
+                    <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
+                    <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
+                  </div>
+                  <span>Mikey is riding the wave...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
