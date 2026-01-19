@@ -14,7 +14,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <img
           src="/mikey-avatar.png"
           alt="Mikey"
-          className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+          className="w-64 h-64 mx-auto mb-6 rounded-2xl shadow-lg"
         />
         <h1 className="text-4xl font-bold mb-4">Mikey</h1>
         <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
