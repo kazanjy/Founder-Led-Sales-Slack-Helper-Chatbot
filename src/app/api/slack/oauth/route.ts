@@ -7,11 +7,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const BOT_SCOPES = [
   "app_mentions:read",
   "chat:write",
+  "chat:write.public", // Post to public channels without joining
+  "channels:read", // List channels for setup page
   "im:history",
   "im:read",
   "im:write",
   "users:read",
-  "incoming-webhook", // For channel welcome message
 ].join(",");
 
 export async function GET() {
