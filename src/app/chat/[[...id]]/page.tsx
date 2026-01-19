@@ -75,10 +75,12 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true);
 
   // Update URL when conversation changes
   const selectConversation = (conversationId: string | null) => {
     setSelectedConversation(conversationId);
+    isInitialLoad.current = true; // Reset for new conversation
     if (conversationId) {
       router.push(`/chat/${conversationId}`, { scroll: false });
     } else {
@@ -88,7 +90,12 @@ export default function ChatPage() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      // Use instant scroll for initial load, smooth for new messages
+      const behavior = isInitialLoad.current ? "instant" : "smooth";
+      messagesEndRef.current?.scrollIntoView({ behavior });
+      isInitialLoad.current = false;
+    }
   }, [messages]);
 
   // Load user and conversations on mount
