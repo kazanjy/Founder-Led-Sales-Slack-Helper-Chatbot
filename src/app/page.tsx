@@ -1,8 +1,17 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+
 interface HomeProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function Home({ searchParams }: HomeProps) {
+  // Check if user is already logged in
+  const user = await getCurrentUser();
+  if (user) {
+    redirect("/chat");
+  }
+
   const params = await searchParams;
   const installed = params.installed === "true";
   const workspace = params.workspace as string | undefined;
