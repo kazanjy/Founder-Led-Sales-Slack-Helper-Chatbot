@@ -270,9 +270,9 @@ export default function ChatPage() {
       // Add assistant response
       setMessages((prev) => [...prev, data.message]);
 
-      // Update conversation in list
-      setConversations((prev) =>
-        prev.map((c) =>
+      // Update conversation in list and move to top (most recent)
+      setConversations((prev) => {
+        const updated = prev.map((c) =>
           c.id === conversationId
             ? {
                 ...c,
@@ -281,8 +281,12 @@ export default function ChatPage() {
                 lastMessageAt: new Date().toISOString(),
               }
             : c
-        )
-      );
+        );
+        // Sort by lastMessageAt descending
+        return updated.sort((a, b) =>
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+        );
+      });
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
