@@ -13,6 +13,7 @@ interface SlackEventPayload {
     thread_ts?: string;
     bot_id?: string;
     channel_type?: string;
+    tab?: string;
   };
 }
 
@@ -39,10 +40,167 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
     return;
   }
 
+  // Handle App Home opened
+  if (event.type === "app_home_opened" && event.tab === "home") {
+    await handleAppHomeOpened(team_id, event);
+    return;
+  }
+
   // Handle thread replies (continuing a conversation)
   if (event.type === "message" && event.thread_ts && event.thread_ts !== event.ts) {
     await handleThreadReply(team_id, event);
     return;
+  }
+}
+
+/**
+ * Handle App Home opened event
+ */
+async function handleAppHomeOpened(
+  teamId: string,
+  event: SlackEventPayload["event"]
+) {
+  const { user } = event;
+  if (!user) return;
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { slackTeamId: teamId },
+  });
+
+  if (!workspace) {
+    console.error("Workspace not found for App Home:", teamId);
+    return;
+  }
+
+  const client = getSlackClient(workspace.botToken);
+
+  // Get user info for personalization
+  const dbUser = await prisma.user.findUnique({
+    where: {
+      slackUserId_workspaceId: {
+        slackUserId: user,
+        workspaceId: workspace.id,
+      },
+    },
+  });
+
+  // Build the App Home view
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "👋 Welcome to Mikey!",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "I'm your 🌊 Founder-Led Sales assistant, here to help you with everything Pete can help you with - sales strategies, outreach, objection handling, and more.",
+      },
+    },
+    {
+      type: "divider",
+    },
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "🚀 Getting Started",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*Step 1: Add me to a channel*\nType `/invite @Mikey` in any channel where you want to use me.",
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*Step 2: Ask me anything*\nMention me with your question: `@Mikey how do I handle pricing objections?`",
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*Step 3: Or DM me directly*\nClick the *Messages* tab above to chat with me privately.",
+      },
+    },
+    {
+      type: "divider",
+    },
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: "💡 What I can help with",
+        emoji: true,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "• Crafting cold outreach messages\n• Handling objections\n• Pricing strategy advice\n• Sales call preparation\n• Follow-up sequences\n• Founder-led sales strategies",
+      },
+    },
+  ];
+
+  // Add trial/license status if user exists
+  if (dbUser) {
+    const statusText =
+      dbUser.licenseStatus === "ACTIVE"
+        ? "✅ *Status:* Licensed"
+        : dbUser.licenseStatus === "TRIAL"
+        ? `🎁 *Status:* Trial (${dbUser.trialMessagesRemaining} messages remaining)`
+        : "⚠️ *Status:* Trial ended";
+
+    blocks.push(
+      {
+        type: "divider",
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: statusText,
+        },
+      }
+    );
+  }
+
+  blocks.push(
+    {
+      type: "divider",
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "Here's to some founder-led selling success! 🚀",
+        },
+      ],
+    } as typeof blocks[number]
+  );
+
+  try {
+    await client.views.publish({
+      user_id: user,
+      view: {
+        type: "home",
+        blocks,
+      },
+    });
+  } catch (error) {
+    console.error("Error publishing App Home:", error);
   }
 }
 
