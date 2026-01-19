@@ -349,8 +349,10 @@ export default function ChatPage() {
               {messages.map((msg) => (
                 <div key={msg.id}>
                   {msg.role === "USER" ? (
-                    <div className="border border-gray-200 rounded-lg p-4 bg-white">
-                      <p className="whitespace-pre-wrap text-gray-900">{msg.content}</p>
+                    <div className="flex justify-end">
+                      <div className="border border-gray-200 rounded-lg p-4 bg-white max-w-[70%]">
+                        <p className="whitespace-pre-wrap text-gray-900">{msg.content}</p>
+                      </div>
                     </div>
                   ) : (
                     <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4">
