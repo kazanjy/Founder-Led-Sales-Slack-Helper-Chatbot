@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySlackRequest } from "@/lib/slack/verify";
 import { handleSlackEvent } from "@/lib/slack/events";
+import { waitUntil } from "@vercel/functions";
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -48,11 +49,13 @@ export async function POST(request: NextRequest) {
       text: payload.event?.text?.substring(0, 50),
     });
 
-    // Respond immediately to Slack (3 second timeout requirement)
-    // Process the event asynchronously
-    handleSlackEvent(payload).catch((error) => {
-      console.error("Error handling Slack event:", error);
-    });
+    // Use waitUntil to keep the function alive after responding
+    // This allows us to respond to Slack within 3 seconds while continuing processing
+    waitUntil(
+      handleSlackEvent(payload).catch((error) => {
+        console.error("Error handling Slack event:", error);
+      })
+    );
 
     return NextResponse.json({ ok: true });
   }
