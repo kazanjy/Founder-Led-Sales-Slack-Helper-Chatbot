@@ -160,14 +160,19 @@ async function handleAppHomeOpened(
 
   // Add trial/license status if user exists
   if (dbUser) {
-    const statusText =
-      dbUser.licenseStatus === "ACTIVE"
-        ? "✅ *Status:* Licensed"
-        : dbUser.licenseStatus === "TRIAL"
-        ? `🎁 *Status:* Trial (${dbUser.trialMessagesRemaining} messages remaining)`
-        : dbUser.trialMessagesRemaining > 0
-        ? `⚠️ *Status:* Free tier (${dbUser.trialMessagesRemaining} messages remaining)`
-        : "❌ *Status:* No messages remaining";
+    let statusText = "";
+    if (dbUser.licenseStatus === "ACTIVE") {
+      statusText = "✅ *Status:* Licensed";
+    } else if (dbUser.licenseStatus === "TRIAL") {
+      const trialStart = dbUser.trialStartedAt || new Date();
+      const daysSinceStart = Math.floor(
+        (Date.now() - trialStart.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const daysRemaining = Math.max(0, 7 - daysSinceStart);
+      statusText = `🎁 *Status:* Trial (${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} remaining)`;
+    } else {
+      statusText = "⏰ *Status:* Trial ended";
+    }
 
     blocks.push(
       {
@@ -245,10 +250,16 @@ async function handleMention(
   // Check if user can send messages (license/trial check)
   const canSend = await checkUserCanSendMessage(dbUser);
   console.log("canSend:", canSend);
+  const client = getSlackClient(workspace.botToken);
+
   if (!canSend.allowed) {
-    const client = getSlackClient(workspace.botToken);
     await sendSlackMessage(client, channel, canSend.message, ts);
     return;
+  }
+
+  // Send welcome message for first-time users
+  if (canSend.welcomeMessage) {
+    await sendSlackMessage(client, channel, canSend.welcomeMessage, ts);
   }
 
   // Strip the bot mention from the message
@@ -256,7 +267,6 @@ async function handleMention(
   console.log("Clean text:", cleanText);
 
   if (!cleanText) {
-    const client = getSlackClient(workspace.botToken);
     await sendSlackMessage(
       client,
       channel,
@@ -297,14 +307,18 @@ async function handleDirectMessage(
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);
+  const client = getSlackClient(workspace.botToken);
+  const threadTs = thread_ts || ts;
+
   if (!canSend.allowed) {
-    const client = getSlackClient(workspace.botToken);
-    await sendSlackMessage(client, channel, canSend.message, thread_ts || ts);
+    await sendSlackMessage(client, channel, canSend.message, threadTs);
     return;
   }
 
-  // Use thread_ts if this is a reply, otherwise use ts as the thread
-  const threadTs = thread_ts || ts;
+  // Send welcome message for first-time users
+  if (canSend.welcomeMessage) {
+    await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
+  }
 
   await processMessage(workspace, dbUser, channel, threadTs, text, ts);
 }
@@ -344,10 +358,16 @@ async function handleThreadReply(
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);
+  const client = getSlackClient(workspace.botToken);
+
   if (!canSend.allowed) {
-    const client = getSlackClient(workspace.botToken);
     await sendSlackMessage(client, channel, canSend.message, thread_ts);
     return;
+  }
+
+  // Send welcome message for first-time users (rare in thread replies, but possible)
+  if (canSend.welcomeMessage) {
+    await sendSlackMessage(client, channel, canSend.welcomeMessage, thread_ts);
   }
 
   await processMessage(workspace, dbUser, channel, thread_ts, text, ts);
@@ -513,7 +533,7 @@ async function getOrCreateUser(workspaceId: string, slackUserId: string) {
 }
 
 /**
- * Check if user can send a message (license/trial/rate limit check)
+ * Check if user can send a message (license/trial check)
  */
 async function checkUserCanSendMessage(
   user: {
@@ -525,99 +545,55 @@ async function checkUserCanSendMessage(
     messageCountResetAt: Date;
     workspaceId: string;
   }
-): Promise<{ allowed: boolean; message: string }> {
-  // Reset daily count if needed
+): Promise<{ allowed: boolean; message: string; welcomeMessage?: string }> {
   const now = new Date();
-  const resetAt = new Date(user.messageCountResetAt);
-  if (now.toDateString() !== resetAt.toDateString()) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        messagesToday: 0,
-        messageCountResetAt: now,
-      },
-    });
-    user.messagesToday = 0;
-  }
-
-  // Get settings
-  const settings = await prisma.globalSettings.findUnique({
-    where: { id: "global" },
-  });
-
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: user.workspaceId },
-  });
-
-  const dailyLimit = workspace?.dailyMessageLimit ?? settings?.defaultDailyMessageLimit ?? 1000;
-  const trialDays = workspace?.trialDays ?? settings?.defaultTrialDays ?? 14;
-
-  // Check rate limit
-  if (user.messagesToday >= dailyLimit) {
-    return {
-      allowed: false,
-      message: `You've reached your daily message limit (${dailyLimit} messages). Try again tomorrow!`,
-    };
-  }
+  const TRIAL_DAYS = 7;
 
   // If user is actively licensed, allow
   if (user.licenseStatus === "ACTIVE") {
     return { allowed: true, message: "" };
   }
 
-  // Free tier messages for unlicensed users
-  const FREE_TIER_MESSAGES = 20;
-
   // Check trial status
   if (user.licenseStatus === "TRIAL") {
-    // Check days
-    const trialStart = user.trialStartedAt || new Date();
+    const trialStart = user.trialStartedAt || now;
     const daysSinceStart = Math.floor(
       (now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24)
     );
-    const trialDaysRemaining = trialDays - daysSinceStart;
 
-    // Check messages
-    const trialMessagesRemaining = user.trialMessagesRemaining;
-
-    // Trial ends when BOTH days and messages are exhausted
-    if (trialDaysRemaining <= 0 && trialMessagesRemaining <= 0) {
-      // Transition to EXPIRED but give them free tier messages
+    // Check if trial has expired (7 days)
+    if (daysSinceStart >= TRIAL_DAYS) {
       await prisma.user.update({
         where: { id: user.id },
-        data: {
-          licenseStatus: "EXPIRED",
-          trialMessagesRemaining: FREE_TIER_MESSAGES,
-        },
+        data: { licenseStatus: "EXPIRED" },
       });
 
-      // Allow this message since we just gave them free tier messages
-      return { allowed: true, message: "" };
+      return {
+        allowed: false,
+        message:
+          "Your trial is all done! If you liked Mikey, go ahead and subscribe!",
+      };
+    }
+
+    // Check if this is their first message (within first minute of trial)
+    const secondsSinceStart = (now.getTime() - trialStart.getTime()) / 1000;
+    if (secondsSinceStart < 60) {
+      return {
+        allowed: true,
+        message: "",
+        welcomeMessage:
+          "Thanks for sending Mikey your first message! You've just started your trial - " +
+          "you have 7 days to ask Mikey as much as you'd like! Have fun!",
+      };
     }
 
     return { allowed: true, message: "" };
   }
 
-  // User is expired - check if they have free tier messages remaining
-  if (user.licenseStatus === "EXPIRED") {
-    if (user.trialMessagesRemaining > 0) {
-      return { allowed: true, message: "" };
-    }
-
-    return {
-      allowed: false,
-      message:
-        `You've used your ${FREE_TIER_MESSAGES} free messages. ` +
-        "To continue using Mikey, you'll need a license. " +
-        "In the meantime, someone with a license can ask questions on your behalf!",
-    };
-  }
-
-  // User is suspended or other status
+  // User is expired or other status
   return {
     allowed: false,
     message:
-      "You need a license to ask Mikey questions. " +
-      "In the meantime, someone with a license can ask questions on your behalf!",
+      "Your trial is all done! If you liked Mikey, go ahead and subscribe!",
   };
 }
