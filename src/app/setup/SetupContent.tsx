@@ -104,10 +104,10 @@ export default function SetupContent() {
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Announce Mikey to your team
+            Add Mikey to your &quot;sales&quot; or &quot;GTM&quot; channel!
           </label>
           <p className="text-sm text-gray-500 mb-3">
-            Choose a channel to introduce Mikey to your team:
+            Choose the channel where most of your GTM topics are discussed - you can add him to more later.
           </p>
 
           {loading ? (
@@ -123,22 +123,25 @@ export default function SetupContent() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               />
-              <select
-                value={selectedChannel}
-                onChange={(e) => setSelectedChannel(e.target.value)}
-                size={6}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-              >
+              <div className="border border-gray-300 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                 {channels
                   .filter((ch) =>
                     ch.name.toLowerCase().includes(searchQuery.toLowerCase())
                   )
                   .map((channel) => (
-                    <option key={channel.id} value={channel.id}>
+                    <div
+                      key={channel.id}
+                      onClick={() => setSelectedChannel(channel.id)}
+                      className={`px-4 py-2 cursor-pointer hover:bg-blue-50 ${
+                        selectedChannel === channel.id
+                          ? "bg-blue-100 text-blue-900 font-medium"
+                          : "text-gray-900"
+                      }`}
+                    >
                       #{channel.name}
-                    </option>
+                    </div>
                   ))}
-              </select>
+              </div>
             </div>
           )}
         </div>
@@ -149,7 +152,7 @@ export default function SetupContent() {
             disabled={!selectedChannel || sending || loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
-            {sending ? "Sending..." : "Send Welcome Message"}
+            {sending ? "Adding..." : "Add To Channel"}
           </button>
 
           <button
