@@ -220,9 +220,16 @@ export default function ChatPage() {
       {/* Sidebar - fixed height, doesn't scroll with chat */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
-          <p className="text-sm text-gray-500">{user?.workspaceName}</p>
+        <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+          <img
+            src="/mikey-avatar.png"
+            alt="Mikey"
+            className="w-10 h-10 rounded-lg"
+          />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
+            <p className="text-sm text-gray-500">{user?.workspaceName}</p>
+          </div>
         </div>
 
         {/* New Chat Button */}
