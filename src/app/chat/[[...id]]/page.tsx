@@ -437,7 +437,7 @@ export default function ChatPage() {
                 <img
                   src="/mikey-avatar.png"
                   alt="Mikey"
-                  className="w-24 h-24 rounded-2xl mx-auto mb-6"
+                  className="w-48 h-48 rounded-3xl mx-auto mb-6"
                 />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Welcome to Mikey
