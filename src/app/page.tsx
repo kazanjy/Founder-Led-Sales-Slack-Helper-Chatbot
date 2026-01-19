@@ -27,7 +27,7 @@ export default async function Home({ searchParams }: HomeProps) {
         />
         <h1 className="text-4xl font-bold mb-4">Mikey</h1>
         <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
-          Your AI-powered Founder-Led Sales assistant for Slack
+          Your AI-powered Founder-Led Sales assistant for Slack and the web!
         </p>
 
         {installed && (
