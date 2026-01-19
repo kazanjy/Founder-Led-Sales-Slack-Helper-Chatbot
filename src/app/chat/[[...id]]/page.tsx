@@ -404,7 +404,7 @@ export default function ChatPage() {
                     <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
                     <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
                   </div>
-                  <span>Mikey is riding the wave...</span>
+                  <span>Mikey is thinking...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
