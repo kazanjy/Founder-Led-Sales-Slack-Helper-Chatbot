@@ -312,7 +312,7 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-4">
+            <div className="max-w-[900px] mx-auto space-y-4">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -353,14 +353,14 @@ export default function ChatPage() {
         {/* Input */}
         <div className="border-t border-gray-200 p-4 bg-white">
           {!user?.canChat ? (
-            <div className="max-w-3xl mx-auto text-center py-4">
+            <div className="max-w-[900px] mx-auto text-center py-4">
               <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
               <button className="text-blue-600 hover:underline">
                 Subscribe to continue
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+            <form onSubmit={handleSendMessage} className="max-w-[900px] mx-auto">
               <div className="flex gap-4 items-end">
                 <textarea
                   value={inputMessage}

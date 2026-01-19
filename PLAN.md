@@ -845,6 +845,7 @@ Users can share and export their conversations:
 ---
 
 ### Phase 8: Future Features
+- [ ] Search across chats in web app (full-text search through conversation history)
 - [ ] Sales call grading (user provides call link → read transcript → grade against rubric)
 - [ ] Configurable trial length per workspace
 - [ ] Analytics/usage tracking
