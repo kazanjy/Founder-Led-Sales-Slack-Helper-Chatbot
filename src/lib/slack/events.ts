@@ -325,6 +325,7 @@ async function handleDirectMessage(
 
 /**
  * Handle replies within a thread
+ * Only responds if the user @mentions Mikey (to avoid interrupting human conversations)
  */
 async function handleThreadReply(
   teamId: string,
@@ -339,6 +340,13 @@ async function handleThreadReply(
   });
 
   if (!workspace) return;
+
+  // Only respond if the user @mentioned Mikey
+  // This prevents Mikey from interrupting human-to-human conversations in threads
+  const botMention = workspace.botUserId ? `<@${workspace.botUserId}>` : null;
+  if (!botMention || !text.includes(botMention)) {
+    return; // Not mentioned, don't respond
+  }
 
   // Check if this is a thread we're participating in
   const conversation = await prisma.conversation.findUnique({
@@ -370,7 +378,20 @@ async function handleThreadReply(
     await sendSlackMessage(client, channel, canSend.welcomeMessage, thread_ts);
   }
 
-  await processMessage(workspace, dbUser, channel, thread_ts, text, ts);
+  // Strip the bot mention from the message
+  const cleanText = text.replace(/<@[A-Z0-9]+>/g, "").trim();
+
+  if (!cleanText) {
+    await sendSlackMessage(
+      client,
+      channel,
+      "I'm here! What can I help you with?",
+      thread_ts
+    );
+    return;
+  }
+
+  await processMessage(workspace, dbUser, channel, thread_ts, cleanText, ts);
 }
 
 /**
