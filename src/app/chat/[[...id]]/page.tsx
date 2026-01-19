@@ -443,7 +443,7 @@ export default function ChatPage() {
                 key={conv.id}
                 className={`relative group border-b border-gray-200 ${
                   selectedConversation === conv.id ? "bg-white" : "hover:bg-gray-200"
-                }`}
+                } ${openMenuId === conv.id ? "z-50" : ""}`}
               >
                 <button
                   onClick={() => selectConversation(conv.id)}
