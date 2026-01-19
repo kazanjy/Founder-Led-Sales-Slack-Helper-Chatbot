@@ -475,32 +475,40 @@ export default function ChatPage() {
                       </div>
                       {/* Copy/Share buttons for this response */}
                       <div className="flex items-center gap-1 mt-2">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(msg.content);
-                            showToast("Copied to clipboard!");
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                          title="Copy this response"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={handleShare}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                          title="Share this conversation"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="18" cy="5" r="3"></circle>
-                            <circle cx="6" cy="12" r="3"></circle>
-                            <circle cx="18" cy="19" r="3"></circle>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                          </svg>
-                        </button>
+                        <div className="relative group">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(msg.content);
+                              showToast("Copied to clipboard!");
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                          </button>
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            Copy
+                          </span>
+                        </div>
+                        <div className="relative group">
+                          <button
+                            onClick={handleShare}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="18" cy="5" r="3"></circle>
+                              <circle cx="6" cy="12" r="3"></circle>
+                              <circle cx="18" cy="19" r="3"></circle>
+                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                          </button>
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            Share
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
