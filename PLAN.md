@@ -143,21 +143,24 @@ User @mentions Mikey
     │         │
     ▼         ▼
  Process   ┌─────────────────────────────┐
- message   │ Has trial remaining?        │
-           │ (days > 0 OR messages > 0)  │
+ message   │ Is user in trial period?    │
+           │ (< 7 days since first msg)  │
            └──────────────┬──────────────┘
                     ┌─────┴─────┐
                    Yes          No
                     │           │
                     ▼           ▼
-                Process    Send "not licensed"
-                message    message with info
-                (decrement
-                trial counter)
+                Process    Send trial ended
+                message    message
+                (+ welcome
+                if first msg)
 ```
 
-**Unlicensed User Response:**
-> "Hey! You need a license to ask Mikey questions directly. In the meantime, someone with a license can ask on your behalf. Want to get started? [Start Trial] or [Get Licensed]"
+**First Message Response:**
+> "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
+
+**Trial Ended Response:**
+> "Your trial is all done! If you liked Mikey, go ahead and subscribe!"
 
 ---
 
@@ -176,23 +179,18 @@ User @mentions Mikey
 - `expired` - License/trial expired
 - `suspended` - Manually suspended
 
-**Trial Configuration (per workspace or global defaults):**
+**Trial Configuration:**
 
 ```typescript
-interface TrialConfig {
-  trialDays: number;        // 0 = no time-based trial
-  trialMessages: number;    // 0 = no message-based trial
-  // User gets access until BOTH are exhausted
-  // Set both to 0 for "license required immediately"
-}
+const TRIAL_DAYS = 7;  // Unlimited messages for 7 days
 ```
 
-**Trial Behavior:**
+**Trial Behavior (CURRENT IMPLEMENTATION):**
 - Trial starts on first @mention
-- Days count down from first use
-- Messages decrement per question asked
-- Trial ends when: `(daysRemaining <= 0) AND (messagesRemaining <= 0)`
-- Configurable at workspace level (inherits from global defaults)
+- 7 days of unlimited messages
+- First message shows welcome: "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
+- Trial ends after 7 days
+- Expired message: "Your trial is all done! If you liked Mikey, go ahead and subscribe!"
 
 ---
 
@@ -224,36 +222,30 @@ interface Referral {
 
 ### 4. Onboarding Flow
 
-**Slack App Installation:**
+**Slack App Installation (CURRENT IMPLEMENTATION):**
 1. Admin clicks "Add to Slack" on marketing site
 2. Slack OAuth flow → grants permissions
 3. Workspace + installing user recorded in database
-4. Bot sends welcome DM to installer:
+4. Redirect to channel selection page
+5. User selects channel for Mikey to join
+6. Bot joins channel and posts welcome message:
 
-> "Hey! I'm Mikey, your Founder-Led Sales assistant. Here's what I can help with:
+> "Hey team! I'm Mikey, your Founder-Led Sales assistant. I'm here to help with sales strategies, outreach, objection handling, and more.
 >
-> - Crafting cold outreach messages
-> - Handling objections
-> - Pricing strategy advice
-> - Sales call preparation
-> - Follow-up sequences
+> To get started, just @mention me with your question - like this: @Mikey how do I handle pricing objections?
 >
-> **Get started:** Just @mention me in any channel with your question!
+> You can also DM me directly if you prefer a private conversation.
 >
-> **Your trial:** You have 14 days and 50 messages to try me out.
->
-> [View Dashboard] [Invite Your Team]"
+> Here's to some founder-led selling success!"
 
 **First @mention (new user in existing workspace):**
 1. User @mentions Mikey
-2. System creates user record, starts trial
-3. Mikey responds with brief intro + answer:
+2. System creates user record, starts 7-day trial
+3. Mikey responds with welcome + answer:
 
-> "Welcome! I'm Mikey. I'll help you with founder-led sales. Here's your answer:
+> "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
 >
 > [Answer to their question]
->
-> (You have 49 trial messages remaining)"
 
 ---
 
@@ -742,7 +734,11 @@ interface GlobalSettings {
 - [x] Basic @mention handling
 - [x] Chatbase integration
 - [x] Threaded replies
-- [ ] Rich text formatting (Slack mrkdwn)
+- [x] Rich text formatting (Slack mrkdwn)
+- [x] DM support
+- [x] App Home tab
+- [x] Channel selection on install
+- [x] Welcome message to channel
 
 ### Phase 2: Account System & Web Auth
 - [ ] Account model (replaces user-centric model)
@@ -758,10 +754,11 @@ interface GlobalSettings {
 - [ ] Same Chatbase backend as Slack
 
 ### Phase 4: Licensing & Trials
-- [ ] Trial system (days + messages)
-- [ ] License checking middleware
-- [ ] Unlicensed user responses
-- [ ] Account-level licensing
+- [x] Trial system (7-day unlimited)
+- [x] License checking in event handlers
+- [x] Unlicensed/expired user responses
+- [x] First message welcome
+- [ ] Account-level licensing (migrate from user-level)
 
 ### Phase 5: Payments
 - [ ] Stripe integration
@@ -821,10 +818,11 @@ ADMIN_SECRET=  # For admin panel access
 | Topic | Decision |
 |-------|----------|
 | **Entry Points** | Web app (email signup) OR Slack install - can connect both |
+| **Trial** | 7 days unlimited messages (starts on first @mention) |
 | **Pricing - Monthly** | $99/month first seat, $39/month each additional |
 | **Pricing - Annual** | $69/month first seat, $27/month additional (~30% off, paid upfront) |
 | **Pricing Config** | Configurable at global default and per-account level |
-| **Rate Limiting** | 1,000 messages/day per account (configurable) |
+| **Rate Limiting** | 1,000 messages/day per account (configurable) - *not yet enforced* |
 | **Chat History Retention** | Forever |
 | **Multi-workspace** | Accounts can connect multiple Slack workspaces |
 | **DMs** | Supported - users can DM Mikey directly or @mention in channels |
@@ -846,8 +844,21 @@ Users can share and export their conversations:
 
 ---
 
+### Phase 8: Future Features
+- [ ] Sales call grading (user provides call link → read transcript → grade against rubric)
+- [ ] Configurable trial length per workspace
+- [ ] Analytics/usage tracking
+- [ ] App Home enhancements
+
+### Cleanup Tasks
+- [ ] Remove debug console.log statements before production
+
+---
+
 ## Next Steps
 
-1. Create Slack app in Slack API dashboard
-2. Set up Vercel project and database
-3. Begin Phase 1 implementation
+1. ~~Create Slack app in Slack API dashboard~~ ✓
+2. ~~Set up Vercel project and database~~ ✓
+3. ~~Begin Phase 1 implementation~~ ✓
+4. **Current:** Phase 2 (Account system + Web auth) and Phase 3 (Web chat)
+5. Then: Phase 5 (Payments) to start monetization
