@@ -324,6 +324,7 @@ export default function ChatPage() {
                 </p>
                 <div className="space-y-2">
                   {[
+                    "📏 Can you help me measure my GTM maturity?",
                     "🔍 What would be good discovery questions for my product?",
                     "🎯 Can you help me tighten my ideal customer profile?",
                     "📧 What would be good outbound messaging for my product?",
