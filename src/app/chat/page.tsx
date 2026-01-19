@@ -200,9 +200,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
+      {/* Sidebar - fixed height, doesn't scroll with chat */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
@@ -219,7 +219,7 @@ export default function ChatPage() {
           </button>
         </div>
 
-        {/* Conversations List */}
+        {/* Conversations List - this part scrolls independently */}
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500 text-sm">
@@ -250,7 +250,7 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* User Info */}
+        {/* User Info - stays at bottom */}
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-900">
@@ -277,8 +277,8 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Chat Area - scrolls independently */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
           {messages.length === 0 ? (
