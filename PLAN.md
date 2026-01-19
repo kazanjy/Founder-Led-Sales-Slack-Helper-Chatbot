@@ -915,6 +915,18 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
 - [ ] Configurable trial length per workspace
 - [ ] Analytics/usage tracking
 - [ ] App Home enhancements
+- [ ] **Guided Prompts & Prompt Library**
+  - [ ] Enhance suggested prompts on web UI start page
+  - [ ] Create comprehensive prompt library with nested taxonomy:
+    - [ ] **GTM Strategy** - maturity assessment, ICP definition, positioning
+    - [ ] **Prospecting** - discovery questions, outbound messaging, sequences
+    - [ ] **Sales Calls** - first call structure, demo flow, objection handling
+    - [ ] **Sales Playbook** - playbook creation, process documentation
+    - [ ] **Team Building** - hiring process, onboarding plans, coaching
+    - [ ] **Deal Management** - pipeline review, forecasting, negotiation
+  - [ ] Browsable prompt library page in web UI
+  - [ ] Quick-select prompts from library to start new conversation
+  - [ ] Consider prompt library in Slack App Home tab
 
 ### Cleanup Tasks
 - [ ] Remove debug console.log statements before production

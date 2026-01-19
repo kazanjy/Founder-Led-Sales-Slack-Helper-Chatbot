@@ -645,6 +645,9 @@ export default function ChatPage() {
                     "📧 What would be good outbound messaging for my product?",
                     "📝 Can you help me write an outbound sequence?",
                     "📞 Can you help me structure an effective first call?",
+                    "📚 Can you help me put together my sales playbook?",
+                    "👥 Can you give me guidance on a good sales rep hiring process?",
+                    "🚀 Can you help me think about what an effective sales rep onboarding plan would be?",
                   ].map((prompt) => (
                     <button
                       key={prompt}
