@@ -649,15 +649,20 @@ export default function ChatPage() {
                     "👥 Can you give me guidance on a good sales rep hiring process?",
                     "🚀 What would be an effective sales rep onboarding plan?",
                     "💰 Help me design a comp plan for a first sales rep.",
-                  ].map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => sendMessage(prompt.slice(2).trim())}
-                      className="text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors text-gray-700 text-sm"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+                  ].map((prompt) => {
+                    const emoji = prompt.slice(0, 2);
+                    const text = prompt.slice(2).trim();
+                    return (
+                      <button
+                        key={prompt}
+                        onClick={() => sendMessage(text)}
+                        className="flex items-center gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                      >
+                        <span className="text-2xl flex-shrink-0">{emoji}</span>
+                        <span className="text-gray-700 text-sm">{text}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
