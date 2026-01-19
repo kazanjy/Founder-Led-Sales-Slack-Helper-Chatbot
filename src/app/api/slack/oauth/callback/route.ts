@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       team: { id: teamId, name: teamName },
       authed_user: { id: installedByUserId },
       bot_user_id: botUserId,
+      incoming_webhook: incomingWebhook,
     } = tokenData;
 
     // Create or update workspace
@@ -108,6 +109,27 @@ export async function GET(request: NextRequest) {
     } catch (dmError) {
       // Don't fail installation if DM fails
       console.error("Error sending welcome DM:", dmError);
+    }
+
+    // Send channel welcome message via incoming webhook
+    if (incomingWebhook?.url) {
+      try {
+        await fetch(incomingWebhook.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text:
+              "👋 Hey team! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
+              `I was just added to this workspace by <@${installedByUserId}>.\n\n` +
+              "Ask me anything about sales strategies, outreach, objection handling, and more - just @mention me!\n\n" +
+              "Here's to some founder-led selling success! 🚀",
+          }),
+        });
+        console.log("Channel welcome message sent to:", incomingWebhook.channel);
+      } catch (webhookError) {
+        // Don't fail installation if webhook fails
+        console.error("Error sending channel welcome:", webhookError);
+      }
     }
 
     // Redirect to success page

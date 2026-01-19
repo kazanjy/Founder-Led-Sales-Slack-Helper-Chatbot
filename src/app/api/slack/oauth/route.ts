@@ -11,6 +11,7 @@ const BOT_SCOPES = [
   "im:read",
   "im:write",
   "users:read",
+  "incoming-webhook", // For channel welcome message
 ].join(",");
 
 export async function GET() {
