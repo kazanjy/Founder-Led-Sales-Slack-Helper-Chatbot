@@ -9,6 +9,7 @@ const BOT_SCOPES = [
   "chat:write",
   "chat:write.public", // Post to public channels without joining
   "channels:read", // List channels for setup page
+  "channels:join", // Join channels during setup
   "im:history",
   "im:read",
   "im:write",

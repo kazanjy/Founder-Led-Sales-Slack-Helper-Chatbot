@@ -24,6 +24,11 @@ export async function POST(request: NextRequest) {
   try {
     const client = getSlackClient(workspace.botToken);
 
+    // Join the channel first so we can receive @mentions
+    await client.conversations.join({
+      channel: channel_id,
+    });
+
     // Post welcome message to the selected channel
     await client.chat.postMessage({
       channel: channel_id,
