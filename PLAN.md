@@ -884,10 +884,28 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
   - [ ] Ensure shared page looks great on mobile
   - [ ] Sticky CTA on mobile scroll
 
+- [ ] **Link preview / social sharing**
+  - [ ] Open Graph meta tags for rich previews:
+    - `og:title` - First user question or conversation title
+    - `og:description` - Preview of Mikey's response (truncated)
+    - `og:image` - Mikey avatar/icon (needs proper sized image for social)
+    - `og:site_name` - "Mikey - Founder-Led Sales AI"
+  - [ ] Twitter Card meta tags (`twitter:card`, `twitter:image`, etc.)
+  - [ ] Test previews on:
+    - [ ] iMessage / Messages
+    - [ ] Slack
+    - [ ] Twitter/X
+    - [ ] LinkedIn
+    - [ ] Facebook
+  - [ ] Create dedicated social preview image (1200x630px recommended)
+    - Include Mikey avatar prominently
+    - Could dynamically include the question text
+  - [ ] Consider dynamic OG image generation (show actual question in preview image)
+
 - [ ] **SEO considerations**
   - [ ] Add appropriate meta tags for shared pages
-  - [ ] Open Graph tags for social sharing preview
   - [ ] Consider if shared conversations should be indexable
+  - [ ] Add robots meta tag if we don't want indexing
 
 ---
 
