@@ -637,7 +637,7 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500 mb-4">
                   Some ideas to start with:
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-rows-5 grid-flow-col gap-2">
                   {[
                     "📏 Can you help me measure my GTM maturity?",
                     "🔍 What would be good discovery questions for my product?",
@@ -647,7 +647,8 @@ export default function ChatPage() {
                     "📞 Can you help me structure an effective first call?",
                     "📚 Can you help me put together my sales playbook?",
                     "👥 Can you give me guidance on a good sales rep hiring process?",
-                    "🚀 Can you help me think about what an effective sales rep onboarding plan would be?",
+                    "🚀 What would be an effective sales rep onboarding plan?",
+                    "💰 Help me design a comp plan for a first sales rep.",
                   ].map((prompt) => (
                     <button
                       key={prompt}
