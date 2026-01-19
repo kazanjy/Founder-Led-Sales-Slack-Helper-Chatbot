@@ -397,7 +397,14 @@ export default function ChatPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading...</div>
+        <div className="flex items-center gap-2 text-gray-500">
+          <div className="flex gap-1">
+            <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
+            <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
+            <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
+          </div>
+          <span>Mikey is thinking...</span>
+        </div>
       </div>
     );
   }
