@@ -319,37 +319,24 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-[900px] mx-auto space-y-4">
+            <div className="max-w-[800px] mx-auto space-y-6">
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "USER" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-4 rounded-lg ${
-                      msg.role === "USER"
-                        ? "bg-blue-600 text-white"
-                        : "bg-white border border-gray-200 text-gray-900"
-                    }`}
-                  >
-                    {msg.role === "USER" ? (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    ) : (
-                      <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
+                <div key={msg.id}>
+                  {msg.role === "USER" ? (
+                    <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                      <p className="whitespace-pre-wrap text-gray-900">{msg.content}</p>
+                    </div>
+                  ) : (
+                    <div className="prose prose-sm max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               ))}
               {sending && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 p-4 rounded-lg">
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <div className="animate-pulse">●</div>
-                      <span>Mikey is thinking...</span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2 text-gray-500 mt-4">
+                  <div className="animate-pulse">●</div>
+                  <span>Mikey is thinking...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -360,14 +347,14 @@ export default function ChatPage() {
         {/* Input */}
         <div className="border-t border-gray-200 p-4 bg-white">
           {!user?.canChat ? (
-            <div className="max-w-[900px] mx-auto text-center py-4">
+            <div className="max-w-[800px] mx-auto text-center py-4">
               <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
               <button className="text-blue-600 hover:underline">
                 Subscribe to continue
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="max-w-[900px] mx-auto">
+            <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto">
               <div className="flex gap-4 items-end">
                 <textarea
                   value={inputMessage}
