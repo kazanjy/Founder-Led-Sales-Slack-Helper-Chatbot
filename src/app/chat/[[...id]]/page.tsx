@@ -91,10 +91,12 @@ export default function ChatPage() {
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messages.length > 0) {
-      // Use auto (instant) scroll for initial load, smooth for new messages
-      const behavior = isInitialLoad.current ? "auto" : "smooth";
-      messagesEndRef.current?.scrollIntoView({ behavior });
-      isInitialLoad.current = false;
+      // Use requestAnimationFrame to ensure DOM is rendered before scrolling
+      requestAnimationFrame(() => {
+        const behavior = isInitialLoad.current ? "auto" : "smooth";
+        messagesEndRef.current?.scrollIntoView({ behavior });
+        isInitialLoad.current = false;
+      });
     }
   }, [messages]);
 
