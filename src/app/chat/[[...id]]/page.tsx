@@ -918,7 +918,7 @@ export default function ChatPage() {
                     + Add Prompt
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-wrap justify-center gap-2">
                   {savedPrompts.map((item) => (
                     <div
                       key={item.id}
@@ -927,7 +927,7 @@ export default function ChatPage() {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, item.id)}
                       onDragEnd={handleDragEnd}
-                      className={`group relative flex items-start gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing min-h-[72px] ${
+                      className={`group relative flex items-start gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing min-h-[72px] w-[300px] ${
                         draggedPromptId === item.id ? "opacity-50" : ""
                       }`}
                     >
