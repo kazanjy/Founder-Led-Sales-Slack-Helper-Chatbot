@@ -725,32 +725,29 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500 mb-4">
                   Some ideas to start with:
                 </p>
-                <div className="grid grid-rows-5 grid-flow-col gap-2">
+                <div className="grid grid-rows-6 grid-flow-col gap-2">
                   {[
-                    "📏 Can you help me measure my GTM maturity?",
-                    "🔍 What would be good discovery questions for my product?",
-                    "🎯 Can you help me tighten my ideal customer profile?",
-                    "📧 What would be good outbound messaging for my product?",
-                    "📝 Can you help me write an outbound sequence?",
-                    "📞 Can you help me structure an effective first call?",
-                    "📚 Can you help me put together my sales playbook?",
-                    "👥 Can you give me guidance on a good sales rep hiring process?",
-                    "🚀 What would be an effective sales rep onboarding plan?",
-                    "💰 Help me design a comp plan for a first sales rep.",
-                  ].map((prompt) => {
-                    const emoji = prompt.slice(0, 2);
-                    const text = prompt.slice(2).trim();
-                    return (
+                    { emoji: "📏", display: "Can you help me measure my GTM maturity?" },
+                    { emoji: "🔍", display: "What would be good discovery questions for my product?" },
+                    { emoji: "🎯", display: "Can you help me tighten my ideal customer profile?" },
+                    { emoji: "📧", display: "What would be good outbound messaging for my product?" },
+                    { emoji: "📝", display: "Can you help me write an outbound sequence?" },
+                    { emoji: "📞", display: "Can you help me structure an effective first call?" },
+                    { emoji: "📚", display: "Can you help me put together my sales playbook?" },
+                    { emoji: "👥", display: "Can you give me guidance on a good sales rep hiring process?" },
+                    { emoji: "🚀", display: "What would be an effective sales rep onboarding plan?" },
+                    { emoji: "💰", display: "Help me design a comp plan for a first sales rep." },
+                    { emoji: "🧠", display: "Take a quiz on your founder-led sales expertise.", prompt: "Can you give me a 20 question quiz about founder-led sales concepts, one question at a time? Test my expertise!" },
+                  ].map((item) => (
                       <button
-                        key={prompt}
-                        onClick={() => sendMessage(text)}
+                        key={item.display}
+                        onClick={() => sendMessage(item.prompt || item.display)}
                         className="flex items-center gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
                       >
-                        <span className="text-2xl flex-shrink-0">{emoji}</span>
-                        <span className="text-gray-700 text-sm">{text}</span>
+                        <span className="text-2xl flex-shrink-0">{item.emoji}</span>
+                        <span className="text-gray-700 text-sm">{item.display}</span>
                       </button>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             </div>
