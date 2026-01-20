@@ -36,12 +36,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       sharedConversation.conversation.firstMessagePreview ||
       "A conversation about founder-led sales";
 
-    // Truncate if too long for social previews
-    const description = firstUserMessage.length > 200
-      ? firstUserMessage.substring(0, 197) + "..."
+    // Truncate if too long for social previews and add "Topic:" prefix
+    const topicText = firstUserMessage.length > 190
+      ? firstUserMessage.substring(0, 187) + "..."
       : firstUserMessage;
+    const description = `Topic: ${topicText}`;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+
+    const imageUrl = `${appUrl}/mikey-avatar.png`;
 
     return {
       title: "Mikey - The Founder Led Sales Helper",
@@ -51,21 +54,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         description,
         type: "website",
         url: `${appUrl}/share/${code}`,
+        siteName: "Mikey",
         images: [
           {
-            url: `${appUrl}/mikey-avatar.png`,
+            url: imageUrl,
+            secureUrl: imageUrl,
             width: 512,
             height: 512,
+            type: "image/png",
             alt: "Mikey - The Founder Led Sales Helper",
           },
         ],
-        siteName: "Mikey",
       },
       twitter: {
         card: "summary",
         title: "Mikey - The Founder Led Sales Helper",
         description,
-        images: [`${appUrl}/mikey-avatar.png`],
+        images: [imageUrl],
+      },
+      other: {
+        "og:image:url": imageUrl,
+        "og:image:secure_url": imageUrl,
       },
     };
   } catch (error) {
