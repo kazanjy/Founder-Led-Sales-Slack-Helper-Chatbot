@@ -330,8 +330,9 @@ async function handleDirectMessage(
 }
 
 /**
- * Handle replies within a thread
- * Only responds if the user @mentions Mikey (to avoid interrupting human conversations)
+ * Handle replies within a thread (without @mention)
+ * This allows users to continue a conversation without needing to @mention again.
+ * Messages WITH @mentions are handled by handleMention() instead.
  */
 async function handleThreadReply(
   teamId: string,
@@ -347,11 +348,11 @@ async function handleThreadReply(
 
   if (!workspace) return;
 
-  // Only respond if the user @mentioned Mikey
-  // This prevents Mikey from interrupting human-to-human conversations in threads
+  // Skip if the user @mentioned Mikey - handleMention() will process those
+  // This prevents duplicate responses when Slack sends both app_mention and message events
   const botMention = workspace.botUserId ? `<@${workspace.botUserId}>` : null;
-  if (!botMention || !text.includes(botMention)) {
-    return; // Not mentioned, don't respond
+  if (botMention && text.includes(botMention)) {
+    return; // Let handleMention() handle this
   }
 
   // Check if this is a thread we're participating in
