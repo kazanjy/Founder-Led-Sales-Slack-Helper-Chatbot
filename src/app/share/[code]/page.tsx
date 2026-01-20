@@ -16,9 +16,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         conversation: {
           include: {
             messages: {
-              where: { role: "USER" },
               orderBy: { createdAt: "asc" },
-              take: 1,
+              take: 2, // Get first user message and first assistant response
             },
           },
         },
@@ -27,30 +26,38 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!sharedConversation) {
       return {
-        title: "Mikey - The Founder Led Sales Helper",
+        title: "Shared chat from Mikey - The Founder-Led Sales Helper",
         description: "A shared conversation from Mikey",
       };
     }
 
-    const firstUserMessage = sharedConversation.conversation.messages[0]?.content ||
+    const firstUserMessage = sharedConversation.conversation.messages.find(m => m.role === "USER")?.content ||
       sharedConversation.conversation.firstMessagePreview ||
+      "founder-led sales";
+
+    const firstAssistantMessage = sharedConversation.conversation.messages.find(m => m.role === "ASSISTANT")?.content ||
       "A conversation about founder-led sales";
 
-    // Truncate if too long for social previews and add "Topic:" prefix
-    const topicText = firstUserMessage.length > 190
-      ? firstUserMessage.substring(0, 187) + "..."
+    // Build title with topic - OG title can be longer
+    const topicForTitle = firstUserMessage.length > 80
+      ? firstUserMessage.substring(0, 77) + "..."
       : firstUserMessage;
-    const description = `Topic: ${topicText}`;
+    const title = `Shared chat from Mikey - The Founder-Led Sales Helper | Topic: ${topicForTitle}`;
+
+    // Description is the assistant's response content
+    const description = firstAssistantMessage.length > 200
+      ? firstAssistantMessage.substring(0, 197) + "..."
+      : firstAssistantMessage;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
 
     const imageUrl = `${appUrl}/mikey-avatar.png`;
 
     return {
-      title: "Mikey - The Founder Led Sales Helper",
+      title,
       description,
       openGraph: {
-        title: "Mikey - The Founder Led Sales Helper",
+        title,
         description,
         type: "website",
         url: `${appUrl}/share/${code}`,
@@ -68,7 +75,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
       twitter: {
         card: "summary",
-        title: "Mikey - The Founder Led Sales Helper",
+        title,
         description,
         images: [imageUrl],
       },
@@ -80,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   } catch (error) {
     console.error("Error generating metadata:", error);
     return {
-      title: "Mikey - The Founder Led Sales Helper",
+      title: "Shared chat from Mikey - The Founder-Led Sales Helper",
       description: "A shared conversation from Mikey",
     };
   }
