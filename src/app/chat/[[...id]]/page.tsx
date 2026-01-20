@@ -76,7 +76,7 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; position: "left" | "right" } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
@@ -98,8 +98,8 @@ export default function ChatPage() {
   }, []);
 
   // Show toast notification
-  const showToast = (message: string) => {
-    setToast(message);
+  const showToast = (message: string, position: "left" | "right" = "right") => {
+    setToast({ message, position });
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -157,13 +157,13 @@ export default function ChatPage() {
 
       if (data.shareUrl) {
         navigator.clipboard.writeText(data.shareUrl);
-        showToast("Link copied! This chat is now available to anyone with this link.");
+        showToast("Link copied! This chat is now available to anyone with this link.", "left");
       } else {
-        showToast("Failed to share conversation");
+        showToast("Failed to share conversation", "left");
       }
     } catch (error) {
       console.error("Error sharing:", error);
-      showToast("Failed to share conversation");
+      showToast("Failed to share conversation", "left");
     } finally {
       setSharingId(null);
       setOpenMenuId(null);
@@ -188,13 +188,13 @@ export default function ChatPage() {
         if (selectedConversation === conversationId) {
           selectConversation(null);
         }
-        showToast("Conversation archived");
+        showToast("Conversation archived", "left");
       } else {
-        showToast("Failed to archive conversation");
+        showToast("Failed to archive conversation", "left");
       }
     } catch (error) {
       console.error("Error archiving:", error);
-      showToast("Failed to archive conversation");
+      showToast("Failed to archive conversation", "left");
     } finally {
       setArchivingId(null);
     }
@@ -219,13 +219,13 @@ export default function ChatPage() {
         if (selectedConversation === conversationId) {
           selectConversation(null);
         }
-        showToast("Conversation deleted");
+        showToast("Conversation deleted", "left");
       } else {
-        showToast("Failed to delete conversation");
+        showToast("Failed to delete conversation", "left");
       }
     } catch (error) {
       console.error("Error deleting:", error);
-      showToast("Failed to delete conversation");
+      showToast("Failed to delete conversation", "left");
     }
   };
 
@@ -876,8 +876,10 @@ export default function ChatPage() {
 
       {/* Toast notification */}
       {toast && (
-        <div className="fixed top-16 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50">
-          {toast}
+        <div className={`fixed top-16 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50 ${
+          toast.position === "left" ? "left-6" : "right-6"
+        }`}>
+          {toast.message}
         </div>
       )}
     </div>
