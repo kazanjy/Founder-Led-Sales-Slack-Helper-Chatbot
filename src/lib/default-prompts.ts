@@ -26,6 +26,8 @@ export const DEFAULT_PROMPTS: DefaultPrompt[] = [
   { id: "default-12", emoji: "📖", title: "Give me a tutoring session on founder-led sales.", prompt: "Can you give me a short lesson on founder-led sales, and then quiz me on what we've covered? Give me some topic options to choose from first." },
   // Pre-call planning
   { id: "default-13", emoji: "🗓️", title: "Help me prepare for a call.", prompt: "Help me do precall planning for a customer call. Ask me about the customer I'm meeting, and some details about my product as a means by which to help me prepare. Remind me to edit the saved prompt if I want to add those details going forward." },
+  // Value proposition
+  { id: "default-14", emoji: "💎", title: "Can you help me define my product's value proposition?", prompt: "Can you help me construct a terse formulation of my product's unique selling proposition to our primary ideal customer profile. And then once we've done that, remind me to enter it in the appropriate GTM variable for use in saved prompts in this app." },
 ];
 
 // Helper to find a default prompt by its original ID
