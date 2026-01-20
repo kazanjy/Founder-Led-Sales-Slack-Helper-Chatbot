@@ -928,7 +928,7 @@ export default function ChatPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-[600px]">
+              <div className="text-center max-w-[950px]">
                 <img
                   src="/mikey-avatar.png"
                   alt="Mikey"
@@ -952,7 +952,7 @@ export default function ChatPage() {
                     + Add Prompt
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-3">
                   {savedPrompts.map((item) => (
                     <div
                       key={item.id}
