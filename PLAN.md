@@ -897,7 +897,14 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
 ---
 
 ### Phase 8: Future Features
-- [ ] Search across chats in web app (full-text search through conversation history)
+
+- [ ] **Chat Search & Discovery**
+  - [ ] Full-text search across conversation history
+  - [ ] AI-generated chat titles (use AI to create meaningful titles from conversation content)
+  - [ ] Filter by date range, source (web/Slack), topic
+  - [ ] Search within a specific conversation
+  - [ ] Pinned/favorite conversations
+
 - [ ] Sales call grading (user provides call link → read transcript → grade against rubric)
 - [ ] Configurable trial length per workspace
 - [ ] Analytics/usage tracking
@@ -954,15 +961,34 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
   - [ ] Consider workspace-level defaults vs user-level overrides
 
 - [ ] **Merge Fields in Saved Prompts**
-  - [ ] **Built-in merge fields from user config:**
-    - [ ] `{{ICP}}` - Ideal Customer Profile
-    - [ ] `{{VALUE_PROP}}` - Value Propositions
-    - [ ] `{{PRODUCT}}` - Product/Service description
-    - [ ] `{{COMPETITORS}}` - Competitive positioning
-    - [ ] `{{SALES_CONTEXT}}` - Sales stage, team size, deal info
+  - [ ] **GTM Variables (User Configuration):**
+    - [ ] **Core Positioning:**
+      - [ ] `{{ICP}}` - Ideal Customer Profile (company size, industry, personas)
+      - [ ] `{{VALUE_PROP}}` - Value Proposition / Unique Selling Proposition
+      - [ ] `{{PRODUCT}}` - Product/Service description (elevator pitch)
+      - [ ] `{{PAIN_POINTS}}` - Key Pain Points Solved
+      - [ ] `{{DIFFERENTIATORS}}` - Competitive Differentiators
+    - [ ] **Sales Process:**
+      - [ ] `{{SALES_MOTION}}` - Sales motion type (PLG, enterprise, transactional, etc.)
+      - [ ] `{{QUALIFICATION_CRITERIA}}` - Qualification framework (BANT/MEDDIC/custom)
+      - [ ] `{{PRECALL_PROTOCOL}}` - Precall Planning Protocol
+      - [ ] `{{DEAL_INSPECTION}}` - Deal Inspection Protocol
+      - [ ] `{{DISCOVERY_FRAMEWORK}}` - Discovery Question Framework
+      - [ ] `{{COMMON_OBJECTIONS}}` - Common Objections & Responses
+    - [ ] **Deal Context:**
+      - [ ] `{{AVG_DEAL_SIZE}}` - Average Deal Size / ACV
+      - [ ] `{{SALES_CYCLE}}` - Typical Sales Cycle Length
+      - [ ] `{{BUYER_PERSONAS}}` - Key Stakeholders / Buyer Personas
+      - [ ] `{{DECISION_PROCESS}}` - Decision Process (who signs, who influences)
+    - [ ] **Company Context:**
+      - [ ] `{{COMPANY_STAGE}}` - Company Stage (pre-revenue, seed, scaling, etc.)
+      - [ ] `{{FOUNDER_BIO}}` - Founder Background (for credibility/rapport)
+      - [ ] `{{SOCIAL_PROOF}}` - Customer Success Stories / Social Proof
+    - [ ] **Outreach:**
+      - [ ] `{{MESSAGING_TONE}}` - Outbound Messaging Tone/Style
+      - [ ] `{{EMAIL_SIGNATURE}}` - Email Signature
   - [ ] **Custom merge fields:**
     - [ ] User can create their own named config variables
-    - [ ] Example: `{{PRICING_MODEL}}`, `{{TARGET_PERSONA}}`, `{{OBJECTION_RESPONSES}}`
     - [ ] Manage custom merge fields in settings UI
   - [ ] **Merge field usage in prompts:**
     - [ ] Syntax: `{{FIELD_NAME}}` in prompt text
@@ -971,8 +997,9 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
     - [ ] Autocomplete/insert merge field picker in prompt editor
   - [ ] **Example usage:**
     - [ ] Prompt: "Help me write a cold email for {{ICP}} highlighting {{VALUE_PROP}}"
-    - [ ] Prompt: "Role-play a discovery call where I'm selling to {{TARGET_PERSONA}}"
-    - [ ] Prompt: "Help me handle the {{COMMON_OBJECTION}} objection for {{PRODUCT}}"
+    - [ ] Prompt: "Role-play a discovery call where I'm selling to {{BUYER_PERSONAS}}"
+    - [ ] Prompt: "Help me handle objections using {{COMMON_OBJECTIONS}} for {{PRODUCT}}"
+    - [ ] Prompt: "Review this deal against my {{QUALIFICATION_CRITERIA}}"
   - [ ] **Merge field expansion:**
     - [ ] Fields expanded at send time (not stored expanded)
     - [ ] If field is empty/not configured, prompt user to fill it or send without
