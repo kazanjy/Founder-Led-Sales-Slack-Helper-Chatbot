@@ -98,6 +98,8 @@ export default function ChatPage() {
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [draggedPromptId, setDraggedPromptId] = useState<string | null>(null);
   const [promptsLoading, setPromptsLoading] = useState(true);
+  const [renamingConversation, setRenamingConversation] = useState<{ id: string; title: string } | null>(null);
+  const [renamingSaving, setRenamingSaving] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
@@ -393,31 +395,42 @@ export default function ChatPage() {
     }
   };
 
-  // Rename a conversation
-  const handleRenameConversation = async (conversationId: string, currentTitle: string | null) => {
+  // Open rename modal
+  const handleRenameConversation = (conversationId: string, currentTitle: string | null) => {
     setOpenMenuId(null);
-    const newTitle = prompt("Enter a new name for this conversation:", currentTitle || "");
-    if (newTitle === null) return; // User cancelled
+    setRenamingConversation({
+      id: conversationId,
+      title: currentTitle || "",
+    });
+  };
 
+  // Save renamed conversation
+  const handleSaveRename = async () => {
+    if (!renamingConversation) return;
+
+    setRenamingSaving(true);
     try {
-      const res = await fetch(`/api/conversations/${conversationId}`, {
+      const res = await fetch(`/api/conversations/${renamingConversation.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle }),
+        body: JSON.stringify({ title: renamingConversation.title }),
       });
 
       if (res.ok) {
         // Update in list
         setConversations((prev) =>
-          prev.map((c) => (c.id === conversationId ? { ...c, title: newTitle } : c))
+          prev.map((c) => (c.id === renamingConversation.id ? { ...c, title: renamingConversation.title } : c))
         );
         showToast("Conversation renamed", "left");
+        setRenamingConversation(null);
       } else {
         showToast("Failed to rename conversation", "left");
       }
     } catch (error) {
       console.error("Error renaming:", error);
       showToast("Failed to rename conversation", "left");
+    } finally {
+      setRenamingSaving(false);
     }
   };
 
@@ -1310,6 +1323,69 @@ export default function ChatPage() {
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Conversation Modal */}
+      {renamingConversation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">
+                Rename Conversation
+              </h2>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={renamingConversation.title}
+                  onChange={(e) =>
+                    setRenamingConversation({ ...renamingConversation, title: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !renamingSaving) {
+                      handleSaveRename();
+                    } else if (e.key === "Escape") {
+                      setRenamingConversation(null);
+                    }
+                  }}
+                  placeholder="Enter conversation name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end items-center gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setRenamingConversation(null)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRename}
+                  disabled={renamingSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {renamingSaving ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </button>
               </div>
             </div>
           </div>
