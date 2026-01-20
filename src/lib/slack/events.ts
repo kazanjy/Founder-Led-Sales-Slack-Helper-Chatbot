@@ -225,11 +225,15 @@ async function handleMention(
 ) {
   console.log("handleMention started:", { teamId, event });
 
-  const { user, text, channel, ts } = event;
+  const { user, text, channel, ts, thread_ts } = event;
   if (!user || !text || !channel || !ts) {
     console.log("Missing required fields:", { user, text, channel, ts });
     return;
   }
+
+  // If this @mention is in a thread, use thread_ts to continue that conversation
+  // Otherwise use ts (this message becomes the thread parent)
+  const threadTs = thread_ts || ts;
 
   // Get the workspace
   console.log("Looking up workspace:", teamId);
@@ -254,13 +258,13 @@ async function handleMention(
   console.log("canSend:", canSend);
 
   if (!canSend.allowed) {
-    await sendSlackMessage(client, channel, canSend.message, ts);
+    await sendSlackMessage(client, channel, canSend.message, threadTs);
     return;
   }
 
   // Send welcome message for first-time users
   if (canSend.welcomeMessage) {
-    await sendSlackMessage(client, channel, canSend.welcomeMessage, ts);
+    await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
   // Strip the bot mention from the message
@@ -272,14 +276,14 @@ async function handleMention(
       client,
       channel,
       "Hey! Ask me anything about founder-led sales. Just @mention me with your question.",
-      ts
+      threadTs
     );
     return;
   }
 
   // Process the message
   console.log("Calling processMessage");
-  await processMessage(workspace, dbUser, channel, ts, cleanText);
+  await processMessage(workspace, dbUser, channel, threadTs, cleanText, ts);
   console.log("processMessage completed");
 }
 
