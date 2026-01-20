@@ -725,19 +725,23 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500 mb-4">
                   Some ideas to start with:
                 </p>
-                <div className="grid grid-rows-6 grid-flow-col gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
+                    // Column 1: Foundation & Discovery
                     { emoji: "📏", display: "Can you help me measure my GTM maturity?" },
-                    { emoji: "🔍", display: "What would be good discovery questions for my product?" },
                     { emoji: "🎯", display: "Can you help me tighten my ideal customer profile?" },
+                    { emoji: "🔍", display: "What would be good discovery questions for my product?" },
+                    { emoji: "📞", display: "Can you help me structure an effective first call?" },
+                    // Column 2: Outreach & Execution
                     { emoji: "📧", display: "What would be good outbound messaging for my product?" },
                     { emoji: "📝", display: "Can you help me write an outbound sequence?" },
-                    { emoji: "📞", display: "Can you help me structure an effective first call?" },
                     { emoji: "📚", display: "Can you help me put together my sales playbook?" },
+                    { emoji: "💰", display: "Help me design a comp plan for a first sales rep." },
+                    // Column 3: Team & Education
                     { emoji: "👥", display: "Can you give me guidance on a good sales rep hiring process?" },
                     { emoji: "🚀", display: "What would be an effective sales rep onboarding plan?" },
-                    { emoji: "💰", display: "Help me design a comp plan for a first sales rep." },
                     { emoji: "🧠", display: "Take a quiz on your founder-led sales expertise.", prompt: "Can you give me a 20 question quiz about founder-led sales concepts, one question at a time? Test my expertise!" },
+                    { emoji: "📖", display: "Give me a tutoring session on founder-led sales.", prompt: "Can you give me a short lesson on founder-led sales, and then quiz me on what we've covered? Give me some topic options to choose from first." },
                   ].map((item) => (
                       <button
                         key={item.display}
