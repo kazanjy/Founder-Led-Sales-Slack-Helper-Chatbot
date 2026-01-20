@@ -915,6 +915,44 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
   - [ ] Quick-select prompts from library to start new conversation
   - [ ] Consider prompt library in Slack App Home tab
 
+- [ ] **Enhanced Canned Prompts (Abstracted Experiences)**
+  - [ ] Upgrade existing prompts to use "display text" vs "actual prompt" pattern (like Quiz & Tutoring CTAs)
+  - [ ] Create richer prompt experiences with detailed system instructions:
+    - [ ] Cold email workshop - guided session with examples and iterations
+    - [ ] Objection handling practice - roleplay scenarios
+    - [ ] Discovery call simulation - interactive practice
+    - [ ] Pricing strategy advisor - structured pricing analysis
+    - [ ] Sales pitch refinement - iterative feedback loop
+  - [ ] Consider multi-turn prompt templates (not just single messages)
+  - [ ] Analytics on which prompts are most used/valuable
+
+- [ ] **User Custom Prompts**
+  - [ ] Allow users to create their own saved prompts
+  - [ ] Custom CTA button text + underlying prompt content
+  - [ ] Personal prompt library (user-specific)
+  - [ ] Optional: Share prompts with team (workspace-level)
+  - [ ] Import/export prompts
+  - [ ] Prompt suggestions based on usage patterns
+
+- [ ] **User Configuration & Settings**
+  - [ ] **Ideal Customer Profile (ICP)**
+    - [ ] Company size, industry, geography
+    - [ ] Target personas and titles
+    - [ ] Pain points and use cases
+    - [ ] Mikey uses ICP context to personalize advice
+  - [ ] **Product/Service Context**
+    - [ ] Value propositions
+    - [ ] Key differentiators
+    - [ ] Pricing model overview
+    - [ ] Competitive positioning
+  - [ ] **Sales Context**
+    - [ ] Current sales stage/maturity
+    - [ ] Team size and structure
+    - [ ] Typical deal size and sales cycle
+  - [ ] Settings automatically injected into Mikey conversations for personalized responses
+  - [ ] UI for managing these settings in web dashboard
+  - [ ] Consider workspace-level defaults vs user-level overrides
+
 ### Cleanup Tasks
 - [ ] Remove debug console.log statements before production
 
