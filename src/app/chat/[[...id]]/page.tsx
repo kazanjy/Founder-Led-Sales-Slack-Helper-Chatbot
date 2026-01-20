@@ -973,7 +973,7 @@ export default function ChatPage() {
                         <span className="text-gray-700 text-sm line-clamp-2">{item.title}</span>
                       </button>
                       {/* Edit/Clone buttons - appear on hover */}
-                      <div className="absolute right-1 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-1 bottom-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
