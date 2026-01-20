@@ -918,7 +918,7 @@ export default function ChatPage() {
                     + Add Prompt
                   </button>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {savedPrompts.map((item) => (
                     <div
                       key={item.id}
