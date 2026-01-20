@@ -76,6 +76,7 @@ model User {
   referralsReceived Referral[]  @relation("Referred")
   sharedConversations SharedConversation[]
   sessions        Session[]
+  savedPrompts    SavedPrompt[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -138,6 +139,29 @@ enum LicenseStatusType {
   EXPIRED
   CANCELLED
   SUSPENDED
+}
+
+// Saved prompts for quick access
+model SavedPrompt {
+  id              String    @id @default(cuid())
+
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emoji           String    @default("💡")
+  title           String
+  prompt          String
+
+  // Track if this was originally a default prompt
+  defaultPromptId String?   // e.g. "default-1" to track resets
+
+  // Order for drag-and-drop
+  sortOrder       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("saved_prompts")
 }
 
 // A conversation thread (Slack thread or web chat)

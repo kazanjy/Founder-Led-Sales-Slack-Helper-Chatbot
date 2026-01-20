@@ -3,38 +3,16 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 
-// Saved Prompt interface
+// Saved Prompt interface (matches API response)
 interface SavedPrompt {
   id: string;
   emoji: string;
   title: string;
   prompt: string;
-  isDefault: boolean;
+  defaultPromptId: string | null; // Tracks if this was originally a default prompt
 }
-
-// Default prompts that ship with the app
-const DEFAULT_PROMPTS: SavedPrompt[] = [
-  // Column 1: Foundation & Discovery
-  { id: "default-1", emoji: "📏", title: "Can you help me measure my GTM maturity?", prompt: "Can you help me measure my GTM maturity?", isDefault: true },
-  { id: "default-2", emoji: "🎯", title: "Can you help me tighten my ideal customer profile?", prompt: "Can you help me tighten my ideal customer profile?", isDefault: true },
-  { id: "default-3", emoji: "🔍", title: "What would be good discovery questions for my product?", prompt: "What would be good discovery questions for my product?", isDefault: true },
-  { id: "default-4", emoji: "📞", title: "Can you help me structure an effective first call?", prompt: "Can you help me structure an effective first call?", isDefault: true },
-  // Column 2: Outreach & Execution
-  { id: "default-5", emoji: "📧", title: "What would be good outbound messaging for my product?", prompt: "What would be good outbound messaging for my product?", isDefault: true },
-  { id: "default-6", emoji: "📝", title: "Can you help me write an outbound sequence?", prompt: "Can you help me write an outbound sequence?", isDefault: true },
-  { id: "default-7", emoji: "📚", title: "Can you help me put together my sales playbook?", prompt: "Can you help me put together my sales playbook?", isDefault: true },
-  { id: "default-8", emoji: "💰", title: "Help me design a comp plan for a first sales rep.", prompt: "Help me design a comp plan for a first sales rep.", isDefault: true },
-  // Column 3: Team & Education
-  { id: "default-9", emoji: "👥", title: "Can you give me guidance on a good sales rep hiring process?", prompt: "Can you give me guidance on a good sales rep hiring process?", isDefault: true },
-  { id: "default-10", emoji: "🚀", title: "What would be an effective sales rep onboarding plan?", prompt: "What would be an effective sales rep onboarding plan?", isDefault: true },
-  { id: "default-11", emoji: "🧠", title: "Take a quiz on your founder-led sales expertise.", prompt: "Can you give me a 20 question quiz about founder-led sales concepts, one question at a time? Test my expertise!", isDefault: true },
-  { id: "default-12", emoji: "📖", title: "Give me a tutoring session on founder-led sales.", prompt: "Can you give me a short lesson on founder-led sales, and then quiz me on what we've covered? Give me some topic options to choose from first.", isDefault: true },
-  // New: Pre-call planning
-  { id: "default-13", emoji: "🗓️", title: "Help me prepare for a call.", prompt: "Help me do precall planning for a customer call. Ask me about the customer I'm meeting, and some details about my product as a means by which to help me prepare. Remind me to edit the saved prompt if I want to add those details going forward.", isDefault: true },
-];
-
-const STORAGE_KEY = "mikey-saved-prompts";
 
 /**
  * Format a date as relative time (e.g., "2m ago", "3h ago", "Yesterday", "Jan 15")
@@ -118,49 +96,53 @@ export default function ChatPage() {
   const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const [draggedPromptId, setDraggedPromptId] = useState<string | null>(null);
-  const [promptsLoaded, setPromptsLoaded] = useState(false);
+  const [promptsLoading, setPromptsLoading] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
 
-  // Load saved prompts from localStorage on mount
+  // Load saved prompts from API on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    async function loadPrompts() {
       try {
-        const parsed = JSON.parse(stored);
-        setSavedPrompts(parsed);
-      } catch {
-        setSavedPrompts(DEFAULT_PROMPTS);
+        const res = await fetch("/api/saved-prompts");
+        const data = await res.json();
+        if (data.prompts) {
+          setSavedPrompts(data.prompts);
+        }
+      } catch (error) {
+        console.error("Error loading prompts:", error);
+      } finally {
+        setPromptsLoading(false);
       }
-    } else {
-      setSavedPrompts(DEFAULT_PROMPTS);
     }
-    setPromptsLoaded(true);
+    loadPrompts();
   }, []);
 
-  // Save prompts to localStorage when they change
-  useEffect(() => {
-    if (promptsLoaded && savedPrompts.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPrompts));
-    }
-  }, [savedPrompts, promptsLoaded]);
-
   // Reset a single prompt to its default (only for default prompts)
-  const handleResetPromptToDefault = (promptId: string) => {
-    const defaultPrompt = DEFAULT_PROMPTS.find((p) => p.id === promptId);
-    if (defaultPrompt) {
-      setSavedPrompts((prev) =>
-        prev.map((p) => (p.id === promptId ? { ...defaultPrompt } : p))
-      );
-      setEditingPrompt({ ...defaultPrompt });
+  const handleResetPromptToDefault = async (promptId: string) => {
+    try {
+      const res = await fetch(`/api/saved-prompts/${promptId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      const data = await res.json();
+      if (data.prompt) {
+        setSavedPrompts((prev) =>
+          prev.map((p) => (p.id === promptId ? data.prompt : p))
+        );
+        setEditingPrompt(data.prompt);
+      }
+    } catch (error) {
+      console.error("Error resetting prompt:", error);
     }
   };
 
   // Check if a prompt can be reset (is a default prompt that's been modified)
   const canResetPrompt = (prompt: SavedPrompt): boolean => {
-    if (!prompt.id.startsWith("default-")) return false;
-    const defaultPrompt = DEFAULT_PROMPTS.find((p) => p.id === prompt.id);
+    if (!prompt.defaultPromptId) return false;
+    const defaultPrompt = DEFAULT_PROMPTS.find((p) => p.id === prompt.defaultPromptId);
     if (!defaultPrompt) return false;
     return (
       prompt.title !== defaultPrompt.title ||
@@ -170,44 +152,85 @@ export default function ChatPage() {
   };
 
   // Save edited prompt
-  const handleSavePrompt = (prompt: SavedPrompt) => {
-    if (isAddingPrompt) {
-      // Adding new prompt
-      setSavedPrompts((prev) => [...prev, { ...prompt, isDefault: false }]);
-    } else {
-      // Editing existing prompt
-      setSavedPrompts((prev) =>
-        prev.map((p) => (p.id === prompt.id ? { ...prompt, isDefault: false } : p))
-      );
+  const handleSavePrompt = async (prompt: SavedPrompt) => {
+    try {
+      if (isAddingPrompt) {
+        // Adding new prompt via API
+        const res = await fetch("/api/saved-prompts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emoji: prompt.emoji,
+            title: prompt.title,
+            prompt: prompt.prompt,
+          }),
+        });
+        const data = await res.json();
+        if (data.prompt) {
+          setSavedPrompts((prev) => [...prev, data.prompt]);
+        }
+      } else {
+        // Editing existing prompt via API
+        const res = await fetch(`/api/saved-prompts/${prompt.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emoji: prompt.emoji,
+            title: prompt.title,
+            prompt: prompt.prompt,
+          }),
+        });
+        const data = await res.json();
+        if (data.prompt) {
+          setSavedPrompts((prev) =>
+            prev.map((p) => (p.id === prompt.id ? data.prompt : p))
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error saving prompt:", error);
     }
     setEditingPrompt(null);
     setIsAddingPrompt(false);
   };
 
   // Clone a prompt
-  const handleClonePrompt = (prompt: SavedPrompt) => {
-    const cloned: SavedPrompt = {
-      ...prompt,
-      id: `custom-${Date.now()}`,
-      title: `${prompt.title} (copy)`,
-      isDefault: false,
-    };
-    setSavedPrompts((prev) => [...prev, cloned]);
+  const handleClonePrompt = async (prompt: SavedPrompt) => {
+    try {
+      const res = await fetch("/api/saved-prompts/clone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptId: prompt.id }),
+      });
+      const data = await res.json();
+      if (data.prompt) {
+        setSavedPrompts((prev) => [...prev, data.prompt]);
+      }
+    } catch (error) {
+      console.error("Error cloning prompt:", error);
+    }
   };
 
   // Delete a prompt
-  const handleDeletePrompt = (promptId: string) => {
-    setSavedPrompts((prev) => prev.filter((p) => p.id !== promptId));
+  const handleDeletePrompt = async (promptId: string) => {
+    try {
+      await fetch(`/api/saved-prompts/${promptId}`, {
+        method: "DELETE",
+      });
+      setSavedPrompts((prev) => prev.filter((p) => p.id !== promptId));
+    } catch (error) {
+      console.error("Error deleting prompt:", error);
+    }
   };
 
   // Add new prompt
   const handleAddPrompt = () => {
     setEditingPrompt({
-      id: `custom-${Date.now()}`,
+      id: "", // Will be assigned by server
       emoji: "💡",
       title: "",
       prompt: "",
-      isDefault: false,
+      defaultPromptId: null,
     });
     setIsAddingPrompt(true);
   };
@@ -223,24 +246,35 @@ export default function ChatPage() {
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent, targetPromptId: string) => {
+  const handleDrop = useCallback(async (e: React.DragEvent, targetPromptId: string) => {
     e.preventDefault();
     if (!draggedPromptId || draggedPromptId === targetPromptId) return;
 
-    setSavedPrompts((prev) => {
-      const newPrompts = [...prev];
-      const draggedIndex = newPrompts.findIndex((p) => p.id === draggedPromptId);
-      const targetIndex = newPrompts.findIndex((p) => p.id === targetPromptId);
+    // Calculate new order
+    const newPrompts = [...savedPrompts];
+    const draggedIndex = newPrompts.findIndex((p) => p.id === draggedPromptId);
+    const targetIndex = newPrompts.findIndex((p) => p.id === targetPromptId);
 
-      if (draggedIndex === -1 || targetIndex === -1) return prev;
+    if (draggedIndex === -1 || targetIndex === -1) return;
 
-      const [draggedPrompt] = newPrompts.splice(draggedIndex, 1);
-      newPrompts.splice(targetIndex, 0, draggedPrompt);
+    const [draggedPrompt] = newPrompts.splice(draggedIndex, 1);
+    newPrompts.splice(targetIndex, 0, draggedPrompt);
 
-      return newPrompts;
-    });
+    // Optimistically update UI
+    setSavedPrompts(newPrompts);
     setDraggedPromptId(null);
-  }, [draggedPromptId]);
+
+    // Sync with API
+    try {
+      await fetch("/api/saved-prompts/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptIds: newPrompts.map(p => p.id) }),
+      });
+    } catch (error) {
+      console.error("Error reordering prompts:", error);
+    }
+  }, [draggedPromptId, savedPrompts]);
 
   const handleDragEnd = useCallback(() => {
     setDraggedPromptId(null);
