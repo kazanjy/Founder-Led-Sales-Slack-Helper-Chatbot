@@ -146,12 +146,27 @@ export default function ChatPage() {
     }
   }, [savedPrompts, promptsLoaded]);
 
-  // Reset prompts to defaults
-  const handleResetPrompts = () => {
-    if (confirm("Reset all prompts to defaults? Your customizations will be lost.")) {
-      setSavedPrompts(DEFAULT_PROMPTS);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PROMPTS));
+  // Reset a single prompt to its default (only for default prompts)
+  const handleResetPromptToDefault = (promptId: string) => {
+    const defaultPrompt = DEFAULT_PROMPTS.find((p) => p.id === promptId);
+    if (defaultPrompt) {
+      setSavedPrompts((prev) =>
+        prev.map((p) => (p.id === promptId ? { ...defaultPrompt } : p))
+      );
+      setEditingPrompt({ ...defaultPrompt });
     }
+  };
+
+  // Check if a prompt can be reset (is a default prompt that's been modified)
+  const canResetPrompt = (prompt: SavedPrompt): boolean => {
+    if (!prompt.id.startsWith("default-")) return false;
+    const defaultPrompt = DEFAULT_PROMPTS.find((p) => p.id === prompt.id);
+    if (!defaultPrompt) return false;
+    return (
+      prompt.title !== defaultPrompt.title ||
+      prompt.prompt !== defaultPrompt.prompt ||
+      prompt.emoji !== defaultPrompt.emoji
+    );
   };
 
   // Save edited prompt
@@ -896,21 +911,12 @@ export default function ChatPage() {
                   <p className="text-sm text-gray-500">
                     Some ideas to start with:
                   </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleAddPrompt}
-                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      + Add Prompt
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      onClick={handleResetPrompts}
-                      className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
-                    >
-                      Reset to Defaults
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleAddPrompt}
+                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    + Add Prompt
+                  </button>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {savedPrompts.map((item) => (
@@ -1181,23 +1187,35 @@ export default function ChatPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setEditingPrompt(null);
-                    setIsAddingPrompt(false);
-                  }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSavePrompt(editingPrompt)}
-                  disabled={!editingPrompt.title.trim() || !editingPrompt.prompt.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isAddingPrompt ? "Add Prompt" : "Save Changes"}
-                </button>
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                <div>
+                  {!isAddingPrompt && canResetPrompt(editingPrompt) && (
+                    <button
+                      onClick={() => handleResetPromptToDefault(editingPrompt.id)}
+                      className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Reset to Default
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setEditingPrompt(null);
+                      setIsAddingPrompt(false);
+                    }}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSavePrompt(editingPrompt)}
+                    disabled={!editingPrompt.title.trim() || !editingPrompt.prompt.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isAddingPrompt ? "Add Prompt" : "Save Changes"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
