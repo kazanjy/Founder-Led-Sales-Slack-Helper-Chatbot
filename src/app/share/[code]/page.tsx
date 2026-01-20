@@ -84,7 +84,7 @@ export default function SharedChatPage() {
       {/* Header */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-3 hover:opacity-80 flex-shrink-0">
+          <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 flex-shrink-0">
             <img
               src="/mikey-avatar.png"
               alt="Mikey"
