@@ -953,6 +953,31 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
   - [ ] UI for managing these settings in web dashboard
   - [ ] Consider workspace-level defaults vs user-level overrides
 
+- [ ] **Merge Fields in Saved Prompts**
+  - [ ] **Built-in merge fields from user config:**
+    - [ ] `{{ICP}}` - Ideal Customer Profile
+    - [ ] `{{VALUE_PROP}}` - Value Propositions
+    - [ ] `{{PRODUCT}}` - Product/Service description
+    - [ ] `{{COMPETITORS}}` - Competitive positioning
+    - [ ] `{{SALES_CONTEXT}}` - Sales stage, team size, deal info
+  - [ ] **Custom merge fields:**
+    - [ ] User can create their own named config variables
+    - [ ] Example: `{{PRICING_MODEL}}`, `{{TARGET_PERSONA}}`, `{{OBJECTION_RESPONSES}}`
+    - [ ] Manage custom merge fields in settings UI
+  - [ ] **Merge field usage in prompts:**
+    - [ ] Syntax: `{{FIELD_NAME}}` in prompt text
+    - [ ] Preview in edit modal shows resolved values
+    - [ ] Warning if merge field is used but not configured
+    - [ ] Autocomplete/insert merge field picker in prompt editor
+  - [ ] **Example usage:**
+    - [ ] Prompt: "Help me write a cold email for {{ICP}} highlighting {{VALUE_PROP}}"
+    - [ ] Prompt: "Role-play a discovery call where I'm selling to {{TARGET_PERSONA}}"
+    - [ ] Prompt: "Help me handle the {{COMMON_OBJECTION}} objection for {{PRODUCT}}"
+  - [ ] **Merge field expansion:**
+    - [ ] Fields expanded at send time (not stored expanded)
+    - [ ] If field is empty/not configured, prompt user to fill it or send without
+    - [ ] Option to "fill in the blank" inline before sending
+
 ### Cleanup Tasks
 - [ ] Remove debug console.log statements before production
 
