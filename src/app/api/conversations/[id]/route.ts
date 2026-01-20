@@ -113,15 +113,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Only allow updating archived status for now
+  // Allow updating archived status and title
   const updatedConversation = await prisma.conversation.update({
     where: { id },
     data: {
       archived: body.archived ?? conversation.archived,
+      title: body.title !== undefined ? body.title : conversation.title,
     },
     select: {
       id: true,
       archived: true,
+      title: true,
     },
   });
 
