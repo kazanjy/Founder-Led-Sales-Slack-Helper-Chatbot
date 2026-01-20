@@ -22,7 +22,8 @@
     "next": "15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "stripe": "^20.2.0"
   },
   "devDependencies": {
     "@types/node": "^20",

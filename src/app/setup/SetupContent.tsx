@@ -63,7 +63,7 @@ export default function SetupContent() {
       });
 
       if (res.ok) {
-        router.push(`/?installed=true&workspace=${encodeURIComponent(workspace || "")}`);
+        router.push(`/upgrade?installed=true&workspace=${encodeURIComponent(workspace || "")}`);
       } else {
         const data = await res.json();
         setError(data.error || "Failed to send welcome message");
@@ -76,7 +76,7 @@ export default function SetupContent() {
   };
 
   const handleSkip = () => {
-    router.push(`/?installed=true&workspace=${encodeURIComponent(workspace || "")}`);
+    router.push(`/upgrade?installed=true&workspace=${encodeURIComponent(workspace || "")}`);
   };
 
   if (!teamId) {

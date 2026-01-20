@@ -93,6 +93,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    let isNewUser = false;
+
     if (!user) {
       // Create user with trial status
       user = await prisma.user.create({
@@ -105,6 +107,7 @@ export async function GET(request: NextRequest) {
           licenseStatus: "TRIAL",
         },
       });
+      isNewUser = true;
     } else {
       // Update user info if changed
       await prisma.user.update({
@@ -138,8 +141,11 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
-    // Redirect to chat
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/chat`);
+    // Redirect new users to upgrade page, existing users to chat
+    const redirectUrl = isNewUser
+      ? `${process.env.NEXT_PUBLIC_APP_URL}/upgrade`
+      : `${process.env.NEXT_PUBLIC_APP_URL}/chat`;
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Auth callback error:", error);
     return NextResponse.redirect(

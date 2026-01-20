@@ -563,7 +563,19 @@ export default function ChatPage() {
           </div>
           <div className="text-xs text-gray-500">
             {user?.licenseStatus === "ACTIVE" ? (
-              <span className="text-green-600">✓ Licensed</span>
+              <div className="flex items-center justify-between">
+                <span className="text-green-600">✓ Licensed</span>
+                <button
+                  onClick={async () => {
+                    const res = await fetch("/api/stripe/portal", { method: "POST" });
+                    const data = await res.json();
+                    if (data.url) window.location.href = data.url;
+                  }}
+                  className="text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  Manage
+                </button>
+              </div>
             ) : user?.licenseStatus === "TRIAL" ? (
               <span className="text-blue-600">
                 🎁 Trial ({user.trialDaysRemaining} days left)
@@ -577,34 +589,51 @@ export default function ChatPage() {
 
       {/* Main Chat Area - scrolls independently */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Chat header with Copy/Share buttons */}
-        {messages.length > 0 && (
-          <div className="border-b border-gray-200 px-6 py-3 flex justify-end gap-2 bg-white">
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              Copy
-            </button>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-              </svg>
-              Share
-            </button>
+        {/* Top header with Upgrade and Copy/Share buttons */}
+        <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
+          <div>
+            {/* Left side - empty for now */}
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            {/* Upgrade button - show for non-active users */}
+            {user && user.licenseStatus !== "ACTIVE" && (
+              <a
+                href="/upgrade"
+                className="px-4 py-1.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all shadow-sm"
+              >
+                Upgrade
+              </a>
+            )}
+            {/* Copy/Share buttons - only show when messages exist */}
+            {messages.length > 0 && (
+              <>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copy
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
+                  Share
+                </button>
+              </>
+            )}
+          </div>
+        </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
