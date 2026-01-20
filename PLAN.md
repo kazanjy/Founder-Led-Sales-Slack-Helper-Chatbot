@@ -853,26 +853,24 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
 
 ### Current Implementation
 - Clean, minimal page with just the conversation
-- Mikey branding in header
-- "Shared conversation" label
+- Mikey branding in header with "Try Mikey" CTA button
+- Descriptive text: "This is a shared conversation from Mikey, the Founder-Led Sales assistant."
 - Same message styling as main app (17px font, user messages right-aligned, Mikey responses with markdown)
 - Footer with "Try Mikey" button
+- All CTAs open in new tab (preserves share page)
 
-### TODO: Improve Shared Experience & CTA
+### Social Previews / Link Unfurling *(DONE)*
+- [x] Open Graph meta tags for rich previews
+- [x] `og:title` - "Shared chat from Mikey - The Founder-Led Sales Helper | Topic: [user's question]"
+- [x] `og:description` - Preview of Mikey's response (first 200 chars)
+- [x] `og:image` - Mikey avatar/icon (512x512)
+- [x] Twitter Card meta tags (`twitter:card`, `twitter:image`, etc.)
+- [x] Works on Twitter/X, Slack, iMessage (tested)
 
-- [ ] **Header improvements**
-  - [ ] Add Mikey logo/avatar more prominently
-  - [ ] Consider showing conversation title if available
-  - [ ] Add subtle "Powered by Mikey - Founder-Led Sales AI" tagline
+### TODO: Additional Share Page Improvements
 
 - [ ] **CTA merchandising**
-  - [ ] Design compelling CTA block at bottom of shared conversation
-  - [ ] Headline options to test:
-    - "Get your own founder-led sales answers"
-    - "Ask Mikey your sales questions"
-    - "Want sales advice like this? Try Mikey free"
   - [ ] Include value props: "7-day free trial • No credit card required • Works in Slack"
-  - [ ] Primary CTA button: "Start Your Free Trial" or "Try Mikey Free"
   - [ ] Secondary link: "Learn more about Mikey"
 
 - [ ] **Social proof on shared pages**
@@ -887,26 +885,12 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
   - [ ] Ensure shared page looks great on mobile
   - [ ] Sticky CTA on mobile scroll
 
-- [ ] **Link preview / social sharing**
-  - [ ] Open Graph meta tags for rich previews:
-    - `og:title` - First user question or conversation title
-    - `og:description` - Preview of Mikey's response (truncated)
-    - `og:image` - Mikey avatar/icon (needs proper sized image for social)
-    - `og:site_name` - "Mikey - Founder-Led Sales AI"
-  - [ ] Twitter Card meta tags (`twitter:card`, `twitter:image`, etc.)
-  - [ ] Test previews on:
-    - [ ] iMessage / Messages
-    - [ ] Slack
-    - [ ] Twitter/X
-    - [ ] LinkedIn
-    - [ ] Facebook
+- [ ] **Advanced social previews**
   - [ ] Create dedicated social preview image (1200x630px recommended)
-    - Include Mikey avatar prominently
-    - Could dynamically include the question text
   - [ ] Consider dynamic OG image generation (show actual question in preview image)
+  - [ ] Test on LinkedIn, Facebook
 
 - [ ] **SEO considerations**
-  - [ ] Add appropriate meta tags for shared pages
   - [ ] Consider if shared conversations should be indexable
   - [ ] Add robots meta tag if we don't want indexing
 
