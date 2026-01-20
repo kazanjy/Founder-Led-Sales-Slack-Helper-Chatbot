@@ -231,7 +231,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
           <div className="mt-8 grid md:grid-cols-3 gap-4">
             <div className="text-center p-4">
-              <div className="text-3xl font-bold text-blue-600 mb-1">500+</div>
+              <div className="text-3xl font-bold text-blue-600 mb-1">1000s</div>
               <div className="text-sm text-gray-600">Pages of sales methodology</div>
             </div>
             <div className="text-center p-4">
