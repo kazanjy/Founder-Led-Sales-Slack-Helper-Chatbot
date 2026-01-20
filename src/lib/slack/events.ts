@@ -477,11 +477,11 @@ async function processMessage(
     // Convert markdown to Slack format and send response
     let slackResponse = markdownToSlack(response);
 
-    // Add web app link for new conversations
+    // Add web app link and thread reply instructions for new conversations
     if (isNewConversation) {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
       const webChatUrl = `${appUrl}/chat/${conversation.id}`;
-      slackResponse = `_You can always come back to this discussion in the Mikey web app:_ ${webChatUrl}\n\n${slackResponse}`;
+      slackResponse = `_You can always come back to this discussion in the Mikey web app:_ ${webChatUrl}\n_To continue chatting in this thread, just @mention me again._\n\n${slackResponse}`;
     }
 
     const responseTs = await sendSlackMessage(client, channel, slackResponse, threadTs);
