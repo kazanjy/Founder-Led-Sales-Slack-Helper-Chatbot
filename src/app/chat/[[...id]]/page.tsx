@@ -76,7 +76,7 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [toast, setToast] = useState<{ message: string; position: "left" | "right" } | null>(null);
+  const [toast, setToast] = useState<{ message: string; position: "left" | "right" | "bottom" } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
@@ -98,7 +98,7 @@ export default function ChatPage() {
   }, []);
 
   // Show toast notification
-  const showToast = (message: string, position: "left" | "right" = "right") => {
+  const showToast = (message: string, position: "left" | "right" | "bottom" = "right") => {
     setToast({ message, position });
     setTimeout(() => setToast(null), 3000);
   };
@@ -121,7 +121,7 @@ export default function ChatPage() {
     showToast("Copied to clipboard!");
   };
 
-  // Share conversation
+  // Share conversation (header button)
   const handleShare = async () => {
     if (!selectedConversation || messages.length === 0 || sharing) return;
 
@@ -141,6 +141,31 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error sharing:", error);
       showToast("Failed to share conversation");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // Share conversation (inline button under messages)
+  const handleInlineShare = async () => {
+    if (!selectedConversation || messages.length === 0 || sharing) return;
+
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}/share`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.shareUrl) {
+        navigator.clipboard.writeText(data.shareUrl);
+        showToast("Link copied! This chat is now available to anyone with this link.", "bottom");
+      } else {
+        showToast("Failed to share conversation", "bottom");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      showToast("Failed to share conversation", "bottom");
     } finally {
       setSharing(false);
     }
@@ -776,7 +801,7 @@ export default function ChatPage() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(msg.content);
-                              showToast("Copied to clipboard!");
+                              showToast("Copied to clipboard!", "bottom");
                             }}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                           >
@@ -791,7 +816,7 @@ export default function ChatPage() {
                         </div>
                         <div className="relative group">
                           <button
-                            onClick={handleShare}
+                            onClick={handleInlineShare}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -876,8 +901,12 @@ export default function ChatPage() {
 
       {/* Toast notification */}
       {toast && (
-        <div className={`fixed top-16 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50 ${
-          toast.position === "left" ? "left-6" : "right-6"
+        <div className={`fixed bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50 ${
+          toast.position === "left"
+            ? "top-16 left-6"
+            : toast.position === "bottom"
+            ? "bottom-24 left-1/2 -translate-x-1/2 ml-40"
+            : "top-16 right-6"
         }`}>
           {toast.message}
         </div>
