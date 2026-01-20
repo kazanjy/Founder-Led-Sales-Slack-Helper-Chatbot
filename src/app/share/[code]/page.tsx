@@ -83,17 +83,30 @@ export default function SharedChatPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="max-w-[800px] mx-auto px-6 py-4 flex items-center gap-3">
-          <a href="/" className="flex items-center gap-3 hover:opacity-80">
+        <div className="max-w-[800px] mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-3 hover:opacity-80">
+              <img
+                src="/mikey-avatar.png"
+                alt="Mikey"
+                className="w-8 h-8 rounded-lg"
+              />
+              <span className="font-semibold text-gray-900">Mikey</span>
+            </a>
+            <span className="text-gray-300">|</span>
+            <span className="text-sm text-gray-500">Shared conversation</span>
+          </div>
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <img
               src="/mikey-avatar.png"
               alt="Mikey"
-              className="w-8 h-8 rounded-lg"
+              className="w-5 h-5 rounded"
             />
-            <span className="font-semibold text-gray-900">Mikey</span>
+            Try Mikey
           </a>
-          <span className="text-gray-300">|</span>
-          <span className="text-sm text-gray-500">Shared conversation</span>
         </div>
       </header>
 
