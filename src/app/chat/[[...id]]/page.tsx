@@ -927,18 +927,18 @@ export default function ChatPage() {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, item.id)}
                       onDragEnd={handleDragEnd}
-                      className={`group relative flex items-center gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing ${
+                      className={`group relative flex items-start gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing min-h-[72px] ${
                         draggedPromptId === item.id ? "opacity-50" : ""
                       }`}
                     >
                       <button
                         onClick={() => sendMessage(item.prompt)}
-                        className="flex items-center gap-3 text-left flex-1 min-w-0"
+                        className="flex items-start gap-3 text-left flex-1 min-w-0"
                       >
-                        <span className="text-2xl flex-shrink-0">{item.emoji}</span>
-                        <span className="text-gray-700 text-sm truncate">{item.title}</span>
+                        <span className="text-2xl flex-shrink-0 mt-0.5">{item.emoji}</span>
+                        <span className="text-gray-700 text-sm line-clamp-2">{item.title}</span>
                       </button>
-                      {/* Edit/Clone/Delete buttons - appear on hover */}
+                      {/* Edit/Clone buttons - appear on hover */}
                       <div className="absolute right-1 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
@@ -967,25 +967,12 @@ export default function ChatPage() {
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                           </svg>
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeletePrompt(item.id);
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-200 rounded"
-                          title="Delete"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
                 <p className="text-xs text-gray-400 mt-3 text-center">
-                  Drag prompts to reorder. Hover to edit, clone, or delete.
+                  Drag prompts to reorder. Hover to edit or clone.
                 </p>
               </div>
             </div>
@@ -1188,13 +1175,31 @@ export default function ChatPage() {
 
               {/* Actions */}
               <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
-                <div>
+                <div className="flex gap-2">
                   {!isAddingPrompt && canResetPrompt(editingPrompt) && (
                     <button
                       onClick={() => handleResetPromptToDefault(editingPrompt.id)}
                       className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       Reset to Default
+                    </button>
+                  )}
+                  {!isAddingPrompt && (
+                    <button
+                      onClick={() => {
+                        if (confirm("Are you sure you want to archive this prompt? This cannot be undone.")) {
+                          handleDeletePrompt(editingPrompt.id);
+                          setEditingPrompt(null);
+                        }
+                      }}
+                      className="px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                        <rect x="1" y="3" width="22" height="5"></rect>
+                        <line x1="10" y1="12" x2="14" y2="12"></line>
+                      </svg>
+                      Archive
                     </button>
                   )}
                 </div>
