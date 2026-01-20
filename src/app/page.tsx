@@ -36,7 +36,7 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
           <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
             Trained on Pete Kazanjy&apos;s <em>Founding Sales</em> methodology and years of B2B sales expertise.
-            Get instant guidance on everything from prospecting to closing deals.
+            Get instant guidance on everything from prospecting to closing deals &mdash; personalized to your business.
           </p>
 
           {installed && (
@@ -136,10 +136,10 @@ export default async function Home({ searchParams }: HomeProps) {
               </div>
               <h3 className="text-lg font-semibold mb-2 text-gray-900">GTM Strategy</h3>
               <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Market positioning</li>
-                <li>• Pricing strategies</li>
+                <li>• ICP & positioning definition</li>
+                <li>• Value proposition crafting</li>
                 <li>• Sales process design</li>
-                <li>• Competitive differentiation</li>
+                <li>• GTM maturity assessment</li>
               </ul>
             </div>
 
@@ -250,10 +250,10 @@ export default async function Home({ searchParams }: HomeProps) {
       <section className="py-16 px-6 bg-white">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
-            Learn Your Way
+            Your Way, Your Workflow
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Whether you need quick answers or deep learning, Mikey adapts to how you want to learn.
+            Quick answers, deep learning, or customized workflows &mdash; Mikey adapts to how you work and sell.
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -309,6 +309,35 @@ export default async function Home({ searchParams }: HomeProps) {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Shareable Insights</h3>
                   <p className="text-sm text-gray-600">Share valuable conversations with your team. Great advice shouldn&apos;t stay siloed.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">Custom Prompt Library</h3>
+                  <p className="text-sm text-gray-600">Build your own library of saved prompts. Edit, clone, and organize workflows that match how you sell.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">Personalized Context</h3>
+                  <p className="text-sm text-gray-600">Configure your ICP, value prop, and sales motion. Mikey tailors advice to your specific go-to-market.</p>
                 </div>
               </div>
             </div>
