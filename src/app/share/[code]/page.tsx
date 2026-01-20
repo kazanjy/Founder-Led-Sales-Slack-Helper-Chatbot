@@ -97,6 +97,8 @@ export default function SharedChatPage() {
           </span>
           <a
             href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
           >
             <img
@@ -138,6 +140,8 @@ export default function SharedChatPage() {
           </p>
           <a
             href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <img
