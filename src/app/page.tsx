@@ -209,19 +209,20 @@ export default async function Home({ searchParams }: HomeProps) {
               </div>
               <div>
                 <h3 className="text-xl font-semibold mb-2 text-gray-900">
-                  Based on &ldquo;Founding Sales&rdquo; by Pete Kazanjy
+                  Trained on Pete Kazanjy&apos;s Complete Body of Work
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  The definitive handbook for B2B startup sales, covering everything from finding your first customers
-                  to building a scalable sales organization. Mikey brings this comprehensive methodology to your fingertips.
+                  Mikey is trained on <em>Founding Sales</em>, all of Pete&apos;s essays, his complete class curriculum,
+                  plus hundreds of pages of templates, real-world sales assets, interviews, and more.
+                  It&apos;s like having Pete&apos;s entire founder-led sales brain at your fingertips.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Prospecting</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Sales Narratives</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Appointment Setting</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Demos</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Closing</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Hiring</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Founding Sales Book</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Essays & Articles</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Class Content</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Templates</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Sales Assets</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Interviews</span>
                 </div>
               </div>
             </div>
