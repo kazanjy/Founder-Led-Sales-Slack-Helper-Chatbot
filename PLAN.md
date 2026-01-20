@@ -762,11 +762,13 @@ interface GlobalSettings {
 - [ ] Account-level licensing (migrate from user-level)
 
 ### Phase 5: Payments
-- [ ] Stripe integration
-- [ ] Monthly vs Annual billing
-- [ ] Checkout flow (self-service)
-- [ ] Webhook handling
-- [ ] Customer portal
+- [x] Stripe integration (individual seats)
+- [x] Monthly ($99) vs Annual ($828/yr) billing
+- [x] Checkout flow (self-service)
+- [x] Webhook handling (checkout, invoice, subscription events)
+- [x] Customer portal (manage subscription)
+- [ ] Multi-seat pricing (first seat $99, additional seats $39/mo)
+- [ ] Workspace bundles (admin pays for team)
 - [ ] Manual license granting (admin)
 
 ### Phase 6: Referrals & Growth

@@ -135,7 +135,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   // Renewal payment succeeded - ensure license is active
-  const subscriptionId = invoice.subscription as string;
+  const subscriptionId = typeof invoice.subscription === 'string'
+    ? invoice.subscription
+    : invoice.subscription?.id;
+
+  if (!subscriptionId) return;
 
   const license = await prisma.license.findFirst({
     where: { stripeSubscriptionId: subscriptionId },
@@ -162,7 +166,9 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   // Payment failed - could notify user or add grace period
-  const subscriptionId = invoice.subscription as string;
+  const subscriptionId = typeof invoice.subscription === 'string'
+    ? invoice.subscription
+    : invoice.subscription?.id;
 
   console.log(`Payment failed for subscription ${subscriptionId}`);
 
