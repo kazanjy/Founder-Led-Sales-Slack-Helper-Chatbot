@@ -78,6 +78,8 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [creatingChat, setCreatingChat] = useState(false);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
@@ -163,6 +165,7 @@ export default function ChatPage() {
   // Archive a conversation
   const handleArchiveConversation = async (conversationId: string) => {
     setOpenMenuId(null);
+    setArchivingId(conversationId);
     try {
       const res = await fetch(`/api/conversations/${conversationId}`, {
         method: "PATCH",
@@ -184,6 +187,8 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error archiving:", error);
       showToast("Failed to archive conversation");
+    } finally {
+      setArchivingId(null);
     }
   };
 
@@ -297,6 +302,8 @@ export default function ChatPage() {
   }, [selectedConversation]);
 
   const handleNewChat = async () => {
+    if (creatingChat) return;
+    setCreatingChat(true);
     try {
       const res = await fetch("/api/conversations", { method: "POST" });
       const data = await res.json();
@@ -308,6 +315,8 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error creating conversation:", error);
+    } finally {
+      setCreatingChat(false);
     }
   };
 
@@ -434,9 +443,20 @@ export default function ChatPage() {
         <div className="p-4">
           <button
             onClick={handleNewChat}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={creatingChat}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
-            + New Chat
+            {creatingChat ? (
+              <>
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </>
+            ) : (
+              "+ New Chat"
+            )}
           </button>
         </div>
 
@@ -451,20 +471,35 @@ export default function ChatPage() {
               <div
                 key={conv.id}
                 className={`relative group border-b border-gray-200 ${
+                  archivingId === conv.id ? "opacity-50" : ""
+                } ${
                   selectedConversation === conv.id ? "bg-white" : "hover:bg-gray-200"
                 } ${openMenuId === conv.id ? "z-50" : ""}`}
               >
                 <button
                   onClick={() => selectConversation(conv.id)}
+                  disabled={archivingId === conv.id}
                   className="w-full p-4 text-left transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[13px] text-gray-400">
-                      {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
-                    </span>
-                    <span className="text-[13px] text-gray-400">
-                      {formatRelativeTime(conv.lastMessageAt)}
-                    </span>
+                    {archivingId === conv.id ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-[13px] text-gray-400">Archiving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[13px] text-gray-400">
+                          {conv.source === "SLACK" ? "💬 Slack" : "🌐 Web"}
+                        </span>
+                        <span className="text-[13px] text-gray-400">
+                          {formatRelativeTime(conv.lastMessageAt)}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <p className="text-[15px] text-gray-900 truncate pr-8">
                     {conv.title || conv.firstMessagePreview || "New conversation"}
