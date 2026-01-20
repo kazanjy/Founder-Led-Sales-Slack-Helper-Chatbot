@@ -1,8 +1,40 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+
+// Saved Prompt interface
+interface SavedPrompt {
+  id: string;
+  emoji: string;
+  title: string;
+  prompt: string;
+  isDefault: boolean;
+}
+
+// Default prompts that ship with the app
+const DEFAULT_PROMPTS: SavedPrompt[] = [
+  // Column 1: Foundation & Discovery
+  { id: "default-1", emoji: "📏", title: "Can you help me measure my GTM maturity?", prompt: "Can you help me measure my GTM maturity?", isDefault: true },
+  { id: "default-2", emoji: "🎯", title: "Can you help me tighten my ideal customer profile?", prompt: "Can you help me tighten my ideal customer profile?", isDefault: true },
+  { id: "default-3", emoji: "🔍", title: "What would be good discovery questions for my product?", prompt: "What would be good discovery questions for my product?", isDefault: true },
+  { id: "default-4", emoji: "📞", title: "Can you help me structure an effective first call?", prompt: "Can you help me structure an effective first call?", isDefault: true },
+  // Column 2: Outreach & Execution
+  { id: "default-5", emoji: "📧", title: "What would be good outbound messaging for my product?", prompt: "What would be good outbound messaging for my product?", isDefault: true },
+  { id: "default-6", emoji: "📝", title: "Can you help me write an outbound sequence?", prompt: "Can you help me write an outbound sequence?", isDefault: true },
+  { id: "default-7", emoji: "📚", title: "Can you help me put together my sales playbook?", prompt: "Can you help me put together my sales playbook?", isDefault: true },
+  { id: "default-8", emoji: "💰", title: "Help me design a comp plan for a first sales rep.", prompt: "Help me design a comp plan for a first sales rep.", isDefault: true },
+  // Column 3: Team & Education
+  { id: "default-9", emoji: "👥", title: "Can you give me guidance on a good sales rep hiring process?", prompt: "Can you give me guidance on a good sales rep hiring process?", isDefault: true },
+  { id: "default-10", emoji: "🚀", title: "What would be an effective sales rep onboarding plan?", prompt: "What would be an effective sales rep onboarding plan?", isDefault: true },
+  { id: "default-11", emoji: "🧠", title: "Take a quiz on your founder-led sales expertise.", prompt: "Can you give me a 20 question quiz about founder-led sales concepts, one question at a time? Test my expertise!", isDefault: true },
+  { id: "default-12", emoji: "📖", title: "Give me a tutoring session on founder-led sales.", prompt: "Can you give me a short lesson on founder-led sales, and then quiz me on what we've covered? Give me some topic options to choose from first.", isDefault: true },
+  // New: Pre-call planning
+  { id: "default-13", emoji: "🗓️", title: "Help me prepare for a call.", prompt: "Help me do precall planning for a customer call. Ask me about the customer I'm meeting, and some details about my product as a means by which to help me prepare. Remind me to edit the saved prompt if I want to add those details going forward.", isDefault: true },
+];
+
+const STORAGE_KEY = "mikey-saved-prompts";
 
 /**
  * Format a date as relative time (e.g., "2m ago", "3h ago", "Yesterday", "Jan 15")
@@ -82,9 +114,122 @@ export default function ChatPage() {
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
+  const [isAddingPrompt, setIsAddingPrompt] = useState(false);
+  const [draggedPromptId, setDraggedPromptId] = useState<string | null>(null);
+  const [promptsLoaded, setPromptsLoaded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+
+  // Load saved prompts from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setSavedPrompts(parsed);
+      } catch {
+        setSavedPrompts(DEFAULT_PROMPTS);
+      }
+    } else {
+      setSavedPrompts(DEFAULT_PROMPTS);
+    }
+    setPromptsLoaded(true);
+  }, []);
+
+  // Save prompts to localStorage when they change
+  useEffect(() => {
+    if (promptsLoaded && savedPrompts.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPrompts));
+    }
+  }, [savedPrompts, promptsLoaded]);
+
+  // Reset prompts to defaults
+  const handleResetPrompts = () => {
+    if (confirm("Reset all prompts to defaults? Your customizations will be lost.")) {
+      setSavedPrompts(DEFAULT_PROMPTS);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PROMPTS));
+    }
+  };
+
+  // Save edited prompt
+  const handleSavePrompt = (prompt: SavedPrompt) => {
+    if (isAddingPrompt) {
+      // Adding new prompt
+      setSavedPrompts((prev) => [...prev, { ...prompt, isDefault: false }]);
+    } else {
+      // Editing existing prompt
+      setSavedPrompts((prev) =>
+        prev.map((p) => (p.id === prompt.id ? { ...prompt, isDefault: false } : p))
+      );
+    }
+    setEditingPrompt(null);
+    setIsAddingPrompt(false);
+  };
+
+  // Clone a prompt
+  const handleClonePrompt = (prompt: SavedPrompt) => {
+    const cloned: SavedPrompt = {
+      ...prompt,
+      id: `custom-${Date.now()}`,
+      title: `${prompt.title} (copy)`,
+      isDefault: false,
+    };
+    setSavedPrompts((prev) => [...prev, cloned]);
+  };
+
+  // Delete a prompt
+  const handleDeletePrompt = (promptId: string) => {
+    setSavedPrompts((prev) => prev.filter((p) => p.id !== promptId));
+  };
+
+  // Add new prompt
+  const handleAddPrompt = () => {
+    setEditingPrompt({
+      id: `custom-${Date.now()}`,
+      emoji: "💡",
+      title: "",
+      prompt: "",
+      isDefault: false,
+    });
+    setIsAddingPrompt(true);
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, promptId: string) => {
+    setDraggedPromptId(promptId);
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetPromptId: string) => {
+    e.preventDefault();
+    if (!draggedPromptId || draggedPromptId === targetPromptId) return;
+
+    setSavedPrompts((prev) => {
+      const newPrompts = [...prev];
+      const draggedIndex = newPrompts.findIndex((p) => p.id === draggedPromptId);
+      const targetIndex = newPrompts.findIndex((p) => p.id === targetPromptId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+
+      const [draggedPrompt] = newPrompts.splice(draggedIndex, 1);
+      newPrompts.splice(targetIndex, 0, draggedPrompt);
+
+      return newPrompts;
+    });
+    setDraggedPromptId(null);
+  }, [draggedPromptId]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedPromptId(null);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -747,37 +892,95 @@ export default function ChatPage() {
                   Your Founder-Led Sales assistant
                 </p>
 
-                <p className="text-sm text-gray-500 mb-4">
-                  Some ideas to start with:
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-gray-500">
+                    Some ideas to start with:
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAddPrompt}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      + Add Prompt
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      onClick={handleResetPrompts}
+                      className="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                    >
+                      Reset to Defaults
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    // Column 1: Foundation & Discovery
-                    { emoji: "📏", display: "Can you help me measure my GTM maturity?" },
-                    { emoji: "🎯", display: "Can you help me tighten my ideal customer profile?" },
-                    { emoji: "🔍", display: "What would be good discovery questions for my product?" },
-                    { emoji: "📞", display: "Can you help me structure an effective first call?" },
-                    // Column 2: Outreach & Execution
-                    { emoji: "📧", display: "What would be good outbound messaging for my product?" },
-                    { emoji: "📝", display: "Can you help me write an outbound sequence?" },
-                    { emoji: "📚", display: "Can you help me put together my sales playbook?" },
-                    { emoji: "💰", display: "Help me design a comp plan for a first sales rep." },
-                    // Column 3: Team & Education
-                    { emoji: "👥", display: "Can you give me guidance on a good sales rep hiring process?" },
-                    { emoji: "🚀", display: "What would be an effective sales rep onboarding plan?" },
-                    { emoji: "🧠", display: "Take a quiz on your founder-led sales expertise.", prompt: "Can you give me a 20 question quiz about founder-led sales concepts, one question at a time? Test my expertise!" },
-                    { emoji: "📖", display: "Give me a tutoring session on founder-led sales.", prompt: "Can you give me a short lesson on founder-led sales, and then quiz me on what we've covered? Give me some topic options to choose from first." },
-                  ].map((item) => (
+                  {savedPrompts.map((item) => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, item.id)}
+                      onDragEnd={handleDragEnd}
+                      className={`group relative flex items-center gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing ${
+                        draggedPromptId === item.id ? "opacity-50" : ""
+                      }`}
+                    >
                       <button
-                        key={item.display}
-                        onClick={() => sendMessage(item.prompt || item.display)}
-                        className="flex items-center gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                        onClick={() => sendMessage(item.prompt)}
+                        className="flex items-center gap-3 text-left flex-1 min-w-0"
                       >
                         <span className="text-2xl flex-shrink-0">{item.emoji}</span>
-                        <span className="text-gray-700 text-sm">{item.display}</span>
+                        <span className="text-gray-700 text-sm truncate">{item.title}</span>
                       </button>
+                      {/* Edit/Clone/Delete buttons - appear on hover */}
+                      <div className="absolute right-1 top-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingPrompt(item);
+                            setIsAddingPrompt(false);
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                          title="Edit"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClonePrompt(item);
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                          title="Clone"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePrompt(item.id);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-200 rounded"
+                          title="Delete"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  Drag prompts to reorder. Hover to edit, clone, or delete.
+                </p>
               </div>
             </div>
           ) : (
@@ -909,6 +1112,95 @@ export default function ChatPage() {
             : "top-16 right-6"
         }`}>
           {toast.message}
+        </div>
+      )}
+
+      {/* Edit Prompt Modal */}
+      {editingPrompt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                {isAddingPrompt ? "Add New Prompt" : "Edit Prompt"}
+              </h2>
+
+              <div className="space-y-4">
+                {/* Emoji picker */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Emoji
+                  </label>
+                  <input
+                    type="text"
+                    value={editingPrompt.emoji}
+                    onChange={(e) =>
+                      setEditingPrompt({ ...editingPrompt, emoji: e.target.value.slice(0, 2) })
+                    }
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl text-center"
+                    maxLength={2}
+                  />
+                </div>
+
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Button Title
+                  </label>
+                  <input
+                    type="text"
+                    value={editingPrompt.title}
+                    onChange={(e) =>
+                      setEditingPrompt({ ...editingPrompt, title: e.target.value })
+                    }
+                    placeholder="What users see on the button"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    This is what appears on the button tile.
+                  </p>
+                </div>
+
+                {/* Prompt */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Actual Prompt
+                  </label>
+                  <textarea
+                    value={editingPrompt.prompt}
+                    onChange={(e) =>
+                      setEditingPrompt({ ...editingPrompt, prompt: e.target.value })
+                    }
+                    placeholder="The actual prompt that gets sent to Mikey"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-y"
+                    rows={4}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    This is the actual message sent to Mikey. Can be different from the button title to create richer prompts.
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setEditingPrompt(null);
+                    setIsAddingPrompt(false);
+                  }}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSavePrompt(editingPrompt)}
+                  disabled={!editingPrompt.title.trim() || !editingPrompt.prompt.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isAddingPrompt ? "Add Prompt" : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
