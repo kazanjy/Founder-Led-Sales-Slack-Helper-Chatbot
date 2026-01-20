@@ -135,9 +135,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   // Renewal payment succeeded - ensure license is active
-  const subscriptionId = typeof invoice.subscription === 'string'
-    ? invoice.subscription
-    : invoice.subscription?.id;
+  // Type assertion needed as subscription field exists at runtime but types are strict
+  const sub = (invoice as unknown as { subscription?: string | { id: string } }).subscription;
+  const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
 
   if (!subscriptionId) return;
 
@@ -166,9 +166,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   // Payment failed - could notify user or add grace period
-  const subscriptionId = typeof invoice.subscription === 'string'
-    ? invoice.subscription
-    : invoice.subscription?.id;
+  const sub = (invoice as unknown as { subscription?: string | { id: string } }).subscription;
+  const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
 
   console.log(`Payment failed for subscription ${subscriptionId}`);
 
