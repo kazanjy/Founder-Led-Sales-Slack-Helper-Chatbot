@@ -518,27 +518,24 @@ User's input: ${userMessage}`;
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                          // Cmd+Enter or Ctrl+Enter: insert newline
+                        // Enter submits, Shift+Enter or Cmd+Enter creates new line
+                        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
                           e.preventDefault();
-                          const target = e.target as HTMLTextAreaElement;
-                          const start = target.selectionStart;
-                          const end = target.selectionEnd;
-                          setAiInput(aiInput.substring(0, start) + "\n" + aiInput.substring(end));
-                          // Move cursor after the newline
-                          setTimeout(() => {
-                            target.selectionStart = target.selectionEnd = start + 1;
-                          }, 0);
-                        } else if (e.key === "Enter" && !e.shiftKey) {
-                          // Enter alone: submit
-                          e.preventDefault();
-                          handleAiSend();
+                          if (aiInput.trim() && !aiSending) {
+                            handleAiSend();
+                          }
                         }
                       }}
-                      placeholder="Ask Mikey for help... (Cmd+Enter for new line)"
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = "auto";
+                        target.style.height = Math.min(target.scrollHeight, 150) + "px";
+                      }}
+                      placeholder="Ask Mikey for help..."
                       disabled={aiSending}
-                      rows={2}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 resize-none"
+                      rows={1}
+                      style={{ height: "auto" }}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[44px] max-h-[150px]"
                     />
                     <button
                       type="submit"
