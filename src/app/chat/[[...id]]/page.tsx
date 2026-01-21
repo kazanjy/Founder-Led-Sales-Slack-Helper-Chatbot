@@ -907,7 +907,7 @@ export default function ChatPage() {
             <img
               src="/mikey-avatar.png"
               alt="Mikey"
-              className="w-6 h-6 rounded"
+              className="w-11 h-11 rounded-lg"
             />
           </button>
           <div>
