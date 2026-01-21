@@ -123,13 +123,13 @@ export default function ChatPage() {
     if (fields.length === 0) return null;
 
     const variableMap = new Map(gtmVariables.map(v => [v.mergeField, v]));
-    const used: { name: string; value: string }[] = [];
+    const used: { mergeField: string; name: string; value: string }[] = [];
     const missing: string[] = [];
 
     for (const field of fields) {
       const variable = variableMap.get(field);
       if (variable && variable.value) {
-        used.push({ name: variable.name, value: variable.value });
+        used.push({ mergeField: field, name: variable.name, value: variable.value });
       } else if (variable) {
         missing.push(variable.name);
       } else {
@@ -1225,13 +1225,13 @@ export default function ChatPage() {
                     </div>
                   )}
                   {mergeFieldPreview.used.length > 0 && (
-                    <div className="text-gray-600">
-                      <span className="font-medium">Variables used:</span>{" "}
-                      {mergeFieldPreview.used.map((v, i) => (
-                        <span key={v.name}>
-                          {i > 0 && ", "}
-                          <span className="text-blue-600">{v.name}</span>
-                        </span>
+                    <div className="space-y-2">
+                      {mergeFieldPreview.used.map((v) => (
+                        <div key={v.mergeField} className="text-gray-600">
+                          <span className="font-medium text-blue-600">{`{{${v.mergeField}}}`}</span>
+                          <span className="text-gray-400 mx-2">→</span>
+                          <span className="text-gray-700">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
+                        </div>
                       ))}
                     </div>
                   )}
