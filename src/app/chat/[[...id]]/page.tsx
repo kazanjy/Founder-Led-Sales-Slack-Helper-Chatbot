@@ -92,6 +92,15 @@ interface Conversation {
   archived?: boolean;
 }
 
+interface SearchResult {
+  id: string;
+  title: string | null;
+  source: string;
+  lastMessageAt: string;
+  preview: string | null;
+  matchSnippet: string | null;
+}
+
 export default function ChatPage() {
   const router = useRouter();
   const params = useParams();
@@ -122,8 +131,13 @@ export default function ChatPage() {
   const [renamingConversation, setRenamingConversation] = useState<{ id: string; title: string } | null>(null);
   const [renamingSaving, setRenamingSaving] = useState(false);
   const [gtmVariables, setGtmVariables] = useState<GtmVariable[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isInitialLoad = useRef(true);
   const isSendingRef = useRef(false); // Track if we're in the middle of sending
 
@@ -342,6 +356,76 @@ export default function ChatPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Cmd+K keyboard shortcut for search
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+      // Escape to close search
+      if (event.key === "Escape" && searchOpen) {
+        event.preventDefault();
+        setSearchOpen(false);
+        setSearchQuery("");
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen]);
+
+  // Focus search input when overlay opens
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
+  // Search API call with debounce
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    const searchConversations = async () => {
+      setSearchLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery.trim()) {
+          params.set("q", searchQuery.trim());
+        }
+        params.set("limit", "10");
+        const res = await fetch(`/api/conversations/search?${params}`);
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(searchConversations, 200);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchOpen]);
+
+  // Handle search result selection
+  const handleSearchSelect = (conversationId: string) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    selectConversation(conversationId);
+  };
+
+  // Highlight search term in text
+  const highlightSearchTerm = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? <strong key={i} className="font-semibold">{part}</strong> : part
+    );
+  };
 
   // Show toast notification
   const showToast = (message: string, position: "left" | "right" | "bottom" = "right") => {
@@ -786,7 +870,7 @@ export default function ChatPage() {
         </div>
 
         {/* New Chat Button */}
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <button
             onClick={handleNewChat}
             disabled={creatingChat}
@@ -803,6 +887,18 @@ export default function ChatPage() {
             ) : (
               "+ New Chat"
             )}
+          </button>
+          {/* Search Button */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full py-2 px-4 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            Search
+            <span className="text-xs text-gray-400 ml-auto">⌘K</span>
           </button>
         </div>
 
@@ -1313,6 +1409,98 @@ export default function ChatPage() {
             : "top-16 right-6"
         }`}>
           {toast.message}
+        </div>
+      )}
+
+      {/* Search Overlay */}
+      {searchOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-[15vh]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSearchOpen(false);
+              setSearchQuery("");
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+            {/* Search Input */}
+            <div className="flex items-center px-5 py-4 border-b border-gray-100">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search conversations..."
+                className="flex-1 text-lg text-gray-900 placeholder-gray-400 outline-none"
+              />
+              <button
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {/* Search Results */}
+            <div className="max-h-[60vh] overflow-y-auto">
+              {searchLoading ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Searching...</span>
+                  </div>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  {searchQuery.trim() ? "No conversations found" : "No recent conversations"}
+                </div>
+              ) : (
+                <div>
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.id}
+                      onClick={() => handleSearchSelect(result.id)}
+                      className="w-full px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4 text-left border-b border-gray-100 last:border-b-0"
+                    >
+                      {/* Chat icon */}
+                      <div className="flex-shrink-0 mt-1 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">
+                          {result.title || result.preview?.substring(0, 50) || "Untitled conversation"}
+                        </div>
+                        <div className="text-sm text-gray-500 truncate mt-0.5">
+                          {result.matchSnippet
+                            ? highlightSearchTerm(result.matchSnippet, searchQuery)
+                            : result.preview
+                            ? highlightSearchTerm(result.preview.substring(0, 100), searchQuery)
+                            : "No preview available"}
+                        </div>
+                      </div>
+                      {/* Date */}
+                      <div className="flex-shrink-0 text-sm text-gray-400">
+                        {formatRelativeTime(result.lastMessageAt)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
