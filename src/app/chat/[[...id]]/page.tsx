@@ -767,11 +767,18 @@ export default function ChatPage() {
       <div className="w-80 bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
-          <img
-            src="/mikey-avatar.png"
-            alt="Mikey"
-            className="w-10 h-10 rounded-lg"
-          />
+          <button
+            onClick={handleNewChat}
+            disabled={creatingChat}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity disabled:opacity-50"
+            title="Start new chat"
+          >
+            <img
+              src="/mikey-avatar.png"
+              alt="Mikey"
+              className="w-6 h-6 rounded"
+            />
+          </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
             <p className="text-sm text-gray-500">{user?.workspaceName}</p>
