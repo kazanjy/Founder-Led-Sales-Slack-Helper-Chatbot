@@ -826,7 +826,9 @@ export default function ChatPage() {
 
     // If no conversation selected, create one first
     let conversationId = selectedConversation;
+    let isNewConversation = false;
     if (!conversationId) {
+      isNewConversation = true;
       try {
         const res = await fetch("/api/conversations", { method: "POST" });
         const data = await res.json();
@@ -842,6 +844,9 @@ export default function ChatPage() {
       }
     }
 
+    // Check if this is the first message (for title polling)
+    const isFirstMessage = isNewConversation || messages.length === 0;
+
     const userMessage = messageText.trim();
     setInputMessage("");
     setSending(true);
@@ -854,6 +859,40 @@ export default function ChatPage() {
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
+
+    // Start title polling IMMEDIATELY if this is the first message
+    // Don't wait for the API response - poll in parallel
+    if (isFirstMessage && conversationId) {
+      const pollForTitle = async () => {
+        const maxAttempts = 20; // More attempts since we start immediately
+        const pollInterval = 500; // 500ms between polls
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+          try {
+            const titleRes = await fetch(`/api/conversations/${conversationId}/title`);
+            const titleData = await titleRes.json();
+
+            if (titleData.title) {
+              // Got a title! Update the conversation and animate
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === conversationId ? { ...c, title: titleData.title } : c
+                )
+              );
+              startTitleAnimation(conversationId, titleData.title);
+              break;
+            }
+          } catch (err) {
+            console.error("Error polling for title:", err);
+          }
+        }
+      };
+
+      // Start polling immediately (runs in background)
+      pollForTitle();
+    }
 
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
@@ -891,39 +930,6 @@ export default function ChatPage() {
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
       });
-
-      // Poll for title if this was the first message (title generates in background)
-      if (data.pollForTitle && conversationId) {
-        const pollForTitle = async () => {
-          const maxAttempts = 10;
-          const pollInterval = 500; // 500ms between polls
-
-          for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-            try {
-              const titleRes = await fetch(`/api/conversations/${conversationId}/title`);
-              const titleData = await titleRes.json();
-
-              if (titleData.title) {
-                // Got a title! Update the conversation and animate
-                setConversations((prev) =>
-                  prev.map((c) =>
-                    c.id === conversationId ? { ...c, title: titleData.title } : c
-                  )
-                );
-                startTitleAnimation(conversationId, titleData.title);
-                break;
-              }
-            } catch (err) {
-              console.error("Error polling for title:", err);
-            }
-          }
-        };
-
-        // Start polling (don't await - let it run in background)
-        pollForTitle();
-      }
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
