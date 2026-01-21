@@ -1005,6 +1005,13 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
     - [ ] If field is empty/not configured, prompt user to fill it or send without
     - [ ] Option to "fill in the blank" inline before sending
 
+- [ ] **Support Bot Integration**
+  - [ ] Integrate third-party support bot for user help/support
+  - [ ] Consider options: Intercom, Zendesk, Crisp, HelpScout, etc.
+  - [ ] In-app chat widget for real-time support
+  - [ ] Knowledge base / FAQ integration
+  - [ ] Ticket escalation workflow
+
 ### Cleanup Tasks
 - [ ] Remove debug console.log statements before production
 
