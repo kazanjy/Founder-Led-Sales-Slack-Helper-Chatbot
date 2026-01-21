@@ -85,16 +85,26 @@ export async function POST(
 
   // Update conversation preview and start AI title generation if this is the first message
   const isFirstMessage = !conversation.firstMessagePreview;
-  let titlePromise: Promise<string> | null = null;
 
   if (isFirstMessage) {
-    // Start AI title generation (runs in parallel with Chatbase)
-    titlePromise = generateChatTitle(message);
-
     // Update preview immediately
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { firstMessagePreview: message.substring(0, 100) },
+    });
+
+    // Fire-and-forget: Start AI title generation (saves to DB when done)
+    // Don't await - let it run in background while Chatbase processes
+    generateChatTitle(message).then(async (generatedTitle) => {
+      if (generatedTitle && generatedTitle !== "New Conversation") {
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { title: generatedTitle },
+        });
+        console.log(`[Title] Saved title for conversation ${conversation.id}: ${generatedTitle}`);
+      }
+    }).catch((err) => {
+      console.error("[Title] Error generating title:", err);
     });
   }
 
@@ -159,19 +169,6 @@ export async function POST(
       },
     });
 
-    // Now wait for title generation (should already be done since OpenAI is faster than Chatbase)
-    let generatedTitle: string | null = null;
-    if (titlePromise) {
-      generatedTitle = await titlePromise;
-      // Save title to DB
-      if (generatedTitle && generatedTitle !== "New Conversation") {
-        await prisma.conversation.update({
-          where: { id: conversation.id },
-          data: { title: generatedTitle },
-        });
-      }
-    }
-
     return NextResponse.json({
       message: {
         id: assistantMessage.id,
@@ -186,8 +183,8 @@ export async function POST(
         usedVariables,
         missingVariables,
       } : null,
-      // Include generated title if this was the first message
-      generatedTitle: isFirstMessage ? generatedTitle : null,
+      // Tell frontend to poll for title if this was the first message
+      pollForTitle: isFirstMessage,
     });
   } catch (error) {
     console.error("Error getting Chatbase response:", error);

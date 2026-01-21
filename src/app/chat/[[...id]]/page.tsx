@@ -874,19 +874,12 @@ export default function ChatPage() {
       // Add assistant response
       setMessages((prev) => [...prev, data.message]);
 
-      // Start title animation if we got a generated title
-      if (data.generatedTitle && conversationId) {
-        startTitleAnimation(conversationId, data.generatedTitle);
-      }
-
       // Update conversation in list and move to top (most recent)
       setConversations((prev) => {
         const updated = prev.map((c) =>
           c.id === conversationId
             ? {
                 ...c,
-                // Use AI-generated title if provided, otherwise keep existing
-                title: data.generatedTitle || c.title,
                 firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
                 messageCount: c.messageCount + 2,
                 lastMessageAt: new Date().toISOString(),
@@ -898,6 +891,39 @@ export default function ChatPage() {
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
       });
+
+      // Poll for title if this was the first message (title generates in background)
+      if (data.pollForTitle && conversationId) {
+        const pollForTitle = async () => {
+          const maxAttempts = 10;
+          const pollInterval = 500; // 500ms between polls
+
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+            try {
+              const titleRes = await fetch(`/api/conversations/${conversationId}/title`);
+              const titleData = await titleRes.json();
+
+              if (titleData.title) {
+                // Got a title! Update the conversation and animate
+                setConversations((prev) =>
+                  prev.map((c) =>
+                    c.id === conversationId ? { ...c, title: titleData.title } : c
+                  )
+                );
+                startTitleAnimation(conversationId, titleData.title);
+                break;
+              }
+            } catch (err) {
+              console.error("Error polling for title:", err);
+            }
+          }
+        };
+
+        // Start polling (don't await - let it run in background)
+        pollForTitle();
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
