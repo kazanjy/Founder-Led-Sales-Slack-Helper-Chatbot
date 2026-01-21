@@ -170,10 +170,11 @@ export default function SettingsPage() {
   };
 
   // Send AI Assist message
-  const handleAiSend = async () => {
-    if (!aiInput.trim() || aiSending || !selectedVariable) return;
+  const handleAiSend = async (directMessage?: string) => {
+    const messageToUse = directMessage || aiInput.trim();
+    if (!messageToUse || aiSending || !selectedVariable) return;
 
-    const userMessage = aiInput.trim();
+    const userMessage = messageToUse;
     setAiInput("");
     setAiSending(true);
 
@@ -446,7 +447,7 @@ User's input: ${userMessage}`;
                           {starterPrompts.map((sp, idx) => (
                             <button
                               key={idx}
-                              onClick={() => setAiInput(sp.prompt)}
+                              onClick={() => handleAiSend(sp.prompt)}
                               className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm"
                             >
                               <span className="font-medium text-gray-900">{sp.label}</span>
