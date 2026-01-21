@@ -136,6 +136,9 @@ export default function ChatPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchSelectedIndex, setSearchSelectedIndex] = useState(0); // 0 = New Chat, 1+ = results
+  const [animatingTitleId, setAnimatingTitleId] = useState<string | null>(null);
+  const [animatingTitleText, setAnimatingTitleText] = useState("");
+  const [animatingTitleFull, setAnimatingTitleFull] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -466,6 +469,38 @@ export default function ChatPage() {
     return parts.map((part, i) =>
       regex.test(part) ? <strong key={i} className="font-semibold">{part}</strong> : part
     );
+  };
+
+  // Typewriter animation for new titles
+  useEffect(() => {
+    if (!animatingTitleId || !animatingTitleFull) return;
+
+    let currentIndex = 0;
+    const typeSpeed = 30; // ms per character
+
+    const interval = setInterval(() => {
+      currentIndex++;
+      setAnimatingTitleText(animatingTitleFull.substring(0, currentIndex));
+
+      if (currentIndex >= animatingTitleFull.length) {
+        clearInterval(interval);
+        // Clear animation state after a short delay
+        setTimeout(() => {
+          setAnimatingTitleId(null);
+          setAnimatingTitleText("");
+          setAnimatingTitleFull("");
+        }, 500);
+      }
+    }, typeSpeed);
+
+    return () => clearInterval(interval);
+  }, [animatingTitleId, animatingTitleFull]);
+
+  // Start title animation
+  const startTitleAnimation = (conversationId: string, title: string) => {
+    setAnimatingTitleId(conversationId);
+    setAnimatingTitleText("");
+    setAnimatingTitleFull(title);
   };
 
   // Show toast notification
@@ -839,6 +874,11 @@ export default function ChatPage() {
       // Add assistant response
       setMessages((prev) => [...prev, data.message]);
 
+      // Start title animation if we got a generated title
+      if (data.generatedTitle && conversationId) {
+        startTitleAnimation(conversationId, data.generatedTitle);
+      }
+
       // Update conversation in list and move to top (most recent)
       setConversations((prev) => {
         const updated = prev.map((c) =>
@@ -991,7 +1031,14 @@ export default function ChatPage() {
                     )}
                   </div>
                   <p className="text-[15px] text-gray-900 truncate pr-8">
-                    {conv.title || conv.firstMessagePreview || "New conversation"}
+                    {animatingTitleId === conv.id ? (
+                      <span>
+                        {animatingTitleText}
+                        <span className="animate-pulse">|</span>
+                      </span>
+                    ) : (
+                      conv.title || conv.firstMessagePreview || "New conversation"
+                    )}
                   </p>
                 </button>
 

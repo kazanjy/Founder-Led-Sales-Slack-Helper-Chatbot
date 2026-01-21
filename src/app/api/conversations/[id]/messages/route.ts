@@ -83,30 +83,19 @@ export async function POST(
     },
   });
 
-  // Update conversation preview and generate AI title if this is the first message
+  // Update conversation preview and start AI title generation if this is the first message
   const isFirstMessage = !conversation.firstMessagePreview;
-  let generatedTitle: string | null = null;
+  let titlePromise: Promise<string> | null = null;
 
   if (isFirstMessage) {
-    // Generate AI title in parallel with the update
-    const titlePromise = generateChatTitle(message);
+    // Start AI title generation (runs in parallel with Chatbase)
+    titlePromise = generateChatTitle(message);
 
     // Update preview immediately
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { firstMessagePreview: message.substring(0, 100) },
     });
-
-    // Wait for title generation
-    generatedTitle = await titlePromise;
-
-    // Update title if generated
-    if (generatedTitle) {
-      await prisma.conversation.update({
-        where: { id: conversation.id },
-        data: { title: generatedTitle },
-      });
-    }
   }
 
   // Get conversation history for context
@@ -169,6 +158,19 @@ export async function POST(
         lastMessageAt: new Date(),
       },
     });
+
+    // Now wait for title generation (should already be done since OpenAI is faster than Chatbase)
+    let generatedTitle: string | null = null;
+    if (titlePromise) {
+      generatedTitle = await titlePromise;
+      // Save title to DB
+      if (generatedTitle && generatedTitle !== "New Conversation") {
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { title: generatedTitle },
+        });
+      }
+    }
 
     return NextResponse.json({
       message: {
