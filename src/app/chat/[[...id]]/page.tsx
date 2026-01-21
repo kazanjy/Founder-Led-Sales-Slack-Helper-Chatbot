@@ -135,9 +135,11 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchSelectedIndex, setSearchSelectedIndex] = useState(0); // 0 = New Chat, 1+ = results
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const isInitialLoad = useRef(true);
   const isSendingRef = useRef(false); // Track if we're in the middle of sending
 
@@ -364,12 +366,14 @@ export default function ChatPage() {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         setSearchOpen(true);
+        setSearchSelectedIndex(0); // Reset to "New Chat"
       }
       // Escape to close search
       if (event.key === "Escape" && searchOpen) {
         event.preventDefault();
         setSearchOpen(false);
         setSearchQuery("");
+        setSearchSelectedIndex(0);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -380,6 +384,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (searchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
+      setSearchSelectedIndex(0); // Reset selection when opening
     }
   }, [searchOpen]);
 
@@ -414,7 +419,43 @@ export default function ChatPage() {
   const handleSearchSelect = (conversationId: string) => {
     setSearchOpen(false);
     setSearchQuery("");
+    setSearchSelectedIndex(0);
     selectConversation(conversationId);
+  };
+
+  // Handle new chat from search overlay
+  const handleSearchNewChat = async () => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSelectedIndex(0);
+    await handleNewChat();
+    // Focus the chat input after creating new chat
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+  };
+
+  // Handle keyboard navigation in search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    const totalItems = searchResults.length + 1; // +1 for "New Chat"
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSearchSelectedIndex((prev) => (prev + 1) % totalItems);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSearchSelectedIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchSelectedIndex === 0) {
+        handleSearchNewChat();
+      } else {
+        const selectedResult = searchResults[searchSelectedIndex - 1];
+        if (selectedResult) {
+          handleSearchSelect(selectedResult.id);
+        }
+      }
+    }
   };
 
   // Highlight search term in text
@@ -730,6 +771,10 @@ export default function ChatPage() {
         setConversations([data.conversation, ...conversations]);
         selectConversation(data.conversation.id);
         setMessages([]);
+        // Focus the chat input after creating new chat
+        setTimeout(() => {
+          chatInputRef.current?.focus();
+        }, 100);
       }
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -1364,6 +1409,7 @@ export default function ChatPage() {
               )}
               <div className="flex gap-4 items-end">
                 <textarea
+                  ref={chatInputRef}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => {
@@ -1420,6 +1466,7 @@ export default function ChatPage() {
             if (e.target === e.currentTarget) {
               setSearchOpen(false);
               setSearchQuery("");
+              setSearchSelectedIndex(0);
             }
           }}
         >
@@ -1430,7 +1477,11 @@ export default function ChatPage() {
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchSelectedIndex(0); // Reset selection when typing
+                }}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Search conversations..."
                 className="flex-1 text-lg text-gray-900 placeholder-gray-400 outline-none"
               />
@@ -1438,6 +1489,7 @@ export default function ChatPage() {
                 onClick={() => {
                   setSearchOpen(false);
                   setSearchQuery("");
+                  setSearchSelectedIndex(0);
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -1450,6 +1502,22 @@ export default function ChatPage() {
 
             {/* Search Results */}
             <div className="max-h-[60vh] overflow-y-auto">
+              {/* New Chat Option - always shown at top */}
+              <button
+                onClick={handleSearchNewChat}
+                className={`w-full px-5 py-4 transition-colors flex items-center gap-4 text-left border-b border-gray-100 ${
+                  searchSelectedIndex === 0 ? "bg-gray-100" : "hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex-shrink-0 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </div>
+                <div className="font-medium text-gray-900">New Chat</div>
+              </button>
+
               {searchLoading ? (
                 <div className="p-8 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2">
@@ -1461,16 +1529,18 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-6 text-center text-gray-500 text-sm">
                   {searchQuery.trim() ? "No conversations found" : "No recent conversations"}
                 </div>
               ) : (
                 <div>
-                  {searchResults.map((result) => (
+                  {searchResults.map((result, index) => (
                     <button
                       key={result.id}
                       onClick={() => handleSearchSelect(result.id)}
-                      className="w-full px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4 text-left border-b border-gray-100 last:border-b-0"
+                      className={`w-full px-5 py-4 transition-colors flex items-start gap-4 text-left border-b border-gray-100 last:border-b-0 ${
+                        searchSelectedIndex === index + 1 ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
                     >
                       {/* Chat icon */}
                       <div className="flex-shrink-0 mt-1 text-gray-400">
