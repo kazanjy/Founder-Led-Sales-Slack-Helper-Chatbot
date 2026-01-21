@@ -1063,8 +1063,8 @@ export default function ChatPage() {
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-[950px]">
+            <div className="h-full overflow-y-auto">
+              <div className="text-center max-w-[950px] mx-auto pt-8">
                 <img
                   src="/mikey-avatar.png"
                   alt="Mikey"
