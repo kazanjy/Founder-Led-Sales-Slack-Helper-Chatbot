@@ -30,7 +30,7 @@ export async function generateChatTitle(firstMessage: string): Promise<string> {
           content: `Generate a short title (<30 chars) for this message:\n\n${firstMessage.substring(0, 500)}`,
         },
       ],
-      max_tokens: 30,
+      max_completion_tokens: 30,
       temperature: 0.7,
     });
 
