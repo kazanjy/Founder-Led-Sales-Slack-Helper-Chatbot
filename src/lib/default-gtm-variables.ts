@@ -31,9 +31,9 @@ export const DEFAULT_GTM_VARIABLES: DefaultGtmVariable[] = [
 
 Guide me through creating a clear, concise USP statement that captures my unique value. Keep it focused and memorable.`,
     starterPrompts: [
-      { label: "Help me define my USP", prompt: "Help me define my Unique Selling Proposition. I'm not sure where to start." },
-      { label: "I know what makes us different", prompt: "I have a sense of what makes us different but need help articulating it clearly." },
-      { label: "Review my current USP", prompt: "I have a USP already but want your help refining it. Let me share what I have." },
+      { label: "Help me define my USP", prompt: "Help me define my Unique Selling Proposition. I'm not sure where to start. I would like to end with a terse formulation of my product's unique value proposition to use as a variable in various downstream AI prompts." },
+      { label: "I know what makes us different", prompt: "I have a sense of what makes us different but need help articulating it clearly. I would like to end with a terse formulation of my product's unique value proposition to use as a variable in various downstream AI prompts." },
+      { label: "Review my current USP", prompt: "I have a USP already but want your help refining it. Let me share what I have. I would like to end with a terse formulation of my product's unique value proposition to use as a variable in various downstream AI prompts." },
     ],
     sortOrder: 0,
   },
@@ -51,9 +51,9 @@ Guide me through creating a clear, concise USP statement that captures my unique
 
 Help me create a comprehensive ICP that I can use to focus my sales and marketing efforts.`,
     starterPrompts: [
-      { label: "Help me define my ICP", prompt: "Help me figure out my ideal customer profile. I want to be more focused in who I target." },
-      { label: "I know my best customers", prompt: "I know who my best customers are but need help documenting the pattern." },
-      { label: "Refine my current ICP", prompt: "I have an ICP defined but it feels too broad. Help me make it more specific." },
+      { label: "Help me define my ICP", prompt: "Help me figure out my ideal customer profile. I want to be more focused in who I target. I would like to end with a concise description of my ideal customer profile to use as a variable in various downstream AI prompts." },
+      { label: "I know my best customers", prompt: "I know who my best customers are but need help documenting the pattern. I would like to end with a concise description of my ideal customer profile to use as a variable in various downstream AI prompts." },
+      { label: "Refine my current ICP", prompt: "I have an ICP defined but it feels too broad. Help me make it more specific. I would like to end with a concise description of my ideal customer profile to use as a variable in various downstream AI prompts." },
     ],
     sortOrder: 1,
   },
@@ -77,9 +77,9 @@ Then help me create a set of powerful discovery questions that:
 
 Focus on open-ended questions that get prospects talking about their situation.`,
     starterPrompts: [
-      { label: "Build my discovery framework", prompt: "Help me build a set of discovery questions for my sales calls. I want questions that uncover real pain." },
-      { label: "I have some questions already", prompt: "I have some discovery questions I use but want to make them more effective." },
-      { label: "Questions for a specific persona", prompt: "I need discovery questions tailored to a specific buyer persona. Let me tell you about them." },
+      { label: "Build my discovery framework", prompt: "Help me build a set of discovery questions for my sales calls. I want questions that uncover real pain. I would like to end with a concise set of discovery questions to use as a variable in various downstream AI prompts." },
+      { label: "I have some questions already", prompt: "I have some discovery questions I use but want to make them more effective. I would like to end with a concise set of discovery questions to use as a variable in various downstream AI prompts." },
+      { label: "Questions for a specific persona", prompt: "I need discovery questions tailored to a specific buyer persona. Let me tell you about them. I would like to end with a concise set of discovery questions to use as a variable in various downstream AI prompts." },
     ],
     sortOrder: 2,
   },
@@ -103,9 +103,9 @@ Then help me build a repeatable pre-call checklist that covers:
 
 Keep it practical and achievable given real-world time constraints.`,
     starterPrompts: [
-      { label: "Create my pre-call checklist", prompt: "Help me create a pre-call planning checklist that I can use before every customer call." },
-      { label: "I wing it too often", prompt: "I often wing it on calls and want a more structured approach to prep. Where do I start?" },
-      { label: "Improve my current process", prompt: "I have a prep process but it takes too long or misses key things. Help me optimize it." },
+      { label: "Create my pre-call checklist", prompt: "Help me create a pre-call planning checklist that I can use before every customer call. I would like to end with a concise pre-call planning process to use as a variable in various downstream AI prompts." },
+      { label: "I wing it too often", prompt: "I often wing it on calls and want a more structured approach to prep. Where do I start? I would like to end with a concise pre-call planning process to use as a variable in various downstream AI prompts." },
+      { label: "Improve my current process", prompt: "I have a prep process but it takes too long or misses key things. Help me optimize it. I would like to end with a concise pre-call planning process to use as a variable in various downstream AI prompts." },
     ],
     sortOrder: 3,
   },
