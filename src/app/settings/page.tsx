@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { DEFAULT_GTM_VARIABLES, StarterPrompt } from "@/lib/default-gtm-variables";
 
 interface GtmVariableHistory {
   id: string;
@@ -18,6 +19,7 @@ interface GtmVariable {
   value: string | null;
   aiAssistPrompt: string | null;
   isDefault: boolean;
+  defaultVariableId: string | null;
   sortOrder: number;
   history: GtmVariableHistory[];
   createdAt: string;
@@ -65,6 +67,15 @@ export default function SettingsPage() {
   const [aiSending, setAiSending] = useState(false);
   const [aiConversationId, setAiConversationId] = useState<string | null>(null);
   const aiMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get starter prompts for the selected variable
+  const starterPrompts = useMemo((): StarterPrompt[] => {
+    if (!selectedVariable?.defaultVariableId) return [];
+    const defaultVar = DEFAULT_GTM_VARIABLES.find(
+      (v) => v.id === selectedVariable.defaultVariableId
+    );
+    return defaultVar?.starterPrompts || [];
+  }, [selectedVariable]);
 
   // Show toast notification
   const showToast = (message: string) => {
@@ -426,17 +437,33 @@ User's input: ${userMessage}`;
                 {/* AI Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {aiMessages.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 text-sm mb-4">
+                    <div className="py-4">
+                      <p className="text-gray-500 text-sm mb-4 text-center">
                         Need help? Start a conversation with Mikey to refine your {selectedVariable.name.toLowerCase()}.
                       </p>
-                      {selectedVariable.aiAssistPrompt && (
-                        <button
-                          onClick={handleStartAiAssist}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                        >
-                          Start AI Assist
-                        </button>
+                      {starterPrompts.length > 0 && (
+                        <div className="space-y-2">
+                          {starterPrompts.map((sp, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setAiInput(sp.prompt)}
+                              className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm"
+                            >
+                              <span className="font-medium text-gray-900">{sp.label}</span>
+                              <p className="text-gray-500 text-xs mt-1 line-clamp-1">{sp.prompt}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {starterPrompts.length === 0 && selectedVariable.aiAssistPrompt && (
+                        <div className="text-center">
+                          <button
+                            onClick={handleStartAiAssist}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            Start AI Assist
+                          </button>
+                        </div>
                       )}
                     </div>
                   ) : (
