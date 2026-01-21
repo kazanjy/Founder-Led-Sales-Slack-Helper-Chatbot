@@ -116,6 +116,7 @@ export default function ChatPage() {
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+  const isSendingRef = useRef(false); // Track if we're in the middle of sending
 
   // Compute merge field preview info based on current input
   const mergeFieldPreview = useMemo(() => {
@@ -605,6 +606,11 @@ export default function ChatPage() {
         return;
       }
 
+      // Skip loading if we're in the middle of sending (prevents race condition)
+      if (isSendingRef.current) {
+        return;
+      }
+
       setLoadingMessages(true);
       try {
         const res = await fetch(`/api/conversations/${selectedConversation}`);
@@ -642,6 +648,9 @@ export default function ChatPage() {
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending || !user?.canChat) return;
 
+    // Mark that we're sending to prevent loadMessages race condition
+    isSendingRef.current = true;
+
     // If no conversation selected, create one first
     let conversationId = selectedConversation;
     if (!conversationId) {
@@ -655,6 +664,7 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
+        isSendingRef.current = false;
         return;
       }
     }
@@ -713,6 +723,7 @@ export default function ChatPage() {
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
     } finally {
       setSending(false);
+      isSendingRef.current = false;
     }
   };
 
