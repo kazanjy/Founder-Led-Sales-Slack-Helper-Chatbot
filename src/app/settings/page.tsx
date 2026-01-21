@@ -514,18 +514,36 @@ User's input: ${userMessage}`;
                     }}
                     className="flex gap-2"
                   >
-                    <input
-                      type="text"
+                    <textarea
                       value={aiInput}
                       onChange={(e) => setAiInput(e.target.value)}
-                      placeholder="Ask Mikey for help..."
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          // Cmd+Enter or Ctrl+Enter: insert newline
+                          e.preventDefault();
+                          const target = e.target as HTMLTextAreaElement;
+                          const start = target.selectionStart;
+                          const end = target.selectionEnd;
+                          setAiInput(aiInput.substring(0, start) + "\n" + aiInput.substring(end));
+                          // Move cursor after the newline
+                          setTimeout(() => {
+                            target.selectionStart = target.selectionEnd = start + 1;
+                          }, 0);
+                        } else if (e.key === "Enter" && !e.shiftKey) {
+                          // Enter alone: submit
+                          e.preventDefault();
+                          handleAiSend();
+                        }
+                      }}
+                      placeholder="Ask Mikey for help... (Cmd+Enter for new line)"
                       disabled={aiSending}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      rows={2}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 resize-none"
                     />
                     <button
                       type="submit"
                       disabled={aiSending || !aiInput.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors self-end"
                     >
                       Send
                     </button>
