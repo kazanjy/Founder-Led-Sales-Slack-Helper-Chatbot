@@ -13,7 +13,7 @@ const openai = new OpenAI({
 export async function generateChatTitle(firstMessage: string): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Using GPT-4o as the latest available model
+      model: "gpt-5.2",
       messages: [
         {
           role: "system",
