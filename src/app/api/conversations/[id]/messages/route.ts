@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, canUserChat } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { expandMergeFields, findMergeFields } from "@/lib/default-gtm-variables";
 
 /**
  * POST /api/conversations/[id]/messages - Send a message in a conversation
@@ -51,7 +52,27 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Save user message
+  // Check for merge fields and expand them
+  const mergeFieldsInMessage = findMergeFields(message);
+  let expandedMessage = message;
+  let usedVariables: string[] = [];
+  let missingVariables: string[] = [];
+
+  if (mergeFieldsInMessage.length > 0) {
+    // Fetch user's GTM variables
+    const userVariables = await prisma.gtmVariable.findMany({
+      where: { userId: user.id },
+      select: { mergeField: true, value: true },
+    });
+
+    // Expand the merge fields
+    const expansion = expandMergeFields(message, userVariables);
+    expandedMessage = expansion.expanded;
+    usedVariables = expansion.usedVariables;
+    missingVariables = expansion.missingVariables;
+  }
+
+  // Save user message (store original with merge fields for display)
   await prisma.message.create({
     data: {
       conversationId: conversation.id,
@@ -76,15 +97,30 @@ export async function POST(
     take: 20,
   });
 
-  const chatbaseHistory = history.slice(0, -1).map((msg) => ({
-    role: msg.role.toLowerCase() as "user" | "assistant",
-    content: msg.content,
-  }));
+  // Expand merge fields in history too for context
+  const chatbaseHistory = await Promise.all(
+    history.slice(0, -1).map(async (msg) => {
+      let content = msg.content;
+      // Only expand user messages (assistant messages don't have merge fields)
+      if (msg.role === "USER" && findMergeFields(msg.content).length > 0) {
+        const userVariables = await prisma.gtmVariable.findMany({
+          where: { userId: user.id },
+          select: { mergeField: true, value: true },
+        });
+        const expansion = expandMergeFields(msg.content, userVariables);
+        content = expansion.expanded;
+      }
+      return {
+        role: msg.role.toLowerCase() as "user" | "assistant",
+        content,
+      };
+    })
+  );
 
   try {
-    // Get response from Chatbase
+    // Get response from Chatbase (send expanded message)
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
-      message,
+      expandedMessage,
       conversation.chatbaseConversationId || undefined,
       chatbaseHistory
     );
@@ -122,6 +158,13 @@ export async function POST(
         content: response,
         createdAt: assistantMessage.createdAt,
       },
+      // Include expansion info for the frontend to display
+      expansion: mergeFieldsInMessage.length > 0 ? {
+        originalMessage: message,
+        expandedMessage,
+        usedVariables,
+        missingVariables,
+      } : null,
     });
   } catch (error) {
     console.error("Error getting Chatbase response:", error);

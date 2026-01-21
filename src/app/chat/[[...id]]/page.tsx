@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
+
+// Simple merge field detection (matches server-side logic)
+function findMergeFields(text: string): string[] {
+  const matches = text.match(/\{\{([A-Z_]+)\}\}/g) || [];
+  return matches.map(m => m.replace(/[{}]/g, ''));
+}
+
+interface GtmVariable {
+  mergeField: string;
+  name: string;
+  value: string | null;
+}
 
 // Saved Prompt interface (matches API response)
 interface SavedPrompt {
@@ -100,9 +112,33 @@ export default function ChatPage() {
   const [promptsLoading, setPromptsLoading] = useState(true);
   const [renamingConversation, setRenamingConversation] = useState<{ id: string; title: string } | null>(null);
   const [renamingSaving, setRenamingSaving] = useState(false);
+  const [gtmVariables, setGtmVariables] = useState<GtmVariable[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+
+  // Compute merge field preview info based on current input
+  const mergeFieldPreview = useMemo(() => {
+    const fields = findMergeFields(inputMessage);
+    if (fields.length === 0) return null;
+
+    const variableMap = new Map(gtmVariables.map(v => [v.mergeField, v]));
+    const used: { name: string; value: string }[] = [];
+    const missing: string[] = [];
+
+    for (const field of fields) {
+      const variable = variableMap.get(field);
+      if (variable && variable.value) {
+        used.push({ name: variable.name, value: variable.value });
+      } else if (variable) {
+        missing.push(variable.name);
+      } else {
+        missing.push(field); // Unknown variable
+      }
+    }
+
+    return { used, missing };
+  }, [inputMessage, gtmVariables]);
 
   // Load saved prompts from API on mount
   useEffect(() => {
@@ -540,6 +576,17 @@ export default function ChatPage() {
         const convsRes = await fetch("/api/conversations");
         const convsData = await convsRes.json();
         setConversations(convsData.conversations || []);
+
+        // Load GTM variables for merge field expansion
+        const varsRes = await fetch("/api/gtm-variables");
+        const varsData = await varsRes.json();
+        if (varsData.variables) {
+          setGtmVariables(varsData.variables.map((v: { mergeField: string; name: string; value: string | null }) => ({
+            mergeField: v.mergeField,
+            name: v.name,
+            value: v.value,
+          })));
+        }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -923,6 +970,17 @@ export default function ChatPage() {
             {/* Left side - empty for now */}
           </div>
           <div className="flex items-center gap-2">
+            {/* Settings button */}
+            <a
+              href="/settings"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Settings
+            </a>
             {/* Upgrade button - show for non-active users */}
             {user && user.licenseStatus !== "ACTIVE" && (
               <a
@@ -1150,6 +1208,35 @@ export default function ChatPage() {
             </div>
           ) : (
             <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto">
+              {/* Merge field preview/warning */}
+              {mergeFieldPreview && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                  {mergeFieldPreview.missing.length > 0 && (
+                    <div className="flex items-start gap-2 text-orange-600 mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                      <span>
+                        Missing variables: <strong>{mergeFieldPreview.missing.join(", ")}</strong>
+                        {" "}<a href="/settings" className="text-blue-600 hover:underline">Configure in Settings</a>
+                      </span>
+                    </div>
+                  )}
+                  {mergeFieldPreview.used.length > 0 && (
+                    <div className="text-gray-600">
+                      <span className="font-medium">Variables used:</span>{" "}
+                      {mergeFieldPreview.used.map((v, i) => (
+                        <span key={v.name}>
+                          {i > 0 && ", "}
+                          <span className="text-blue-600">{v.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex gap-4 items-end">
                 <textarea
                   value={inputMessage}
