@@ -3,6 +3,7 @@ import { getCurrentUser, canUserChat } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { expandMergeFields, findMergeFields } from "@/lib/default-gtm-variables";
+import { generateChatTitle } from "@/lib/openai";
 
 /**
  * POST /api/conversations/[id]/messages - Send a message in a conversation
@@ -82,12 +83,30 @@ export async function POST(
     },
   });
 
-  // Update conversation preview if this is the first message
-  if (!conversation.firstMessagePreview) {
+  // Update conversation preview and generate AI title if this is the first message
+  const isFirstMessage = !conversation.firstMessagePreview;
+  let generatedTitle: string | null = null;
+
+  if (isFirstMessage) {
+    // Generate AI title in parallel with the update
+    const titlePromise = generateChatTitle(message);
+
+    // Update preview immediately
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { firstMessagePreview: message.substring(0, 100) },
     });
+
+    // Wait for title generation
+    generatedTitle = await titlePromise;
+
+    // Update title if generated
+    if (generatedTitle) {
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { title: generatedTitle },
+      });
+    }
   }
 
   // Get conversation history for context
@@ -165,6 +184,8 @@ export async function POST(
         usedVariables,
         missingVariables,
       } : null,
+      // Include generated title if this was the first message
+      generatedTitle: isFirstMessage ? generatedTitle : null,
     });
   } catch (error) {
     console.error("Error getting Chatbase response:", error);

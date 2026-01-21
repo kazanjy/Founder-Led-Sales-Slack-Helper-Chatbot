@@ -845,6 +845,8 @@ export default function ChatPage() {
           c.id === conversationId
             ? {
                 ...c,
+                // Use AI-generated title if provided, otherwise keep existing
+                title: data.generatedTitle || c.title,
                 firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
                 messageCount: c.messageCount + 2,
                 lastMessageAt: new Date().toISOString(),
