@@ -11,6 +11,15 @@ function findMergeFields(text: string): string[] {
   return matches.map(m => m.replace(/[{}]/g, ''));
 }
 
+// Expand merge fields in text using provided variables
+function expandMergeFieldsInText(text: string, variables: { mergeField: string; value: string | null }[]): string {
+  const variableMap = new Map(variables.map(v => [v.mergeField, v.value]));
+  return text.replace(/\{\{([A-Z_]+)\}\}/g, (match, fieldName) => {
+    const value = variableMap.get(fieldName);
+    return value || match; // Keep original if no value
+  });
+}
+
 interface GtmVariable {
   mergeField: string;
   name: string;
@@ -1144,7 +1153,9 @@ export default function ChatPage() {
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">{msg.content}</p>
+                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">
+                          {expandMergeFieldsInText(msg.content, gtmVariables)}
+                        </p>
                       </div>
                     </div>
                   ) : (
