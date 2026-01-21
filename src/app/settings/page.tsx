@@ -363,7 +363,7 @@ User's input: ${userMessage}`;
             {/* Editor and AI Assist split */}
             <div className="flex-1 flex overflow-hidden">
               {/* Left: Value Editor */}
-              <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+              <div className="w-1/2 flex flex-col p-6 overflow-y-auto">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Value
@@ -424,7 +424,7 @@ User's input: ${userMessage}`;
               </div>
 
               {/* Right: AI Assist */}
-              <div className="w-96 border-l border-gray-200 flex flex-col bg-gray-50">
+              <div className="w-1/2 border-l border-gray-200 flex flex-col bg-gray-50">
                 <div className="p-4 border-b border-gray-200 bg-white">
                   <h3 className="font-medium text-gray-900 flex items-center gap-2">
                     <span>🤖</span> AI Assist
