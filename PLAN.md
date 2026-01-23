@@ -1005,6 +1005,20 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
     - [ ] If field is empty/not configured, prompt user to fill it or send without
     - [ ] Option to "fill in the blank" inline before sending
 
+- [ ] **Structured Onboarding Flow**
+  - [ ] Multi-step onboarding wizard for new users
+  - [ ] **Sales Maturity Questionnaire:**
+    - [ ] Current revenue stage (pre-revenue, <$1M, $1-5M, $5M+)
+    - [ ] Sales team size (solo founder, 1-3 reps, 4+ reps)
+    - [ ] Sales process maturity (ad-hoc, some process, documented playbook)
+    - [ ] Biggest current challenge (lead gen, closing, scaling, hiring)
+    - [ ] Primary sales motion (inbound, outbound, PLG, channel)
+  - [ ] Personalized recommendations based on questionnaire answers
+  - [ ] Pre-populate GTM variables from questionnaire responses
+  - [ ] Suggested prompts/workflows based on maturity level
+  - [ ] Skip option for experienced users
+  - [ ] Revisit/update answers in settings
+
 - [ ] **Support Bot Integration**
   - [ ] Integrate third-party support bot for user help/support
   - [ ] Consider options: Intercom, Zendesk, Crisp, HelpScout, etc.
