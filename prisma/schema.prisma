@@ -42,12 +42,23 @@ model Workspace {
 // A user within a workspace
 model User {
   id              String    @id @default(cuid())
-  slackUserId     String
+
+  // Slack identity (optional - null for web-only users)
+  slackUserId     String?
   slackUserName   String?
   slackEmail      String?
 
-  workspaceId     String
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Google identity (optional - null for Slack-only users)
+  googleId        String?   @unique
+
+  // Email - primary identifier for web-only users
+  email           String?   @unique
+  name            String?
+  avatarUrl       String?
+
+  // Workspace (optional - null for web-only users)
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Trial tracking
   trialStartedAt        DateTime?
@@ -82,6 +93,8 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // Slack users identified by slackUserId + workspaceId combo
+  // Web-only users identified by email or googleId (see @unique above)
   @@unique([slackUserId, workspaceId])
   @@map("users")
 }
