@@ -3,12 +3,17 @@ import { prisma } from "@/lib/db";
 
 export interface AuthUser {
   id: string;
-  slackUserId: string;
+  slackUserId: string | null;
   slackUserName: string | null;
   slackEmail: string | null;
-  workspaceId: string;
+  workspaceId: string | null;
   licenseStatus: string;
   trialStartedAt: Date | null;
+  // Google OAuth fields
+  googleId: string | null;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
 }
 
 /**
@@ -46,6 +51,10 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     workspaceId: session.user.workspaceId,
     licenseStatus: session.user.licenseStatus,
     trialStartedAt: session.user.trialStartedAt,
+    googleId: session.user.googleId,
+    email: session.user.email,
+    name: session.user.name,
+    avatarUrl: session.user.avatarUrl,
   };
 }
 

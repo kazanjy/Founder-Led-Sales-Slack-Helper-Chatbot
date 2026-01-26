@@ -9,11 +9,13 @@ export async function GET() {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  // Get workspace info
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: user.workspaceId },
-    select: { slackTeamName: true },
-  });
+  // Get workspace info (only for Slack users)
+  const workspace = user.workspaceId
+    ? await prisma.workspace.findUnique({
+        where: { id: user.workspaceId },
+        select: { slackTeamName: true },
+      })
+    : null;
 
   // Calculate trial days remaining
   const TRIAL_DAYS = 7;
@@ -30,13 +32,17 @@ export async function GET() {
   return NextResponse.json({
     user: {
       id: user.id,
-      name: user.slackUserName,
-      email: user.slackEmail,
+      name: user.name || user.slackUserName,
+      email: user.email || user.slackEmail,
+      avatarUrl: user.avatarUrl,
       workspaceName: workspace?.slackTeamName,
       licenseStatus: user.licenseStatus,
       trialDaysRemaining,
       canChat: chatStatus.allowed,
       chatBlockedMessage: chatStatus.message,
+      // Auth provider info
+      isGoogleUser: !!user.googleId,
+      isSlackUser: !!user.slackUserId,
     },
   });
 }
