@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getSlackClient, sendSlackMessage } from "./client";
+import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
 
@@ -281,9 +281,38 @@ async function handleMention(
     return;
   }
 
+  // Check if Mikey is being summoned into an existing thread
+  // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
+  let priorThreadContext: string | undefined;
+
+  if (thread_ts && thread_ts !== ts) {
+    console.log("Mikey summoned into existing thread, fetching prior messages");
+    try {
+      const threadMessages = await getThreadMessages(client, channel, thread_ts);
+
+      // Filter out the current message and any bot messages, take up to 10 prior messages
+      const priorMessages = threadMessages
+        .filter(msg => msg.ts !== ts && !msg.bot_id && msg.text)
+        .slice(0, 10); // First 10 messages (oldest first since that's how Slack returns them)
+
+      if (priorMessages.length > 0) {
+        // Format as context for Chatbase
+        const formattedMessages = priorMessages
+          .map(msg => `[User]: ${msg.text}`)
+          .join("\n");
+
+        priorThreadContext = `Here's the conversation that was happening in this thread before I was mentioned:\n\n${formattedMessages}\n\n---\n\nNow the user is asking:`;
+        console.log(`Fetched ${priorMessages.length} prior messages for context`);
+      }
+    } catch (error) {
+      console.error("Error fetching prior thread messages:", error);
+      // Continue without context if fetch fails
+    }
+  }
+
   // Process the message
   console.log("Calling processMessage");
-  await processMessage(workspace, dbUser, channel, threadTs, cleanText, ts);
+  await processMessage(workspace, dbUser, channel, threadTs, cleanText, ts, priorThreadContext);
   console.log("processMessage completed");
 }
 
@@ -404,6 +433,7 @@ async function handleThreadReply(
 
 /**
  * Process a message and generate a response
+ * @param priorThreadContext - Optional context from prior thread messages (when Mikey is summoned mid-thread)
  */
 async function processMessage(
   workspace: { id: string; botToken: string; botUserId: string | null },
@@ -411,7 +441,8 @@ async function processMessage(
   channel: string,
   threadTs: string,
   text: string,
-  messageTs?: string
+  messageTs?: string,
+  priorThreadContext?: string
 ) {
   const client = getSlackClient(workspace.botToken);
 
@@ -463,10 +494,15 @@ async function processMessage(
     content: msg.content,
   }));
 
+  // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
+  const messageWithContext = priorThreadContext
+    ? `${priorThreadContext}\n\n${text}`
+    : text;
+
   try {
     // Get response from Chatbase
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
-      text,
+      messageWithContext,
       conversation.chatbaseConversationId || undefined,
       chatbaseHistory
     );
