@@ -778,11 +778,151 @@ interface GlobalSettings {
 - [ ] Referral dashboard UI
 
 ### Phase 7: Admin Panel
-- [ ] Admin authentication
-- [ ] Account management
-- [ ] Workspace management
-- [ ] Analytics dashboard
-- [ ] Global settings (pricing, trials, etc.)
+
+#### 7.1 Admin Authentication & Security
+- [ ] Admin authentication (separate from regular users)
+- [ ] Admin role check middleware
+- [ ] Audit log for all admin actions
+- [ ] Session timeout for admin sessions
+- [ ] Optional: Role-based access (super admin vs support)
+
+#### 7.2 User Management (Priority: High)
+- [ ] **User List View**
+  - [ ] Paginated table with search/filter
+  - [ ] Search by email, name, Slack username
+  - [ ] Filter by: license status, identity type (Google/Slack/both), workspace
+  - [ ] Sort by: created date, last login, message count
+  - [ ] Quick stats: total users, active trials, licensed users
+
+- [ ] **User Detail View**
+  - [ ] Profile info (name, email, avatar)
+  - [ ] Identity providers (Google connected? Slack connected?)
+  - [ ] License status and trial info
+  - [ ] Last login timestamp
+  - [ ] Message count / usage stats
+  - [ ] Workspace membership
+  - [ ] Link to Stripe customer (if exists)
+  - [ ] Conversation history (recent conversations)
+
+- [ ] **User Actions**
+  - [ ] Edit license status (trial → active, extend trial, etc.)
+  - [ ] Modify trial dates (start date, extend/shorten)
+  - [ ] Manually grant/revoke license
+  - [ ] Disconnect Slack account
+  - [ ] Disconnect Google account
+  - [ ] Impersonate user (login as them for debugging)
+  - [ ] Delete/deactivate account
+  - [ ] Send password reset (if email auth)
+  - [ ] Add admin notes to user record
+
+#### 7.3 Billing & Subscription Management (Priority: High)
+- [ ] **Subscription Overview**
+  - [ ] List all paying customers
+  - [ ] MRR/ARR display
+  - [ ] Recent transactions
+  - [ ] Failed payments requiring attention
+
+- [ ] **User Billing Actions**
+  - [ ] View payment history
+  - [ ] Link to Stripe dashboard for customer
+  - [ ] Manually grant license (no Stripe)
+  - [ ] Extend license expiration
+  - [ ] Issue refund (via Stripe)
+  - [ ] Cancel subscription
+  - [ ] Comp a user (free license with notes)
+
+- [ ] **Trial Management**
+  - [ ] View users in trial
+  - [ ] Extend trial for specific users
+  - [ ] Bulk trial extension (e.g., for a promo)
+  - [ ] Trial conversion metrics
+
+#### 7.4 Workspace Management
+- [ ] List all connected workspaces
+- [ ] Workspace details (name, user count, install date)
+- [ ] View users in each workspace
+- [ ] Bot token health check (is token still valid?)
+- [ ] Disconnect workspace entirely
+- [ ] Workspace-level settings (trial overrides, etc.)
+
+#### 7.5 Analytics Dashboard
+- [ ] **User Metrics**
+  - [ ] DAU / WAU / MAU
+  - [ ] New signups over time
+  - [ ] Signups by provider (Google vs Slack)
+  - [ ] User retention / churn
+
+- [ ] **Usage Metrics**
+  - [ ] Messages per day/week/month
+  - [ ] Average messages per user
+  - [ ] Most active users
+  - [ ] Peak usage times
+
+- [ ] **Revenue Metrics**
+  - [ ] MRR / ARR
+  - [ ] Trial → Paid conversion rate
+  - [ ] Churn rate
+  - [ ] ARPU (average revenue per user)
+
+#### 7.6 System & Support Tools
+- [ ] Recent errors / failed API calls log
+- [ ] Webhook delivery status
+- [ ] Search conversations (for support)
+- [ ] View any user's conversation history
+- [ ] Global settings management
+  - [ ] Default trial duration
+  - [ ] Default pricing
+  - [ ] Rate limits
+  - [ ] Feature flags
+
+#### 7.7 Admin API Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/admin/users` | List/search users with pagination |
+| `GET /api/admin/users/:id` | Get user details |
+| `PATCH /api/admin/users/:id` | Update user (license, trial, etc.) |
+| `POST /api/admin/users/:id/impersonate` | Get impersonation token |
+| `DELETE /api/admin/users/:id/slack` | Disconnect Slack |
+| `DELETE /api/admin/users/:id/google` | Disconnect Google |
+| `GET /api/admin/workspaces` | List workspaces |
+| `GET /api/admin/workspaces/:id` | Workspace details |
+| `DELETE /api/admin/workspaces/:id` | Disconnect workspace |
+| `GET /api/admin/billing/overview` | Revenue metrics |
+| `GET /api/admin/billing/transactions` | Recent transactions |
+| `POST /api/admin/licenses` | Manually grant license |
+| `PATCH /api/admin/licenses/:id` | Update license |
+| `GET /api/admin/analytics` | Usage statistics |
+| `GET /api/admin/settings` | Get global settings |
+| `PATCH /api/admin/settings` | Update global settings |
+| `GET /api/admin/audit-log` | View admin action history |
+
+#### 7.8 Admin UI Structure
+
+```
+/admin
+├── /admin                    # Dashboard overview (quick stats)
+├── /admin/users              # User list with search/filter
+│   └── /admin/users/[id]     # User detail + actions
+├── /admin/workspaces         # Workspace list
+│   └── /admin/workspaces/[id]# Workspace detail
+├── /admin/billing            # Billing overview
+│   └── /admin/billing/transactions
+├── /admin/analytics          # Charts and metrics
+├── /admin/settings           # Global configuration
+└── /admin/audit-log          # Admin action history
+```
+
+#### 7.9 Implementation Order
+
+1. **Admin Auth** - Secure the admin routes first
+2. **User List + Search** - Core functionality to find users
+3. **User Detail View** - See everything about a user
+4. **User Actions** - License management, trial edits
+5. **Billing Integration** - Stripe links, manual licenses
+6. **Workspaces** - View and manage workspaces
+7. **Analytics** - Usage and revenue metrics
+8. **Audit Log** - Track admin actions
 
 ---
 

@@ -1,0 +1,486 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+
+interface UserDetail {
+  id: string;
+  email: string | null;
+  slackEmail: string | null;
+  name: string | null;
+  slackUserName: string | null;
+  avatarUrl: string | null;
+  googleId: string | null;
+  slackUserId: string | null;
+  licenseStatus: string;
+  trialStartedAt: string | null;
+  trialDaysRemaining: number | null;
+  workspaceId: string | null;
+  workspace: {
+    id: string;
+    slackTeamId: string;
+    slackTeamName: string;
+    installedAt: string;
+  } | null;
+  licenseId: string | null;
+  license: {
+    id: string;
+    type: string;
+    status: string;
+    expiresAt: string | null;
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    manuallyGranted: boolean;
+    notes: string | null;
+  } | null;
+  messagesToday: number;
+  referralCode: string;
+  bonusMessagesEarned: number;
+  conversationCount: number;
+  messageCount: number;
+  referralCount: number;
+  conversations: {
+    id: string;
+    title: string | null;
+    firstMessagePreview: string | null;
+    messageCount: number;
+    source: string;
+    createdAt: string;
+    lastMessageAt: string;
+  }[];
+  sessions: {
+    id: string;
+    createdAt: string;
+    expiresAt: string;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function AdminUserDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [user, setUser] = useState<UserDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch(`/api/admin/users/${params.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        } else if (res.status === 404) {
+          router.push("/admin/users");
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUser();
+  }, [params.id, router]);
+
+  const updateUser = async (updates: Record<string, unknown>) => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/users/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        setMessage({ type: "success", text: "User updated successfully" });
+        // Refresh user data
+        const refreshRes = await fetch(`/api/admin/users/${params.id}`);
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setUser(data.user);
+        }
+      } else {
+        const errorData = await res.json();
+        setMessage({ type: "error", text: errorData.error || "Failed to update user" });
+      }
+    } catch (error) {
+      console.error("Failed to update user:", error);
+      setMessage({ type: "error", text: "Failed to update user" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-gray-500">Loading user...</div>;
+  }
+
+  if (!user) {
+    return <div className="text-red-500">User not found</div>;
+  }
+
+  const displayEmail = user.email || user.slackEmail;
+  const displayName = user.name || user.slackUserName;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-4">
+          <Link
+            href="/admin/users"
+            className="text-gray-500 hover:text-gray-700"
+          >
+            &larr; Back to Users
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {displayName || displayEmail || "Unknown User"}
+          </h1>
+        </div>
+      </div>
+
+      {/* Message */}
+      {message && (
+        <div
+          className={`mb-6 p-4 rounded-md ${
+            message.type === "success"
+              ? "bg-green-50 text-green-800 border border-green-200"
+              : "bg-red-50 text-red-800 border border-red-200"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Profile Card */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile</h2>
+            <div className="flex items-start space-x-4">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="w-16 h-16 rounded-full"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl">
+                  {(displayName || displayEmail || "?")[0].toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-500">Name</label>
+                    <div className="font-medium">{displayName || "-"}</div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Email</label>
+                    <div className="font-medium">{displayEmail || "-"}</div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">User ID</label>
+                    <div className="font-mono text-sm text-gray-600">{user.id}</div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Created</label>
+                    <div>{new Date(user.createdAt).toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Identity Providers */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Identity Providers</h2>
+            <div className="space-y-4">
+              {/* Google */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🔵</span>
+                  <div>
+                    <div className="font-medium">Google</div>
+                    {user.googleId ? (
+                      <div className="text-sm text-gray-500">
+                        Connected: {user.email}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-400">Not connected</div>
+                    )}
+                  </div>
+                </div>
+                {user.googleId && (
+                  <button
+                    onClick={() => {
+                      if (confirm("Disconnect Google from this user?")) {
+                        updateUser({ disconnectGoogle: true });
+                      }
+                    }}
+                    disabled={saving || !user.slackUserId}
+                    className="px-3 py-1 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                    title={!user.slackUserId ? "Cannot disconnect - user would have no identity" : ""}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+
+              {/* Slack */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">💜</span>
+                  <div>
+                    <div className="font-medium">Slack</div>
+                    {user.slackUserId ? (
+                      <div className="text-sm text-gray-500">
+                        Connected: {user.slackUserName} ({user.slackEmail})
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-400">Not connected</div>
+                    )}
+                  </div>
+                </div>
+                {user.slackUserId && (
+                  <button
+                    onClick={() => {
+                      if (confirm("Disconnect Slack from this user? This will also remove workspace association.")) {
+                        updateUser({ disconnectSlack: true });
+                      }
+                    }}
+                    disabled={saving || !user.googleId}
+                    className="px-3 py-1 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                    title={!user.googleId ? "Cannot disconnect - user would have no identity" : ""}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Conversations */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Recent Conversations ({user.conversationCount} total)
+            </h2>
+            {user.conversations.length === 0 ? (
+              <div className="text-gray-500">No conversations yet</div>
+            ) : (
+              <div className="space-y-3">
+                {user.conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className="p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-sm">
+                        {conv.title || conv.firstMessagePreview?.slice(0, 50) || "Untitled"}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {conv.source === "WEB" ? "🌐" : "💬"} {conv.messageCount} msgs
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(conv.lastMessageAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* License Status */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">License</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-500">Status</label>
+                <div className="mt-1">
+                  <select
+                    value={user.licenseStatus}
+                    onChange={(e) => updateUser({ licenseStatus: e.target.value })}
+                    disabled={saving}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="TRIAL">Trial</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="EXPIRED">Expired</option>
+                    <option value="SUSPENDED">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              {user.licenseStatus === "TRIAL" && (
+                <>
+                  <div>
+                    <label className="text-sm text-gray-500">Trial Started</label>
+                    <div className="font-medium">
+                      {user.trialStartedAt
+                        ? new Date(user.trialStartedAt).toLocaleDateString()
+                        : "Not started"}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Days Remaining</label>
+                    <div className="font-medium">
+                      {user.trialDaysRemaining !== null
+                        ? `${user.trialDaysRemaining} days`
+                        : "-"}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-500">Extend Trial</label>
+                    <div className="flex space-x-2 mt-1">
+                      {[7, 14, 30].map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => updateUser({ extendTrialDays: days })}
+                          disabled={saving}
+                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                        >
+                          +{days}d
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {user.license && (
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="text-sm text-gray-500">License Details</label>
+                  <div className="mt-1 text-sm">
+                    <div>Type: {user.license.type}</div>
+                    <div>Status: {user.license.status}</div>
+                    {user.license.expiresAt && (
+                      <div>
+                        Expires: {new Date(user.license.expiresAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {user.license.stripeSubscriptionId && (
+                      <div className="mt-2">
+                        <a
+                          href={`https://dashboard.stripe.com/subscriptions/${user.license.stripeSubscriptionId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          View in Stripe &rarr;
+                        </a>
+                      </div>
+                    )}
+                    {user.license.manuallyGranted && (
+                      <div className="mt-2 text-yellow-600">
+                        Manually granted
+                        {user.license.notes && (
+                          <div className="text-gray-500">{user.license.notes}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Workspace */}
+          {user.workspace && (
+            <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Workspace</h2>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm text-gray-500">Name</label>
+                  <div className="font-medium">{user.workspace.slackTeamName}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Team ID</label>
+                  <div className="font-mono text-sm">{user.workspace.slackTeamId}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Installed</label>
+                  <div>{new Date(user.workspace.installedAt).toLocaleDateString()}</div>
+                </div>
+                <div className="pt-2">
+                  <Link
+                    href={`/admin/workspaces/${user.workspace.id}`}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    View Workspace &rarr;
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Stats</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Conversations</span>
+                <span className="font-medium">{user.conversationCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Messages</span>
+                <span className="font-medium">{user.messageCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Messages Today</span>
+                <span className="font-medium">{user.messagesToday}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Referrals Made</span>
+                <span className="font-medium">{user.referralCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Bonus Messages</span>
+                <span className="font-medium">{user.bonusMessagesEarned}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Referral Code */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Referral</h2>
+            <div>
+              <label className="text-sm text-gray-500">Referral Code</label>
+              <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
+                {user.referralCode}
+              </div>
+            </div>
+          </div>
+
+          {/* Sessions */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Sessions</h2>
+            {user.sessions.length === 0 ? (
+              <div className="text-gray-500 text-sm">No active sessions</div>
+            ) : (
+              <div className="space-y-2">
+                {user.sessions.map((session) => (
+                  <div key={session.id} className="text-sm">
+                    <div className="text-gray-600">
+                      {new Date(session.createdAt).toLocaleString()}
+                    </div>
+                    <div className="text-gray-400 text-xs">
+                      Expires: {new Date(session.expiresAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
