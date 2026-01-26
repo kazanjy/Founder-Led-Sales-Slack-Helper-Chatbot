@@ -407,7 +407,7 @@ async function handleThreadReply(
  */
 async function processMessage(
   workspace: { id: string; botToken: string; botUserId: string | null },
-  user: { id: string; slackUserId: string },
+  user: { id: string; slackUserId: string | null },
   channel: string,
   threadTs: string,
   text: string,
