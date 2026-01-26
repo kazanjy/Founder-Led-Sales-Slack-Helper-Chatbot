@@ -603,7 +603,7 @@ async function checkUserCanSendMessage(
     trialStartedAt: Date | null;
     messagesToday: number;
     messageCountResetAt: Date;
-    workspaceId: string;
+    workspaceId: string | null;
   }
 ): Promise<{ allowed: boolean; message: string; welcomeMessage?: string }> {
   const now = new Date();
