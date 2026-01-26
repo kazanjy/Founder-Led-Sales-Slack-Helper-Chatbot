@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
+import { randomBytes } from "crypto";
+import { cookies } from "next/headers";
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID!;
 const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+/**
+ * Helper to get current logged-in user from session cookie
+ */
+async function getLoggedInUser() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("session")?.value;
+
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date()) return null;
+
+  return session.user;
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -81,6 +102,82 @@ export async function GET(request: NextRequest) {
       where: { id: "global" },
       update: {},
       create: { id: "global" },
+    });
+
+    // Check if user is already logged in (e.g., Google user adding Slack)
+    const loggedInUser = await getLoggedInUser();
+
+    // Check if this Slack identity is already linked to a user in this workspace
+    const existingSlackUser = await prisma.user.findUnique({
+      where: {
+        slackUserId_workspaceId: {
+          slackUserId: installedByUserId,
+          workspaceId: workspace.id,
+        },
+      },
+    });
+
+    let user;
+
+    if (loggedInUser) {
+      // User is already logged in (e.g., Google user adding Slack)
+      if (existingSlackUser && existingSlackUser.id !== loggedInUser.id) {
+        // This Slack identity is already linked to a different account
+        console.error(
+          `Slack identity conflict during install: ${installedByUserId} already linked to user ${existingSlackUser.id}`
+        );
+        return NextResponse.redirect(
+          `${APP_URL}/setup?workspace=${encodeURIComponent(teamName)}&team_id=${teamId}&error=slack_already_linked`
+        );
+      }
+
+      // Link Slack to the existing logged-in user
+      user = await prisma.user.update({
+        where: { id: loggedInUser.id },
+        data: {
+          slackUserId: installedByUserId,
+          workspaceId: workspace.id,
+        },
+      });
+      console.log(
+        `[Slack Install] Linked Slack to existing user: ${loggedInUser.id}`
+      );
+    } else if (existingSlackUser) {
+      // Not logged in, but Slack user exists - create session for them
+      user = existingSlackUser;
+    } else {
+      // Not logged in, new Slack user - create user record
+      user = await prisma.user.create({
+        data: {
+          slackUserId: installedByUserId,
+          workspaceId: workspace.id,
+          trialStartedAt: new Date(),
+          licenseStatus: "TRIAL",
+        },
+      });
+      console.log(`[Slack Install] Created new user for installer: ${user.id}`);
+    }
+
+    // Create session for the user (new session even if they had one)
+    const sessionToken = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt,
+      },
+    });
+
+    // Set session cookie
+    const cookieStore = await cookies();
+    cookieStore.set("session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      expires: expiresAt,
+      path: "/",
     });
 
     // Send welcome DM to the installer
