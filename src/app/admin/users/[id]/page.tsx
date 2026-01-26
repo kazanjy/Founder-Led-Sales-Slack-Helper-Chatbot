@@ -65,6 +65,10 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+  const [emailValue, setEmailValue] = useState("");
 
   useEffect(() => {
     async function fetchUser() {
@@ -177,11 +181,89 @@ export default function AdminUserDetailPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-500">Name</label>
-                    <div className="font-medium">{displayName || "-"}</div>
+                    {editingName ? (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <input
+                          type="text"
+                          value={nameValue}
+                          onChange={(e) => setNameValue(e.target.value)}
+                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                          autoFocus
+                        />
+                        <button
+                          onClick={async () => {
+                            await updateUser({ name: nameValue });
+                            setEditingName(false);
+                          }}
+                          disabled={saving}
+                          className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingName(false)}
+                          className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{displayName || "-"}</span>
+                        <button
+                          onClick={() => {
+                            setNameValue(user.name || "");
+                            setEditingName(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Email</label>
-                    <div className="font-medium">{displayEmail || "-"}</div>
+                    {editingEmail ? (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <input
+                          type="email"
+                          value={emailValue}
+                          onChange={(e) => setEmailValue(e.target.value)}
+                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                          autoFocus
+                        />
+                        <button
+                          onClick={async () => {
+                            await updateUser({ email: emailValue });
+                            setEditingEmail(false);
+                          }}
+                          disabled={saving}
+                          className="px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingEmail(false)}
+                          className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{displayEmail || "-"}</span>
+                        <button
+                          onClick={() => {
+                            setEmailValue(user.email || "");
+                            setEditingEmail(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">User ID</label>

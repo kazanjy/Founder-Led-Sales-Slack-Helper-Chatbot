@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 
 interface User {
   id: string;
@@ -18,6 +17,7 @@ interface User {
   license: { id: string; status: string; hasStripe: boolean } | null;
   conversationCount: number;
   messageCount: number;
+  lastActivity: string;
 }
 
 interface Pagination {
@@ -112,6 +112,21 @@ export default function AdminUsersPage() {
         )}
       </div>
     );
+  };
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
   return (
@@ -211,17 +226,23 @@ export default function AdminUsersPage() {
                     Workspace
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Activity
+                    Usage
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Active
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joined
                   </th>
-                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
+                  <tr
+                    key={user.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => router.push(`/admin/users/${user.id}`)}
+                  >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
                         {user.avatarUrl ? (
@@ -259,15 +280,10 @@ export default function AdminUsersPage() {
                       <div>{user.messageCount} msgs</div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatRelativeTime(user.lastActivity)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right">
-                      <Link
-                        href={`/admin/users/${user.id}`}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        View
-                      </Link>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
                 ))}

@@ -187,6 +187,28 @@ export async function PATCH(
       }
     }
 
+    // Update name
+    if (body.name !== undefined) {
+      updateData.name = body.name || null;
+    }
+
+    // Update email (only if not conflicting)
+    if (body.email !== undefined && body.email !== existingUser.email) {
+      if (body.email) {
+        // Check if email is already taken
+        const existingEmail = await prisma.user.findUnique({
+          where: { email: body.email },
+        });
+        if (existingEmail && existingEmail.id !== id) {
+          return NextResponse.json(
+            { error: "Email already in use by another user" },
+            { status: 400 }
+          );
+        }
+      }
+      updateData.email = body.email || null;
+    }
+
     // Don't allow both disconnections if user would have no identity left
     if (body.disconnectSlack && body.disconnectGoogle) {
       return NextResponse.json(

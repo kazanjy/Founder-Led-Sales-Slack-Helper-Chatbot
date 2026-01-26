@@ -84,6 +84,13 @@ export async function GET(request: NextRequest) {
               stripeSubscriptionId: true,
             },
           },
+          conversations: {
+            orderBy: { lastMessageAt: "desc" },
+            take: 1,
+            select: {
+              lastMessageAt: true,
+            },
+          },
           _count: {
             select: {
               conversations: true,
@@ -129,6 +136,8 @@ export async function GET(request: NextRequest) {
       // Stats
       conversationCount: user._count.conversations,
       messageCount: user._count.messages,
+      // Last activity
+      lastActivity: user.conversations[0]?.lastMessageAt || user.updatedAt,
     }));
 
     return NextResponse.json({
