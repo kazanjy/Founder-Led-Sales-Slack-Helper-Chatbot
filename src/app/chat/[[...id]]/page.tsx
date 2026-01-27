@@ -1144,7 +1144,7 @@ export default function ChatPage() {
           {!user?.canChat ? (
             <div className="max-w-[800px] mx-auto text-center py-4">
               <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
-              <a href="/upgrade" className="text-blue-600 hover:underline">
+              <a href="/upgrade" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                 Subscribe to continue
               </a>
             </div>
