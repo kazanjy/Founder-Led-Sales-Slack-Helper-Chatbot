@@ -623,10 +623,11 @@ async function checkUserCanSendMessage(
         data: { licenseStatus: "EXPIRED" },
       });
 
+      const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai"}/upgrade`;
       return {
         allowed: false,
         message:
-          "Your trial is all done! If you liked Mikey, go ahead and subscribe!",
+          `Your trial is all done! If you liked Mikey, go ahead and subscribe: ${upgradeUrl}`,
       };
     }
 
@@ -646,9 +647,10 @@ async function checkUserCanSendMessage(
   }
 
   // User is expired or other status
+  const upgradeUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai"}/upgrade`;
   return {
     allowed: false,
     message:
-      "Your trial is all done! If you liked Mikey, go ahead and subscribe!",
+      `Your trial is all done! If you liked Mikey, go ahead and subscribe: ${upgradeUrl}`,
   };
 }
