@@ -19,7 +19,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@vercel/functions": "^3.3.6",
     "nanoid": "^5.0.9",
-    "next": "15.5.9",
+    "next": "^15.5.10",
     "openai": "^6.16.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
