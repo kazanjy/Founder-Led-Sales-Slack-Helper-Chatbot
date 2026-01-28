@@ -142,6 +142,7 @@ export default function ChatPage() {
   const [animatingTitleId, setAnimatingTitleId] = useState<string | null>(null);
   const [animatingTitleText, setAnimatingTitleText] = useState("");
   const [animatingTitleFull, setAnimatingTitleFull] = useState("");
+  const [showSlackModal, setShowSlackModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -744,6 +745,14 @@ export default function ChatPage() {
         }
 
         setUser(userData.user);
+
+        // Show Slack modal for Google-only users who haven't dismissed it
+        if (userData.user.isGoogleUser && !userData.user.isSlackUser) {
+          const dismissed = localStorage.getItem("slackModalDismissed");
+          if (!dismissed) {
+            setShowSlackModal(true);
+          }
+        }
 
         // Get conversations
         const convsRes = await fetch("/api/conversations");
@@ -1854,6 +1863,56 @@ export default function ChatPage() {
                   ) : (
                     "Save"
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add to Slack Modal for Google-only users */}
+      {showSlackModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-[#4A154B] rounded-2xl flex items-center justify-center">
+                  <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+                Use Mikey in your team&apos;s Slack Workspace
+              </h2>
+              <p className="text-gray-600 text-center mb-6">
+                Get sales advice right where your team works. Add Mikey to Slack for instant access to founder-led sales guidance.
+              </p>
+
+              <div className="space-y-3">
+                <a
+                  href="/api/slack/oauth"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    localStorage.setItem("slackModalDismissed", "true");
+                    setShowSlackModal(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#4A154B] text-white font-semibold rounded-lg hover:bg-[#3a1139] transition-colors"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                  </svg>
+                  Add to Slack
+                </a>
+                <button
+                  onClick={() => {
+                    localStorage.setItem("slackModalDismissed", "true");
+                    setShowSlackModal(false);
+                  }}
+                  className="w-full py-3 px-4 text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                >
+                  Maybe later
                 </button>
               </div>
             </div>
