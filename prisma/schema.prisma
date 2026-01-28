@@ -42,12 +42,23 @@ model Workspace {
 // A user within a workspace
 model User {
   id              String    @id @default(cuid())
-  slackUserId     String
+
+  // Slack identity (optional - null for web-only users)
+  slackUserId     String?
   slackUserName   String?
   slackEmail      String?
 
-  workspaceId     String
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Google identity (optional - null for Slack-only users)
+  googleId        String?   @unique
+
+  // Email - primary identifier for web-only users
+  email           String?   @unique
+  name            String?
+  avatarUrl       String?
+
+  // Workspace (optional - null for web-only users)
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Trial tracking
   trialStartedAt        DateTime?
@@ -77,10 +88,13 @@ model User {
   sharedConversations SharedConversation[]
   sessions        Session[]
   savedPrompts    SavedPrompt[]
+  gtmVariables    GtmVariable[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // Slack users identified by slackUserId + workspaceId combo
+  // Web-only users identified by email or googleId (see @unique above)
   @@unique([slackUserId, workspaceId])
   @@map("users")
 }
@@ -162,6 +176,51 @@ model SavedPrompt {
   updatedAt       DateTime  @updatedAt
 
   @@map("saved_prompts")
+}
+
+// GTM Variables for merge fields in prompts
+model GtmVariable {
+  id                String    @id @default(cuid())
+
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name              String    // Display name (e.g., "Ideal Customer Profile")
+  mergeField        String    // The merge field syntax (e.g., "ICP" for {{ICP}})
+  description       String?   // Help text describing what this variable is for
+  value             String?   // The actual value the user has entered
+
+  // Track if this is a default variable
+  isDefault         Boolean   @default(false)
+  defaultVariableId String?   // e.g., "default-icp" to identify default variables
+
+  // AI Assist prompt for helping users fill this variable
+  aiAssistPrompt    String?
+
+  // Order for display
+  sortOrder         Int       @default(0)
+
+  // History of changes
+  history           GtmVariableHistory[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([userId, mergeField])
+  @@map("gtm_variables")
+}
+
+// History of changes to GTM variables
+model GtmVariableHistory {
+  id              String      @id @default(cuid())
+
+  variableId      String
+  variable        GtmVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+
+  previousValue   String      // The value before the change
+  changedAt       DateTime    @default(now())
+
+  @@map("gtm_variable_history")
 }
 
 // A conversation thread (Slack thread or web chat)

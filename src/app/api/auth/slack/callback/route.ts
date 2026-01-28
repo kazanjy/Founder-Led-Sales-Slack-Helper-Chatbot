@@ -4,7 +4,28 @@ import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 
 /**
+ * Helper to get current logged-in user from session cookie
+ */
+async function getLoggedInUser() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("session")?.value;
+
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date()) return null;
+
+  return session.user;
+}
+
+/**
  * Handles Slack OAuth callback for web login
+ * - If user is already logged in (e.g., Google user), links Slack to existing account
+ * - If not logged in, creates new account or logs into existing Slack account
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -25,6 +46,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Check if user is already logged in (e.g., Google user adding Slack)
+    const loggedInUser = await getLoggedInUser();
+
     // Exchange code for token
     const tokenResponse = await fetch("https://slack.com/api/oauth.v2.access", {
       method: "POST",
@@ -83,8 +107,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find or create the user
-    let user = await prisma.user.findUnique({
+    // Check if this Slack identity is already linked to another user
+    const existingSlackUser = await prisma.user.findUnique({
       where: {
         slackUserId_workspaceId: {
           slackUserId,
@@ -93,10 +117,52 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    let user;
     let isNewUser = false;
 
-    if (!user) {
-      // Create user with trial status
+    if (loggedInUser) {
+      // User is already logged in (e.g., Google user adding Slack)
+      if (existingSlackUser && existingSlackUser.id !== loggedInUser.id) {
+        // This Slack identity is already linked to a different account
+        console.error(
+          `Slack identity conflict: ${slackUserId} already linked to user ${existingSlackUser.id}, but logged in as ${loggedInUser.id}`
+        );
+        return NextResponse.redirect(
+          `${process.env.NEXT_PUBLIC_APP_URL}/chat?error=slack_already_linked`
+        );
+      }
+
+      // Link Slack to the existing logged-in user
+      user = await prisma.user.update({
+        where: { id: loggedInUser.id },
+        data: {
+          slackUserId,
+          workspaceId: workspace.id,
+          slackUserName: identityData.user?.name || loggedInUser.slackUserName,
+          slackEmail: identityData.user?.email || loggedInUser.slackEmail,
+        },
+      });
+      console.log(
+        `[Slack Auth] Linked Slack to existing user: ${loggedInUser.id}`
+      );
+
+      // Already has a session, just redirect
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/chat`);
+    }
+
+    // Not logged in - normal Slack login flow
+    if (existingSlackUser) {
+      // Update existing user info
+      user = await prisma.user.update({
+        where: { id: existingSlackUser.id },
+        data: {
+          slackUserName:
+            identityData.user?.name || existingSlackUser.slackUserName,
+          slackEmail: identityData.user?.email || existingSlackUser.slackEmail,
+        },
+      });
+    } else {
+      // Create new user with trial status
       user = await prisma.user.create({
         data: {
           slackUserId,
@@ -108,15 +174,6 @@ export async function GET(request: NextRequest) {
         },
       });
       isNewUser = true;
-    } else {
-      // Update user info if changed
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          slackUserName: identityData.user?.name || user.slackUserName,
-          slackEmail: identityData.user?.email || user.slackEmail,
-        },
-      });
     }
 
     // Create session

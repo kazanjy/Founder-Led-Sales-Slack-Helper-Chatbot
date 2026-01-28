@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getSlackClient, sendSlackMessage } from "./client";
+import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
 
@@ -225,11 +225,15 @@ async function handleMention(
 ) {
   console.log("handleMention started:", { teamId, event });
 
-  const { user, text, channel, ts } = event;
+  const { user, text, channel, ts, thread_ts } = event;
   if (!user || !text || !channel || !ts) {
     console.log("Missing required fields:", { user, text, channel, ts });
     return;
   }
+
+  // If this @mention is in a thread, use thread_ts to continue that conversation
+  // Otherwise use ts (this message becomes the thread parent)
+  const threadTs = thread_ts || ts;
 
   // Get the workspace
   console.log("Looking up workspace:", teamId);
@@ -254,13 +258,13 @@ async function handleMention(
   console.log("canSend:", canSend);
 
   if (!canSend.allowed) {
-    await sendSlackMessage(client, channel, canSend.message, ts);
+    await sendSlackMessage(client, channel, canSend.message, threadTs);
     return;
   }
 
   // Send welcome message for first-time users
   if (canSend.welcomeMessage) {
-    await sendSlackMessage(client, channel, canSend.welcomeMessage, ts);
+    await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
   // Strip the bot mention from the message
@@ -272,14 +276,43 @@ async function handleMention(
       client,
       channel,
       "Hey! Ask me anything about founder-led sales. Just @mention me with your question.",
-      ts
+      threadTs
     );
     return;
   }
 
+  // Check if Mikey is being summoned into an existing thread
+  // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
+  let priorThreadContext: string | undefined;
+
+  if (thread_ts && thread_ts !== ts) {
+    console.log("Mikey summoned into existing thread, fetching prior messages");
+    try {
+      const threadMessages = await getThreadMessages(client, channel, thread_ts);
+
+      // Filter out the current message and any bot messages, take up to 10 prior messages
+      const priorMessages = threadMessages
+        .filter(msg => msg.ts !== ts && !msg.bot_id && msg.text)
+        .slice(0, 10); // First 10 messages (oldest first since that's how Slack returns them)
+
+      if (priorMessages.length > 0) {
+        // Format as context for Chatbase
+        const formattedMessages = priorMessages
+          .map(msg => `[User]: ${msg.text}`)
+          .join("\n");
+
+        priorThreadContext = `Here's the conversation that was happening in this thread before I was mentioned:\n\n${formattedMessages}\n\n---\n\nNow the user is asking:`;
+        console.log(`Fetched ${priorMessages.length} prior messages for context`);
+      }
+    } catch (error) {
+      console.error("Error fetching prior thread messages:", error);
+      // Continue without context if fetch fails
+    }
+  }
+
   // Process the message
   console.log("Calling processMessage");
-  await processMessage(workspace, dbUser, channel, ts, cleanText);
+  await processMessage(workspace, dbUser, channel, threadTs, cleanText, ts, priorThreadContext);
   console.log("processMessage completed");
 }
 
@@ -326,8 +359,9 @@ async function handleDirectMessage(
 }
 
 /**
- * Handle replies within a thread
- * Only responds if the user @mentions Mikey (to avoid interrupting human conversations)
+ * Handle replies within a thread (without @mention)
+ * This allows users to continue a conversation without needing to @mention again.
+ * Messages WITH @mentions are handled by handleMention() instead.
  */
 async function handleThreadReply(
   teamId: string,
@@ -343,11 +377,11 @@ async function handleThreadReply(
 
   if (!workspace) return;
 
-  // Only respond if the user @mentioned Mikey
-  // This prevents Mikey from interrupting human-to-human conversations in threads
+  // Skip if the user @mentioned Mikey - handleMention() will process those
+  // This prevents duplicate responses when Slack sends both app_mention and message events
   const botMention = workspace.botUserId ? `<@${workspace.botUserId}>` : null;
-  if (!botMention || !text.includes(botMention)) {
-    return; // Not mentioned, don't respond
+  if (botMention && text.includes(botMention)) {
+    return; // Let handleMention() handle this
   }
 
   // Check if this is a thread we're participating in
@@ -399,14 +433,16 @@ async function handleThreadReply(
 
 /**
  * Process a message and generate a response
+ * @param priorThreadContext - Optional context from prior thread messages (when Mikey is summoned mid-thread)
  */
 async function processMessage(
   workspace: { id: string; botToken: string; botUserId: string | null },
-  user: { id: string; slackUserId: string },
+  user: { id: string; slackUserId: string | null },
   channel: string,
   threadTs: string,
   text: string,
-  messageTs?: string
+  messageTs?: string,
+  priorThreadContext?: string
 ) {
   const client = getSlackClient(workspace.botToken);
 
@@ -458,10 +494,15 @@ async function processMessage(
     content: msg.content,
   }));
 
+  // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
+  const messageWithContext = priorThreadContext
+    ? `${priorThreadContext}\n\n${text}`
+    : text;
+
   try {
     // Get response from Chatbase
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
-      text,
+      messageWithContext,
       conversation.chatbaseConversationId || undefined,
       chatbaseHistory
     );
@@ -598,7 +639,7 @@ async function checkUserCanSendMessage(
     trialStartedAt: Date | null;
     messagesToday: number;
     messageCountResetAt: Date;
-    workspaceId: string;
+    workspaceId: string | null;
   }
 ): Promise<{ allowed: boolean; message: string; welcomeMessage?: string }> {
   const now = new Date();

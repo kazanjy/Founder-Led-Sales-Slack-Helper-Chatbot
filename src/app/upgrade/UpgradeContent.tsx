@@ -19,6 +19,7 @@ export default function UpgradeContent() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user is authenticated
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function UpgradeContent() {
     }
 
     setCheckoutLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -57,11 +59,13 @@ export default function UpgradeContent() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error("No checkout URL returned");
+        console.error("No checkout URL returned:", data);
+        setError(data.error || "Failed to create checkout session. Please try again.");
         setCheckoutLoading(false);
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
+    } catch (err) {
+      console.error("Checkout error:", err);
+      setError("Network error. Please check your connection and try again.");
       setCheckoutLoading(false);
     }
   };
@@ -108,6 +112,12 @@ export default function UpgradeContent() {
             <p className="text-yellow-800">
               Checkout was canceled. No worries - you can try again anytime!
             </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-800">{error}</p>
           </div>
         )}
 

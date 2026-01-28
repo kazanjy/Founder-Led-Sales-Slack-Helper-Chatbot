@@ -1,9 +1,30 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
+
+// Simple merge field detection (matches server-side logic)
+function findMergeFields(text: string): string[] {
+  const matches = text.match(/\{\{([A-Z_]+)\}\}/g) || [];
+  return matches.map(m => m.replace(/[{}]/g, ''));
+}
+
+// Expand merge fields in text using provided variables
+function expandMergeFieldsInText(text: string, variables: { mergeField: string; value: string | null }[]): string {
+  const variableMap = new Map(variables.map(v => [v.mergeField, v.value]));
+  return text.replace(/\{\{([A-Z_]+)\}\}/g, (match, fieldName) => {
+    const value = variableMap.get(fieldName);
+    return value || match; // Keep original if no value
+  });
+}
+
+interface GtmVariable {
+  mergeField: string;
+  name: string;
+  value: string | null;
+}
 
 // Saved Prompt interface (matches API response)
 interface SavedPrompt {
@@ -46,11 +67,14 @@ interface User {
   id: string;
   name: string | null;
   email: string | null;
+  avatarUrl: string | null;
   workspaceName: string | null;
   licenseStatus: string;
   trialDaysRemaining: number;
   canChat: boolean;
   chatBlockedMessage: string;
+  isGoogleUser: boolean;
+  isSlackUser: boolean;
 }
 
 interface Message {
@@ -69,6 +93,15 @@ interface Conversation {
   createdAt: string;
   lastMessageAt: string;
   archived?: boolean;
+}
+
+interface SearchResult {
+  id: string;
+  title: string | null;
+  source: string;
+  lastMessageAt: string;
+  preview: string | null;
+  matchSnippet: string | null;
 }
 
 export default function ChatPage() {
@@ -100,9 +133,44 @@ export default function ChatPage() {
   const [promptsLoading, setPromptsLoading] = useState(true);
   const [renamingConversation, setRenamingConversation] = useState<{ id: string; title: string } | null>(null);
   const [renamingSaving, setRenamingSaving] = useState(false);
+  const [gtmVariables, setGtmVariables] = useState<GtmVariable[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchSelectedIndex, setSearchSelectedIndex] = useState(0); // 0 = New Chat, 1+ = results
+  const [animatingTitleId, setAnimatingTitleId] = useState<string | null>(null);
+  const [animatingTitleText, setAnimatingTitleText] = useState("");
+  const [animatingTitleFull, setAnimatingTitleFull] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const isInitialLoad = useRef(true);
+  const isSendingRef = useRef(false); // Track if we're in the middle of sending
+
+  // Compute merge field preview info based on current input
+  const mergeFieldPreview = useMemo(() => {
+    const fields = findMergeFields(inputMessage);
+    if (fields.length === 0) return null;
+
+    const variableMap = new Map(gtmVariables.map(v => [v.mergeField, v]));
+    const used: { mergeField: string; name: string; value: string }[] = [];
+    const missing: string[] = [];
+
+    for (const field of fields) {
+      const variable = variableMap.get(field);
+      if (variable && variable.value) {
+        used.push({ mergeField: field, name: variable.name, value: variable.value });
+      } else if (variable) {
+        missing.push(variable.name);
+      } else {
+        missing.push(field); // Unknown variable
+      }
+    }
+
+    return { used, missing };
+  }, [inputMessage, gtmVariables]);
 
   // Load saved prompts from API on mount
   useEffect(() => {
@@ -296,6 +364,147 @@ export default function ChatPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Cmd+K keyboard shortcut for search
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+        setSearchSelectedIndex(0); // Reset to "New Chat"
+      }
+      // Escape to close search
+      if (event.key === "Escape" && searchOpen) {
+        event.preventDefault();
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchSelectedIndex(0);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [searchOpen]);
+
+  // Focus search input when overlay opens
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+      setSearchSelectedIndex(0); // Reset selection when opening
+    }
+  }, [searchOpen]);
+
+  // Search API call with debounce
+  useEffect(() => {
+    if (!searchOpen) return;
+
+    const searchConversations = async () => {
+      setSearchLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery.trim()) {
+          params.set("q", searchQuery.trim());
+        }
+        params.set("limit", "10");
+        const res = await fetch(`/api/conversations/search?${params}`);
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(searchConversations, 200);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchOpen]);
+
+  // Handle search result selection
+  const handleSearchSelect = (conversationId: string) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSelectedIndex(0);
+    selectConversation(conversationId);
+  };
+
+  // Handle new chat from search overlay
+  const handleSearchNewChat = async () => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchSelectedIndex(0);
+    await handleNewChat();
+    // Focus the chat input after creating new chat
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+  };
+
+  // Handle keyboard navigation in search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    const totalItems = searchResults.length + 1; // +1 for "New Chat"
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSearchSelectedIndex((prev) => (prev + 1) % totalItems);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSearchSelectedIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchSelectedIndex === 0) {
+        handleSearchNewChat();
+      } else {
+        const selectedResult = searchResults[searchSelectedIndex - 1];
+        if (selectedResult) {
+          handleSearchSelect(selectedResult.id);
+        }
+      }
+    }
+  };
+
+  // Highlight search term in text
+  const highlightSearchTerm = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? <strong key={i} className="font-semibold">{part}</strong> : part
+    );
+  };
+
+  // Typewriter animation for new titles
+  useEffect(() => {
+    if (!animatingTitleId || !animatingTitleFull) return;
+
+    let currentIndex = 0;
+    const typeSpeed = 30; // ms per character
+
+    const interval = setInterval(() => {
+      currentIndex++;
+      setAnimatingTitleText(animatingTitleFull.substring(0, currentIndex));
+
+      if (currentIndex >= animatingTitleFull.length) {
+        clearInterval(interval);
+        // Clear animation state after a short delay
+        setTimeout(() => {
+          setAnimatingTitleId(null);
+          setAnimatingTitleText("");
+          setAnimatingTitleFull("");
+        }, 500);
+      }
+    }, typeSpeed);
+
+    return () => clearInterval(interval);
+  }, [animatingTitleId, animatingTitleFull]);
+
+  // Start title animation
+  const startTitleAnimation = (conversationId: string, title: string) => {
+    setAnimatingTitleId(conversationId);
+    setAnimatingTitleText("");
+    setAnimatingTitleFull(title);
+  };
 
   // Show toast notification
   const showToast = (message: string, position: "left" | "right" | "bottom" = "right") => {
@@ -540,6 +749,17 @@ export default function ChatPage() {
         const convsRes = await fetch("/api/conversations");
         const convsData = await convsRes.json();
         setConversations(convsData.conversations || []);
+
+        // Load GTM variables for merge field expansion
+        const varsRes = await fetch("/api/gtm-variables");
+        const varsData = await varsRes.json();
+        if (varsData.variables) {
+          setGtmVariables(varsData.variables.map((v: { mergeField: string; name: string; value: string | null }) => ({
+            mergeField: v.mergeField,
+            name: v.name,
+            value: v.value,
+          })));
+        }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -555,6 +775,11 @@ export default function ChatPage() {
     async function loadMessages() {
       if (!selectedConversation) {
         setMessages([]);
+        return;
+      }
+
+      // Skip loading if we're in the middle of sending (prevents race condition)
+      if (isSendingRef.current) {
         return;
       }
 
@@ -584,6 +809,10 @@ export default function ChatPage() {
         setConversations([data.conversation, ...conversations]);
         selectConversation(data.conversation.id);
         setMessages([]);
+        // Focus the chat input after creating new chat
+        setTimeout(() => {
+          chatInputRef.current?.focus();
+        }, 100);
       }
     } catch (error) {
       console.error("Error creating conversation:", error);
@@ -595,9 +824,14 @@ export default function ChatPage() {
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending || !user?.canChat) return;
 
+    // Mark that we're sending to prevent loadMessages race condition
+    isSendingRef.current = true;
+
     // If no conversation selected, create one first
     let conversationId = selectedConversation;
+    let isNewConversation = false;
     if (!conversationId) {
+      isNewConversation = true;
       try {
         const res = await fetch("/api/conversations", { method: "POST" });
         const data = await res.json();
@@ -608,9 +842,13 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
+        isSendingRef.current = false;
         return;
       }
     }
+
+    // Check if this is the first message (for title polling)
+    const isFirstMessage = isNewConversation || messages.length === 0;
 
     const userMessage = messageText.trim();
     setInputMessage("");
@@ -624,6 +862,40 @@ export default function ChatPage() {
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
+
+    // Start title polling IMMEDIATELY if this is the first message
+    // Don't wait for the API response - poll in parallel
+    if (isFirstMessage && conversationId) {
+      const pollForTitle = async () => {
+        const maxAttempts = 20; // More attempts since we start immediately
+        const pollInterval = 500; // 500ms between polls
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+          try {
+            const titleRes = await fetch(`/api/conversations/${conversationId}/title`);
+            const titleData = await titleRes.json();
+
+            if (titleData.title) {
+              // Got a title! Update the conversation and animate
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === conversationId ? { ...c, title: titleData.title } : c
+                )
+              );
+              startTitleAnimation(conversationId, titleData.title);
+              break;
+            }
+          } catch (err) {
+            console.error("Error polling for title:", err);
+          }
+        }
+      };
+
+      // Start polling immediately (runs in background)
+      pollForTitle();
+    }
 
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
@@ -666,6 +938,7 @@ export default function ChatPage() {
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
     } finally {
       setSending(false);
+      isSendingRef.current = false;
     }
   };
 
@@ -700,11 +973,18 @@ export default function ChatPage() {
       <div className="w-80 bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
-          <img
-            src="/mikey-avatar.png"
-            alt="Mikey"
-            className="w-10 h-10 rounded-lg"
-          />
+          <button
+            onClick={handleNewChat}
+            disabled={creatingChat}
+            className="flex-shrink-0 hover:opacity-80 transition-opacity disabled:opacity-50"
+            title="Start new chat"
+          >
+            <img
+              src="/mikey-avatar.png"
+              alt="Mikey"
+              className="w-[80px] h-[80px] rounded-lg"
+            />
+          </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
             <p className="text-sm text-gray-500">{user?.workspaceName}</p>
@@ -712,7 +992,7 @@ export default function ChatPage() {
         </div>
 
         {/* New Chat Button */}
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <button
             onClick={handleNewChat}
             disabled={creatingChat}
@@ -729,6 +1009,18 @@ export default function ChatPage() {
             ) : (
               "+ New Chat"
             )}
+          </button>
+          {/* Search Button */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full py-2 px-4 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            Search
+            <span className="text-xs text-gray-400 ml-auto">⌘K</span>
           </button>
         </div>
 
@@ -774,7 +1066,14 @@ export default function ChatPage() {
                     )}
                   </div>
                   <p className="text-[15px] text-gray-900 truncate pr-8">
-                    {conv.title || conv.firstMessagePreview || "New conversation"}
+                    {animatingTitleId === conv.id ? (
+                      <span>
+                        {animatingTitleText}
+                        <span className="animate-pulse">|</span>
+                      </span>
+                    ) : (
+                      conv.title || conv.firstMessagePreview || "New conversation"
+                    )}
                   </p>
                 </button>
 
@@ -920,9 +1219,31 @@ export default function ChatPage() {
         {/* Top header with Upgrade and Copy/Share buttons */}
         <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
           <div>
-            {/* Left side - empty for now */}
+            {/* Add to Slack button for Google-only users */}
+            {user && user.isGoogleUser && !user.isSlackUser && (
+              <a
+                href="/api/slack/oauth"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#4A154B] text-white font-medium rounded-lg hover:bg-[#3a1139] transition-colors text-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                </svg>
+                Add Mikey to your Slack!
+              </a>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Settings button */}
+            <a
+              href="/settings"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Settings
+            </a>
             {/* Upgrade button - show for non-active users */}
             {user && user.licenseStatus !== "ACTIVE" && (
               <a
@@ -985,8 +1306,8 @@ export default function ChatPage() {
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-[950px]">
+            <div className="h-full overflow-y-auto">
+              <div className="text-center max-w-[950px] mx-auto pt-8">
                 <img
                   src="/mikey-avatar.png"
                   alt="Mikey"
@@ -1075,7 +1396,9 @@ export default function ChatPage() {
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">{msg.content}</p>
+                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">
+                          {expandMergeFieldsInText(msg.content, gtmVariables)}
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -1150,8 +1473,38 @@ export default function ChatPage() {
             </div>
           ) : (
             <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto">
+              {/* Merge field preview/warning */}
+              {mergeFieldPreview && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                  {mergeFieldPreview.missing.length > 0 && (
+                    <div className="flex items-start gap-2 text-orange-600 mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                      <span>
+                        Missing variables: <strong>{mergeFieldPreview.missing.join(", ")}</strong>
+                        {" "}<a href="/settings" className="text-blue-600 hover:underline">Configure in Settings</a>
+                      </span>
+                    </div>
+                  )}
+                  {mergeFieldPreview.used.length > 0 && (
+                    <div className="space-y-2">
+                      {mergeFieldPreview.used.map((v) => (
+                        <div key={v.mergeField} className="text-gray-600">
+                          <span className="font-medium text-blue-600">{`{{${v.mergeField}}}`}</span>
+                          <span className="text-gray-400 mx-2">→</span>
+                          <span className="text-gray-700">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex gap-4 items-end">
                 <textarea
+                  ref={chatInputRef}
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => {
@@ -1197,6 +1550,122 @@ export default function ChatPage() {
             : "top-16 right-6"
         }`}>
           {toast.message}
+        </div>
+      )}
+
+      {/* Search Overlay */}
+      {searchOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-[15vh]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSearchOpen(false);
+              setSearchQuery("");
+              setSearchSelectedIndex(0);
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+            {/* Search Input */}
+            <div className="flex items-center px-5 py-4 border-b border-gray-100">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchSelectedIndex(0); // Reset selection when typing
+                }}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search conversations..."
+                className="flex-1 text-lg text-gray-900 placeholder-gray-400 outline-none"
+              />
+              <button
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                  setSearchSelectedIndex(0);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            {/* Search Results */}
+            <div className="max-h-[60vh] overflow-y-auto">
+              {/* New Chat Option - always shown at top */}
+              <button
+                onClick={handleSearchNewChat}
+                className={`w-full px-5 py-4 transition-colors flex items-center gap-4 text-left border-b border-gray-100 ${
+                  searchSelectedIndex === 0 ? "bg-gray-100" : "hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex-shrink-0 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </div>
+                <div className="font-medium text-gray-900">New Chat</div>
+              </button>
+
+              {searchLoading ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Searching...</span>
+                  </div>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 text-sm">
+                  {searchQuery.trim() ? "No conversations found" : "No recent conversations"}
+                </div>
+              ) : (
+                <div>
+                  {searchResults.map((result, index) => (
+                    <button
+                      key={result.id}
+                      onClick={() => handleSearchSelect(result.id)}
+                      className={`w-full px-5 py-4 transition-colors flex items-start gap-4 text-left border-b border-gray-100 last:border-b-0 ${
+                        searchSelectedIndex === index + 1 ? "bg-gray-100" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      {/* Chat icon */}
+                      <div className="flex-shrink-0 mt-1 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">
+                          {result.title || result.preview?.substring(0, 50) || "Untitled conversation"}
+                        </div>
+                        <div className="text-sm text-gray-500 truncate mt-0.5">
+                          {result.matchSnippet
+                            ? highlightSearchTerm(result.matchSnippet, searchQuery)
+                            : result.preview
+                            ? highlightSearchTerm(result.preview.substring(0, 100), searchQuery)
+                            : "No preview available"}
+                        </div>
+                      </div>
+                      {/* Date */}
+                      <div className="flex-shrink-0 text-sm text-gray-400">
+                        {formatRelativeTime(result.lastMessageAt)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
