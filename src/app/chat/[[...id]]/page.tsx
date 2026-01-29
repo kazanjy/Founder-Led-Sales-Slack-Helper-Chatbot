@@ -143,6 +143,9 @@ export default function ChatPage() {
   const [animatingTitleText, setAnimatingTitleText] = useState("");
   const [animatingTitleFull, setAnimatingTitleFull] = useState("");
   const [showSlackModal, setShowSlackModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -578,6 +581,40 @@ export default function ChatPage() {
       showToast("Failed to share conversation", "bottom");
     } finally {
       setSharing(false);
+    }
+  };
+
+  // Email conversation
+  const handleEmailConversation = async (toEmail?: string) => {
+    if (!selectedConversation || messages.length === 0 || emailSending) return;
+
+    const targetEmail = toEmail || emailAddress;
+    if (!targetEmail) {
+      setShowEmailModal(true);
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast(`Conversation sent to ${targetEmail}!`, "bottom");
+        setShowEmailModal(false);
+        setEmailAddress("");
+      } else {
+        showToast(data.error || "Failed to send email", "bottom");
+      }
+    } catch (error) {
+      console.error("Error emailing:", error);
+      showToast("Failed to send email", "bottom");
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -1296,6 +1333,16 @@ export default function ChatPage() {
                   )}
                   {sharing ? "Sharing..." : "Share"}
                 </button>
+                <button
+                  onClick={() => setShowEmailModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                  Email
+                </button>
               </>
             )}
           </div>
@@ -1865,6 +1912,101 @@ export default function ChatPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email Conversation Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+                Email this conversation
+              </h2>
+              <p className="text-gray-600 text-center mb-6">
+                Send a copy of this conversation to any email address.
+              </p>
+
+              {user?.email && (
+                <button
+                  onClick={() => handleEmailConversation(user.email!)}
+                  disabled={emailSending}
+                  className="w-full mb-3 flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {emailSending ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 2L11 13"></path>
+                        <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                      </svg>
+                      Email to me ({user.email})
+                    </>
+                  )}
+                </button>
+              )}
+
+              <div className="relative">
+                {user?.email && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                    <span className="text-sm text-gray-400">or send to another email</span>
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && emailAddress && !emailSending) {
+                        handleEmailConversation(emailAddress);
+                      } else if (e.key === "Escape") {
+                        setShowEmailModal(false);
+                        setEmailAddress("");
+                      }
+                    }}
+                    placeholder="Enter email address"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus={!user?.email}
+                  />
+                  <button
+                    onClick={() => handleEmailConversation(emailAddress)}
+                    disabled={!emailAddress || emailSending}
+                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setEmailAddress("");
+                }}
+                className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 font-medium transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
