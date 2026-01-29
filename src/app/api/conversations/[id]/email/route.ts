@@ -118,7 +118,7 @@ export async function POST(
 
     // Send the email
     const { error } = await resend.emails.send({
-      from: "Mikey <mikey@askmikey.ai>",
+      from: "Mikey <onboarding@resend.dev>",
       to: email,
       subject: `${conversationTitle} - Mikey Conversation`,
       html: emailHtml,
