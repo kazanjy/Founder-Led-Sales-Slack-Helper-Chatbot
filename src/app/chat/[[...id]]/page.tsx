@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
+import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -1449,9 +1450,10 @@ export default function ChatPage() {
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                        <p className="whitespace-pre-wrap text-gray-900 text-[17px]">
-                          {expandMergeFieldsInText(msg.content, gtmVariables)}
-                        </p>
+                        <TruncatedUserMessage
+                          content={expandMergeFieldsInText(msg.content, gtmVariables)}
+                          maxLines={20}
+                        />
                       </div>
                     </div>
                   ) : (
