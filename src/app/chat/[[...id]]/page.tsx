@@ -1267,7 +1267,10 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top header with Upgrade and Copy/Share buttons */}
         <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
-          <div>
+          <div className="flex items-center gap-3">
+            {/* GTM Maturity Assessment Widget */}
+            <MaturityAssessmentWidget onStartAssessment={() => setShowMaturityModal(true)} />
+
             {/* Add to Slack button for Google-only users */}
             {user && user.isGoogleUser && !user.isSlackUser && (
               <a
@@ -1282,8 +1285,6 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* GTM Maturity Assessment Widget */}
-            <MaturityAssessmentWidget onStartAssessment={() => setShowMaturityModal(true)} />
 
             {/* Settings button */}
             <a
