@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
+import { MaturityQuizModal } from "@/components/MaturityQuizModal";
+import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -146,6 +148,7 @@ export default function ChatPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
   const [emailSending, setEmailSending] = useState(false);
+  const [showMaturityModal, setShowMaturityModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -1279,6 +1282,9 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* GTM Maturity Assessment Widget */}
+            <MaturityAssessmentWidget onStartAssessment={() => setShowMaturityModal(true)} />
+
             {/* Settings button */}
             <a
               href="/settings"
@@ -2067,6 +2073,16 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* GTM Maturity Assessment Modal */}
+      <MaturityQuizModal
+        isOpen={showMaturityModal}
+        onClose={() => setShowMaturityModal(false)}
+        onComplete={(conversationId) => {
+          setShowMaturityModal(false);
+          router.push(`/chat/${conversationId}`);
+        }}
+      />
     </div>
   );
 }
