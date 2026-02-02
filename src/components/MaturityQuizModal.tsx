@@ -192,7 +192,6 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
       }}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
-      ref={(el) => el?.focus()}
     >
       <div
         className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
