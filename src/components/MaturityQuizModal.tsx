@@ -272,6 +272,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
                 className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 tabIndex={1}
               />
+              <p className="mt-2 text-sm text-gray-500">
+                If you don&apos;t know the answer or the question doesn&apos;t apply to you, just say &quot;Don&apos;t know&quot; or &quot;NA&quot;.
+              </p>
               {currentQuestion.latestAnswer && (
                 <div className="mt-2 text-xs text-gray-400">
                   Last answered: {new Date(currentQuestion.latestAnswer.answeredAt).toLocaleDateString()}
