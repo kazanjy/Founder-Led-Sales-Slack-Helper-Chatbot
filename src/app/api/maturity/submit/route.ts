@@ -64,7 +64,50 @@ export async function POST(request: NextRequest) {
     // Log the total size for debugging
     console.log("Assessment summary length:", assessmentSummary.length, "characters");
 
-    const userMessageContent = `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${assessmentSummary}`;
+    // Chatbase has an 8000 character limit per message
+    // Split the assessment into chunks for the conversation history
+    const CHATBASE_LIMIT = 7500; // Leave some buffer
+
+    const splitIntoChunks = (text: string, maxLength: number): string[] => {
+      const chunks: string[] = [];
+      const sections = text.split(/(?=## )/); // Split by category headers
+
+      let currentChunk = "";
+      for (const section of sections) {
+        if (currentChunk.length + section.length > maxLength) {
+          if (currentChunk) {
+            chunks.push(currentChunk.trim());
+          }
+          // If a single section is too long, split it further
+          if (section.length > maxLength) {
+            const lines = section.split("\n");
+            currentChunk = "";
+            for (const line of lines) {
+              if (currentChunk.length + line.length + 1 > maxLength) {
+                chunks.push(currentChunk.trim());
+                currentChunk = line + "\n";
+              } else {
+                currentChunk += line + "\n";
+              }
+            }
+          } else {
+            currentChunk = section;
+          }
+        } else {
+          currentChunk += section;
+        }
+      }
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+      return chunks;
+    };
+
+    const assessmentChunks = splitIntoChunks(assessmentSummary, CHATBASE_LIMIT);
+    console.log(`Split assessment into ${assessmentChunks.length} chunks`);
+
+    // Build the full user message for database storage
+    const fullUserMessage = `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${assessmentSummary}`;
 
     // Create a new conversation for the AI recommendations
     const conversation = await prisma.conversation.create({
@@ -77,22 +120,50 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create the initial user message with the assessment
+    // Create the initial user message with the full assessment (for database storage)
     await prisma.message.create({
       data: {
         conversationId: conversation.id,
         userId: user.id,
         role: "USER",
-        content: userMessageContent,
+        content: fullUserMessage,
       },
     });
 
     // Call Chatbase to get AI recommendations
+    // Since Chatbase has an 8000 char limit, we send chunks as conversation history
     let aiResponse = "";
     let chatbaseConvId: string | undefined;
 
     try {
-      const chatbaseResult = await sendToChatbase(userMessageContent, undefined, []);
+      // Build conversation history from assessment chunks
+      // Each chunk becomes a "user" message in history, then we send a final request
+      const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+      // Add chunks as context in conversation history
+      for (let i = 0; i < assessmentChunks.length; i++) {
+        const chunkLabel = assessmentChunks.length > 1
+          ? `[Assessment Part ${i + 1} of ${assessmentChunks.length}]\n\n`
+          : "";
+        chatbaseHistory.push({
+          role: "user",
+          content: `${chunkLabel}${assessmentChunks[i]}`,
+        });
+        // Add acknowledgment from assistant to maintain conversation flow
+        if (i < assessmentChunks.length - 1) {
+          chatbaseHistory.push({
+            role: "assistant",
+            content: `I've received part ${i + 1} of your GTM Maturity Assessment. Please continue with the remaining sections.`,
+          });
+        }
+      }
+
+      // Send the final message asking for analysis
+      const finalMessage = "I've shared my complete GTM Maturity Assessment above. Please analyze all my responses and provide personalized, actionable recommendations for improving my go-to-market strategy. Focus on the areas where I need the most improvement based on my answers.";
+
+      console.log(`Sending to Chatbase: ${chatbaseHistory.length} history messages, final message: ${finalMessage.length} chars`);
+
+      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
       aiResponse = chatbaseResult.response;
       chatbaseConvId = chatbaseResult.conversationId;
     } catch (chatbaseError) {
