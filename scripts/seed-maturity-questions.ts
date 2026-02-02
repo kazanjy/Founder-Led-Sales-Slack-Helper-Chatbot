@@ -113,23 +113,11 @@ const questions: Question[] = [
     question: "What are your major Lead Sources in your CRM?",
   },
 
-  // Sales Motion (14 questions - including 4 call recording slots)
+  // Sales Motion (11 questions)
   {
     category: "Sales Motion",
     question:
-      "Can you paste in a discovery call / demo call recording here? (Recording 1) - A smattering of discos and some 'whole deal' calls (e.g., Disco with the prospect, then demo with the same prospect (second call), then further meetings)",
-  },
-  {
-    category: "Sales Motion",
-    question: "Can you paste in a discovery call / demo call recording here? (Recording 2)",
-  },
-  {
-    category: "Sales Motion",
-    question: "Can you paste in a discovery call / demo call recording here? (Recording 3)",
-  },
-  {
-    category: "Sales Motion",
-    question: "Can you paste in a discovery call / demo call recording here? (Recording 4)",
+      "Can you paste in a discovery call / demo call recording here? A smattering of discos and some 'whole deal' calls (e.g., Disco with the prospect, then demo with the same prospect (second call), then further meetings)",
   },
   {
     category: "Sales Motion",
