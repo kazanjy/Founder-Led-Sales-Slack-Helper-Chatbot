@@ -29,8 +29,15 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [dontAutoShow, setDontAutoShow] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveNextButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus textarea helper
+  const focusTextarea = useCallback(() => {
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  }, []);
 
   // Load questions on mount
   useEffect(() => {
@@ -69,12 +76,12 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
     }
   }, [currentIndex, questions]);
 
-  // Focus textarea when question changes
+  // Focus textarea when loading completes or question changes
   useEffect(() => {
-    if (textareaRef.current && !loading) {
-      textareaRef.current.focus();
+    if (!loading && isOpen) {
+      focusTextarea();
     }
-  }, [currentIndex, loading]);
+  }, [currentIndex, loading, isOpen, focusTextarea]);
 
   const currentQuestion = questions[currentIndex];
   const totalQuestions = questions.length;
@@ -86,7 +93,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
   const categoryQuestions = questions.filter((q) => q.category === currentCategory);
   const categoryIndex = categoryQuestions.findIndex((q) => q.id === currentQuestion?.id);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (advanceToNext: boolean = true) => {
     if (!currentQuestion || !currentAnswer.trim()) return;
 
     setSaving(true);
@@ -108,21 +115,24 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
         )
       );
 
-      // Move to next question if not at end
-      if (currentIndex < totalQuestions - 1) {
+      // Move to next question if requested and not at end
+      if (advanceToNext && currentIndex < totalQuestions - 1) {
         setCurrentIndex(currentIndex + 1);
       }
+
+      // Refocus textarea after save
+      focusTextarea();
     } catch (error) {
       console.error("Error saving answer:", error);
     } finally {
       setSaving(false);
     }
-  }, [currentQuestion, currentAnswer, currentIndex, totalQuestions]);
+  }, [currentQuestion, currentAnswer, currentIndex, totalQuestions, focusTextarea]);
 
   const handleNext = useCallback(async () => {
     // If there's content in the textarea, save it first
     if (currentAnswer.trim()) {
-      await handleSave();
+      await handleSave(true);
     } else if (currentIndex < totalQuestions - 1) {
       setCurrentIndex(currentIndex + 1);
     }
@@ -140,10 +150,18 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
     }
   }, [currentIndex]);
 
+  const handleSaveForLater = useCallback(async () => {
+    // Save current answer if there is one
+    if (currentAnswer.trim() && currentQuestion) {
+      await handleSave(false);
+    }
+    onClose();
+  }, [currentAnswer, currentQuestion, handleSave, onClose]);
+
   const handleSubmit = useCallback(async () => {
     // If there's unsaved content, save it first
     if (currentAnswer.trim() && currentQuestion) {
-      await handleSave();
+      await handleSave(false);
     }
 
     setSubmitting(true);
@@ -164,20 +182,13 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
     }
   }, [currentAnswer, currentQuestion, handleSave, onComplete]);
 
-  const handleDismiss = useCallback(() => {
-    if (dontAutoShow) {
-      localStorage.setItem("maturityModalDismissed", "true");
-    }
-    onClose();
-  }, [dontAutoShow, onClose]);
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
-        handleDismiss();
+        onClose();
       }
     },
-    [handleDismiss]
+    [onClose]
   );
 
   if (!isOpen) return null;
@@ -187,7 +198,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          handleDismiss();
+          onClose();
         }
       }}
       onKeyDown={handleKeyDown}
@@ -202,8 +213,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">GTM Maturity Assessment</h2>
             <button
-              onClick={handleDismiss}
+              onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              tabIndex={-1}
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -258,6 +270,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
                 onChange={(e) => setCurrentAnswer(e.target.value)}
                 placeholder="Enter your answer..."
                 className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                tabIndex={1}
               />
               {currentQuestion.latestAnswer && (
                 <div className="mt-2 text-xs text-gray-400">
@@ -272,67 +285,72 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200">
+        {/* Navigation Footer */}
+        <div className="px-6 py-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="dontAutoShow"
-                checked={dontAutoShow}
-                onChange={(e) => setDontAutoShow(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="dontAutoShow" className="text-sm text-gray-600">
-                Don&apos;t show automatically
-              </label>
-            </div>
+            <button
+              onClick={handleBack}
+              disabled={currentIndex === 0 || saving}
+              className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              tabIndex={4}
+            >
+              Back
+            </button>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleBack}
-                disabled={currentIndex === 0 || saving}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Back
-              </button>
               <button
                 onClick={handleSkip}
                 disabled={currentIndex >= totalQuestions - 1 || saving}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                tabIndex={3}
               >
                 Skip
               </button>
-              {currentIndex < totalQuestions - 1 ? (
-                <button
-                  onClick={handleNext}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-                >
-                  {saving && (
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  )}
-                  {currentAnswer.trim() ? "Save & Next" : "Next"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting || saving}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-                >
-                  {(submitting || saving) && (
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  )}
-                  Get Recommendations
-                </button>
-              )}
+              <button
+                ref={saveNextButtonRef}
+                onClick={handleNext}
+                disabled={saving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                tabIndex={2}
+              >
+                {saving && (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {currentAnswer.trim() ? "Save & Next" : "Next"}
+              </button>
             </div>
+          </div>
+        </div>
+
+        {/* Action Footer - Always visible */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSaveForLater}
+              disabled={saving || submitting}
+              className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
+              tabIndex={6}
+            >
+              Save for Later
+            </button>
+
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || saving || answeredCount === 0}
+              className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
+              tabIndex={5}
+            >
+              {submitting && (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              Submit Assessment
+            </button>
           </div>
         </div>
       </div>
