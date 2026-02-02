@@ -43,6 +43,13 @@ export async function POST(request: NextRequest) {
     type QuestionType = typeof questions[0];
 
     // Build the assessment summary for the AI
+    // Truncate individual answers to prevent exceeding API limits
+    const MAX_ANSWER_LENGTH = 500; // Characters per answer
+    const truncateAnswer = (answer: string) => {
+      if (answer.length <= MAX_ANSWER_LENGTH) return answer;
+      return answer.substring(0, MAX_ANSWER_LENGTH) + "... [truncated]";
+    };
+
     const categories = Array.from(new Set(questions.map((q: QuestionType) => q.category))) as string[];
     let assessmentSummary = "# GTM Maturity Assessment Results\n\n";
 
@@ -54,14 +61,42 @@ export async function POST(request: NextRequest) {
         const answer = answerMap.get(q.id);
         assessmentSummary += `**Q${q.globalOrder}: ${q.question}**\n`;
         if (answer) {
-          assessmentSummary += `${answer}\n\n`;
+          assessmentSummary += `${truncateAnswer(answer)}\n\n`;
         } else {
           assessmentSummary += `_Not answered_\n\n`;
         }
       }
     }
 
-    const userMessageContent = `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${assessmentSummary}`;
+    // Log the total size for debugging
+    console.log("Assessment summary length:", assessmentSummary.length, "characters");
+
+    // If still too long, create a more condensed version
+    const MAX_TOTAL_LENGTH = 12000; // Conservative limit for API
+    let finalSummary = assessmentSummary;
+
+    if (assessmentSummary.length > MAX_TOTAL_LENGTH) {
+      console.log("Assessment too long, creating condensed version");
+      // Create a more condensed format - just answered questions
+      finalSummary = "# GTM Maturity Assessment Results (Condensed)\n\n";
+      for (const category of categories) {
+        const categoryQuestions = questions.filter((q: QuestionType) => q.category === category);
+        const answeredInCategory = categoryQuestions.filter(q => answerMap.has(q.id));
+
+        if (answeredInCategory.length > 0) {
+          finalSummary += `## ${category}\n\n`;
+          for (const q of answeredInCategory) {
+            const answer = answerMap.get(q.id)!;
+            // More aggressive truncation for condensed version
+            const shortAnswer = answer.length > 200 ? answer.substring(0, 200) + "..." : answer;
+            finalSummary += `**${q.question}**\n${shortAnswer}\n\n`;
+          }
+        }
+      }
+      console.log("Condensed summary length:", finalSummary.length, "characters");
+    }
+
+    const userMessageContent = `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${finalSummary}`;
 
     // Create a new conversation for the AI recommendations
     const conversation = await prisma.conversation.create({

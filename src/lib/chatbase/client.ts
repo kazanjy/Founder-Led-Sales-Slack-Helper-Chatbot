@@ -44,7 +44,9 @@ export async function sendToChatbase(
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Chatbase API error:", response.status, errorText);
-    throw new Error(`Chatbase API error: ${response.status}`);
+    console.error("Message length:", message.length, "characters");
+    console.error("History length:", history?.length || 0, "messages");
+    throw new Error(`Chatbase API error: ${response.status} - ${errorText}`);
   }
 
   const data = (await response.json()) as ChatbaseResponse;
