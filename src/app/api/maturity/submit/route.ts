@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { sendToChatbase } from "@/lib/chatbase/client";
 
 // POST - Submit the completed assessment and create AI recommendations conversation
 export async function POST(request: NextRequest) {
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const userMessageContent = `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${assessmentSummary}`;
+
     // Create a new conversation for the AI recommendations
     const conversation = await prisma.conversation.create({
       data: {
@@ -77,7 +80,40 @@ export async function POST(request: NextRequest) {
         conversationId: conversation.id,
         userId: user.id,
         role: "USER",
-        content: `I've completed the GTM Maturity Assessment. Please analyze my responses and provide personalized recommendations for improving my go-to-market strategy. Here are my responses:\n\n${assessmentSummary}`,
+        content: userMessageContent,
+      },
+    });
+
+    // Call Chatbase to get AI recommendations
+    let aiResponse = "";
+    let chatbaseConvId: string | undefined;
+
+    try {
+      const chatbaseResult = await sendToChatbase(userMessageContent, undefined, []);
+      aiResponse = chatbaseResult.response;
+      chatbaseConvId = chatbaseResult.conversationId;
+    } catch (chatbaseError) {
+      console.error("Chatbase API error:", chatbaseError);
+      // Provide a fallback message if Chatbase fails
+      aiResponse = "I apologize, but I'm having trouble processing your assessment right now. Please try sending a follow-up message or come back later. Your assessment answers have been saved.";
+    }
+
+    // Save the assistant response
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        role: "ASSISTANT",
+        content: aiResponse,
+      },
+    });
+
+    // Update conversation with Chatbase ID and message count
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        chatbaseConversationId: chatbaseConvId,
+        messageCount: 2,
+        lastMessageAt: new Date(),
       },
     });
 
