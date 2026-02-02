@@ -89,6 +89,8 @@ model User {
   sessions        Session[]
   savedPrompts    SavedPrompt[]
   gtmVariables    GtmVariable[]
+  maturityAnswers MaturityAnswer[]
+  maturityAssessments MaturityAssessment[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -255,6 +257,7 @@ model Conversation {
 
   messages        Message[]
   sharedLinks     SharedConversation[]
+  maturityAssessments MaturityAssessment[]
 
   createdAt       DateTime  @default(now())
   lastMessageAt   DateTime  @default(now())
@@ -379,4 +382,52 @@ model GlobalSettings {
   updatedAt       DateTime  @updatedAt
 
   @@map("global_settings")
+}
+
+// GTM Maturity Assessment Questions
+model MaturityQuestion {
+  id          String   @id @default(cuid())
+  category    String   // e.g., "Revenue Basics", "Value Prop", "ICP"
+  globalOrder Int      @unique // Overall question number (1-56)
+  question    String   @db.Text
+
+  answers     MaturityAnswer[]
+
+  createdAt   DateTime @default(now())
+
+  @@map("maturity_questions")
+}
+
+// User's answers to maturity assessment questions (with history)
+model MaturityAnswer {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId  String
+  question    MaturityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  answer      String   @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@map("maturity_answers")
+}
+
+// Tracks completed maturity assessments
+model MaturityAssessment {
+  id              String   @id @default(cuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Links to the conversation with AI recommendations
+  conversationId  String?
+  conversation    Conversation? @relation(fields: [conversationId], references: [id])
+
+  completedAt     DateTime @default(now())
+
+  @@map("maturity_assessments")
 }
