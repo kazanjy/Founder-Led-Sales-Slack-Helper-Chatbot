@@ -483,7 +483,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                       value={currentAnswer}
                       onChange={(e) => setCurrentAnswer(e.target.value)}
                       placeholder="Enter your updated answer, or leave blank to keep the previous one..."
-                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                       tabIndex={1}
                     />
                   </div>
@@ -496,7 +496,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                     value={currentAnswer}
                     onChange={(e) => setCurrentAnswer(e.target.value)}
                     placeholder="Enter your answer..."
-                    className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                     tabIndex={1}
                   />
                   <p className="mt-2 text-sm text-gray-500">
