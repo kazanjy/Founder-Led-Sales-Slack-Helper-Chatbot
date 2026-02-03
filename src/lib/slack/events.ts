@@ -482,17 +482,23 @@ async function processMessage(
     },
   });
 
-  // Get conversation history for context
-  const history = await prisma.message.findMany({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "asc" },
-    take: 20, // Last 20 messages for context
-  });
+  // Build conversation history only if we don't have a Chatbase conversation ID yet
+  // When we have a conversationId, Chatbase persists context on their end
+  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
 
-  const chatbaseHistory = history.slice(0, -1).map((msg: { role: string; content: string }) => ({
-    role: msg.role.toLowerCase() as "user" | "assistant",
-    content: msg.content,
-  }));
+  if (!conversation.chatbaseConversationId) {
+    // First message in this conversation - need to send any existing history
+    const history = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 20, // Last 20 messages for context
+    });
+
+    chatbaseHistory = history.slice(0, -1).map((msg: { role: string; content: string }) => ({
+      role: msg.role.toLowerCase() as "user" | "assistant",
+      content: msg.content,
+    }));
+  }
 
   // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
   const messageWithContext = priorThreadContext
@@ -501,6 +507,7 @@ async function processMessage(
 
   try {
     // Get response from Chatbase
+    // If we have a conversationId, Chatbase already has the context - just send the new message
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
       messageWithContext,
       conversation.chatbaseConversationId || undefined,

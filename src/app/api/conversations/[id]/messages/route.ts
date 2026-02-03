@@ -108,35 +108,42 @@ export async function POST(
     });
   }
 
-  // Get conversation history for context
-  const history = await prisma.message.findMany({
-    where: { conversationId: conversation.id },
-    orderBy: { createdAt: "asc" },
-    take: 20,
-  });
+  // Build conversation history only if we don't have a Chatbase conversation ID yet
+  // When we have a conversationId, Chatbase persists context on their end
+  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
 
-  // Expand merge fields in history too for context
-  const chatbaseHistory = await Promise.all(
-    history.slice(0, -1).map(async (msg) => {
-      let content = msg.content;
-      // Only expand user messages (assistant messages don't have merge fields)
-      if (msg.role === "USER" && findMergeFields(msg.content).length > 0) {
-        const userVariables = await prisma.gtmVariable.findMany({
-          where: { userId: user.id },
-          select: { mergeField: true, value: true },
-        });
-        const expansion = expandMergeFields(msg.content, userVariables);
-        content = expansion.expanded;
-      }
-      return {
-        role: msg.role.toLowerCase() as "user" | "assistant",
-        content,
-      };
-    })
-  );
+  if (!conversation.chatbaseConversationId) {
+    // First message in this conversation - need to send any existing history
+    const history = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
+
+    // Expand merge fields in history too for context
+    chatbaseHistory = await Promise.all(
+      history.slice(0, -1).map(async (msg) => {
+        let content = msg.content;
+        // Only expand user messages (assistant messages don't have merge fields)
+        if (msg.role === "USER" && findMergeFields(msg.content).length > 0) {
+          const userVariables = await prisma.gtmVariable.findMany({
+            where: { userId: user.id },
+            select: { mergeField: true, value: true },
+          });
+          const expansion = expandMergeFields(msg.content, userVariables);
+          content = expansion.expanded;
+        }
+        return {
+          role: msg.role.toLowerCase() as "user" | "assistant",
+          content,
+        };
+      })
+    );
+  }
 
   try {
     // Get response from Chatbase (send expanded message)
+    // If we have a conversationId, Chatbase already has the context - just send the new message
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
       expandedMessage,
       conversation.chatbaseConversationId || undefined,
