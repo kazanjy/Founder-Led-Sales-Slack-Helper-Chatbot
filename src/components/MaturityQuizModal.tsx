@@ -2,6 +2,25 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// Fun loading messages for the submission overlay
+const LOADING_MESSAGES = [
+  "Reticulating splines",
+  "Confabulating insights",
+  "Synthesizing brilliance",
+  "Percolating recommendations",
+  "Cogitating strategies",
+  "Calibrating GTM engines",
+  "Distilling wisdom",
+  "Harmonizing data points",
+  "Triangulating success vectors",
+  "Crystallizing opportunities",
+  "Marinating in your answers",
+  "Consulting the sales oracles",
+  "Aligning the revenue stars",
+  "Brewing strategic potions",
+  "Decoding founder magic",
+];
+
 interface Question {
   id: string;
   category: string;
@@ -30,8 +49,23 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitScreen, setShowSubmitScreen] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveNextButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Cycle through loading messages when submitting
+  useEffect(() => {
+    if (!submitting) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [submitting]);
 
   // Focus textarea helper
   const focusTextarea = useCallback(() => {
@@ -242,9 +276,64 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
       tabIndex={-1}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Submission Loading Overlay */}
+        {submitting && (
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 z-50 flex flex-col items-center justify-center text-white">
+            {/* Bouncing waves */}
+            <div className="flex gap-1 text-4xl mb-8">
+              {["👋", "🌊", "👋", "🌊", "👋"].map((emoji, i) => (
+                <span
+                  key={i}
+                  className="animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s`, animationDuration: "1s" }}
+                >
+                  {emoji}
+                </span>
+              ))}
+            </div>
+
+            {/* Spinning loader */}
+            <div className="relative w-20 h-20 mb-8">
+              <div className="absolute inset-0 border-4 border-white/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
+              <div className="absolute inset-2 border-4 border-transparent border-t-white/60 rounded-full animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }}></div>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-2xl font-bold mb-4 text-center px-6">
+              Submitting Your Assessment
+            </h3>
+
+            {/* Rotating fun message */}
+            <div className="h-8 flex items-center justify-center">
+              <p className="text-lg text-white/90 animate-pulse">
+                {LOADING_MESSAGES[loadingMessageIndex]}...
+              </p>
+            </div>
+
+            {/* More bouncing waves at bottom */}
+            <div className="flex gap-1 text-3xl mt-8">
+              {["✨", "🚀", "💡", "🎯", "⚡"].map((emoji, i) => (
+                <span
+                  key={i}
+                  className="animate-bounce"
+                  style={{ animationDelay: `${i * 0.12}s`, animationDuration: "0.8s" }}
+                >
+                  {emoji}
+                </span>
+              ))}
+            </div>
+
+            {/* Progress hint */}
+            <p className="text-sm text-white/60 mt-8">
+              This may take a moment while we analyze your responses
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
