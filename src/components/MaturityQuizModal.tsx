@@ -88,9 +88,27 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         setQuestions(data.questions);
         setGrouped(data.grouped);
 
-        // In "update" mode, always start at question 1
+        // In "update" mode, check for existing progress or start new update session
         if (mode === "update") {
-          setCurrentIndex(0);
+          // Check if there's an existing update in progress
+          const progressResponse = await fetch("/api/maturity/update-progress");
+          if (progressResponse.ok) {
+            const progressData = await progressResponse.json();
+            if (progressData.inProgress && progressData.currentIndex !== null) {
+              // Resume from where they left off
+              setCurrentIndex(progressData.currentIndex);
+            } else {
+              // Start a new update session
+              await fetch("/api/maturity/update-progress", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "start" }),
+              });
+              setCurrentIndex(0);
+            }
+          } else {
+            setCurrentIndex(0);
+          }
           setShowSubmitScreen(false);
         } else {
           // In "continue" mode, find first unanswered question
@@ -128,6 +146,18 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
       setCurrentAnswer("");
     }
   }, [currentIndex, questions, mode]);
+
+  // Save update progress whenever index changes in update mode
+  useEffect(() => {
+    if (mode !== "update" || loading || questions.length === 0) return;
+
+    // Save the current index to the server (fire and forget)
+    fetch("/api/maturity/update-progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "progress", currentIndex }),
+    }).catch((err) => console.error("Failed to save update progress:", err));
+  }, [currentIndex, mode, loading, questions.length]);
 
   // Focus textarea when loading completes or question changes
   useEffect(() => {

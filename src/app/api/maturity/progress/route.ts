@@ -19,7 +19,7 @@ export async function GET() {
       where: { enabled: true },
       select: { id: true },
     });
-    const enabledQuestionIds = enabledQuestions.map(q => q.id);
+    const enabledQuestionIds = enabledQuestions.map((q: { id: string }) => q.id);
 
     // Get count of enabled questions the user has answered (at least once)
     const answeredQuestions = await prisma.maturityAnswer.groupBy({
@@ -62,8 +62,11 @@ export async function GET() {
     });
 
     // Determine status
-    let status: "not_started" | "in_progress" | "completed";
-    if (answeredCount === 0) {
+    // Check if user is in the middle of updating their assessment
+    let status: "not_started" | "in_progress" | "completed" | "update_in_progress";
+    if (user.maturityUpdateInProgress) {
+      status = "update_in_progress";
+    } else if (answeredCount === 0) {
       status = "not_started";
     } else if (answeredCount >= totalQuestions) {
       status = "completed";
@@ -83,6 +86,16 @@ export async function GET() {
             completedAt: latestAssessment.completedAt,
             conversationId: latestAssessment.conversationId,
             conversationTitle: latestAssessment.conversation?.title,
+          }
+        : null,
+      // Include update progress info when in update mode
+      updateProgress: user.maturityUpdateInProgress
+        ? {
+            currentIndex: user.maturityUpdateIndex ?? 0,
+            startedAt: user.maturityUpdateStartedAt,
+            progressPercent: totalQuestions > 0
+              ? Math.round(((user.maturityUpdateIndex ?? 0) / totalQuestions) * 100)
+              : 0,
           }
         : null,
     });

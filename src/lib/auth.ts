@@ -14,6 +14,10 @@ export interface AuthUser {
   email: string | null;
   name: string | null;
   avatarUrl: string | null;
+  // Maturity assessment update tracking
+  maturityUpdateInProgress: boolean;
+  maturityUpdateIndex: number | null;
+  maturityUpdateStartedAt: Date | null;
 }
 
 /**
@@ -55,6 +59,9 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     email: session.user.email,
     name: session.user.name,
     avatarUrl: session.user.avatarUrl,
+    maturityUpdateInProgress: session.user.maturityUpdateInProgress,
+    maturityUpdateIndex: session.user.maturityUpdateIndex,
+    maturityUpdateStartedAt: session.user.maturityUpdateStartedAt,
   };
 }
 

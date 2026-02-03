@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 interface Progress {
-  status: "not_started" | "in_progress" | "completed";
+  status: "not_started" | "in_progress" | "completed" | "update_in_progress";
   totalQuestions: number;
   answeredCount: number;
   progressPercent: number;
@@ -17,6 +17,11 @@ interface Progress {
     completedAt: string;
     conversationId: string | null;
     conversationTitle: string | null;
+  } | null;
+  updateProgress: {
+    currentIndex: number;
+    startedAt: string;
+    progressPercent: number;
   } | null;
 }
 
@@ -150,11 +155,13 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
     );
   }
 
-  // In-progress and completed states
+  // In-progress, update_in_progress, and completed states
   const getStatusColor = () => {
     switch (progress.status) {
       case "in_progress":
         return "bg-gradient-to-r from-amber-400 to-orange-500 text-white hover:from-amber-500 hover:to-orange-600 shadow-md";
+      case "update_in_progress":
+        return "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-md";
       case "completed":
         return "bg-green-100 text-green-700 hover:bg-green-200";
     }
@@ -166,6 +173,12 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
         return (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case "update_in_progress":
+        return (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         );
       case "completed":
@@ -181,6 +194,8 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
     switch (progress.status) {
       case "in_progress":
         return `${progress.progressPercent}% Complete`;
+      case "update_in_progress":
+        return `Updating: ${progress.updateProgress?.progressPercent ?? 0}%`;
       case "completed":
         return "GTM Assessment";
     }
@@ -298,6 +313,54 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
             >
               Continue Assessment
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Update in progress state dropdown */}
+      {isExpanded && progress.status === "update_in_progress" && (
+        <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+          <div className="p-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Updating Assessment</h3>
+                <p className="text-sm text-gray-500">
+                  Question {(progress.updateProgress?.currentIndex ?? 0) + 1} of {progress.totalQuestions}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>Review Progress</span>
+                <span>{progress.updateProgress?.progressPercent ?? 0}%</span>
+              </div>
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
+                  style={{ width: `${progress.updateProgress?.progressPercent ?? 0}%` }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setIsExpanded(false);
+                onStartAssessment("update");
+              }}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 font-medium text-sm transition-all mb-2"
+            >
+              Continue Updating
+            </button>
+
+            <p className="text-xs text-gray-500 text-center">
+              You can also submit what you have so far
+            </p>
           </div>
         </div>
       )}

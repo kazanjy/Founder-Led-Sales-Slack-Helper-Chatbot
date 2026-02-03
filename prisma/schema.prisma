@@ -92,6 +92,11 @@ model User {
   maturityAnswers MaturityAnswer[]
   maturityAssessments MaturityAssessment[]
 
+  // Track update-in-progress state for maturity assessment
+  maturityUpdateInProgress Boolean  @default(false)
+  maturityUpdateIndex      Int?     // Current question index in update mode (0-based)
+  maturityUpdateStartedAt  DateTime?
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

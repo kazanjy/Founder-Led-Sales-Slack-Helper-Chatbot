@@ -200,6 +200,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Clear any update-in-progress state
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        maturityUpdateInProgress: false,
+        maturityUpdateIndex: null,
+        maturityUpdateStartedAt: null,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       assessment: {
