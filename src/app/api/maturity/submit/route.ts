@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Send the final message asking for analysis
-      const finalMessage = "I've shared my complete GTM Maturity Assessment above. Please analyze all my responses and provide personalized, actionable recommendations for improving my go-to-market strategy. Focus on the areas where I need the most improvement based on my answers.";
+      const finalMessage = "Can you assess the maturity of the startup submitting this quiz, based on these questions and answers, and provide them which stage of Pete's GTM Maturity Model they're at, three things they're doing well, three things that they need to work on next, and three resources that they should refer to to help them, and the three chat prompts in Mikey they might consider doing next.";
 
       console.log(`Sending to Chatbase: ${chatbaseHistory.length} history messages, final message: ${finalMessage.length} chars`);
 
