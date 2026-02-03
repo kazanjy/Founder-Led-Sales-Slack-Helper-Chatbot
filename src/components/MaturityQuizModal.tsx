@@ -119,12 +119,15 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
   // Set current answer when question changes
   useEffect(() => {
-    if (questions[currentIndex]?.latestAnswer) {
+    // In update mode, always start with empty textarea (user can duplicate prior answer)
+    if (mode === "update") {
+      setCurrentAnswer("");
+    } else if (questions[currentIndex]?.latestAnswer) {
       setCurrentAnswer(questions[currentIndex].latestAnswer.answer);
     } else {
       setCurrentAnswer("");
     }
-  }, [currentIndex, questions]);
+  }, [currentIndex, questions, mode]);
 
   // Focus textarea when loading completes or question changes
   useEffect(() => {
@@ -475,9 +478,19 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
                   {/* New answer input */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Updated Answer <span className="font-normal text-gray-500">(leave empty to keep previous)</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Updated Answer <span className="font-normal text-gray-500">(leave empty to keep previous)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentAnswer(currentQuestion.latestAnswer?.answer || "")}
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        tabIndex={-1}
+                      >
+                        Duplicate prior answer
+                      </button>
+                    </div>
                     <textarea
                       ref={textareaRef}
                       value={currentAnswer}
