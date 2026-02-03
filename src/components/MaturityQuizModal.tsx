@@ -205,6 +205,15 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
     }
   }, [currentIndex, totalQuestions]);
 
+  // In update mode, keep existing answer and move to next
+  const handleNoChange = useCallback(() => {
+    if (currentIndex < totalQuestions - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      setShowSubmitScreen(true);
+    }
+  }, [currentIndex, totalQuestions]);
+
   const handleBack = useCallback(() => {
     if (showSubmitScreen) {
       setShowSubmitScreen(false);
@@ -447,21 +456,58 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {currentQuestion.question}
               </h3>
-              <textarea
-                ref={textareaRef}
-                value={currentAnswer}
-                onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Enter your answer..."
-                className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                tabIndex={1}
-              />
-              <p className="mt-2 text-sm text-gray-500">
-                If you don&apos;t know the answer or the question doesn&apos;t apply to you, just say &quot;Don&apos;t know&quot; or &quot;NA&quot;.
-              </p>
-              {currentQuestion.latestAnswer && (
-                <div className="mt-2 text-xs text-gray-400">
-                  Last answered: {new Date(currentQuestion.latestAnswer.answeredAt).toLocaleDateString()}
+
+              {/* Update mode with existing answer */}
+              {mode === "update" && currentQuestion.latestAnswer ? (
+                <div className="space-y-4">
+                  {/* Existing answer (read-only) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Previous Answer
+                    </label>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 text-sm">
+                      {currentQuestion.latestAnswer.answer}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Answered {new Date(currentQuestion.latestAnswer.answeredAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* New answer input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Updated Answer <span className="font-normal text-gray-500">(leave empty to keep previous)</span>
+                    </label>
+                    <textarea
+                      ref={textareaRef}
+                      value={currentAnswer}
+                      onChange={(e) => setCurrentAnswer(e.target.value)}
+                      placeholder="Enter your updated answer, or leave blank to keep the previous one..."
+                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      tabIndex={1}
+                    />
+                  </div>
                 </div>
+              ) : (
+                /* Normal mode or no existing answer */
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    value={currentAnswer}
+                    onChange={(e) => setCurrentAnswer(e.target.value)}
+                    placeholder="Enter your answer..."
+                    className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    tabIndex={1}
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    If you don&apos;t know the answer or the question doesn&apos;t apply to you, just say &quot;Don&apos;t know&quot; or &quot;NA&quot;.
+                  </p>
+                  {currentQuestion.latestAnswer && (
+                    <div className="mt-2 text-xs text-gray-400">
+                      Last answered: {new Date(currentQuestion.latestAnswer.answeredAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (
@@ -485,14 +531,26 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
               </button>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSkip}
-                  disabled={saving}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  tabIndex={3}
-                >
-                  Skip
-                </button>
+                {/* In update mode with existing answer, show "No Change" instead of "Skip" */}
+                {mode === "update" && currentQuestion?.latestAnswer ? (
+                  <button
+                    onClick={handleNoChange}
+                    disabled={saving}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    tabIndex={3}
+                  >
+                    No Change
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSkip}
+                    disabled={saving}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    tabIndex={3}
+                  >
+                    Skip
+                  </button>
+                )}
                 <button
                   ref={saveNextButtonRef}
                   onClick={handleNext}
@@ -506,7 +564,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   )}
-                  {currentAnswer.trim() ? "Save & Next" : "Next"}
+                  {mode === "update" && currentQuestion?.latestAnswer
+                    ? (currentAnswer.trim() ? "Save Update" : "Next")
+                    : (currentAnswer.trim() ? "Save & Next" : "Next")}
                 </button>
               </div>
             </div>
