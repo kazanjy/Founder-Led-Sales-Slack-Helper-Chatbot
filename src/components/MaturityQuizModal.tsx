@@ -169,7 +169,11 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
   const currentQuestion = questions[currentIndex];
   const totalQuestions = questions.length;
   const answeredCount = questions.filter((q) => q.latestAnswer).length;
-  const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+
+  // In update mode, show progress through the review (currentIndex), not answered count
+  const displayedProgress = mode === "update" ? currentIndex : answeredCount;
+  const progressLabel = mode === "update" ? "reviewed" : "answered";
+  const progressPercent = totalQuestions > 0 ? Math.round((displayedProgress / totalQuestions) * 100) : 0;
 
   // Get current category info
   const currentCategory = currentQuestion?.category;
@@ -373,7 +377,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">GTM Maturity Assessment</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {mode === "update" ? "Updating GTM Assessment" : "GTM Maturity Assessment"}
+            </h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -388,12 +394,12 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
           {/* Progress bar */}
           <div className="mb-2">
             <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>{answeredCount} of {totalQuestions} answered</span>
+              <span>{displayedProgress} of {totalQuestions} {progressLabel}</span>
               <span>{progressPercent}%</span>
             </div>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-600 transition-all duration-300"
+                className={`h-full transition-all duration-300 ${mode === "update" ? "bg-purple-600" : "bg-blue-600"}`}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
