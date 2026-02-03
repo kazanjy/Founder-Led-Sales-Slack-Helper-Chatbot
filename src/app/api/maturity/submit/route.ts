@@ -11,8 +11,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get all questions with user's latest answers
+    // Get all enabled questions with user's latest answers
     const questions = await prisma.maturityQuestion.findMany({
+      where: { enabled: true },
       orderBy: { globalOrder: "asc" },
     });
 

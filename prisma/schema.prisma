@@ -390,6 +390,7 @@ model MaturityQuestion {
   category    String   // e.g., "Revenue Basics", "Value Prop", "ICP"
   globalOrder Int      @unique // Overall question number (1-56)
   question    String   @db.Text
+  enabled     Boolean  @default(true) // Soft delete - disabled questions are hidden but answers preserved
 
   answers     MaturityAnswer[]
 

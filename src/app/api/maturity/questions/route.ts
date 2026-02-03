@@ -9,8 +9,9 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get all questions ordered by globalOrder
+    // Get all enabled questions ordered by globalOrder
     const questions = await prisma.maturityQuestion.findMany({
+      where: { enabled: true },
       orderBy: { globalOrder: "asc" },
       select: {
         id: true,

@@ -9,13 +9,25 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get total question count
-    const totalQuestions = await prisma.maturityQuestion.count();
+    // Get total enabled question count
+    const totalQuestions = await prisma.maturityQuestion.count({
+      where: { enabled: true },
+    });
 
-    // Get count of questions the user has answered (at least once)
+    // Get IDs of enabled questions
+    const enabledQuestions = await prisma.maturityQuestion.findMany({
+      where: { enabled: true },
+      select: { id: true },
+    });
+    const enabledQuestionIds = enabledQuestions.map(q => q.id);
+
+    // Get count of enabled questions the user has answered (at least once)
     const answeredQuestions = await prisma.maturityAnswer.groupBy({
       by: ["questionId"],
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        questionId: { in: enabledQuestionIds },
+      },
     });
 
     const answeredCount = answeredQuestions.length;
@@ -34,10 +46,11 @@ export async function GET() {
       },
     });
 
-    // Get the first unanswered question (for resume)
+    // Get the first unanswered enabled question (for resume)
     const answeredQuestionIds = answeredQuestions.map((a: { questionId: string }) => a.questionId);
     const nextQuestion = await prisma.maturityQuestion.findFirst({
       where: {
+        enabled: true,
         id: { notIn: answeredQuestionIds.length > 0 ? answeredQuestionIds : ["none"] },
       },
       orderBy: { globalOrder: "asc" },
