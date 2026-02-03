@@ -290,12 +290,12 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         {submitting && (
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 z-50 flex flex-col items-center justify-center text-white">
             {/* Bouncing waves */}
-            <div className="flex gap-1 text-4xl mb-8">
-              {["👋", "🌊", "👋", "🌊", "👋"].map((emoji, i) => (
+            <div className="flex gap-3 text-5xl mb-8">
+              {["🌊", "🌊", "🌊"].map((emoji, i) => (
                 <span
                   key={i}
                   className="animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s`, animationDuration: "1s" }}
+                  style={{ animationDelay: `${i * 0.2}s`, animationDuration: "1s" }}
                 >
                   {emoji}
                 </span>
@@ -319,19 +319,6 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
               <p className="text-lg text-white/90 animate-pulse">
                 {LOADING_MESSAGES[loadingMessageIndex]}...
               </p>
-            </div>
-
-            {/* More bouncing waves at bottom */}
-            <div className="flex gap-1 text-3xl mt-8">
-              {["✨", "🚀", "💡", "🎯", "⚡"].map((emoji, i) => (
-                <span
-                  key={i}
-                  className="animate-bounce"
-                  style={{ animationDelay: `${i * 0.12}s`, animationDuration: "0.8s" }}
-                >
-                  {emoji}
-                </span>
-              ))}
             </div>
 
             {/* Progress hint */}
