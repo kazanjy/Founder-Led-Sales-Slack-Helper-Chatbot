@@ -166,15 +166,11 @@ const questions: Question[] = [
       "When people don't buy, what are the common Closed Lost reasons? (Are we tracking closed lost reasons in the CRM?)",
   },
 
-  // Sales Operations (4 questions)
+  // Sales Operations (3 questions)
   {
     category: "Sales Operations",
     question:
       "How do you track the progress of potential deals? (CRM? Spreadsheet?)",
-  },
-  {
-    category: "Sales Operations",
-    question: "How do you record sales calls?",
   },
   {
     category: "Sales Operations",
