@@ -21,7 +21,7 @@ interface Progress {
 }
 
 interface MaturityAssessmentWidgetProps {
-  onStartAssessment: () => void;
+  onStartAssessment: (mode?: "continue" | "update") => void;
 }
 
 export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessmentWidgetProps) {
@@ -250,7 +250,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               <button
                 onClick={() => {
                   setIsExpanded(false);
-                  onStartAssessment();
+                  onStartAssessment("update");
                 }}
                 className="flex items-center gap-3 w-full py-2.5 px-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 font-medium text-sm transition-all"
               >

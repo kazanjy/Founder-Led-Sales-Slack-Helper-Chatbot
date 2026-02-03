@@ -150,6 +150,7 @@ export default function ChatPage() {
   const [emailAddress, setEmailAddress] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [showMaturityModal, setShowMaturityModal] = useState(false);
+  const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -1270,7 +1271,10 @@ export default function ChatPage() {
         <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
             {/* GTM Maturity Assessment Widget */}
-            <MaturityAssessmentWidget onStartAssessment={() => setShowMaturityModal(true)} />
+            <MaturityAssessmentWidget onStartAssessment={(mode) => {
+                              setMaturityModalMode(mode || "continue");
+                              setShowMaturityModal(true);
+                            }} />
 
             {/* Add to Slack button for Google-only users */}
             {user && user.isGoogleUser && !user.isSlackUser && (
@@ -2085,6 +2089,7 @@ export default function ChatPage() {
           setShowMaturityModal(false);
           router.push(`/chat/${conversationId}`);
         }}
+        mode={maturityModalMode}
       />
     </div>
   );

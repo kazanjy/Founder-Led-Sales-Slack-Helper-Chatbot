@@ -38,9 +38,10 @@ interface MaturityQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: (conversationId: string) => void;
+  mode?: "continue" | "update"; // "update" starts at question 1, "continue" resumes where left off
 }
 
-export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizModalProps) {
+export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continue" }: MaturityQuizModalProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [grouped, setGrouped] = useState<CategoryGroup[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -87,18 +88,24 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
         setQuestions(data.questions);
         setGrouped(data.grouped);
 
-        // Find first unanswered question to start at
-        const firstUnanswered = data.questions.findIndex(
-          (q: Question) => !q.latestAnswer
-        );
-
-        // If all questions are answered, show submit screen
-        if (firstUnanswered === -1 && data.questions.length > 0) {
-          setShowSubmitScreen(true);
-          setCurrentIndex(data.questions.length - 1);
-        } else {
-          setCurrentIndex(firstUnanswered >= 0 ? firstUnanswered : 0);
+        // In "update" mode, always start at question 1
+        if (mode === "update") {
+          setCurrentIndex(0);
           setShowSubmitScreen(false);
+        } else {
+          // In "continue" mode, find first unanswered question
+          const firstUnanswered = data.questions.findIndex(
+            (q: Question) => !q.latestAnswer
+          );
+
+          // If all questions are answered, show submit screen
+          if (firstUnanswered === -1 && data.questions.length > 0) {
+            setShowSubmitScreen(true);
+            setCurrentIndex(data.questions.length - 1);
+          } else {
+            setCurrentIndex(firstUnanswered >= 0 ? firstUnanswered : 0);
+            setShowSubmitScreen(false);
+          }
         }
       } catch (error) {
         console.error("Error loading questions:", error);
@@ -108,7 +115,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete }: MaturityQuizM
     }
 
     loadQuestions();
-  }, [isOpen]);
+  }, [isOpen, mode]);
 
   // Set current answer when question changes
   useEffect(() => {
