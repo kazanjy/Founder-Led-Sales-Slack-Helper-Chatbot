@@ -353,14 +353,33 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                 setIsExpanded(false);
                 onStartAssessment("update");
               }}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 font-medium text-sm transition-all mb-2"
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 font-medium text-sm transition-all mb-3"
             >
               Continue Updating
             </button>
 
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-gray-500 text-center mb-3">
               You can also submit what you have so far
             </p>
+
+            {/* Link to previous assessment */}
+            {progress.latestAssessment?.conversationId && (
+              <div className="pt-3 border-t border-gray-200">
+                <a
+                  href={`/chat/${progress.latestAssessment.conversationId}`}
+                  onClick={() => setIsExpanded(false)}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  View Previous Assessment
+                  <span className="text-gray-400 text-xs">
+                    ({formatCompletedDate(progress.latestAssessment.completedAt)})
+                  </span>
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}
