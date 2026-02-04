@@ -31,6 +31,7 @@ export const DEFAULT_PROMPTS: DefaultPrompt[] = [
   // Deal & Call Planning
   { id: "default-16", emoji: "🗓️", title: "Help me prepare for a call.", prompt: "Help me do precall planning for a customer call. Ask me about the customer I'm meeting, and some details about my product as a means by which to help me prepare. Remind me to edit the saved prompt if I want to add those details going forward." },
   { id: "default-17", emoji: "🤝", title: "Help me brainstorm a deal.", prompt: "I would like your help in discussing a deal and figuring out the best path forward for it, including highlighting potential risks." },
+  { id: "default-18", emoji: "🎙️", title: "Help me review a sales call transcript.", prompt: "We're going to review the transcript of a sales call and provide feedback to the user. First, ask them what kind of call it is - examples being discovery, demo, proposal, negotiation, etc. Then ask them to paste the transcript in. Once done, give them an assessment of the call based on Pete's content on call execution." },
 ];
 
 // Helper to find a default prompt by its original ID
