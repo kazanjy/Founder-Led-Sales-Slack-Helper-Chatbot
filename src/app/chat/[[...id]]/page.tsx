@@ -151,6 +151,7 @@ export default function ChatPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -773,6 +774,23 @@ export default function ChatPage() {
     }
   }, [messages]);
 
+  // Load sidebar state from localStorage on mount
+  useEffect(() => {
+    const savedSidebarState = localStorage.getItem("mikey_sidebar_collapsed");
+    if (savedSidebarState === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
+  // Save sidebar state to localStorage when it changes
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const newValue = !prev;
+      localStorage.setItem("mikey_sidebar_collapsed", String(newValue));
+      return newValue;
+    });
+  }, []);
+
   // Load user and conversations on mount
   useEffect(() => {
     async function loadData() {
@@ -1021,7 +1039,7 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex bg-white overflow-hidden">
       {/* Sidebar - fixed height, doesn't scroll with chat */}
-      <div className="w-80 bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
+      <div className={`${sidebarCollapsed ? "w-0" : "w-80"} bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0 transition-all duration-300 overflow-hidden`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
           <button
@@ -1036,10 +1054,20 @@ export default function ChatPage() {
               className="w-[80px] h-[80px] rounded-lg"
             />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
-            <p className="text-sm text-gray-500">{user?.workspaceName}</p>
+            <p className="text-sm text-gray-500 truncate">{user?.workspaceName}</p>
           </div>
+          {/* Collapse sidebar button */}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+            title="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
 
         {/* New Chat Button */}
@@ -1270,6 +1298,18 @@ export default function ChatPage() {
         {/* Top header with Upgrade and Copy/Share buttons */}
         <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
+            {/* Expand sidebar button (shown when collapsed) */}
+            {sidebarCollapsed && (
+              <button
+                onClick={toggleSidebar}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Open sidebar"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
             {/* GTM Maturity Assessment Widget */}
             <MaturityAssessmentWidget onStartAssessment={(mode) => {
                               setMaturityModalMode(mode || "continue");
