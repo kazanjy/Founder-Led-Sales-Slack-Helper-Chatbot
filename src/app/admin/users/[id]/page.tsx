@@ -40,6 +40,7 @@ interface UserDetail {
   conversationCount: number;
   messageCount: number;
   referralCount: number;
+  dismissedDefaultPromptIds: string[];
   conversations: {
     id: string;
     title: string | null;
@@ -586,6 +587,41 @@ export default function AdminUserDetailPage() {
               <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
                 {user.referralCode}
               </div>
+            </div>
+          </div>
+
+          {/* Prompt Settings */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Prompt Settings</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Dismissed Defaults</span>
+                <span className="font-medium">{user.dismissedDefaultPromptIds?.length || 0}</span>
+              </div>
+              {user.dismissedDefaultPromptIds?.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    This user has dismissed {user.dismissedDefaultPromptIds.length} default prompt(s).
+                    Reset to allow them to reappear.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (confirm("Reset dismissed default prompts? The user will see all default prompts again on their next visit.")) {
+                        updateUser({ resetDefaultPrompts: true });
+                      }
+                    }}
+                    disabled={saving}
+                    className="w-full px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                  >
+                    Reset Default Prompts
+                  </button>
+                </div>
+              )}
+              {(!user.dismissedDefaultPromptIds || user.dismissedDefaultPromptIds.length === 0) && (
+                <p className="text-xs text-gray-500">
+                  No default prompts have been dismissed.
+                </p>
+              )}
             </div>
           </div>
 

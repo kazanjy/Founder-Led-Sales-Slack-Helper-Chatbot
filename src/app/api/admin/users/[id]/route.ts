@@ -19,6 +19,7 @@ export async function GET(
       include: {
         workspace: true,
         license: true,
+        // Note: dismissedDefaultPromptIds is included by default (scalar field)
         conversations: {
           orderBy: { lastMessageAt: "desc" },
           take: 10,
@@ -113,6 +114,8 @@ export async function GET(
         conversationCount: user._count.conversations,
         messageCount: user._count.messages,
         referralCount: user._count.referralsMade,
+        // Prompt settings
+        dismissedDefaultPromptIds: user.dismissedDefaultPromptIds,
         // Recent activity
         conversations: user.conversations,
         sessions: user.sessions,
@@ -207,6 +210,11 @@ export async function PATCH(
         }
       }
       updateData.email = body.email || null;
+    }
+
+    // Reset dismissed default prompts
+    if (body.resetDefaultPrompts === true) {
+      updateData.dismissedDefaultPromptIds = [];
     }
 
     // Don't allow both disconnections if user would have no identity left
