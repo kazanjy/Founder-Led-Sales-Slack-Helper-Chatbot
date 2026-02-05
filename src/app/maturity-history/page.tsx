@@ -41,6 +41,28 @@ export default function MaturityHistoryPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<AssessmentDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+
+  const handleChatWithAssessment = async (assessmentId: string) => {
+    setStartingChat(true);
+    try {
+      const res = await fetch("/api/maturity/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.conversationId) {
+        router.push(`/chat/${data.conversationId}`);
+      } else {
+        console.error("Failed to start chat:", data.error);
+      }
+    } catch (error) {
+      console.error("Error starting chat with assessment:", error);
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   // Check auth and load assessment list
   useEffect(() => {
@@ -201,17 +223,41 @@ export default function MaturityHistoryPage() {
                     <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                       {selectedAssessment.title || "GTM Maturity Assessment"}
                     </h2>
-                    {selectedAssessment.conversationId && (
-                      <Link
-                        href={`/chat/${selectedAssessment.conversationId}`}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {selectedAssessment.conversationId && (
+                        <Link
+                          href={`/chat/${selectedAssessment.conversationId}`}
+                          className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          View AI Recommendations
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => handleChatWithAssessment(selectedAssessment.id)}
+                        disabled={startingChat}
+                        className="inline-flex items-center text-green-600 hover:text-green-800 text-sm disabled:opacity-50"
                       >
-                        <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        View AI Recommendations
-                      </Link>
-                    )}
+                        {startingChat ? (
+                          <>
+                            <svg className="animate-spin w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Starting chat...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Chat With Assessment
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Questions and Answers by Category */}
