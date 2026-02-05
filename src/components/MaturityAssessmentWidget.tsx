@@ -375,9 +375,9 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               You can also submit what you have so far
             </p>
 
-            {/* Link to previous assessment */}
-            {progress.latestAssessment?.conversationId && (
-              <div className="pt-3 border-t border-gray-200">
+            {/* Links to previous assessment and history */}
+            <div className="pt-3 border-t border-gray-200 space-y-2">
+              {progress.latestAssessment?.conversationId && (
                 <a
                   href={`/chat/${progress.latestAssessment.conversationId}`}
                   onClick={() => setIsExpanded(false)}
@@ -391,8 +391,18 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                     ({formatCompletedDate(progress.latestAssessment.completedAt)})
                   </span>
                 </a>
-              </div>
-            )}
+              )}
+              <a
+                href="/maturity-history"
+                onClick={() => setIsExpanded(false)}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                See Assessment History
+              </a>
+            </div>
           </div>
         </div>
       )}

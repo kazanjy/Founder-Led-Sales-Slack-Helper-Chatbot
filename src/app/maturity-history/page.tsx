@@ -215,31 +215,52 @@ export default function MaturityHistoryPage() {
                   </div>
 
                   {/* Questions and Answers by Category */}
-                  <div className="space-y-8">
-                    {selectedAssessment.categories.map((category) => (
-                      <div key={category.name}>
-                        <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                          {category.name}
-                        </h3>
-                        <div className="space-y-6">
-                          {category.questions.map((qa) => (
-                            <div key={qa.questionId} className="bg-gray-50 rounded-lg p-4">
-                              <div className="text-sm font-medium text-gray-700 mb-2">
-                                Q{qa.globalOrder}: {qa.question}
-                              </div>
-                              {qa.answer ? (
-                                <div className="text-gray-900 prose prose-sm max-w-none">
-                                  <ReactMarkdown>{qa.answer}</ReactMarkdown>
+                  {selectedAssessment.categories.length === 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+                      <div className="text-amber-600 text-4xl mb-3">📋</div>
+                      <h3 className="text-lg font-medium text-amber-800 mb-2">
+                        Answer history not available
+                      </h3>
+                      <p className="text-amber-700 text-sm mb-4">
+                        This assessment was completed before we started saving answer snapshots.
+                        Your responses are not available for this assessment.
+                      </p>
+                      {selectedAssessment.conversationId && (
+                        <Link
+                          href={`/chat/${selectedAssessment.conversationId}`}
+                          className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm"
+                        >
+                          View AI Recommendations Instead
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {selectedAssessment.categories.map((category) => (
+                        <div key={category.name}>
+                          <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
+                            {category.name}
+                          </h3>
+                          <div className="space-y-6">
+                            {category.questions.map((qa) => (
+                              <div key={qa.questionId} className="bg-gray-50 rounded-lg p-4">
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  Q{qa.globalOrder}: {qa.question}
                                 </div>
-                              ) : (
-                                <div className="text-gray-400 italic">Not answered</div>
-                              )}
-                            </div>
-                          ))}
+                                {qa.answer ? (
+                                  <div className="text-gray-900 prose prose-sm max-w-none">
+                                    <ReactMarkdown>{qa.answer}</ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-400 italic">Not answered</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
