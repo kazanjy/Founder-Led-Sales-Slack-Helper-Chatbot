@@ -43,6 +43,9 @@ export async function GET() {
       // Auth provider info
       isGoogleUser: !!user.googleId,
       isSlackUser: !!user.slackUserId,
+      // Profile completion flags - true if the main field is missing (not just falling back to Slack)
+      missingName: !user.name && !user.slackUserName,
+      missingEmail: !user.email && !user.slackEmail,
       // Impersonation info
       isImpersonating: user.isImpersonating,
     },

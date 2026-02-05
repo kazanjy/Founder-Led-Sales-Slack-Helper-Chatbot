@@ -8,6 +8,8 @@ import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
 import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import ProfileCompletionModal from "@/components/ProfileCompletionModal";
+import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -80,6 +82,8 @@ interface User {
   isGoogleUser: boolean;
   isSlackUser: boolean;
   isImpersonating: boolean;
+  missingName?: boolean;
+  missingEmail?: boolean;
 }
 
 interface Message {
@@ -148,6 +152,8 @@ export default function ChatPage() {
   const [animatingTitleText, setAnimatingTitleText] = useState("");
   const [animatingTitleFull, setAnimatingTitleFull] = useState("");
   const [showSlackModal, setShowSlackModal] = useState(false);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
   const [emailSending, setEmailSending] = useState(false);
@@ -813,6 +819,22 @@ export default function ChatPage() {
           const dismissed = localStorage.getItem("slackModalDismissed");
           if (!dismissed) {
             setShowSlackModal(true);
+          }
+        }
+
+        // Show Google modal for Slack-only users who haven't dismissed it
+        if (userData.user.isSlackUser && !userData.user.isGoogleUser) {
+          const dismissed = localStorage.getItem("googleModalDismissed");
+          if (!dismissed) {
+            setShowGoogleModal(true);
+          }
+        }
+
+        // Show profile completion modal if name or email is missing
+        if (userData.user.missingName || userData.user.missingEmail) {
+          const skipped = localStorage.getItem("profileCompletionSkipped");
+          if (!skipped) {
+            setShowProfileModal(true);
           }
         }
 
@@ -2127,6 +2149,46 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Google Connection Modal for Slack-only users */}
+      <GoogleConnectionModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        onConnect={() => {
+          localStorage.setItem("googleModalDismissed", "true");
+          setShowGoogleModal(false);
+          window.location.href = "/api/auth/google?link=true";
+        }}
+      />
+
+      {/* Profile Completion Modal */}
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onSave={async (data) => {
+          const res = await fetch("/api/auth/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || "Failed to update profile");
+          }
+          // Update local user state
+          if (user) {
+            setUser({
+              ...user,
+              name: data.name || user.name,
+              email: data.email || user.email,
+            });
+          }
+        }}
+        missingName={user?.missingName || false}
+        missingEmail={user?.missingEmail || false}
+        currentName={user?.name || undefined}
+        currentEmail={user?.email || undefined}
+      />
 
       {/* GTM Maturity Assessment Modal */}
       <MaturityQuizModal
