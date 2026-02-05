@@ -6,7 +6,7 @@ import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 /**
  * GET /api/saved-prompts - List user's saved prompts
  * If user has none, initialize with defaults
- * If user has some but is missing new defaults, add them
+ * If user has some but is missing new defaults, add them (excluding dismissed ones)
  */
 export async function GET() {
   const user = await getCurrentUser();
@@ -15,15 +15,23 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Get user with dismissed default prompt IDs
+  const userWithDismissed = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { dismissedDefaultPromptIds: true },
+  });
+  const dismissedIds = new Set(userWithDismissed?.dismissedDefaultPromptIds || []);
+
   // Get user's saved prompts
   let prompts = await prisma.savedPrompt.findMany({
     where: { userId: user.id },
     orderBy: { sortOrder: "asc" },
   });
 
-  // If user has no saved prompts, initialize with all defaults
+  // If user has no saved prompts, initialize with all defaults (excluding dismissed)
   if (prompts.length === 0) {
-    const defaultData = DEFAULT_PROMPTS.map((p, index) => ({
+    const defaultsToCreate = DEFAULT_PROMPTS.filter((p) => !dismissedIds.has(p.id));
+    const defaultData = defaultsToCreate.map((p, index) => ({
       userId: user.id,
       emoji: p.emoji,
       title: p.title,
@@ -32,16 +40,18 @@ export async function GET() {
       sortOrder: index,
     }));
 
-    await prisma.savedPrompt.createMany({
-      data: defaultData,
-    });
+    if (defaultData.length > 0) {
+      await prisma.savedPrompt.createMany({
+        data: defaultData,
+      });
 
-    prompts = await prisma.savedPrompt.findMany({
-      where: { userId: user.id },
-      orderBy: { sortOrder: "asc" },
-    });
+      prompts = await prisma.savedPrompt.findMany({
+        where: { userId: user.id },
+        orderBy: { sortOrder: "asc" },
+      });
+    }
   } else {
-    // Check for missing default prompts and add them
+    // Check for missing default prompts and add them (excluding dismissed)
     // Get the set of defaultPromptIds the user already has
     const existingDefaultIds = new Set(
       prompts
@@ -49,9 +59,9 @@ export async function GET() {
         .filter((id): id is string => id !== null)
     );
 
-    // Find defaults that are missing
+    // Find defaults that are missing (not existing and not dismissed)
     const missingDefaults = DEFAULT_PROMPTS.filter(
-      (d) => !existingDefaultIds.has(d.id)
+      (d) => !existingDefaultIds.has(d.id) && !dismissedIds.has(d.id)
     );
 
     if (missingDefaults.length > 0) {

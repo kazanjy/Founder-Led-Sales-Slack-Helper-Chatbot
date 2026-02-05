@@ -87,7 +87,8 @@ model User {
   referralsReceived Referral[]  @relation("Referred")
   sharedConversations SharedConversation[]
   sessions        Session[]
-  savedPrompts    SavedPrompt[]
+  savedPrompts              SavedPrompt[]
+  dismissedDefaultPromptIds String[]       @default([])  // Track deleted default prompts so they don't reappear
   gtmVariables    GtmVariable[]
   maturityAnswers MaturityAnswer[]
   maturityAssessments MaturityAssessment[]
