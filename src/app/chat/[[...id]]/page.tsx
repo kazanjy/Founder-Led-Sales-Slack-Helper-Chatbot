@@ -160,6 +160,7 @@ export default function ChatPage() {
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -1040,6 +1041,26 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
+  const insertVariable = (mergeField: string) => {
+    const textarea = chatInputRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = inputMessage;
+    const insertText = `{{${mergeField}}}`;
+
+    const newText = text.substring(0, start) + insertText + text.substring(end);
+    setInputMessage(newText);
+    setShowVariablesDropdown(false);
+
+    // Set cursor position after the inserted text
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+    }, 0);
+  };
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -1630,7 +1651,70 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-4 items-end">
+              <div className="flex gap-2 items-end relative">
+                {/* GTM Variables Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                    className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Insert GTM Variable"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                  </button>
+                  {showVariablesDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowVariablesDropdown(false)}
+                      />
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                        <div className="p-2 border-b border-gray-100">
+                          <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                        </div>
+                        {gtmVariables.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-500">
+                            No variables configured.{" "}
+                            <a href="/settings" className="text-blue-600 hover:underline">
+                              Add in Settings
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="py-1">
+                            {gtmVariables.map((v) => (
+                              <button
+                                key={v.mergeField}
+                                type="button"
+                                onClick={() => insertVariable(v.mergeField)}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                  <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                </div>
+                                {v.value ? (
+                                  <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                ) : (
+                                  <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="p-2 border-t border-gray-100">
+                          <a
+                            href="/settings"
+                            className="text-xs text-gray-500 hover:text-blue-600"
+                          >
+                            Manage variables →
+                          </a>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <textarea
                   ref={chatInputRef}
                   value={inputMessage}
