@@ -69,6 +69,32 @@ export default function AdminUserDetailPage() {
   const [editingEmail, setEditingEmail] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [emailValue, setEmailValue] = useState("");
+  const [impersonating, setImpersonating] = useState(false);
+
+  const handleImpersonate = async () => {
+    if (!confirm(`Are you sure you want to log in as ${user?.name || user?.email || "this user"}? You will be redirected to the chat page as this user.`)) {
+      return;
+    }
+
+    setImpersonating(true);
+    try {
+      const res = await fetch(`/api/admin/users/${params.id}/impersonate`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (res.ok && data.redirectTo) {
+        router.push(data.redirectTo);
+      } else {
+        setMessage({ type: "error", text: data.error || "Failed to impersonate user" });
+        setImpersonating(false);
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+      setMessage({ type: "error", text: "Failed to impersonate user" });
+      setImpersonating(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchUser() {
@@ -144,6 +170,28 @@ export default function AdminUserDetailPage() {
             {displayName || displayEmail || "Unknown User"}
           </h1>
         </div>
+        <button
+          onClick={handleImpersonate}
+          disabled={impersonating}
+          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2"
+        >
+          {impersonating ? (
+            <>
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Logging in...</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Login as User</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Message */}

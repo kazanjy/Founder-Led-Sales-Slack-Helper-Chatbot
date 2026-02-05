@@ -18,6 +18,9 @@ export interface AuthUser {
   maturityUpdateInProgress: boolean;
   maturityUpdateIndex: number | null;
   maturityUpdateStartedAt: Date | null;
+  // Impersonation tracking
+  isImpersonating: boolean;
+  impersonatingAdminId: string | null;
 }
 
 /**
@@ -62,6 +65,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     maturityUpdateInProgress: session.user.maturityUpdateInProgress,
     maturityUpdateIndex: session.user.maturityUpdateIndex,
     maturityUpdateStartedAt: session.user.maturityUpdateStartedAt,
+    isImpersonating: !!session.impersonatingAdminId,
+    impersonatingAdminId: session.impersonatingAdminId,
   };
 }
 

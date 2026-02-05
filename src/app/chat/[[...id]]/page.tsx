@@ -7,6 +7,7 @@ import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
 import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -78,6 +79,7 @@ interface User {
   chatBlockedMessage: string;
   isGoogleUser: boolean;
   isSlackUser: boolean;
+  isImpersonating: boolean;
 }
 
 interface Message {
@@ -1037,9 +1039,14 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-white overflow-hidden">
+    <>
+      {/* Impersonation Banner */}
+      {user?.isImpersonating && (
+        <ImpersonationBanner userName={user.name || user.email} />
+      )}
+      <div className={`h-screen flex bg-white overflow-hidden ${user?.isImpersonating ? "pt-10" : ""}`}>
       {/* Sidebar - fixed height, doesn't scroll with chat */}
-      <div className={`${sidebarCollapsed ? "w-0" : "w-80"} bg-gray-100 border-r border-gray-200 flex flex-col h-screen flex-shrink-0 transition-all duration-300 overflow-hidden`}>
+      <div className={`${sidebarCollapsed ? "w-0" : "w-80"} bg-gray-100 border-r border-gray-200 flex flex-col ${user?.isImpersonating ? "h-[calc(100vh-40px)]" : "h-screen"} flex-shrink-0 transition-all duration-300 overflow-hidden`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
           <button
@@ -2132,5 +2139,6 @@ export default function ChatPage() {
         mode={maturityModalMode}
       />
     </div>
+    </>
   );
 }

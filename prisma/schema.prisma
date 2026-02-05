@@ -360,6 +360,9 @@ model Session {
   // Session token (stored in cookie)
   token           String    @unique
 
+  // Impersonation: if set, this session is an admin impersonating another user
+  impersonatingAdminId String?
+
   expiresAt       DateTime
   createdAt       DateTime  @default(now())
 

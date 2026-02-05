@@ -43,6 +43,8 @@ export async function GET() {
       // Auth provider info
       isGoogleUser: !!user.googleId,
       isSlackUser: !!user.slackUserId,
+      // Impersonation info
+      isImpersonating: user.isImpersonating,
     },
   });
 }
