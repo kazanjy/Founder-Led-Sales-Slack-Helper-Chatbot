@@ -282,23 +282,48 @@ export default function MaturityHistoryPage() {
                     </div>
                   ) : (
                     <div className="space-y-8">
-                      {selectedAssessment.categories.map((category) => (
-                        <div key={category.name}>
-                          <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                            {category.name}
-                          </h3>
-                          <div className="space-y-6">
+                      {selectedAssessment.categories.map((category, categoryIndex) => (
+                        <div key={category.name} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                          {/* Category Header */}
+                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm">
+                                {categoryIndex + 1}
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-800">
+                                {category.name}
+                              </h3>
+                              <span className="text-sm text-gray-500 ml-auto">
+                                {category.questions.length} questions
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Questions in this category */}
+                          <div className="divide-y divide-gray-100">
                             {category.questions.map((qa) => (
-                              <div key={qa.questionId} className="bg-gray-50 rounded-lg p-4">
-                                <div className="text-sm font-medium text-gray-700 mb-2">
-                                  Q{qa.globalOrder}: {qa.question}
+                              <div key={qa.questionId} className="p-5 hover:bg-gray-50 transition-colors">
+                                {/* Question */}
+                                <div className="flex gap-3 mb-3">
+                                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs font-medium flex items-center justify-center">
+                                    {qa.globalOrder}
+                                  </span>
+                                  <p className="text-gray-700 font-medium leading-relaxed">
+                                    {qa.question}
+                                  </p>
                                 </div>
+
+                                {/* Answer */}
                                 {qa.answer ? (
-                                  <div className="text-gray-900 prose prose-sm max-w-none">
-                                    <ReactMarkdown>{qa.answer}</ReactMarkdown>
+                                  <div className="ml-10 pl-4 border-l-2 border-blue-200 bg-blue-50/50 rounded-r-lg py-3 pr-4">
+                                    <div className="text-gray-800 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                                      <ReactMarkdown>{qa.answer}</ReactMarkdown>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-400 italic">Not answered</div>
+                                  <div className="ml-10 pl-4 text-gray-400 italic text-sm">
+                                    Not answered
+                                  </div>
                                 )}
                               </div>
                             ))}
