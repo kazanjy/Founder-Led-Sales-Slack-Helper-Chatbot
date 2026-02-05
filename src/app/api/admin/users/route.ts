@@ -2,6 +2,68 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 
+/**
+ * POST /api/admin/users - Create a new user with email (and optional name)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { email, name } = body;
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "A user with this email already exists" },
+        { status: 409 }
+      );
+    }
+
+    // Get global settings for trial defaults
+    const settings = await prisma.globalSettings.findFirst();
+    const trialMessages = settings?.defaultTrialMessages ?? 50;
+
+    // Create the user
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase().trim(),
+        name: name?.trim() || null,
+        licenseStatus: "TRIAL",
+        trialStartedAt: new Date(),
+        trialMessagesRemaining: trialMessages,
+      },
+    });
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        licenseStatus: user.licenseStatus,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Admin create user error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const admin = await getAdminUser();
