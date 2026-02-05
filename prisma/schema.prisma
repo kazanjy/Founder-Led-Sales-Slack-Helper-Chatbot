@@ -417,11 +417,16 @@ model MaturityAnswer {
   questionId  String
   question    MaturityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
+  // Link to specific assessment (for history tracking)
+  assessmentId String?
+  assessment   MaturityAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
   answer      String   @db.Text
 
   createdAt   DateTime @default(now())
 
   @@index([userId, questionId])
+  @@index([assessmentId])
   @@map("maturity_answers")
 }
 
@@ -432,9 +437,15 @@ model MaturityAssessment {
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // AI-generated title summarizing the assessment
+  title           String?
+
   // Links to the conversation with AI recommendations
   conversationId  String?
   conversation    Conversation? @relation(fields: [conversationId], references: [id])
+
+  // Snapshot of all answers at time of completion
+  answers         MaturityAnswer[]
 
   completedAt     DateTime @default(now())
 

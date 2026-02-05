@@ -77,4 +77,45 @@ export async function generateChatTitle(firstMessage: string): Promise<string> {
   }
 }
 
+/**
+ * Generate a one-sentence summary title for a GTM Maturity Assessment
+ * @param aiRecommendations - The AI recommendations/analysis from the assessment
+ * @returns A short title summarizing the GTM maturity state
+ */
+export async function generateAssessmentTitle(aiRecommendations: string): Promise<string> {
+  console.log("[OpenAI] generateAssessmentTitle called with recommendations length:", aiRecommendations.length);
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a GTM maturity summarizer. Given an AI analysis of a startup's GTM maturity assessment, create a one-sentence title (under 80 characters) that summarizes their current GTM state. Be specific and actionable. Examples: 'Early-stage with strong ICP, needs sales process', 'Scaling stage ready for first AE hire', 'Mature GTM but pricing strategy unclear'. Do not use quotes.",
+        },
+        {
+          role: "user",
+          content: `Generate a one-sentence summary title (under 80 chars) for this GTM assessment:\n\n${aiRecommendations.substring(0, 2000)}`,
+        },
+      ],
+      max_completion_tokens: 100,
+      temperature: 0.7,
+    });
+
+    const title = response.choices[0]?.message?.content?.trim() || null;
+    console.log("[OpenAI] Generated assessment title:", title);
+
+    // Ensure it's under 80 characters
+    if (title && title.length > 80) {
+      return title.substring(0, 77) + "...";
+    }
+
+    return title || "GTM Maturity Assessment";
+  } catch (error: unknown) {
+    console.error("[OpenAI] Error generating assessment title:", error);
+    return "GTM Maturity Assessment";
+  }
+}
+
 export { openai };

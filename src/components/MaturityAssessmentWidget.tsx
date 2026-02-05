@@ -276,9 +276,22 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               </button>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 mb-3">
               Your business evolves! Update your answers anytime to get fresh recommendations based on where you are now.
             </p>
+
+            <div className="pt-3 border-t border-gray-200">
+              <a
+                href="/maturity-history"
+                onClick={() => setIsExpanded(false)}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                See Assessment History
+              </a>
+            </div>
           </div>
         </div>
       )}

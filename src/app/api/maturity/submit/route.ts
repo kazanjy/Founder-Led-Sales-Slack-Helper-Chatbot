@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { generateAssessmentTitle } from "@/lib/openai";
 
 // POST - Submit the completed assessment and create AI recommendations conversation
 export async function POST(request: NextRequest) {
@@ -192,12 +193,34 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Generate an AI title for the assessment based on the recommendations
+    let assessmentTitle = "GTM Maturity Assessment";
+    try {
+      assessmentTitle = await generateAssessmentTitle(aiResponse);
+    } catch (titleError) {
+      console.error("Error generating assessment title:", titleError);
+    }
+
     // Create the maturity assessment record
     const assessment = await prisma.maturityAssessment.create({
       data: {
         userId: user.id,
         conversationId: conversation.id,
+        title: assessmentTitle,
       },
+    });
+
+    // Create snapshot of all answers linked to this assessment
+    // This captures the state of all answers at the time of submission
+    const answerSnapshots = questions.map((q: QuestionType) => ({
+      userId: user.id,
+      questionId: q.id,
+      assessmentId: assessment.id,
+      answer: answerMap.get(q.id) || "",
+    }));
+
+    await prisma.maturityAnswer.createMany({
+      data: answerSnapshots,
     });
 
     // Clear any update-in-progress state
