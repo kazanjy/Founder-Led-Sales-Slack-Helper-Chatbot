@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { assessmentId } = body;
+    const { assessmentId, userPrompt } = body;
 
     // Get all questions
     const questions = await prisma.maturityQuestion.findMany({
@@ -102,7 +102,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the user message
-    const userMessage = `I'd like to have a conversation using my GTM Maturity Assessment answers as context. Here are my answers:\n\n${assessmentContext}`;
+    const userQuestion = userPrompt || "I'd like to have a conversation about my go-to-market strategy using these as context.";
+    const userMessage = `${userQuestion}\n\nHere are my GTM Maturity Assessment answers:\n\n${assessmentContext}`;
 
     // Create a new conversation
     const conversation = await prisma.conversation.create({
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         source: "WEB",
         title: "Chat with GTM Assessment",
-        firstMessagePreview: "Using my GTM assessment answers as context...",
+        firstMessagePreview: userPrompt ? userPrompt.substring(0, 100) : "Using my GTM assessment answers as context...",
         messageCount: 1,
       },
     });
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Send the prompt to start the conversation
-      const promptMessage = "Great, I've shared my GTM assessment answers with you. I'd like to have a conversation about my go-to-market strategy using these as context. What questions do you have, or what would you like to discuss?";
+      const promptMessage = userPrompt || "Great, I've shared my GTM assessment answers with you. I'd like to have a conversation about my go-to-market strategy using these as context. What questions do you have, or what would you like to discuss?";
 
       const chatbaseResult = await sendToChatbase(promptMessage, undefined, chatbaseHistory);
       aiResponse = chatbaseResult.response;

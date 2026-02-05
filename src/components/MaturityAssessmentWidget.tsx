@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import ChatWithAssessmentModal from "./ChatWithAssessmentModal";
 
 interface Progress {
   status: "not_started" | "in_progress" | "completed" | "update_in_progress";
@@ -36,6 +37,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
   const [loading, setLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   const loadProgress = useCallback(async () => {
     try {
@@ -54,16 +56,17 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
     loadProgress();
   }, [loadProgress]);
 
-  const handleChatWithAssessment = async () => {
+  const handleChatWithAssessment = async (userPrompt: string) => {
     setStartingChat(true);
     try {
       const res = await fetch("/api/maturity/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}), // No assessmentId = use current answers
+        body: JSON.stringify({ userPrompt }), // No assessmentId = use current answers
       });
       const data = await res.json();
       if (res.ok && data.conversationId) {
+        setShowChatModal(false);
         setIsExpanded(false);
         router.push(`/chat/${data.conversationId}`);
       } else {
@@ -301,26 +304,16 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               </button>
 
               <button
-                onClick={handleChatWithAssessment}
-                disabled={startingChat}
-                className="flex items-center gap-3 w-full py-2.5 px-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium text-sm transition-all disabled:opacity-50"
+                onClick={() => {
+                  setIsExpanded(false);
+                  setShowChatModal(true);
+                }}
+                className="flex items-center gap-3 w-full py-2.5 px-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium text-sm transition-all"
               >
-                {startingChat ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Starting chat...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <span>Chat with Your Assessment</span>
-                  </>
-                )}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span>Chat with Your Assessment</span>
               </button>
             </div>
 
@@ -462,6 +455,14 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
           onClick={() => setIsExpanded(false)}
         />
       )}
+
+      {/* Chat with Assessment Modal */}
+      <ChatWithAssessmentModal
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onSubmit={handleChatWithAssessment}
+        isLoading={startingChat}
+      />
     </div>
   );
 }
