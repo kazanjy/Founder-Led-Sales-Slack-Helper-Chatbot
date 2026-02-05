@@ -1144,6 +1144,12 @@ When a non-logged-in user accesses a shared conversation link (`/share/[code]`),
     - [ ] Fields expanded at send time (not stored expanded)
     - [ ] If field is empty/not configured, prompt user to fill it or send without
     - [ ] Option to "fill in the blank" inline before sending
+  - [ ] **GTM Variables Progress Indicator:**
+    - [ ] Show users their progress on filling out GTM Variables
+    - [ ] Widget similar to Maturity Assessment showing % complete
+    - [ ] Visual indicator of which variables are filled vs empty
+    - [ ] Quick link to settings to fill in missing variables
+    - [ ] Prompt users to complete their profile for better personalized responses
 
 - [ ] **Structured Onboarding Flow**
   - [ ] Multi-step onboarding wizard for new users
