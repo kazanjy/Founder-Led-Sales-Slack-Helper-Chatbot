@@ -160,6 +160,10 @@ export default function ChatPage() {
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [inputHeight, setInputHeight] = useState(120); // Default input container height
+  const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -383,6 +387,63 @@ export default function ChatPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Sidebar resize handler
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(200, Math.min(500, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingSidebar]);
+
+  // Input area resize handler
+  useEffect(() => {
+    if (!isResizingInput) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const windowHeight = window.innerHeight;
+      const newHeight = Math.max(80, Math.min(400, windowHeight - e.clientY));
+      setInputHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingInput(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingInput]);
 
   // Cmd+K keyboard shortcut for search
   useEffect(() => {
@@ -1089,7 +1150,22 @@ export default function ChatPage() {
       )}
       <div className={`h-screen flex bg-white overflow-hidden ${user?.isImpersonating ? "pt-10" : ""}`}>
       {/* Sidebar - fixed height, doesn't scroll with chat */}
-      <div className={`${sidebarCollapsed ? "w-0" : "w-80"} bg-gray-100 border-r border-gray-200 flex flex-col ${user?.isImpersonating ? "h-[calc(100vh-40px)]" : "h-screen"} flex-shrink-0 transition-all duration-300 overflow-hidden`}>
+      <div
+        className={`bg-gray-100 border-r border-gray-200 flex flex-col ${user?.isImpersonating ? "h-[calc(100vh-40px)]" : "h-screen"} flex-shrink-0 overflow-hidden relative ${!isResizingSidebar ? "transition-all duration-300" : ""}`}
+        style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+      >
+        {/* Resize handle */}
+        {!sidebarCollapsed && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500/50 transition-colors group z-10"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizingSidebar(true);
+            }}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center gap-3">
           <button
@@ -1454,23 +1530,155 @@ export default function ChatPage() {
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="h-full overflow-y-auto">
-              <div className="text-center max-w-[950px] mx-auto pt-8">
-                <img
-                  src="/mikey-avatar.png"
-                  alt="Mikey"
-                  className="w-48 h-48 rounded-3xl mx-auto mb-6"
-                />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Welcome to Mikey
-                </h2>
-                <p className="text-gray-500 mb-8">
-                  Your Founder-Led Sales assistant
-                </p>
+            <div className="h-full overflow-y-auto flex flex-col">
+              <div className="flex-1 flex flex-col justify-center max-w-[950px] mx-auto w-full px-4 py-8">
+                <div className="text-center">
+                  <img
+                    src="/mikey-avatar.png"
+                    alt="Mikey"
+                    className="w-32 h-32 rounded-3xl mx-auto mb-4"
+                  />
+                  <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                    {user?.name ? `Hey, ${user.name.split(' ')[0]}!` : 'Welcome to Mikey'}
+                  </h2>
+                  <p className="text-gray-500 mb-6">
+                    What can I help you with today?
+                  </p>
+                </div>
 
-                <div className="flex items-center justify-between mb-4">
+                {/* Floating Input for New Chat */}
+                {user?.canChat && (
+                  <form onSubmit={handleSendMessage} className="max-w-[700px] mx-auto w-full mb-8">
+                    {/* Merge field preview/warning */}
+                    {mergeFieldPreview && (
+                      <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                        {mergeFieldPreview.missing.length > 0 && (
+                          <div className="flex items-start gap-2 text-orange-600 mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                              <line x1="12" y1="9" x2="12" y2="13"></line>
+                              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <span>
+                              Missing variables: <strong>{mergeFieldPreview.missing.join(", ")}</strong>
+                              {" "}<a href="/settings" className="text-blue-600 hover:underline">Configure in Settings</a>
+                            </span>
+                          </div>
+                        )}
+                        {mergeFieldPreview.used.length > 0 && (
+                          <div className="space-y-2">
+                            {mergeFieldPreview.used.map((v) => (
+                              <div key={v.mergeField} className="text-gray-600">
+                                <span className="font-medium text-blue-600">{`{{${v.mergeField}}}`}</span>
+                                <span className="text-gray-400 mx-2">→</span>
+                                <span className="text-gray-700">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex gap-2 items-end relative">
+                      {/* GTM Variables Dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Insert GTM Variable"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                        </button>
+                        {showVariablesDropdown && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setShowVariablesDropdown(false)}
+                            />
+                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                              <div className="p-2 border-b border-gray-100">
+                                <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                              </div>
+                              {gtmVariables.length === 0 ? (
+                                <div className="p-3 text-sm text-gray-500">
+                                  No variables configured.{" "}
+                                  <a href="/settings" className="text-blue-600 hover:underline">
+                                    Add in Settings
+                                  </a>
+                                </div>
+                              ) : (
+                                <div className="py-1">
+                                  {gtmVariables.map((v) => (
+                                    <button
+                                      key={v.mergeField}
+                                      type="button"
+                                      onClick={() => insertVariable(v.mergeField)}
+                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                        <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                      </div>
+                                      {v.value ? (
+                                        <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                      ) : (
+                                        <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="p-2 border-t border-gray-100">
+                                <a
+                                  href="/settings"
+                                  className="text-xs text-gray-500 hover:text-blue-600"
+                                >
+                                  Manage variables →
+                                </a>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <textarea
+                        ref={chatInputRef}
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                            e.preventDefault();
+                            if (inputMessage.trim() && !sending) {
+                              handleSendMessage(e);
+                            }
+                          }
+                        }}
+                        placeholder="Ask Mikey anything about founder-led sales..."
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px] shadow-sm"
+                        disabled={sending}
+                        rows={1}
+                        style={{ height: 'auto' }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!inputMessage.trim() || sending}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-sm"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="flex items-center justify-between mb-4 max-w-[950px] mx-auto w-full">
                   <p className="text-sm text-gray-500">
-                    Some ideas to start with:
+                    Or try one of these:
                   </p>
                   <button
                     onClick={handleAddPrompt}
@@ -1479,7 +1687,7 @@ export default function ChatPage() {
                     + Add Prompt
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3 max-w-[950px] mx-auto w-full">
                   {savedPrompts.map((item) => (
                     <div
                       key={item.id}
@@ -1611,8 +1819,20 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Input */}
-        <div className="border-t border-gray-200 p-4 bg-white">
+        {/* Input - only show at bottom when there are messages */}
+        {messages.length > 0 && (
+        <div className="border-t border-gray-200 bg-white relative" style={{ minHeight: inputHeight }}>
+          {/* Resize handle at top */}
+          <div
+            className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500/50 transition-colors z-10"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizingInput(true);
+            }}
+          >
+            <div className="absolute -top-1 -bottom-1 left-0 right-0" />
+          </div>
+          <div className="p-4">
           {!user?.canChat ? (
             <div className="max-w-[800px] mx-auto text-center py-4">
               <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
@@ -1749,7 +1969,9 @@ export default function ChatPage() {
               </div>
             </form>
           )}
+          </div>
         </div>
+        )}
       </div>
 
       {/* Toast notification */}
