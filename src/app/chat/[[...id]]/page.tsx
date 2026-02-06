@@ -1656,7 +1656,6 @@ export default function ChatPage() {
                         }}
                         placeholder="Ask Mikey anything about founder-led sales..."
                         className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px] shadow-sm"
-                        disabled={sending}
                         rows={1}
                         style={{ height: 'auto' }}
                         onInput={(e) => {
@@ -1950,7 +1949,6 @@ export default function ChatPage() {
                   }}
                   placeholder="Ask Mikey anything about founder-led sales..."
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px]"
-                  disabled={sending}
                   rows={1}
                   style={{ height: 'auto' }}
                   onInput={(e) => {
