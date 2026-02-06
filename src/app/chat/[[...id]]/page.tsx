@@ -1245,10 +1245,20 @@ export default function ChatPage() {
                   selectedConversation === conv.id ? "bg-white" : "hover:bg-gray-200"
                 } ${openMenuId === conv.id ? "z-50" : ""}`}
               >
-                <button
-                  onClick={() => selectConversation(conv.id)}
-                  disabled={archivingId === conv.id}
-                  className="w-full p-4 text-left transition-colors"
+                <a
+                  href={`/chat/${conv.id}`}
+                  onClick={(e) => {
+                    // Allow cmd+click, ctrl+click, shift+click, middle-click to work naturally
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+                      return;
+                    }
+                    // Normal click: use SPA navigation
+                    e.preventDefault();
+                    if (archivingId !== conv.id) {
+                      selectConversation(conv.id);
+                    }
+                  }}
+                  className={`block w-full p-4 text-left transition-colors ${archivingId === conv.id ? "pointer-events-none" : ""}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     {archivingId === conv.id ? (
@@ -1280,7 +1290,7 @@ export default function ChatPage() {
                       conv.title || conv.firstMessagePreview || "New conversation"
                     )}
                   </p>
-                </button>
+                </a>
 
                 {/* Three-dot menu button */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2">
