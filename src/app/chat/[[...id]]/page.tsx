@@ -818,6 +818,11 @@ export default function ChatPage() {
 
   // Update URL when conversation changes (without full page reload)
   const selectConversation = (conversationId: string | null) => {
+    // Reset sending state when switching conversations
+    // This allows loading the new conversation even if previous was mid-send
+    isSendingRef.current = false;
+    setSending(false);
+
     setSelectedConversation(conversationId);
     isInitialLoad.current = true; // Reset for new conversation
     // Use pushState to update URL without triggering Next.js navigation
