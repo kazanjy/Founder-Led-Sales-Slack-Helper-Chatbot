@@ -1840,7 +1840,7 @@ export default function ChatPage() {
               </a>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto flex-1 flex flex-col min-h-0">
+            <form onSubmit={handleSendMessage} className="max-w-[800px] w-full mx-auto flex-1 flex flex-col min-h-0">
               {/* Merge field preview/warning */}
               {mergeFieldPreview && (
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
@@ -1870,7 +1870,7 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2 items-stretch relative flex-1 min-h-0">
+              <div className="flex gap-2 items-stretch relative flex-1 min-h-0 w-full">
                 {/* GTM Variables Dropdown */}
                 <div className="relative flex-shrink-0 self-end">
                   <button
