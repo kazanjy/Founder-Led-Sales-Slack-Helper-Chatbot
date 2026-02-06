@@ -1820,7 +1820,7 @@ export default function ChatPage() {
 
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
-        <div className="border-t border-gray-200 bg-white relative" style={{ minHeight: inputHeight }}>
+        <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{ height: inputHeight }}>
           {/* Resize handle at top */}
           <div
             className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500/50 transition-colors z-10"
@@ -1831,7 +1831,7 @@ export default function ChatPage() {
           >
             <div className="absolute -top-1 -bottom-1 left-0 right-0" />
           </div>
-          <div className="p-4">
+          <div className="p-4 flex-1 flex flex-col min-h-0">
           {!user?.canChat ? (
             <div className="max-w-[800px] mx-auto text-center py-4">
               <p className="text-red-600 mb-2">{user?.chatBlockedMessage}</p>
@@ -1840,7 +1840,7 @@ export default function ChatPage() {
               </a>
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto">
+            <form onSubmit={handleSendMessage} className="max-w-[800px] mx-auto flex-1 flex flex-col min-h-0">
               {/* Merge field preview/warning */}
               {mergeFieldPreview && (
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
@@ -1870,9 +1870,9 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2 items-end relative">
+              <div className="flex gap-2 items-stretch relative flex-1 min-h-0">
                 {/* GTM Variables Dropdown */}
-                <div className="relative">
+                <div className="relative flex-shrink-0 self-end">
                   <button
                     type="button"
                     onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
@@ -1948,19 +1948,12 @@ export default function ChatPage() {
                     }
                   }}
                   placeholder="Ask Mikey anything about founder-led sales..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px]"
-                  rows={1}
-                  style={{ height: 'auto' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 200) + 'px';
-                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
                 />
                 <button
                   type="submit"
                   disabled={!inputMessage.trim() || sending}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 self-end"
                 >
                   Send
                 </button>
