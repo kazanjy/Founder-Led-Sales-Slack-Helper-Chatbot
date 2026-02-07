@@ -660,6 +660,33 @@ export default function ChatPage() {
     }
   };
 
+  // Share specific message (with anchor to scroll to that response)
+  const handleShareMessage = async (messageId: string) => {
+    if (!selectedConversation || messages.length === 0 || sharing) return;
+
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}/share`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.shareUrl) {
+        // Append anchor to scroll to specific message
+        const urlWithAnchor = `${data.shareUrl}#msg-${messageId}`;
+        navigator.clipboard.writeText(urlWithAnchor);
+        showToast("Link copied! Opens directly to this response.", "bottom");
+      } else {
+        showToast("Failed to share conversation", "bottom");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      showToast("Failed to share conversation", "bottom");
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Email conversation
   const handleEmailConversation = async (toEmail?: string) => {
     if (!selectedConversation || messages.length === 0 || emailSending) return;
@@ -1798,19 +1825,17 @@ export default function ChatPage() {
                         </div>
                         <div className="relative group">
                           <button
-                            onClick={handleInlineShare}
+                            onClick={() => handleShareMessage(msg.id)}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                            title="Share link to this response"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="18" cy="5" r="3"></circle>
-                              <circle cx="6" cy="12" r="3"></circle>
-                              <circle cx="18" cy="19" r="3"></circle>
-                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                             </svg>
                           </button>
                           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                            Share
+                            Share this response
                           </span>
                         </div>
                       </div>

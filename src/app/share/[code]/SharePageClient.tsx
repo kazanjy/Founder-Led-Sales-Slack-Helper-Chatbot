@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -26,6 +26,8 @@ export default function SharePageClient({ code }: SharePageClientProps) {
   const [conversation, setConversation] = useState<SharedConversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const hasScrolledToAnchor = useRef(false);
 
   useEffect(() => {
     async function loadSharedConversation() {
@@ -48,6 +50,30 @@ export default function SharePageClient({ code }: SharePageClientProps) {
 
     loadSharedConversation();
   }, [code]);
+
+  // Scroll to anchor after conversation loads
+  useEffect(() => {
+    if (conversation && !hasScrolledToAnchor.current) {
+      hasScrolledToAnchor.current = true;
+      const hash = window.location.hash;
+      if (hash) {
+        // Small delay to ensure DOM is rendered
+        setTimeout(() => {
+          const element = document.getElementById(hash.slice(1));
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
+      }
+    }
+  }, [conversation]);
+
+  const copyMessageLink = (messageId: string) => {
+    const url = `${window.location.origin}/share/${code}#msg-${messageId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedMessageId(messageId);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
 
   if (loading) {
     return (
@@ -115,7 +141,7 @@ export default function SharePageClient({ code }: SharePageClientProps) {
       <main className="max-w-[800px] mx-auto px-6 py-8">
         <div className="space-y-6">
           {conversation?.messages.map((msg) => (
-            <div key={msg.id}>
+            <div key={msg.id} id={`msg-${msg.id}`} className="scroll-mt-20">
               {msg.role === "USER" ? (
                 <div className="flex justify-end">
                   <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
@@ -125,8 +151,34 @@ export default function SharePageClient({ code }: SharePageClientProps) {
                   </div>
                 </div>
               ) : (
-                <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <div className="group relative">
+                  <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                  {/* Share this response button */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => copyMessageLink(msg.id)}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      {copiedMessageId === msg.id ? (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                          Link copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                          </svg>
+                          Share this response
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
