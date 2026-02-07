@@ -162,7 +162,7 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-  const [inputHeight, setInputHeight] = useState(120); // Default input container height
+  const [inputHeight, setInputHeight] = useState(80); // Default input container height
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1435,7 +1435,7 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Area - scrolls independently */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Top header with Upgrade and Copy/Share buttons */}
         <div className="border-b border-gray-200 px-6 py-3 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
