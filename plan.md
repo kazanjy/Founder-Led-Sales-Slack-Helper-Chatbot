@@ -113,3 +113,19 @@ https://mikeybot.io/api/slack/events
 # Stripe Webhook
 https://mikeybot.io/api/stripe/webhook
 ```
+
+---
+
+## Future Work
+
+### 1. Home Page Refactor - Maturity Assessment Focus
+
+Refactor the home page to heavily merchandise the GTM Maturity Assessment capabilities:
+
+- [ ] Hero section highlighting the assessment as primary CTA
+- [ ] Showcase sample assessment results/insights
+- [ ] Add testimonials or case studies around assessment value
+- [ ] Visual preview of the assessment experience
+- [ ] Clear explanation of what users get from the assessment
+- [ ] Secondary CTAs for Slack integration and chat features
+- [ ] Consider assessment as the primary onboarding funnel
