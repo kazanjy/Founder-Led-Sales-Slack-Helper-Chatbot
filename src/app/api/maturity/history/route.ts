@@ -112,14 +112,53 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      assessments: assessments.map((a) => ({
+    // Also check for in-progress assessment (answers without a completed assessment)
+    const totalQuestions = await prisma.maturityQuestion.count();
+    const inProgressAnswers = await prisma.maturityAnswer.findMany({
+      where: {
+        userId: user.id,
+        assessmentId: null, // Not yet submitted
+      },
+      orderBy: { answeredAt: "desc" },
+    });
+
+    // Build response with in-progress status
+    const result: {
+      id: string;
+      title: string | null;
+      completedAt: Date | null;
+      conversationId: string | null;
+      answerCount: number;
+      status: "completed" | "in_progress";
+    }[] = [];
+
+    // Add in-progress if there are unsaved answers
+    if (inProgressAnswers.length > 0) {
+      result.push({
+        id: "in-progress",
+        title: "Assessment in Progress",
+        completedAt: inProgressAnswers[0].answeredAt, // Most recent answer time
+        conversationId: null,
+        answerCount: inProgressAnswers.length,
+        status: "in_progress",
+      });
+    }
+
+    // Add completed assessments
+    assessments.forEach((a) => {
+      result.push({
         id: a.id,
         title: a.title,
         completedAt: a.completedAt,
-        conversationId: a.conversation?.id,
+        conversationId: a.conversation?.id || null,
         answerCount: a._count.answers,
-      })),
+        status: "completed",
+      });
+    });
+
+    return NextResponse.json({
+      assessments: result,
+      totalQuestions,
     });
   } catch (error) {
     console.error("Error fetching assessment history:", error);

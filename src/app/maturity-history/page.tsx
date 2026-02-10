@@ -12,6 +12,7 @@ interface AssessmentListItem {
   completedAt: string;
   conversationId: string | null;
   answerCount: number;
+  status: "completed" | "in_progress";
 }
 
 interface QuestionAnswer {
@@ -39,6 +40,7 @@ export default function MaturityHistoryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [assessments, setAssessments] = useState<AssessmentListItem[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<AssessmentDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -91,9 +93,13 @@ export default function MaturityHistoryPage() {
         const data = await res.json();
         if (data.assessments) {
           setAssessments(data.assessments);
-          // Auto-select the first assessment
-          if (data.assessments.length > 0) {
-            setSelectedId(data.assessments[0].id);
+          if (data.totalQuestions) {
+            setTotalQuestions(data.totalQuestions);
+          }
+          // Auto-select the first completed assessment (not in-progress)
+          const firstCompleted = data.assessments.find((a: AssessmentListItem) => a.status === "completed");
+          if (firstCompleted) {
+            setSelectedId(firstCompleted.id);
           }
         }
       } catch (error) {
@@ -107,7 +113,7 @@ export default function MaturityHistoryPage() {
 
   // Load selected assessment details
   useEffect(() => {
-    if (!selectedId) {
+    if (!selectedId || selectedId === "in-progress") {
       setSelectedAssessment(null);
       return;
     }
@@ -209,30 +215,77 @@ export default function MaturityHistoryPage() {
             <div className="w-1/3 border-r border-gray-200 bg-white overflow-y-auto">
               <div className="p-4">
                 <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-                  Completed Assessments
+                  Your Assessments
                 </h2>
                 <div className="space-y-2">
-                  {assessments.map((assessment) => (
-                    <button
-                      key={assessment.id}
-                      onClick={() => setSelectedId(assessment.id)}
-                      className={`w-full text-left p-4 rounded-lg transition-colors ${
-                        selectedId === assessment.id
-                          ? "bg-blue-50 border-2 border-blue-500"
-                          : "bg-gray-50 border-2 border-transparent hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="text-sm text-gray-500 mb-1">
-                        {formatDate(assessment.completedAt)}
-                      </div>
-                      <div className="font-medium text-gray-900 line-clamp-2">
-                        {assessment.title || "GTM Maturity Assessment"}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {assessment.answerCount} questions answered
-                      </div>
-                    </button>
-                  ))}
+                  {assessments.map((assessment) => {
+                    // In-progress assessment - render as a link to bulk mode
+                    if (assessment.status === "in_progress") {
+                      const progressPercent = totalQuestions > 0
+                        ? Math.round((assessment.answerCount / totalQuestions) * 100)
+                        : 0;
+
+                      return (
+                        <Link
+                          key={assessment.id}
+                          href="/assessment/bulk"
+                          className="block w-full text-left p-4 rounded-lg transition-colors bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 hover:border-amber-400"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-medium rounded-full">
+                              In Progress
+                            </span>
+                          </div>
+                          <div className="font-medium text-gray-900 mb-2">
+                            GTM Maturity Assessment
+                          </div>
+                          <div className="mb-2">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>{assessment.answerCount} of {totalQuestions} questions</span>
+                              <span>{progressPercent}%</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300"
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-xs text-amber-700 font-medium">
+                            Click to continue →
+                          </div>
+                        </Link>
+                      );
+                    }
+
+                    // Completed assessment
+                    return (
+                      <button
+                        key={assessment.id}
+                        onClick={() => setSelectedId(assessment.id)}
+                        className={`w-full text-left p-4 rounded-lg transition-colors ${
+                          selectedId === assessment.id
+                            ? "bg-blue-50 border-2 border-blue-500"
+                            : "bg-gray-50 border-2 border-transparent hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm text-gray-500">
+                            {formatDate(assessment.completedAt)}
+                          </span>
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                            Completed
+                          </span>
+                        </div>
+                        <div className="font-medium text-gray-900 line-clamp-2">
+                          {assessment.title || "GTM Maturity Assessment"}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {assessment.answerCount} questions answered
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

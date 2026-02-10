@@ -67,6 +67,7 @@ function BulkAssessmentContent() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [grouped, setGrouped] = useState<CategoryGroup[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [priorAnswers, setPriorAnswers] = useState<Record<string, { answer: string; answeredAt: string } | null>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
@@ -118,15 +119,23 @@ function BulkAssessmentContent() {
         setQuestions(data.questions);
         setGrouped(data.grouped);
 
-        // Initialize answers from existing data
+        // Store prior answers and initialize editable answers
         const initialAnswers: Record<string, string> = {};
+        const priorAnswersMap: Record<string, { answer: string; answeredAt: string } | null> = {};
+
         data.questions.forEach((q: Question) => {
-          if (q.latestAnswer) {
-            initialAnswers[q.id] = q.latestAnswer.answer;
-          } else {
+          priorAnswersMap[q.id] = q.latestAnswer;
+
+          if (mode === "update") {
+            // In update mode, start with empty textareas
             initialAnswers[q.id] = "";
+          } else {
+            // In new mode, pre-fill with existing answers (for continuing in-progress)
+            initialAnswers[q.id] = q.latestAnswer?.answer || "";
           }
         });
+
+        setPriorAnswers(priorAnswersMap);
         setAnswers(initialAnswers);
       } catch (error) {
         console.error("Error loading data:", error);
@@ -134,6 +143,7 @@ function BulkAssessmentContent() {
         setLoading(false);
       }
     }
+
 
     loadData();
   }, [router]);
@@ -155,14 +165,24 @@ function BulkAssessmentContent() {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
     setHasUnsavedChanges(true);
 
-    // Auto-save after 2 seconds of no typing
+    // Auto-save after 2 seconds of no typing (only if there's content)
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    saveTimeoutRef.current = setTimeout(() => {
-      handleSaveAnswer(questionId, value);
-    }, 2000);
+    if (value.trim()) {
+      saveTimeoutRef.current = setTimeout(() => {
+        handleSaveAnswer(questionId, value);
+      }, 2000);
+    }
   }, []);
+
+  const handleDuplicatePriorAnswer = useCallback((questionId: string) => {
+    const prior = priorAnswers[questionId];
+    if (prior) {
+      setAnswers((prev) => ({ ...prev, [questionId]: prior.answer }));
+      setHasUnsavedChanges(true);
+    }
+  }, [priorAnswers]);
 
   const handleSaveAnswer = async (questionId: string, value: string) => {
     if (!value.trim()) return;
@@ -185,16 +205,33 @@ function BulkAssessmentContent() {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      // Save all answers that have content
-      const savePromises = Object.entries(answers)
-        .filter(([, value]) => value.trim())
-        .map(([questionId, value]) =>
-          fetch(`/api/maturity/answers/${questionId}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ answer: value.trim() }),
-          })
-        );
+      // In update mode: save new answers, or use prior answers if empty
+      // In new mode: save all answers that have content
+      const savePromises: Promise<Response>[] = [];
+
+      Object.entries(answers).forEach(([questionId, value]) => {
+        const answerToSave = value.trim();
+
+        if (answerToSave) {
+          // Save the new answer
+          savePromises.push(
+            fetch(`/api/maturity/answers/${questionId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer: answerToSave }),
+            })
+          );
+        } else if (mode === "update" && priorAnswers[questionId]) {
+          // In update mode with empty new answer, keep the prior answer (re-save it)
+          savePromises.push(
+            fetch(`/api/maturity/answers/${questionId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ answer: priorAnswers[questionId]!.answer }),
+            })
+          );
+        }
+      });
 
       await Promise.all(savePromises);
       setHasUnsavedChanges(false);
@@ -229,9 +266,34 @@ function BulkAssessmentContent() {
   };
 
   // Calculate progress
-  const answeredCount = Object.values(answers).filter((a) => a.trim()).length;
+  // In update mode, count both new answers AND prior answers (that will be kept)
+  const getEffectiveAnswerCount = () => {
+    let count = 0;
+    questions.forEach((q) => {
+      const newAnswer = answers[q.id]?.trim();
+      const hasPrior = priorAnswers[q.id] !== null;
+
+      if (newAnswer) {
+        count++;
+      } else if (mode === "update" && hasPrior) {
+        // In update mode, prior answers count as answered (will be kept)
+        count++;
+      }
+    });
+    return count;
+  };
+
+  const answeredCount = mode === "update"
+    ? getEffectiveAnswerCount()
+    : Object.values(answers).filter((a) => a.trim()).length;
   const totalQuestions = questions.length;
   const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+  };
 
   if (loading) {
     return (
@@ -389,14 +451,20 @@ function BulkAssessmentContent() {
             {/* Questions */}
             <div className="space-y-6">
               {category.questions.map((question) => {
-                const hasAnswer = answers[question.id]?.trim();
-                const hadPreviousAnswer = question.latestAnswer !== null;
+                const newAnswer = answers[question.id]?.trim();
+                const priorAnswer = priorAnswers[question.id];
+                const hasPriorAnswer = priorAnswer !== null;
+
+                // Determine if effectively answered (for styling)
+                const isEffectivelyAnswered = mode === "update"
+                  ? (newAnswer || hasPriorAnswer)
+                  : newAnswer;
 
                 return (
                   <div
                     key={question.id}
                     className={`bg-white rounded-xl border-2 transition-colors ${
-                      hasAnswer ? "border-green-200" : "border-gray-200"
+                      isEffectivelyAnswered ? "border-green-200" : "border-gray-200"
                     }`}
                   >
                     <div className="flex flex-col md:flex-row">
@@ -404,7 +472,7 @@ function BulkAssessmentContent() {
                       <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200">
                         <div className="flex items-start gap-3">
                           <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                            hasAnswer ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
+                            isEffectivelyAnswered ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
                           }`}>
                             {question.globalOrder}
                           </span>
@@ -412,33 +480,82 @@ function BulkAssessmentContent() {
                             {question.question}
                           </p>
                         </div>
-                        {mode === "update" && hadPreviousAnswer && (
-                          <div className="mt-3 ml-10">
-                            <span className="text-xs text-purple-600 font-medium">
-                              Previously answered
-                            </span>
-                          </div>
-                        )}
                       </div>
 
                       {/* Answer Side */}
                       <div className="md:w-3/5 p-5">
-                        <textarea
-                          value={answers[question.id] || ""}
-                          onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                          placeholder={
-                            mode === "update" && hadPreviousAnswer
-                              ? "Update your answer or leave as is..."
-                              : "Enter your answer... (or type 'N/A' if not applicable)"
-                          }
-                          className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
-                        />
-                        {hasAnswer && (
-                          <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Answered
+                        {/* Show prior answer in update mode */}
+                        {mode === "update" && hasPriorAnswer && (
+                          <div className="mb-4">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Your Previous Answer</div>
+                            <div className="p-3 bg-gray-100 rounded-lg border border-gray-200 text-gray-700 text-sm whitespace-pre-wrap">
+                              {priorAnswer.answer}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              Answered {formatDate(priorAnswer.answeredAt)}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Updated Answer section for update mode */}
+                        {mode === "update" && hasPriorAnswer ? (
+                          <>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-700">
+                                Updated Answer <span className="font-normal text-gray-400">(leave empty to keep previous)</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDuplicatePriorAnswer(question.id)}
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Duplicate prior answer
+                              </button>
+                            </div>
+                            <textarea
+                              value={answers[question.id] || ""}
+                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                              placeholder="Enter your updated answer, or leave blank to keep the previous one..."
+                              className="w-full min-h-[100px] p-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y text-gray-800"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <textarea
+                              value={answers[question.id] || ""}
+                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                              placeholder="Enter your answer... (or type 'N/A' if not applicable)"
+                              className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                            />
+                            {newAnswer && (
+                              <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Answered
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Status indicator for update mode */}
+                        {mode === "update" && hasPriorAnswer && (
+                          <div className="mt-2 flex items-center gap-1 text-xs">
+                            {newAnswer ? (
+                              <span className="text-blue-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Will be updated
+                              </span>
+                            ) : (
+                              <span className="text-green-600 flex items-center gap-1">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Keeping previous answer
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
