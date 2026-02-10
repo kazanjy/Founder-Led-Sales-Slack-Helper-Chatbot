@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         assessmentId: null, // Not yet submitted
       },
-      orderBy: { answeredAt: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
     // Build response with in-progress status
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       result.push({
         id: "in-progress",
         title: "Assessment in Progress",
-        completedAt: inProgressAnswers[0].answeredAt, // Most recent answer time
+        completedAt: inProgressAnswers[0].createdAt, // Most recent answer time
         conversationId: null,
         answerCount: inProgressAnswers.length,
         status: "in_progress",
