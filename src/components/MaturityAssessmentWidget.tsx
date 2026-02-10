@@ -228,9 +228,9 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
   const getStatusText = () => {
     switch (progress.status) {
       case "in_progress":
-        return `${progress.progressPercent}% Complete`;
+        return `GTM Assessment: ${progress.progressPercent}% Complete`;
       case "update_in_progress":
-        return `Updating: ${progress.updateProgress?.progressPercent ?? 0}%`;
+        return `GTM Assessment: Updating ${progress.updateProgress?.progressPercent ?? 0}%`;
       case "completed":
         return "GTM Assessment";
     }
