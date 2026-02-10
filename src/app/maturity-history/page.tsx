@@ -164,6 +164,15 @@ export default function MaturityHistoryPage() {
             </Link>
             <h1 className="text-xl font-semibold text-gray-900">GTM Maturity Assessment History</h1>
           </div>
+          <Link
+            href="/assessment/bulk?mode=update"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium text-sm transition-all shadow-sm hover:shadow-md"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Update Assessment
+          </Link>
         </div>
       </header>
 
@@ -174,13 +183,24 @@ export default function MaturityHistoryPage() {
             <div className="text-center">
               <div className="text-gray-400 text-6xl mb-4">📊</div>
               <h2 className="text-xl font-medium text-gray-700 mb-2">No assessments yet</h2>
-              <p className="text-gray-500 mb-4">Complete your first GTM Maturity Assessment to see it here.</p>
-              <Link
-                href="/chat"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Go to Chat
-              </Link>
+              <p className="text-gray-500 mb-6">Complete your first GTM Maturity Assessment to see it here.</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                  href="/assessment/bulk"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium transition-all shadow-md hover:shadow-lg"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+                  </svg>
+                  Start Assessment
+                </Link>
+                <Link
+                  href="/chat"
+                  className="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Or go to Chat
+                </Link>
+              </div>
             </div>
           </div>
         ) : (

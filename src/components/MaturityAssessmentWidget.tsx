@@ -167,6 +167,13 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               >
                 Start Assessment
               </button>
+              <a
+                href="/assessment/bulk"
+                onClick={() => setIsExpanded(false)}
+                className="block text-center mt-2 text-xs text-purple-600 hover:text-purple-800 hover:underline"
+              >
+                Or answer all at once →
+              </a>
             </div>
           </div>
         )}
@@ -367,6 +374,14 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
             >
               Continue Assessment
             </button>
+
+            <a
+              href="/assessment/bulk"
+              onClick={() => setIsExpanded(false)}
+              className="block text-center mt-2 text-xs text-purple-600 hover:text-purple-800 hover:underline"
+            >
+              Continue in bulk edit mode
+            </a>
           </div>
         </div>
       )}
@@ -407,10 +422,18 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                 setIsExpanded(false);
                 onStartAssessment("update");
               }}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 font-medium text-sm transition-all mb-3"
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 font-medium text-sm transition-all mb-2"
             >
               Continue Updating
             </button>
+
+            <a
+              href="/assessment/bulk?mode=update"
+              onClick={() => setIsExpanded(false)}
+              className="block text-center mb-3 text-xs text-purple-600 hover:text-purple-800 hover:underline"
+            >
+              Continue in bulk edit mode
+            </a>
 
             <p className="text-xs text-gray-500 text-center mb-3">
               You can also submit what you have so far

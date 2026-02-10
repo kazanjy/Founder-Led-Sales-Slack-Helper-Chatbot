@@ -626,14 +626,23 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         {!showSubmitScreen && !loading && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
             <div className="flex items-center justify-between">
-              <button
-                onClick={handleSaveForLater}
-                disabled={saving || submitting}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
-                tabIndex={6}
-              >
-                Save for Later
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleSaveForLater}
+                  disabled={saving || submitting}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
+                  tabIndex={6}
+                >
+                  Save for Later
+                </button>
+                <a
+                  href={mode === "update" ? "/assessment/bulk?mode=update" : "/assessment/bulk"}
+                  className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
+                  onClick={onClose}
+                >
+                  Edit all at once →
+                </a>
+              </div>
 
               <button
                 onClick={handleSubmit}
