@@ -20,6 +20,13 @@ const SlackIcon = () => (
   </svg>
 );
 
+// Star Icon for Assessment
+const StarIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+  </svg>
+);
+
 // Last Used Badge
 const LastUsedBadge = () => (
   <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-blue-500 text-white text-[10px] font-medium rounded-full shadow-sm">
@@ -63,22 +70,37 @@ export default function StickyCtaBar() {
       }`}
     >
       <div className="max-w-4xl mx-auto flex flex-row gap-3 justify-center items-center">
+        {/* Primary CTA - Assessment */}
+        <a
+          href="/signin?next=/chat?startAssessment=true"
+          className="inline-flex items-center justify-center gap-2 text-white font-semibold py-2 px-5 rounded-lg transition-all shadow-md text-sm hover:scale-105"
+          style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          }}
+        >
+          <StarIcon />
+          Take Free Assessment
+        </a>
+
+        <span className="text-gray-300">|</span>
+
+        {/* Secondary CTAs - Sign up */}
         <a
           href="/api/auth/slack"
           onClick={handleSlackClick}
-          className="relative inline-flex items-center justify-center gap-2 bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-2 px-5 rounded-lg transition-colors shadow-md text-sm"
+          className="relative inline-flex items-center justify-center gap-2 bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
         >
           <SlackIcon />
-          Sign Up with Slack
+          Sign Up
           {lastUsed === "slack" && <LastUsedBadge />}
         </a>
         <a
           href="/api/auth/google"
           onClick={handleGoogleClick}
-          className="relative inline-flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-semibold py-2 px-5 rounded-lg transition-colors text-sm"
+          className="relative inline-flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
         >
           <GoogleIcon />
-          Sign Up with Google
+          Sign Up
           {lastUsed === "google" && <LastUsedBadge />}
         </a>
       </div>

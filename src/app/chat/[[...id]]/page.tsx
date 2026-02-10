@@ -957,6 +957,19 @@ export default function ChatPage() {
     loadData();
   }, [router]);
 
+  // Handle startAssessment query param (from homepage CTA)
+  useEffect(() => {
+    if (loading || !user) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("startAssessment") === "true") {
+      setShowMaturityModal(true);
+      // Remove the query param from URL without reload
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [loading, user]);
+
   // Load messages when conversation is selected
   useEffect(() => {
     async function loadMessages() {

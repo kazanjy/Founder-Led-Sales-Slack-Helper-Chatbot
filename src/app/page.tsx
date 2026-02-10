@@ -41,85 +41,256 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-12 pb-12 px-6">
+      {installed && (
+        <div className="max-w-md mx-auto mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-800">
+            Successfully installed to{" "}
+            <strong>{workspace || "your workspace"}</strong>! Check your Slack
+            for a welcome message from Mikey.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="max-w-md mx-auto mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800">
+            {error === "workspace_not_found"
+              ? "Your workspace hasn't installed Mikey yet. Please install first."
+              : error === "not_logged_in"
+              ? "Please sign in to continue."
+              : `Error: ${error}. Please try again.`}
+          </p>
+        </div>
+      )}
+
+      {/* Hero Section - Assessment Focused */}
+      <section className="pt-16 pb-12 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <img
-            src="/mikey-avatar.png"
-            alt="Mikey"
-            className="w-64 h-64 mx-auto mb-6 rounded-2xl shadow-lg"
-          />
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-6">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+            </svg>
+            Free GTM Assessment
+          </div>
+
           <h1 className="text-5xl font-bold mb-4 text-gray-900">
-            Meet Mikey
+            Discover Your GTM Blind Spots
           </h1>
-          <p className="text-xl text-gray-600 mb-2">
-            Your AI-powered Founder-Led Sales assistant
+          <p className="text-xl text-gray-600 mb-3">
+            Take the GTM Maturity Assessment and get personalized recommendations from Mikey
           </p>
           <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
-            Trained on Pete Kazanjy&apos;s <em>Founding Sales</em> methodology and years of B2B sales expertise.
-            Get instant guidance on everything from prospecting to closing deals &mdash; personalized to your business.
+            Answer questions about your go-to-market strategy. Get an AI-powered analysis
+            based on Pete Kazanjy&apos;s <em>Founding Sales</em> methodology and 15+ years of B2B sales expertise.
           </p>
 
-          {installed && (
-            <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-lg max-w-md mx-auto">
-              <p className="text-green-800">
-                Successfully installed to{" "}
-                <strong>{workspace || "your workspace"}</strong>! Check your Slack
-                for a welcome message from Mikey.
-              </p>
-            </div>
-          )}
+          {/* Primary CTA - Assessment */}
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <a
+              href="/signin?next=/chat?startAssessment=true"
+              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+                backgroundSize: "200% 200%",
+              }}
+            >
+              {/* Animated shimmer effect */}
+              <div
+                className="absolute inset-0 opacity-30"
+                style={{
+                  background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+                  animation: "shimmer 2s infinite",
+                }}
+              />
+              <svg className="w-6 h-6 relative z-10" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+              </svg>
+              <span className="relative z-10">Start My Free Assessment</span>
+              <svg className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </a>
+            <p className="text-sm text-gray-500">Takes about 10-15 minutes</p>
+          </div>
 
-          {error && (
-            <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
-              <p className="text-red-800">
-                {error === "workspace_not_found"
-                  ? "Your workspace hasn't installed Mikey yet. Please install first."
-                  : error === "not_logged_in"
-                  ? "Please sign in to continue."
-                  : `Error: ${error}. Please try again.`}
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col items-center gap-6 mb-4">
-            {/* Primary CTAs - Sign up buttons */}
+          {/* Secondary CTAs */}
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-gray-500">Or sign up to chat with Mikey directly:</p>
             <AuthButtons variant="signup" />
+          </div>
+        </div>
+      </section>
 
-            {/* Secondary CTA - Add to Slack Workspace */}
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-gray-500">Or add Mikey to your team&apos;s workspace:</p>
-              <a
-                href="/api/slack/oauth"
-                className="inline-flex items-center justify-center gap-2 bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-md"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+      {/* Assessment Value Props */}
+      <section className="py-16 px-6 bg-gradient-to-b from-purple-50 to-white">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
+            What You&apos;ll Get From Your Assessment
+          </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            Answer questions across key GTM areas and receive actionable insights tailored to your specific situation.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Card 1: Personalized Analysis */}
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-purple-100">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                Add to Slack Workspace
-              </a>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">GTM Maturity Score</h3>
+              <p className="text-gray-600">
+                Understand where you are across ICP definition, prospecting, sales process, pricing, and team building.
+              </p>
+            </div>
+
+            {/* Card 2: Priority Recommendations */}
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-purple-100">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Priority Actions</h3>
+              <p className="text-gray-600">
+                Get a prioritized list of what to focus on next based on your stage and biggest gaps.
+              </p>
+            </div>
+
+            {/* Card 3: Ongoing Guidance */}
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-purple-100">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Chat With Your Results</h3>
+              <p className="text-gray-600">
+                Ask follow-up questions about your assessment. Mikey remembers your context and gives relevant advice.
+              </p>
             </div>
           </div>
-          <p className="text-sm text-gray-500">
-            Already signed in?{" "}
-            <a href="/chat" className="text-blue-600 hover:underline">
-              Go to Chat
-            </a>
+        </div>
+      </section>
+
+      {/* Assessment Preview / Sample Questions */}
+      <section className="py-16 px-6 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
+            What We&apos;ll Ask You About
+          </h2>
+          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
+            The assessment covers the key areas of founder-led sales. No right or wrong answers &mdash; just be honest about where you are.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              { category: "ICP & Positioning", question: "How clearly have you defined your ideal customer profile?" },
+              { category: "Prospecting", question: "What channels are you using to generate leads?" },
+              { category: "Sales Process", question: "Do you have a documented sales process with defined stages?" },
+              { category: "Pricing", question: "How did you arrive at your current pricing?" },
+              { category: "Demos & Presentations", question: "What&apos;s your demo-to-close rate?" },
+              { category: "Team Building", question: "Are you ready to hire your first sales rep?" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-purple-600 font-semibold text-sm">{i + 1}</span>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-purple-600 mb-1">{item.category}</div>
+                  <p className="text-gray-700 text-sm">{item.question}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center text-gray-500 mt-6 text-sm">
+            ...and more across {6} categories of founder-led sales
           </p>
         </div>
       </section>
 
-      {/* Use Cases Section */}
+      {/* Sample Insight Preview */}
+      <section className="py-16 px-6 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
+            Sample Recommendation
+          </h2>
+          <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
+            Here&apos;s an example of the kind of personalized guidance you&apos;ll receive:
+          </p>
+
+          {/* Mock Recommendation Card */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <img src="/mikey-avatar.png" alt="Mikey" className="w-10 h-10 rounded-lg" />
+                <div>
+                  <h3 className="font-semibold text-white">Mikey&apos;s Analysis</h3>
+                  <p className="text-purple-100 text-sm">Based on your assessment</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="prose prose-gray max-w-none">
+                <p className="text-gray-700 mb-4">
+                  <strong className="text-purple-600">Your biggest opportunity:</strong> Based on your answers,
+                  you have strong product-market fit signals but your prospecting is reactive rather than proactive.
+                  Here&apos;s what I recommend...
+                </p>
+                <div className="bg-purple-50 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
+                    Build a 50-Account Target List
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    Start by identifying 50 companies that look like your best customers.
+                    Focus on the job title, company size, and industry that matches your wins...
+                  </p>
+                </div>
+                <p className="text-gray-500 text-sm italic">
+                  [Continues with 2-3 more specific, actionable recommendations based on your answers...]
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Secondary CTA - Assessment */}
+      <section className="py-16 px-6 bg-gradient-to-r from-purple-600 via-blue-600 to-purple-700">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Ready to find your GTM blind spots?
+          </h2>
+          <p className="text-purple-100 mb-8 text-lg">
+            Take the free assessment and get personalized recommendations in minutes.
+          </p>
+          <a
+            href="/signin?next=/chat?startAssessment=true"
+            className="inline-flex items-center justify-center gap-3 bg-white text-purple-700 font-semibold py-4 px-8 rounded-xl hover:bg-purple-50 transition-all shadow-lg hover:shadow-xl text-lg"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+            </svg>
+            Start My Free Assessment
+          </a>
+        </div>
+      </section>
+
+      {/* What Else Can Mikey Help With - Condensed */}
       <section className="py-16 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
-            What Can Mikey Help You With?
+            Beyond the Assessment: Chat with Mikey Anytime
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            From your first cold outreach to scaling your sales team, Mikey has guidance for every stage of your founder-led sales journey.
+            Get instant answers to your founder-led sales questions &mdash; on the web or in Slack.
           </p>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl border border-blue-100">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,12 +298,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold mb-2 text-gray-900">Prospecting & Outreach</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Ideal customer profile development</li>
-                <li>• Cold email and LinkedIn messaging</li>
-                <li>• Multi-channel outreach sequences</li>
-                <li>• Personalization strategies</li>
-              </ul>
+              <p className="text-sm text-gray-600">ICP development, cold emails, LinkedIn messaging, outreach sequences</p>
             </div>
 
             <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-xl border border-green-100">
@@ -142,224 +308,73 @@ export default async function Home({ searchParams }: HomeProps) {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold mb-2 text-gray-900">Sales Conversations</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Discovery call frameworks</li>
-                <li>• Demo best practices</li>
-                <li>• Objection handling</li>
-                <li>• Negotiation tactics</li>
-              </ul>
+              <p className="text-sm text-gray-600">Discovery calls, demos, objection handling, negotiation tactics</p>
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-xl border border-purple-100">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">GTM Strategy</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• ICP & positioning definition</li>
-                <li>• Value proposition crafting</li>
-                <li>• Sales process design</li>
-                <li>• GTM maturity assessment</li>
-              </ul>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-xl border border-orange-100">
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Pricing & Packaging</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Value-based pricing</li>
-                <li>• Packaging strategies</li>
-                <li>• Discount frameworks</li>
-                <li>• Enterprise pricing</li>
-              </ul>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-xl border border-pink-100">
-              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Closing & Deals</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Proposal best practices</li>
-                <li>• Contract negotiation</li>
-                <li>• Procurement navigation</li>
-                <li>• Deal acceleration</li>
-              </ul>
-            </div>
-
-            <div className="bg-gradient-to-br from-teal-50 to-white p-6 rounded-xl border border-teal-100">
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Team Building</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• First sales hire advice</li>
-                <li>• Interview questions</li>
-                <li>• Sales compensation plans</li>
-                <li>• Onboarding programs</li>
-              </ul>
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">Scaling Your Team</h3>
+              <p className="text-sm text-gray-600">First sales hire, interview questions, comp plans, onboarding</p>
+            </div>
+          </div>
+
+          {/* Slack + Web options */}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-500">Chat on the web:</p>
+              <AuthButtons variant="signup" />
+            </div>
+            <div className="hidden md:block w-px h-16 bg-gray-200"></div>
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-500">Or add to your team&apos;s Slack:</p>
+              <a
+                href="/api/slack/oauth"
+                className="inline-flex items-center justify-center gap-2 bg-[#4A154B] hover:bg-[#3a1139] text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+                </svg>
+                Add to Slack
+              </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Training Content Section */}
+      {/* Training Content Section - Condensed */}
       <section className="py-16 px-6 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
             Powered by Proven Methodology
           </h2>
-          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Mikey is trained on battle-tested founder-led sales frameworks and real-world B2B expertise.
+          <p className="text-center text-gray-600 mb-10 max-w-2xl mx-auto">
+            Mikey is trained on Pete Kazanjy&apos;s complete body of work and 15+ years of B2B sales expertise.
           </p>
 
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
             <div className="flex flex-col md:flex-row gap-8 items-center">
               <div className="flex-shrink-0">
-                <div className="w-32 h-40 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg shadow-md flex items-center justify-center">
+                <div className="w-28 h-36 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg shadow-md flex items-center justify-center">
                   <span className="text-white text-center font-bold px-3 text-sm">Founding Sales</span>
                 </div>
               </div>
               <div>
-                <h3 className="text-xl font-semibold mb-2 text-gray-900">
-                  Trained on Pete Kazanjy&apos;s Complete Body of Work
+                <h3 className="text-xl font-semibold mb-3 text-gray-900">
+                  The Founding Sales Methodology, Available 24/7
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Mikey is trained on <em>Founding Sales</em>, all of Pete&apos;s essays, his complete class curriculum,
-                  plus hundreds of pages of templates, real-world sales assets, interviews, and more.
-                  It&apos;s like having Pete&apos;s entire founder-led sales brain at your fingertips.
+                  <em>Founding Sales</em>, Pete&apos;s essays, class curriculum, templates, real-world sales assets,
+                  and interviews &mdash; all distilled into an AI coach that gives you personalized guidance.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Founding Sales Book</span>
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Essays & Articles</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Class Content</span>
                   <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Templates</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Sales Assets</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Interviews</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid md:grid-cols-3 gap-4">
-            <div className="text-center p-4">
-              <div className="text-3xl font-bold text-blue-600 mb-1">1000s</div>
-              <div className="text-sm text-gray-600">Pages of sales methodology</div>
-            </div>
-            <div className="text-center p-4">
-              <div className="text-3xl font-bold text-blue-600 mb-1">15+</div>
-              <div className="text-sm text-gray-600">Years of B2B expertise</div>
-            </div>
-            <div className="text-center p-4">
-              <div className="text-3xl font-bold text-blue-600 mb-1">1000s</div>
-              <div className="text-sm text-gray-600">Of startups influenced</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Features Section */}
-      <section className="py-16 px-6 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4 text-gray-900">
-            Your Way, Your Workflow
-          </h2>
-          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Quick answers, deep learning, or customized workflows &mdash; Mikey adapts to how you work and sell.
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Quick Q&A</h3>
-                  <p className="text-sm text-gray-600">Get instant answers to specific sales questions. &ldquo;How do I handle the &apos;we need to think about it&apos; objection?&rdquo;</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Tutoring Sessions</h3>
-                  <p className="text-sm text-gray-600">Deep-dive into topics with guided learning sessions on prospecting, demos, closing, and more.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Knowledge Quizzes</h3>
-                  <p className="text-sm text-gray-600">Test your founder-led sales knowledge with interactive quizzes and get personalized feedback.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Shareable Insights</h3>
-                  <p className="text-sm text-gray-600">Share valuable conversations with your team. Great advice shouldn&apos;t stay siloed.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Custom Prompt Library</h3>
-                  <p className="text-sm text-gray-600">Build your own library of saved prompts. Edit, clone, and organize workflows that match how you sell.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Personalized Context</h3>
-                  <p className="text-sm text-gray-600">Configure your ICP, value prop, and sales motion. Mikey tailors advice to your specific go-to-market.</p>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full">Real Sales Assets</span>
                 </div>
               </div>
             </div>
@@ -367,32 +382,29 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-blue-700">
+      {/* Final CTA */}
+      <section className="py-20 px-6 bg-gradient-to-r from-purple-600 to-blue-600">
         <div className="max-w-3xl mx-auto text-center">
+          <img
+            src="/mikey-avatar.png"
+            alt="Mikey"
+            className="w-24 h-24 mx-auto mb-6 rounded-2xl shadow-lg border-4 border-white/20"
+          />
           <h2 className="text-3xl font-bold text-white mb-4">
-            Ready to level up your sales game?
+            Get Your Personalized GTM Roadmap
           </h2>
-          <p className="text-blue-100 mb-8 text-lg">
-            Start chatting with Mikey now - in Slack or on the web.
+          <p className="text-purple-100 mb-8 text-lg">
+            Take the free assessment. Get actionable recommendations. Level up your founder-led sales.
           </p>
-          <div className="flex flex-col items-center gap-6">
-            {/* Primary CTAs - Sign up buttons */}
-            <AuthButtonsCTA variant="signup" />
-            {/* Secondary CTA - Add to Slack Workspace */}
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-blue-100 text-sm">Or add Mikey to your team&apos;s workspace:</p>
-              <a
-                href="/api/slack/oauth"
-                className="inline-flex items-center justify-center gap-2 bg-white text-[#4A154B] font-semibold py-2 px-6 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
-                </svg>
-                Add to Slack Workspace
-              </a>
-            </div>
-          </div>
+          <a
+            href="/signin?next=/chat?startAssessment=true"
+            className="inline-flex items-center justify-center gap-3 bg-white text-purple-700 font-semibold py-4 px-8 rounded-xl hover:bg-purple-50 transition-all shadow-lg hover:shadow-xl text-lg"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" />
+            </svg>
+            Start My Free Assessment
+          </a>
         </div>
       </section>
 
@@ -410,6 +422,14 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {/* Sticky CTA Bar - appears at top when scrolling past hero */}
       <StickyCtaBar />
+
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </main>
   );
 }
