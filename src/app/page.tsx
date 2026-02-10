@@ -422,14 +422,6 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {/* Sticky CTA Bar - appears at top when scrolling past hero */}
       <StickyCtaBar />
-
-      {/* CSS for animations */}
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </main>
   );
 }
