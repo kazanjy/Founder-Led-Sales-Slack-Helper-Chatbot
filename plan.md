@@ -118,14 +118,15 @@ https://mikeybot.io/api/stripe/webhook
 
 ## Future Work
 
-### 1. Home Page Refactor - Maturity Assessment Focus
+### 1. Home Page Refactor - Maturity Assessment Focus ✅
 
-Refactor the home page to heavily merchandise the GTM Maturity Assessment capabilities:
+Refactored the home page to heavily merchandise the GTM Maturity Assessment capabilities:
 
-- [ ] Hero section highlighting the assessment as primary CTA
-- [ ] Showcase sample assessment results/insights
+- [x] Hero section: "Discover Your GTM Blind Spots" with primary assessment CTA
+- [x] Showcase sample assessment results/insights (mock recommendation card)
 - [ ] Add testimonials or case studies around assessment value
-- [ ] Visual preview of the assessment experience
-- [ ] Clear explanation of what users get from the assessment
-- [ ] Secondary CTAs for Slack integration and chat features
-- [ ] Consider assessment as the primary onboarding funnel
+- [x] Visual preview of the assessment experience (sample questions section)
+- [x] Clear explanation of what users get (GTM Score, Priority Actions, Chat with Results)
+- [x] Secondary CTAs for Slack integration and chat features
+- [x] Assessment as primary onboarding funnel (startAssessment query param handling)
+- [x] Updated StickyCtaBar to lead with "Take Free Assessment"
