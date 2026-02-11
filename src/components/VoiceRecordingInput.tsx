@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 
-type RecordingState = "idle" | "recording" | "processing";
+type RecordingState = "idle" | "recording" | "committing" | "processing" | "sent";
 
 interface VoiceRecordingInputProps {
   isActive: boolean;
@@ -11,6 +11,8 @@ interface VoiceRecordingInputProps {
   onTranscriptionComplete: (text: string) => void;
   onStopSpeaking?: () => void; // Stop TTS playback
 }
+
+const SILENCE_COMMIT_DELAY = 500; // ms of silence before committing
 
 export function VoiceRecordingInput({
   isActive,
@@ -22,6 +24,7 @@ export function VoiceRecordingInput({
   const [state, setState] = useState<RecordingState>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [speakingPulse, setSpeakingPulse] = useState(0.5);
+  const [commitProgress, setCommitProgress] = useState(0); // 0-100 progress to commit
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -31,6 +34,8 @@ export function VoiceRecordingInput({
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const speakingAnimationRef = useRef<number | null>(null);
+  const silenceStartRef = useRef<number | null>(null);
+  const commitAnimationRef = useRef<number | null>(null);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -52,18 +57,11 @@ export function VoiceRecordingInput({
       clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = null;
     }
+    if (commitAnimationRef.current) {
+      cancelAnimationFrame(commitAnimationRef.current);
+      commitAnimationRef.current = null;
+    }
   }, []);
-
-  const updateAudioLevel = useCallback(() => {
-    if (!analyserRef.current || state !== "recording") return;
-
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(dataArray);
-    const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
-    setAudioLevel(avg);
-
-    animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
-  }, [state]);
 
   // Animate speaking pulse
   useEffect(() => {
@@ -118,12 +116,67 @@ export function VoiceRecordingInput({
         finalText = prettified;
       }
 
+      setState("sent");
       onTranscriptionComplete(finalText);
     } catch (err) {
       console.error("Error processing recording:", err);
       onCancel();
     }
   };
+
+  const stopAndProcess = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      setState("processing");
+      setCommitProgress(0);
+      silenceStartRef.current = null;
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const updateAudioLevelAndCheckSilence = useCallback(() => {
+    if (!analyserRef.current || (state !== "recording" && state !== "committing")) {
+      return;
+    }
+
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+    const normalizedLevel = avg / 255;
+    setAudioLevel(normalizedLevel);
+
+    const now = Date.now();
+    const SILENCE_THRESHOLD = 15; // Audio level below this is considered silence
+
+    if (avg < SILENCE_THRESHOLD) {
+      // Silence detected
+      if (!silenceStartRef.current) {
+        silenceStartRef.current = now;
+        setState("committing");
+      }
+
+      const silenceDuration = now - silenceStartRef.current;
+      const progress = Math.min(100, (silenceDuration / SILENCE_COMMIT_DELAY) * 100);
+      setCommitProgress(progress);
+
+      if (silenceDuration >= SILENCE_COMMIT_DELAY) {
+        // Commit!
+        stopAndProcess();
+        return;
+      }
+    } else {
+      // Sound detected - reset silence tracking
+      if (silenceStartRef.current) {
+        silenceStartRef.current = null;
+        setCommitProgress(0);
+        setState("recording");
+      }
+    }
+
+    animationFrameRef.current = requestAnimationFrame(updateAudioLevelAndCheckSilence);
+  }, [state, stopAndProcess]);
 
   const startRecording = async () => {
     try {
@@ -161,53 +214,25 @@ export function VoiceRecordingInput({
 
       mediaRecorder.start(100);
       setState("recording");
+      silenceStartRef.current = null;
+      setCommitProgress(0);
 
-      // Start visualization
-      updateAudioLevel();
-
-      // Set up silence detection (stop after 2 seconds of low audio)
-      let silenceStart: number | null = null;
-      const checkSilence = () => {
-        if (state !== "recording" || !analyserRef.current) return;
-
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-
-        if (avg < 10) {
-          if (!silenceStart) {
-            silenceStart = Date.now();
-          } else if (Date.now() - silenceStart > 2000) {
-            stopAndProcess();
-            return;
-          }
-        } else {
-          silenceStart = null;
-        }
-
-        silenceTimeoutRef.current = setTimeout(checkSilence, 100);
-      };
-
-      silenceTimeoutRef.current = setTimeout(checkSilence, 1000);
+      // Start audio level monitoring with silence detection
+      // Small delay to let user start speaking
+      setTimeout(() => {
+        updateAudioLevelAndCheckSilence();
+      }, 300);
     } catch (err) {
       console.error("Error starting recording:", err);
       onCancel();
     }
   };
 
-  const stopAndProcess = useCallback(() => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
-    ) {
-      setState("processing");
-      mediaRecorderRef.current.stop();
-    }
-  }, []);
-
   const handleCancel = () => {
     stopRecording();
     setState("idle");
+    setCommitProgress(0);
+    silenceStartRef.current = null;
     if (onStopSpeaking) onStopSpeaking();
     onCancel();
   };
@@ -219,6 +244,7 @@ export function VoiceRecordingInput({
     } else if (!isActive && !isSpeaking) {
       stopRecording();
       setState("idle");
+      setCommitProgress(0);
     }
   }, [isActive, isSpeaking]);
 
@@ -235,42 +261,77 @@ export function VoiceRecordingInput({
   if (!isActive && !isSpeaking) return null;
 
   const pulseScale = isSpeaking ? 1 + speakingPulse * 0.3 : 1 + audioLevel * 0.5;
-  const isRecordingActive = state === "recording" && !isSpeaking;
+  const isRecordingActive = (state === "recording" || state === "committing") && !isSpeaking;
+  const isCommitting = state === "committing" && !isSpeaking;
   const isProcessingActive = state === "processing" && !isSpeaking;
+  const isSentActive = state === "sent" && !isSpeaking;
 
   // Determine colors based on state
-  const bgColor = isSpeaking
-    ? "bg-green-50 border-green-200"
-    : "bg-purple-50 border-purple-200";
+  const getBgColor = () => {
+    if (isSpeaking) return "bg-green-50 border-green-200";
+    if (isCommitting) return "bg-orange-50 border-orange-200";
+    if (isSentActive) return "bg-blue-50 border-blue-200";
+    return "bg-purple-50 border-purple-200";
+  };
 
-  const iconBgColor = isSpeaking
-    ? "bg-green-600 text-white"
-    : isRecordingActive
-    ? "bg-purple-600 text-white"
-    : "bg-purple-100 text-purple-600";
+  const getIconBgColor = () => {
+    if (isSpeaking) return "bg-green-600 text-white";
+    if (isCommitting) return "bg-orange-500 text-white";
+    if (isSentActive) return "bg-blue-600 text-white";
+    if (state === "recording") return "bg-purple-600 text-white";
+    return "bg-purple-100 text-purple-600";
+  };
 
-  const pulseColor = isSpeaking ? "bg-green-400" : "bg-purple-400";
-  const pulseColorInner = isSpeaking ? "bg-green-500" : "bg-purple-500";
+  const getPulseColor = () => {
+    if (isSpeaking) return "bg-green-400";
+    if (isCommitting) return "bg-orange-400";
+    return "bg-purple-400";
+  };
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 border rounded-lg ${bgColor}`}>
-      {/* Pulsing icon */}
+    <div className={`flex items-center gap-3 px-4 py-3 border rounded-lg transition-colors duration-150 ${getBgColor()}`}>
+      {/* Pulsing icon with commit progress ring */}
       <div className="relative flex items-center justify-center">
-        {/* Pulse rings - show for recording OR speaking */}
-        {(isRecordingActive || isSpeaking) && (
+        {/* Commit progress ring */}
+        {isCommitting && (
+          <svg className="absolute w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+            <circle
+              cx="24"
+              cy="24"
+              r="20"
+              fill="none"
+              stroke="#fdba74"
+              strokeWidth="3"
+            />
+            <circle
+              cx="24"
+              cy="24"
+              r="20"
+              fill="none"
+              stroke="#f97316"
+              strokeWidth="3"
+              strokeDasharray={`${(commitProgress / 100) * 125.6} 125.6`}
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+
+        {/* Pulse rings - show for recording OR speaking (not committing) */}
+        {((state === "recording" && !isCommitting) || isSpeaking) && (
           <>
             <div
-              className={`absolute w-10 h-10 rounded-full ${pulseColor} opacity-20 animate-ping`}
+              className={`absolute w-10 h-10 rounded-full ${getPulseColor()} opacity-20 animate-ping`}
               style={{ animationDuration: isSpeaking ? "1s" : "1.5s" }}
             />
             <div
-              className={`absolute w-8 h-8 rounded-full ${pulseColorInner} opacity-30 transition-transform duration-75`}
+              className={`absolute w-8 h-8 rounded-full ${getPulseColor()} opacity-30 transition-transform duration-75`}
               style={{ transform: `scale(${pulseScale})` }}
             />
           </>
         )}
+
         <div
-          className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${iconBgColor}`}
+          className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-150 ${getIconBgColor()}`}
         >
           {isProcessingActive ? (
             <svg
@@ -292,13 +353,14 @@ export function VoiceRecordingInput({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
+          ) : isSentActive ? (
+            // Checkmark for sent
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           ) : isSpeaking ? (
             // Speaker icon for TTS playback
-            <svg
-              className="w-5 h-5"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
             </svg>
           ) : (
@@ -327,13 +389,21 @@ export function VoiceRecordingInput({
             Mikey is speaking...
           </p>
         )}
-        {isRecordingActive && (
+        {state === "recording" && !isCommitting && !isSpeaking && (
           <p className="text-purple-700 font-medium">
-            Listening... <span className="text-purple-500 text-sm">(tap to send, or pause speaking)</span>
+            Listening...
+          </p>
+        )}
+        {isCommitting && (
+          <p className="text-orange-600 font-medium">
+            Sending...
           </p>
         )}
         {isProcessingActive && (
-          <p className="text-purple-600">Processing...</p>
+          <p className="text-purple-600 font-medium">Processing...</p>
+        )}
+        {isSentActive && (
+          <p className="text-blue-600 font-medium">Sent! Waiting for response...</p>
         )}
       </div>
 
@@ -343,7 +413,11 @@ export function VoiceRecordingInput({
           <button
             type="button"
             onClick={stopAndProcess}
-            className="px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+            className={`px-3 py-1.5 text-white text-sm font-medium rounded-lg transition-colors ${
+              isCommitting
+                ? "bg-orange-500 hover:bg-orange-600"
+                : "bg-purple-600 hover:bg-purple-700"
+            }`}
           >
             Send
           </button>
