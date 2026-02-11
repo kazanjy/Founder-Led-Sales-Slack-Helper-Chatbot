@@ -40,16 +40,18 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
     };
   }, []);
 
-  // Reset state when overlay opens
+  // Reset state and start recording when overlay opens
   useEffect(() => {
     if (isOpen) {
-      setState("idle");
       setRawTranscript("");
       setPrettifiedTranscript("");
       setResponse("");
       setError(null);
+      // Automatically start listening when modal opens
+      startRecording();
     } else {
       stopRecording();
+      setState("idle");
     }
   }, [isOpen]);
 
