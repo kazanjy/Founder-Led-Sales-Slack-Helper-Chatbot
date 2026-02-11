@@ -114,12 +114,24 @@ export async function GET(request: NextRequest) {
 
     // Also check for in-progress assessment (answers without a completed assessment)
     const totalQuestions = await prisma.maturityQuestion.count();
-    const inProgressAnswers = await prisma.maturityAnswer.findMany({
+
+    // Count unique questions answered (not total answer rows, which can have duplicates)
+    const inProgressQuestions = await prisma.maturityAnswer.groupBy({
+      by: ["questionId"],
       where: {
         userId: user.id,
         assessmentId: null, // Not yet submitted
       },
+    });
+
+    // Get the most recent answer time for display
+    const mostRecentAnswer = await prisma.maturityAnswer.findFirst({
+      where: {
+        userId: user.id,
+        assessmentId: null,
+      },
       orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     });
 
     // Build response with in-progress status
@@ -133,13 +145,13 @@ export async function GET(request: NextRequest) {
     }[] = [];
 
     // Add in-progress if there are unsaved answers
-    if (inProgressAnswers.length > 0) {
+    if (inProgressQuestions.length > 0) {
       result.push({
         id: "in-progress",
         title: "Assessment in Progress",
-        completedAt: inProgressAnswers[0].createdAt, // Most recent answer time
+        completedAt: mostRecentAnswer?.createdAt || null,
         conversationId: null,
-        answerCount: inProgressAnswers.length,
+        answerCount: inProgressQuestions.length, // Count unique questions, not total answer rows
         status: "in_progress",
       });
     }
