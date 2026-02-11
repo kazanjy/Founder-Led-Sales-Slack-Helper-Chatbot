@@ -6,17 +6,22 @@ type RecordingState = "idle" | "recording" | "processing";
 
 interface VoiceRecordingInputProps {
   isActive: boolean;
+  isSpeaking?: boolean; // TTS is playing Mikey's response
   onCancel: () => void;
   onTranscriptionComplete: (text: string) => void;
+  onStopSpeaking?: () => void; // Stop TTS playback
 }
 
 export function VoiceRecordingInput({
   isActive,
+  isSpeaking = false,
   onCancel,
   onTranscriptionComplete,
+  onStopSpeaking,
 }: VoiceRecordingInputProps) {
   const [state, setState] = useState<RecordingState>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
+  const [speakingPulse, setSpeakingPulse] = useState(0.5);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -25,6 +30,7 @@ export function VoiceRecordingInput({
   const animationFrameRef = useRef<number | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const speakingAnimationRef = useRef<number | null>(null);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -58,6 +64,22 @@ export function VoiceRecordingInput({
 
     animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
   }, [state]);
+
+  // Animate speaking pulse
+  useEffect(() => {
+    if (isSpeaking) {
+      const animate = () => {
+        setSpeakingPulse(0.4 + Math.random() * 0.4);
+        speakingAnimationRef.current = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => {
+        if (speakingAnimationRef.current) {
+          cancelAnimationFrame(speakingAnimationRef.current);
+        }
+      };
+    }
+  }, [isSpeaking]);
 
   const processRecording = async (audioBlob: Blob) => {
     try {
@@ -186,55 +208,71 @@ export function VoiceRecordingInput({
   const handleCancel = () => {
     stopRecording();
     setState("idle");
+    if (onStopSpeaking) onStopSpeaking();
     onCancel();
   };
 
-  // Start recording when component becomes active
+  // Start recording when component becomes active (and not speaking)
   useEffect(() => {
-    if (isActive && state === "idle") {
+    if (isActive && state === "idle" && !isSpeaking) {
       startRecording();
-    } else if (!isActive) {
+    } else if (!isActive && !isSpeaking) {
       stopRecording();
       setState("idle");
     }
-  }, [isActive]);
+  }, [isActive, isSpeaking]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopRecording();
+      if (speakingAnimationRef.current) {
+        cancelAnimationFrame(speakingAnimationRef.current);
+      }
     };
   }, [stopRecording]);
 
-  if (!isActive) return null;
+  if (!isActive && !isSpeaking) return null;
 
-  const pulseScale = 1 + audioLevel * 0.5;
+  const pulseScale = isSpeaking ? 1 + speakingPulse * 0.3 : 1 + audioLevel * 0.5;
+  const isRecordingActive = state === "recording" && !isSpeaking;
+  const isProcessingActive = state === "processing" && !isSpeaking;
+
+  // Determine colors based on state
+  const bgColor = isSpeaking
+    ? "bg-green-50 border-green-200"
+    : "bg-purple-50 border-purple-200";
+
+  const iconBgColor = isSpeaking
+    ? "bg-green-600 text-white"
+    : isRecordingActive
+    ? "bg-purple-600 text-white"
+    : "bg-purple-100 text-purple-600";
+
+  const pulseColor = isSpeaking ? "bg-green-400" : "bg-purple-400";
+  const pulseColorInner = isSpeaking ? "bg-green-500" : "bg-purple-500";
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-lg">
-      {/* Pulsing microphone icon */}
+    <div className={`flex items-center gap-3 px-4 py-3 border rounded-lg ${bgColor}`}>
+      {/* Pulsing icon */}
       <div className="relative flex items-center justify-center">
-        {/* Pulse rings */}
-        {state === "recording" && (
+        {/* Pulse rings - show for recording OR speaking */}
+        {(isRecordingActive || isSpeaking) && (
           <>
             <div
-              className="absolute w-10 h-10 rounded-full bg-purple-400 opacity-20 animate-ping"
-              style={{ animationDuration: "1.5s" }}
+              className={`absolute w-10 h-10 rounded-full ${pulseColor} opacity-20 animate-ping`}
+              style={{ animationDuration: isSpeaking ? "1s" : "1.5s" }}
             />
             <div
-              className="absolute w-8 h-8 rounded-full bg-purple-500 opacity-30 transition-transform duration-75"
+              className={`absolute w-8 h-8 rounded-full ${pulseColorInner} opacity-30 transition-transform duration-75`}
               style={{ transform: `scale(${pulseScale})` }}
             />
           </>
         )}
         <div
-          className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${
-            state === "recording"
-              ? "bg-purple-600 text-white"
-              : "bg-purple-100 text-purple-600"
-          }`}
+          className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${iconBgColor}`}
         >
-          {state === "processing" ? (
+          {isProcessingActive ? (
             <svg
               className="w-5 h-5 animate-spin"
               fill="none"
@@ -254,7 +292,17 @@ export function VoiceRecordingInput({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
+          ) : isSpeaking ? (
+            // Speaker icon for TTS playback
+            <svg
+              className="w-5 h-5"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
           ) : (
+            // Microphone icon for recording
             <svg
               className="w-5 h-5"
               fill="none"
@@ -274,19 +322,24 @@ export function VoiceRecordingInput({
 
       {/* Status text */}
       <div className="flex-1">
-        {state === "recording" && (
+        {isSpeaking && (
+          <p className="text-green-700 font-medium">
+            Mikey is speaking...
+          </p>
+        )}
+        {isRecordingActive && (
           <p className="text-purple-700 font-medium">
             Listening... <span className="text-purple-500 text-sm">(tap to send, or pause speaking)</span>
           </p>
         )}
-        {state === "processing" && (
+        {isProcessingActive && (
           <p className="text-purple-600">Processing...</p>
         )}
       </div>
 
       {/* Action buttons */}
       <div className="flex items-center gap-2">
-        {state === "recording" && (
+        {isRecordingActive && (
           <button
             type="button"
             onClick={stopAndProcess}
@@ -295,11 +348,20 @@ export function VoiceRecordingInput({
             Send
           </button>
         )}
+        {isSpeaking && onStopSpeaking && (
+          <button
+            type="button"
+            onClick={onStopSpeaking}
+            className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Stop
+          </button>
+        )}
         <button
           type="button"
           onClick={handleCancel}
           className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          title="Cancel"
+          title="Close"
         >
           <svg
             className="w-5 h-5"

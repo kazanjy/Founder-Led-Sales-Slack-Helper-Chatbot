@@ -1259,6 +1259,15 @@ export default function ChatPage() {
     }
   };
 
+  // Stop TTS playback
+  const stopTTS = () => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    setIsTTSPlaying(false);
+  };
+
   // Voice message - sends message, streams response, then plays TTS
   const sendVoiceMessageWithTTS = async (messageText: string): Promise<void> => {
     if (!messageText.trim() || !user?.canChat) return;
@@ -1874,14 +1883,18 @@ export default function ChatPage() {
                         )}
                       </div>
                     )}
-                    {isVoiceRecording ? (
+                    {(isVoiceRecording || isTTSPlaying) ? (
                       <VoiceRecordingInput
                         isActive={isVoiceRecording}
-                        onCancel={() => setIsVoiceRecording(false)}
-                        onTranscriptionComplete={(text) => {
+                        isSpeaking={isTTSPlaying}
+                        onCancel={() => {
                           setIsVoiceRecording(false);
+                          stopTTS();
+                        }}
+                        onTranscriptionComplete={(text) => {
                           sendVoiceMessageWithTTS(text);
                         }}
+                        onStopSpeaking={stopTTS}
                       />
                     ) : (
                       <div className="flex gap-2 items-end relative">
@@ -2203,14 +2216,18 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              {isVoiceRecording ? (
+              {(isVoiceRecording || isTTSPlaying) ? (
                 <VoiceRecordingInput
                   isActive={isVoiceRecording}
-                  onCancel={() => setIsVoiceRecording(false)}
-                  onTranscriptionComplete={(text) => {
+                  isSpeaking={isTTSPlaying}
+                  onCancel={() => {
                     setIsVoiceRecording(false);
+                    stopTTS();
+                  }}
+                  onTranscriptionComplete={(text) => {
                     sendVoiceMessageWithTTS(text);
                   }}
+                  onStopSpeaking={stopTTS}
                 />
               ) : (
                 <div className="flex gap-2 items-stretch relative flex-1 min-h-0 w-full">
