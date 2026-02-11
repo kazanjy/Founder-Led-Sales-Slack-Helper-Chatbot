@@ -1,30 +1,9 @@
 import { NextRequest } from "next/server";
 import { getCurrentUser, canUserChat } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { streamFromChatbase } from "@/lib/chatbase/client";
 import { expandMergeFields, findMergeFields } from "@/lib/default-gtm-variables";
 import { generateChatTitle } from "@/lib/openai";
-
-// Helper to simulate streaming by splitting response into word chunks
-function* chunkResponse(text: string): Generator<string> {
-  // Split by words but keep punctuation attached
-  const words = text.split(/(\s+)/);
-  let buffer = "";
-
-  for (const word of words) {
-    buffer += word;
-    // Send every 2-4 words for natural streaming feel
-    if (buffer.split(/\s+/).filter(w => w.length > 0).length >= 3 || buffer.includes("\n\n")) {
-      yield buffer;
-      buffer = "";
-    }
-  }
-
-  // Send any remaining content
-  if (buffer) {
-    yield buffer;
-  }
-}
 
 /**
  * POST /api/conversations/[id]/messages/stream - Send a message and stream the response
@@ -188,23 +167,32 @@ export async function POST(
           );
         }
 
-        // Get response from Chatbase (non-streaming)
-        const chatbaseResult = await sendToChatbase(
+        // Stream from Chatbase
+        const chatbaseStream = streamFromChatbase(
           expandedMessage,
           conversation.chatbaseConversationId || undefined,
           chatbaseHistory
         );
 
-        const fullResponse = chatbaseResult.response;
-        const chatbaseConvId = chatbaseResult.conversationId;
+        let fullResponse = "";
+        let chatbaseConvId: string | undefined;
 
-        // Simulate streaming by sending chunks with small delays
-        for (const chunk of chunkResponse(fullResponse)) {
+        // Iterate through the async generator
+        while (true) {
+          const result = await chatbaseStream.next();
+          if (result.done) {
+            // Generator finished, get the return value
+            if (result.value && typeof result.value === "object") {
+              chatbaseConvId = result.value.conversationId;
+            }
+            break;
+          }
+          // result.value is a text chunk
+          const chunk = result.value;
+          fullResponse += chunk;
           controller.enqueue(
             encoder.encode(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`)
           );
-          // Small delay to simulate streaming (10-30ms per chunk)
-          await new Promise(resolve => setTimeout(resolve, 15));
         }
 
         // Update conversation with Chatbase ID if we got one
