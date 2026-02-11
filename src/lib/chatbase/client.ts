@@ -79,3 +79,94 @@ export async function sendToChatbase(
     conversationId: (data.conversationId as string) || conversationId,
   };
 }
+
+/**
+ * Send a message to Chatbase and stream the response
+ * Returns an async generator that yields text chunks
+ */
+export async function* streamFromChatbase(
+  message: string,
+  conversationId?: string,
+  history?: ChatbaseMessage[]
+): AsyncGenerator<string, { fullResponse: string; conversationId?: string }, unknown> {
+  // Truncate any history messages that exceed the limit
+  const safeHistory = (history || []).map((msg) => ({
+    role: msg.role,
+    content: truncateMessage(msg.content),
+  }));
+
+  // Truncate current message if needed
+  const safeMessage = truncateMessage(message);
+
+  const response = await fetch("https://www.chatbase.co/api/v1/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${CHATBASE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      chatbotId: CHATBASE_CHATBOT_ID,
+      messages: [
+        ...safeHistory,
+        { role: "user", content: safeMessage },
+      ],
+      conversationId: conversationId || undefined,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Chatbase streaming API error:", response.status, errorText);
+    throw new Error(`Chatbase API error: ${response.status} - ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error("No response body for streaming");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullResponse = "";
+  let returnedConversationId: string | undefined = conversationId;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+
+      // Chatbase SSE format: data: {"text": "chunk"} or similar
+      // Parse SSE events
+      const lines = chunk.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              fullResponse += parsed.text;
+              yield parsed.text;
+            }
+            if (parsed.conversationId) {
+              returnedConversationId = parsed.conversationId;
+            }
+          } catch {
+            // If not valid JSON, treat as raw text
+            if (data.trim()) {
+              fullResponse += data;
+              yield data;
+            }
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { fullResponse, conversationId: returnedConversationId };
+}

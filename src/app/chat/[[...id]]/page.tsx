@@ -128,6 +128,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState("");
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [toast, setToast] = useState<{ message: string; position: "left" | "right" | "bottom" } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -1100,23 +1101,80 @@ export default function ChatPage() {
     }
 
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+      // Use streaming endpoint
+      const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage }),
       });
 
-      const data = await res.json();
-
-      if (data.error) {
-        alert(data.error);
-        // Remove optimistic message on error
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to send message");
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
         return;
       }
 
-      // Add assistant response
-      setMessages((prev) => [...prev, data.message]);
+      // Process the SSE stream
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+      let messageId = "";
+      let createdAt = "";
+
+      setStreamingMessage(""); // Reset streaming message
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            // Track event type for next data line
+            continue;
+          }
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.text) {
+                // Text chunk from streaming
+                fullResponse += parsed.text;
+                setStreamingMessage(fullResponse);
+              } else if (parsed.messageId) {
+                // Done event with message metadata
+                messageId = parsed.messageId;
+                createdAt = parsed.createdAt;
+              } else if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+            } catch {
+              // Non-JSON data, ignore
+            }
+          }
+        }
+      }
+
+      // Clear streaming message and add the complete message
+      setStreamingMessage("");
+
+      if (fullResponse) {
+        const assistantMessage: Message = {
+          id: messageId || `msg-${Date.now()}`,
+          role: "ASSISTANT",
+          content: fullResponse,
+          createdAt: createdAt || new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
 
       // Update conversation in list and move to top (most recent)
       setConversations((prev) => {
@@ -1138,6 +1196,7 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+      setStreamingMessage("");
     } finally {
       setSending(false);
       isSendingRef.current = false;
@@ -1149,8 +1208,11 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
-  // Voice mode message sending - returns the assistant response
-  const sendVoiceMessage = async (messageText: string): Promise<string> => {
+  // Voice mode message sending with streaming support - calls onChunk with text as it arrives
+  const sendVoiceMessage = async (
+    messageText: string,
+    onChunk?: (chunk: string, fullText: string) => void
+  ): Promise<string> => {
     if (!messageText.trim() || !user?.canChat) return "";
 
     // If no conversation selected, create one first
@@ -1184,21 +1246,73 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+      // Use streaming endpoint for voice messages too
+      const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage }),
       });
 
-      const data = await res.json();
-
-      if (data.error) {
+      if (!res.ok) {
+        const data = await res.json();
+        console.error("Error:", data.error);
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
         return "";
       }
 
-      // Add assistant response to UI
-      setMessages((prev) => [...prev, data.message]);
+      // Process the SSE stream
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const decoder = new TextDecoder();
+      let fullResponse = "";
+      let messageId = "";
+      let createdAt = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.text) {
+                // Text chunk from streaming
+                fullResponse += parsed.text;
+                // Call chunk callback for TTS processing
+                if (onChunk) {
+                  onChunk(parsed.text, fullResponse);
+                }
+              } else if (parsed.messageId) {
+                // Done event with message metadata
+                messageId = parsed.messageId;
+                createdAt = parsed.createdAt;
+              }
+            } catch {
+              // Non-JSON data, ignore
+            }
+          }
+        }
+      }
+
+      // Add complete assistant response to UI
+      if (fullResponse) {
+        const assistantMessage: Message = {
+          id: messageId || `msg-${Date.now()}`,
+          role: "ASSISTANT",
+          content: fullResponse,
+          createdAt: createdAt || new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
 
       // Update conversation list
       setConversations((prev) => {
@@ -1217,7 +1331,7 @@ export default function ChatPage() {
         );
       });
 
-      return data.message.content;
+      return fullResponse;
     } catch (error) {
       console.error("Error sending voice message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
@@ -1945,14 +2059,32 @@ export default function ChatPage() {
                 </div>
               ))}
               {sending && (
-                <div className="flex items-center gap-2 text-gray-500 mt-4">
-                  <div className="flex gap-1">
-                    <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
-                    <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
-                    <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
+                streamingMessage ? (
+                  // Show streaming response as it comes in
+                  <div className="flex gap-3 mt-4">
+                    <img
+                      src="/mikey-avatar.png"
+                      alt="Mikey"
+                      className="w-8 h-8 rounded-lg flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="prose prose-sm max-w-none text-gray-700">
+                        <ReactMarkdown>{streamingMessage}</ReactMarkdown>
+                        <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-0.5" />
+                      </div>
+                    </div>
                   </div>
-                  <span>Mikey is thinking...</span>
-                </div>
+                ) : (
+                  // Show loading indicator while waiting for first chunk
+                  <div className="flex items-center gap-2 text-gray-500 mt-4">
+                    <div className="flex gap-1">
+                      <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
+                      <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
+                      <span className="animate-bounce" style={{ animationDelay: "300ms" }}>🌊</span>
+                    </div>
+                    <span>Mikey is thinking...</span>
+                  </div>
+                )
               )}
               <div ref={messagesEndRef} />
             </div>

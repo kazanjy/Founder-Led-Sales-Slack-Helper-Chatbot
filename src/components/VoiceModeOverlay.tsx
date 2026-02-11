@@ -7,7 +7,28 @@ type VoiceState = "idle" | "listening" | "processing" | "speaking";
 interface VoiceModeOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  onSendMessage: (message: string) => Promise<string>; // Returns assistant response
+  onSendMessage: (
+    message: string,
+    onChunk?: (chunk: string, fullText: string) => void
+  ) => Promise<string>;
+}
+
+// Detect sentence boundaries for chunked TTS
+function extractCompleteSentences(text: string): { sentences: string[]; remainder: string } {
+  // Match sentences ending with . ! or ? followed by space or end of string
+  // Also handle common abbreviations to avoid false positives
+  const sentenceRegex = /[^.!?]*[.!?]+(?=\s|$)/g;
+  const matches = text.match(sentenceRegex) || [];
+
+  if (matches.length === 0) {
+    return { sentences: [], remainder: text };
+  }
+
+  const lastMatch = matches[matches.length - 1];
+  const lastIndex = text.lastIndexOf(lastMatch) + lastMatch.length;
+  const remainder = text.slice(lastIndex).trim();
+
+  return { sentences: matches.map(s => s.trim()), remainder };
 }
 
 export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOverlayProps) {
@@ -15,6 +36,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
   const [rawTranscript, setRawTranscript] = useState("");
   const [prettifiedTranscript, setPrettifiedTranscript] = useState("");
   const [response, setResponse] = useState("");
+  const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [audioLevels, setAudioLevels] = useState<number[]>(Array(9).fill(0.2));
 
@@ -26,6 +48,12 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // For streaming TTS
+  const audioQueueRef = useRef<Blob[]>([]);
+  const isPlayingRef = useRef(false);
+  const spokenSentencesRef = useRef<Set<string>>(new Set());
+  const accumulatedTextRef = useRef("");
 
   // Cleanup on unmount or close
   useEffect(() => {
@@ -46,7 +74,12 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
       setRawTranscript("");
       setPrettifiedTranscript("");
       setResponse("");
+      setStreamingText("");
       setError(null);
+      audioQueueRef.current = [];
+      isPlayingRef.current = false;
+      spokenSentencesRef.current = new Set();
+      accumulatedTextRef.current = "";
       // Automatically start listening when modal opens
       startRecording();
     } else {
@@ -179,6 +212,88 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
     }
   }, []);
 
+  // Queue TTS for a sentence
+  const queueTTS = async (sentence: string) => {
+    try {
+      const res = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: sentence }),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to generate speech for:", sentence);
+        return;
+      }
+
+      const audioBlob = await res.blob();
+      audioQueueRef.current.push(audioBlob);
+
+      // Start playback if not already playing
+      if (!isPlayingRef.current) {
+        playNextInQueue();
+      }
+    } catch (err) {
+      console.error("Error queueing TTS:", err);
+    }
+  };
+
+  // Play next audio in queue
+  const playNextInQueue = async () => {
+    if (audioQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      // Check if we're done with everything
+      if (state === "speaking" && accumulatedTextRef.current === response) {
+        setState("idle");
+      }
+      return;
+    }
+
+    isPlayingRef.current = true;
+    const audioBlob = audioQueueRef.current.shift()!;
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const audio = new Audio(audioUrl);
+        audioElementRef.current = audio;
+
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          reject(new Error("Audio playback failed"));
+        };
+
+        audio.play().catch(reject);
+      });
+    } catch (err) {
+      console.error("Error playing audio:", err);
+    }
+
+    // Play next in queue
+    playNextInQueue();
+  };
+
+  // Handle streaming chunks - queue TTS for complete sentences
+  const handleStreamChunk = useCallback((chunk: string, fullText: string) => {
+    setStreamingText(fullText);
+    accumulatedTextRef.current = fullText;
+
+    // Extract complete sentences and queue TTS for new ones
+    const { sentences } = extractCompleteSentences(fullText);
+
+    for (const sentence of sentences) {
+      if (!spokenSentencesRef.current.has(sentence) && sentence.trim().length > 0) {
+        spokenSentencesRef.current.add(sentence);
+        queueTTS(sentence);
+      }
+    }
+  }, []);
+
   const processRecording = async (audioBlob: Blob) => {
     try {
       setState("processing");
@@ -220,62 +335,35 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
         messageToSend = prettified;
       }
 
-      // Send prettified message to chat and get response
-      const assistantResponse = await onSendMessage(messageToSend);
+      // Reset TTS state
+      audioQueueRef.current = [];
+      spokenSentencesRef.current = new Set();
+      accumulatedTextRef.current = "";
+
+      // Start speaking state and animation
+      setState("speaking");
+      animateSpeaking();
+
+      // Send message with streaming chunk handler
+      const assistantResponse = await onSendMessage(messageToSend, handleStreamChunk);
       setResponse(assistantResponse);
 
-      // Convert response to speech
-      setState("speaking");
-      await speakResponse(assistantResponse);
+      // Queue any remaining text that wasn't a complete sentence
+      const { remainder } = extractCompleteSentences(assistantResponse);
+      if (remainder.trim().length > 0) {
+        queueTTS(remainder);
+      }
+
+      // Wait for audio queue to finish
+      while (audioQueueRef.current.length > 0 || isPlayingRef.current) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       setState("idle");
     } catch (err) {
       console.error("Error processing recording:", err);
       setError("Something went wrong. Please try again.");
       setState("idle");
-    }
-  };
-
-  const speakResponse = async (text: string) => {
-    try {
-      // Animate while fetching and playing
-      animateSpeaking();
-
-      const res = await fetch("/api/voice/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to generate speech");
-      }
-
-      const audioBlob = await res.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      await new Promise<void>((resolve, reject) => {
-        const audio = new Audio(audioUrl);
-        audioElementRef.current = audio;
-
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current);
-          }
-          resolve();
-        };
-
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          reject(new Error("Audio playback failed"));
-        };
-
-        audio.play().catch(reject);
-      });
-    } catch (err) {
-      console.error("Error speaking response:", err);
-      // Don't throw - just continue without audio
     }
   };
 
@@ -307,6 +395,9 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
       audioElementRef.current.pause();
       audioElementRef.current = null;
     }
+    // Clear audio queue
+    audioQueueRef.current = [];
+    isPlayingRef.current = false;
     onClose();
   };
 
@@ -427,6 +518,14 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
             </div>
           )}
 
+          {/* Streaming response preview during speaking */}
+          {state === "speaking" && streamingText && (
+            <div className="bg-green-50 rounded-lg p-3 mb-2 text-xs max-h-24 overflow-y-auto">
+              <p className="text-green-500 uppercase tracking-wide mb-1">Response:</p>
+              <p className="text-gray-700">{streamingText}</p>
+            </div>
+          )}
+
           {/* Error display */}
           {error && (
             <div className="bg-red-50 rounded-lg p-3 text-xs">
@@ -442,7 +541,7 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
           )}
 
           {/* Response indicator - shows response was received */}
-          {response && (
+          {response && state === "idle" && (
             <div className="mt-3 pt-3 border-t border-gray-100 text-center">
               <p className="text-green-600 text-xs flex items-center justify-center gap-1">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
