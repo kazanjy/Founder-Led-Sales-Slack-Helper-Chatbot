@@ -169,6 +169,7 @@ export default function ChatPage() {
   const ttsPlaySeqRef = useRef(0); // Next sequence number to play
   const ttsPlayingRef = useRef(false); // Is audio currently playing
   const ttsSessionRef = useRef(0); // Incremented on each new TTS session, used to cancel stale requests
+  const voiceConversationModeRef = useRef(false); // Track if we're in voice conversation mode
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -222,6 +223,40 @@ export default function ChatPage() {
     }
     loadPrompts();
   }, []);
+
+  // Spacebar to interrupt TTS and start listening
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if spacebar, TTS is playing, and not typing in an input
+      if (
+        e.code === "Space" &&
+        isTTSPlaying &&
+        !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName || "")
+      ) {
+        e.preventDefault();
+        // Stop TTS inline to avoid stale closure
+        ttsSessionRef.current += 1;
+        ttsQueueRef.current.forEach((url) => {
+          if (url) URL.revokeObjectURL(url);
+        });
+        ttsQueueRef.current.clear();
+        ttsNextSeqRef.current = 0;
+        ttsPlaySeqRef.current = 0;
+        if (ttsAudioRef.current) {
+          ttsAudioRef.current.pause();
+          ttsAudioRef.current = null;
+        }
+        ttsPlayingRef.current = false;
+        setIsTTSPlaying(false);
+        // Start listening
+        voiceConversationModeRef.current = true;
+        setIsVoiceRecording(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isTTSPlaying]);
 
   // Reset a single prompt to its default (only for default prompts)
   const handleResetPromptToDefault = async (promptId: string) => {
@@ -1264,7 +1299,7 @@ export default function ChatPage() {
   };
 
   // Play the next audio chunk in sequence order
-  const playNextInQueue = () => {
+  const playNextInQueue = (onAllFinished?: () => void) => {
     const nextSeq = ttsPlaySeqRef.current;
     const audioUrl = ttsQueueRef.current.get(nextSeq);
 
@@ -1274,6 +1309,10 @@ export default function ChatPage() {
       if (ttsQueueRef.current.size === 0 && ttsPlayingRef.current) {
         ttsPlayingRef.current = false;
         setIsTTSPlaying(false);
+        // All TTS finished - auto-resume listening if in voice conversation mode
+        if (voiceConversationModeRef.current) {
+          setIsVoiceRecording(true);
+        }
       }
       return;
     }
@@ -1284,7 +1323,7 @@ export default function ChatPage() {
 
     // Skip failed/empty chunks
     if (!audioUrl) {
-      playNextInQueue();
+      playNextInQueue(onAllFinished);
       return;
     }
 
@@ -1300,17 +1339,17 @@ export default function ChatPage() {
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl);
       ttsAudioRef.current = null;
-      playNextInQueue(); // Play next chunk
+      playNextInQueue(onAllFinished); // Play next chunk
     };
 
     audio.onerror = () => {
       URL.revokeObjectURL(audioUrl);
       ttsAudioRef.current = null;
-      playNextInQueue(); // Skip to next chunk on error
+      playNextInQueue(onAllFinished); // Skip to next chunk on error
     };
 
     audio.play().catch(() => {
-      playNextInQueue();
+      playNextInQueue(onAllFinished);
     });
   };
 
@@ -2006,6 +2045,7 @@ export default function ChatPage() {
                         isActive={isVoiceRecording}
                         isSpeaking={isTTSPlaying}
                         onCancel={() => {
+                          voiceConversationModeRef.current = false;
                           setIsVoiceRecording(false);
                           stopTTS();
                         }}
@@ -2105,7 +2145,10 @@ export default function ChatPage() {
                         />
                         <button
                           type="button"
-                          onClick={() => setIsVoiceRecording(true)}
+                          onClick={() => {
+                            voiceConversationModeRef.current = true;
+                            setIsVoiceRecording(true);
+                          }}
                           className="px-5 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex-shrink-0 shadow-sm flex items-center gap-2"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2341,6 +2384,7 @@ export default function ChatPage() {
                   isActive={isVoiceRecording}
                   isSpeaking={isTTSPlaying}
                   onCancel={() => {
+                    voiceConversationModeRef.current = false;
                     setIsVoiceRecording(false);
                     stopTTS();
                   }}
@@ -2434,7 +2478,10 @@ export default function ChatPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => setIsVoiceRecording(true)}
+                    onClick={() => {
+                      voiceConversationModeRef.current = true;
+                      setIsVoiceRecording(true);
+                    }}
                     className="px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex-shrink-0 self-end shadow-sm flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
