@@ -311,122 +311,127 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-      {/* Close button */}
-      <button
-        onClick={handleClose}
-        className="absolute top-6 right-6 text-white/60 hover:text-white transition-colors"
-      >
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-
-      <div className="flex flex-col items-center max-w-lg mx-auto px-6">
-        {/* Mikey avatar */}
-        <img
-          src="/mikey-avatar.png"
-          alt="Mikey"
-          className={`w-24 h-24 rounded-2xl mb-8 transition-all duration-300 ${
-            state === "speaking" ? "ring-4 ring-blue-500 ring-opacity-50" : ""
-          }`}
-        />
-
-        {/* Waveform visualization */}
-        <div
-          className="flex items-center justify-center gap-1 h-24 mb-8 cursor-pointer"
-          onClick={handleTapToSpeak}
-        >
-          {audioLevels.map((level, i) => (
-            <div
-              key={i}
-              className={`w-2 rounded-full transition-all duration-75 ${
-                state === "listening"
-                  ? "bg-gradient-to-t from-blue-500 to-purple-500"
-                  : state === "speaking"
-                  ? "bg-gradient-to-t from-green-500 to-emerald-400"
-                  : state === "processing"
-                  ? "bg-gray-500 animate-pulse"
-                  : "bg-gray-600"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && state === "idle") {
+          handleClose();
+        }
+      }}
+    >
+      <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <img
+              src="/mikey-avatar.png"
+              alt="Mikey"
+              className={`w-10 h-10 rounded-xl transition-all duration-300 ${
+                state === "speaking" ? "ring-2 ring-green-500 ring-opacity-50" : ""
               }`}
-              style={{
-                height: `${level * 80}px`,
-                transform: `scaleY(${state === "processing" ? 0.5 : 1})`,
-              }}
             />
-          ))}
+            <div>
+              <h3 className="text-white font-semibold">Voice Mode</h3>
+              <p className="text-gray-400 text-xs">Talk with Mikey</p>
+            </div>
+          </div>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-white transition-colors p-1"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        {/* Status text */}
-        <div className="text-center mb-6">
-          {state === "idle" && (
-            <p className="text-white/80 text-lg">Tap to speak</p>
-          )}
-          {state === "listening" && (
-            <p className="text-blue-400 text-lg animate-pulse">Listening...</p>
-          )}
-          {state === "processing" && (
-            <div className="flex items-center gap-2 text-purple-400 text-lg">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              <span>Mikey is thinking...</span>
+        {/* Content */}
+        <div className="p-6">
+          {/* Waveform visualization */}
+          <div
+            className="flex items-center justify-center gap-1 h-20 mb-6 cursor-pointer rounded-xl bg-gray-800/50 mx-auto"
+            onClick={handleTapToSpeak}
+          >
+            {audioLevels.map((level, i) => (
+              <div
+                key={i}
+                className={`w-2 rounded-full transition-all duration-75 ${
+                  state === "listening"
+                    ? "bg-gradient-to-t from-blue-500 to-purple-500"
+                    : state === "speaking"
+                    ? "bg-gradient-to-t from-green-500 to-emerald-400"
+                    : state === "processing"
+                    ? "bg-gray-500 animate-pulse"
+                    : "bg-gray-600"
+                }`}
+                style={{
+                  height: `${level * 60}px`,
+                  transform: `scaleY(${state === "processing" ? 0.5 : 1})`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Status text */}
+          <div className="text-center mb-4">
+            {state === "idle" && (
+              <p className="text-gray-300">Tap the waveform to speak</p>
+            )}
+            {state === "listening" && (
+              <p className="text-blue-400 animate-pulse">Listening...</p>
+            )}
+            {state === "processing" && (
+              <div className="flex items-center justify-center gap-2 text-purple-400">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Mikey is thinking...</span>
+              </div>
+            )}
+            {state === "speaking" && (
+              <p className="text-green-400">Mikey is speaking...</p>
+            )}
+          </div>
+
+          {/* Transcript display */}
+          {rawTranscript && (
+            <div className="bg-gray-800/50 rounded-xl p-3 mb-3">
+              <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Raw transcript:</p>
+              <p className="text-gray-400 text-sm italic">{rawTranscript}</p>
             </div>
           )}
-          {state === "speaking" && (
-            <p className="text-green-400 text-lg">Mikey is speaking...</p>
+
+          {/* Prettified transcript display */}
+          {prettifiedTranscript && (
+            <div className="bg-gray-800 rounded-xl p-3 mb-3">
+              <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">You asked:</p>
+              <p className="text-white text-sm">{prettifiedTranscript}</p>
+            </div>
+          )}
+
+          {/* Response display */}
+          {response && state !== "processing" && (
+            <div className="bg-blue-900/30 rounded-xl p-3 max-h-40 overflow-y-auto">
+              <p className="text-blue-400 text-xs uppercase tracking-wide mb-1">Mikey:</p>
+              <p className="text-gray-200 text-sm">{response}</p>
+            </div>
+          )}
+
+          {/* Error display */}
+          {error && (
+            <div className="bg-red-900/30 rounded-xl p-3">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Action hint */}
+          {state === "listening" && (
+            <p className="text-gray-500 text-xs text-center mt-4">
+              Tap again or pause speaking to send
+            </p>
           )}
         </div>
-
-        {/* Transcript display */}
-        {rawTranscript && (
-          <div className="bg-white/5 rounded-xl p-4 mb-3 max-w-md w-full">
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Raw transcript:</p>
-            <p className="text-white/60 text-sm italic">{rawTranscript}</p>
-          </div>
-        )}
-
-        {/* Prettified transcript display */}
-        {prettifiedTranscript && (
-          <div className="bg-white/10 rounded-xl p-4 mb-4 max-w-md w-full">
-            <p className="text-white/60 text-xs uppercase tracking-wide mb-1">You asked:</p>
-            <p className="text-white/90">{prettifiedTranscript}</p>
-          </div>
-        )}
-
-        {/* Response display */}
-        {response && state !== "processing" && (
-          <div className="bg-blue-500/20 rounded-xl p-4 max-w-md w-full max-h-48 overflow-y-auto">
-            <p className="text-blue-300 text-xs uppercase tracking-wide mb-1">Mikey:</p>
-            <p className="text-white/90 text-sm">{response}</p>
-          </div>
-        )}
-
-        {/* Error display */}
-        {error && (
-          <div className="bg-red-500/20 rounded-xl p-4 max-w-md w-full">
-            <p className="text-red-300">{error}</p>
-          </div>
-        )}
-
-        {/* Action hint */}
-        {state === "listening" && (
-          <p className="text-white/40 text-sm mt-6">
-            Tap again or pause speaking to send
-          </p>
-        )}
       </div>
     </div>
   );
