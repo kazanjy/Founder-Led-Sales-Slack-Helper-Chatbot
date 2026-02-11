@@ -10,6 +10,7 @@ import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
+import { VoiceModeOverlay } from "@/components/VoiceModeOverlay";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -159,6 +160,7 @@ export default function ChatPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
+  const [showVoiceMode, setShowVoiceMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -1147,6 +1149,82 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
+  // Voice mode message sending - returns the assistant response
+  const sendVoiceMessage = async (messageText: string): Promise<string> => {
+    if (!messageText.trim() || !user?.canChat) return "";
+
+    // If no conversation selected, create one first
+    let conversationId = selectedConversation;
+    if (!conversationId) {
+      try {
+        const res = await fetch("/api/conversations", { method: "POST" });
+        const data = await res.json();
+        if (data.conversation) {
+          conversationId = data.conversation.id;
+          setConversations((prev) => [data.conversation, ...prev]);
+          setSelectedConversation(conversationId);
+          // Update URL
+          router.push(`/chat/${conversationId}`, { scroll: false });
+        }
+      } catch (error) {
+        console.error("Error creating conversation:", error);
+        return "";
+      }
+    }
+
+    const userMessage = messageText.trim();
+
+    // Add user message to UI
+    const tempUserMsg: Message = {
+      id: `temp-${Date.now()}`,
+      role: "USER",
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        return "";
+      }
+
+      // Add assistant response to UI
+      setMessages((prev) => [...prev, data.message]);
+
+      // Update conversation list
+      setConversations((prev) => {
+        const updated = prev.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
+                messageCount: c.messageCount + 2,
+                lastMessageAt: new Date().toISOString(),
+              }
+            : c
+        );
+        return updated.sort((a, b) =>
+          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+        );
+      });
+
+      return data.message.content;
+    } catch (error) {
+      console.error("Error sending voice message:", error);
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+      return "";
+    }
+  };
+
   const insertVariable = (mergeField: string) => {
     const textarea = chatInputRef.current;
     if (!textarea) return;
@@ -1720,6 +1798,16 @@ export default function ChatPage() {
                         }}
                       />
                       <button
+                        type="button"
+                        onClick={() => setShowVoiceMode(true)}
+                        className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors flex-shrink-0"
+                        title="Voice mode"
+                      >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      </button>
+                      <button
                         type="submit"
                         disabled={!inputMessage.trim() || sending}
                         className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-sm"
@@ -2003,6 +2091,16 @@ export default function ChatPage() {
                   placeholder="Ask Mikey anything about founder-led sales..."
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowVoiceMode(true)}
+                  className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex-shrink-0 self-end"
+                  title="Voice mode"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </button>
                 <button
                   type="submit"
                   disabled={!inputMessage.trim() || sending}
@@ -2549,6 +2647,13 @@ export default function ChatPage() {
           router.push(`/chat/${conversationId}`);
         }}
         mode={maturityModalMode}
+      />
+
+      {/* Voice Mode Overlay */}
+      <VoiceModeOverlay
+        isOpen={showVoiceMode}
+        onClose={() => setShowVoiceMode(false)}
+        onSendMessage={sendVoiceMessage}
       />
     </div>
     </>
