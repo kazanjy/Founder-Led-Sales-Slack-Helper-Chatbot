@@ -166,7 +166,7 @@ export default function ChatPage() {
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsQueueRef = useRef<string[]>([]); // Queue of audio URLs to play
   const ttsPlayingRef = useRef(false); // Is audio currently playing
-  const ttsPendingRef = useRef<Promise<void>[]>([]); // Pending TTS generation promises
+  const ttsSessionRef = useRef(0); // Incremented on each new TTS session, used to cancel stale requests
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -1214,7 +1214,7 @@ export default function ChatPage() {
   };
 
   // Generate TTS for a chunk and add to queue
-  const generateTTSChunk = async (text: string): Promise<void> => {
+  const generateTTSChunk = async (text: string, sessionId: number): Promise<void> => {
     if (!text.trim()) return;
 
     try {
@@ -1224,6 +1224,11 @@ export default function ChatPage() {
         body: JSON.stringify({ text }),
       });
 
+      // Check if this session is still active (user may have clicked Stop)
+      if (sessionId !== ttsSessionRef.current) {
+        return; // Stale request, discard
+      }
+
       if (!res.ok) {
         console.error("Failed to generate speech chunk");
         return;
@@ -1231,6 +1236,13 @@ export default function ChatPage() {
 
       const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Double-check session is still active
+      if (sessionId !== ttsSessionRef.current) {
+        URL.revokeObjectURL(audioUrl);
+        return;
+      }
+
       ttsQueueRef.current.push(audioUrl);
 
       // Start playing if not already
@@ -1279,6 +1291,9 @@ export default function ChatPage() {
 
   // Stop TTS playback and clear queue
   const stopTTS = () => {
+    // Increment session to invalidate any in-flight TTS requests
+    ttsSessionRef.current += 1;
+
     // Clear the queue
     while (ttsQueueRef.current.length > 0) {
       const url = ttsQueueRef.current.shift();
@@ -1331,6 +1346,10 @@ export default function ChatPage() {
     setSending(true);
     setStreamingMessage("");
 
+    // Start a new TTS session (invalidates any previous in-flight requests)
+    ttsSessionRef.current += 1;
+    const currentSession = ttsSessionRef.current;
+
     // Clear any previous TTS queue (but keep isTTSPlaying true to maintain UI)
     while (ttsQueueRef.current.length > 0) {
       const url = ttsQueueRef.current.shift();
@@ -1371,7 +1390,7 @@ export default function ChatPage() {
       // Helper to flush TTS buffer when we have a complete sentence
       const flushTTSSentence = () => {
         if (ttsBuffer.trim()) {
-          generateTTSChunk(ttsBuffer.trim());
+          generateTTSChunk(ttsBuffer.trim(), currentSession);
           ttsBuffer = "";
         }
       };
@@ -1398,14 +1417,14 @@ export default function ChatPage() {
                 const sentenceMatch = ttsBuffer.match(/^([\s\S]*?[.!?])\s+/);
                 if (sentenceMatch) {
                   const sentence = sentenceMatch[1];
-                  generateTTSChunk(sentence);
+                  generateTTSChunk(sentence, currentSession);
                   ttsBuffer = ttsBuffer.slice(sentenceMatch[0].length);
                 } else if (ttsBuffer.includes("\n\n")) {
                   // Paragraph break - flush what we have
                   const parts = ttsBuffer.split("\n\n");
                   for (let i = 0; i < parts.length - 1; i++) {
                     if (parts[i].trim()) {
-                      generateTTSChunk(parts[i].trim());
+                      generateTTSChunk(parts[i].trim(), currentSession);
                     }
                   }
                   ttsBuffer = parts[parts.length - 1];

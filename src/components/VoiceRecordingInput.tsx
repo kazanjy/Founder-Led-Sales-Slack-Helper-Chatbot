@@ -37,6 +37,7 @@ export function VoiceRecordingInput({
   const silenceStartRef = useRef<number | null>(null);
   const commitAnimationRef = useRef<number | null>(null);
   const isRecordingRef = useRef(false); // Track recording state for callbacks
+  const hasSpokenRef = useRef(false); // Track if user has spoken at least once
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -153,8 +154,16 @@ export function VoiceRecordingInput({
     const now = Date.now();
     const SILENCE_THRESHOLD = 15; // Audio level below this is considered silence
 
-    if (avg < SILENCE_THRESHOLD) {
-      // Silence detected
+    if (avg >= SILENCE_THRESHOLD) {
+      // Sound detected - user is speaking
+      hasSpokenRef.current = true;
+      if (silenceStartRef.current) {
+        silenceStartRef.current = null;
+        setCommitProgress(0);
+        setState("recording");
+      }
+    } else if (hasSpokenRef.current) {
+      // Silence detected, but only start countdown if user has spoken
       if (!silenceStartRef.current) {
         silenceStartRef.current = now;
         setState("committing");
@@ -170,14 +179,8 @@ export function VoiceRecordingInput({
         stopAndProcess();
         return;
       }
-    } else {
-      // Sound detected - reset silence tracking
-      if (silenceStartRef.current) {
-        silenceStartRef.current = null;
-        setCommitProgress(0);
-        setState("recording");
-      }
     }
+    // If user hasn't spoken yet and it's silent, just keep listening
 
     animationFrameRef.current = requestAnimationFrame(updateAudioLevelAndCheckSilence);
   }, [stopAndProcess]);
@@ -219,6 +222,7 @@ export function VoiceRecordingInput({
       mediaRecorder.start(100);
       setState("recording");
       isRecordingRef.current = true;
+      hasSpokenRef.current = false; // Reset - wait for user to speak
       silenceStartRef.current = null;
       setCommitProgress(0);
 
