@@ -16,11 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
     }
 
-    // Transcribe using Whisper
+    // Transcribe using Whisper with a prompt to reduce hallucinations
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       language: "en",
+      prompt: "This is a user speaking to a sales assistant named Mikey. They are asking questions about founder-led sales, discussing their deals, or requesting help with sales strategies.",
     });
 
     return NextResponse.json({
