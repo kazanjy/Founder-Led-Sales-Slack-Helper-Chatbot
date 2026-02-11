@@ -164,6 +164,9 @@ export default function ChatPage() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsQueueRef = useRef<string[]>([]); // Queue of audio URLs to play
+  const ttsPlayingRef = useRef(false); // Is audio currently playing
+  const ttsPendingRef = useRef<Promise<void>[]>([]); // Pending TTS generation promises
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -1210,11 +1213,11 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
-  // Play TTS for a response and scroll to follow
-  const playTTSWithScroll = async (text: string) => {
-    try {
-      setIsTTSPlaying(true);
+  // Generate TTS for a chunk and add to queue
+  const generateTTSChunk = async (text: string): Promise<void> => {
+    if (!text.trim()) return;
 
+    try {
       const res = await fetch("/api/voice/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1222,53 +1225,76 @@ export default function ChatPage() {
       });
 
       if (!res.ok) {
-        console.error("Failed to generate speech");
-        setIsTTSPlaying(false);
+        console.error("Failed to generate speech chunk");
         return;
       }
 
       const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      ttsAudioRef.current = audio;
+      ttsQueueRef.current.push(audioUrl);
 
-      // Scroll to bottom when TTS starts
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
-      await new Promise<void>((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          ttsAudioRef.current = null;
-          setIsTTSPlaying(false);
-          resolve();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          ttsAudioRef.current = null;
-          setIsTTSPlaying(false);
-          resolve();
-        };
-        audio.play().catch(() => {
-          setIsTTSPlaying(false);
-          resolve();
-        });
-      });
+      // Start playing if not already
+      if (!ttsPlayingRef.current) {
+        playNextInQueue();
+      }
     } catch (err) {
-      console.error("Error playing TTS:", err);
-      setIsTTSPlaying(false);
+      console.error("Error generating TTS chunk:", err);
     }
   };
 
-  // Stop TTS playback
+  // Play the next audio chunk in queue
+  const playNextInQueue = () => {
+    if (ttsQueueRef.current.length === 0) {
+      ttsPlayingRef.current = false;
+      setIsTTSPlaying(false);
+      return;
+    }
+
+    ttsPlayingRef.current = true;
+    setIsTTSPlaying(true);
+
+    const audioUrl = ttsQueueRef.current.shift()!;
+    const audio = new Audio(audioUrl);
+    ttsAudioRef.current = audio;
+
+    // Scroll to bottom when TTS starts
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      ttsAudioRef.current = null;
+      playNextInQueue(); // Play next chunk
+    };
+
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      ttsAudioRef.current = null;
+      playNextInQueue(); // Skip to next chunk on error
+    };
+
+    audio.play().catch(() => {
+      playNextInQueue();
+    });
+  };
+
+  // Stop TTS playback and clear queue
   const stopTTS = () => {
+    // Clear the queue
+    while (ttsQueueRef.current.length > 0) {
+      const url = ttsQueueRef.current.shift();
+      if (url) URL.revokeObjectURL(url);
+    }
+
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
       ttsAudioRef.current = null;
     }
+
+    ttsPlayingRef.current = false;
     setIsTTSPlaying(false);
   };
 
-  // Voice message - sends message, streams response, then plays TTS
+  // Voice message - sends message, streams response with chunked TTS
   const sendVoiceMessageWithTTS = async (messageText: string): Promise<void> => {
     if (!messageText.trim() || !user?.canChat) return;
 
@@ -1305,6 +1331,17 @@ export default function ChatPage() {
     setSending(true);
     setStreamingMessage("");
 
+    // Clear any previous TTS queue (but keep isTTSPlaying true to maintain UI)
+    while (ttsQueueRef.current.length > 0) {
+      const url = ttsQueueRef.current.shift();
+      if (url) URL.revokeObjectURL(url);
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    ttsPlayingRef.current = false;
+
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
@@ -1329,6 +1366,15 @@ export default function ChatPage() {
       let fullResponse = "";
       let messageId = "";
       let createdAt = "";
+      let ttsBuffer = ""; // Buffer for TTS sentence detection
+
+      // Helper to flush TTS buffer when we have a complete sentence
+      const flushTTSSentence = () => {
+        if (ttsBuffer.trim()) {
+          generateTTSChunk(ttsBuffer.trim());
+          ttsBuffer = "";
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1344,7 +1390,26 @@ export default function ChatPage() {
               const parsed = JSON.parse(data);
               if (parsed.text) {
                 fullResponse += parsed.text;
+                ttsBuffer += parsed.text;
                 setStreamingMessage(fullResponse);
+
+                // Check for sentence boundaries to trigger TTS
+                // Match: sentence-ending punctuation followed by space/end, or newlines
+                const sentenceMatch = ttsBuffer.match(/^([\s\S]*?[.!?])\s+/);
+                if (sentenceMatch) {
+                  const sentence = sentenceMatch[1];
+                  generateTTSChunk(sentence);
+                  ttsBuffer = ttsBuffer.slice(sentenceMatch[0].length);
+                } else if (ttsBuffer.includes("\n\n")) {
+                  // Paragraph break - flush what we have
+                  const parts = ttsBuffer.split("\n\n");
+                  for (let i = 0; i < parts.length - 1; i++) {
+                    if (parts[i].trim()) {
+                      generateTTSChunk(parts[i].trim());
+                    }
+                  }
+                  ttsBuffer = parts[parts.length - 1];
+                }
               } else if (parsed.messageId) {
                 messageId = parsed.messageId;
                 createdAt = parsed.createdAt;
@@ -1355,6 +1420,9 @@ export default function ChatPage() {
           }
         }
       }
+
+      // Flush any remaining TTS buffer
+      flushTTSSentence();
 
       // Clear streaming and add complete message
       setStreamingMessage("");
@@ -1385,10 +1453,9 @@ export default function ChatPage() {
             new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
           );
         });
-
-        // Play TTS for the response
-        await playTTSWithScroll(fullResponse);
       }
+
+      // TTS will continue playing from the queue - no need to wait
     } catch (error) {
       console.error("Error sending voice message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
@@ -1892,6 +1959,8 @@ export default function ChatPage() {
                           stopTTS();
                         }}
                         onTranscriptionComplete={(text) => {
+                          setIsVoiceRecording(false);
+                          setIsTTSPlaying(true); // Keep voice UI visible while TTS loads
                           sendVoiceMessageWithTTS(text);
                         }}
                         onStopSpeaking={stopTTS}
@@ -2225,6 +2294,8 @@ export default function ChatPage() {
                     stopTTS();
                   }}
                   onTranscriptionComplete={(text) => {
+                    setIsVoiceRecording(false);
+                    setIsTTSPlaying(true); // Keep voice UI visible while TTS loads
                     sendVoiceMessageWithTTS(text);
                   }}
                   onStopSpeaking={stopTTS}
