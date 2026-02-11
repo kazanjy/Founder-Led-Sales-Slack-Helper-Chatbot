@@ -12,7 +12,7 @@ interface VoiceRecordingInputProps {
   onStopSpeaking?: () => void; // Stop TTS playback
 }
 
-const SILENCE_COMMIT_DELAY = 500; // ms of silence before committing
+const SILENCE_COMMIT_DELAY = 1000; // ms of silence before committing
 
 export function VoiceRecordingInput({
   isActive,
