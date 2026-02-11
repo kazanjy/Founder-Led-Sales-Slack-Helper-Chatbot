@@ -10,7 +10,7 @@ import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
-import { VoiceModeOverlay } from "@/components/VoiceModeOverlay";
+import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -161,7 +161,9 @@ export default function ChatPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
-  const [showVoiceMode, setShowVoiceMode] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [isTTSPlaying, setIsTTSPlaying] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -1208,12 +1210,58 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
-  // Voice mode message sending with streaming support - calls onChunk with text as it arrives
-  const sendVoiceMessage = async (
-    messageText: string,
-    onChunk?: (chunk: string, fullText: string) => void
-  ): Promise<string> => {
-    if (!messageText.trim() || !user?.canChat) return "";
+  // Play TTS for a response and scroll to follow
+  const playTTSWithScroll = async (text: string) => {
+    try {
+      setIsTTSPlaying(true);
+
+      const res = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        console.error("Failed to generate speech");
+        setIsTTSPlaying(false);
+        return;
+      }
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      ttsAudioRef.current = audio;
+
+      // Scroll to bottom when TTS starts
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+      await new Promise<void>((resolve) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          ttsAudioRef.current = null;
+          setIsTTSPlaying(false);
+          resolve();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          ttsAudioRef.current = null;
+          setIsTTSPlaying(false);
+          resolve();
+        };
+        audio.play().catch(() => {
+          setIsTTSPlaying(false);
+          resolve();
+        });
+      });
+    } catch (err) {
+      console.error("Error playing TTS:", err);
+      setIsTTSPlaying(false);
+    }
+  };
+
+  // Voice message - sends message, streams response, then plays TTS
+  const sendVoiceMessageWithTTS = async (messageText: string): Promise<void> => {
+    if (!messageText.trim() || !user?.canChat) return;
 
     // If no conversation selected, create one first
     let conversationId = selectedConversation;
@@ -1225,12 +1273,11 @@ export default function ChatPage() {
           conversationId = data.conversation.id;
           setConversations((prev) => [data.conversation, ...prev]);
           setSelectedConversation(conversationId);
-          // Update URL
           router.push(`/chat/${conversationId}`, { scroll: false });
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
-        return "";
+        return;
       }
     }
 
@@ -1245,8 +1292,11 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, tempUserMsg]);
 
+    // Show sending state with streaming
+    setSending(true);
+    setStreamingMessage("");
+
     try {
-      // Use streaming endpoint for voice messages too
       const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1257,10 +1307,10 @@ export default function ChatPage() {
         const data = await res.json();
         console.error("Error:", data.error);
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-        return "";
+        setSending(false);
+        return;
       }
 
-      // Process the SSE stream
       const reader = res.body?.getReader();
       if (!reader) {
         throw new Error("No response body");
@@ -1283,27 +1333,24 @@ export default function ChatPage() {
             const data = line.slice(6);
             try {
               const parsed = JSON.parse(data);
-
               if (parsed.text) {
-                // Text chunk from streaming
                 fullResponse += parsed.text;
-                // Call chunk callback for TTS processing
-                if (onChunk) {
-                  onChunk(parsed.text, fullResponse);
-                }
+                setStreamingMessage(fullResponse);
               } else if (parsed.messageId) {
-                // Done event with message metadata
                 messageId = parsed.messageId;
                 createdAt = parsed.createdAt;
               }
             } catch {
-              // Non-JSON data, ignore
+              // Ignore parse errors
             }
           }
         }
       }
 
-      // Add complete assistant response to UI
+      // Clear streaming and add complete message
+      setStreamingMessage("");
+      setSending(false);
+
       if (fullResponse) {
         const assistantMessage: Message = {
           id: messageId || `msg-${Date.now()}`,
@@ -1312,30 +1359,32 @@ export default function ChatPage() {
           createdAt: createdAt || new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // Update conversation list
+        setConversations((prev) => {
+          const updated = prev.map((c) =>
+            c.id === conversationId
+              ? {
+                  ...c,
+                  firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
+                  messageCount: c.messageCount + 2,
+                  lastMessageAt: new Date().toISOString(),
+                }
+              : c
+          );
+          return updated.sort((a, b) =>
+            new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+          );
+        });
+
+        // Play TTS for the response
+        await playTTSWithScroll(fullResponse);
       }
-
-      // Update conversation list
-      setConversations((prev) => {
-        const updated = prev.map((c) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
-                messageCount: c.messageCount + 2,
-                lastMessageAt: new Date().toISOString(),
-              }
-            : c
-        );
-        return updated.sort((a, b) =>
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-        );
-      });
-
-      return fullResponse;
     } catch (error) {
       console.error("Error sending voice message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-      return "";
+      setSending(false);
+      setStreamingMessage("");
     }
   };
 
@@ -1825,110 +1874,121 @@ export default function ChatPage() {
                         )}
                       </div>
                     )}
-                    <div className="flex gap-2 items-end relative">
-                      {/* GTM Variables Dropdown */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                          className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Insert GTM Variable"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                          </svg>
-                        </button>
-                        {showVariablesDropdown && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setShowVariablesDropdown(false)}
-                            />
-                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
-                              <div className="p-2 border-b border-gray-100">
-                                <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
-                              </div>
-                              {gtmVariables.length === 0 ? (
-                                <div className="p-3 text-sm text-gray-500">
-                                  No variables configured.{" "}
-                                  <a href="/settings" className="text-blue-600 hover:underline">
-                                    Add in Settings
-                                  </a>
-                                </div>
-                              ) : (
-                                <div className="py-1">
-                                  {gtmVariables.map((v) => (
-                                    <button
-                                      key={v.mergeField}
-                                      type="button"
-                                      onClick={() => insertVariable(v.mergeField)}
-                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
-                                    >
-                                      <div className="min-w-0">
-                                        <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
-                                        <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
-                                      </div>
-                                      {v.value ? (
-                                        <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
-                                      ) : (
-                                        <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
-                                      )}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="p-2 border-t border-gray-100">
-                                <a
-                                  href="/settings"
-                                  className="text-xs text-gray-500 hover:text-blue-600"
-                                >
-                                  Manage variables →
-                                </a>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <textarea
-                        ref={chatInputRef}
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                            e.preventDefault();
-                            if (inputMessage.trim() && !sending) {
-                              handleSendMessage(e);
-                            }
-                          }
-                        }}
-                        placeholder="Ask Mikey anything about founder-led sales..."
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px] shadow-sm"
-                        rows={1}
-                        style={{ height: 'auto' }}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+                    {isVoiceRecording ? (
+                      <VoiceRecordingInput
+                        isActive={isVoiceRecording}
+                        onCancel={() => setIsVoiceRecording(false)}
+                        onTranscriptionComplete={(text) => {
+                          setIsVoiceRecording(false);
+                          sendVoiceMessageWithTTS(text);
                         }}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowVoiceMode(true)}
-                        className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors flex-shrink-0"
-                        title="Voice mode"
-                      >
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!inputMessage.trim() || sending}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-sm"
-                      >
-                        Send
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="flex gap-2 items-end relative">
+                        {/* GTM Variables Dropdown */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Insert GTM Variable"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                          </button>
+                          {showVariablesDropdown && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setShowVariablesDropdown(false)}
+                              />
+                              <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                                <div className="p-2 border-b border-gray-100">
+                                  <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                                </div>
+                                {gtmVariables.length === 0 ? (
+                                  <div className="p-3 text-sm text-gray-500">
+                                    No variables configured.{" "}
+                                    <a href="/settings" className="text-blue-600 hover:underline">
+                                      Add in Settings
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <div className="py-1">
+                                    {gtmVariables.map((v) => (
+                                      <button
+                                        key={v.mergeField}
+                                        type="button"
+                                        onClick={() => insertVariable(v.mergeField)}
+                                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                          <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                        </div>
+                                        {v.value ? (
+                                          <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                        ) : (
+                                          <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                <div className="p-2 border-t border-gray-100">
+                                  <a
+                                    href="/settings"
+                                    className="text-xs text-gray-500 hover:text-blue-600"
+                                  >
+                                    Manage variables →
+                                  </a>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <textarea
+                          ref={chatInputRef}
+                          value={inputMessage}
+                          onChange={(e) => setInputMessage(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                              e.preventDefault();
+                              if (inputMessage.trim() && !sending) {
+                                handleSendMessage(e);
+                              }
+                            }
+                          }}
+                          placeholder="Ask Mikey anything about founder-led sales..."
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px] shadow-sm"
+                          rows={1}
+                          style={{ height: 'auto' }}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = Math.min(target.scrollHeight, 200) + 'px';
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsVoiceRecording(true)}
+                          className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors flex-shrink-0"
+                          title="Voice input"
+                        >
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!inputMessage.trim() || sending}
+                          className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-sm"
+                        >
+                          Send
+                        </button>
+                      </div>
+                    )}
                   </form>
                 )}
 
@@ -2143,104 +2203,115 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              <div className="flex gap-2 items-stretch relative flex-1 min-h-0 w-full">
-                {/* GTM Variables Dropdown */}
-                <div className="relative flex-shrink-0 self-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                    className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Insert GTM Variable"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                  </button>
-                  {showVariablesDropdown && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowVariablesDropdown(false)}
-                      />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
-                        <div className="p-2 border-b border-gray-100">
-                          <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
-                        </div>
-                        {gtmVariables.length === 0 ? (
-                          <div className="p-3 text-sm text-gray-500">
-                            No variables configured.{" "}
-                            <a href="/settings" className="text-blue-600 hover:underline">
-                              Add in Settings
+              {isVoiceRecording ? (
+                <VoiceRecordingInput
+                  isActive={isVoiceRecording}
+                  onCancel={() => setIsVoiceRecording(false)}
+                  onTranscriptionComplete={(text) => {
+                    setIsVoiceRecording(false);
+                    sendVoiceMessageWithTTS(text);
+                  }}
+                />
+              ) : (
+                <div className="flex gap-2 items-stretch relative flex-1 min-h-0 w-full">
+                  {/* GTM Variables Dropdown */}
+                  <div className="relative flex-shrink-0 self-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                      className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Insert GTM Variable"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                    </button>
+                    {showVariablesDropdown && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowVariablesDropdown(false)}
+                        />
+                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-100">
+                            <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                          </div>
+                          {gtmVariables.length === 0 ? (
+                            <div className="p-3 text-sm text-gray-500">
+                              No variables configured.{" "}
+                              <a href="/settings" className="text-blue-600 hover:underline">
+                                Add in Settings
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="py-1">
+                              {gtmVariables.map((v) => (
+                                <button
+                                  key={v.mergeField}
+                                  type="button"
+                                  onClick={() => insertVariable(v.mergeField)}
+                                  className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                    <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                  </div>
+                                  {v.value ? (
+                                    <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                  ) : (
+                                    <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <div className="p-2 border-t border-gray-100">
+                            <a
+                              href="/settings"
+                              className="text-xs text-gray-500 hover:text-blue-600"
+                            >
+                              Manage variables →
                             </a>
                           </div>
-                        ) : (
-                          <div className="py-1">
-                            {gtmVariables.map((v) => (
-                              <button
-                                key={v.mergeField}
-                                type="button"
-                                onClick={() => insertVariable(v.mergeField)}
-                                className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
-                              >
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
-                                  <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
-                                </div>
-                                {v.value ? (
-                                  <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
-                                ) : (
-                                  <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        <div className="p-2 border-t border-gray-100">
-                          <a
-                            href="/settings"
-                            className="text-xs text-gray-500 hover:text-blue-600"
-                          >
-                            Manage variables →
-                          </a>
                         </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <textarea
-                  ref={chatInputRef}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Enter submits, Shift+Enter or Cmd+Enter creates new line
-                    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                      e.preventDefault();
-                      if (inputMessage.trim() && !sending) {
-                        handleSendMessage(e);
+                      </>
+                    )}
+                  </div>
+                  <textarea
+                    ref={chatInputRef}
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter submits, Shift+Enter or Cmd+Enter creates new line
+                      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                        e.preventDefault();
+                        if (inputMessage.trim() && !sending) {
+                          handleSendMessage(e);
+                        }
                       }
-                    }
-                  }}
-                  placeholder="Ask Mikey anything about founder-led sales..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowVoiceMode(true)}
-                  className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex-shrink-0 self-end"
-                  title="Voice mode"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                </button>
-                <button
-                  type="submit"
-                  disabled={!inputMessage.trim() || sending}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 self-end"
-                >
-                  Send
-                </button>
-              </div>
+                    }}
+                    placeholder="Ask Mikey anything about founder-led sales..."
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsVoiceRecording(true)}
+                    className="p-3 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex-shrink-0 self-end"
+                    title="Voice input"
+                  >
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!inputMessage.trim() || sending}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 self-end"
+                  >
+                    Send
+                  </button>
+                </div>
+              )}
             </form>
           )}
           </div>
@@ -2781,12 +2852,6 @@ export default function ChatPage() {
         mode={maturityModalMode}
       />
 
-      {/* Voice Mode Overlay */}
-      <VoiceModeOverlay
-        isOpen={showVoiceMode}
-        onClose={() => setShowVoiceMode(false)}
-        onSendMessage={sendVoiceMessage}
-      />
     </div>
     </>
   );
