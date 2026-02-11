@@ -135,80 +135,15 @@ export async function* streamFromChatbase(
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
-      buffer += chunk;
 
       // Log raw chunks for debugging
       console.log("[Chatbase Stream] Raw chunk:", JSON.stringify(chunk));
 
-      // Try different parsing strategies
-      // Strategy 1: SSE format (data: {...})
-      const sseLines = buffer.split("\n");
-      buffer = ""; // Reset buffer, we'll add back incomplete lines
-
-      for (let i = 0; i < sseLines.length; i++) {
-        const line = sseLines[i];
-
-        // If this is the last line and doesn't end with newline, it might be incomplete
-        if (i === sseLines.length - 1 && !chunk.endsWith("\n")) {
-          buffer = line;
-          continue;
-        }
-
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            // Handle different possible response formats
-            const text = parsed.text || parsed.content || parsed.delta?.content || parsed.choices?.[0]?.delta?.content;
-            if (text) {
-              fullResponse += text;
-              yield text;
-            }
-            if (parsed.conversationId) {
-              returnedConversationId = parsed.conversationId;
-            }
-          } catch {
-            // Not JSON, might be raw text
-            if (data && data !== "[DONE]") {
-              console.log("[Chatbase Stream] Non-JSON data line:", data);
-            }
-          }
-        } else if (line.trim() && !line.startsWith("event:") && !line.startsWith(":")) {
-          // Strategy 2: Newline-delimited JSON (no "data:" prefix)
-          try {
-            const parsed = JSON.parse(line);
-            const text = parsed.text || parsed.content || parsed.delta?.content || parsed.choices?.[0]?.delta?.content;
-            if (text) {
-              fullResponse += text;
-              yield text;
-            }
-            if (parsed.conversationId) {
-              returnedConversationId = parsed.conversationId;
-            }
-          } catch {
-            // Not JSON, log for debugging
-            if (line.trim()) {
-              console.log("[Chatbase Stream] Unparseable line:", line);
-            }
-          }
-        }
-      }
-    }
-
-    // Process any remaining buffer
-    if (buffer.trim()) {
-      console.log("[Chatbase Stream] Remaining buffer:", buffer);
-      try {
-        const parsed = JSON.parse(buffer.startsWith("data: ") ? buffer.slice(6) : buffer);
-        const text = parsed.text || parsed.content;
-        if (text) {
-          fullResponse += text;
-          yield text;
-        }
-      } catch {
-        // Ignore
+      // Chatbase sends raw text chunks directly (not SSE format)
+      // Just yield the chunk as-is
+      if (chunk) {
+        fullResponse += chunk;
+        yield chunk;
       }
     }
   } finally {
