@@ -164,7 +164,9 @@ export default function ChatPage() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-  const ttsQueueRef = useRef<string[]>([]); // Queue of audio URLs to play
+  const ttsQueueRef = useRef<Map<number, string>>(new Map()); // Map of sequence -> audio URL
+  const ttsNextSeqRef = useRef(0); // Next sequence number to assign
+  const ttsPlaySeqRef = useRef(0); // Next sequence number to play
   const ttsPlayingRef = useRef(false); // Is audio currently playing
   const ttsSessionRef = useRef(0); // Incremented on each new TTS session, used to cancel stale requests
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1213,8 +1215,8 @@ export default function ChatPage() {
     sendMessage(inputMessage);
   };
 
-  // Generate TTS for a chunk and add to queue
-  const generateTTSChunk = async (text: string, sessionId: number): Promise<void> => {
+  // Generate TTS for a chunk and add to queue in order
+  const generateTTSChunk = async (text: string, sessionId: number, seqNum: number): Promise<void> => {
     if (!text.trim()) return;
 
     try {
@@ -1231,6 +1233,9 @@ export default function ChatPage() {
 
       if (!res.ok) {
         console.error("Failed to generate speech chunk");
+        // Mark this sequence as failed so playback can skip it
+        ttsQueueRef.current.set(seqNum, "");
+        playNextInQueue();
         return;
       }
 
@@ -1243,7 +1248,8 @@ export default function ChatPage() {
         return;
       }
 
-      ttsQueueRef.current.push(audioUrl);
+      // Add to queue at correct position
+      ttsQueueRef.current.set(seqNum, audioUrl);
 
       // Start playing if not already
       if (!ttsPlayingRef.current) {
@@ -1251,21 +1257,40 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error("Error generating TTS chunk:", err);
+      // Mark as failed
+      ttsQueueRef.current.set(seqNum, "");
+      playNextInQueue();
     }
   };
 
-  // Play the next audio chunk in queue
+  // Play the next audio chunk in sequence order
   const playNextInQueue = () => {
-    if (ttsQueueRef.current.length === 0) {
-      ttsPlayingRef.current = false;
-      setIsTTSPlaying(false);
+    const nextSeq = ttsPlaySeqRef.current;
+    const audioUrl = ttsQueueRef.current.get(nextSeq);
+
+    // If next chunk isn't ready yet, wait (it will call playNextInQueue when ready)
+    if (audioUrl === undefined) {
+      // Check if we have any pending chunks at all
+      if (ttsQueueRef.current.size === 0 && ttsPlayingRef.current) {
+        ttsPlayingRef.current = false;
+        setIsTTSPlaying(false);
+      }
+      return;
+    }
+
+    // Remove from queue
+    ttsQueueRef.current.delete(nextSeq);
+    ttsPlaySeqRef.current = nextSeq + 1;
+
+    // Skip failed/empty chunks
+    if (!audioUrl) {
+      playNextInQueue();
       return;
     }
 
     ttsPlayingRef.current = true;
     setIsTTSPlaying(true);
 
-    const audioUrl = ttsQueueRef.current.shift()!;
     const audio = new Audio(audioUrl);
     ttsAudioRef.current = audio;
 
@@ -1295,10 +1320,12 @@ export default function ChatPage() {
     ttsSessionRef.current += 1;
 
     // Clear the queue
-    while (ttsQueueRef.current.length > 0) {
-      const url = ttsQueueRef.current.shift();
+    ttsQueueRef.current.forEach((url) => {
       if (url) URL.revokeObjectURL(url);
-    }
+    });
+    ttsQueueRef.current.clear();
+    ttsNextSeqRef.current = 0;
+    ttsPlaySeqRef.current = 0;
 
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
@@ -1351,10 +1378,12 @@ export default function ChatPage() {
     const currentSession = ttsSessionRef.current;
 
     // Clear any previous TTS queue (but keep isTTSPlaying true to maintain UI)
-    while (ttsQueueRef.current.length > 0) {
-      const url = ttsQueueRef.current.shift();
+    ttsQueueRef.current.forEach((url) => {
       if (url) URL.revokeObjectURL(url);
-    }
+    });
+    ttsQueueRef.current.clear();
+    ttsNextSeqRef.current = 0;
+    ttsPlaySeqRef.current = 0;
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
       ttsAudioRef.current = null;
@@ -1390,7 +1419,8 @@ export default function ChatPage() {
       // Helper to flush TTS buffer when we have a complete sentence
       const flushTTSSentence = () => {
         if (ttsBuffer.trim()) {
-          generateTTSChunk(ttsBuffer.trim(), currentSession);
+          const seq = ttsNextSeqRef.current++;
+          generateTTSChunk(ttsBuffer.trim(), currentSession, seq);
           ttsBuffer = "";
         }
       };
@@ -1417,14 +1447,16 @@ export default function ChatPage() {
                 const sentenceMatch = ttsBuffer.match(/^([\s\S]*?[.!?])\s+/);
                 if (sentenceMatch) {
                   const sentence = sentenceMatch[1];
-                  generateTTSChunk(sentence, currentSession);
+                  const seq = ttsNextSeqRef.current++;
+                  generateTTSChunk(sentence, currentSession, seq);
                   ttsBuffer = ttsBuffer.slice(sentenceMatch[0].length);
                 } else if (ttsBuffer.includes("\n\n")) {
                   // Paragraph break - flush what we have
                   const parts = ttsBuffer.split("\n\n");
                   for (let i = 0; i < parts.length - 1; i++) {
                     if (parts[i].trim()) {
-                      generateTTSChunk(parts[i].trim(), currentSession);
+                      const seq = ttsNextSeqRef.current++;
+                      generateTTSChunk(parts[i].trim(), currentSession, seq);
                     }
                   }
                   ttsBuffer = parts[parts.length - 1];
