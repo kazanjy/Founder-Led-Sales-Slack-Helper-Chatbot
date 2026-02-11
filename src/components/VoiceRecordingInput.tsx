@@ -36,8 +36,10 @@ export function VoiceRecordingInput({
   const speakingAnimationRef = useRef<number | null>(null);
   const silenceStartRef = useRef<number | null>(null);
   const commitAnimationRef = useRef<number | null>(null);
+  const isRecordingRef = useRef(false); // Track recording state for callbacks
 
   const stopRecording = useCallback(() => {
+    isRecordingRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -137,7 +139,8 @@ export function VoiceRecordingInput({
   }, []);
 
   const updateAudioLevelAndCheckSilence = useCallback(() => {
-    if (!analyserRef.current || (state !== "recording" && state !== "committing")) {
+    // Use ref to check if still recording (avoids stale closure issues)
+    if (!analyserRef.current || !isRecordingRef.current) {
       return;
     }
 
@@ -163,6 +166,7 @@ export function VoiceRecordingInput({
 
       if (silenceDuration >= SILENCE_COMMIT_DELAY) {
         // Commit!
+        isRecordingRef.current = false;
         stopAndProcess();
         return;
       }
@@ -176,7 +180,7 @@ export function VoiceRecordingInput({
     }
 
     animationFrameRef.current = requestAnimationFrame(updateAudioLevelAndCheckSilence);
-  }, [state, stopAndProcess]);
+  }, [stopAndProcess]);
 
   const startRecording = async () => {
     try {
@@ -214,6 +218,7 @@ export function VoiceRecordingInput({
 
       mediaRecorder.start(100);
       setState("recording");
+      isRecordingRef.current = true;
       silenceStartRef.current = null;
       setCommitProgress(0);
 
