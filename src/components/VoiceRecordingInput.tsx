@@ -106,18 +106,8 @@ export function VoiceRecordingInput({
         return;
       }
 
-      // Prettify the transcript
-      const prettifyRes = await fetch("/api/voice/prettify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: rawText }),
-      });
-
-      let finalText = rawText;
-      if (prettifyRes.ok) {
-        const { prettified } = await prettifyRes.json();
-        finalText = prettified;
-      }
+      // Skip prettify for now - use raw transcription directly
+      const finalText = rawText;
 
       setState("sent");
       onTranscriptionComplete(finalText);
