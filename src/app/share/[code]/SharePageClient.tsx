@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 
 interface Message {
   id: string;
@@ -145,9 +146,7 @@ export default function SharePageClient({ code }: SharePageClientProps) {
               {msg.role === "USER" ? (
                 <div className="flex justify-end">
                   <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                    <p className="whitespace-pre-wrap text-gray-900 text-[17px]">
-                      {msg.content}
-                    </p>
+                    <TruncatedUserMessage content={msg.content} />
                   </div>
                 </div>
               ) : (
