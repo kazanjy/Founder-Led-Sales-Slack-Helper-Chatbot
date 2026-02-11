@@ -391,13 +391,21 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
 
   const handleClose = () => {
     stopRecording();
+    // Stop any playing audio
     if (audioElementRef.current) {
       audioElementRef.current.pause();
       audioElementRef.current = null;
     }
-    // Clear audio queue
+    // Clear audio queue to prevent more playback
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+    spokenSentencesRef.current = new Set();
+    // Stop animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    setState("idle");
     onClose();
   };
 
@@ -407,7 +415,8 @@ export function VoiceModeOverlay({ isOpen, onClose, onSendMessage }: VoiceModeOv
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget && state === "idle") {
+        // Allow closing by clicking backdrop at any time (stops playback too)
+        if (e.target === e.currentTarget) {
           handleClose();
         }
       }}

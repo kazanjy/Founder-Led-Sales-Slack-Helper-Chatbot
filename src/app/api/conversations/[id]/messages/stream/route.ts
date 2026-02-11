@@ -167,7 +167,7 @@ export async function POST(
           );
         }
 
-        // Stream from Chatbase
+        // Stream from Chatbase with buffering for smoother display
         const chatbaseStream = streamFromChatbase(
           expandedMessage,
           conversation.chatbaseConversationId || undefined,
@@ -176,23 +176,40 @@ export async function POST(
 
         let fullResponse = "";
         let chatbaseConvId: string | undefined;
+        let buffer = "";
+        const MIN_CHUNK_SIZE = 15; // Buffer until we have at least this many chars
+
+        // Helper to flush buffer to client
+        const flushBuffer = () => {
+          if (buffer) {
+            controller.enqueue(
+              encoder.encode(`event: chunk\ndata: ${JSON.stringify({ text: buffer })}\n\n`)
+            );
+            buffer = "";
+          }
+        };
 
         // Iterate through the async generator
         while (true) {
           const result = await chatbaseStream.next();
           if (result.done) {
-            // Generator finished, get the return value
+            // Generator finished, flush remaining buffer and get return value
+            flushBuffer();
             if (result.value && typeof result.value === "object") {
               chatbaseConvId = result.value.conversationId;
             }
             break;
           }
+
           // result.value is a text chunk
           const chunk = result.value;
           fullResponse += chunk;
-          controller.enqueue(
-            encoder.encode(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`)
-          );
+          buffer += chunk;
+
+          // Send buffer when it's large enough or contains sentence-ending punctuation
+          if (buffer.length >= MIN_CHUNK_SIZE || /[.!?]\s*$/.test(buffer) || buffer.includes("\n")) {
+            flushBuffer();
+          }
         }
 
         // Update conversation with Chatbase ID if we got one
