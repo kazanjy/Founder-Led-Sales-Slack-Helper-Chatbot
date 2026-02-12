@@ -339,6 +339,10 @@ export function VoiceRecordingInput({
 
         <div
           className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-150 ${getIconBgColor()}`}
+          style={{
+            transform: isRecordingActive && !isCommitting ? `scale(${1 + audioLevel * 0.3})` : undefined,
+            transition: 'transform 50ms ease-out',
+          }}
         >
           {isProcessingActive ? (
             <svg
@@ -397,9 +401,25 @@ export function VoiceRecordingInput({
           </p>
         )}
         {state === "recording" && !isCommitting && !isSpeaking && (
-          <p className="text-purple-700 font-medium">
-            Listening...
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-purple-700 font-medium">
+              Listening...
+            </p>
+            {/* Audio level bars */}
+            <div className="flex items-end gap-0.5 h-4">
+              {[0.15, 0.3, 0.45, 0.6].map((threshold, i) => (
+                <div
+                  key={i}
+                  className={`w-1 rounded-full transition-all duration-75 ${
+                    audioLevel > threshold ? 'bg-purple-500' : 'bg-purple-200'
+                  }`}
+                  style={{
+                    height: `${40 + i * 20}%`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         )}
         {isCommitting && (
           <p className="text-orange-600 font-medium">
