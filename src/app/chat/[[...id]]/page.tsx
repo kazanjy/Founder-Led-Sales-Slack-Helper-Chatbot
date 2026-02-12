@@ -1333,9 +1333,6 @@ export default function ChatPage() {
     const audio = new Audio(audioUrl);
     ttsAudioRef.current = audio;
 
-    // Scroll to bottom when TTS starts
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl);
       ttsAudioRef.current = null;
