@@ -1478,8 +1478,8 @@ export default function ChatPage() {
                 ttsBuffer += parsed.text;
                 setStreamingMessage(fullResponse);
 
-                // Check for sentence boundaries to trigger TTS
-                // Match: sentence-ending punctuation followed by space/end, or newlines
+                // Check for TTS chunk boundaries - more aggressive for faster start
+                // Priority 1: Sentence boundaries (. ! ?) followed by space
                 const sentenceMatch = ttsBuffer.match(/^([\s\S]*?[.!?])\s+/);
                 if (sentenceMatch) {
                   const sentence = sentenceMatch[1];
@@ -1487,7 +1487,7 @@ export default function ChatPage() {
                   generateTTSChunk(sentence, currentSession, seq);
                   ttsBuffer = ttsBuffer.slice(sentenceMatch[0].length);
                 } else if (ttsBuffer.includes("\n\n")) {
-                  // Paragraph break - flush what we have
+                  // Priority 2: Paragraph break - flush what we have
                   const parts = ttsBuffer.split("\n\n");
                   for (let i = 0; i < parts.length - 1; i++) {
                     if (parts[i].trim()) {
@@ -1496,6 +1496,25 @@ export default function ChatPage() {
                     }
                   }
                   ttsBuffer = parts[parts.length - 1];
+                } else if (ttsBuffer.length >= 60) {
+                  // Priority 3: Clause boundaries when buffer is long enough
+                  // Match comma, semicolon, or colon followed by space
+                  const clauseMatch = ttsBuffer.match(/^([\s\S]{30,}?[,;:])\s+/);
+                  if (clauseMatch) {
+                    const clause = clauseMatch[1];
+                    const seq = ttsNextSeqRef.current++;
+                    generateTTSChunk(clause, currentSession, seq);
+                    ttsBuffer = ttsBuffer.slice(clauseMatch[0].length);
+                  } else if (ttsBuffer.length >= 100) {
+                    // Priority 4: Force flush at word boundary if buffer is very long
+                    const wordBreak = ttsBuffer.match(/^([\s\S]{60,}?\s)\S/);
+                    if (wordBreak) {
+                      const chunk = wordBreak[1].trim();
+                      const seq = ttsNextSeqRef.current++;
+                      generateTTSChunk(chunk, currentSession, seq);
+                      ttsBuffer = ttsBuffer.slice(wordBreak[1].length);
+                    }
+                  }
                 }
               } else if (parsed.messageId) {
                 messageId = parsed.messageId;
