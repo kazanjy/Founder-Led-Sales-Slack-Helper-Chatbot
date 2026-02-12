@@ -13,6 +13,7 @@ interface VoiceRecordingInputProps {
 }
 
 const SILENCE_COMMIT_DELAY = 2000; // ms of silence before committing
+const SILENCE_WARNING_DELAY = 1000; // ms of silence before showing "preparing to send"
 
 export function VoiceRecordingInput({
   isActive,
@@ -156,15 +157,22 @@ export function VoiceRecordingInput({
       // Silence detected, but only start countdown if user has spoken
       if (!silenceStartRef.current) {
         silenceStartRef.current = now;
-        setState("committing");
       }
 
       const silenceDuration = now - silenceStartRef.current;
-      const progress = Math.min(100, (silenceDuration / SILENCE_COMMIT_DELAY) * 100);
-      setCommitProgress(progress);
+      const totalDelay = SILENCE_WARNING_DELAY + SILENCE_COMMIT_DELAY;
 
-      if (silenceDuration >= SILENCE_COMMIT_DELAY) {
-        // Commit!
+      if (silenceDuration >= SILENCE_WARNING_DELAY) {
+        // Show "Preparing to send" after 1 second of silence
+        setState("committing");
+        // Progress starts after warning delay, fills over commit delay
+        const commitProgress = silenceDuration - SILENCE_WARNING_DELAY;
+        const progress = Math.min(100, (commitProgress / SILENCE_COMMIT_DELAY) * 100);
+        setCommitProgress(progress);
+      }
+
+      if (silenceDuration >= totalDelay) {
+        // Commit after total delay (1s warning + 2s commit)
         isRecordingRef.current = false;
         stopAndProcess();
         return;
