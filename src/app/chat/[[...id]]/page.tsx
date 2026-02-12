@@ -902,22 +902,10 @@ export default function ChatPage() {
     window.history.pushState({}, '', newUrl);
   };
 
-  // Scroll to bottom when messages change
+  // Auto-scroll disabled - user prefers manual scrolling
   useEffect(() => {
-    if (messages.length > 0) {
-      // Double requestAnimationFrame ensures content is fully painted
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (isInitialLoad.current) {
-            // For initial load, scroll instantly without animation
-            messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-            isInitialLoad.current = false;
-          } else {
-            // For new messages, smooth scroll
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-          }
-        });
-      });
+    if (messages.length > 0 && isInitialLoad.current) {
+      isInitialLoad.current = false;
     }
   }, [messages]);
 
