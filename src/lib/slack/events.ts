@@ -51,11 +51,8 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
     return;
   }
 
-  // Handle thread replies (continuing a conversation)
-  if (event.type === "message" && event.thread_ts && event.thread_ts !== event.ts) {
-    await handleThreadReply(team_id, event);
-    return;
-  }
+  // Thread replies without @mention are intentionally ignored.
+  // Mikey only responds when explicitly @mentioned.
 }
 
 /**
@@ -356,79 +353,6 @@ async function handleDirectMessage(
   }
 
   await processMessage(workspace, dbUser, channel, threadTs, text, ts);
-}
-
-/**
- * Handle replies within a thread (without @mention)
- * This allows users to continue a conversation without needing to @mention again.
- * Messages WITH @mentions are handled by handleMention() instead.
- */
-async function handleThreadReply(
-  teamId: string,
-  event: SlackEventPayload["event"]
-) {
-  const { user, text, channel, ts, thread_ts } = event;
-  if (!user || !text || !channel || !ts || !thread_ts) return;
-
-  // Check if we have a conversation for this thread
-  const workspace = await prisma.workspace.findUnique({
-    where: { slackTeamId: teamId },
-  });
-
-  if (!workspace) return;
-
-  // Skip if the user @mentioned Mikey - handleMention() will process those
-  // This prevents duplicate responses when Slack sends both app_mention and message events
-  const botMention = workspace.botUserId ? `<@${workspace.botUserId}>` : null;
-  if (botMention && text.includes(botMention)) {
-    return; // Let handleMention() handle this
-  }
-
-  // Check if this is a thread we're participating in
-  const conversation = await prisma.conversation.findUnique({
-    where: {
-      workspaceId_slackChannelId_slackThreadTs: {
-        workspaceId: workspace.id,
-        slackChannelId: channel,
-        slackThreadTs: thread_ts,
-      },
-    },
-  });
-
-  // Only respond to threads we've already joined
-  if (!conversation) return;
-
-  const client = getSlackClient(workspace.botToken);
-
-  const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
-
-  // Check if user can send messages
-  const canSend = await checkUserCanSendMessage(dbUser);
-
-  if (!canSend.allowed) {
-    await sendSlackMessage(client, channel, canSend.message, thread_ts);
-    return;
-  }
-
-  // Send welcome message for first-time users (rare in thread replies, but possible)
-  if (canSend.welcomeMessage) {
-    await sendSlackMessage(client, channel, canSend.welcomeMessage, thread_ts);
-  }
-
-  // Strip the bot mention from the message
-  const cleanText = text.replace(/<@[A-Z0-9]+>/g, "").trim();
-
-  if (!cleanText) {
-    await sendSlackMessage(
-      client,
-      channel,
-      "I'm here! What can I help you with?",
-      thread_ts
-    );
-    return;
-  }
-
-  await processMessage(workspace, dbUser, channel, thread_ts, cleanText, ts);
 }
 
 /**
