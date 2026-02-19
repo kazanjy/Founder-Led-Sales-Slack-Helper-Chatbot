@@ -74,6 +74,13 @@ function BulkAssessmentContent() {
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Set browser tab title based on mode
+  useEffect(() => {
+    document.title = mode === "update"
+      ? "Update GTM Assessment - Mikey"
+      : "GTM Maturity Assessment - Mikey";
+  }, [mode]);
+
   // Cycle through loading messages when submitting
   useEffect(() => {
     if (!submitting) {

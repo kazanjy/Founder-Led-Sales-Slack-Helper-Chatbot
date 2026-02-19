@@ -902,6 +902,17 @@ export default function ChatPage() {
     window.history.pushState({}, '', newUrl);
   };
 
+  // Update browser tab title based on selected conversation
+  useEffect(() => {
+    if (selectedConversation) {
+      const conv = conversations.find((c) => c.id === selectedConversation);
+      const title = conv?.title || conv?.firstMessagePreview?.slice(0, 50) || "Chat";
+      document.title = `${title} - Mikey`;
+    } else {
+      document.title = "Mikey - New Chat";
+    }
+  }, [selectedConversation, conversations]);
+
   // Auto-scroll disabled - user prefers manual scrolling
   useEffect(() => {
     if (messages.length > 0 && isInitialLoad.current) {

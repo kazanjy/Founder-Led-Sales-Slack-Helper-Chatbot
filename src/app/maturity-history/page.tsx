@@ -76,6 +76,10 @@ export default function MaturityHistoryPage() {
     }
   };
 
+  useEffect(() => {
+    document.title = "Assessment History - Mikey";
+  }, []);
+
   // Check auth and load assessment list
   useEffect(() => {
     async function loadData() {

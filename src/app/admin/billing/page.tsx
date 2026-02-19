@@ -31,6 +31,10 @@ export default function AdminBillingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Admin - Billing";
+  }, []);
+
+  useEffect(() => {
     async function fetchBilling() {
       try {
         const res = await fetch("/api/admin/billing");

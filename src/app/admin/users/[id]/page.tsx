@@ -98,6 +98,15 @@ export default function AdminUserDetailPage() {
   };
 
   useEffect(() => {
+    if (user) {
+      const displayName = user.name || user.slackUserName || user.email || user.slackEmail || "User";
+      document.title = `Admin - ${displayName}`;
+    } else {
+      document.title = "Admin - User Details";
+    }
+  }, [user]);
+
+  useEffect(() => {
     async function fetchUser() {
       try {
         const res = await fetch(`/api/admin/users/${params.id}`);

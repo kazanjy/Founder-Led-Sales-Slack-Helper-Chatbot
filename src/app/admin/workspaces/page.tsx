@@ -35,6 +35,10 @@ export default function AdminWorkspacesPage() {
 
   const currentPage = parseInt(searchParams.get("page") || "1");
 
+  useEffect(() => {
+    document.title = "Admin - Workspaces";
+  }, []);
+
   const fetchWorkspaces = useCallback(async () => {
     setLoading(true);
     try {

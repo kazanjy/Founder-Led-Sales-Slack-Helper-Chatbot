@@ -44,8 +44,13 @@ export default function AdminUsersPage() {
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   const currentPage = parseInt(searchParams.get("page") || "1");
+
+  useEffect(() => {
+    document.title = "Admin - Users";
+  }, []);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -129,6 +134,30 @@ export default function AdminUsersPage() {
       setCreateError("An error occurred while creating the user");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleImpersonate = async (e: React.MouseEvent, userId: string, userName: string) => {
+    e.stopPropagation(); // Prevent row click navigation
+    if (!confirm(`Are you sure you want to log in as ${userName}? You will be redirected to the chat page as this user.`)) {
+      return;
+    }
+    setImpersonatingId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/impersonate`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        router.push(data.redirectTo);
+      } else {
+        alert(data.error || "Failed to login as user");
+        setImpersonatingId(null);
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+      alert("Failed to login as user");
+      setImpersonatingId(null);
     }
   };
 
@@ -290,6 +319,9 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joined
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -340,6 +372,30 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <button
+                        onClick={(e) => handleImpersonate(e, user.id, user.name || user.email || "this user")}
+                        disabled={impersonatingId === user.id}
+                        className="px-3 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        {impersonatingId === user.id ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Logging in...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Login as User
+                          </>
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))}

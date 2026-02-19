@@ -21,6 +21,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Admin - Dashboard";
+  }, []);
+
+  useEffect(() => {
     async function fetchStats() {
       try {
         const res = await fetch("/api/admin/stats");

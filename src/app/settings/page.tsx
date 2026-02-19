@@ -83,6 +83,10 @@ export default function SettingsPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  useEffect(() => {
+    document.title = "GTM Variables - Mikey";
+  }, []);
+
   // Load user and variables on mount
   useEffect(() => {
     async function loadData() {
