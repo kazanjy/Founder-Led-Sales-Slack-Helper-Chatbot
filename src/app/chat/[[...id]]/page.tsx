@@ -1753,46 +1753,66 @@ export default function ChatPage() {
 
         {/* Apps Section */}
         <div className="px-4 pb-3">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Apps</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">GTM Checklist</div>
           <div className="space-y-1">
             <a
               href="/assessment/bulk"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              <span>📊</span>
+              {appProgress.gtmAssessment?.hasSubmitted ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : appProgress.gtmAssessment && appProgress.gtmAssessment.answered > 0 ? (
+                <span className="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                </span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
               <span className="flex-1">GTM Assessment</span>
               {appProgress.gtmAssessment && !appProgress.gtmAssessment.hasSubmitted && appProgress.gtmAssessment.answered > 0 && (
                 <span className="text-xs text-orange-600 font-medium">
                   {appProgress.gtmAssessment.answered}/{appProgress.gtmAssessment.total}
                 </span>
               )}
-              {appProgress.gtmAssessment?.hasSubmitted && (
-                <span className="text-xs text-green-600">✓</span>
+              {!appProgress.gtmAssessment?.hasSubmitted && (!appProgress.gtmAssessment || appProgress.gtmAssessment.answered === 0) && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
             </a>
             <a
               href="/sales-narrative"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              <span>📝</span>
+              {appProgress.salesNarrative?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : appProgress.salesNarrative && appProgress.salesNarrative.answered > 0 ? (
+                <span className="w-5 h-5 rounded-full border-2 border-orange-400 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                </span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
               <span className="flex-1">Sales Narrative</span>
               {appProgress.salesNarrative && !appProgress.salesNarrative.hasGenerated && appProgress.salesNarrative.answered > 0 && (
                 <span className="text-xs text-orange-600 font-medium">
                   {appProgress.salesNarrative.answered}/{appProgress.salesNarrative.total}
                 </span>
               )}
-              {appProgress.salesNarrative?.hasGenerated && (
-                <span className="text-xs text-green-600">✓</span>
+              {!appProgress.salesNarrative?.hasGenerated && (!appProgress.salesNarrative || appProgress.salesNarrative.answered === 0) && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
             </a>
             <a
               href="/discovery-questions"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
-              <span>🔍</span>
+              {appProgress.discoveryQuestions?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
               <span className="flex-1">Discovery Questions</span>
-              {appProgress.discoveryQuestions?.hasGenerated && (
-                <span className="text-xs text-green-600">✓</span>
+              {!appProgress.discoveryQuestions?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
             </a>
           </div>
