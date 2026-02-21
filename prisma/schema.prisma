@@ -92,6 +92,8 @@ model User {
   gtmVariables    GtmVariable[]
   maturityAnswers MaturityAnswer[]
   maturityAssessments MaturityAssessment[]
+  salesNarrativeAnswers SalesNarrativeAnswer[]
+  salesNarrativeVersions SalesNarrativeVersion[]
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -451,4 +453,73 @@ model MaturityAssessment {
   completedAt     DateTime @default(now())
 
   @@map("maturity_assessments")
+}
+
+// ============================================
+// SALES NARRATIVE APP
+// ============================================
+
+// Sales Narrative Questions (seeded)
+model SalesNarrativeQuestion {
+  id          String   @id @default(cuid())
+  category    String   // e.g., "Problem", "Solution", "Proof", "Business"
+  globalOrder Int      @unique // Question number (1-8)
+  question    String   @db.Text
+  helpText    String?  @db.Text // Optional guidance for answering
+  enabled     Boolean  @default(true)
+
+  answers     SalesNarrativeAnswer[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sales_narrative_questions")
+}
+
+// User's answers to sales narrative questions (append-only for history)
+model SalesNarrativeAnswer {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId  String
+  question    SalesNarrativeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific version (snapshot when narrative generated)
+  versionId   String?
+  version     SalesNarrativeVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer      String   @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("sales_narrative_answers")
+}
+
+// Generated sales narrative versions
+model SalesNarrativeVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Snapshot of answers at generation time
+  answers     SalesNarrativeAnswer[]
+
+  // Generated outputs
+  narrative       String   @db.Text  // Full sales narrative prose
+  description100w String   @db.Text  // 100-word product description
+  description50w  String   @db.Text  // 50-word elevator pitch
+  description25w  String   @db.Text  // 25-word tagline
+
+  // Optional: conversation for follow-up chat about the narrative
+  conversationId  String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("sales_narrative_versions")
 }
