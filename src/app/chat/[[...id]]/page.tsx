@@ -1696,6 +1696,27 @@ export default function ChatPage() {
           </button>
         </div>
 
+        {/* Apps Section */}
+        <div className="px-4 pb-3">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Apps</div>
+          <div className="space-y-1">
+            <a
+              href="/assessment/bulk"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span>📊</span>
+              <span>GTM Assessment</span>
+            </a>
+            <a
+              href="/sales-narrative"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span>📝</span>
+              <span>Sales Narrative</span>
+            </a>
+          </div>
+        </div>
+
         {/* Conversations List - this part scrolls independently */}
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
