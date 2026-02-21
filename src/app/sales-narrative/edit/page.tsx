@@ -240,6 +240,7 @@ function SalesNarrativeEditContent() {
 
   // Category colors
   const categoryColors: Record<string, { bg: string; text: string; gradient: string }> = {
+    Product: { bg: "bg-indigo-500", text: "text-indigo-700", gradient: "from-indigo-500 to-violet-500" },
     Problem: { bg: "bg-red-500", text: "text-red-700", gradient: "from-red-500 to-orange-500" },
     Solution: { bg: "bg-blue-500", text: "text-blue-700", gradient: "from-blue-500 to-cyan-500" },
     Proof: { bg: "bg-green-500", text: "text-green-700", gradient: "from-green-500 to-emerald-500" },

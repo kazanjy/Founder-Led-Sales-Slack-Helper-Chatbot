@@ -15,10 +15,18 @@ interface Question {
 }
 
 const questions: Question[] = [
+  // Product/Service (1 question)
+  {
+    category: "Product",
+    question: "What is the name of your product or service?",
+    helpText: "The specific name customers will use to refer to your offering",
+  },
+
   // Problem (4 questions)
   {
     category: "Problem",
     question: "What is the problem?",
+    helpText: "Define the core business pain as crisply as possible",
   },
   {
     category: "Problem",
@@ -29,6 +37,7 @@ const questions: Question[] = [
   {
     category: "Problem",
     question: "What are the costs associated with the problem?",
+    helpText: "Quantify the hard costs, opportunity costs, and soft costs of the status quo",
   },
   {
     category: "Problem",
@@ -42,22 +51,26 @@ const questions: Question[] = [
   {
     category: "Solution",
     question: "What has changed enabling a new solution?",
+    helpText: "Identify the market, technology, or behavioral shift that makes a new approach possible",
   },
   {
     category: "Solution",
     question: "How does the new solution work?",
+    helpText: "Explain the nuts and bolts in terms your prospect already understands",
   },
 
   // Proof (1 question)
   {
     category: "Proof",
     question: "How do you know it's better? (Quantitative, Qualitative)",
+    helpText: "Present metrics, comparisons, and third-party validation that prove superiority",
   },
 
   // Business (1 question)
   {
     category: "Business",
     question: "What does it cost? How is it paid?",
+    helpText: "Frame pricing against the ROI and cost of current alternatives",
   },
 ];
 
@@ -90,7 +103,7 @@ async function main() {
   console.log(`Seeded ${questions.length} sales narrative questions.`);
 
   // Print summary by category
-  const categories = ["Problem", "Solution", "Proof", "Business"];
+  const categories = ["Product", "Problem", "Solution", "Proof", "Business"];
 
   for (const cat of categories) {
     const count = questions.filter((q) => q.category === cat).length;

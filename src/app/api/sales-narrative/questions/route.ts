@@ -46,8 +46,8 @@ export async function GET() {
       latestAnswer: answerMap.get(q.id) || null,
     }));
 
-    // Group by category (preserve order: Problem, Solution, Proof, Business)
-    const categoryOrder = ["Problem", "Solution", "Proof", "Business"];
+    // Group by category (preserve order: Product, Problem, Solution, Proof, Business)
+    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
     const grouped = categoryOrder
       .filter((cat) => questionsWithAnswers.some((q) => q.category === cat))
       .map((category) => ({
