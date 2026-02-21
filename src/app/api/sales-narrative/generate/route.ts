@@ -126,10 +126,13 @@ And all of this is available to you for **$6,000 per user, per year**. That incl
 ## OUTPUT REQUIREMENTS
 
 Generate:
-1. **SALES NARRATIVE** - Following the Founding Sales format above with question headers for each section
-2. **100-WORD DESCRIPTION** - A product marketing summary suitable for a website or pitch deck. Covers problem, solution, and key differentiator.
-3. **50-WORD DESCRIPTION** - An elevator pitch that can be spoken in ~20 seconds. Problem + solution + why it's better.
-4. **25-WORD DESCRIPTION** - A tagline or one-liner that captures the essence.
+1. **SALES NARRATIVE** - CRITICAL: Each section MUST start with a bold header question exactly like the examples above (e.g., "**What's the problem?**", "**Who has the problem?**", etc.). The narrative should have 6-7 distinct sections, each beginning with its header in bold. Do NOT omit the headers - they are essential to the Founding Sales format.
+
+2. **100-WORD DESCRIPTION** - A product marketing summary suitable for a website or pitch deck. Covers problem, solution, and key differentiator. No headers needed.
+
+3. **50-WORD DESCRIPTION** - An elevator pitch that can be spoken in ~20 seconds. Problem + solution + why it's better. No headers needed.
+
+4. **25-WORD DESCRIPTION** - A tagline or one-liner that captures the essence. No headers needed.
 
 ## QUESTIONNAIRE ANSWERS:
 
