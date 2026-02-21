@@ -1768,6 +1768,7 @@ export default function ChatPage() {
               ) : (
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
+              <span>📊</span>
               <span className="flex-1">GTM Assessment</span>
               {appProgress.gtmAssessment && !appProgress.gtmAssessment.hasSubmitted && appProgress.gtmAssessment.answered > 0 && (
                 <span className="text-xs text-orange-600 font-medium">
@@ -1791,6 +1792,7 @@ export default function ChatPage() {
               ) : (
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
+              <span>📝</span>
               <span className="flex-1">Sales Narrative</span>
               {appProgress.salesNarrative && !appProgress.salesNarrative.hasGenerated && appProgress.salesNarrative.answered > 0 && (
                 <span className="text-xs text-orange-600 font-medium">
@@ -1810,6 +1812,7 @@ export default function ChatPage() {
               ) : (
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
+              <span>🔍</span>
               <span className="flex-1">Discovery Questions</span>
               {!appProgress.discoveryQuestions?.hasGenerated && (
                 <span className="text-xs text-purple-600 font-medium">Start →</span>
