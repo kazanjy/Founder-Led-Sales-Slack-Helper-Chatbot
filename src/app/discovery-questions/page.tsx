@@ -81,7 +81,16 @@ function DiscoveryQuestionsContent() {
         }
 
         const response = await fetch(url);
-        if (!response.ok) throw new Error("Failed to load");
+
+        if (!response.ok) {
+          // API might fail if table doesn't exist yet - check for sales narrative directly
+          const narrativeRes = await fetch("/api/sales-narrative/latest");
+          if (narrativeRes.ok) {
+            const narrativeData = await narrativeRes.json();
+            setHasSalesNarrative(narrativeData.hasNarrative || false);
+          }
+          return;
+        }
 
         const data = await response.json();
 
@@ -102,6 +111,16 @@ function DiscoveryQuestionsContent() {
         }
       } catch (error) {
         console.error("Error loading data:", error);
+        // Try to check for sales narrative even if main call failed
+        try {
+          const narrativeRes = await fetch("/api/sales-narrative/latest");
+          if (narrativeRes.ok) {
+            const narrativeData = await narrativeRes.json();
+            setHasSalesNarrative(narrativeData.hasNarrative || false);
+          }
+        } catch {
+          // Ignore
+        }
       } finally {
         setLoading(false);
       }
