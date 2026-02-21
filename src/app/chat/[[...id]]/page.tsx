@@ -176,6 +176,10 @@ export default function ChatPage() {
   const [inputHeight, setInputHeight] = useState(80); // Default input container height
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
+  const [appProgress, setAppProgress] = useState<{
+    gtmAssessment: { answered: number; total: number; hasSubmitted: boolean } | null;
+    salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null });
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -222,6 +226,46 @@ export default function ChatPage() {
       }
     }
     loadPrompts();
+  }, []);
+
+  // Load app progress for sidebar
+  useEffect(() => {
+    async function loadAppProgress() {
+      try {
+        // Fetch GTM Assessment progress
+        const gtmRes = await fetch("/api/maturity/questions");
+        if (gtmRes.ok) {
+          const gtmData = await gtmRes.json();
+          const answered = gtmData.questions?.filter((q: { latestAnswer: unknown }) => q.latestAnswer).length || 0;
+          const total = gtmData.questions?.length || 0;
+          // Check if user has ever submitted an assessment
+          const assessmentRes = await fetch("/api/maturity/latest");
+          const hasSubmitted = assessmentRes.ok && (await assessmentRes.json()).assessment;
+          setAppProgress(prev => ({
+            ...prev,
+            gtmAssessment: { answered, total, hasSubmitted: !!hasSubmitted }
+          }));
+        }
+
+        // Fetch Sales Narrative progress
+        const snRes = await fetch("/api/sales-narrative/questions");
+        if (snRes.ok) {
+          const snData = await snRes.json();
+          const answered = snData.questions?.filter((q: { latestAnswer: unknown }) => q.latestAnswer).length || 0;
+          const total = snData.questions?.length || 0;
+          // Check if user has ever generated a narrative
+          const latestRes = await fetch("/api/sales-narrative/latest");
+          const hasGenerated = latestRes.ok && (await latestRes.json()).hasNarrative;
+          setAppProgress(prev => ({
+            ...prev,
+            salesNarrative: { answered, total, hasGenerated: !!hasGenerated }
+          }));
+        }
+      } catch (error) {
+        console.error("Error loading app progress:", error);
+      }
+    }
+    loadAppProgress();
   }, []);
 
   // Spacebar to interrupt TTS and start listening
@@ -1705,14 +1749,30 @@ export default function ChatPage() {
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
               <span>📊</span>
-              <span>GTM Assessment</span>
+              <span className="flex-1">GTM Assessment</span>
+              {appProgress.gtmAssessment && !appProgress.gtmAssessment.hasSubmitted && appProgress.gtmAssessment.answered > 0 && (
+                <span className="text-xs text-orange-600 font-medium">
+                  {appProgress.gtmAssessment.answered}/{appProgress.gtmAssessment.total}
+                </span>
+              )}
+              {appProgress.gtmAssessment?.hasSubmitted && (
+                <span className="text-xs text-green-600">✓</span>
+              )}
             </a>
             <a
               href="/sales-narrative"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
             >
               <span>📝</span>
-              <span>Sales Narrative</span>
+              <span className="flex-1">Sales Narrative</span>
+              {appProgress.salesNarrative && !appProgress.salesNarrative.hasGenerated && appProgress.salesNarrative.answered > 0 && (
+                <span className="text-xs text-orange-600 font-medium">
+                  {appProgress.salesNarrative.answered}/{appProgress.salesNarrative.total}
+                </span>
+              )}
+              {appProgress.salesNarrative?.hasGenerated && (
+                <span className="text-xs text-green-600">✓</span>
+              )}
             </a>
           </div>
         </div>
