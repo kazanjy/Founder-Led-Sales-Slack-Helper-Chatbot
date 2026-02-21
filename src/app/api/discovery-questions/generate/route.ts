@@ -11,10 +11,29 @@ export async function POST() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get the latest sales narrative version
+    // Get the latest sales narrative version with its answers
     const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
+      include: {
+        answers: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                category: true,
+                globalOrder: true,
+                question: true,
+              },
+            },
+          },
+          orderBy: {
+            question: {
+              globalOrder: "asc",
+            },
+          },
+        },
+      },
     });
 
     if (!latestNarrative) {
@@ -24,14 +43,35 @@ export async function POST() {
       );
     }
 
+    // Build the Q&A inputs section
+    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
+    let qaInputsSection = "";
+
+    for (const category of categoryOrder) {
+      const categoryAnswers = latestNarrative.answers.filter(
+        (a) => a.question.category === category
+      );
+      if (categoryAnswers.length === 0) continue;
+
+      qaInputsSection += `### ${category}\n\n`;
+      for (const answer of categoryAnswers) {
+        qaInputsSection += `**Q${answer.question.globalOrder}: ${answer.question.question}**\n`;
+        qaInputsSection += `${answer.answer || "_Not answered_"}\n\n`;
+      }
+    }
+
     // Build the prompt for Chatbase
     const systemPrompt = `You are an expert B2B sales coach helping founders create discovery questions for sales calls.
 
-Based on the sales narrative below, generate a comprehensive set of discovery questions that a founder can use during sales calls to understand prospects better and qualify opportunities.
+Based on the sales narrative and questionnaire inputs below, generate a comprehensive set of discovery questions that a founder can use during sales calls to understand prospects better and qualify opportunities.
 
 ## SALES NARRATIVE:
 
 ${latestNarrative.narrative}
+
+## QUESTIONNAIRE INPUTS (Raw Q&A):
+
+${qaInputsSection}
 
 ## INSTRUCTIONS:
 
