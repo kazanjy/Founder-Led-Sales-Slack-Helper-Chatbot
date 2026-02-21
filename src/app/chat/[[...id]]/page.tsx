@@ -179,7 +179,8 @@ export default function ChatPage() {
   const [appProgress, setAppProgress] = useState<{
     gtmAssessment: { answered: number; total: number; hasSubmitted: boolean } | null;
     salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null });
+    discoveryQuestions: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null });
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -259,6 +260,16 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             salesNarrative: { answered, total, hasGenerated: !!hasGenerated }
+          }));
+        }
+
+        // Fetch Discovery Questions progress
+        const dqRes = await fetch("/api/discovery-questions/latest");
+        if (dqRes.ok) {
+          const dqData = await dqRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            discoveryQuestions: { hasGenerated: !!dqData.hasDiscoveryQuestions }
           }));
         }
       } catch (error) {
@@ -1771,6 +1782,16 @@ export default function ChatPage() {
                 </span>
               )}
               {appProgress.salesNarrative?.hasGenerated && (
+                <span className="text-xs text-green-600">✓</span>
+              )}
+            </a>
+            <a
+              href="/discovery-questions"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span>🔍</span>
+              <span className="flex-1">Discovery Questions</span>
+              {appProgress.discoveryQuestions?.hasGenerated && (
                 <span className="text-xs text-green-600">✓</span>
               )}
             </a>

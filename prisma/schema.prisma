@@ -94,6 +94,7 @@ model User {
   maturityAssessments MaturityAssessment[]
   salesNarrativeAnswers SalesNarrativeAnswer[]
   salesNarrativeVersions SalesNarrativeVersion[]
+  discoveryQuestionsVersions DiscoveryQuestionsVersion[]
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -518,8 +519,35 @@ model SalesNarrativeVersion {
   // Optional: conversation for follow-up chat about the narrative
   conversationId  String?
 
+  // Discovery questions generated from this narrative
+  discoveryQuestionsVersions DiscoveryQuestionsVersion[]
+
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("sales_narrative_versions")
+}
+
+// ============================================
+// DISCOVERY QUESTIONS APP
+// ============================================
+
+// Generated discovery questions versions
+model DiscoveryQuestionsVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative version used as input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output - the discovery questions content
+  content     String   @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("discovery_questions_versions")
 }
