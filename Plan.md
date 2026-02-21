@@ -283,6 +283,283 @@ Please respond in the following JSON format:
 
 ---
 
+# User-to-User Chat Sharing - Design
+
+## Overview
+
+Allow users to share a conversation with another Mikey user by email. The shared chat appears in the recipient's account, giving them read access (and optionally write access) to the conversation.
+
+**Distinct from existing public sharing:**
+- **Public share** (`/share/[code]`): Anyone with the link can view, no account needed, read-only
+- **User share** (this feature): Specific user by email, must have Mikey account, shows in their sidebar, configurable permissions
+
+## User Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SHARER INITIATES                         │
+│  • Click "Share" on conversation (existing button)          │
+│  • Modal shows: Public link + NEW "Share with user" section │
+│  • Enter email address                                      │
+│  • Select permission: "Can view" or "Can view & reply"      │
+│  • Click "Share"                                            │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    SYSTEM PROCESSES                         │
+│  • Look up user by email (any of: email, slackEmail)        │
+│  • If found: Create ConversationShare record                │
+│  • If not found: Show error "No Mikey user with this email" │
+│  • Optional: Send email notification to recipient           │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  RECIPIENT EXPERIENCE                       │
+│  • "Shared with me" section in sidebar (or tab/filter)      │
+│  • Shows who shared it and when                             │
+│  • Can view full conversation                               │
+│  • If "Can reply": Can add messages (continues same thread) │
+│  • Cannot delete or share further (owner only)              │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   MANAGEMENT                                │
+│  • Owner sees list of users they've shared with             │
+│  • Can revoke access (delete ConversationShare)             │
+│  • Can change permissions                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Data Model
+
+```prisma
+model ConversationShare {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Who shared it
+  sharedByUserId  String
+  sharedBy        User     @relation("SharedByUser", fields: [sharedByUserId], references: [id])
+
+  // Who it's shared with
+  sharedWithUserId String
+  sharedWithUser   User     @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
+
+  // Permissions
+  canReply        Boolean  @default(false)  // false = view only, true = can add messages
+
+  // Tracking
+  viewedAt        DateTime?  // When recipient first viewed
+  createdAt       DateTime @default(now())
+
+  @@unique([conversationId, sharedWithUserId])  // Can only share once per user
+  @@index([sharedWithUserId])  // For fetching "shared with me"
+  @@index([conversationId])    // For fetching "who has access"
+}
+```
+
+**Changes to Conversation model:**
+```prisma
+model Conversation {
+  // ... existing fields ...
+
+  shares          ConversationShare[]  // Add relation
+}
+```
+
+**Changes to User model:**
+```prisma
+model User {
+  // ... existing fields ...
+
+  sharedByMe      ConversationShare[] @relation("SharedByUser")
+  sharedWithMe    ConversationShare[] @relation("SharedWithUser")
+}
+```
+
+## API Endpoints
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `POST /api/conversations/[id]/share-with-user` | POST | Share conversation with a user by email |
+| `GET /api/conversations/[id]/shares` | GET | List all users this conversation is shared with |
+| `DELETE /api/conversations/[id]/shares/[shareId]` | DELETE | Revoke a share |
+| `PATCH /api/conversations/[id]/shares/[shareId]` | PATCH | Update permissions (canReply) |
+| `GET /api/conversations/shared-with-me` | GET | List conversations shared with current user |
+
+## Access Control Changes
+
+**Current:** Conversation access checks `conversation.userId === currentUser.id`
+
+**New:** Must also check for share access:
+```typescript
+async function canAccessConversation(userId: string, conversationId: string): Promise<{
+  canAccess: boolean;
+  canReply: boolean;
+  isOwner: boolean;
+}> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: {
+      shares: {
+        where: { sharedWithUserId: userId }
+      }
+    }
+  });
+
+  if (!conversation) return { canAccess: false, canReply: false, isOwner: false };
+
+  // Owner has full access
+  if (conversation.userId === userId) {
+    return { canAccess: true, canReply: true, isOwner: true };
+  }
+
+  // Check for share
+  const share = conversation.shares[0];
+  if (share) {
+    return { canAccess: true, canReply: share.canReply, isOwner: false };
+  }
+
+  return { canAccess: false, canReply: false, isOwner: false };
+}
+```
+
+**Endpoints to update:**
+- `GET /api/conversations/[id]` - Allow if shared
+- `GET /api/conversations/[id]/messages` - Allow if shared
+- `POST /api/conversations/[id]/messages` - Allow if shared AND canReply
+- `PATCH /api/conversations/[id]` - Owner only (rename, archive)
+- `DELETE /api/conversations/[id]` - Owner only
+
+## UI Components
+
+### Share Modal Enhancement
+
+Current modal shows public share link. Add a new section:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Share Conversation                             │
+├─────────────────────────────────────────────────┤
+│  PUBLIC LINK                                    │
+│  [https://mikey.../share/abc123    ] [Copy]     │
+│  Anyone with this link can view                 │
+├─────────────────────────────────────────────────┤
+│  SHARE WITH MIKEY USER                          │
+│  Email: [_________________________]             │
+│  Permission: (•) Can view  ( ) Can view & reply │
+│  [Share]                                        │
+│                                                 │
+│  Shared with:                                   │
+│  • pete@example.com (can reply) [Revoke]        │
+│  • jane@example.com (view only) [Revoke]        │
+└─────────────────────────────────────────────────┘
+```
+
+### Sidebar "Shared with me" Section
+
+Option A: **Separate section** below "Your conversations"
+```
+YOUR CONVERSATIONS
+  • Discovery call prep
+  • ICP brainstorm
+
+SHARED WITH ME
+  • Sales narrative review (from pete@...)
+  • Comp plan discussion (from jane@...)
+```
+
+Option B: **Filter/tab** at top of conversation list
+```
+[My Chats] [Shared with Me]
+```
+
+Option C: **Mixed list** with visual indicator (badge/icon)
+```
+• Discovery call prep
+• ICP brainstorm
+• 🔗 Sales narrative review (shared by Pete)
+```
+
+**Recommendation:** Option A (separate section) - clearest UX, easy to implement
+
+### Shared Chat Indicators
+
+When viewing a shared conversation:
+- Banner at top: "Shared by pete@example.com • View only" or "Shared by pete@example.com • You can reply"
+- If view-only: Input field disabled or hidden
+- Owner indicator removed (show "Shared with you" instead)
+
+## Email Notifications (Optional)
+
+When a chat is shared, optionally send email to recipient:
+
+**Subject:** "Pete shared a Mikey conversation with you"
+
+**Body:**
+```
+Pete Kazanjy shared a conversation with you on Mikey.
+
+"Sales narrative brainstorm"
+
+You can view (and reply to) this conversation in your Mikey account.
+
+[View Conversation]
+```
+
+**Implementation:** Use existing email infrastructure (if any) or add SendGrid/Resend integration.
+
+## Implementation Steps
+
+### Phase 1: Data Model
+- [ ] Add ConversationShare model to Prisma schema
+- [ ] Add relations to Conversation and User models
+- [ ] Run migration
+
+### Phase 2: API Endpoints
+- [ ] `POST /api/conversations/[id]/share-with-user` - create share
+- [ ] `GET /api/conversations/[id]/shares` - list shares
+- [ ] `DELETE /api/conversations/[id]/shares/[shareId]` - revoke
+- [ ] `GET /api/conversations/shared-with-me` - list shared with current user
+
+### Phase 3: Access Control
+- [ ] Create `canAccessConversation()` helper
+- [ ] Update conversation GET endpoint
+- [ ] Update messages GET endpoint
+- [ ] Update messages POST endpoint (check canReply)
+- [ ] Ensure owner-only actions remain protected
+
+### Phase 4: UI - Share Modal
+- [ ] Add "Share with user" section to existing share modal
+- [ ] Email input + permission selector
+- [ ] List of current shares with revoke buttons
+- [ ] Error handling for unknown emails
+
+### Phase 5: UI - Sidebar
+- [ ] Add "Shared with me" section to sidebar
+- [ ] Fetch shared conversations on load
+- [ ] Visual distinction from owned conversations
+
+### Phase 6: UI - Shared Chat View
+- [ ] Banner showing who shared and permissions
+- [ ] Disable input if view-only
+- [ ] Hide owner-only actions (delete, archive, share further)
+
+### Phase 7: Notifications (Optional)
+- [ ] Email notification on share
+- [ ] In-app notification badge (if notification system exists)
+
+## Design Decisions to Make
+
+1. **Can recipients share further?** Recommend: No, owner only
+2. **Can recipients archive/hide shared chats?** Recommend: Yes, just hides from their view
+3. **What happens if owner deletes conversation?** Recommend: Cascade delete shares, disappears from recipients
+4. **Notification preference?** Recommend: Start without email, add later based on demand
+5. **Sidebar placement?** Recommend: Separate "Shared with me" section
+
+---
+
 # Ongoing Context System - Design Plan
 
 ## Concept
