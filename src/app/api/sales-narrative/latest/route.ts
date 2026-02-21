@@ -13,13 +13,24 @@ export async function GET() {
     const latestVersion = await prisma.salesNarrativeVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        narrative: true,
-        description100w: true,
-        description50w: true,
-        description25w: true,
-        createdAt: true,
+      include: {
+        answers: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                category: true,
+                globalOrder: true,
+                question: true,
+              },
+            },
+          },
+          orderBy: {
+            question: {
+              globalOrder: "asc",
+            },
+          },
+        },
       },
     });
 
@@ -27,12 +38,46 @@ export async function GET() {
       return NextResponse.json({
         hasNarrative: false,
         version: null,
+        answersByCategory: null,
       });
+    }
+
+    // Group answers by category
+    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
+    const answersByCategory: Record<string, Array<{
+      questionId: string;
+      globalOrder: number;
+      question: string;
+      answer: string;
+    }>> = {};
+
+    for (const category of categoryOrder) {
+      answersByCategory[category] = [];
+    }
+
+    for (const answer of latestVersion.answers) {
+      const category = answer.question.category;
+      if (answersByCategory[category]) {
+        answersByCategory[category].push({
+          questionId: answer.question.id,
+          globalOrder: answer.question.globalOrder,
+          question: answer.question.question,
+          answer: answer.answer,
+        });
+      }
     }
 
     return NextResponse.json({
       hasNarrative: true,
-      version: latestVersion,
+      version: {
+        id: latestVersion.id,
+        narrative: latestVersion.narrative,
+        description100w: latestVersion.description100w,
+        description50w: latestVersion.description50w,
+        description25w: latestVersion.description25w,
+        createdAt: latestVersion.createdAt,
+      },
+      answersByCategory,
     });
   } catch (error) {
     console.error("Error fetching latest sales narrative:", error);
