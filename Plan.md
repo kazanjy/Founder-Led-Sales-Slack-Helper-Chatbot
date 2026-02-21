@@ -1,3 +1,288 @@
+# Mikey Product Plan
+
+---
+
+# Mikey Apps Roadmap
+
+Mikey is evolving from a single chat interface into a suite of interconnected "apps" - each a guided workflow that produces structured GTM artifacts. All apps share:
+- Question-based wizard UX (modal step-by-step OR bulk edit mode)
+- Versioned history of all inputs and outputs
+- AI-generated outputs via Chatbase
+- Merge variable integration for cross-app context injection
+- CTAs to related apps (e.g., Sales Narrative → Discovery Questions)
+
+## App List
+
+| # | App | Status | Description |
+|---|-----|--------|-------------|
+| 1 | **General Chat** | ✅ Live | Free-form coaching conversation with Mikey |
+| 2 | **GTM Maturity Assessment** | ✅ Live | 56-question assessment → AI recommendations on GTM stage |
+| 3 | **Sales Narrative & Messaging** | 🔨 Next | Questionnaire → structured sales narrative + 100/50/25 word descriptions |
+| 4 | **Sales Deck Outline & Script** | 📋 Planned | Guided deck structure → slide-by-slide script generation |
+| 5 | **Discovery Questions** | 📋 Planned | Generate tailored discovery questions based on ICP + value prop |
+| 6 | **First Call Checklist** | 📋 Planned | Customized checklist for first sales calls |
+| 7 | **Ideal Customer Profile Documentation** | 📋 Planned | Structured ICP worksheet → documentation |
+| 8 | **Sales Playbook Construction** | 📋 Planned | Aggregates outputs from other apps into comprehensive playbook |
+
+## Cross-App Integration
+
+Apps feed into each other:
+```
+GTM Maturity Assessment
+         ↓
+Sales Narrative & Messaging ←→ Ideal Customer Profile
+         ↓
+   Discovery Questions
+         ↓
+   First Call Checklist
+         ↓
+Sales Deck Outline & Script
+         ↓
+   Sales Playbook (aggregates all)
+```
+
+Each app's outputs become available as merge variables (e.g., `{{SALES_NARRATIVE}}`, `{{ICP_SUMMARY}}`, `{{VALUE_PROP_100W}}`) for use in prompts and other apps.
+
+---
+
+# Sales Narrative & Messaging App - Design
+
+## Overview
+
+A guided questionnaire that helps founders articulate their sales narrative following the Founding Sales methodology. Produces:
+1. **Full Sales Narrative** - Structured narrative document
+2. **100-word description** - Product marketing summary
+3. **50-word description** - Elevator pitch
+4. **25-word description** - Tagline/one-liner
+
+All outputs are versioned and saved. Latest versions become merge variables.
+
+## User Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ENTRY POINTS                             │
+│  • Sidebar nav "Sales Narrative"                            │
+│  • CTA from GTM Assessment completion                       │
+│  • CTA from chat when discussing positioning                │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                 QUESTIONNAIRE PHASE                         │
+│  Mode A: Modal wizard (question-by-question)                │
+│  Mode B: Bulk edit (all questions on one page)              │
+│  • ~10-15 questions (TBD - user will provide)               │
+│  • Auto-save on 2-sec debounce                              │
+│  • Can save & exit, resume later                            │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  GENERATION PHASE                           │
+│  User clicks "Generate Sales Narrative"                     │
+│  • Answers sent to Chatbase with generation prompt          │
+│  • Returns: narrative + 100w + 50w + 25w descriptions       │
+│  • All saved as SalesNarrativeVersion                       │
+│  • User can regenerate (creates new version)                │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   OUTPUT DISPLAY                            │
+│  • Full narrative (collapsible/expandable)                  │
+│  • 100w / 50w / 25w tabs or cards                           │
+│  • Copy buttons for each                                    │
+│  • "Regenerate" button                                      │
+│  • "Edit Answers" to go back and refine                     │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                      CTAs                                   │
+│  • "Create Discovery Questions" → Discovery Questions app   │
+│  • "Build Your ICP" → ICP Documentation app                 │
+│  • "Chat about your narrative" → General Chat w/ context    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Data Model
+
+```prisma
+// Questions (seeded, like MaturityQuestion)
+model SalesNarrativeQuestion {
+  id          String   @id @default(cuid())
+  category    String   // e.g., "Problem", "Solution", "Differentiation", "Proof"
+  globalOrder Int      @unique
+  question    String
+  helpText    String?  // Optional guidance for answering
+  enabled     Boolean  @default(true)
+
+  answers     SalesNarrativeAnswer[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Answers (append-only for history, like MaturityAnswer)
+model SalesNarrativeAnswer {
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  versionId   String?  // Links to snapshot when narrative generated
+
+  answer      String   @db.Text
+
+  user        User     @relation(fields: [userId], references: [id])
+  question    SalesNarrativeQuestion @relation(fields: [questionId], references: [id])
+  version     SalesNarrativeVersion? @relation(fields: [versionId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+}
+
+// Generated outputs (versioned)
+model SalesNarrativeVersion {
+  id          String   @id @default(cuid())
+  userId      String
+
+  // Snapshot of answers at generation time
+  answers     SalesNarrativeAnswer[]
+
+  // Generated outputs
+  narrative       String   @db.Text  // Full sales narrative
+  description100w String   @db.Text  // 100-word description
+  description50w  String   @db.Text  // 50-word description
+  description25w  String   @db.Text  // 25-word tagline
+
+  // Optional: conversation for follow-up chat
+  conversationId  String?
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+```
+
+## API Endpoints
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/sales-narrative/questions` | GET | Fetch all questions with user's latest answers, grouped by category |
+| `/api/sales-narrative/answers/[questionId]` | POST | Save answer (creates new row) |
+| `/api/sales-narrative/answers/[questionId]` | GET | Get answer history for question |
+| `/api/sales-narrative/generate` | POST | Submit answers → Chatbase → return generated outputs |
+| `/api/sales-narrative/versions` | GET | List all versions for history view |
+| `/api/sales-narrative/versions/[id]` | GET | Get specific version with answers and outputs |
+| `/api/sales-narrative/latest` | GET | Get latest version (for merge variables) |
+
+## Pages & Components
+
+| Path | Component | Purpose |
+|------|-----------|---------|
+| `/sales-narrative` | `SalesNarrativePage` | Main page - shows current state (in-progress or latest version) |
+| `/sales-narrative/edit` | `SalesNarrativeEditPage` | Bulk edit mode for all questions |
+| `/sales-narrative/history` | `SalesNarrativeHistoryPage` | View all past versions |
+| Modal | `SalesNarrativeWizardModal` | Step-by-step question flow |
+
+## Merge Variables
+
+When a SalesNarrativeVersion is generated, create/update merge variables:
+
+| Merge Field | Source |
+|-------------|--------|
+| `{{SALES_NARRATIVE}}` | Full narrative text |
+| `{{VALUE_PROP_100W}}` | 100-word description |
+| `{{VALUE_PROP_50W}}` | 50-word description |
+| `{{VALUE_PROP_25W}}` | 25-word tagline |
+
+These can be used in:
+- General chat prompts
+- Other app generation prompts (e.g., Discovery Questions uses `{{VALUE_PROP_100W}}`)
+- Saved prompt templates
+
+## Chatbase Prompt (Generation)
+
+```
+You are helping a founder create their sales narrative following the Founding Sales methodology.
+
+Based on the following questionnaire answers, generate:
+
+1. A SALES NARRATIVE - A structured narrative document that follows this format:
+   [USER WILL PROVIDE FORMAT EXAMPLE]
+
+2. A 100-WORD DESCRIPTION - A product marketing summary suitable for a website or pitch deck
+
+3. A 50-WORD DESCRIPTION - An elevator pitch that can be spoken in ~20 seconds
+
+4. A 25-WORD DESCRIPTION - A tagline or one-liner for the product
+
+## Questionnaire Answers:
+
+[CHUNKED ANSWERS HERE]
+
+---
+
+Please respond in the following JSON format:
+{
+  "narrative": "...",
+  "description100w": "...",
+  "description50w": "...",
+  "description25w": "..."
+}
+```
+
+## Implementation Steps
+
+### Phase 1: Data Model & Seeding
+- [ ] Add Prisma models (SalesNarrativeQuestion, SalesNarrativeAnswer, SalesNarrativeVersion)
+- [ ] Run migration
+- [ ] Create seed script with questions (user to provide questions)
+- [ ] Run seed
+
+### Phase 2: API Endpoints
+- [ ] `GET /api/sales-narrative/questions` - fetch questions + latest answers
+- [ ] `POST /api/sales-narrative/answers/[questionId]` - save answer
+- [ ] `POST /api/sales-narrative/generate` - generate narrative via Chatbase
+- [ ] `GET /api/sales-narrative/versions` - list versions
+- [ ] `GET /api/sales-narrative/versions/[id]` - get version detail
+- [ ] `GET /api/sales-narrative/latest` - get latest for merge vars
+
+### Phase 3: Bulk Edit Page
+- [ ] Create `/sales-narrative/edit` page (copy pattern from `/assessment/bulk`)
+- [ ] Question display grouped by category
+- [ ] Auto-save on debounce
+- [ ] Progress indicator
+- [ ] "Generate Narrative" button
+
+### Phase 4: Output Display
+- [ ] Results view with narrative + descriptions
+- [ ] Copy buttons
+- [ ] Regenerate button
+- [ ] Edit answers button
+
+### Phase 5: History Page
+- [ ] Create `/sales-narrative/history` page
+- [ ] List of versions with dates
+- [ ] Detail view showing answers + outputs
+
+### Phase 6: Merge Variable Integration
+- [ ] On generate, upsert merge variables (SALES_NARRATIVE, VALUE_PROP_*)
+- [ ] Ensure merge variables available in chat context expansion
+
+### Phase 7: Navigation & CTAs
+- [ ] Add to sidebar navigation
+- [ ] Add CTAs from GTM Assessment completion
+- [ ] Add CTAs to other apps (Discovery Questions, ICP)
+
+## Questions Needed From User
+
+1. **Questions list** - The ~10-15 questions for the questionnaire, organized by category
+2. **Narrative format example** - What the output Sales Narrative should look like (structure, sections, style)
+3. **Navigation placement** - Where in the sidebar/app should this live?
+
+---
+
 # Ongoing Context System - Design Plan
 
 ## Concept
