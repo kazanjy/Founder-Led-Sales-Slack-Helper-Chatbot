@@ -419,7 +419,7 @@ function SalesNarrativeContent() {
                 )}
               </button>
             </div>
-            <p className="text-sm text-gray-700 line-clamp-3">{version.description100w}</p>
+            <p className="text-sm text-gray-700">{version.description100w}</p>
           </div>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
@@ -440,7 +440,7 @@ function SalesNarrativeContent() {
                 )}
               </button>
             </div>
-            <p className="text-sm text-gray-700 line-clamp-3">{version.description50w}</p>
+            <p className="text-sm text-gray-700">{version.description50w}</p>
           </div>
 
           <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
@@ -461,7 +461,7 @@ function SalesNarrativeContent() {
                 )}
               </button>
             </div>
-            <p className="text-sm text-gray-700 line-clamp-3">{version.description25w}</p>
+            <p className="text-sm text-gray-700">{version.description25w}</p>
           </div>
         </div>
 
