@@ -17,9 +17,9 @@ Mikey is evolving from a single chat interface into a suite of interconnected "a
 |---|-----|--------|-------------|
 | 1 | **General Chat** | ✅ Live | Free-form coaching conversation with Mikey |
 | 2 | **GTM Maturity Assessment** | ✅ Live | 56-question assessment → AI recommendations on GTM stage |
-| 3 | **Sales Narrative & Messaging** | 🔨 Next | Questionnaire → structured sales narrative + 100/50/25 word descriptions |
-| 4 | **Sales Deck Outline & Script** | 📋 Planned | Guided deck structure → slide-by-slide script generation |
-| 5 | **Discovery Questions** | 📋 Planned | Generate tailored discovery questions based on ICP + value prop |
+| 3 | **Sales Narrative & Messaging** | ✅ Live | Questionnaire → structured sales narrative + 100/50/25 word descriptions |
+| 4 | **Discovery Questions** | ✅ Live | Generate tailored discovery questions based on sales narrative |
+| 5 | **Sales Deck Outline & Script** | 📋 Planned | Guided deck structure → slide-by-slide script generation |
 | 6 | **First Call Checklist** | 📋 Planned | Customized checklist for first sales calls |
 | 7 | **Ideal Customer Profile Documentation** | 📋 Planned | Structured ICP worksheet → documentation |
 | 8 | **Sales Playbook Construction** | 📋 Planned | Aggregates outputs from other apps into comprehensive playbook |
