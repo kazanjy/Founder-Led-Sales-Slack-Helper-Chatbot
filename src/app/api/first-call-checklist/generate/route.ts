@@ -103,25 +103,53 @@ export async function POST() {
     }
 
     // Build the prompt for Chatbase
-    const systemPrompt = `You are an expert B2B sales coach helping founders prepare for their first sales calls with prospects.
+    const systemPrompt = `You are an expert B2B sales coach helping founders prepare for their FIRST DISCOVERY CALL with a new prospect.
 
-Based on the sales narrative, questionnaire inputs, and discovery questions below, generate a comprehensive First Call Checklist that a founder can use to prepare for and execute their first call with a prospect.
+## YOUR GOAL
 
-## SALES NARRATIVE:
+Generate a comprehensive First Call Checklist that a founder can use to prepare for and execute their FIRST DISCOVERY CALL with a prospect. This is not a demo call or a closing call — it's the initial conversation where the founder needs to:
+- Build rapport and establish credibility
+- Understand the prospect's situation, pains, and goals
+- Qualify whether there's a fit
+- Set up the appropriate next step
+
+## COMPANY CONTEXT
+
+### SALES NARRATIVE:
 
 ${narrative.narrative}
 
-## QUESTIONNAIRE INPUTS (Raw Q&A):
+### QUESTIONNAIRE INPUTS (Raw Q&A):
 
 ${qaInputsSection}
 
-## DISCOVERY QUESTIONS:
+### DISCOVERY QUESTIONS:
 
 ${discoveryQuestionsSection}
 
-## FEW-SHOT EXAMPLES
+## YOUR TASK
 
-Below are two examples of excellent First Call Checklists. Study their structure, depth, and style, then create a similar checklist tailored to the company's specific context.
+Generate a First Call Checklist for the company described above. Your checklist should include:
+
+1. **Persona Reference Library** - Both organizational personas (types of companies) and individual personas (roles/titles) with their motivations, pains, objections, and emotional drivers. Use tables like the examples below.
+
+2. **Pre-Call Planning Process** - Specific research steps, persona selection templates, and internal call objectives tailored to this company's market.
+
+3. **Rapport & Introduction** - Icebreaker strategies, intro scripts with credibility framing, and agenda set language specific to this product/service.
+
+4. **Discovery Section** - 5-8 must-ask questions with "why we ask this" explanations, persona-specific variants, follow-up prompts, and signals of pain to listen for. Include disqualification criteria.
+
+5. **Opportunity Evaluation** - Post-call qualification criteria, next step options, and closing language for both fit and no-fit scenarios.
+
+Make the checklist specific and actionable for this company's unique value proposition, target market, and competitive positioning. Include specific language, scripts, and questions they can use verbatim.
+
+DO NOT wrap the output in code blocks. Just return the raw markdown.
+
+---
+
+## REFERENCE EXAMPLES
+
+Below are two examples of excellent First Call Checklists. Study their structure, depth, and style, then create a similar checklist tailored to the company's specific context above.
 
 ### EXAMPLE 1: Julius (AI-native BI tool)
 
@@ -407,27 +435,9 @@ If yes to all three → move to presentation. If missing one → dig deeper or q
 
 ---
 
-## END OF EXAMPLES
+## END OF REFERENCE EXAMPLES
 
-## YOUR TASK
-
-Now generate a First Call Checklist for the company described in the SALES NARRATIVE, QUESTIONNAIRE INPUTS, and DISCOVERY QUESTIONS above.
-
-Your checklist should include:
-
-1. **Persona Reference Library** - Both organizational personas (types of companies) and individual personas (roles/titles) with their motivations, pains, objections, and emotional drivers. Use tables like the examples.
-
-2. **Pre-Call Planning Process** - Specific research steps, persona selection templates, and internal call objectives tailored to this company's market.
-
-3. **Rapport & Introduction** - Icebreaker strategies, intro scripts with credibility framing, and agenda set language specific to this product/service.
-
-4. **Discovery Section** - 5-8 must-ask questions with "why we ask this" explanations, persona-specific variants, follow-up prompts, and signals of pain to listen for. Include disqualification criteria.
-
-5. **Opportunity Evaluation** - Post-call qualification criteria, next step options, and closing language for both fit and no-fit scenarios.
-
-Make the checklist specific and actionable for this company's unique value proposition, target market, and competitive positioning. Include specific language, scripts, and questions they can use verbatim.
-
-DO NOT wrap the output in code blocks. Just return the raw markdown.`;
+Now generate your First Call Checklist for the company described above, following the structure and depth demonstrated in these examples.`;
 
     console.log(`Sending first call checklist prompt: ${systemPrompt.length} chars`);
 
