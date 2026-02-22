@@ -95,6 +95,7 @@ model User {
   salesNarrativeAnswers SalesNarrativeAnswer[]
   salesNarrativeVersions SalesNarrativeVersion[]
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
+  firstCallChecklistVersions FirstCallChecklistVersion[]
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -546,8 +547,36 @@ model DiscoveryQuestionsVersion {
   // Generated output - the discovery questions content
   content     String   @db.Text
 
+  // First call checklists generated from these discovery questions
+  firstCallChecklistVersions FirstCallChecklistVersion[]
+
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("discovery_questions_versions")
+}
+
+// ============================================
+// FIRST CALL CHECKLIST APP
+// ============================================
+
+// Generated first call checklist versions
+model FirstCallChecklistVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The discovery questions version used as input
+  discoveryQuestionsVersionId String
+  discoveryQuestionsVersion   DiscoveryQuestionsVersion @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output - the first call checklist content (markdown)
+  content     String   @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("first_call_checklist_versions")
 }

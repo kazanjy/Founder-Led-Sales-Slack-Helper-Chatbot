@@ -180,7 +180,8 @@ export default function ChatPage() {
     gtmAssessment: { answered: number; total: number; hasSubmitted: boolean } | null;
     salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
     discoveryQuestions: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null });
+    firstCallChecklist: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null });
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -270,6 +271,16 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             discoveryQuestions: { hasGenerated: !!dqData.hasDiscoveryQuestions }
+          }));
+        }
+
+        // Fetch First Call Checklist progress
+        const fccRes = await fetch("/api/first-call-checklist/latest");
+        if (fccRes.ok) {
+          const fccData = await fccRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            firstCallChecklist: { hasGenerated: !!fccData.hasFirstCallChecklist }
           }));
         }
       } catch (error) {
@@ -1815,6 +1826,21 @@ export default function ChatPage() {
               <span>🔍</span>
               <span className="flex-1">Discovery Questions</span>
               {!appProgress.discoveryQuestions?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
+              )}
+            </a>
+            <a
+              href="/first-call-checklist"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.firstCallChecklist?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📋</span>
+              <span className="flex-1">First Call Checklist</span>
+              {!appProgress.firstCallChecklist?.hasGenerated && (
                 <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
             </a>
