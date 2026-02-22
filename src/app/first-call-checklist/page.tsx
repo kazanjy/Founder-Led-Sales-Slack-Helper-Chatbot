@@ -4,6 +4,13 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import dynamic from "next/dynamic";
+
+// Dynamically import MDEditor to avoid SSR issues
+const MDEditor = dynamic(
+  () => import("@uiw/react-md-editor"),
+  { ssr: false }
+);
 
 interface FirstCallChecklistVersion {
   id: string;
@@ -417,12 +424,16 @@ function FirstCallChecklistContent() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
-              <textarea
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                className="w-full min-h-[600px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 font-mono text-sm"
-                placeholder="Edit your first call checklist markdown..."
-              />
+              <div data-color-mode="light">
+                <MDEditor
+                  value={editedContent}
+                  onChange={(val) => setEditedContent(val || "")}
+                  height={600}
+                  preview="live"
+                  hideToolbar={false}
+                  enableScroll={true}
+                />
+              </div>
             ) : (
               <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm">
                 <ReactMarkdown>{currentContent}</ReactMarkdown>
