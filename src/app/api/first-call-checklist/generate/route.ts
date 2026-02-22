@@ -113,23 +113,9 @@ Generate a comprehensive First Call Checklist that a founder can use to prepare 
 - Qualify whether there's a fit
 - Set up the appropriate next step
 
-## COMPANY CONTEXT
-
-### SALES NARRATIVE:
-
-${narrative.narrative}
-
-### QUESTIONNAIRE INPUTS (Raw Q&A):
-
-${qaInputsSection}
-
-### DISCOVERY QUESTIONS:
-
-${discoveryQuestionsSection}
-
 ## YOUR TASK
 
-Generate a First Call Checklist for the company described above. Your checklist should include:
+Generate a First Call Checklist for the company described below. Your checklist should include:
 
 1. **Persona Reference Library** - Both organizational personas (types of companies) and individual personas (roles/titles) with their motivations, pains, objections, and emotional drivers. Use tables like the examples below.
 
@@ -144,6 +130,22 @@ Generate a First Call Checklist for the company described above. Your checklist 
 Make the checklist specific and actionable for this company's unique value proposition, target market, and competitive positioning. Include specific language, scripts, and questions they can use verbatim.
 
 DO NOT wrap the output in code blocks. Just return the raw markdown.
+
+---
+
+## COMPANY CONTEXT
+
+### SALES NARRATIVE:
+
+${narrative.narrative}
+
+### QUESTIONNAIRE INPUTS (Raw Q&A):
+
+${qaInputsSection}
+
+### DISCOVERY QUESTIONS:
+
+${discoveryQuestionsSection}
 
 ---
 
