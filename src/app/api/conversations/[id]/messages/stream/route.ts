@@ -106,13 +106,13 @@ export async function POST(
     }
 
     if (attachmentParts.length > 0) {
-      attachmentContent = `---\n\n**The following context was attached by the user to provide background:**\n\n${attachmentParts.join("\n\n---\n\n")}\n\n---\n\n`;
+      attachmentContent = `\n\n---\n\n**The following context was attached by the user to provide background:**\n\n${attachmentParts.join("\n\n---\n\n")}\n\n---`;
     }
   }
 
-  // Prepend attachment content to the expanded message
+  // Append attachment content to the expanded message
   if (attachmentContent) {
-    expandedMessage = attachmentContent + expandedMessage;
+    expandedMessage = expandedMessage + attachmentContent;
   }
 
   // Save user message
