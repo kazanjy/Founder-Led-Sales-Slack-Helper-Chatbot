@@ -2304,6 +2304,15 @@ export default function ChatPage() {
                             </>
                           )}
                         </div>
+                        {/* Attachment Picker for welcome screen */}
+                        <div className="flex-shrink-0 self-end">
+                          <AttachmentPicker
+                            selectedAttachments={selectedAttachments}
+                            onSelectionChange={setSelectedAttachments}
+                            disabled={sending}
+                            isFirstMessage={!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length}
+                          />
+                        </div>
                         <textarea
                           ref={chatInputRef}
                           value={inputMessage}
