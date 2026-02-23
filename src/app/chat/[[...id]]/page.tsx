@@ -13,6 +13,7 @@ import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
+import { ImageAttachmentButton, ImagePreviewChips } from "@/components/ImageAttachment";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -178,6 +179,8 @@ export default function ChatPage() {
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [inputHeight, setInputHeight] = useState(120); // Default input container height
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
+  const [selectedImages, setSelectedImages] = useState<File[]>([]); // Image attachments
+  const [processingImages, setProcessingImages] = useState(false); // Image vision processing
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const [appProgress, setAppProgress] = useState<{
@@ -1135,6 +1138,48 @@ export default function ChatPage() {
     }
   };
 
+  // Process images through vision API and return descriptions
+  const processImages = async (images: File[]): Promise<string[]> => {
+    const descriptions: string[] = [];
+
+    for (const image of images) {
+      try {
+        // Convert image to base64 data URL
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(image);
+        });
+
+        // Call vision API
+        const res = await fetch("/api/vision/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image: base64,
+            extractionType: "sales",
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.description) {
+            descriptions.push(`[Image: ${image.name}]\n${data.description}`);
+          }
+        } else {
+          console.error("Failed to process image:", image.name);
+          descriptions.push(`[Image: ${image.name}] (Failed to process)`);
+        }
+      } catch (error) {
+        console.error("Error processing image:", image.name, error);
+        descriptions.push(`[Image: ${image.name}] (Error processing)`);
+      }
+    }
+
+    return descriptions;
+  };
+
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending || !user?.canChat) return;
 
@@ -1170,17 +1215,34 @@ export default function ChatPage() {
 
     // Capture attachments before clearing
     const attachmentsToSend = canAddAttachments ? [...selectedAttachments] : [];
+    const imagesToProcess = [...selectedImages];
 
     const userMessage = messageText.trim();
     setInputMessage("");
     setSelectedAttachments([]); // Clear attachments after sending
+    setSelectedImages([]); // Clear images after capturing
     setSending(true);
+
+    // Process images through vision API if any
+    let finalMessage = userMessage;
+    if (imagesToProcess.length > 0) {
+      setProcessingImages(true);
+      try {
+        const imageDescriptions = await processImages(imagesToProcess);
+        if (imageDescriptions.length > 0) {
+          // Append image descriptions after user message
+          finalMessage = `${userMessage}\n\n---\n\n${imageDescriptions.join("\n\n")}`;
+        }
+      } finally {
+        setProcessingImages(false);
+      }
+    }
 
     // Optimistically add user message
     const tempUserMsg: Message = {
       id: `temp-${Date.now()}`,
       role: "USER",
-      content: userMessage,
+      content: finalMessage,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
@@ -1225,7 +1287,7 @@ export default function ChatPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: userMessage,
+          message: finalMessage,
           attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
         }),
       });
@@ -2249,17 +2311,24 @@ export default function ChatPage() {
                       />
                     ) : (
                       <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
-                        {/* Attachment chips inside card at top */}
-                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
-                          <div className="px-4 pt-3 rounded-t-2xl">
+                        {/* Attachment chips and image previews inside card at top */}
+                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
+                          <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                               <AttachmentChipsReadOnly
                                 attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
                               />
-                            ) : (
+                            ) : selectedAttachments.length > 0 ? (
                               <AttachmentChips
                                 attachments={selectedAttachments}
                                 onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                              />
+                            ) : null}
+                            {selectedImages.length > 0 && (
+                              <ImagePreviewChips
+                                images={selectedImages}
+                                onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
+                                processing={processingImages}
                               />
                             )}
                           </div>
@@ -2365,6 +2434,13 @@ export default function ChatPage() {
                                 isFirstMessage={true}
                               />
                             )}
+                            {/* Image Attachment Button */}
+                            <ImageAttachmentButton
+                              onImagesChange={(newImages) => setSelectedImages([...selectedImages, ...newImages])}
+                              disabled={sending || processingImages}
+                              currentCount={selectedImages.length}
+                              maxImages={4}
+                            />
                           </div>
 
                           {/* Right side - send buttons */}
@@ -2384,7 +2460,7 @@ export default function ChatPage() {
                             </button>
                             <button
                               type="submit"
-                              disabled={!inputMessage.trim() || sending}
+                              disabled={!inputMessage.trim() || sending || processingImages}
                               className="p-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                               title="Send message"
                             >
@@ -2640,7 +2716,7 @@ export default function ChatPage() {
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
         <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{
-          height: inputHeight + ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 40 : 0),
+          height: inputHeight + ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 40 : 0) + (selectedImages.length > 0 ? 80 : 0),
           minHeight: 100
         }}>
           {/* Resize handle at top */}
@@ -2710,17 +2786,24 @@ export default function ChatPage() {
                 />
               ) : (
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm w-full">
-                  {/* Attachment chips inside card at top */}
-                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
-                    <div className="px-4 pt-3 rounded-t-2xl">
+                  {/* Attachment chips and image previews inside card at top */}
+                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
+                    <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                         <AttachmentChipsReadOnly
                           attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
                         />
-                      ) : (
+                      ) : selectedAttachments.length > 0 ? (
                         <AttachmentChips
                           attachments={selectedAttachments}
                           onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                        />
+                      ) : null}
+                      {selectedImages.length > 0 && (
+                        <ImagePreviewChips
+                          images={selectedImages}
+                          onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
+                          processing={processingImages}
                         />
                       )}
                     </div>
@@ -2827,6 +2910,13 @@ export default function ChatPage() {
                           isFirstMessage={true}
                         />
                       )}
+                      {/* Image Attachment Button */}
+                      <ImageAttachmentButton
+                        onImagesChange={(newImages) => setSelectedImages([...selectedImages, ...newImages])}
+                        disabled={sending || processingImages}
+                        currentCount={selectedImages.length}
+                        maxImages={4}
+                      />
                     </div>
 
                     {/* Right side - send buttons */}
@@ -2846,7 +2936,7 @@ export default function ChatPage() {
                       </button>
                       <button
                         type="submit"
-                        disabled={!inputMessage.trim() || sending}
+                        disabled={!inputMessage.trim() || sending || processingImages}
                         className="p-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                         title="Send message"
                       >
