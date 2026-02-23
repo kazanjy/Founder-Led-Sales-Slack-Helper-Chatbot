@@ -1246,13 +1246,21 @@ export default function ChatPage() {
         if (isPDFFile(file)) {
           // Convert PDF to images and process each page
           console.log(`[PDF] Converting ${file.name} to images...`);
-          const pdfResult = await convertPDFToImages(file, { maxPages: 10 });
+          const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
 
-          const pageDescriptions: string[] = [];
-          for (const page of pdfResult.pages) {
-            const pageDesc = await processImageThroughVision(page.dataUrl, `${file.name} (page ${page.pageNumber})`);
-            pageDescriptions.push(`--- Page ${page.pageNumber} ---\n${pageDesc}`);
-          }
+          // Process all pages in parallel for speed
+          console.log(`[PDF] Processing ${pdfResult.pages.length} pages in parallel...`);
+          const pageResults = await Promise.all(
+            pdfResult.pages.map(async (page) => {
+              const pageDesc = await processImageThroughVision(page.dataUrl, `${file.name} (page ${page.pageNumber})`);
+              return { pageNumber: page.pageNumber, description: pageDesc };
+            })
+          );
+
+          // Sort by page number and format
+          const pageDescriptions = pageResults
+            .sort((a, b) => a.pageNumber - b.pageNumber)
+            .map((r) => `--- Page ${r.pageNumber} ---\n${r.description}`);
 
           const truncatedNote = pdfResult.totalPages > pdfResult.pages.length
             ? `\n\n(Showing ${pdfResult.pages.length} of ${pdfResult.totalPages} pages)`

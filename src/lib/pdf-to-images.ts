@@ -29,14 +29,14 @@ export interface PDFConversionResult {
 export async function convertPDFToImages(
   file: File,
   options: {
-    maxPages?: number; // Limit number of pages to convert (default: 10)
+    maxPages?: number; // Limit number of pages to convert (default: 50)
     scale?: number; // Render scale (default: 1.5 for good quality)
     format?: "png" | "jpeg"; // Output format (default: jpeg for smaller size)
     quality?: number; // JPEG quality 0-1 (default: 0.8)
   } = {}
 ): Promise<PDFConversionResult> {
   const {
-    maxPages = 10,
+    maxPages = 50,
     scale = 1.5,
     format = "jpeg",
     quality = 0.8,
