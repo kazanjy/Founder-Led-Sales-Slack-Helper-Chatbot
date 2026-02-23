@@ -1,4 +1,5 @@
 import { getCurrentUser, AuthUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 /**
  * Check if a user is an admin based on their email.
@@ -14,6 +15,9 @@ export function isAdminEmail(email: string | null): boolean {
 /**
  * Check if the current user is an admin.
  * Returns the user if they are an admin, null otherwise.
+ *
+ * IMPORTANT: When impersonating, this checks if the REAL admin (the one doing
+ * the impersonation) is an admin, not the impersonated user.
  */
 export async function getAdminUser(): Promise<AuthUser | null> {
   const user = await getCurrentUser();
@@ -22,7 +26,27 @@ export async function getAdminUser(): Promise<AuthUser | null> {
     return null;
   }
 
-  // Check if user's email is in the admin list
+  // If impersonating, check if the real admin has admin privileges
+  if (user.isImpersonating && user.impersonatingAdminId) {
+    const realAdmin = await prisma.user.findUnique({
+      where: { id: user.impersonatingAdminId },
+      select: { email: true, slackEmail: true },
+    });
+
+    if (!realAdmin) {
+      return null;
+    }
+
+    const adminEmail = realAdmin.email || realAdmin.slackEmail;
+    if (!isAdminEmail(adminEmail)) {
+      return null;
+    }
+
+    // Return the current user context (still impersonating) but admin access granted
+    return user;
+  }
+
+  // Normal case: check if user's email is in the admin list
   const email = user.email || user.slackEmail;
   if (!isAdminEmail(email)) {
     return null;
