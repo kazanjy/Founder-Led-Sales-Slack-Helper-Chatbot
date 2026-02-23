@@ -2240,93 +2240,24 @@ export default function ChatPage() {
                         onStopSpeaking={stopTTS}
                       />
                     ) : (
-                      <div className="flex flex-col gap-2">
-                        {/* Attachment chips above input - editable if not yet included, read-only if already included */}
-                        {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
-                          <AttachmentChipsReadOnly
-                            attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
-                          />
-                        ) : (
-                          <AttachmentChips
-                            attachments={selectedAttachments}
-                            onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
-                          />
-                        )}
-                        <div className="flex gap-2 items-end relative">
-                          {/* GTM Variables Dropdown */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                              className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Insert GTM Variable"
-                            >
-                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                              </svg>
-                            </button>
-                            {showVariablesDropdown && (
-                              <>
-                                <div
-                                  className="fixed inset-0 z-40"
-                                onClick={() => setShowVariablesDropdown(false)}
+                      <div className="border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden">
+                        {/* Attachment chips inside card at top */}
+                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
+                          <div className="px-4 pt-3">
+                            {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
+                              <AttachmentChipsReadOnly
+                                attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
                               />
-                              <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
-                                <div className="p-2 border-b border-gray-100">
-                                  <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
-                                </div>
-                                {gtmVariables.length === 0 ? (
-                                  <div className="p-3 text-sm text-gray-500">
-                                    No variables configured.{" "}
-                                    <a href="/settings" className="text-blue-600 hover:underline">
-                                      Add in Settings
-                                    </a>
-                                  </div>
-                                ) : (
-                                  <div className="py-1">
-                                    {gtmVariables.map((v) => (
-                                      <button
-                                        key={v.mergeField}
-                                        type="button"
-                                        onClick={() => insertVariable(v.mergeField)}
-                                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
-                                      >
-                                        <div className="min-w-0">
-                                          <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
-                                          <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
-                                        </div>
-                                        {v.value ? (
-                                          <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
-                                        ) : (
-                                          <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                                <div className="p-2 border-t border-gray-100">
-                                  <a
-                                    href="/settings"
-                                    className="text-xs text-gray-500 hover:text-blue-600"
-                                  >
-                                    Manage variables →
-                                  </a>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {/* Attachment Picker for welcome screen - only show if attachments not yet included */}
-                        {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
-                          <div className="flex-shrink-0 self-end">
-                            <AttachmentPicker
-                              selectedAttachments={selectedAttachments}
-                              onSelectionChange={setSelectedAttachments}
-                              disabled={sending}
-                              isFirstMessage={true}
-                            />
+                            ) : (
+                              <AttachmentChips
+                                attachments={selectedAttachments}
+                                onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                              />
+                            )}
                           </div>
                         )}
+
+                        {/* Full-width textarea */}
                         <textarea
                           ref={chatInputRef}
                           value={inputMessage}
@@ -2340,8 +2271,8 @@ export default function ChatPage() {
                             }
                           }}
                           placeholder="Ask Mikey anything about founder-led sales..."
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] max-h-[200px] text-[17px] shadow-sm"
-                          rows={1}
+                          className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px]"
+                          rows={2}
                           style={{ height: 'auto' }}
                           onInput={(e) => {
                             const target = e.target as HTMLTextAreaElement;
@@ -2349,26 +2280,111 @@ export default function ChatPage() {
                             target.style.height = Math.min(target.scrollHeight, 200) + 'px';
                           }}
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            voiceConversationModeRef.current = true;
-                            setIsVoiceRecording(true);
-                          }}
-                          className="px-5 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex-shrink-0 shadow-sm flex items-center gap-2"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
-                          Voice
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!inputMessage.trim() || sending}
-                          className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 shadow-sm"
-                        >
-                          Send
-                        </button>
+
+                        {/* Bottom toolbar */}
+                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                          {/* Left side - action buttons */}
+                          <div className="flex items-center gap-1">
+                            {/* GTM Variables Dropdown */}
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Insert GTM Variable"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                              </button>
+                              {showVariablesDropdown && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setShowVariablesDropdown(false)}
+                                  />
+                                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                                    <div className="p-2 border-b border-gray-100">
+                                      <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                                    </div>
+                                    {gtmVariables.length === 0 ? (
+                                      <div className="p-3 text-sm text-gray-500">
+                                        No variables configured.{" "}
+                                        <a href="/settings" className="text-blue-600 hover:underline">
+                                          Add in Settings
+                                        </a>
+                                      </div>
+                                    ) : (
+                                      <div className="py-1">
+                                        {gtmVariables.map((v) => (
+                                          <button
+                                            key={v.mergeField}
+                                            type="button"
+                                            onClick={() => insertVariable(v.mergeField)}
+                                            className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                          >
+                                            <div className="min-w-0">
+                                              <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                              <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                            </div>
+                                            {v.value ? (
+                                              <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                            ) : (
+                                              <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                            )}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className="p-2 border-t border-gray-100">
+                                      <a
+                                        href="/settings"
+                                        className="text-xs text-gray-500 hover:text-blue-600"
+                                      >
+                                        Manage variables →
+                                      </a>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Attachment Picker */}
+                            {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                              <AttachmentPicker
+                                selectedAttachments={selectedAttachments}
+                                onSelectionChange={setSelectedAttachments}
+                                disabled={sending}
+                                isFirstMessage={true}
+                              />
+                            )}
+                          </div>
+
+                          {/* Right side - send buttons */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                voiceConversationModeRef.current = true;
+                                setIsVoiceRecording(true);
+                              }}
+                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Voice input"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                              </svg>
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={!inputMessage.trim() || sending}
+                              className="p-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                              title="Send message"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2606,93 +2622,24 @@ export default function ChatPage() {
                   onStopSpeaking={stopTTS}
                 />
               ) : (
-                <div className="flex flex-col gap-2 w-full">
-                  {/* Attachment chips above input row - editable if not yet included, read-only if already included */}
-                  {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
-                    <AttachmentChipsReadOnly
-                      attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
-                    />
-                  ) : (
-                    <AttachmentChips
-                      attachments={selectedAttachments}
-                      onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
-                    />
-                  )}
-                  <div className="flex gap-2 items-stretch relative">
-                  {/* GTM Variables Dropdown */}
-                  <div className="relative flex-shrink-0 self-end">
-                    <button
-                      type="button"
-                      onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                      className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Insert GTM Variable"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                      </svg>
-                    </button>
-                    {showVariablesDropdown && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowVariablesDropdown(false)}
+                <div className="border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden w-full">
+                  {/* Attachment chips inside card at top */}
+                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
+                    <div className="px-4 pt-3">
+                      {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
+                        <AttachmentChipsReadOnly
+                          attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
                         />
-                        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
-                          <div className="p-2 border-b border-gray-100">
-                            <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
-                          </div>
-                          {gtmVariables.length === 0 ? (
-                            <div className="p-3 text-sm text-gray-500">
-                              No variables configured.{" "}
-                              <a href="/settings" className="text-blue-600 hover:underline">
-                                Add in Settings
-                              </a>
-                            </div>
-                          ) : (
-                            <div className="py-1">
-                              {gtmVariables.map((v) => (
-                                <button
-                                  key={v.mergeField}
-                                  type="button"
-                                  onClick={() => insertVariable(v.mergeField)}
-                                  className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
-                                >
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
-                                    <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
-                                  </div>
-                                  {v.value ? (
-                                    <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
-                                  ) : (
-                                    <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          <div className="p-2 border-t border-gray-100">
-                            <a
-                              href="/settings"
-                              className="text-xs text-gray-500 hover:text-blue-600"
-                            >
-                              Manage variables →
-                            </a>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {/* Attachment Picker - only show if attachments not yet included */}
-                  {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
-                    <div className="flex-shrink-0 self-end">
-                      <AttachmentPicker
-                        selectedAttachments={selectedAttachments}
-                        onSelectionChange={setSelectedAttachments}
-                        disabled={sending}
-                        isFirstMessage={true}
-                      />
+                      ) : (
+                        <AttachmentChips
+                          attachments={selectedAttachments}
+                          onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                        />
+                      )}
                     </div>
                   )}
+
+                  {/* Full-width textarea */}
                   <textarea
                     ref={chatInputRef}
                     value={inputMessage}
@@ -2707,28 +2654,120 @@ export default function ChatPage() {
                       }
                     }}
                     placeholder="Ask Mikey anything about founder-led sales..."
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      voiceConversationModeRef.current = true;
-                      setIsVoiceRecording(true);
+                    className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px]"
+                    rows={2}
+                    style={{ height: 'auto' }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(target.scrollHeight, 200) + 'px';
                     }}
-                    className="px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex-shrink-0 self-end shadow-sm flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                    Voice
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!inputMessage.trim() || sending}
-                    className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 self-end shadow-sm"
-                  >
-                    Send
-                  </button>
+                  />
+
+                  {/* Bottom toolbar */}
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                    {/* Left side - action buttons */}
+                    <div className="flex items-center gap-1">
+                      {/* GTM Variables Dropdown */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Insert GTM Variable"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                        </button>
+                        {showVariablesDropdown && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setShowVariablesDropdown(false)}
+                            />
+                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                              <div className="p-2 border-b border-gray-100">
+                                <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                              </div>
+                              {gtmVariables.length === 0 ? (
+                                <div className="p-3 text-sm text-gray-500">
+                                  No variables configured.{" "}
+                                  <a href="/settings" className="text-blue-600 hover:underline">
+                                    Add in Settings
+                                  </a>
+                                </div>
+                              ) : (
+                                <div className="py-1">
+                                  {gtmVariables.map((v) => (
+                                    <button
+                                      key={v.mergeField}
+                                      type="button"
+                                      onClick={() => insertVariable(v.mergeField)}
+                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                        <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
+                                      </div>
+                                      {v.value ? (
+                                        <span className="flex-shrink-0 w-2 h-2 bg-green-500 rounded-full" title="Has value" />
+                                      ) : (
+                                        <span className="flex-shrink-0 w-2 h-2 bg-orange-400 rounded-full" title="No value set" />
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="p-2 border-t border-gray-100">
+                                <a
+                                  href="/settings"
+                                  className="text-xs text-gray-500 hover:text-blue-600"
+                                >
+                                  Manage variables →
+                                </a>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {/* Attachment Picker */}
+                      {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                        <AttachmentPicker
+                          selectedAttachments={selectedAttachments}
+                          onSelectionChange={setSelectedAttachments}
+                          disabled={sending}
+                          isFirstMessage={true}
+                        />
+                      )}
+                    </div>
+
+                    {/* Right side - send buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          voiceConversationModeRef.current = true;
+                          setIsVoiceRecording(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                        title="Voice input"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!inputMessage.trim() || sending}
+                        className="p-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                        title="Send message"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
