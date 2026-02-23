@@ -1746,7 +1746,16 @@ export default function ChatPage() {
             }),
           });
 
-          if (!uploadRes.ok) {
+          if (uploadRes.ok) {
+            // Reload files from storage to get signed URLs for display
+            const filesRes = await fetch(`/api/conversations/${conversationId}/attachments`);
+            if (filesRes.ok) {
+              const filesData = await filesRes.json();
+              if (filesData.files) {
+                setLoadedFiles(filesData.files);
+              }
+            }
+          } else {
             console.error("Failed to upload attachments:", await uploadRes.text());
           }
         } catch (uploadError) {
