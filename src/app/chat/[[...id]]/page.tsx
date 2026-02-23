@@ -2241,8 +2241,12 @@ export default function ChatPage() {
                       />
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {/* Attachment chips above input */}
-                        {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                        {/* Attachment chips above input - editable if not yet included, read-only if already included */}
+                        {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
+                          <AttachmentChipsReadOnly
+                            attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
+                          />
+                        ) : (
                           <AttachmentChips
                             attachments={selectedAttachments}
                             onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
@@ -2598,8 +2602,12 @@ export default function ChatPage() {
                 />
               ) : (
                 <div className="flex flex-col gap-2 flex-1 min-h-0 w-full">
-                  {/* Attachment chips above input row */}
-                  {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                  {/* Attachment chips above input row - editable if not yet included, read-only if already included */}
+                  {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
+                    <AttachmentChipsReadOnly
+                      attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
+                    />
+                  ) : (
                     <AttachmentChips
                       attachments={selectedAttachments}
                       onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
