@@ -28,7 +28,187 @@ Mikey is evolving from a single chat interface into a suite of interconnected "a
 
 - [ ] **First Call Checklist: Better rich text editor** - Current MDEditor shows ugly markdown/preview side-by-side. Need a true WYSIWYG editor (e.g., TipTap, Lexical, or Plate) that feels like editing in Notion/Google Docs rather than raw markdown.
 
-## Cross-App Integration
+---
+
+# Prompt Attachments Feature
+
+## Overview
+
+Allow users to attach context from completed apps (Sales Narrative, GTM Assessment, Discovery Questions, First Call Checklist) to their chat messages. Attachments provide rich context to the AI without requiring users to copy/paste or use merge field syntax.
+
+**Key insight:** Attachments only matter for the **first message** of a new conversation. After that, Chatbase has the context in its memory via `conversationId`.
+
+## UX Design
+
+### UI Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📎 Sales Narrative  ✕  │  📎 GTM Assessment  ✕              │  ← Attachment chips
+├─────────────────────────────────────────────────────────────┤
+│ Type your message...                                   [📎] │  ← Paperclip picker button
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Paperclip Picker (Multi-select dropdown)
+
+```
+┌─────────────────────────────────────────┐
+│ Attach Context                          │
+├─────────────────────────────────────────┤
+│ ☑ Sales Narrative          ✓ Ready     │
+│ ☐ GTM Assessment           ✓ Ready     │
+│ ☐ Discovery Questions      ✓ Ready     │
+│ ☐ First Call Checklist     → Start     │  ← Incomplete, links to app
+└─────────────────────────────────────────┘
+```
+
+### States
+
+1. **New conversation, no attachments selected:** Show paperclip button, apply defaults
+2. **Attachments selected:** Show chips above input with ✕ to remove
+3. **After first message sent:** Chips show "✓ Included" (read-only), paperclip hidden for that conversation
+4. **Incomplete attachment clicked:** Opens the relevant app to complete it
+
+## Behavior Rules
+
+### Defaults
+- **Sales Narrative:** Default ON for new conversations if user has completed one
+- **Others:** Default OFF
+
+### Persistence
+- Attachment preferences are **sticky** across conversations
+- If user removes an attachment, it stays OFF for **24 hours** (per-attachment)
+- After 24 hours, defaults re-apply
+
+### First Message Only
+- Attachments are appended to the **first message** of a conversation only
+- After sending, Chatbase has the context via `conversationId`
+- UI shows attachments as "included" (read-only) for remainder of conversation
+
+## Data Model
+
+### New: User Attachment Preferences
+
+```prisma
+model UserAttachmentPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // JSON structure for flexibility
+  // {
+  //   "salesNarrative": { "enabled": true, "disabledUntil": null },
+  //   "gtmAssessment": { "enabled": false, "disabledUntil": "2024-02-24T10:00:00Z" },
+  //   "discoveryQuestions": { "enabled": false, "disabledUntil": null },
+  //   "firstCallChecklist": { "enabled": false, "disabledUntil": null }
+  // }
+  preferences Json    @default("{}")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("user_attachment_preferences")
+}
+```
+
+### Track Attachments on Conversation
+
+```prisma
+model Conversation {
+  // ... existing fields ...
+
+  // Track which attachments were included in first message
+  attachmentsIncluded Json?  // ["salesNarrative", "gtmAssessment"]
+}
+```
+
+## Content Sources
+
+| Attachment | Source | Content |
+|------------|--------|---------|
+| Sales Narrative | `GtmVariable` where `mergeField = 'SALES_NARRATIVE'` | Full narrative + 100w/50w/25w descriptions |
+| GTM Assessment | `MaturityAssessment` + `MaturityAnswer` | All Q&A pairings formatted as markdown |
+| Discovery Questions | `GtmVariable` where `mergeField = 'DISCOVERY_QUESTIONS'` | Full generated questions |
+| First Call Checklist | `GtmVariable` where `mergeField = 'FIRST_CALL_CHECKLIST'` | Full markdown checklist |
+
+## API Endpoints
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `GET /api/attachments/available` | GET | List available attachments with completion status |
+| `GET /api/attachments/preferences` | GET | Get user's attachment preferences |
+| `PATCH /api/attachments/preferences` | PATCH | Update preferences (enable/disable) |
+| `GET /api/attachments/content/[type]` | GET | Fetch content for a specific attachment type |
+
+## Message Injection
+
+When attachments are included, append to user's message:
+
+```
+[User's original message]
+
+---
+
+**The following context was attached by the user to provide background:**
+
+## Sales Narrative
+[Full sales narrative content...]
+
+## GTM Assessment (Q&A)
+**Q1: Which executive is responsible for revenue?**
+A: [Answer...]
+
+**Q2: What is your current revenue status?**
+A: [Answer...]
+[... etc ...]
+```
+
+## Implementation Steps
+
+### Phase 1: Data Model & API
+- [ ] Add `UserAttachmentPreference` model to Prisma schema
+- [ ] Add `attachmentsIncluded` to Conversation model
+- [ ] Run migration
+- [ ] Create `GET /api/attachments/available` endpoint
+- [ ] Create `GET/PATCH /api/attachments/preferences` endpoints
+- [ ] Create `GET /api/attachments/content/[type]` endpoint
+
+### Phase 2: Content Fetching
+- [ ] Implement Sales Narrative content fetcher (from GtmVariable)
+- [ ] Implement GTM Assessment content fetcher (format Q&A from MaturityAssessment)
+- [ ] Implement Discovery Questions content fetcher (from GtmVariable)
+- [ ] Implement First Call Checklist content fetcher (from GtmVariable)
+
+### Phase 3: Chat UI
+- [ ] Add paperclip button to chat input area
+- [ ] Create attachment picker dropdown (multi-select)
+- [ ] Show attachment chips above input when selected
+- [ ] Handle "incomplete" attachments → link to app
+- [ ] Apply default preferences on new conversation
+
+### Phase 4: Message Sending
+- [ ] Modify chat send flow to check for attachments
+- [ ] Fetch attachment content and append to message
+- [ ] Save `attachmentsIncluded` to conversation on first message
+- [ ] Update UI to show "included" state after send
+
+### Phase 5: Preference Logic
+- [ ] Implement 24-hour disable timer
+- [ ] Apply defaults respecting disable timers
+- [ ] Persist preference changes
+
+## Relationship to Existing Merge Fields
+
+**Merge fields** (`{{SALES_NARRATIVE}}`) remain for:
+- Power users who want inline variable insertion in saved prompts
+- Template-based prompt construction
+
+**Attachments** are for:
+- Simple, UI-driven context inclusion
+- Ad-hoc chat without needing to know syntax
+- First-message context injection
+
+Both use the same underlying data from `GtmVariable` / app outputs.
 
 Apps feed into each other:
 ```
