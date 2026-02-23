@@ -374,11 +374,25 @@ export default function ChatPage() {
   }, []);
 
   // Auto-select Sales Narrative as default attachment when user has one
+  // Runs when narrative availability changes or conversation changes
+  const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
-    if (appProgress.salesNarrative?.hasGenerated && selectedAttachments.length === 0) {
-      // Only auto-select if current conversation doesn't already have attachments
+    // Reset auto-select flag when conversation changes
+    hasAutoSelectedRef.current = false;
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    // Only auto-select once per conversation, and only if:
+    // 1. User has a generated narrative
+    // 2. We haven't already auto-selected for this conversation
+    // 3. Current conversation doesn't already have attachments sent
+    if (
+      appProgress.salesNarrative?.hasGenerated &&
+      !hasAutoSelectedRef.current
+    ) {
       const currentConversation = conversations.find(c => c.id === selectedConversation);
       if (!currentConversation?.attachmentsIncluded?.length) {
+        hasAutoSelectedRef.current = true;
         setSelectedAttachments(["salesNarrative"]);
       }
     }
