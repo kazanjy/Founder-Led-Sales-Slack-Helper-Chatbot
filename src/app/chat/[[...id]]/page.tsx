@@ -116,8 +116,13 @@ interface LoadedFile {
   pageCount?: number;
 }
 
-// Extract image/PDF references from message content and find matching loaded files
-function getMessageFiles(messageContent: string, loadedFiles: LoadedFile[]): LoadedFile[] {
+// Extract image/PDF references from message content and find matching files
+// Checks loadedFiles (signed URLs) first, then falls back to pendingFiles (base64)
+function getMessageFiles(
+  messageContent: string,
+  loadedFiles: LoadedFile[],
+  pendingFiles: AttachedFile[] = []
+): LoadedFile[] {
   // Match [Image: filename] and [PDF: filename] patterns
   const imagePattern = /\[Image: ([^\]]+)\]/g;
   const pdfPattern = /\[PDF: ([^\]]+)\]/g;
@@ -132,8 +137,31 @@ function getMessageFiles(messageContent: string, loadedFiles: LoadedFile[]): Loa
     referencedNames.push(match[1]);
   }
 
-  // Find matching loaded files by name
-  return loadedFiles.filter(file => referencedNames.includes(file.name));
+  // Build result array, preferring loadedFiles (signed URLs) over pendingFiles (base64)
+  const result: LoadedFile[] = [];
+  const loadedByName = new Map(loadedFiles.map(f => [f.name, f]));
+
+  for (const name of referencedNames) {
+    // First check loadedFiles (already uploaded with signed URLs)
+    const loaded = loadedByName.get(name);
+    if (loaded) {
+      result.push(loaded);
+    } else {
+      // Fall back to pendingFiles (base64 data, not yet uploaded)
+      const pending = pendingFiles.find(f => f.name === name);
+      if (pending) {
+        result.push({
+          name: pending.name,
+          type: pending.type,
+          url: pending.dataUrl, // Use base64 dataUrl directly
+          pageUrls: pending.pdfPages,
+          pageCount: pending.pdfPages?.length,
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 interface Conversation {
@@ -220,6 +248,7 @@ export default function ChatPage() {
   const [inputHeight, setInputHeight] = useState(120); // Default input container height
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
   const [selectedImages, setSelectedImages] = useState<File[]>([]); // Image attachments
+  const [pendingFiles, setPendingFiles] = useState<AttachedFile[]>([]); // Files sent but not yet uploaded to storage
   const [processingImages, setProcessingImages] = useState(false); // Image vision processing
   const [processingStatus, setProcessingStatus] = useState<string | null>(null); // Status message during processing
   const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
@@ -1140,6 +1169,7 @@ export default function ChatPage() {
       if (!selectedConversation) {
         setMessages([]);
         setLoadedFiles([]); // Clear loaded files when no conversation
+        setPendingFiles([]); // Clear pending files too
         return;
       }
 
@@ -1161,6 +1191,7 @@ export default function ChatPage() {
             const filesData = await filesRes.json();
             if (filesData.files) {
               setLoadedFiles(filesData.files);
+              setPendingFiles([]); // Clear pending since we have real files now
             }
           } catch (filesError) {
             console.error("Error loading attached files:", filesError);
@@ -1168,6 +1199,7 @@ export default function ChatPage() {
           }
         } else {
           setLoadedFiles([]);
+          setPendingFiles([]); // Clear pending when no files in conversation
         }
       } catch (error) {
         console.error("Error loading messages:", error);
@@ -1617,6 +1649,8 @@ export default function ChatPage() {
         setProcessingImages(false);
         setProcessingStatus(null);
         setSelectedImages([]); // Clear images after processing is done
+        // Immediately show the processed files while upload happens in background
+        setPendingFiles(prev => [...prev, ...attachedFiles]);
       }
     }
 
@@ -1773,6 +1807,7 @@ export default function ChatPage() {
               const filesData = await filesRes.json();
               if (filesData.files) {
                 setLoadedFiles(filesData.files);
+                setPendingFiles([]); // Clear pending files now that we have signed URLs
               }
             }
           } else {
@@ -3075,7 +3110,7 @@ export default function ChatPage() {
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
                         {/* Show attached images/PDFs for this specific message */}
                         {(() => {
-                          const messageFiles = getMessageFiles(msg.content, loadedFiles);
+                          const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
                           if (messageFiles.length === 0) return null;
                           return (
                             <div className="flex flex-wrap gap-2 mb-3">
