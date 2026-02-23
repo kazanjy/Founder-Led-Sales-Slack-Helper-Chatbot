@@ -96,6 +96,7 @@ model User {
   salesNarrativeVersions SalesNarrativeVersion[]
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
   firstCallChecklistVersions FirstCallChecklistVersion[]
+  attachmentPreference UserAttachmentPreference?
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -268,6 +269,9 @@ model Conversation {
   messages        Message[]
   sharedLinks     SharedConversation[]
   maturityAssessments MaturityAssessment[]
+
+  // Track which attachments were included in first message
+  attachmentsIncluded Json?  // e.g., ["salesNarrative", "gtmAssessment"]
 
   createdAt       DateTime  @default(now())
   lastMessageAt   DateTime  @default(now())
@@ -579,4 +583,24 @@ model FirstCallChecklistVersion {
 
   @@index([userId, createdAt])
   @@map("first_call_checklist_versions")
+}
+
+// User preferences for prompt attachments
+model UserAttachmentPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // JSON structure for flexibility:
+  // {
+  //   "salesNarrative": { "enabled": true, "disabledUntil": null },
+  //   "gtmAssessment": { "enabled": false, "disabledUntil": "2024-02-24T10:00:00Z" },
+  //   "discoveryQuestions": { "enabled": false, "disabledUntil": null },
+  //   "firstCallChecklist": { "enabled": false, "disabledUntil": null }
+  // }
+  preferences Json    @default("{}")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("user_attachment_preferences")
 }
