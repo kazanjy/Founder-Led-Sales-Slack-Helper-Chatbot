@@ -14,6 +14,7 @@ const BOT_SCOPES = [
   "im:read",
   "im:write",
   "users:read",
+  "files:read", // Read file attachments in messages
 ].join(",");
 
 export async function GET() {

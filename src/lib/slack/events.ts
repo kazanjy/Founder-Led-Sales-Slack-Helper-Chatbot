@@ -2,6 +2,19 @@ import { prisma } from "@/lib/db";
 import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
+import { openai } from "@/lib/openai";
+import { uploadFile, StoredFileReference } from "@/lib/supabase";
+
+// Slack file object structure (subset of fields we need)
+interface SlackFile {
+  id: string;
+  name: string;
+  mimetype: string;
+  filetype: string;
+  url_private: string; // Requires bot token to download
+  url_private_download?: string;
+  size: number;
+}
 
 interface SlackEventPayload {
   team_id: string;
@@ -15,7 +28,143 @@ interface SlackEventPayload {
     bot_id?: string;
     channel_type?: string;
     tab?: string;
+    files?: SlackFile[]; // File attachments
   };
+}
+
+// Supported image mime types
+const SUPPORTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
+
+/**
+ * Download a file from Slack using the bot token
+ */
+async function downloadSlackFile(
+  fileUrl: string,
+  botToken: string
+): Promise<Buffer> {
+  const response = await fetch(fileUrl, {
+    headers: {
+      Authorization: `Bearer ${botToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to download Slack file: ${response.status}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
+ * Process an image through OpenAI Vision and get a description
+ */
+async function processImageThroughVision(
+  base64DataUrl: string,
+  fileName: string
+): Promise<string> {
+  console.log(`[Slack Vision] Processing image: ${fileName}`);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `Analyze this image from a sales and business perspective. Extract:
+- Any visible text, numbers, or data
+- Pricing information, tiers, or plans if present
+- Product features or capabilities mentioned
+- Company or competitor information
+- Organizational details (org charts, team structures)
+- Meeting notes, action items, or follow-ups
+- Any sales-relevant insights (objections, requirements, timelines)
+
+Focus on information that would help a sales professional understand and use this content.`,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Please analyze this image and extract the relevant information.",
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: base64DataUrl,
+              detail: "high",
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 2000,
+    temperature: 0.3,
+  });
+
+  const description = response.choices[0]?.message?.content?.trim() || "";
+  console.log(`[Slack Vision] Extracted ${description.length} chars from ${fileName}`);
+  return description;
+}
+
+/**
+ * Process Slack file attachments - download, analyze, and store
+ */
+async function processSlackFiles(
+  files: SlackFile[],
+  botToken: string,
+  userId: string,
+  conversationId: string
+): Promise<{ descriptions: string[]; storedFiles: StoredFileReference[] }> {
+  const descriptions: string[] = [];
+  const storedFiles: StoredFileReference[] = [];
+
+  // Filter to only supported image types
+  const imageFiles = files.filter((f) =>
+    SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
+  );
+
+  if (imageFiles.length === 0) {
+    return { descriptions, storedFiles };
+  }
+
+  console.log(`[Slack] Processing ${imageFiles.length} image attachments`);
+
+  for (const file of imageFiles) {
+    try {
+      // Download the file from Slack
+      const fileBuffer = await downloadSlackFile(file.url_private, botToken);
+
+      // Convert to base64 data URL
+      const base64 = fileBuffer.toString("base64");
+      const mimeType = file.mimetype;
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+
+      // Process through vision API
+      const description = await processImageThroughVision(dataUrl, file.name);
+      descriptions.push(`[Image: ${file.name}]\n${description}`);
+
+      // Upload to Supabase storage
+      const storedRef = await uploadFile(userId, conversationId, {
+        name: file.name,
+        type: "image",
+        data: dataUrl,
+      });
+      storedFiles.push(storedRef);
+
+      console.log(`[Slack] Processed and stored: ${file.name}`);
+    } catch (error) {
+      console.error(`[Slack] Error processing file ${file.name}:`, error);
+      descriptions.push(`[Image: ${file.name}] (Error processing image)`);
+    }
+  }
+
+  return { descriptions, storedFiles };
 }
 
 /**
@@ -222,9 +371,15 @@ async function handleMention(
 ) {
   console.log("handleMention started:", { teamId, event });
 
-  const { user, text, channel, ts, thread_ts } = event;
-  if (!user || !text || !channel || !ts) {
-    console.log("Missing required fields:", { user, text, channel, ts });
+  const { user, text, channel, ts, thread_ts, files } = event;
+  if (!user || !channel || !ts) {
+    console.log("Missing required fields:", { user, channel, ts });
+    return;
+  }
+
+  // Allow messages with just files (no text) if files are attached
+  if (!text && (!files || files.length === 0)) {
+    console.log("No text or files in message");
     return;
   }
 
@@ -265,10 +420,13 @@ async function handleMention(
   }
 
   // Strip the bot mention from the message
-  const cleanText = text.replace(/<@[A-Z0-9]+>/g, "").trim();
+  const cleanText = (text || "").replace(/<@[A-Z0-9]+>/g, "").trim();
   console.log("Clean text:", cleanText);
 
-  if (!cleanText) {
+  // Check if there are image attachments
+  const hasFiles = files && files.length > 0;
+
+  if (!cleanText && !hasFiles) {
     await sendSlackMessage(
       client,
       channel,
@@ -307,9 +465,18 @@ async function handleMention(
     }
   }
 
-  // Process the message
-  console.log("Calling processMessage");
-  await processMessage(workspace, dbUser, channel, threadTs, cleanText, ts, priorThreadContext);
+  // Process the message (with optional file attachments)
+  console.log("Calling processMessage", { hasFiles: !!hasFiles, fileCount: files?.length });
+  await processMessage(
+    workspace,
+    dbUser,
+    channel,
+    threadTs,
+    cleanText,
+    ts,
+    priorThreadContext,
+    hasFiles ? files : undefined
+  );
   console.log("processMessage completed");
 }
 
@@ -320,8 +487,12 @@ async function handleDirectMessage(
   teamId: string,
   event: SlackEventPayload["event"]
 ) {
-  const { user, text, channel, ts, thread_ts } = event;
-  if (!user || !text || !channel || !ts) return;
+  const { user, text, channel, ts, thread_ts, files } = event;
+
+  // Allow messages with just files (no text)
+  const hasFiles = files && files.length > 0;
+  if (!user || !channel || !ts) return;
+  if (!text && !hasFiles) return;
 
   // Get the workspace
   const workspace = await prisma.workspace.findUnique({
@@ -352,12 +523,22 @@ async function handleDirectMessage(
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
-  await processMessage(workspace, dbUser, channel, threadTs, text, ts);
+  await processMessage(
+    workspace,
+    dbUser,
+    channel,
+    threadTs,
+    text || "",
+    ts,
+    undefined, // no prior thread context for DMs
+    hasFiles ? files : undefined
+  );
 }
 
 /**
  * Process a message and generate a response
  * @param priorThreadContext - Optional context from prior thread messages (when Mikey is summoned mid-thread)
+ * @param files - Optional Slack file attachments
  */
 async function processMessage(
   workspace: { id: string; botToken: string; botUserId: string | null },
@@ -366,7 +547,8 @@ async function processMessage(
   threadTs: string,
   text: string,
   messageTs?: string,
-  priorThreadContext?: string
+  priorThreadContext?: string,
+  files?: SlackFile[]
 ) {
   const client = getSlackClient(workspace.botToken);
 
@@ -395,13 +577,60 @@ async function processMessage(
     });
   }
 
-  // Save user message
+  // Process file attachments if present
+  let finalText = text;
+  let storedFiles: StoredFileReference[] = [];
+
+  if (files && files.length > 0) {
+    console.log(`[Slack] Processing ${files.length} file attachments`);
+
+    // Send a "processing" message to acknowledge the images
+    await sendSlackMessage(
+      client,
+      channel,
+      `📷 Processing ${files.length} image${files.length > 1 ? "s" : ""}...`,
+      threadTs
+    );
+
+    const { descriptions, storedFiles: stored } = await processSlackFiles(
+      files,
+      workspace.botToken,
+      user.id,
+      conversation.id
+    );
+
+    storedFiles = stored;
+
+    // Append image descriptions to the message
+    if (descriptions.length > 0) {
+      const imageSection = descriptions.join("\n\n");
+      finalText = text
+        ? `${text}\n\n---\n\n${imageSection}`
+        : imageSection;
+    }
+
+    // Update conversation with stored file references
+    if (storedFiles.length > 0) {
+      // Get existing images and append new ones
+      const existingImages = (conversation.imagesIncluded as StoredFileReference[] | null) || [];
+      const allImages = [...existingImages, ...storedFiles];
+
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          imagesIncluded: JSON.parse(JSON.stringify(allImages)),
+        },
+      });
+    }
+  }
+
+  // Save user message (with image descriptions if any)
   await prisma.message.create({
     data: {
       conversationId: conversation.id,
       userId: user.id,
       role: "USER",
-      content: text,
+      content: finalText,
       slackMessageTs: messageTs,
     },
   });
@@ -426,8 +655,8 @@ async function processMessage(
 
   // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
   const messageWithContext = priorThreadContext
-    ? `${priorThreadContext}\n\n${text}`
-    : text;
+    ? `${priorThreadContext}\n\n${finalText}`
+    : finalText;
 
   try {
     // Get response from Chatbase
