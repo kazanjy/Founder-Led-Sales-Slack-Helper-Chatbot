@@ -139,11 +139,12 @@ export async function PATCH(request: NextRequest) {
       [attachmentId]: updatedPref,
     };
 
-    // Upsert the record
-    const result = await prisma.userAttachmentPreference.upsert({
+    // Upsert the record (cast to satisfy Prisma's JSON type)
+    const prefsJson = JSON.parse(JSON.stringify(updatedPrefs));
+    await prisma.userAttachmentPreference.upsert({
       where: { userId: user.id },
-      update: { preferences: updatedPrefs },
-      create: { userId: user.id, preferences: updatedPrefs },
+      update: { preferences: prefsJson },
+      create: { userId: user.id, preferences: prefsJson },
     });
 
     // Calculate effective state
