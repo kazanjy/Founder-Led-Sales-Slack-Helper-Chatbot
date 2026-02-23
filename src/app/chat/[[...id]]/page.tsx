@@ -13,7 +13,7 @@ import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
-import { ImageAttachmentButton, ImagePreviewChips, isPDFFile, isSupportedFile } from "@/components/ImageAttachment";
+import { ImageAttachmentButton, ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isSupportedFile } from "@/components/ImageAttachment";
 import { convertPDFToImages } from "@/lib/pdf-to-images";
 
 // Simple merge field detection (matches server-side logic)
@@ -108,6 +108,7 @@ interface Conversation {
   lastMessageAt: string;
   archived?: boolean;
   attachmentsIncluded?: string[] | null;
+  imagesIncluded?: string[] | null; // Filenames of images/PDFs attached
 }
 
 interface SearchResult {
@@ -182,6 +183,7 @@ export default function ChatPage() {
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
   const [selectedImages, setSelectedImages] = useState<File[]>([]); // Image attachments
   const [processingImages, setProcessingImages] = useState(false); // Image vision processing
+  const [processingStatus, setProcessingStatus] = useState<string | null>(null); // Status message during processing
   const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
@@ -1328,25 +1330,31 @@ export default function ChatPage() {
     // Capture attachments before clearing
     const attachmentsToSend = canAddAttachments ? [...selectedAttachments] : [];
     const imagesToProcess = [...selectedImages];
+    const imageFilenames = imagesToProcess.map(f => f.name);
 
     const userMessage = messageText.trim();
     setInputMessage("");
     setSelectedAttachments([]); // Clear attachments after sending
-    setSelectedImages([]); // Clear images after capturing
+    // Don't clear images yet - keep them visible during processing
     setSending(true);
 
     // Process images through vision API if any
     let finalMessage = userMessage;
     if (imagesToProcess.length > 0) {
       setProcessingImages(true);
+      const fileCount = imagesToProcess.length;
+      const fileType = imagesToProcess.some(f => f.type === "application/pdf") ? "files" : "images";
+      setProcessingStatus(`Analyzing ${fileCount} ${fileType}...`);
       try {
-        const imageDescriptions = await processImages(imagesToProcess);
+        const imageDescriptions = await processFiles(imagesToProcess);
         if (imageDescriptions.length > 0) {
           // Append image descriptions after user message
           finalMessage = `${userMessage}\n\n---\n\n${imageDescriptions.join("\n\n")}`;
         }
       } finally {
         setProcessingImages(false);
+        setProcessingStatus(null);
+        setSelectedImages([]); // Clear images after processing is done
       }
     }
 
@@ -1491,6 +1499,8 @@ export default function ChatPage() {
                 lastMessageAt: new Date().toISOString(),
                 // Mark attachments as included if we sent them
                 ...(attachmentsToSend.length > 0 && { attachmentsIncluded: attachmentsToSend }),
+                // Mark images as included if we processed them
+                ...(imageFilenames.length > 0 && { imagesIncluded: imageFilenames }),
               }
             : c
         );
@@ -2440,7 +2450,9 @@ export default function ChatPage() {
                           </div>
                         )}
                         {/* Attachment chips and image previews inside card at top */}
-                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
+                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
+                          conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ||
+                          selectedAttachments.length > 0 || selectedImages.length > 0) && (
                           <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                               <AttachmentChipsReadOnly
@@ -2452,13 +2464,24 @@ export default function ChatPage() {
                                 onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                               />
                             ) : null}
-                            {selectedImages.length > 0 && (
+                            {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
+                              <ImageChipsReadOnly
+                                filenames={conversations.find(c => c.id === selectedConversation)?.imagesIncluded as string[]}
+                              />
+                            ) : selectedImages.length > 0 ? (
                               <ImagePreviewChips
                                 images={selectedImages}
                                 onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
                                 processing={processingImages}
                               />
-                            )}
+                            ) : null}
+                          </div>
+                        )}
+                        {/* Processing status */}
+                        {processingStatus && (
+                          <div className="px-4 py-2 text-sm text-blue-600 flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            {processingStatus}
                           </div>
                         )}
 
@@ -2845,7 +2868,10 @@ export default function ChatPage() {
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
         <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{
-          height: inputHeight + ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 40 : 0) + (selectedImages.length > 0 ? 80 : 0),
+          height: inputHeight +
+            ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 40 : 0) +
+            ((selectedImages.length > 0 || conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length) ? 80 : 0) +
+            (processingStatus ? 32 : 0),
           minHeight: 100
         }}>
           {/* Resize handle at top */}
@@ -2932,7 +2958,9 @@ export default function ChatPage() {
                     </div>
                   )}
                   {/* Attachment chips and image previews inside card at top */}
-                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
+                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
+                    conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ||
+                    selectedAttachments.length > 0 || selectedImages.length > 0) && (
                     <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                         <AttachmentChipsReadOnly
@@ -2944,13 +2972,24 @@ export default function ChatPage() {
                           onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                         />
                       ) : null}
-                      {selectedImages.length > 0 && (
+                      {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
+                        <ImageChipsReadOnly
+                          filenames={conversations.find(c => c.id === selectedConversation)?.imagesIncluded as string[]}
+                        />
+                      ) : selectedImages.length > 0 ? (
                         <ImagePreviewChips
                           images={selectedImages}
                           onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
                           processing={processingImages}
                         />
-                      )}
+                      ) : null}
+                    </div>
+                  )}
+                  {/* Processing status */}
+                  {processingStatus && (
+                    <div className="px-4 py-2 text-sm text-blue-600 flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      {processingStatus}
                     </div>
                   )}
 
