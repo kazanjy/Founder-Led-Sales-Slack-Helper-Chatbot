@@ -2290,7 +2290,7 @@ export default function ChatPage() {
                         />
 
                         {/* Bottom toolbar */}
-                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 rounded-b-2xl">
                           {/* Left side - action buttons */}
                           <div className="flex items-center gap-1">
                             {/* GTM Variables Dropdown */}
@@ -2752,7 +2752,7 @@ export default function ChatPage() {
                   />
 
                   {/* Bottom toolbar */}
-                  <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 rounded-b-2xl">
                     {/* Left side - action buttons */}
                     <div className="flex items-center gap-1">
                       {/* GTM Variables Dropdown */}
