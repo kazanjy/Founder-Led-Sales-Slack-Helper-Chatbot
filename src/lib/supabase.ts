@@ -1,11 +1,22 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client for storage operations
+// Lazy-initialize Supabase client for storage operations
 // Use service role key for server-side operations (bypasses RLS)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+let supabaseClient: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase(): SupabaseClient {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase configuration");
+    }
+
+    supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+  }
+  return supabaseClient;
+}
 
 // Bucket name for conversation attachments
 export const ATTACHMENTS_BUCKET = "conversation-attachments";
@@ -41,7 +52,7 @@ export async function uploadFile(
   const storagePath = `${userId}/${conversationId}/${timestamp}-${safeName}`;
 
   // Upload to Supabase Storage
-  const { error } = await supabase.storage
+  const { error } = await getSupabase().storage
     .from(ATTACHMENTS_BUCKET)
     .upload(storagePath, buffer, {
       contentType: mimeType,
@@ -84,7 +95,7 @@ export async function uploadPDFPages(
 
     const pagePath = `${baseStoragePath}/page-${String(i + 1).padStart(3, "0")}.jpg`;
 
-    const { error } = await supabase.storage
+    const { error } = await getSupabase().storage
       .from(ATTACHMENTS_BUCKET)
       .upload(pagePath, buffer, {
         contentType: mimeType,
@@ -109,7 +120,7 @@ export async function uploadPDFPages(
  * Get a signed URL for a file (valid for 1 hour)
  */
 export async function getFileUrl(storagePath: string): Promise<string | null> {
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from(ATTACHMENTS_BUCKET)
     .createSignedUrl(storagePath, 3600); // 1 hour expiry
 
@@ -151,7 +162,7 @@ export async function deleteConversationFiles(
   const folderPath = `${userId}/${conversationId}`;
 
   // List all files in the folder
-  const { data: files, error: listError } = await supabase.storage
+  const { data: files, error: listError } = await getSupabase().storage
     .from(ATTACHMENTS_BUCKET)
     .list(folderPath, { limit: 1000 });
 
@@ -164,7 +175,7 @@ export async function deleteConversationFiles(
 
   // Delete all files
   const filePaths = files.map((f) => `${folderPath}/${f.name}`);
-  const { error: deleteError } = await supabase.storage
+  const { error: deleteError } = await getSupabase().storage
     .from(ATTACHMENTS_BUCKET)
     .remove(filePaths);
 
