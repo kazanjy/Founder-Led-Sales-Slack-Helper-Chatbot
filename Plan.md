@@ -983,3 +983,122 @@ enum UserContextType {
 - **Context budget per chat turn:** How many tokens to allocate to user context vs leaving room for conversation? Suggest ~50K token budget for context, leaving rest for conversation + RAG
 - **Staleness:** Should older context be weighted less? Or is all context equally valuable?
 - **Assessment as context:** Auto-convert assessment into a UserContext entry, or keep as separate injection path?
+
+---
+
+# Visual/Image Attachments - Design Plan
+
+## Overview
+
+Allow users to attach images to chat messages (both via web UI and Slack). Since Chatbase is not multimodal, images are processed through a vision AI to extract text descriptions, which are then injected into the Chatbase prompt.
+
+## Processing Flow
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Image Input   │────▶│  Vision API     │────▶│   Text Output   │
+│  (Web or Slack) │     │  (GPT-4o/Claude)│     │   + User Msg    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+                                                ┌─────────────────┐
+                                                │    Chatbase     │
+                                                │   (text only)   │
+                                                └─────────────────┘
+```
+
+## Design Decisions
+
+### Vision API Provider Options
+
+| Provider | Model | Pros | Cons |
+|----------|-------|------|------|
+| **OpenAI** | GPT-4o / GPT-4 Vision | Battle-tested, great at structured extraction | Cost (~$0.01-0.03 per image) |
+| **Anthropic** | Claude 3.5 Sonnet | Excellent reasoning | Similar cost |
+| **Google** | Gemini Pro Vision | Cheaper, good quality | Less proven |
+
+### Image Storage Strategy
+
+| Option | Description | Pros | Cons |
+|--------|-------------|------|------|
+| **In-memory only** | Process and discard | Simple, no storage cost | Can't re-process |
+| **Temporary (24h)** | Store briefly, auto-delete | Allows re-processing | Some storage overhead |
+| **Permanent** | Store in Supabase Storage/S3 | Full history | More complexity, storage costs |
+
+**Recommendation:** Start with in-memory processing, add temporary storage later if needed.
+
+### Extraction Prompt Strategy
+
+- **Generic:** "Describe this image in detail"
+- **Sales-context aware:** "Extract sales-relevant information: product screenshots, competitive materials, org charts, meeting notes, etc."
+- **User-guided:** Let user add a note like "This is our competitor's pricing page"
+
+**Recommendation:** Sales-context aware by default, with optional user note.
+
+## Proposed API
+
+```typescript
+// POST /api/vision/extract
+Request: {
+  image: string;        // base64 or URL
+  context?: string;     // user hint: "competitor pricing page"
+  extractionType?: "general" | "sales" | "document";
+}
+
+Response: {
+  description: string;  // Extracted text/description
+  metadata: {
+    type: "screenshot" | "document" | "photo" | "chart";
+    confidence: number;
+  }
+}
+```
+
+## Message Injection Format
+
+When an image is processed, the description is prepended to the user's message:
+
+```
+[Image attached: The image shows a competitor's pricing page with three tiers: Starter ($29/mo), Pro ($99/mo), and Enterprise (custom). Key features listed include...]
+
+{user's original message}
+```
+
+## Implementation Phases
+
+### Phase 1: Vision API Integration
+- [ ] Create `/api/vision/extract` endpoint
+- [ ] Integrate with OpenAI GPT-4o Vision (or chosen provider)
+- [ ] Define extraction prompts (generic + sales-focused)
+- [ ] Handle base64 and URL inputs
+
+### Phase 2: Web UI Upload
+- [ ] Add file input to chat (📎 button or drag-drop)
+- [ ] Show image preview before sending
+- [ ] Display extraction status ("Analyzing image...")
+- [ ] Inject description into message before sending to Chatbase
+
+### Phase 3: Slack Integration
+- [ ] Detect files[] in Slack events
+- [ ] Download image from Slack's servers (requires auth)
+- [ ] Process through vision extraction pipeline
+- [ ] Include description in Chatbase context
+
+### Phase 4: Storage & History (Optional)
+- [ ] Add image storage (Supabase Storage or S3)
+- [ ] Link images to conversations
+- [ ] Show image thumbnails in conversation history
+
+## Slack-Specific Considerations
+
+When a user sends an image via Slack:
+1. Slack provides a `url_private` for the file
+2. Need to fetch with Slack bot token: `Authorization: Bearer xoxb-...`
+3. Image is downloaded server-side, sent to vision API
+4. Description injected into the message before Chatbase call
+
+## Cost Considerations
+
+- GPT-4o Vision: ~$0.01-0.03 per image (depending on size/detail)
+- Storage (if implemented): ~$0.02/GB/month (S3/Supabase)
+- Consider rate limiting or usage caps per user
