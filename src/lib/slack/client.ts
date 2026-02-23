@@ -27,6 +27,22 @@ export async function sendSlackMessage(
   return result.ts;
 }
 
+// Thread message type with file support
+export interface ThreadMessage {
+  user?: string;
+  bot_id?: string;
+  text?: string;
+  ts?: string;
+  files?: Array<{
+    id: string;
+    name: string;
+    mimetype: string;
+    filetype: string;
+    url_private: string;
+    size: number;
+  }>;
+}
+
 /**
  * Get thread messages for context
  */
@@ -34,11 +50,12 @@ export async function getThreadMessages(
   client: WebClient,
   channel: string,
   threadTs: string
-): Promise<Array<{ user?: string; bot_id?: string; text?: string; ts?: string }>> {
+): Promise<ThreadMessage[]> {
   const result = await client.conversations.replies({
     channel,
     ts: threadTs,
   });
 
-  return result.messages || [];
+  // Cast to our type - Slack SDK types don't include all fields
+  return (result.messages || []) as ThreadMessage[];
 }

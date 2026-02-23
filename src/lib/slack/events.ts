@@ -439,6 +439,7 @@ async function handleMention(
   // Check if Mikey is being summoned into an existing thread
   // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
   let priorThreadContext: string | undefined;
+  let priorThreadFiles: SlackFile[] = [];
 
   if (thread_ts && thread_ts !== ts) {
     console.log("Mikey summoned into existing thread, fetching prior messages");
@@ -458,6 +459,21 @@ async function handleMention(
 
         priorThreadContext = `Here's the conversation that was happening in this thread before I was mentioned:\n\n${formattedMessages}\n\n---\n\nNow the user is asking:`;
         console.log(`Fetched ${priorMessages.length} prior messages for context`);
+
+        // Collect image files from prior messages
+        for (const msg of priorMessages) {
+          if (msg.files && msg.files.length > 0) {
+            // Filter to supported image types and add to collection
+            const imageFiles = msg.files.filter(f =>
+              SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
+            );
+            priorThreadFiles.push(...imageFiles);
+          }
+        }
+
+        if (priorThreadFiles.length > 0) {
+          console.log(`Found ${priorThreadFiles.length} images in prior thread messages`);
+        }
       }
     } catch (error) {
       console.error("Error fetching prior thread messages:", error);
@@ -465,8 +481,19 @@ async function handleMention(
     }
   }
 
+  // Combine files from current message with files from prior thread messages
+  const allFiles: SlackFile[] = [
+    ...priorThreadFiles,
+    ...(hasFiles ? files! : []),
+  ];
+
   // Process the message (with optional file attachments)
-  console.log("Calling processMessage", { hasFiles: !!hasFiles, fileCount: files?.length });
+  console.log("Calling processMessage", {
+    hasCurrentFiles: !!hasFiles,
+    currentFileCount: files?.length,
+    priorThreadFileCount: priorThreadFiles.length,
+    totalFiles: allFiles.length
+  });
   await processMessage(
     workspace,
     dbUser,
@@ -475,7 +502,7 @@ async function handleMention(
     cleanText,
     ts,
     priorThreadContext,
-    hasFiles ? files : undefined
+    allFiles.length > 0 ? allFiles : undefined
   );
   console.log("processMessage completed");
 }
