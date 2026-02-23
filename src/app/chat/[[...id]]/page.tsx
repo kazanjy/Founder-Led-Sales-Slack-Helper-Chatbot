@@ -2316,15 +2316,17 @@ export default function ChatPage() {
                             </>
                           )}
                         </div>
-                        {/* Attachment Picker for welcome screen */}
-                        <div className="flex-shrink-0 self-end">
-                          <AttachmentPicker
-                            selectedAttachments={selectedAttachments}
-                            onSelectionChange={setSelectedAttachments}
-                            disabled={sending}
-                            isFirstMessage={!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length}
-                          />
-                        </div>
+                        {/* Attachment Picker for welcome screen - only show if attachments not yet included */}
+                        {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                          <div className="flex-shrink-0 self-end">
+                            <AttachmentPicker
+                              selectedAttachments={selectedAttachments}
+                              onSelectionChange={setSelectedAttachments}
+                              disabled={sending}
+                              isFirstMessage={true}
+                            />
+                          </div>
+                        )}
                         <textarea
                           ref={chatInputRef}
                           value={inputMessage}
@@ -2677,15 +2679,17 @@ export default function ChatPage() {
                       </>
                     )}
                   </div>
-                  {/* Attachment Picker - show until attachments have been included */}
-                  <div className="flex-shrink-0 self-end">
-                    <AttachmentPicker
-                      selectedAttachments={selectedAttachments}
-                      onSelectionChange={setSelectedAttachments}
-                      disabled={sending}
-                      isFirstMessage={!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length}
-                    />
-                  </div>
+                  {/* Attachment Picker - only show if attachments not yet included */}
+                  {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                    <div className="flex-shrink-0 self-end">
+                      <AttachmentPicker
+                        selectedAttachments={selectedAttachments}
+                        onSelectionChange={setSelectedAttachments}
+                        disabled={sending}
+                        isFirstMessage={true}
+                      />
+                    </div>
+                  )}
                   <textarea
                     ref={chatInputRef}
                     value={inputMessage}
