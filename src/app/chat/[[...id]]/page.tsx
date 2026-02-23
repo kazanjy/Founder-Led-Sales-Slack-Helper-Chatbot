@@ -2391,6 +2391,85 @@ export default function ChatPage() {
                   </form>
                 )}
 
+                {/* Apps Section - encourage users to fill out first */}
+                <div className="max-w-[950px] mx-auto w-full mb-8">
+                  <p className="text-sm text-gray-500 mb-3">Complete your GTM profile for personalized advice:</p>
+                  <div className="grid grid-cols-4 gap-3">
+                    <a
+                      href="/assessment/bulk"
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">📊</span>
+                        {appProgress.gtmAssessment?.hasSubmitted && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">GTM Assessment</span>
+                      {appProgress.gtmAssessment?.hasSubmitted ? (
+                        <span className="text-xs text-green-600">Completed</span>
+                      ) : appProgress.gtmAssessment && appProgress.gtmAssessment.answered > 0 ? (
+                        <span className="text-xs text-orange-600">{appProgress.gtmAssessment.answered}/{appProgress.gtmAssessment.total} answered</span>
+                      ) : (
+                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
+                      )}
+                    </a>
+                    <a
+                      href="/sales-narrative"
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">📝</span>
+                        {appProgress.salesNarrative?.hasGenerated && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Sales Narrative</span>
+                      {appProgress.salesNarrative?.hasGenerated ? (
+                        <span className="text-xs text-green-600">Completed</span>
+                      ) : appProgress.salesNarrative && appProgress.salesNarrative.answered > 0 ? (
+                        <span className="text-xs text-orange-600">{appProgress.salesNarrative.answered}/{appProgress.salesNarrative.total} answered</span>
+                      ) : (
+                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
+                      )}
+                    </a>
+                    <a
+                      href="/discovery-questions"
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">🔍</span>
+                        {appProgress.discoveryQuestions?.hasGenerated && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Discovery Questions</span>
+                      {appProgress.discoveryQuestions?.hasGenerated ? (
+                        <span className="text-xs text-green-600">Completed</span>
+                      ) : (
+                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
+                      )}
+                    </a>
+                    <a
+                      href="/first-call-checklist"
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">📋</span>
+                        {appProgress.firstCallChecklist?.hasGenerated && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">First Call Checklist</span>
+                      {appProgress.firstCallChecklist?.hasGenerated ? (
+                        <span className="text-xs text-green-600">Completed</span>
+                      ) : (
+                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
+                      )}
+                    </a>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-between mb-4 max-w-[950px] mx-auto w-full">
                   <p className="text-sm text-gray-500">
                     Or try one of these:
