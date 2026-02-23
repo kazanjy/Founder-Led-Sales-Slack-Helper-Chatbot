@@ -2640,7 +2640,7 @@ export default function ChatPage() {
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
         <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{
-          height: inputHeight + (selectedAttachments.length > 0 ? 40 : 0),
+          height: inputHeight + ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 40 : 0),
           minHeight: 100
         }}>
           {/* Resize handle at top */}
