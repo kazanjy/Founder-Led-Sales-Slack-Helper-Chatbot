@@ -115,13 +115,13 @@ export async function POST(
     expandedMessage = expandedMessage + attachmentContent;
   }
 
-  // Save user message
+  // Save user message (with attachment content if included, so user can see what was sent)
   await prisma.message.create({
     data: {
       conversationId: conversation.id,
       userId: user.id,
       role: "USER",
-      content: message,
+      content: expandedMessage,
     },
   });
 
