@@ -82,7 +82,8 @@ export async function POST(
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        imagesIncluded: storedReferences,
+        // Cast to JSON-compatible type for Prisma
+        imagesIncluded: JSON.parse(JSON.stringify(storedReferences)),
       },
     });
 
