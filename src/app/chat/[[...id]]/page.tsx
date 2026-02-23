@@ -116,6 +116,26 @@ interface LoadedFile {
   pageCount?: number;
 }
 
+// Extract image/PDF references from message content and find matching loaded files
+function getMessageFiles(messageContent: string, loadedFiles: LoadedFile[]): LoadedFile[] {
+  // Match [Image: filename] and [PDF: filename] patterns
+  const imagePattern = /\[Image: ([^\]]+)\]/g;
+  const pdfPattern = /\[PDF: ([^\]]+)\]/g;
+
+  const referencedNames: string[] = [];
+
+  let match;
+  while ((match = imagePattern.exec(messageContent)) !== null) {
+    referencedNames.push(match[1]);
+  }
+  while ((match = pdfPattern.exec(messageContent)) !== null) {
+    referencedNames.push(match[1]);
+  }
+
+  // Find matching loaded files by name
+  return loadedFiles.filter(file => referencedNames.includes(file.name));
+}
+
 interface Conversation {
   id: string;
   source: "SLACK" | "WEB";
@@ -3053,33 +3073,37 @@ export default function ChatPage() {
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
-                        {/* Show attached images for first user message */}
-                        {msgIndex === 0 && loadedFiles.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {loadedFiles.map((file, fileIndex) => (
-                              <div
-                                key={`${file.name}-${fileIndex}`}
-                                className="cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => openLightboxForLoadedFiles(loadedFiles, fileIndex)}
-                              >
-                                {file.type === "pdf" ? (
-                                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
-                                    <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
-                                    </svg>
-                                    <span className="max-w-[120px] truncate">{file.name}</span>
-                                  </div>
-                                ) : (
-                                  <img
-                                    src={file.url || ""}
-                                    alt={file.name}
-                                    className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {/* Show attached images/PDFs for this specific message */}
+                        {(() => {
+                          const messageFiles = getMessageFiles(msg.content, loadedFiles);
+                          if (messageFiles.length === 0) return null;
+                          return (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {messageFiles.map((file, fileIndex) => (
+                                <div
+                                  key={`${file.name}-${fileIndex}`}
+                                  className="cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => openLightboxForLoadedFiles(messageFiles, fileIndex)}
+                                >
+                                  {file.type === "pdf" ? (
+                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
+                                      <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+                                      </svg>
+                                      <span className="max-w-[120px] truncate">{file.name}</span>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={file.url || ""}
+                                      alt={file.name}
+                                      className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         <TruncatedUserMessage
                           content={expandMergeFieldsInText(msg.content, gtmVariables)}
                           maxLines={20}
