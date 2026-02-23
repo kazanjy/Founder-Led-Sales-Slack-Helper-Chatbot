@@ -131,6 +131,24 @@ model Conversation {
 | Discovery Questions | `GtmVariable` where `mergeField = 'DISCOVERY_QUESTIONS'` | Full generated questions |
 | First Call Checklist | `GtmVariable` where `mergeField = 'FIRST_CALL_CHECKLIST'` | Full markdown checklist |
 
+### Future Apps Integration
+
+When building the remaining planned apps, ensure they integrate with the attachment system:
+
+| Future App | Merge Field | Attachment Type | Notes |
+|------------|-------------|-----------------|-------|
+| **Sales Deck Outline & Script** | `SALES_DECK` | `salesDeck` | Slide-by-slide script, deck structure |
+| **Ideal Customer Profile** | `ICP_SUMMARY` | `icpDocumentation` | Full ICP worksheet/documentation |
+| **Sales Playbook** | `SALES_PLAYBOOK` | `salesPlaybook` | Aggregated playbook content |
+
+**Implementation checklist for each new app:**
+1. Store output in `GtmVariable` with the appropriate merge field
+2. Add to `DEFAULT_PREFERENCES` in `/api/attachments/preferences/route.ts` (default OFF)
+3. Add case to switch statement in `/api/attachments/content/[type]/route.ts`
+4. Add to `GET /api/attachments/available` endpoint
+5. Add to `validAttachments` array in PATCH handler
+6. Update TypeScript types (`AttachmentPreferences` interface)
+
 ## API Endpoints
 
 | Route | Method | Purpose |
