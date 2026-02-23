@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize Supabase client for storage operations
+// Use service role key for server-side operations (bypasses RLS)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Bucket name for conversation attachments
 export const ATTACHMENTS_BUCKET = "conversation-attachments";
