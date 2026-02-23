@@ -2536,7 +2536,10 @@ export default function ChatPage() {
 
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
-        <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{ height: inputHeight, minHeight: 100 }}>
+        <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{
+          height: inputHeight + (selectedAttachments.length > 0 ? 40 : 0),
+          minHeight: 100
+        }}>
           {/* Resize handle at top */}
           <div
             className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500/50 transition-colors z-10"
