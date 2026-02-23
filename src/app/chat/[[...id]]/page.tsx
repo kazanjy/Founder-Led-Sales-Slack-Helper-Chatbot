@@ -181,6 +181,7 @@ export default function ChatPage() {
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
   const [selectedImages, setSelectedImages] = useState<File[]>([]); // Image attachments
   const [processingImages, setProcessingImages] = useState(false); // Image vision processing
+  const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const [appProgress, setAppProgress] = useState<{
@@ -1135,6 +1136,46 @@ export default function ChatPage() {
       console.error("Error creating conversation:", error);
     } finally {
       setCreatingChat(false);
+    }
+  };
+
+  // Handle drag-and-drop for images
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (imageFiles.length > 0) {
+      const maxImages = 4;
+      const remaining = maxImages - selectedImages.length;
+      const filesToAdd = imageFiles.slice(0, remaining);
+      if (filesToAdd.length > 0) {
+        setSelectedImages([...selectedImages, ...filesToAdd]);
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Check if any of the dragged items are images
+    const hasImages = Array.from(e.dataTransfer.items).some(
+      (item) => item.kind === "file" && item.type.startsWith("image/")
+    );
+    if (hasImages) {
+      setIsDraggingImage(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the container (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDraggingImage(false);
     }
   };
 
@@ -2310,7 +2351,23 @@ export default function ChatPage() {
                         onStopSpeaking={stopTTS}
                       />
                     ) : (
-                      <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
+                      <div
+                        className={`relative border rounded-2xl bg-white shadow-sm transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
+                        onDrop={handleImageDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                      >
+                        {/* Drag overlay */}
+                        {isDraggingImage && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50/80 rounded-2xl z-10 pointer-events-none">
+                            <div className="text-blue-600 font-medium flex items-center gap-2">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Drop image here
+                            </div>
+                          </div>
+                        )}
                         {/* Attachment chips and image previews inside card at top */}
                         {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
                           <div className="px-4 pt-3 rounded-t-2xl space-y-2">
@@ -2785,7 +2842,23 @@ export default function ChatPage() {
                   onStopSpeaking={stopTTS}
                 />
               ) : (
-                <div className="border border-gray-200 rounded-2xl bg-white shadow-sm w-full">
+                <div
+                  className={`relative border rounded-2xl bg-white shadow-sm w-full transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
+                  onDrop={handleImageDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {/* Drag overlay */}
+                  {isDraggingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-blue-50/80 rounded-2xl z-10 pointer-events-none">
+                      <div className="text-blue-600 font-medium flex items-center gap-2">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Drop image here
+                      </div>
+                    </div>
+                  )}
                   {/* Attachment chips and image previews inside card at top */}
                   {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0 || selectedImages.length > 0) && (
                     <div className="px-4 pt-3 rounded-t-2xl space-y-2">
