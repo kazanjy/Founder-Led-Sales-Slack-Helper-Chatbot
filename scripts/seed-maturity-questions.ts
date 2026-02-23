@@ -45,7 +45,7 @@ const questions: Question[] = [
     question: "Average monthly per customer revenue.",
   },
 
-  // Value Prop (3 questions)
+  // Value Prop (4 questions)
   {
     category: "Value Prop",
     question:
@@ -59,7 +59,12 @@ const questions: Question[] = [
   {
     category: "Value Prop",
     question:
-      "What's pricing? How are you paid? (Up front? Recurringly? By usage?).",
+      "Have we PROVEN these metrics with customers? Do we know the product WORKS?",
+  },
+  {
+    category: "Value Prop",
+    question:
+      "What's pricing? How are you paid? (Up front? Recurringly? By usage?)",
   },
 
   // ICP (3 questions)
@@ -117,7 +122,7 @@ const questions: Question[] = [
   {
     category: "Sales Motion",
     question:
-      "Can you paste in a discovery call / demo call recording here? A smattering of discos and some 'whole deal' calls (e.g., Disco with the prospect, then demo with the same prospect (second call), then further meetings)",
+      "Can you paste in some discovery call / demo call recordings here?",
   },
   {
     category: "Sales Motion",
@@ -166,7 +171,7 @@ const questions: Question[] = [
       "When people don't buy, what are the common Closed Lost reasons? (Are we tracking closed lost reasons in the CRM?)",
   },
 
-  // Sales Operations (3 questions)
+  // Sales Operations (4 questions)
   {
     category: "Sales Operations",
     question:
@@ -174,8 +179,12 @@ const questions: Question[] = [
   },
   {
     category: "Sales Operations",
+    question: "How do you record sales calls?",
+  },
+  {
+    category: "Sales Operations",
     question:
-      "What sort of reporting and tracking do you have in place to monitor appointment setting, deal flow and pipeline, win/loss rates, loss reasons, etc. Can you spin up reports at will? (What's your Salesforce-acumen?)",
+      "What sort of reporting and tracking do you have in place to monitor appointment setting, deal flow and pipeline, win/loss rates, loss reasons, etc.? Can you spin up reports at will? (What's your Salesforce-acumen?)",
   },
   {
     category: "Sales Operations",
