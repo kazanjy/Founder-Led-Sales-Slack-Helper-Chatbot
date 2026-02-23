@@ -2470,7 +2470,7 @@ export default function ChatPage() {
                               />
                             ) : selectedImages.length > 0 ? (
                               <ImagePreviewChips
-                                images={selectedImages}
+                                files={selectedImages}
                                 onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
                                 processing={processingImages}
                               />
@@ -2978,7 +2978,7 @@ export default function ChatPage() {
                         />
                       ) : selectedImages.length > 0 ? (
                         <ImagePreviewChips
-                          images={selectedImages}
+                          files={selectedImages}
                           onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
                           processing={processingImages}
                         />
