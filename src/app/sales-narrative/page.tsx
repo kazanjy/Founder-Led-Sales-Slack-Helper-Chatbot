@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 interface NarrativeVersion {
   id: string;
@@ -120,12 +121,10 @@ function SalesNarrativeContent() {
   };
 
   const handleCopy = async (text: string, field: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const success = await copyMarkdownAsRichText(text);
+    if (success) {
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
     }
   };
 

@@ -11,6 +11,7 @@ import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
+import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -703,22 +704,22 @@ export default function ChatPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Copy conversation as markdown
-  const handleCopy = () => {
+  // Copy conversation as rich text (preserves formatting when pasted)
+  const handleCopy = async () => {
     if (messages.length === 0) return;
 
-    const markdown = messages
-      .map((msg) => {
-        if (msg.role === "USER") {
-          return `**You:** ${msg.content}`;
-        } else {
-          return `**Mikey:** ${msg.content}`;
-        }
-      })
-      .join("\n\n---\n\n");
+    const success = await copyMessagesAsRichText(
+      messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+    );
 
-    navigator.clipboard.writeText(markdown);
-    showToast("Copied to clipboard!");
+    if (success) {
+      showToast("Copied to clipboard!");
+    } else {
+      showToast("Failed to copy");
+    }
   };
 
   // Share conversation (header button)
@@ -2425,9 +2426,9 @@ export default function ChatPage() {
                       <div className="flex items-center gap-1 mt-2">
                         <div className="relative group">
                           <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(msg.content);
-                              showToast("Copied to clipboard!", "bottom");
+                            onClick={async () => {
+                              const success = await copyMarkdownAsRichText(msg.content);
+                              showToast(success ? "Copied to clipboard!" : "Failed to copy", "bottom");
                             }}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                           >

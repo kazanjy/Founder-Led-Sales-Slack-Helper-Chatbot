@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -183,12 +184,10 @@ function DiscoveryQuestionsContent() {
       }
     }
 
-    try {
-      await navigator.clipboard.writeText(allQuestions.trim());
+    const success = await copyMarkdownAsRichText(allQuestions.trim());
+    if (success) {
       setCopiedQuestion("all");
       setTimeout(() => setCopiedQuestion(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
     }
   };
 

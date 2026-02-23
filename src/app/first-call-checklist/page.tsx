@@ -6,6 +6,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import dynamic from "next/dynamic";
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(
@@ -152,12 +153,10 @@ function FirstCallChecklistContent() {
 
   const handleCopy = async () => {
     if (!version) return;
-    try {
-      await navigator.clipboard.writeText(version.content);
+    const success = await copyMarkdownAsRichText(version.content);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
     }
   };
 
