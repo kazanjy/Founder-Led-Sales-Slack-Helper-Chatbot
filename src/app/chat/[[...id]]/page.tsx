@@ -2240,7 +2240,7 @@ export default function ChatPage() {
                         onStopSpeaking={stopTTS}
                       />
                     ) : (
-                      <div className="border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden">
+                      <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
                         {/* Attachment chips inside card at top */}
                         {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
                           <div className="px-4 pt-3">
@@ -2701,7 +2701,7 @@ export default function ChatPage() {
                   onStopSpeaking={stopTTS}
                 />
               ) : (
-                <div className="border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden w-full">
+                <div className="border border-gray-200 rounded-2xl bg-white shadow-sm w-full">
                   {/* Attachment chips inside card at top */}
                   {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
                     <div className="px-4 pt-3">
