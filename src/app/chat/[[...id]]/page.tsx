@@ -379,7 +379,7 @@ export default function ChatPage() {
       // Only auto-select if current conversation doesn't already have attachments
       const currentConversation = conversations.find(c => c.id === selectedConversation);
       if (!currentConversation?.attachmentsIncluded?.length) {
-        setSelectedAttachments(["sales-narrative"]);
+        setSelectedAttachments(["salesNarrative"]);
       }
     }
   }, [appProgress.salesNarrative?.hasGenerated, selectedConversation, conversations]);
