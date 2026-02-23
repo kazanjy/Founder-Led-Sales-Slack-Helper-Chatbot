@@ -373,6 +373,17 @@ export default function ChatPage() {
     loadAppProgress();
   }, []);
 
+  // Auto-select Sales Narrative as default attachment when user has one
+  useEffect(() => {
+    if (appProgress.salesNarrative?.hasGenerated && selectedAttachments.length === 0) {
+      // Only auto-select if current conversation doesn't already have attachments
+      const currentConversation = conversations.find(c => c.id === selectedConversation);
+      if (!currentConversation?.attachmentsIncluded?.length) {
+        setSelectedAttachments(["sales-narrative"]);
+      }
+    }
+  }, [appProgress.salesNarrative?.hasGenerated, selectedConversation, conversations]);
+
   // Spacebar to interrupt TTS and start listening
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
