@@ -2588,10 +2588,10 @@ export default function ChatPage() {
                             )}
                             {/* Image Attachment Button */}
                             <ImageAttachmentButton
-                              onImagesChange={(newImages) => setSelectedImages([...selectedImages, ...newImages])}
+                              onFilesChange={(newFiles) => setSelectedImages([...selectedImages, ...newFiles])}
                               disabled={sending || processingImages}
                               currentCount={selectedImages.length}
-                              maxImages={4}
+                              maxFiles={4}
                             />
                           </div>
 
@@ -3097,10 +3097,10 @@ export default function ChatPage() {
                       )}
                       {/* Image Attachment Button */}
                       <ImageAttachmentButton
-                        onImagesChange={(newImages) => setSelectedImages([...selectedImages, ...newImages])}
+                        onFilesChange={(newFiles) => setSelectedImages([...selectedImages, ...newFiles])}
                         disabled={sending || processingImages}
                         currentCount={selectedImages.length}
-                        maxImages={4}
+                        maxFiles={4}
                       />
                     </div>
 
