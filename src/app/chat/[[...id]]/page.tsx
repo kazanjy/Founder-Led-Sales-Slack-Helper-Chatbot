@@ -2251,7 +2251,7 @@ export default function ChatPage() {
                       <div className="border border-gray-200 rounded-2xl bg-white shadow-sm">
                         {/* Attachment chips inside card at top */}
                         {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
-                          <div className="px-4 pt-3">
+                          <div className="px-4 pt-3 rounded-t-2xl">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                               <AttachmentChipsReadOnly
                                 attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
@@ -2279,7 +2279,7 @@ export default function ChatPage() {
                             }
                           }}
                           placeholder="Ask Mikey anything about founder-led sales..."
-                          className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px]"
+                          className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
                           rows={2}
                           style={{ height: 'auto' }}
                           onInput={(e) => {
@@ -2712,7 +2712,7 @@ export default function ChatPage() {
                 <div className="border border-gray-200 rounded-2xl bg-white shadow-sm w-full">
                   {/* Attachment chips inside card at top */}
                   {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length || selectedAttachments.length > 0) && (
-                    <div className="px-4 pt-3">
+                    <div className="px-4 pt-3 rounded-t-2xl">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                         <AttachmentChipsReadOnly
                           attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
@@ -2741,7 +2741,7 @@ export default function ChatPage() {
                       }
                     }}
                     placeholder="Ask Mikey anything about founder-led sales..."
-                    className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px]"
+                    className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
                     rows={2}
                     style={{ height: 'auto' }}
                     onInput={(e) => {
