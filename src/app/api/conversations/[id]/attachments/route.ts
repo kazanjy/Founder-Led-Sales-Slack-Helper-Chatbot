@@ -95,8 +95,9 @@ export async function POST(
     });
   } catch (error) {
     console.error("[Attachments] Upload error:", error);
+    const message = error instanceof Error ? error.message : "Failed to upload files";
     return NextResponse.json(
-      { error: "Failed to upload files" },
+      { error: message },
       { status: 500 }
     );
   }
