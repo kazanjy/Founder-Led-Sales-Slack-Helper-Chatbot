@@ -29,16 +29,10 @@ export async function uploadFile(
     data: string; // base64 data URL
   }
 ): Promise<StoredFileReference> {
-  // Convert base64 to blob
+  // Convert base64 to buffer (Node.js compatible)
   const base64Data = file.data.split(",")[1];
   const mimeType = file.data.split(";")[0].split(":")[1];
-  const byteCharacters = atob(base64Data);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type: mimeType });
+  const buffer = Buffer.from(base64Data, "base64");
 
   // Create storage path: userId/conversationId/timestamp-filename
   const timestamp = Date.now();
@@ -48,7 +42,7 @@ export async function uploadFile(
   // Upload to Supabase Storage
   const { error } = await supabase.storage
     .from(ATTACHMENTS_BUCKET)
-    .upload(storagePath, blob, {
+    .upload(storagePath, buffer, {
       contentType: mimeType,
       upsert: false,
     });
@@ -84,19 +78,14 @@ export async function uploadPDFPages(
     const base64Data = pageData.split(",")[1];
     const mimeType = pageData.split(";")[0].split(":")[1] || "image/jpeg";
 
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let j = 0; j < byteCharacters.length; j++) {
-      byteNumbers[j] = byteCharacters.charCodeAt(j);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: mimeType });
+    // Use Buffer for Node.js compatibility
+    const buffer = Buffer.from(base64Data, "base64");
 
     const pagePath = `${baseStoragePath}/page-${String(i + 1).padStart(3, "0")}.jpg`;
 
     const { error } = await supabase.storage
       .from(ATTACHMENTS_BUCKET)
-      .upload(pagePath, blob, {
+      .upload(pagePath, buffer, {
         contentType: mimeType,
         upsert: false,
       });
