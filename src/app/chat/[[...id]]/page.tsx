@@ -13,8 +13,9 @@ import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
-import { ImageAttachmentButton, ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isSupportedFile } from "@/components/ImageAttachment";
+import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
 import { convertPDFToImages } from "@/lib/pdf-to-images";
+import { Lightbox, type LightboxImage } from "@/components/Lightbox";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -108,7 +109,7 @@ interface Conversation {
   lastMessageAt: string;
   archived?: boolean;
   attachmentsIncluded?: string[] | null;
-  imagesIncluded?: string[] | null; // Filenames of images/PDFs attached
+  imagesIncluded?: AttachedFile[] | null; // Full image/PDF data for lightbox
 }
 
 interface SearchResult {
@@ -185,6 +186,10 @@ export default function ChatPage() {
   const [processingImages, setProcessingImages] = useState(false); // Image vision processing
   const [processingStatus, setProcessingStatus] = useState<string | null>(null); // Status message during processing
   const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
+  const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]); // Lightbox images
+  const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
+  const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
+  const [lightboxDownloadData, setLightboxDownloadData] = useState<{ name: string; dataUrl: string } | null>(null); // For PDF download
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const [appProgress, setAppProgress] = useState<{
@@ -1294,6 +1299,134 @@ export default function ChatPage() {
   // Legacy alias
   const processImages = processFiles;
 
+  // Open lightbox for pre-send images (File objects)
+  const openLightboxForFiles = async (files: File[], startIndex: number) => {
+    const images: LightboxImage[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (isPDFFile(file)) {
+        // Convert PDF to images for lightbox preview
+        try {
+          const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
+          pdfResult.pages.forEach((page) => {
+            images.push({
+              url: page.dataUrl,
+              name: file.name,
+              type: "pdf-page",
+              pageNumber: page.pageNumber,
+            });
+          });
+        } catch (error) {
+          console.error("Failed to convert PDF for preview:", error);
+        }
+      } else {
+        // Create blob URL for image preview
+        const url = URL.createObjectURL(file);
+        images.push({
+          url,
+          name: file.name,
+          type: "image",
+        });
+      }
+    }
+
+    if (images.length > 0) {
+      // Adjust start index if clicking on a PDF (count pages of earlier files)
+      let adjustedIndex = 0;
+      for (let i = 0; i < startIndex && i < files.length; i++) {
+        if (isPDFFile(files[i])) {
+          // Count pages from earlier PDFs - for simplicity, just advance by 1 for now
+          // The actual conversion happened above, so we check the images array
+          const pdfPages = images.filter(img => img.name === files[i].name).length;
+          adjustedIndex += pdfPages || 1;
+        } else {
+          adjustedIndex += 1;
+        }
+      }
+
+      setLightboxImages(images);
+      setLightboxIndex(Math.min(adjustedIndex, images.length - 1));
+      setLightboxDownloadData(null);
+      setLightboxOpen(true);
+    }
+  };
+
+  // Open lightbox for post-send images (AttachedFile objects)
+  const openLightboxForAttachedFiles = (files: AttachedFile[], startIndex: number) => {
+    const images: LightboxImage[] = [];
+    let downloadData: { name: string; dataUrl: string } | null = null;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type === "pdf" && file.pdfPages) {
+        // Add all PDF pages
+        file.pdfPages.forEach((pageUrl, pageIndex) => {
+          images.push({
+            url: pageUrl,
+            name: file.name,
+            type: "pdf-page",
+            pageNumber: pageIndex + 1,
+          });
+        });
+        // Store PDF data for download if this is the clicked file
+        if (i === startIndex) {
+          downloadData = { name: file.name, dataUrl: file.dataUrl };
+        }
+      } else {
+        images.push({
+          url: file.dataUrl,
+          name: file.name,
+          type: "image",
+        });
+      }
+    }
+
+    if (images.length > 0) {
+      // Calculate adjusted index
+      let adjustedIndex = 0;
+      for (let i = 0; i < startIndex && i < files.length; i++) {
+        if (files[i].type === "pdf" && files[i].pdfPages) {
+          adjustedIndex += files[i].pdfPages!.length;
+        } else {
+          adjustedIndex += 1;
+        }
+      }
+
+      setLightboxImages(images);
+      setLightboxIndex(Math.min(adjustedIndex, images.length - 1));
+      setLightboxDownloadData(downloadData);
+      setLightboxOpen(true);
+    }
+  };
+
+  // Handle lightbox download (for PDFs)
+  const handleLightboxDownload = () => {
+    if (lightboxDownloadData) {
+      // Create download link
+      const link = document.createElement("a");
+      link.href = lightboxDownloadData.dataUrl;
+      link.download = lightboxDownloadData.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Close lightbox and cleanup
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    // Cleanup blob URLs from pre-send images
+    lightboxImages.forEach((img) => {
+      if (img.type === "image" && img.url.startsWith("blob:")) {
+        URL.revokeObjectURL(img.url);
+      }
+    });
+    setLightboxImages([]);
+    setLightboxIndex(0);
+    setLightboxDownloadData(null);
+  };
+
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending || !user?.canChat) return;
 
@@ -1330,7 +1463,6 @@ export default function ChatPage() {
     // Capture attachments before clearing
     const attachmentsToSend = canAddAttachments ? [...selectedAttachments] : [];
     const imagesToProcess = [...selectedImages];
-    const imageFilenames = imagesToProcess.map(f => f.name);
 
     const userMessage = messageText.trim();
     setInputMessage("");
@@ -1338,14 +1470,46 @@ export default function ChatPage() {
     // Don't clear images yet - keep them visible during processing
     setSending(true);
 
-    // Process images through vision API if any
+    // Process images through vision API and collect file data for storage
     let finalMessage = userMessage;
+    let attachedFiles: AttachedFile[] = [];
+
     if (imagesToProcess.length > 0) {
       setProcessingImages(true);
       const fileCount = imagesToProcess.length;
       const fileType = imagesToProcess.some(f => f.type === "application/pdf") ? "files" : "images";
       setProcessingStatus(`Analyzing ${fileCount} ${fileType}...`);
       try {
+        // Convert files to base64 data URLs for storage before processing
+        attachedFiles = await Promise.all(
+          imagesToProcess.map(async (file): Promise<AttachedFile> => {
+            if (isPDFFile(file)) {
+              // Convert PDF pages to images
+              const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
+              return {
+                name: file.name,
+                type: "pdf",
+                dataUrl: pdfResult.pages[0]?.dataUrl || "",
+                pdfPages: pdfResult.pages.map((p) => p.dataUrl),
+              };
+            } else {
+              // Convert image to base64
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              });
+              return {
+                name: file.name,
+                type: "image",
+                dataUrl,
+              };
+            }
+          })
+        );
+
+        // Now process through vision API
         const imageDescriptions = await processFiles(imagesToProcess);
         if (imageDescriptions.length > 0) {
           // Append image descriptions after user message
@@ -1500,7 +1664,7 @@ export default function ChatPage() {
                 // Mark attachments as included if we sent them
                 ...(attachmentsToSend.length > 0 && { attachmentsIncluded: attachmentsToSend }),
                 // Mark images as included if we processed them
-                ...(imageFilenames.length > 0 && { imagesIncluded: imageFilenames }),
+                ...(attachedFiles.length > 0 && { imagesIncluded: attachedFiles }),
               }
             : c
         );
@@ -2466,12 +2630,17 @@ export default function ChatPage() {
                             ) : null}
                             {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
                               <ImageChipsReadOnly
-                                filenames={conversations.find(c => c.id === selectedConversation)?.imagesIncluded as string[]}
+                                files={conversations.find(c => c.id === selectedConversation)?.imagesIncluded || []}
+                                onPreview={(index) => openLightboxForAttachedFiles(
+                                  conversations.find(c => c.id === selectedConversation)?.imagesIncluded || [],
+                                  index
+                                )}
                               />
                             ) : selectedImages.length > 0 ? (
                               <ImagePreviewChips
                                 files={selectedImages}
                                 onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
+                                onPreview={(index) => openLightboxForFiles(selectedImages, index)}
                                 processing={processingImages}
                               />
                             ) : null}
@@ -2588,7 +2757,7 @@ export default function ChatPage() {
                             )}
                             {/* Image Attachment Button */}
                             <ImageAttachmentButton
-                              onFilesChange={(newFiles) => setSelectedImages([...selectedImages, ...newFiles])}
+                              onFilesChange={(newFiles: File[]) => setSelectedImages([...selectedImages, ...newFiles])}
                               disabled={sending || processingImages}
                               currentCount={selectedImages.length}
                               maxFiles={4}
@@ -2974,12 +3143,17 @@ export default function ChatPage() {
                       ) : null}
                       {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
                         <ImageChipsReadOnly
-                          filenames={conversations.find(c => c.id === selectedConversation)?.imagesIncluded as string[]}
+                          files={conversations.find(c => c.id === selectedConversation)?.imagesIncluded || []}
+                          onPreview={(index) => openLightboxForAttachedFiles(
+                            conversations.find(c => c.id === selectedConversation)?.imagesIncluded || [],
+                            index
+                          )}
                         />
                       ) : selectedImages.length > 0 ? (
                         <ImagePreviewChips
                           files={selectedImages}
                           onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
+                          onPreview={(index) => openLightboxForFiles(selectedImages, index)}
                           processing={processingImages}
                         />
                       ) : null}
@@ -3097,7 +3271,7 @@ export default function ChatPage() {
                       )}
                       {/* Image Attachment Button */}
                       <ImageAttachmentButton
-                        onFilesChange={(newFiles) => setSelectedImages([...selectedImages, ...newFiles])}
+                        onFilesChange={(newFiles: File[]) => setSelectedImages([...selectedImages, ...newFiles])}
                         disabled={sending || processingImages}
                         currentCount={selectedImages.length}
                         maxFiles={4}
@@ -3672,6 +3846,17 @@ export default function ChatPage() {
         }}
         mode={maturityModalMode}
       />
+
+      {/* Image/PDF Lightbox */}
+      {lightboxOpen && lightboxImages.length > 0 && (
+        <Lightbox
+          images={lightboxImages}
+          currentIndex={lightboxIndex}
+          onClose={closeLightbox}
+          onNavigate={setLightboxIndex}
+          onDownload={lightboxDownloadData ? handleLightboxDownload : undefined}
+        />
+      )}
 
     </div>
     </>
