@@ -78,12 +78,16 @@ export async function POST(
       }
     }
 
-    // Update conversation with file references
+    // Get existing images and append new ones
+    const existingImages = (conversation.imagesIncluded as StoredFileReference[] | null) || [];
+    const allImages = [...existingImages, ...storedReferences];
+
+    // Update conversation with combined file references
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
         // Cast to JSON-compatible type for Prisma
-        imagesIncluded: JSON.parse(JSON.stringify(storedReferences)),
+        imagesIncluded: JSON.parse(JSON.stringify(allImages)),
       },
     });
 
