@@ -2404,7 +2404,7 @@ export default function ChatPage() {
                   <p className="text-sm text-gray-500 mb-3">Complete your GTM profile for personalized advice:</p>
                   <div className="grid grid-cols-4 gap-3">
                     <a
-                      href="/assessment/bulk"
+                      href={appProgress.gtmAssessment?.hasSubmitted ? "/maturity-history" : "/assessment/bulk"}
                       className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
@@ -2423,7 +2423,7 @@ export default function ChatPage() {
                       )}
                     </a>
                     <a
-                      href="/sales-narrative"
+                      href={appProgress.salesNarrative?.hasGenerated ? "/sales-narrative/history" : "/sales-narrative"}
                       className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
@@ -2442,7 +2442,7 @@ export default function ChatPage() {
                       )}
                     </a>
                     <a
-                      href="/discovery-questions"
+                      href={appProgress.discoveryQuestions?.hasGenerated ? "/discovery-questions/history" : "/discovery-questions"}
                       className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
@@ -2459,7 +2459,7 @@ export default function ChatPage() {
                       )}
                     </a>
                     <a
-                      href="/first-call-checklist"
+                      href={appProgress.firstCallChecklist?.hasGenerated ? "/first-call-checklist/history" : "/first-call-checklist"}
                       className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
