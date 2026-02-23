@@ -1275,6 +1275,14 @@ export default function ChatPage() {
                 // Done event with message metadata
                 messageId = parsed.messageId;
                 createdAt = parsed.createdAt;
+                // Update user message if backend saved expanded version (with attachments)
+                if (parsed.savedUserMessage) {
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === tempUserMsg.id ? { ...m, content: parsed.savedUserMessage } : m
+                    )
+                  );
+                }
               } else if (parsed.error) {
                 throw new Error(parsed.error);
               }

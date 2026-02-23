@@ -287,6 +287,7 @@ export async function POST(
             `event: done\ndata: ${JSON.stringify({
               messageId: assistantMessage.id,
               createdAt: assistantMessage.createdAt,
+              ...(attachmentContent ? { savedUserMessage: expandedMessage } : {}),
             })}\n\n`
           )
         );
