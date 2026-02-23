@@ -2724,9 +2724,8 @@ export default function ChatPage() {
                             </div>
                           </div>
                         )}
-                        {/* Attachment chips and image previews inside card at top */}
+                        {/* Attachment chips and image previews inside card at top - only for pending uploads */}
                         {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                          loadedFiles.length > 0 ||
                           selectedAttachments.length > 0 || selectedImages.length > 0) && (
                           <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
@@ -2739,29 +2738,7 @@ export default function ChatPage() {
                                 onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                               />
                             ) : null}
-                            {loadedFiles.length > 0 ? (
-                              /* Show files loaded from storage (persisted) */
-                              <div className="flex flex-wrap gap-2">
-                                {loadedFiles.map((file, index) => (
-                                  <div
-                                    key={`${file.name}-${index}`}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 cursor-pointer hover:border-gray-300 hover:bg-gray-100"
-                                    onClick={() => openLightboxForLoadedFiles(loadedFiles, index)}
-                                  >
-                                    {file.type === "pdf" ? (
-                                      <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                      </svg>
-                                    )}
-                                    <span className="max-w-[150px] truncate">{file.name}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : selectedImages.length > 0 ? (
+                            {selectedImages.length > 0 ? (
                               <ImagePreviewChips
                                 files={selectedImages}
                                 onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
@@ -3071,11 +3048,38 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="max-w-[800px] mx-auto space-y-6">
-              {messages.map((msg) => (
+              {messages.map((msg, msgIndex) => (
                 <div key={msg.id}>
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
                       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
+                        {/* Show attached images for first user message */}
+                        {msgIndex === 0 && loadedFiles.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {loadedFiles.map((file, fileIndex) => (
+                              <div
+                                key={`${file.name}-${fileIndex}`}
+                                className="cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => openLightboxForLoadedFiles(loadedFiles, fileIndex)}
+                              >
+                                {file.type === "pdf" ? (
+                                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
+                                    <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+                                    </svg>
+                                    <span className="max-w-[120px] truncate">{file.name}</span>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={file.url || ""}
+                                    alt={file.name}
+                                    className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <TruncatedUserMessage
                           content={expandMergeFieldsInText(msg.content, gtmVariables)}
                           maxLines={20}
@@ -3251,9 +3255,8 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
-                  {/* Attachment chips and image previews inside card at top */}
+                  {/* Attachment chips and image previews inside card at top - only for pending uploads */}
                   {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                    loadedFiles.length > 0 ||
                     selectedAttachments.length > 0 || selectedImages.length > 0) && (
                     <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
@@ -3266,29 +3269,7 @@ export default function ChatPage() {
                           onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                         />
                       ) : null}
-                      {loadedFiles.length > 0 ? (
-                        /* Show files loaded from storage (persisted) */
-                        <div className="flex flex-wrap gap-2">
-                          {loadedFiles.map((file, index) => (
-                            <div
-                              key={`${file.name}-${index}`}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 cursor-pointer hover:border-gray-300 hover:bg-gray-100"
-                              onClick={() => openLightboxForLoadedFiles(loadedFiles, index)}
-                            >
-                              {file.type === "pdf" ? (
-                                <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
-                                </svg>
-                              ) : (
-                                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              )}
-                              <span className="max-w-[150px] truncate">{file.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : selectedImages.length > 0 ? (
+                      {selectedImages.length > 0 ? (
                         <ImagePreviewChips
                           files={selectedImages}
                           onRemove={(index) => setSelectedImages(selectedImages.filter((_, i) => i !== index))}
