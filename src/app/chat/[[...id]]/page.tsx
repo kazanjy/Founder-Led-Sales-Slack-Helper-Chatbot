@@ -2603,7 +2603,7 @@ export default function ChatPage() {
                   onStopSpeaking={stopTTS}
                 />
               ) : (
-                <div className="flex flex-col gap-2 flex-1 min-h-0 w-full">
+                <div className="flex flex-col gap-2 w-full">
                   {/* Attachment chips above input row - editable if not yet included, read-only if already included */}
                   {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                     <AttachmentChipsReadOnly
