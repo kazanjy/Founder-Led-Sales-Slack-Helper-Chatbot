@@ -20,9 +20,13 @@ Mikey is evolving from a single chat interface into a suite of interconnected "a
 | 3 | **Sales Narrative & Messaging** | ✅ Live | Questionnaire → structured sales narrative + 100/50/25 word descriptions |
 | 4 | **Discovery Questions** | ✅ Live | Generate tailored discovery questions based on sales narrative |
 | 5 | **Sales Deck Outline & Script** | 📋 Planned | Guided deck structure → slide-by-slide script generation |
-| 6 | **First Call Checklist** | 📋 Planned | Customized checklist for first sales calls |
+| 6 | **First Call Checklist** | ✅ Live | Customized checklist for first discovery calls |
 | 7 | **Ideal Customer Profile Documentation** | 📋 Planned | Structured ICP worksheet → documentation |
 | 8 | **Sales Playbook Construction** | 📋 Planned | Aggregates outputs from other apps into comprehensive playbook |
+
+## TODO / Known Issues
+
+- [ ] **First Call Checklist: Better rich text editor** - Current MDEditor shows ugly markdown/preview side-by-side. Need a true WYSIWYG editor (e.g., TipTap, Lexical, or Plate) that feels like editing in Notion/Google Docs rather than raw markdown.
 
 ## Cross-App Integration
 
