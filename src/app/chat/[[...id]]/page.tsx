@@ -1158,7 +1158,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleImageDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     // Check if any of the dragged items are images
@@ -1170,7 +1170,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleImageDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     // Only set to false if we're leaving the container (not entering a child)
@@ -2354,8 +2354,8 @@ export default function ChatPage() {
                       <div
                         className={`relative border rounded-2xl bg-white shadow-sm transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
                         onDrop={handleImageDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
+                        onDragOver={handleImageDragOver}
+                        onDragLeave={handleImageDragLeave}
                       >
                         {/* Drag overlay */}
                         {isDraggingImage && (
@@ -2845,8 +2845,8 @@ export default function ChatPage() {
                 <div
                   className={`relative border rounded-2xl bg-white shadow-sm w-full transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
                   onDrop={handleImageDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
+                  onDragOver={handleImageDragOver}
+                  onDragLeave={handleImageDragLeave}
                 >
                   {/* Drag overlay */}
                   {isDraggingImage && (
