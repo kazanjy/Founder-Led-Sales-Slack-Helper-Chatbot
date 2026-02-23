@@ -13,7 +13,8 @@ import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
-import { ImageAttachmentButton, ImagePreviewChips } from "@/components/ImageAttachment";
+import { ImageAttachmentButton, ImagePreviewChips, isPDFFile, isSupportedFile } from "@/components/ImageAttachment";
+import { convertPDFToImages } from "@/lib/pdf-to-images";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -1140,18 +1141,19 @@ export default function ChatPage() {
   };
 
   // Handle drag-and-drop for images
+  // Handle drag-and-drop for files (images and PDFs)
   const handleImageDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingImage(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const supportedFiles = files.filter(isSupportedFile);
 
-    if (imageFiles.length > 0) {
-      const maxImages = 4;
-      const remaining = maxImages - selectedImages.length;
-      const filesToAdd = imageFiles.slice(0, remaining);
+    if (supportedFiles.length > 0) {
+      const maxFiles = 4;
+      const remaining = maxFiles - selectedImages.length;
+      const filesToAdd = supportedFiles.slice(0, remaining);
       if (filesToAdd.length > 0) {
         setSelectedImages([...selectedImages, ...filesToAdd]);
       }
@@ -1161,11 +1163,11 @@ export default function ChatPage() {
   const handleImageDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Check if any of the dragged items are images
-    const hasImages = Array.from(e.dataTransfer.items).some(
-      (item) => item.kind === "file" && item.type.startsWith("image/")
+    // Check if any of the dragged items are images or PDFs
+    const hasSupportedFiles = Array.from(e.dataTransfer.items).some(
+      (item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf")
     );
-    if (hasImages) {
+    if (hasSupportedFiles) {
       setIsDraggingImage(true);
     }
   };
@@ -1179,47 +1181,77 @@ export default function ChatPage() {
     }
   };
 
-  // Process images through vision API and return descriptions
-  const processImages = async (images: File[]): Promise<string[]> => {
+  // Process a single image through vision API
+  const processImageThroughVision = async (base64: string, fileName: string): Promise<string> => {
+    try {
+      const res = await fetch("/api/vision/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: base64,
+          extractionType: "sales",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.description || "(No content extracted)";
+      } else {
+        console.error("Failed to process image:", fileName);
+        return "(Failed to process)";
+      }
+    } catch (error) {
+      console.error("Error processing image:", fileName, error);
+      return "(Error processing)";
+    }
+  };
+
+  // Process files (images and PDFs) through vision API and return descriptions
+  const processFiles = async (files: File[]): Promise<string[]> => {
     const descriptions: string[] = [];
 
-    for (const image of images) {
+    for (const file of files) {
       try {
-        // Convert image to base64 data URL
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(image);
-        });
+        if (isPDFFile(file)) {
+          // Convert PDF to images and process each page
+          console.log(`[PDF] Converting ${file.name} to images...`);
+          const pdfResult = await convertPDFToImages(file, { maxPages: 10 });
 
-        // Call vision API
-        const res = await fetch("/api/vision/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            image: base64,
-            extractionType: "sales",
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.description) {
-            descriptions.push(`[Image: ${image.name}]\n${data.description}`);
+          const pageDescriptions: string[] = [];
+          for (const page of pdfResult.pages) {
+            const pageDesc = await processImageThroughVision(page.dataUrl, `${file.name} (page ${page.pageNumber})`);
+            pageDescriptions.push(`--- Page ${page.pageNumber} ---\n${pageDesc}`);
           }
+
+          const truncatedNote = pdfResult.totalPages > pdfResult.pages.length
+            ? `\n\n(Showing ${pdfResult.pages.length} of ${pdfResult.totalPages} pages)`
+            : "";
+
+          descriptions.push(`[PDF: ${file.name}]\n${pageDescriptions.join("\n\n")}${truncatedNote}`);
         } else {
-          console.error("Failed to process image:", image.name);
-          descriptions.push(`[Image: ${image.name}] (Failed to process)`);
+          // Process regular image
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          const imageDesc = await processImageThroughVision(base64, file.name);
+          descriptions.push(`[Image: ${file.name}]\n${imageDesc}`);
         }
       } catch (error) {
-        console.error("Error processing image:", image.name, error);
-        descriptions.push(`[Image: ${image.name}] (Error processing)`);
+        console.error("Error processing file:", file.name, error);
+        const fileType = isPDFFile(file) ? "PDF" : "Image";
+        descriptions.push(`[${fileType}: ${file.name}] (Error processing)`);
       }
     }
 
     return descriptions;
   };
+
+  // Legacy alias
+  const processImages = processFiles;
 
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || sending || !user?.canChat) return;
@@ -2364,7 +2396,7 @@ export default function ChatPage() {
                               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              Drop image here
+                              Drop file here
                             </div>
                           </div>
                         )}
@@ -2855,7 +2887,7 @@ export default function ChatPage() {
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        Drop image here
+                        Drop file here
                       </div>
                     </div>
                   )}
