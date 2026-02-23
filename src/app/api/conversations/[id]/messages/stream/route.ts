@@ -33,7 +33,7 @@ export async function POST(
 
   const { id } = await params;
   const body = await request.json();
-  const { message } = body;
+  const { message, attachments } = body;
 
   if (!message || typeof message !== "string") {
     return new Response(JSON.stringify({ error: "Message is required" }), {
@@ -41,6 +41,12 @@ export async function POST(
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  // Validate attachments if provided
+  const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist"];
+  const requestedAttachments: string[] = Array.isArray(attachments)
+    ? attachments.filter((a: string) => validAttachments.includes(a))
+    : [];
 
   const conversation = await prisma.conversation.findUnique({
     where: { id },
@@ -78,6 +84,34 @@ export async function POST(
     missingVariables = expansion.missingVariables;
   }
 
+  // Fetch and prepend attachment content if this is the first message with attachments
+  const isFirstMessage = !conversation.firstMessagePreview;
+  let attachmentContent = "";
+
+  if (isFirstMessage && requestedAttachments.length > 0) {
+    const attachmentParts: string[] = [];
+
+    for (const attachmentId of requestedAttachments) {
+      try {
+        const content = await fetchAttachmentContent(user.id, attachmentId);
+        if (content) {
+          attachmentParts.push(`## ${content.title}\n\n${content.text}`);
+        }
+      } catch (err) {
+        console.error(`[Attachments] Error fetching ${attachmentId}:`, err);
+      }
+    }
+
+    if (attachmentParts.length > 0) {
+      attachmentContent = `---\n\n**The following context was attached by the user to provide background:**\n\n${attachmentParts.join("\n\n---\n\n")}\n\n---\n\n`;
+    }
+  }
+
+  // Prepend attachment content to the expanded message
+  if (attachmentContent) {
+    expandedMessage = attachmentContent + expandedMessage;
+  }
+
   // Save user message
   await prisma.message.create({
     data: {
@@ -88,13 +122,14 @@ export async function POST(
     },
   });
 
-  // Update conversation preview and start AI title generation if first message
-  const isFirstMessage = !conversation.firstMessagePreview;
-
   if (isFirstMessage) {
+    // Save attachments included and preview
     await prisma.conversation.update({
       where: { id: conversation.id },
-      data: { firstMessagePreview: message.substring(0, 100) },
+      data: {
+        firstMessagePreview: message.substring(0, 100),
+        ...(requestedAttachments.length > 0 && { attachmentsIncluded: requestedAttachments }),
+      },
     });
 
     // Fire-and-forget title generation
@@ -268,4 +303,134 @@ export async function POST(
       Connection: "keep-alive",
     },
   });
+}
+
+// Helper to fetch attachment content
+async function fetchAttachmentContent(
+  userId: string,
+  attachmentId: string
+): Promise<{ title: string; text: string } | null> {
+  switch (attachmentId) {
+    case "salesNarrative": {
+      const [narrativeVar, desc100, desc50, desc25] = await Promise.all([
+        prisma.gtmVariable.findFirst({
+          where: { userId, mergeField: "SALES_NARRATIVE" },
+          select: { value: true },
+        }),
+        prisma.gtmVariable.findFirst({
+          where: { userId, mergeField: "VALUE_PROP_100W" },
+          select: { value: true },
+        }),
+        prisma.gtmVariable.findFirst({
+          where: { userId, mergeField: "VALUE_PROP_50W" },
+          select: { value: true },
+        }),
+        prisma.gtmVariable.findFirst({
+          where: { userId, mergeField: "VALUE_PROP_25W" },
+          select: { value: true },
+        }),
+      ]);
+
+      if (!narrativeVar?.value) return null;
+
+      let text = `### Full Sales Narrative\n\n${narrativeVar.value}`;
+      if (desc100?.value) text += `\n\n### 100-Word Description\n\n${desc100.value}`;
+      if (desc50?.value) text += `\n\n### 50-Word Description\n\n${desc50.value}`;
+      if (desc25?.value) text += `\n\n### 25-Word Tagline\n\n${desc25.value}`;
+
+      return { title: "Sales Narrative", text };
+    }
+
+    case "gtmAssessment": {
+      const assessment = await prisma.maturityAssessment.findFirst({
+        where: { userId },
+        orderBy: { completedAt: "desc" },
+        include: {
+          answers: {
+            include: {
+              question: {
+                select: { category: true, globalOrder: true, question: true },
+              },
+            },
+            orderBy: { question: { globalOrder: "asc" } },
+          },
+        },
+      });
+
+      if (!assessment || assessment.answers.length === 0) return null;
+
+      // Group by category
+      const categories: Record<string, Array<{ question: string; answer: string; order: number }>> = {};
+      for (const answer of assessment.answers) {
+        const cat = answer.question.category;
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push({
+          question: answer.question.question,
+          answer: answer.answer,
+          order: answer.question.globalOrder,
+        });
+      }
+
+      // Build text
+      let text = "";
+      const sortedCategories = Object.entries(categories).sort(
+        (a, b) => (a[1][0]?.order || 0) - (b[1][0]?.order || 0)
+      );
+      for (const [catName, questions] of sortedCategories) {
+        text += `### ${catName}\n\n`;
+        for (const q of questions) {
+          text += `**Q${q.order}: ${q.question}**\n${q.answer || "_Not answered_"}\n\n`;
+        }
+      }
+
+      return { title: "GTM Assessment (Q&A)", text: text.trim() };
+    }
+
+    case "discoveryQuestions": {
+      const variable = await prisma.gtmVariable.findFirst({
+        where: { userId, mergeField: "DISCOVERY_QUESTIONS" },
+        select: { value: true },
+      });
+
+      if (!variable?.value) return null;
+
+      // Try to parse as JSON and format
+      try {
+        const data = JSON.parse(variable.value);
+        let text = "";
+        if (data.categories && Array.isArray(data.categories)) {
+          for (const category of data.categories) {
+            text += `### ${category.name}\n`;
+            if (category.description) text += `${category.description}\n\n`;
+            for (let i = 0; i < category.questions.length; i++) {
+              const q = category.questions[i];
+              text += `${i + 1}. ${q.primary}\n`;
+              if (q.followUps?.length > 0) {
+                for (const followUp of q.followUps) {
+                  text += `   - ${followUp}\n`;
+                }
+              }
+            }
+            text += "\n";
+          }
+        }
+        return { title: "Discovery Questions", text: text.trim() || variable.value };
+      } catch {
+        return { title: "Discovery Questions", text: variable.value };
+      }
+    }
+
+    case "firstCallChecklist": {
+      const variable = await prisma.gtmVariable.findFirst({
+        where: { userId, mergeField: "FIRST_CALL_CHECKLIST" },
+        select: { value: true },
+      });
+
+      if (!variable?.value) return null;
+      return { title: "First Call Checklist", text: variable.value };
+    }
+
+    default:
+      return null;
+  }
 }

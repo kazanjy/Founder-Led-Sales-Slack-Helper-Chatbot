@@ -12,6 +12,7 @@ import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
+import { AttachmentPicker, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -175,6 +176,7 @@ export default function ChatPage() {
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [inputHeight, setInputHeight] = useState(80); // Default input container height
+  const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const [appProgress, setAppProgress] = useState<{
@@ -1161,8 +1163,12 @@ export default function ChatPage() {
     // Check if this is the first message (for title polling)
     const isFirstMessage = isNewConversation || messages.length === 0;
 
+    // Capture attachments before clearing (only used on first message)
+    const attachmentsToSend = isFirstMessage ? [...selectedAttachments] : [];
+
     const userMessage = messageText.trim();
     setInputMessage("");
+    setSelectedAttachments([]); // Clear attachments after sending
     setSending(true);
 
     // Optimistically add user message
@@ -1213,7 +1219,10 @@ export default function ChatPage() {
       const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({
+          message: userMessage,
+          attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -2627,22 +2636,63 @@ export default function ChatPage() {
                       </>
                     )}
                   </div>
-                  <textarea
-                    ref={chatInputRef}
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      // Enter submits, Shift+Enter or Cmd+Enter creates new line
-                      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                        e.preventDefault();
-                        if (inputMessage.trim() && !sending) {
-                          handleSendMessage(e);
+                  {/* Attachment Picker */}
+                  <div className="flex-shrink-0 self-end">
+                    <AttachmentPicker
+                      selectedAttachments={selectedAttachments}
+                      onSelectionChange={setSelectedAttachments}
+                      disabled={sending}
+                      isFirstMessage={messages.length === 0}
+                    />
+                  </div>
+                  {/* Input with chips above */}
+                  <div className="flex-1 flex flex-col gap-2">
+                    {/* Show attachment chips above input when selected */}
+                    {messages.length === 0 && selectedAttachments.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedAttachments.map((id) => (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs border border-blue-200"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                            {id === "salesNarrative" && "Sales Narrative"}
+                            {id === "gtmAssessment" && "GTM Assessment"}
+                            {id === "discoveryQuestions" && "Discovery Questions"}
+                            {id === "firstCallChecklist" && "First Call Checklist"}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                              className="hover:text-blue-900"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <textarea
+                      ref={chatInputRef}
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Enter submits, Shift+Enter or Cmd+Enter creates new line
+                        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                          e.preventDefault();
+                          if (inputMessage.trim() && !sending) {
+                            handleSendMessage(e);
+                          }
                         }
-                      }
-                    }}
-                    placeholder="Ask Mikey anything about founder-led sales..."
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
-                  />
+                      }}
+                      placeholder="Ask Mikey anything about founder-led sales..."
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
