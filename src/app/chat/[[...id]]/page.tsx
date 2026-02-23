@@ -105,6 +105,7 @@ interface Conversation {
   createdAt: string;
   lastMessageAt: string;
   archived?: boolean;
+  attachmentsIncluded?: string[] | null;
 }
 
 interface SearchResult {
@@ -1163,8 +1164,12 @@ export default function ChatPage() {
     // Check if this is the first message (for title polling)
     const isFirstMessage = isNewConversation || messages.length === 0;
 
-    // Capture attachments before clearing (only used on first message)
-    const attachmentsToSend = isFirstMessage ? [...selectedAttachments] : [];
+    // Check if attachments can be added (only once per conversation)
+    const currentConversation = conversations.find(c => c.id === conversationId);
+    const canAddAttachments = !currentConversation?.attachmentsIncluded?.length;
+
+    // Capture attachments before clearing
+    const attachmentsToSend = canAddAttachments ? [...selectedAttachments] : [];
 
     const userMessage = messageText.trim();
     setInputMessage("");
@@ -1302,6 +1307,8 @@ export default function ChatPage() {
                 firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
                 messageCount: c.messageCount + 2,
                 lastMessageAt: new Date().toISOString(),
+                // Mark attachments as included if we sent them
+                ...(attachmentsToSend.length > 0 && { attachmentsIncluded: attachmentsToSend }),
               }
             : c
         );
@@ -2636,19 +2643,19 @@ export default function ChatPage() {
                       </>
                     )}
                   </div>
-                  {/* Attachment Picker */}
+                  {/* Attachment Picker - show until attachments have been included */}
                   <div className="flex-shrink-0 self-end">
                     <AttachmentPicker
                       selectedAttachments={selectedAttachments}
                       onSelectionChange={setSelectedAttachments}
                       disabled={sending}
-                      isFirstMessage={messages.length === 0}
+                      isFirstMessage={!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length}
                     />
                   </div>
                   {/* Input with chips above */}
                   <div className="flex-1 flex flex-col gap-2">
                     {/* Show attachment chips above input when selected */}
-                    {messages.length === 0 && selectedAttachments.length > 0 && (
+                    {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && selectedAttachments.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {selectedAttachments.map((id) => (
                           <span

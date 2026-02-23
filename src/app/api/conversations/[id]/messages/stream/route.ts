@@ -84,11 +84,14 @@ export async function POST(
     missingVariables = expansion.missingVariables;
   }
 
-  // Fetch and prepend attachment content if this is the first message with attachments
+  // Check if attachments can be added (only once per conversation)
+  const existingAttachments = conversation.attachmentsIncluded as string[] | null;
+  const canAddAttachments = !existingAttachments?.length && requestedAttachments.length > 0;
   const isFirstMessage = !conversation.firstMessagePreview;
   let attachmentContent = "";
 
-  if (isFirstMessage && requestedAttachments.length > 0) {
+  // Fetch and prepend attachment content if this is the first time adding attachments
+  if (canAddAttachments) {
     const attachmentParts: string[] = [];
 
     for (const attachmentId of requestedAttachments) {
@@ -122,14 +125,19 @@ export async function POST(
     },
   });
 
+  // Update conversation metadata
+  const updateData: Record<string, unknown> = {};
   if (isFirstMessage) {
-    // Save attachments included and preview
+    updateData.firstMessagePreview = message.substring(0, 100);
+  }
+  if (canAddAttachments) {
+    updateData.attachmentsIncluded = requestedAttachments;
+  }
+
+  if (Object.keys(updateData).length > 0) {
     await prisma.conversation.update({
       where: { id: conversation.id },
-      data: {
-        firstMessagePreview: message.substring(0, 100),
-        ...(requestedAttachments.length > 0 && { attachmentsIncluded: requestedAttachments }),
-      },
+      data: updateData,
     });
 
     // Fire-and-forget title generation
