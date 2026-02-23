@@ -176,7 +176,7 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-  const [inputHeight, setInputHeight] = useState(80); // Default input container height
+  const [inputHeight, setInputHeight] = useState(120); // Default input container height
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]); // Prompt attachments
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
@@ -2536,7 +2536,7 @@ export default function ChatPage() {
 
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
-        <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{ height: inputHeight }}>
+        <div className="border-t border-gray-200 bg-white relative flex flex-col" style={{ height: inputHeight, minHeight: 100 }}>
           {/* Resize handle at top */}
           <div
             className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-blue-500/50 transition-colors z-10"
