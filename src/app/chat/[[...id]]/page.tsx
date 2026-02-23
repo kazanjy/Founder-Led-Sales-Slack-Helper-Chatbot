@@ -1181,6 +1181,37 @@ export default function ChatPage() {
     }
   };
 
+  // Handle paste event for images from clipboard
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter((item) => item.type.startsWith("image/"));
+
+    if (imageItems.length > 0) {
+      e.preventDefault(); // Prevent pasting image as text
+
+      const maxFiles = 4;
+      const remaining = maxFiles - selectedImages.length;
+
+      const filesToAdd: File[] = [];
+      for (const item of imageItems.slice(0, remaining)) {
+        const file = item.getAsFile();
+        if (file) {
+          // Create a new file with a meaningful name
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const extension = file.type.split("/")[1] || "png";
+          const namedFile = new File([file], `pasted-image-${timestamp}.${extension}`, {
+            type: file.type,
+          });
+          filesToAdd.push(namedFile);
+        }
+      }
+
+      if (filesToAdd.length > 0) {
+        setSelectedImages([...selectedImages, ...filesToAdd]);
+      }
+    }
+  };
+
   // Process a single image through vision API
   const processImageThroughVision = async (base64: string, fileName: string): Promise<string> => {
     try {
@@ -2436,6 +2467,7 @@ export default function ChatPage() {
                               }
                             }
                           }}
+                          onPaste={handlePaste}
                           placeholder="Ask Mikey anything about founder-led sales..."
                           className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
                           rows={2}
@@ -2928,6 +2960,7 @@ export default function ChatPage() {
                         }
                       }
                     }}
+                    onPaste={handlePaste}
                     placeholder="Ask Mikey anything about founder-led sales..."
                     className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
                     rows={2}
