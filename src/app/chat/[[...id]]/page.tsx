@@ -12,7 +12,7 @@ import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
-import { AttachmentPicker, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
+import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -2240,23 +2240,31 @@ export default function ChatPage() {
                         onStopSpeaking={stopTTS}
                       />
                     ) : (
-                      <div className="flex gap-2 items-end relative">
-                        {/* GTM Variables Dropdown */}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                            className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Insert GTM Variable"
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                            </svg>
-                          </button>
-                          {showVariablesDropdown && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-40"
+                      <div className="flex flex-col gap-2">
+                        {/* Attachment chips above input */}
+                        {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                          <AttachmentChips
+                            attachments={selectedAttachments}
+                            onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                          />
+                        )}
+                        <div className="flex gap-2 items-end relative">
+                          {/* GTM Variables Dropdown */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
+                              className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Insert GTM Variable"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                              </svg>
+                            </button>
+                            {showVariablesDropdown && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-40"
                                 onClick={() => setShowVariablesDropdown(false)}
                               />
                               <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
@@ -2355,6 +2363,7 @@ export default function ChatPage() {
                         >
                           Send
                         </button>
+                        </div>
                       </div>
                     )}
                   </form>
@@ -2588,7 +2597,15 @@ export default function ChatPage() {
                   onStopSpeaking={stopTTS}
                 />
               ) : (
-                <div className="flex gap-2 items-stretch relative flex-1 min-h-0 w-full">
+                <div className="flex flex-col gap-2 flex-1 min-h-0 w-full">
+                  {/* Attachment chips above input row */}
+                  {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && (
+                    <AttachmentChips
+                      attachments={selectedAttachments}
+                      onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
+                    />
+                  )}
+                  <div className="flex gap-2 items-stretch relative">
                   {/* GTM Variables Dropdown */}
                   <div className="relative flex-shrink-0 self-end">
                     <button
@@ -2661,54 +2678,22 @@ export default function ChatPage() {
                       isFirstMessage={!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length}
                     />
                   </div>
-                  {/* Input with chips above */}
-                  <div className="flex-1 flex flex-col gap-2">
-                    {/* Show attachment chips above input when selected */}
-                    {!conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length && selectedAttachments.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedAttachments.map((id) => (
-                          <span
-                            key={id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs border border-blue-200"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                            </svg>
-                            {id === "salesNarrative" && "Sales Narrative"}
-                            {id === "gtmAssessment" && "GTM Assessment"}
-                            {id === "discoveryQuestions" && "Discovery Questions"}
-                            {id === "firstCallChecklist" && "First Call Checklist"}
-                            <button
-                              type="button"
-                              onClick={() => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
-                              className="hover:text-blue-900"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <textarea
-                      ref={chatInputRef}
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        // Enter submits, Shift+Enter or Cmd+Enter creates new line
-                        if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-                          e.preventDefault();
-                          if (inputMessage.trim() && !sending) {
-                            handleSendMessage(e);
-                          }
+                  <textarea
+                    ref={chatInputRef}
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Enter submits, Shift+Enter or Cmd+Enter creates new line
+                      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                        e.preventDefault();
+                        if (inputMessage.trim() && !sending) {
+                          handleSendMessage(e);
                         }
-                      }}
-                      placeholder="Ask Mikey anything about founder-led sales..."
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
-                    />
-                  </div>
+                      }
+                    }}
+                    placeholder="Ask Mikey anything about founder-led sales..."
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[52px] text-[17px]"
+                  />
                   <button
                     type="button"
                     onClick={() => {
@@ -2729,6 +2714,7 @@ export default function ChatPage() {
                   >
                     Send
                   </button>
+                  </div>
                 </div>
               )}
             </form>
