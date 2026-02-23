@@ -273,6 +273,9 @@ model Conversation {
   // Track which attachments were included in first message
   attachmentsIncluded Json?  // e.g., ["salesNarrative", "gtmAssessment"]
 
+  // Track uploaded images/PDFs for this conversation
+  imagesIncluded  Json?  // [{name, type, storagePath, pageCount?}]
+
   createdAt       DateTime  @default(now())
   lastMessageAt   DateTime  @default(now())
 

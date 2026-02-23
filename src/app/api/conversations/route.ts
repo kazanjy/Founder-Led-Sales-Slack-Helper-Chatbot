@@ -34,6 +34,7 @@ export async function GET(request: Request) {
       slackChannelId: true,
       archived: true,
       attachmentsIncluded: true,
+      imagesIncluded: true,
     },
   });
 

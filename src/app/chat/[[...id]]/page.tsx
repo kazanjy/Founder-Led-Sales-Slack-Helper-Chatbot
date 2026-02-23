@@ -99,6 +99,23 @@ interface Message {
   createdAt: string;
 }
 
+// Stored file reference from database (storage paths, not base64)
+interface StoredFileRef {
+  name: string;
+  type: "image" | "pdf";
+  storagePath: string;
+  pageCount?: number;
+}
+
+// Loaded file with signed URLs (for display)
+interface LoadedFile {
+  name: string;
+  type: "image" | "pdf";
+  url?: string; // For images
+  pageUrls?: string[]; // For PDFs
+  pageCount?: number;
+}
+
 interface Conversation {
   id: string;
   source: "SLACK" | "WEB";
@@ -109,7 +126,7 @@ interface Conversation {
   lastMessageAt: string;
   archived?: boolean;
   attachmentsIncluded?: string[] | null;
-  imagesIncluded?: AttachedFile[] | null; // Full image/PDF data for lightbox
+  imagesIncluded?: AttachedFile[] | StoredFileRef[] | null; // Base64 (session) or storage refs (from DB)
 }
 
 interface SearchResult {
@@ -190,6 +207,7 @@ export default function ChatPage() {
   const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
   const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
   const [lightboxDownloadData, setLightboxDownloadData] = useState<{ name: string; dataUrl: string } | null>(null); // For PDF download
+  const [loadedFiles, setLoadedFiles] = useState<LoadedFile[]>([]); // Files loaded from storage for current conversation
   const [isResizingInput, setIsResizingInput] = useState(false);
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
   const [appProgress, setAppProgress] = useState<{
@@ -1101,6 +1119,7 @@ export default function ChatPage() {
     async function loadMessages() {
       if (!selectedConversation) {
         setMessages([]);
+        setLoadedFiles([]); // Clear loaded files when no conversation
         return;
       }
 
@@ -1114,6 +1133,22 @@ export default function ChatPage() {
         const res = await fetch(`/api/conversations/${selectedConversation}`);
         const data = await res.json();
         setMessages(data.conversation?.messages || []);
+
+        // Load attached files if conversation has imagesIncluded
+        if (data.conversation?.imagesIncluded && data.conversation.imagesIncluded.length > 0) {
+          try {
+            const filesRes = await fetch(`/api/conversations/${selectedConversation}/attachments`);
+            const filesData = await filesRes.json();
+            if (filesData.files) {
+              setLoadedFiles(filesData.files);
+            }
+          } catch (filesError) {
+            console.error("Error loading attached files:", filesError);
+            setLoadedFiles([]);
+          }
+        } else {
+          setLoadedFiles([]);
+        }
       } catch (error) {
         console.error("Error loading messages:", error);
       } finally {
@@ -1400,6 +1435,49 @@ export default function ChatPage() {
     }
   };
 
+  // Open lightbox for files loaded from storage (LoadedFile objects with URLs)
+  const openLightboxForLoadedFiles = (files: LoadedFile[], startIndex: number) => {
+    const images: LightboxImage[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type === "pdf" && file.pageUrls) {
+        // Add all PDF pages
+        file.pageUrls.forEach((pageUrl, pageIndex) => {
+          images.push({
+            url: pageUrl,
+            name: file.name,
+            type: "pdf-page",
+            pageNumber: pageIndex + 1,
+          });
+        });
+      } else if (file.url) {
+        images.push({
+          url: file.url,
+          name: file.name,
+          type: "image",
+        });
+      }
+    }
+
+    if (images.length > 0) {
+      // Calculate adjusted index
+      let adjustedIndex = 0;
+      for (let i = 0; i < startIndex && i < files.length; i++) {
+        if (files[i].type === "pdf" && files[i].pageUrls) {
+          adjustedIndex += files[i].pageUrls!.length;
+        } else {
+          adjustedIndex += 1;
+        }
+      }
+
+      setLightboxImages(images);
+      setLightboxIndex(Math.min(adjustedIndex, images.length - 1));
+      setLightboxDownloadData(null); // No download for URL-based files (they can right-click save)
+      setLightboxOpen(true);
+    }
+  };
+
   // Handle lightbox download (for PDFs)
   const handleLightboxDownload = () => {
     if (lightboxDownloadData) {
@@ -1650,6 +1728,30 @@ export default function ChatPage() {
           createdAt: createdAt || new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
+      }
+
+      // Upload files to storage if we have any
+      if (attachedFiles.length > 0 && conversationId) {
+        try {
+          const uploadRes = await fetch(`/api/conversations/${conversationId}/attachments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              files: attachedFiles.map((f) => ({
+                name: f.name,
+                type: f.type,
+                dataUrl: f.dataUrl,
+                pdfPages: f.pdfPages,
+              })),
+            }),
+          });
+
+          if (!uploadRes.ok) {
+            console.error("Failed to upload attachments:", await uploadRes.text());
+          }
+        } catch (uploadError) {
+          console.error("Error uploading attachments:", uploadError);
+        }
       }
 
       // Update conversation in list and move to top (most recent)
@@ -2615,7 +2717,7 @@ export default function ChatPage() {
                         )}
                         {/* Attachment chips and image previews inside card at top */}
                         {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                          conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ||
+                          loadedFiles.length > 0 ||
                           selectedAttachments.length > 0 || selectedImages.length > 0) && (
                           <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
@@ -2628,14 +2730,28 @@ export default function ChatPage() {
                                 onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                               />
                             ) : null}
-                            {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
-                              <ImageChipsReadOnly
-                                files={conversations.find(c => c.id === selectedConversation)?.imagesIncluded || []}
-                                onPreview={(index) => openLightboxForAttachedFiles(
-                                  conversations.find(c => c.id === selectedConversation)?.imagesIncluded || [],
-                                  index
-                                )}
-                              />
+                            {loadedFiles.length > 0 ? (
+                              /* Show files loaded from storage (persisted) */
+                              <div className="flex flex-wrap gap-2">
+                                {loadedFiles.map((file, index) => (
+                                  <div
+                                    key={`${file.name}-${index}`}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 cursor-pointer hover:border-gray-300 hover:bg-gray-100"
+                                    onClick={() => openLightboxForLoadedFiles(loadedFiles, index)}
+                                  >
+                                    {file.type === "pdf" ? (
+                                      <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                    )}
+                                    <span className="max-w-[150px] truncate">{file.name}</span>
+                                  </div>
+                                ))}
+                              </div>
                             ) : selectedImages.length > 0 ? (
                               <ImagePreviewChips
                                 files={selectedImages}
@@ -3128,7 +3244,7 @@ export default function ChatPage() {
                   )}
                   {/* Attachment chips and image previews inside card at top */}
                   {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                    conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ||
+                    loadedFiles.length > 0 ||
                     selectedAttachments.length > 0 || selectedImages.length > 0) && (
                     <div className="px-4 pt-3 rounded-t-2xl space-y-2">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
@@ -3141,14 +3257,28 @@ export default function ChatPage() {
                           onRemove={(id) => setSelectedAttachments(selectedAttachments.filter(a => a !== id))}
                         />
                       ) : null}
-                      {conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length ? (
-                        <ImageChipsReadOnly
-                          files={conversations.find(c => c.id === selectedConversation)?.imagesIncluded || []}
-                          onPreview={(index) => openLightboxForAttachedFiles(
-                            conversations.find(c => c.id === selectedConversation)?.imagesIncluded || [],
-                            index
-                          )}
-                        />
+                      {loadedFiles.length > 0 ? (
+                        /* Show files loaded from storage (persisted) */
+                        <div className="flex flex-wrap gap-2">
+                          {loadedFiles.map((file, index) => (
+                            <div
+                              key={`${file.name}-${index}`}
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 cursor-pointer hover:border-gray-300 hover:bg-gray-100"
+                              onClick={() => openLightboxForLoadedFiles(loadedFiles, index)}
+                            >
+                              {file.type === "pdf" ? (
+                                <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              )}
+                              <span className="max-w-[150px] truncate">{file.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       ) : selectedImages.length > 0 ? (
                         <ImagePreviewChips
                           files={selectedImages}
