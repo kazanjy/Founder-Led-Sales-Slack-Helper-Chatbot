@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import dynamic from "next/dynamic";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(
@@ -63,6 +64,7 @@ function FirstCallChecklistContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
+  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
     document.title = "First Call Checklist - Mikey";
@@ -136,7 +138,11 @@ function FirstCallChecklistContent() {
 
       if (!response.ok) {
         const data = await response.json();
-        alert(data.error || "Failed to generate first call checklist");
+        await showAlert({
+          title: "Error",
+          message: data.error || "Failed to generate first call checklist",
+          variant: "danger",
+        });
         return;
       }
 
@@ -145,7 +151,11 @@ function FirstCallChecklistContent() {
       setEditedContent(data.version?.content || "");
     } catch (error) {
       console.error("Error generating:", error);
-      alert("Failed to generate first call checklist. Please try again.");
+      await showAlert({
+        title: "Error",
+        message: "Failed to generate first call checklist. Please try again.",
+        variant: "danger",
+      });
     } finally {
       setGenerating(false);
     }
@@ -196,7 +206,11 @@ function FirstCallChecklistContent() {
       setIsEditing(false);
     } catch (error) {
       console.error("Error saving:", error);
-      alert("Failed to save changes. Please try again.");
+      await showAlert({
+        title: "Error",
+        message: "Failed to save changes. Please try again.",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -504,6 +518,7 @@ function FirstCallChecklistContent() {
           </div>
         )}
       </div>
+      {ConfirmModalElement}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface Question {
   id: string;
@@ -65,6 +66,7 @@ function SalesNarrativeEditContent() {
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   // Set browser tab title
   useEffect(() => {
@@ -228,7 +230,11 @@ function SalesNarrativeEditContent() {
       router.push(`/sales-narrative?version=${data.version.id}`);
     } catch (error) {
       console.error("Error generating narrative:", error);
-      alert(error instanceof Error ? error.message : "Failed to generate narrative. Please try again.");
+      await showAlert({
+        title: "Error",
+        message: error instanceof Error ? error.message : "Failed to generate narrative. Please try again.",
+        variant: "danger",
+      });
       setGenerating(false);
     }
   };
@@ -481,6 +487,7 @@ function SalesNarrativeEditContent() {
           </button>
         </div>
       </div>
+      {ConfirmModalElement}
     </div>
   );
 }

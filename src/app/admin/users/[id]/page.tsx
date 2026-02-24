@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface UserDetail {
   id: string;
@@ -75,11 +76,16 @@ export default function AdminUserDetailPage() {
   const [newSecondaryEmail, setNewSecondaryEmail] = useState("");
   const [mergeUserId, setMergeUserId] = useState("");
   const [merging, setMerging] = useState(false);
+  const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   const handleImpersonate = async () => {
-    if (!confirm(`Are you sure you want to log in as ${user?.name || user?.email || "this user"}? You will be redirected to the chat page as this user.`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      title: "Login as User",
+      message: `Are you sure you want to log in as ${user?.name || user?.email || "this user"}? You will be redirected to the chat page as this user.`,
+      variant: "warning",
+      confirmLabel: "Login as User",
+    });
+    if (!confirmed) return;
 
     setImpersonating(true);
     try {
@@ -361,10 +367,14 @@ export default function AdminUserDetailPage() {
                 </div>
                 {user.googleId && (
                   <button
-                    onClick={() => {
-                      if (confirm("Disconnect Google from this user?")) {
-                        updateUser({ disconnectGoogle: true });
-                      }
+                    onClick={async () => {
+                      const confirmed = await showConfirm({
+                        title: "Disconnect Google",
+                        message: "Disconnect Google from this user?",
+                        variant: "danger",
+                        confirmLabel: "Disconnect",
+                      });
+                      if (confirmed) updateUser({ disconnectGoogle: true });
                     }}
                     disabled={saving || !user.slackUserId}
                     className="px-3 py-1 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
@@ -392,10 +402,14 @@ export default function AdminUserDetailPage() {
                 </div>
                 {user.slackUserId && (
                   <button
-                    onClick={() => {
-                      if (confirm("Disconnect Slack from this user? This will also remove workspace association.")) {
-                        updateUser({ disconnectSlack: true });
-                      }
+                    onClick={async () => {
+                      const confirmed = await showConfirm({
+                        title: "Disconnect Slack",
+                        message: "Disconnect Slack from this user? This will also remove workspace association.",
+                        variant: "danger",
+                        confirmLabel: "Disconnect",
+                      });
+                      if (confirmed) updateUser({ disconnectSlack: true });
                     }}
                     disabled={saving || !user.googleId}
                     className="px-3 py-1 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
@@ -421,10 +435,14 @@ export default function AdminUserDetailPage() {
                   <div key={email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm font-medium">{email}</span>
                     <button
-                      onClick={() => {
-                        if (confirm(`Remove ${email} from secondary emails?`)) {
-                          updateUser({ removeSecondaryEmail: email });
-                        }
+                      onClick={async () => {
+                        const confirmed = await showConfirm({
+                          title: "Remove Email",
+                          message: `Remove ${email} from secondary emails?`,
+                          variant: "danger",
+                          confirmLabel: "Remove",
+                        });
+                        if (confirmed) updateUser({ removeSecondaryEmail: email });
                       }}
                       disabled={saving}
                       className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
@@ -480,13 +498,12 @@ export default function AdminUserDetailPage() {
                 onClick={async () => {
                   if (!mergeUserId.trim()) return;
 
-                  const confirmed = confirm(
-                    `⚠️ MERGE ACCOUNTS\n\nThis will:\n` +
-                    `1. Move ALL data from user ${mergeUserId} to this user\n` +
-                    `2. Add their email(s) to secondary emails\n` +
-                    `3. DELETE the source user account\n\n` +
-                    `This action cannot be undone. Continue?`
-                  );
+                  const confirmed = await showConfirm({
+                    title: "Merge Accounts",
+                    message: `This will:\n1. Move ALL data from user ${mergeUserId} to this user\n2. Add their email(s) to secondary emails\n3. DELETE the source user account\n\nThis action cannot be undone. Continue?`,
+                    variant: "danger",
+                    confirmLabel: "Merge Accounts",
+                  });
 
                   if (confirmed) {
                     setMerging(true);
@@ -721,10 +738,14 @@ export default function AdminUserDetailPage() {
                     Reset to allow them to reappear.
                   </p>
                   <button
-                    onClick={() => {
-                      if (confirm("Reset dismissed default prompts? The user will see all default prompts again on their next visit.")) {
-                        updateUser({ resetDefaultPrompts: true });
-                      }
+                    onClick={async () => {
+                      const confirmed = await showConfirm({
+                        title: "Reset Default Prompts",
+                        message: "Reset dismissed default prompts? The user will see all default prompts again on their next visit.",
+                        variant: "warning",
+                        confirmLabel: "Reset",
+                      });
+                      if (confirmed) updateUser({ resetDefaultPrompts: true });
                     }}
                     disabled={saving}
                     className="w-full px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
@@ -763,6 +784,8 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       </div>
+
+      {ConfirmModalElement}
     </div>
   );
 }

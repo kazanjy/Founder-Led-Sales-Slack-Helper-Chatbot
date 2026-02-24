@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface NarrativeVersion {
   id: string;
@@ -59,6 +60,7 @@ function SalesNarrativeContent() {
   const [edited100w, setEdited100w] = useState("");
   const [edited50w, setEdited50w] = useState("");
   const [edited25w, setEdited25w] = useState("");
+  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   // Set browser tab title
   useEffect(() => {
@@ -165,7 +167,11 @@ function SalesNarrativeContent() {
       setIsEditing(false);
     } catch (error) {
       console.error("Error saving:", error);
-      alert("Failed to save changes. Please try again.");
+      await showAlert({
+        title: "Error",
+        message: "Failed to save changes. Please try again.",
+        variant: "danger",
+      });
     } finally {
       setSaving(false);
     }
@@ -727,6 +733,7 @@ function SalesNarrativeContent() {
           </div>
         )}
       </div>
+      {ConfirmModalElement}
     </div>
   );
 }

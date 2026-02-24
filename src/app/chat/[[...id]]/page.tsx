@@ -16,6 +16,7 @@ import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/co
 import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
 import { convertPDFToImages } from "@/lib/pdf-to-images";
 import { Lightbox, type LightboxImage } from "@/components/Lightbox";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -265,6 +266,7 @@ export default function ChatPage() {
     discoveryQuestions: { hasGenerated: boolean } | null;
     firstCallChecklist: { hasGenerated: boolean } | null;
   }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null });
+  const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -1036,9 +1038,13 @@ export default function ChatPage() {
   // Delete a conversation
   const handleDeleteConversation = async (conversationId: string) => {
     setOpenMenuId(null);
-    if (!confirm("Are you sure you want to delete this conversation? This cannot be undone.")) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      title: "Delete Conversation",
+      message: "Are you sure you want to delete this conversation? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/conversations/${conversationId}`, {
@@ -1735,7 +1741,11 @@ export default function ChatPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Failed to send message");
+        await showAlert({
+          title: "Error",
+          message: data.error || "Failed to send message",
+          variant: "danger",
+        });
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
         return;
       }
@@ -3725,8 +3735,14 @@ export default function ChatPage() {
                   )}
                   {!isAddingPrompt && (
                     <button
-                      onClick={() => {
-                        if (confirm("Are you sure you want to archive this prompt? This cannot be undone.")) {
+                      onClick={async () => {
+                        const confirmed = await showConfirm({
+                          title: "Archive Prompt",
+                          message: "Are you sure you want to archive this prompt? This cannot be undone.",
+                          variant: "danger",
+                          confirmLabel: "Archive",
+                        });
+                        if (confirmed) {
                           handleDeletePrompt(editingPrompt.id);
                           setEditingPrompt(null);
                         }
@@ -4063,6 +4079,7 @@ export default function ChatPage() {
       )}
 
     </div>
+    {ConfirmModalElement}
     </>
   );
 }

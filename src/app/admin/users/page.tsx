@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface User {
   id: string;
@@ -46,6 +47,7 @@ export default function AdminUsersPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+  const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   const currentPage = parseInt(searchParams.get("page") || "1");
 
@@ -140,9 +142,13 @@ export default function AdminUsersPage() {
 
   const handleImpersonate = async (e: React.MouseEvent, userId: string, userName: string) => {
     e.preventDefault();
-    if (!confirm(`Are you sure you want to log in as ${userName}? You will be redirected to the chat page as this user.`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      title: "Login as User",
+      message: `Are you sure you want to log in as ${userName}? You will be redirected to the chat page as this user.`,
+      variant: "warning",
+      confirmLabel: "Login as User",
+    });
+    if (!confirmed) return;
     setImpersonatingId(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}/impersonate`, {
@@ -152,12 +158,20 @@ export default function AdminUsersPage() {
       if (res.ok && data.redirectTo) {
         router.push(data.redirectTo);
       } else {
-        alert(data.error || "Failed to login as user");
+        await showAlert({
+          title: "Error",
+          message: data.error || "Failed to login as user",
+          variant: "danger",
+        });
         setImpersonatingId(null);
       }
     } catch (error) {
       console.error("Failed to impersonate:", error);
-      alert("Failed to login as user");
+      await showAlert({
+        title: "Error",
+        message: "Failed to login as user",
+        variant: "danger",
+      });
       setImpersonatingId(null);
     }
   };
@@ -431,6 +445,8 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {ConfirmModalElement}
 
       {/* Create User Modal */}
       {showCreateModal && (

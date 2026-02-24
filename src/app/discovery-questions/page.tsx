@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -61,6 +62,7 @@ function DiscoveryQuestionsContent() {
   const [hasSalesNarrative, setHasSalesNarrative] = useState(false);
   const [copiedQuestion, setCopiedQuestion] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
     document.title = "Discovery Questions - Mikey";
@@ -139,7 +141,11 @@ function DiscoveryQuestionsContent() {
 
       if (!response.ok) {
         const data = await response.json();
-        alert(data.error || "Failed to generate discovery questions");
+        await showAlert({
+          title: "Error",
+          message: data.error || "Failed to generate discovery questions",
+          variant: "danger",
+        });
         return;
       }
 
@@ -150,7 +156,11 @@ function DiscoveryQuestionsContent() {
       }
     } catch (error) {
       console.error("Error generating:", error);
-      alert("Failed to generate discovery questions. Please try again.");
+      await showAlert({
+        title: "Error",
+        message: "Failed to generate discovery questions. Please try again.",
+        variant: "danger",
+      });
     } finally {
       setGenerating(false);
     }
@@ -522,6 +532,7 @@ function DiscoveryQuestionsContent() {
           </div>
         </div>
       </div>
+      {ConfirmModalElement}
     </div>
   );
 }
