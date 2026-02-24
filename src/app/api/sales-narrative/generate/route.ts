@@ -76,16 +76,22 @@ Based on the questionnaire answers below, generate a compelling sales narrative 
 
 ## THE FOUNDING SALES SALES NARRATIVE FORMAT
 
-The Sales Narrative is a flowing prose document (NOT bullet points) that weaves the answers into a cohesive, persuasive story. Each section should be prefaced with the question it addresses (e.g., "What's the problem?", "Who has the problem?", etc.).
+The Sales Narrative is a flowing prose document (NOT bullet points) that weaves the answers into a cohesive, persuasive story.
 
-Follow this structure:
-1. **What's the problem?** - Open with the problem, make it visceral and relatable
-2. **Who has the problem? What's the cost of not solving the problem?** - Identify specific personas affected and quantify the costs (dollars, time, opportunity cost)
-3. **How is this currently solved? Why doesn't that work?** - Describe current solutions and why they fall short
-4. **What has changed?** - Explain what enables a new solution now
-5. **How does it work?** - Describe how your solution works
-6. **How do you know it's better?** - Provide proof with specific metrics, customer results, social proof
-7. **Pricing** - End with pricing positioned as compelling value vs. alternatives
+### CRITICAL REQUIREMENT: SECTION HEADERS ARE MANDATORY
+
+You MUST include bold section headers at the start of each section. These headers are NOT optional - they are a defining characteristic of the Founding Sales format. Without them, the output is incorrect.
+
+Each section MUST begin with its header in bold, exactly like this:
+- **What's the problem?**
+- **Who has the problem? What's the cost of not solving the problem?**
+- **How is this currently solved? Why doesn't that work?**
+- **What has changed?**
+- **How does it work?**
+- **How do you know it's better?**
+- **Pricing**
+
+The narrative must have 7 clearly labeled sections. After each bold header, write 1-3 paragraphs of flowing prose for that section.
 
 Use an engaging, conversational tone with urgency around the problem. Include specific numbers and metrics throughout.
 
@@ -126,7 +132,16 @@ And all of this is available to you for **$6,000 per user, per year**. That incl
 ## OUTPUT REQUIREMENTS
 
 Generate:
-1. **SALES NARRATIVE** - CRITICAL: Each section MUST start with a bold header question exactly like the examples above (e.g., "**What's the problem?**", "**Who has the problem?**", etc.). The narrative should have 6-7 distinct sections, each beginning with its header in bold. Do NOT omit the headers - they are essential to the Founding Sales format.
+1. **SALES NARRATIVE** - MUST contain exactly 7 sections, each starting with a bold header:
+   - "**What's the problem?**" (then 1-3 paragraphs)
+   - "**Who has the problem? What's the cost of not solving the problem?**" (then 1-3 paragraphs)
+   - "**How is this currently solved? Why doesn't that work?**" (then 1-3 paragraphs)
+   - "**What has changed?**" (then 1-3 paragraphs)
+   - "**How does it work?**" (then 1-3 paragraphs)
+   - "**How do you know it's better?**" (then 1-3 paragraphs)
+   - "**Pricing**" (then 1-3 paragraphs)
+
+   FAILURE TO INCLUDE THESE EXACT BOLD HEADERS MAKES THE OUTPUT INVALID. Look at the TalentBin and Salesforce examples above - every section begins with its bold header. Your output MUST follow this same pattern.
 
 2. **100-WORD DESCRIPTION** - A product marketing summary suitable for a website or pitch deck. Covers problem, solution, and key differentiator. No headers needed.
 
