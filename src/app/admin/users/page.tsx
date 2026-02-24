@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface User {
   id: string;
@@ -138,7 +139,7 @@ export default function AdminUsersPage() {
   };
 
   const handleImpersonate = async (e: React.MouseEvent, userId: string, userName: string) => {
-    e.stopPropagation(); // Prevent row click navigation
+    e.preventDefault();
     if (!confirm(`Are you sure you want to log in as ${userName}? You will be redirected to the chat page as this user.`)) {
       return;
     }
@@ -328,11 +329,10 @@ export default function AdminUsersPage() {
                 {users.map((user) => (
                   <tr
                     key={user.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/admin/users/${user.id}`)}
+                    className="hover:bg-gray-50"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center">
+                      <Link href={`/admin/users/${user.id}`} className="flex items-center group">
                         {user.avatarUrl ? (
                           <img
                             src={user.avatarUrl}
@@ -345,14 +345,14 @@ export default function AdminUsersPage() {
                           </div>
                         )}
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 group-hover:text-blue-600">
                             {user.name || "No name"}
                           </div>
                           <div className="text-sm text-gray-500">
                             {user.email || "No email"}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {getIdentityIcons(user)}
