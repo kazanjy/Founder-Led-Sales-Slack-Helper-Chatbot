@@ -47,9 +47,12 @@ export async function GET(request: NextRequest) {
 
   try {
     // Check if user is already logged in (e.g., Google user adding Slack)
+    console.log("[Slack Auth] Step 1: Checking logged-in user");
     const loggedInUser = await getLoggedInUser();
+    console.log("[Slack Auth] Step 1 done, loggedIn:", !!loggedInUser);
 
     // Exchange code for token
+    console.log("[Slack Auth] Step 2: Exchanging code for token");
     const tokenResponse = await fetch("https://slack.com/api/oauth.v2.access", {
       method: "POST",
       headers: {
@@ -64,6 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log("[Slack Auth] Step 2 done, ok:", tokenData.ok, "team:", tokenData.team?.id);
 
     if (!tokenData.ok) {
       console.error("Token exchange failed:", tokenData);
@@ -84,6 +88,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user identity details
+    console.log("[Slack Auth] Step 3: Getting user identity for", slackUserId);
     const identityResponse = await fetch(
       "https://slack.com/api/users.identity",
       {
@@ -94,11 +99,14 @@ export async function GET(request: NextRequest) {
     );
 
     const identityData = await identityResponse.json();
+    console.log("[Slack Auth] Step 3 done, identity ok:", identityData.ok, "email:", identityData.user?.email);
 
     // Find the workspace
+    console.log("[Slack Auth] Step 4: Finding workspace for team", slackTeamId);
     const workspace = await prisma.workspace.findUnique({
       where: { slackTeamId },
     });
+    console.log("[Slack Auth] Step 4 done, workspace:", workspace?.id || "NOT FOUND");
 
     if (!workspace) {
       // User's workspace hasn't installed Mikey yet
@@ -108,6 +116,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if this Slack identity is already linked to another user
+    console.log("[Slack Auth] Step 5: Looking up existing user", slackUserId, "in workspace", workspace.id);
     const existingSlackUser = await prisma.user.findUnique({
       where: {
         slackUserId_workspaceId: {
@@ -116,10 +125,12 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+    console.log("[Slack Auth] Step 5 done, existingUser:", existingSlackUser?.id || "NONE");
 
     let user;
     let isNewUser = false;
 
+    console.log("[Slack Auth] Step 6: Resolving user (loggedIn:", !!loggedInUser, "existingSlack:", !!existingSlackUser, ")");
     if (loggedInUser) {
       // User is already logged in (e.g., Google user adding Slack)
       if (existingSlackUser && existingSlackUser.id !== loggedInUser.id) {
@@ -176,6 +187,7 @@ export async function GET(request: NextRequest) {
       isNewUser = true;
     }
 
+    console.log("[Slack Auth] Step 7: Creating session for user", user.id, "isNew:", isNewUser);
     // Create session
     const sessionToken = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
@@ -198,6 +210,7 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
+    console.log("[Slack Auth] Step 8: Session created, setting cookie and redirecting");
     // Redirect new users to upgrade page, existing users to chat
     const redirectUrl = isNewUser
       ? `${process.env.NEXT_PUBLIC_APP_URL}/upgrade`
