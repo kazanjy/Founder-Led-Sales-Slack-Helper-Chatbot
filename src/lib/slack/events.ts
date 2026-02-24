@@ -860,8 +860,9 @@ async function checkUserCanSendMessage(
     }
 
     // Check if this is their first message (within first minute of trial)
+    // Must be >= 0 to avoid false triggers when trialStartedAt is in the future (extended trials)
     const secondsSinceStart = (now.getTime() - trialStart.getTime()) / 1000;
-    if (secondsSinceStart < 60) {
+    if (secondsSinceStart >= 0 && secondsSinceStart < 60) {
       return {
         allowed: true,
         message: "",
