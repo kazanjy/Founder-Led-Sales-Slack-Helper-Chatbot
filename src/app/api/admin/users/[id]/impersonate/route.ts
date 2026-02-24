@@ -26,8 +26,13 @@ export async function POST(
 
     const { id: targetUserId } = await params;
 
+    // Get the REAL admin ID - if already impersonating, use the original admin's ID
+    const realAdminId = admin.isImpersonating && admin.impersonatingAdminId
+      ? admin.impersonatingAdminId
+      : admin.id;
+
     // Don't allow impersonating yourself
-    if (targetUserId === admin.id) {
+    if (targetUserId === realAdminId) {
       return NextResponse.json(
         { error: "Cannot impersonate yourself" },
         { status: 400 }
@@ -56,7 +61,7 @@ export async function POST(
         userId: targetUserId,
         token,
         expiresAt,
-        impersonatingAdminId: admin.id,
+        impersonatingAdminId: realAdminId,
       },
     });
 
