@@ -53,6 +53,7 @@ model User {
 
   // Email - primary identifier for web-only users
   email           String?   @unique
+  secondaryEmails String[]  @default([])  // Additional emails that can be used for auth lookup
   name            String?
   avatarUrl       String?
 

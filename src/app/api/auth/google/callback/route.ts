@@ -87,12 +87,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find existing user by Google ID or email
+    // Find existing user by Google ID, email, slackEmail, or secondaryEmails
     let user = await prisma.user.findFirst({
       where: {
         OR: [
           { googleId: userInfo.id },
           { email: userInfo.email },
+          { slackEmail: userInfo.email },
+          { secondaryEmails: { has: userInfo.email } },
         ],
       },
     });

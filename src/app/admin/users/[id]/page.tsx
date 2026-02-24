@@ -7,6 +7,7 @@ import Link from "next/link";
 interface UserDetail {
   id: string;
   email: string | null;
+  secondaryEmails: string[];
   slackEmail: string | null;
   name: string | null;
   slackUserName: string | null;
@@ -71,6 +72,9 @@ export default function AdminUserDetailPage() {
   const [nameValue, setNameValue] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [impersonating, setImpersonating] = useState(false);
+  const [newSecondaryEmail, setNewSecondaryEmail] = useState("");
+  const [mergeUserId, setMergeUserId] = useState("");
+  const [merging, setMerging] = useState(false);
 
   const handleImpersonate = async () => {
     if (!confirm(`Are you sure you want to log in as ${user?.name || user?.email || "this user"}? You will be redirected to the chat page as this user.`)) {
@@ -401,6 +405,109 @@ export default function AdminUserDetailPage() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Secondary Emails */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Secondary Emails</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Additional emails that can be used to log in to this account (via Google OAuth).
+            </p>
+
+            {user.secondaryEmails && user.secondaryEmails.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                {user.secondaryEmails.map((email) => (
+                  <div key={email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium">{email}</span>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remove ${email} from secondary emails?`)) {
+                          updateUser({ removeSecondaryEmail: email });
+                        }
+                      }}
+                      disabled={saving}
+                      className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-400 text-sm mb-4">No secondary emails configured</div>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="email"
+                value={newSecondaryEmail}
+                onChange={(e) => setNewSecondaryEmail(e.target.value)}
+                placeholder="Add secondary email..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
+              <button
+                onClick={async () => {
+                  if (newSecondaryEmail.trim()) {
+                    await updateUser({ addSecondaryEmail: newSecondaryEmail.trim() });
+                    setNewSecondaryEmail("");
+                  }
+                }}
+                disabled={saving || !newSecondaryEmail.trim()}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Merge Accounts */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Merge Accounts</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Merge another user&apos;s data into this account. All conversations, messages, and app data will be moved here. The source account will be deleted.
+            </p>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={mergeUserId}
+                onChange={(e) => setMergeUserId(e.target.value)}
+                placeholder="User ID to merge from..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+              />
+              <button
+                onClick={async () => {
+                  if (!mergeUserId.trim()) return;
+
+                  const confirmed = confirm(
+                    `⚠️ MERGE ACCOUNTS\n\nThis will:\n` +
+                    `1. Move ALL data from user ${mergeUserId} to this user\n` +
+                    `2. Add their email(s) to secondary emails\n` +
+                    `3. DELETE the source user account\n\n` +
+                    `This action cannot be undone. Continue?`
+                  );
+
+                  if (confirmed) {
+                    setMerging(true);
+                    try {
+                      await updateUser({ mergeFromUserId: mergeUserId.trim() });
+                      setMergeUserId("");
+                      setMessage({ type: "success", text: "Accounts merged successfully" });
+                    } finally {
+                      setMerging(false);
+                    }
+                  }
+                }}
+                disabled={saving || merging || !mergeUserId.trim()}
+                className="px-4 py-2 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+              >
+                {merging ? "Merging..." : "Merge"}
+              </button>
+            </div>
+
+            <div className="mt-3 text-xs text-gray-400">
+              Tip: Find the user ID from the Users list or another user&apos;s detail page
             </div>
           </div>
 
