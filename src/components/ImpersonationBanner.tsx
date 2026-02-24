@@ -37,13 +37,21 @@ export function ImpersonationBanner({ userName }: ImpersonationBannerProps) {
           (You are viewing the app as this user)
         </span>
       </div>
-      <button
-        onClick={handleExit}
-        disabled={exiting}
-        className="bg-white text-amber-600 px-3 py-1 rounded text-sm font-medium hover:bg-amber-50 disabled:opacity-50"
-      >
-        {exiting ? "Exiting..." : "Exit Impersonation"}
-      </button>
+      <div className="flex items-center gap-2">
+        <a
+          href="/admin"
+          className="bg-amber-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-amber-700 border border-amber-400"
+        >
+          Admin
+        </a>
+        <button
+          onClick={handleExit}
+          disabled={exiting}
+          className="bg-white text-amber-600 px-3 py-1 rounded text-sm font-medium hover:bg-amber-50 disabled:opacity-50"
+        >
+          {exiting ? "Exiting..." : "Exit Impersonation"}
+        </button>
+      </div>
     </div>
   );
 }

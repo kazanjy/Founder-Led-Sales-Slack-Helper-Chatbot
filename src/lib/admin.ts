@@ -34,11 +34,13 @@ export async function getAdminUser(): Promise<AuthUser | null> {
     });
 
     if (!realAdmin) {
+      console.error(`[getAdminUser] Impersonation: real admin not found for id=${user.impersonatingAdminId}`);
       return null;
     }
 
     const adminEmail = realAdmin.email || realAdmin.slackEmail;
     if (!isAdminEmail(adminEmail)) {
+      console.error(`[getAdminUser] Impersonation: real admin email '${adminEmail}' not in ADMIN_EMAILS`);
       return null;
     }
 
