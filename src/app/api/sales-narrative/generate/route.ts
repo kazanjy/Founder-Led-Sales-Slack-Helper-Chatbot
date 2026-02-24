@@ -199,10 +199,31 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
         }
       }
 
-      // Final message is just the generation instructions
+      // Final message includes generation instructions WITH header requirements
       finalMessage = `Based on all the questionnaire answers I've shared, please generate:
 
-1. A SALES NARRATIVE - Flowing prose (NOT bullets) that tells a compelling story about the problem, who has it, current solutions and their gaps, what changed, how the new solution works, proof it's better, and pricing as value.
+1. A SALES NARRATIVE following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 7 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid:
+
+**What's the problem?**
+(1-3 paragraphs of flowing prose)
+
+**Who has the problem? What's the cost of not solving the problem?**
+(1-3 paragraphs of flowing prose)
+
+**How is this currently solved? Why doesn't that work?**
+(1-3 paragraphs of flowing prose)
+
+**What has changed?**
+(1-3 paragraphs of flowing prose)
+
+**How does it work?**
+(1-3 paragraphs of flowing prose)
+
+**How do you know it's better?**
+(1-3 paragraphs of flowing prose)
+
+**Pricing**
+(1-3 paragraphs of flowing prose)
 
 2. A 100-WORD DESCRIPTION - Product marketing summary
 
