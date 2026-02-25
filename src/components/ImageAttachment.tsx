@@ -105,8 +105,13 @@ export function FileAttachmentButton({
         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach PDF"}
       >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-2.5 9.5c0 .83-.67 1.5-1.5 1.5H7.5v1.5H6v-5H9c.83 0 1.5.67 1.5 1.5v1zm5 .5c0 1.1-.9 2-2 2h-1v1.5h-1.5v-5H13c1.1 0 2 .9 2 2v.5zm4.5-.5h-1.5v1H18v1.5h-1.5V18H15v-5h3.5V14.5z"/>
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+          {/* Document body */}
+          <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
+          {/* Folded corner */}
+          <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
+          {/* PDF text */}
+          <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
         </svg>
       </button>
     </>
@@ -157,8 +162,10 @@ export function FilePreviewChips({
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 ${processing ? "opacity-50" : "cursor-pointer hover:border-gray-300 hover:bg-gray-100"}`}
               onClick={() => !processing && onPreview?.(index)}
             >
-              <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-3 9.5c0 .83-.67 1.5-1.5 1.5H7v2H5.5v-6H8.5c.83 0 1.5.67 1.5 1.5v1zm5 .5c0 1.1-.9 2-2 2h-1v2H10.5v-6h2.5c1.1 0 2 .9 2 2v1zm5-1h-1.5v1H18v1h-1.5v2H15v-6h3.5v1.5z"/>
+              <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
+                <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
               </svg>
               <span className="text-sm text-gray-700 max-w-[120px] truncate">{preview.file.name}</span>
               {processing && (
@@ -268,8 +275,10 @@ export function ImageChipsReadOnly({
             onClick={() => onPreview?.(index)}
           >
             {isPDF ? (
-              <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+              <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
+                <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
               </svg>
             ) : (
               <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
