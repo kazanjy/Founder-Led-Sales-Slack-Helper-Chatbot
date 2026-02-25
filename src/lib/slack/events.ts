@@ -697,6 +697,7 @@ async function processMessage(
 
   // Check for #noattachments command to opt-out of automatic Sales Narrative context
   const noAttachmentsCommand = /#noattachments\b/i.test(finalText);
+  console.log(`[Slack] Checking for #noattachments in: "${finalText.substring(0, 100)}..." - found: ${noAttachmentsCommand}`);
   if (noAttachmentsCommand) {
     // Remove the command from the message
     finalText = finalText.replace(/#noattachments\b/gi, "").trim();
