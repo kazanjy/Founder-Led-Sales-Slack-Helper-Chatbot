@@ -695,6 +695,13 @@ async function processMessage(
     }));
   }
 
+  // Check for #noattachments command to opt-out of automatic Sales Narrative context
+  const noAttachmentsCommand = /#noattachments\b/i.test(finalText);
+  if (noAttachmentsCommand) {
+    // Remove the command from the message
+    finalText = finalText.replace(/#noattachments\b/gi, "").trim();
+  }
+
   // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
   let messageWithContext = priorThreadContext
     ? `${priorThreadContext}\n\n${finalText}`
@@ -702,13 +709,20 @@ async function processMessage(
 
   // For new conversations, check if user has a Sales Narrative and append it as context
   // (similar to how attachments work in web-based chats)
+  // Skip if user used #noattachments command
   let salesNarrativeIncluded = false;
+  let salesNarrativeOptedOut = false;
   if (isNewConversation) {
-    const salesNarrative = await getSalesNarrativeForContext(user.id);
-    if (salesNarrative) {
-      messageWithContext = `${messageWithContext}\n\n${salesNarrative}`;
-      salesNarrativeIncluded = true;
-      console.log(`[Slack] Appended Sales Narrative context for user ${user.id}`);
+    if (noAttachmentsCommand) {
+      salesNarrativeOptedOut = true;
+      console.log(`[Slack] User opted out of Sales Narrative context with #noattachments`);
+    } else {
+      const salesNarrative = await getSalesNarrativeForContext(user.id);
+      if (salesNarrative) {
+        messageWithContext = `${messageWithContext}\n\n${salesNarrative}`;
+        salesNarrativeIncluded = true;
+        console.log(`[Slack] Appended Sales Narrative context for user ${user.id}`);
+      }
     }
   }
 
@@ -732,9 +746,11 @@ async function processMessage(
     // Convert markdown to Slack format and send response
     let slackResponse = markdownToSlack(response);
 
-    // Add Sales Narrative context notice if it was included
+    // Add Sales Narrative context notice if it was included or opted out
     if (salesNarrativeIncluded) {
       slackResponse = `_📋 Your Sales Narrative was provided to Mikey for context._\n\n${slackResponse}`;
+    } else if (salesNarrativeOptedOut) {
+      slackResponse = `_Per #noattachments command, your Sales Narrative was not provided to Mikey as context._\n\n${slackResponse}`;
     }
 
     // Add web app link and thread reply instructions for new conversations
