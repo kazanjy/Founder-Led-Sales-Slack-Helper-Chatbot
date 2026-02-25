@@ -17,6 +17,7 @@ import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as Imag
 import { convertPDFToImages } from "@/lib/pdf-to-images";
 import { Lightbox, type LightboxImage } from "@/components/Lightbox";
 import { useConfirmModal } from "@/components/useConfirmModal";
+import { ShareChatModal } from "@/components/ShareChatModal";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -209,6 +210,14 @@ export default function ChatPage() {
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareModalConversationId, setShareModalConversationId] = useState<string | null>(null);
+  const [sharedWithMeChats, setSharedWithMeChats] = useState<Array<{
+    id: string;
+    title: string | null;
+    firstMessagePreview: string | null;
+    sharedAt: string;
+    sharedBy: { id: string; name: string | null; email: string | null; avatarUrl: string | null };
+  }>>([]);
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
   const [editingPrompt, setEditingPrompt] = useState<SavedPrompt | null>(null);
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
@@ -273,6 +282,14 @@ export default function ChatPage() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const isInitialLoad = useRef(true);
   const isSendingRef = useRef(false); // Track if we're in the middle of sending
+
+  // Check if selected conversation is shared with me (not owned by me)
+  const sharedChatInfo = useMemo(() => {
+    if (!selectedConversation) return null;
+    return sharedWithMeChats.find(c => c.id === selectedConversation) || null;
+  }, [selectedConversation, sharedWithMeChats]);
+
+  const isViewingSharedChat = !!sharedChatInfo;
 
   // Compute merge field preview info based on current input
   const mergeFieldPreview = useMemo(() => {
@@ -1160,6 +1177,15 @@ export default function ChatPage() {
         const convsRes = await fetch("/api/conversations");
         const convsData = await convsRes.json();
         setConversations(convsData.conversations || []);
+
+        // Get chats shared with me
+        try {
+          const sharedRes = await fetch("/api/chat/shared");
+          const sharedData = await sharedRes.json();
+          setSharedWithMeChats(sharedData.sharedChats || []);
+        } catch {
+          console.error("Failed to load shared chats");
+        }
 
         // Load GTM variables for merge field expansion
         const varsRes = await fetch("/api/gtm-variables");
@@ -2543,7 +2569,23 @@ export default function ChatPage() {
                             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                           </svg>
                         )}
-                        {sharingId === conv.id ? "Sharing..." : "Share"}
+                        {sharingId === conv.id ? "Sharing..." : "Share Link"}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShareModalConversationId(conv.id);
+                          setOpenMenuId(null);
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="8.5" cy="7" r="4"></circle>
+                          <line x1="20" y1="8" x2="20" y2="14"></line>
+                          <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
+                        Share with Colleague...
                       </button>
                       <button
                         onClick={(e) => {
@@ -2579,6 +2621,38 @@ export default function ChatPage() {
                 </div>
               </div>
             ))
+          )}
+
+          {/* Shared with me section */}
+          {sharedWithMeChats.length > 0 && (
+            <div className="mt-4 border-t border-gray-300 pt-2">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Shared with me
+              </div>
+              {sharedWithMeChats.map((chat) => (
+                <a
+                  key={`shared-${chat.id}`}
+                  href={`/chat/${chat.id}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                    e.preventDefault();
+                    selectConversation(chat.id);
+                  }}
+                  className={`block p-4 border-b border-gray-200 transition-colors ${
+                    selectedConversation === chat.id ? "bg-white" : "hover:bg-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[13px] text-blue-600">
+                      From {chat.sharedBy.name || chat.sharedBy.email?.split("@")[0] || "someone"}
+                    </span>
+                  </div>
+                  <p className="text-[15px] text-gray-900 truncate">
+                    {chat.title || chat.firstMessagePreview || "Untitled Chat"}
+                  </p>
+                </a>
+              ))}
+            </div>
           )}
         </div>
 
@@ -2712,6 +2786,41 @@ export default function ChatPage() {
                     </svg>
                   )}
                   {sharing ? "Sharing..." : "Share"}
+                </button>
+              </>
+            )}
+            {/* Shared chat badge and clone button */}
+            {isViewingSharedChat && sharedChatInfo && (
+              <>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 bg-blue-50 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                  </svg>
+                  Shared by {sharedChatInfo.sharedBy.name || sharedChatInfo.sharedBy.email?.split("@")[0] || "someone"}
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/chat/${selectedConversation}/clone`, { method: "POST" });
+                      const data = await res.json();
+                      if (data.conversationId) {
+                        router.push(`/chat/${data.conversationId}`);
+                        showToast("Chat cloned! You can now continue this conversation.", "bottom");
+                      }
+                    } catch {
+                      showToast("Failed to clone chat", "bottom");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Clone to Continue
                 </button>
               </>
             )}
@@ -3316,7 +3425,38 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-              {(isVoiceRecording || isTTSPlaying) ? (
+              {isViewingSharedChat ? (
+                /* Read-only state for shared chats */
+                <div className="border rounded-2xl bg-gray-50 shadow-sm w-full p-4 text-center">
+                  <div className="text-gray-500 mb-2">
+                    This is a read-only shared chat from{" "}
+                    <span className="font-medium text-gray-700">
+                      {sharedChatInfo?.sharedBy.name || sharedChatInfo?.sharedBy.email?.split("@")[0] || "someone"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/chat/${selectedConversation}/clone`, { method: "POST" });
+                        const data = await res.json();
+                        if (data.conversationId) {
+                          router.push(`/chat/${data.conversationId}`);
+                          showToast("Chat cloned! You can now continue this conversation.", "bottom");
+                        }
+                      } catch {
+                        showToast("Failed to clone chat", "bottom");
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Clone to Continue Chatting
+                  </button>
+                </div>
+              ) : (isVoiceRecording || isTTSPlaying) ? (
                 <VoiceRecordingInput
                   isActive={isVoiceRecording}
                   isSpeaking={isTTSPlaying}
@@ -4080,6 +4220,17 @@ export default function ChatPage() {
       )}
 
     </div>
+
+    {/* Share Chat Modal */}
+    {shareModalConversationId && (
+      <ShareChatModal
+        conversationId={shareModalConversationId}
+        conversationTitle={conversations.find(c => c.id === shareModalConversationId)?.title || undefined}
+        isOpen={!!shareModalConversationId}
+        onClose={() => setShareModalConversationId(null)}
+      />
+    )}
+
     {ConfirmModalElement}
     </>
   );

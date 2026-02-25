@@ -87,6 +87,8 @@ model User {
   referralsMade   Referral[]    @relation("Referrer")
   referralsReceived Referral[]  @relation("Referred")
   sharedConversations SharedConversation[]
+  chatSharesSent      ChatShare[]  @relation("ChatSharesSent")
+  chatSharesReceived  ChatShare[]  @relation("ChatSharesReceived")
   sessions        Session[]
   savedPrompts              SavedPrompt[]
   dismissedDefaultPromptIds String[]       @default([])  // Track deleted default prompts so they don't reappear
@@ -269,6 +271,7 @@ model Conversation {
 
   messages        Message[]
   sharedLinks     SharedConversation[]
+  chatShares      ChatShare[]
   maturityAssessments MaturityAssessment[]
 
   // Track which attachments were included in first message
@@ -361,6 +364,34 @@ model SharedConversation {
   createdAt       DateTime  @default(now())
 
   @@map("shared_conversations")
+}
+
+// Cross-account chat sharing (share to specific email)
+model ChatShare {
+  id              String    @id @default(cuid())
+
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Who shared it
+  sharedByUserId  String
+  sharedByUser    User      @relation("ChatSharesSent", fields: [sharedByUserId], references: [id], onDelete: Cascade)
+
+  // Target recipient (by email - may not have account yet)
+  sharedToEmail   String
+
+  // Resolved when recipient has an account (for efficient queries)
+  sharedToUserId  String?
+  sharedToUser    User?     @relation("ChatSharesReceived", fields: [sharedToUserId], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime  @default(now())
+
+  // Can only share same chat to same email once
+  @@unique([conversationId, sharedToEmail])
+  @@index([sharedToEmail])
+  @@index([sharedToUserId])
+  @@index([sharedByUserId])
+  @@map("chat_shares")
 }
 
 // Web session for authenticated users
