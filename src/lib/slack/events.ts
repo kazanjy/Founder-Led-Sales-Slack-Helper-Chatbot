@@ -700,14 +700,15 @@ async function processMessage(
     ? `${priorThreadContext}\n\n${finalText}`
     : finalText;
 
-  // For new conversations, check if user has a Sales Narrative and inject it as context
+  // For new conversations, check if user has a Sales Narrative and append it as context
+  // (similar to how attachments work in web-based chats)
   let salesNarrativeIncluded = false;
   if (isNewConversation) {
     const salesNarrative = await getSalesNarrativeForContext(user.id);
     if (salesNarrative) {
-      messageWithContext = `${salesNarrative}\n\n${messageWithContext}`;
+      messageWithContext = `${messageWithContext}\n\n${salesNarrative}`;
       salesNarrativeIncluded = true;
-      console.log(`[Slack] Injected Sales Narrative context for user ${user.id}`);
+      console.log(`[Slack] Appended Sales Narrative context for user ${user.id}`);
     }
   }
 
