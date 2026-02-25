@@ -446,10 +446,10 @@ async function handleMention(
     try {
       const threadMessages = await getThreadMessages(client, channel, thread_ts);
 
-      // Filter out the current message and any bot messages, take up to 10 prior messages
+      // Filter out the current message and any bot messages, take up to 50 prior messages
       const priorMessages = threadMessages
         .filter(msg => msg.ts !== ts && !msg.bot_id && msg.text)
-        .slice(0, 10); // First 10 messages (oldest first since that's how Slack returns them)
+        .slice(0, 50); // First 50 messages (oldest first since that's how Slack returns them)
 
       if (priorMessages.length > 0) {
         // Format as context for Chatbase
