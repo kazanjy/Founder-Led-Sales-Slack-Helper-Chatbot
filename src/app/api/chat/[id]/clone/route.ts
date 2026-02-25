@@ -85,7 +85,9 @@ export async function POST(
           : `Chat from ${originalOwnerName}`,
         firstMessagePreview: conversation.firstMessagePreview,
         messageCount: conversation.messageCount,
-        attachmentsIncluded: conversation.attachmentsIncluded,
+        ...(conversation.attachmentsIncluded !== null && {
+          attachmentsIncluded: conversation.attachmentsIncluded,
+        }),
       },
     });
 
