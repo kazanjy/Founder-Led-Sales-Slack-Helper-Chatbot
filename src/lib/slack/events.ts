@@ -666,35 +666,6 @@ async function processMessage(
     }
   }
 
-  // Save user message (with image descriptions if any)
-  await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      userId: user.id,
-      role: "USER",
-      content: finalText,
-      slackMessageTs: messageTs,
-    },
-  });
-
-  // Build conversation history only if we don't have a Chatbase conversation ID yet
-  // When we have a conversationId, Chatbase persists context on their end
-  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-
-  if (!conversation.chatbaseConversationId) {
-    // First message in this conversation - need to send any existing history
-    const history = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
-      orderBy: { createdAt: "asc" },
-      take: 20, // Last 20 messages for context
-    });
-
-    chatbaseHistory = history.slice(0, -1).map((msg: { role: string; content: string }) => ({
-      role: msg.role.toLowerCase() as "user" | "assistant",
-      content: msg.content,
-    }));
-  }
-
   // Check for #noattachments command to opt-out of automatic Sales Narrative context
   const noAttachmentsCommand = /#noattachments\b/i.test(finalText);
   console.log(`[Slack] Checking for #noattachments in: "${finalText.substring(0, 100)}..." - found: ${noAttachmentsCommand}`);
@@ -725,6 +696,45 @@ async function processMessage(
         console.log(`[Slack] Appended Sales Narrative context for user ${user.id}`);
       }
     }
+  }
+
+  // Save user message (with Sales Narrative context if included, so it's visible in web app)
+  await prisma.message.create({
+    data: {
+      conversationId: conversation.id,
+      userId: user.id,
+      role: "USER",
+      content: messageWithContext,
+      slackMessageTs: messageTs,
+    },
+  });
+
+  // Update conversation to track that Sales Narrative was included
+  if (salesNarrativeIncluded) {
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        attachmentsIncluded: ["salesNarrative"],
+      },
+    });
+  }
+
+  // Build conversation history only if we don't have a Chatbase conversation ID yet
+  // When we have a conversationId, Chatbase persists context on their end
+  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+  if (!conversation.chatbaseConversationId) {
+    // First message in this conversation - need to send any existing history
+    const history = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 20, // Last 20 messages for context
+    });
+
+    chatbaseHistory = history.slice(0, -1).map((msg: { role: string; content: string }) => ({
+      role: msg.role.toLowerCase() as "user" | "assistant",
+      content: msg.content,
+    }));
   }
 
   try {
