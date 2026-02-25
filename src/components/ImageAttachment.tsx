@@ -35,27 +35,27 @@ export function FileAttachmentButton({
   currentCount?: number;
   maxFiles?: number;
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
-    // Filter to only supported files (images and PDFs)
-    const supportedFiles = files.filter(isSupportedFile);
-
-    // Limit to remaining slots
+    const imageFiles = files.filter(isImageFile);
     const remaining = maxFiles - currentCount;
-    const filesToAdd = supportedFiles.slice(0, remaining);
+    const filesToAdd = imageFiles.slice(0, remaining);
+    if (filesToAdd.length > 0) onFilesChange(filesToAdd);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
 
-    if (filesToAdd.length > 0) {
-      onFilesChange(filesToAdd);
-    }
-
-    // Clear input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const handlePDFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const pdfFiles = files.filter(isPDFFile);
+    const remaining = maxFiles - currentCount;
+    const filesToAdd = pdfFiles.slice(0, remaining);
+    if (filesToAdd.length > 0) onFilesChange(filesToAdd);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
   const isMaxReached = currentCount >= maxFiles;
@@ -63,20 +63,30 @@ export function FileAttachmentButton({
   return (
     <>
       <input
-        ref={fileInputRef}
+        ref={imageInputRef}
         type="file"
-        accept="image/*,.pdf,application/pdf"
+        accept="image/*"
         multiple
         className="hidden"
-        onChange={handleFileChange}
+        onChange={handleImageChange}
         disabled={disabled || isMaxReached}
       />
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        multiple
+        className="hidden"
+        onChange={handlePDFChange}
+        disabled={disabled || isMaxReached}
+      />
+      {/* Image upload button */}
       <button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => imageInputRef.current?.click()}
         disabled={disabled || isMaxReached}
         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach image or PDF"}
+        title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach image"}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -85,6 +95,18 @@ export function FileAttachmentButton({
             strokeWidth={2}
             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
+        </svg>
+      </button>
+      {/* PDF upload button */}
+      <button
+        type="button"
+        onClick={() => pdfInputRef.current?.click()}
+        disabled={disabled || isMaxReached}
+        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach PDF"}
+      >
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-2.5 9.5c0 .83-.67 1.5-1.5 1.5H7.5v1.5H6v-5H9c.83 0 1.5.67 1.5 1.5v1zm5 .5c0 1.1-.9 2-2 2h-1v1.5h-1.5v-5H13c1.1 0 2 .9 2 2v.5zm4.5-.5h-1.5v1H18v1.5h-1.5V18H15v-5h3.5V14.5z"/>
         </svg>
       </button>
     </>
