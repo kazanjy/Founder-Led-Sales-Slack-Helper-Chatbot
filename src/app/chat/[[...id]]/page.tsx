@@ -2753,8 +2753,8 @@ export default function ChatPage() {
                 Upgrade
               </a>
             )}
-            {/* Copy/Share buttons - only show when messages exist */}
-            {messages.length > 0 && (
+            {/* Copy/Share buttons - only show when messages exist and not viewing shared chat */}
+            {messages.length > 0 && !isViewingSharedChat && (
               <>
                 <button
                   onClick={handleCopy}
@@ -2778,14 +2778,23 @@ export default function ChatPage() {
                     </svg>
                   ) : (
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="18" cy="5" r="3"></circle>
-                      <circle cx="6" cy="12" r="3"></circle>
-                      <circle cx="18" cy="19" r="3"></circle>
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                     </svg>
                   )}
-                  {sharing ? "Sharing..." : "Share"}
+                  {sharing ? "Copying..." : "Link"}
+                </button>
+                <button
+                  onClick={() => setShareModalConversationId(selectedConversation)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                  </svg>
+                  Share
                 </button>
               </>
             )}
