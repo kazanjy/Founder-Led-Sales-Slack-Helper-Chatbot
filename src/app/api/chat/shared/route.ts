@@ -18,6 +18,8 @@ export async function GET() {
       return NextResponse.json({ sharedChats: [] });
     }
 
+    console.log("[shared] Fetching shares for user:", user.id, "email:", userEmail);
+
     // Find shares to this user (by email or userId)
     const shares = await prisma.chatShare.findMany({
       where: {
@@ -63,6 +65,8 @@ export async function GET() {
         data: { sharedToUserId: user.id },
       });
     }
+
+    console.log("[shared] Found", shares.length, "shares");
 
     return NextResponse.json({
       sharedChats: shares.map((share) => ({

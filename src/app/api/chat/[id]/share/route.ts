@@ -96,6 +96,8 @@ export async function POST(
       },
     });
 
+    console.log("[share] Created share:", share.id, "to:", share.sharedToEmail, "hasAccount:", !!share.sharedToUserId);
+
     return NextResponse.json({
       success: true,
       share: {
