@@ -113,6 +113,21 @@ Focus on information that would help a sales professional understand and use thi
 }
 
 /**
+ * Fetch the user's Sales Narrative for context injection (if available)
+ * Returns null if no narrative exists
+ */
+async function getSalesNarrativeForContext(userId: string): Promise<string | null> {
+  const narrativeVar = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField: "SALES_NARRATIVE" },
+    select: { value: true },
+  });
+
+  if (!narrativeVar?.value) return null;
+
+  return `--- SALES NARRATIVE (Context about the user's product/service) ---\n\n${narrativeVar.value}\n\n--- END SALES NARRATIVE ---`;
+}
+
+/**
  * Process Slack file attachments - download, analyze, and store
  */
 async function processSlackFiles(
@@ -681,9 +696,20 @@ async function processMessage(
   }
 
   // If we have prior thread context (Mikey was summoned mid-thread), prepend it to the message
-  const messageWithContext = priorThreadContext
+  let messageWithContext = priorThreadContext
     ? `${priorThreadContext}\n\n${finalText}`
     : finalText;
+
+  // For new conversations, check if user has a Sales Narrative and inject it as context
+  let salesNarrativeIncluded = false;
+  if (isNewConversation) {
+    const salesNarrative = await getSalesNarrativeForContext(user.id);
+    if (salesNarrative) {
+      messageWithContext = `${salesNarrative}\n\n${messageWithContext}`;
+      salesNarrativeIncluded = true;
+      console.log(`[Slack] Injected Sales Narrative context for user ${user.id}`);
+    }
+  }
 
   try {
     // Get response from Chatbase
@@ -704,6 +730,11 @@ async function processMessage(
 
     // Convert markdown to Slack format and send response
     let slackResponse = markdownToSlack(response);
+
+    // Add Sales Narrative context notice if it was included
+    if (salesNarrativeIncluded) {
+      slackResponse = `_📋 Your Sales Narrative was provided to Mikey for context._\n\n${slackResponse}`;
+    }
 
     // Add web app link and thread reply instructions for new conversations
     if (isNewConversation) {
