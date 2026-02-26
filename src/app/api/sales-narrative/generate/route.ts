@@ -84,14 +84,15 @@ You MUST include bold section headers at the start of each section. These header
 
 Each section MUST begin with its header in bold, exactly like this:
 - **What's the problem?**
-- **Who has the problem? What's the cost of not solving the problem?**
+- **Who has the problem?**
+- **What's the cost of not solving the problem?**
 - **How is this currently solved? Why doesn't that work?**
 - **What has changed?**
 - **How does it work?**
 - **How do you know it's better?**
 - **Pricing**
 
-The narrative must have 7 clearly labeled sections. After each bold header, write 1-3 paragraphs of flowing prose for that section.
+The narrative must have 8 clearly labeled sections. After each bold header, write 1-3 paragraphs of flowing prose for that section.
 
 Use an engaging, conversational tone with urgency around the problem. Include specific numbers and metrics throughout.
 
@@ -101,7 +102,9 @@ Use an engaging, conversational tone with urgency around the problem. Include sp
 
 **What's the problem?** Technical recruiting is really hard! Finding software-engineering talent that has the skills that your organization requires, and then engaging with them to get them to consider your organization, is a tough problem.
 
-**Who has the problem? What's the cost of not solving the problem?** It's something that makes the lives of technical sourcers, recruiters, and recruiting managers rough, particularly because if they don't solve the problem, they may have to pay large sums of money to recruiting agencies—25% of a first-year salary of $125,000 or more. Otherwise they don't hire on schedule, and that impacts the ability of their organizations to ship software on time, and make revenue!
+**Who has the problem?** It's something that makes the lives of technical sourcers, recruiters, and recruiting managers rough.
+
+**What's the cost of not solving the problem?** If they don't solve the problem, they may have to pay large sums of money to recruiting agencies—25% of a first-year salary of $125,000 or more. Otherwise they don't hire on schedule, and that impacts the ability of their organizations to ship software on time, and make revenue!
 
 **How is this currently solved? Why doesn't that work?** Yes, you can use things like job boards or LinkedIn, but the problem is that unemployment is so low in software engineering that very few engineers are actively looking for jobs. And because most people don't really pay attention to LinkedIn or update their profiles, software-engineering profiles have a tendency not to exist, or to be missing the skill information that indicates that the engineer in question would be a good fit. Not to mention the fact that there are hundreds of thousands of recruiters on LinkedIn messaging every engineer they can find, and that creates tons of noise to cut through.
 
@@ -132,9 +135,10 @@ And all of this is available to you for **$6,000 per user, per year**. That incl
 ## OUTPUT REQUIREMENTS
 
 Generate:
-1. **SALES NARRATIVE** - MUST contain exactly 7 sections, each starting with a bold header:
+1. **SALES NARRATIVE** - MUST contain exactly 8 sections, each starting with a bold header:
    - "**What's the problem?**" (then 1-3 paragraphs)
-   - "**Who has the problem? What's the cost of not solving the problem?**" (then 1-3 paragraphs)
+   - "**Who has the problem?**" (then 1-3 paragraphs)
+   - "**What's the cost of not solving the problem?**" (then 1-3 paragraphs)
    - "**How is this currently solved? Why doesn't that work?**" (then 1-3 paragraphs)
    - "**What has changed?**" (then 1-3 paragraphs)
    - "**How does it work?**" (then 1-3 paragraphs)
@@ -202,12 +206,15 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       // Final message includes generation instructions WITH header requirements
       finalMessage = `Based on all the questionnaire answers I've shared, please generate:
 
-1. A SALES NARRATIVE following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 7 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid:
+1. A SALES NARRATIVE following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid:
 
 **What's the problem?**
 (1-3 paragraphs of flowing prose)
 
-**Who has the problem? What's the cost of not solving the problem?**
+**Who has the problem?**
+(1-3 paragraphs of flowing prose)
+
+**What's the cost of not solving the problem?**
 (1-3 paragraphs of flowing prose)
 
 **How is this currently solved? Why doesn't that work?**
