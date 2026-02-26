@@ -3377,12 +3377,11 @@ export default function ChatPage() {
 
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
-        <div className="border-t border-gray-200 bg-white relative flex flex-col shrink-0" style={{
-          height: inputHeight +
-            ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 56 : 0) +
+        <div className="border-t border-gray-200 bg-white relative flex flex-col shrink-0 overflow-visible" style={{
+          minHeight: 100 +
+            ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 48 : 0) +
             ((selectedImages.length > 0 || conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length) ? 110 : 0) +
             (processingStatus ? 44 : 0),
-          minHeight: 100,
           maxHeight: '50vh'
         }}>
           {/* Resize handle at top */}
