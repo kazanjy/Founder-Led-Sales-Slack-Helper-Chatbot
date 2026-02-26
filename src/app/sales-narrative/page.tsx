@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
@@ -474,8 +475,8 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[400px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 font-normal"
                 />
               ) : (
-                <div className="prose prose-gray max-w-none whitespace-pre-wrap">
-                  {currentNarrative}
+                <div className="prose prose-gray max-w-none">
+                  <ReactMarkdown>{currentNarrative}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -522,8 +523,8 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
                 />
               ) : (
-                <div className="text-lg text-gray-800 leading-relaxed whitespace-pre-wrap">
-                  {current100w}
+                <div className="prose prose-lg prose-gray max-w-none">
+                  <ReactMarkdown>{current100w}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -570,8 +571,8 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[100px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
                 />
               ) : (
-                <div className="text-xl text-gray-800 leading-relaxed whitespace-pre-wrap">
-                  {current50w}
+                <div className="prose prose-xl prose-gray max-w-none">
+                  <ReactMarkdown>{current50w}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -618,8 +619,8 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[80px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
                 />
               ) : (
-                <div className="text-2xl font-medium text-gray-900 leading-relaxed whitespace-pre-wrap">
-                  {current25w}
+                <div className="prose prose-2xl prose-gray max-w-none font-medium">
+                  <ReactMarkdown>{current25w}</ReactMarkdown>
                 </div>
               )}
             </div>
