@@ -2,9 +2,10 @@
 
 import * as pdfjsLib from "pdfjs-dist";
 
-// Set up the worker - use CDN for simplicity
+// Set up the worker - use unpkg CDN which syncs directly from npm
+// Note: PDF.js 4.x+ uses .mjs extension for ES modules
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
 
 export interface PDFPageImage {
