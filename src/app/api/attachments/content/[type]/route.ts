@@ -63,9 +63,9 @@ export async function GET(
   }
 }
 
-// Fetch Sales Narrative content (narrative + all descriptions)
+// Fetch Sales Narrative content (narrative + all descriptions + Q&A inputs)
 async function getSalesNarrativeContent(userId: string): Promise<string | null> {
-  const [narrativeVar, desc100, desc50, desc25] = await Promise.all([
+  const [narrativeVar, desc100, desc50, desc25, latestVersion] = await Promise.all([
     prisma.gtmVariable.findFirst({
       where: { userId, mergeField: "SALES_NARRATIVE" },
       select: { value: true },
@@ -82,6 +82,29 @@ async function getSalesNarrativeContent(userId: string): Promise<string | null> 
       where: { userId, mergeField: "VALUE_PROP_25W" },
       select: { value: true },
     }),
+    // Get the latest sales narrative version with its Q&A answers
+    prisma.salesNarrativeVersion.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        answers: {
+          include: {
+            question: {
+              select: {
+                category: true,
+                globalOrder: true,
+                question: true,
+              },
+            },
+          },
+          orderBy: {
+            question: {
+              globalOrder: "asc",
+            },
+          },
+        },
+      },
+    }),
   ]);
 
   if (!narrativeVar?.value) return null;
@@ -96,6 +119,39 @@ async function getSalesNarrativeContent(userId: string): Promise<string | null> 
   }
   if (desc25?.value) {
     content += `\n\n### 25-Word Tagline\n\n${desc25.value}`;
+  }
+
+  // Add Q&A inputs from the latest sales narrative version
+  if (latestVersion && latestVersion.answers.length > 0) {
+    content += `\n\n### Sales Narrative Q&A Inputs\n\n`;
+
+    // Group by category
+    const categories: Record<string, Array<{ question: string; answer: string; order: number }>> = {};
+
+    for (const answer of latestVersion.answers) {
+      const category = answer.question.category;
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push({
+        question: answer.question.question,
+        answer: answer.answer,
+        order: answer.question.globalOrder,
+      });
+    }
+
+    // Sort categories by first question's order
+    const sortedCategories = Object.entries(categories).sort(
+      (a, b) => (a[1][0]?.order || 0) - (b[1][0]?.order || 0)
+    );
+
+    for (const [categoryName, questions] of sortedCategories) {
+      content += `**${categoryName}**\n\n`;
+      for (const q of questions) {
+        content += `**Q${q.order}: ${q.question}**\n`;
+        content += `${q.answer || "_Not answered_"}\n\n`;
+      }
+    }
   }
 
   return content;
