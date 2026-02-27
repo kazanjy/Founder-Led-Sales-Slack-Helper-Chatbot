@@ -251,8 +251,9 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
       aiResponse = chatbaseResult.response;
     } catch (chatbaseError) {
       console.error("Chatbase API error:", chatbaseError);
+      const errorMessage = chatbaseError instanceof Error ? chatbaseError.message : "Unknown error";
       return NextResponse.json(
-        { error: "Failed to generate narrative. Please try again." },
+        { error: `Failed to generate narrative: ${errorMessage}` },
         { status: 500 }
       );
     }
