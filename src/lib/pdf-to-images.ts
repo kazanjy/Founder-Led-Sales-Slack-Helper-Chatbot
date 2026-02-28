@@ -1,13 +1,5 @@
 "use client";
 
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set up the worker - use unpkg CDN which syncs directly from npm
-// Note: PDF.js 4.x+ uses .mjs extension for ES modules
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-}
-
 export interface PDFPageImage {
   pageNumber: number;
   dataUrl: string; // base64 data URL
@@ -23,6 +15,7 @@ export interface PDFConversionResult {
 
 /**
  * Convert a PDF file to an array of images (one per page)
+ * Uses dynamic import to ensure pdfjs-dist only loads in the browser
  * @param file - The PDF file to convert
  * @param options - Conversion options
  * @returns Array of page images as base64 data URLs
@@ -36,12 +29,23 @@ export async function convertPDFToImages(
     quality?: number; // JPEG quality 0-1 (default: 0.8)
   } = {}
 ): Promise<PDFConversionResult> {
+  // Ensure we're in a browser environment
+  if (typeof window === "undefined") {
+    throw new Error("convertPDFToImages can only be called in the browser");
+  }
+
   const {
     maxPages = 50,
     scale = 1.5,
     format = "jpeg",
     quality = 0.8,
   } = options;
+
+  // Dynamic import to avoid loading pdfjs-dist on the server
+  const pdfjsLib = await import("pdfjs-dist");
+
+  // Set up the worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   // Read file as ArrayBuffer
   const arrayBuffer = await file.arrayBuffer();

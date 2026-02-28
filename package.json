@@ -37,7 +37,6 @@
     "nanoid": "^5.0.9",
     "next": "^15.5.10",
     "openai": "^6.16.0",
-    "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.624",
     "posthog-js": "^1.338.0",
     "react": "19.1.0",
@@ -45,7 +44,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "resend": "^6.9.1",
-    "stripe": "^20.2.0"
+    "stripe": "^20.2.0",
+    "unpdf": "^1.4.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
