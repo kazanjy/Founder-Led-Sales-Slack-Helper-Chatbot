@@ -27,6 +27,12 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
 
   console.log("handleSlackEvent called:", { team_id, eventType: event.type, bot_id: event.bot_id });
 
+  // Handle member_joined_channel - post welcome when Mikey is added to a new channel
+  if (event.type === "member_joined_channel") {
+    await handleBotChannelJoin(team_id, event);
+    return;
+  }
+
   // Ignore bot messages to prevent loops
   if (event.bot_id) {
     console.log("Ignoring bot message");
@@ -56,6 +62,48 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
   if (event.type === "message" && event.thread_ts && event.thread_ts !== event.ts) {
     await handleThreadReply(team_id, event);
     return;
+  }
+}
+
+/**
+ * Handle bot being added to a new channel
+ * Posts a welcome message so the team knows Mikey is ready
+ */
+async function handleBotChannelJoin(
+  teamId: string,
+  event: SlackEventPayload["event"]
+) {
+  const { user, channel } = event;
+  if (!user || !channel) return;
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { slackTeamId: teamId },
+  });
+
+  if (!workspace) {
+    console.error("Workspace not found for channel join:", teamId);
+    return;
+  }
+
+  // Only post a welcome if it's the bot itself joining, not a regular user
+  if (user !== workspace.botUserId) {
+    return;
+  }
+
+  console.log("Mikey added to channel, posting welcome:", { teamId, channel });
+
+  const client = getSlackClient(workspace.botToken);
+
+  try {
+    await client.chat.postMessage({
+      channel,
+      text:
+        "👋 Hey team! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
+        "Ask me anything about sales strategies, outreach, objection handling, and more - just @mention me!\n\n" +
+        "Here's to some founder-led selling success! 🚀",
+    });
+  } catch (error) {
+    console.error("Error posting channel welcome:", error);
   }
 }
 
