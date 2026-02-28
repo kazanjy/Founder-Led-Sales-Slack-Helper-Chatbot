@@ -1,14 +1,10 @@
 /**
  * Server-side PDF processing utilities
- * Uses pdfjs-dist for text extraction without requiring canvas
+ * Uses pdf-parse for text extraction (Node.js compatible, no browser APIs needed)
  */
 
-// Use the legacy build for Node.js environments (avoids DOMMatrix errors)
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-
-// Configure pdfjs for Node.js environment (no worker needed for text extraction)
-// Disable worker since we're in a serverless environment
-pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse");
 
 export interface PDFTextExtractionResult {
   fileName: string;
@@ -32,91 +28,78 @@ export async function extractTextFromPDF(
   fileName: string,
   maxPages: number = 50
 ): Promise<PDFTextExtractionResult> {
-  // Convert Buffer to Uint8Array for pdfjs
-  const uint8Array = new Uint8Array(buffer);
+  try {
+    // Configure pdf-parse options
+    const options = {
+      // Limit pages if needed
+      max: maxPages,
+    };
 
-  // Load the PDF document
-  const loadingTask = pdfjsLib.getDocument({
-    data: uint8Array,
-    useSystemFonts: true,
-    // Disable features we don't need for text extraction
-    disableFontFace: true,
-  });
+    const data = await pdfParse(buffer, options);
 
-  const pdf = await loadingTask.promise;
-  const totalPages = pdf.numPages;
-  const pagesToProcess = Math.min(totalPages, maxPages);
+    // pdf-parse returns full text, we'll split by page markers if present
+    // or treat as single block
+    const fullText = data.text || "";
+    const totalPages = data.numpages || 1;
 
-  const pages: Array<{ pageNumber: number; text: string }> = [];
-  const textParts: string[] = [];
+    // Since pdf-parse doesn't provide page-by-page extraction directly,
+    // we'll provide the full text with page count info
+    const pages: Array<{ pageNumber: number; text: string }> = [];
 
-  // Extract text from each page
-  for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
-    try {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
+    // Try to split by common page break patterns
+    const pageTexts = fullText.split(/\f/); // Form feed is often used as page break
 
-      // Combine text items into a single string
-      // Handle spacing between items
-      let pageText = "";
-      let lastY: number | null = null;
-
-      for (const item of textContent.items) {
-        if ("str" in item) {
-          // Check if we need a newline (different Y position indicates new line)
-          if (lastY !== null && "transform" in item) {
-            const currentY = item.transform[5];
-            if (Math.abs(currentY - lastY) > 5) {
-              pageText += "\n";
-            } else if (pageText && !pageText.endsWith(" ")) {
-              pageText += " ";
-            }
-          }
-
-          pageText += item.str;
-
-          if ("transform" in item) {
-            lastY = item.transform[5];
-          }
+    if (pageTexts.length > 1) {
+      // We have page breaks, use them
+      const pagesToProcess = Math.min(pageTexts.length, maxPages);
+      for (let i = 0; i < pagesToProcess; i++) {
+        const pageText = pageTexts[i].trim();
+        if (pageText) {
+          pages.push({
+            pageNumber: i + 1,
+            text: pageText,
+          });
         }
       }
-
-      // Clean up extra whitespace
-      pageText = pageText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .join("\n");
-
+    } else {
+      // Single block of text, treat as one page
       pages.push({
-        pageNumber: pageNum,
-        text: pageText,
-      });
-
-      if (pageText) {
-        textParts.push(`--- Page ${pageNum} ---\n${pageText}`);
-      }
-    } catch (error) {
-      console.error(`[PDF] Error extracting text from page ${pageNum}:`, error);
-      pages.push({
-        pageNumber: pageNum,
-        text: `[Error extracting page ${pageNum}]`,
+        pageNumber: 1,
+        text: fullText.trim(),
       });
     }
-  }
 
-  // Add note if we truncated pages
-  let fullText = textParts.join("\n\n");
-  if (totalPages > pagesToProcess) {
-    fullText += `\n\n[Note: PDF has ${totalPages} pages total, showing first ${pagesToProcess}]`;
-  }
+    // Format full text with page markers if we have multiple pages
+    let formattedFullText = "";
+    if (pages.length > 1) {
+      formattedFullText = pages
+        .map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`)
+        .join("\n\n");
+    } else {
+      formattedFullText = fullText.trim();
+    }
 
-  return {
-    fileName,
-    totalPages,
-    pages,
-    fullText,
-  };
+    // Add note if we truncated pages
+    if (totalPages > maxPages) {
+      formattedFullText += `\n\n[Note: PDF has ${totalPages} pages total, showing first ${maxPages}]`;
+    }
+
+    return {
+      fileName,
+      totalPages,
+      pages,
+      fullText: formattedFullText,
+    };
+  } catch (error) {
+    console.error(`[PDF] Error extracting text from PDF:`, error);
+    // Return empty result on error
+    return {
+      fileName,
+      totalPages: 0,
+      pages: [],
+      fullText: `[Error: Could not extract text from PDF "${fileName}"]`,
+    };
+  }
 }
 
 /**
