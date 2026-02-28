@@ -22,6 +22,8 @@ function truncateMessage(content: string, maxLength: number = CHATBASE_MESSAGE_L
   if (content.length <= maxLength) {
     return content;
   }
+  // Log when truncation happens
+  console.warn(`[Chatbase] Message truncated from ${content.length} to ${maxLength} characters (${Math.round((content.length - maxLength) / 1000)}KB lost)`);
   // Truncate and add indicator
   return content.substring(0, maxLength - 50) + "\n\n[Message truncated for length...]";
 }

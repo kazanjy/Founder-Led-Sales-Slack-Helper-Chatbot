@@ -213,6 +213,7 @@ async function processSlackFiles(
       // Extract text from PDF
       const pdfResult = await extractTextFromPDF(fileBuffer, file.name);
       const formattedContent = formatPDFForAI(pdfResult);
+      console.log(`[Slack PDF] Extracted ${pdfResult.fullText.length} chars from ${file.name} (${pdfResult.totalPages} pages), formatted to ${formattedContent.length} chars`);
       descriptions.push(formattedContent);
 
       // Store PDF in Supabase (as base64)
@@ -812,6 +813,12 @@ async function processMessage(
   }
 
   try {
+    // Log message size before sending to Chatbase
+    console.log(`[Slack -> Chatbase] Message size: ${messageWithContext.length} chars, history: ${chatbaseHistory.length} messages`);
+    if (messageWithContext.length > 7500) {
+      console.warn(`[Slack -> Chatbase] WARNING: Message exceeds 7500 char limit, will be truncated by ${messageWithContext.length - 7500} chars`);
+    }
+
     // Get response from Chatbase
     // If we have a conversationId, Chatbase already has the context - just send the new message
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
