@@ -4,6 +4,7 @@ import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
+import { extractTextFromPDF, isPDFMimeType, formatPDFForAI } from "@/lib/pdf-server";
 
 // Slack file object structure (subset of fields we need)
 interface SlackFile {
@@ -39,6 +40,9 @@ const SUPPORTED_IMAGE_TYPES = [
   "image/gif",
   "image/webp",
 ];
+
+// Supported PDF mime type
+const PDF_MIME_TYPE = "application/pdf";
 
 /**
  * Download a file from Slack using the bot token
@@ -129,27 +133,32 @@ async function getSalesNarrativeForContext(userId: string): Promise<string | nul
 
 /**
  * Process Slack file attachments - download, analyze, and store
+ * Supports both images (via Vision API) and PDFs (via text extraction)
  */
 async function processSlackFiles(
   files: SlackFile[],
   botToken: string,
   userId: string,
   conversationId: string
-): Promise<{ descriptions: string[]; storedFiles: StoredFileReference[] }> {
+): Promise<{ descriptions: string[]; storedFiles: StoredFileReference[]; imageCount: number; pdfCount: number }> {
   const descriptions: string[] = [];
   const storedFiles: StoredFileReference[] = [];
 
-  // Filter to only supported image types
+  // Separate images and PDFs
   const imageFiles = files.filter((f) =>
     SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
   );
+  const pdfFiles = files.filter((f) =>
+    isPDFMimeType(f.mimetype)
+  );
 
-  if (imageFiles.length === 0) {
-    return { descriptions, storedFiles };
+  if (imageFiles.length === 0 && pdfFiles.length === 0) {
+    return { descriptions, storedFiles, imageCount: 0, pdfCount: 0 };
   }
 
-  console.log(`[Slack] Processing ${imageFiles.length} image attachments`);
+  console.log(`[Slack] Processing ${imageFiles.length} image(s) and ${pdfFiles.length} PDF(s)`);
 
+  // Process images through Vision API
   for (const file of imageFiles) {
     try {
       // Download the file from Slack
@@ -172,14 +181,42 @@ async function processSlackFiles(
       });
       storedFiles.push(storedRef);
 
-      console.log(`[Slack] Processed and stored: ${file.name}`);
+      console.log(`[Slack] Processed and stored image: ${file.name}`);
     } catch (error) {
-      console.error(`[Slack] Error processing file ${file.name}:`, error);
+      console.error(`[Slack] Error processing image ${file.name}:`, error);
       descriptions.push(`[Image: ${file.name}] (Error processing image)`);
     }
   }
 
-  return { descriptions, storedFiles };
+  // Process PDFs through text extraction
+  for (const file of pdfFiles) {
+    try {
+      // Download the PDF from Slack
+      const fileBuffer = await downloadSlackFile(file.url_private, botToken);
+
+      // Extract text from PDF
+      const pdfResult = await extractTextFromPDF(fileBuffer, file.name);
+      const formattedContent = formatPDFForAI(pdfResult);
+      descriptions.push(formattedContent);
+
+      // Store PDF in Supabase (as base64)
+      const base64 = fileBuffer.toString("base64");
+      const dataUrl = `data:application/pdf;base64,${base64}`;
+      const storedRef = await uploadFile(userId, conversationId, {
+        name: file.name,
+        type: "pdf",
+        data: dataUrl,
+      });
+      storedFiles.push(storedRef);
+
+      console.log(`[Slack] Processed and stored PDF: ${file.name} (${pdfResult.totalPages} pages)`);
+    } catch (error) {
+      console.error(`[Slack] Error processing PDF ${file.name}:`, error);
+      descriptions.push(`[PDF: ${file.name}] (Error processing PDF)`);
+    }
+  }
+
+  return { descriptions, storedFiles, imageCount: imageFiles.length, pdfCount: pdfFiles.length };
 }
 
 /**
@@ -475,19 +512,19 @@ async function handleMention(
         priorThreadContext = `Here's the conversation that was happening in this thread before I was mentioned:\n\n${formattedMessages}\n\n---\n\nNow the user is asking:`;
         console.log(`Fetched ${priorMessages.length} prior messages for context`);
 
-        // Collect image files from prior messages
+        // Collect image and PDF files from prior messages
         for (const msg of priorMessages) {
           if (msg.files && msg.files.length > 0) {
-            // Filter to supported image types and add to collection
-            const imageFiles = msg.files.filter(f =>
-              SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
+            // Filter to supported image types and PDFs, add to collection
+            const supportedFiles = msg.files.filter(f =>
+              SUPPORTED_IMAGE_TYPES.includes(f.mimetype) || isPDFMimeType(f.mimetype)
             );
-            priorThreadFiles.push(...imageFiles);
+            priorThreadFiles.push(...supportedFiles);
           }
         }
 
         if (priorThreadFiles.length > 0) {
-          console.log(`Found ${priorThreadFiles.length} images in prior thread messages`);
+          console.log(`Found ${priorThreadFiles.length} files (images/PDFs) in prior thread messages`);
         }
       }
     } catch (error) {
@@ -626,13 +663,28 @@ async function processMessage(
   if (files && files.length > 0) {
     console.log(`[Slack] Processing ${files.length} file attachments`);
 
-    // Send a "processing" message to acknowledge the images
-    await sendSlackMessage(
-      client,
-      channel,
-      `📷 Processing ${files.length} image${files.length > 1 ? "s" : ""}...`,
-      threadTs
-    );
+    // Count images and PDFs for the processing message
+    const imageCount = files.filter(f => SUPPORTED_IMAGE_TYPES.includes(f.mimetype)).length;
+    const pdfCount = files.filter(f => isPDFMimeType(f.mimetype)).length;
+
+    // Build processing message
+    const processingParts: string[] = [];
+    if (imageCount > 0) {
+      processingParts.push(`${imageCount} image${imageCount > 1 ? "s" : ""}`);
+    }
+    if (pdfCount > 0) {
+      processingParts.push(`${pdfCount} PDF${pdfCount > 1 ? "s" : ""}`);
+    }
+
+    if (processingParts.length > 0) {
+      // Send a "processing" message to acknowledge the files
+      await sendSlackMessage(
+        client,
+        channel,
+        `📎 Processing ${processingParts.join(" and ")}...`,
+        threadTs
+      );
+    }
 
     const { descriptions, storedFiles: stored } = await processSlackFiles(
       files,
@@ -643,12 +695,12 @@ async function processMessage(
 
     storedFiles = stored;
 
-    // Append image descriptions to the message
+    // Append file descriptions to the message
     if (descriptions.length > 0) {
-      const imageSection = descriptions.join("\n\n");
+      const fileSection = descriptions.join("\n\n");
       finalText = text
-        ? `${text}\n\n---\n\n${imageSection}`
-        : imageSection;
+        ? `${text}\n\n---\n\n${fileSection}`
+        : fileSection;
     }
 
     // Update conversation with stored file references
