@@ -144,6 +144,14 @@ async function processSlackFiles(
   const descriptions: string[] = [];
   const storedFiles: StoredFileReference[] = [];
 
+  // Log all incoming files for debugging
+  console.log("[Slack Files] Incoming files:", files.map(f => ({
+    name: f.name,
+    mimetype: f.mimetype,
+    filetype: f.filetype,
+    size: f.size,
+  })));
+
   // Separate images and PDFs
   const imageFiles = files.filter((f) =>
     SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
@@ -151,6 +159,14 @@ async function processSlackFiles(
   const pdfFiles = files.filter((f) =>
     isPDFMimeType(f.mimetype)
   );
+
+  console.log("[Slack Files] Filtered:", {
+    imageCount: imageFiles.length,
+    pdfCount: pdfFiles.length,
+    unsupportedFiles: files.filter(f =>
+      !SUPPORTED_IMAGE_TYPES.includes(f.mimetype) && !isPDFMimeType(f.mimetype)
+    ).map(f => ({ name: f.name, mimetype: f.mimetype })),
+  });
 
   if (imageFiles.length === 0 && pdfFiles.length === 0) {
     return { descriptions, storedFiles, imageCount: 0, pdfCount: 0 };
@@ -421,7 +437,13 @@ async function handleMention(
   teamId: string,
   event: SlackEventPayload["event"]
 ) {
-  console.log("handleMention started:", { teamId, event });
+  console.log("handleMention started:", {
+    teamId,
+    eventType: event.type,
+    hasFiles: !!event.files,
+    fileCount: event.files?.length || 0,
+    files: event.files?.map(f => ({ name: f.name, mimetype: f.mimetype, filetype: f.filetype })),
+  });
 
   const { user, text, channel, ts, thread_ts, files } = event;
   if (!user || !channel || !ts) {
