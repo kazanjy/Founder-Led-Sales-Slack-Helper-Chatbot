@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { markdownToSlack } from "./markdown";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
@@ -815,16 +816,54 @@ async function processMessage(
   try {
     // Log message size before sending to Chatbase
     console.log(`[Slack -> Chatbase] Message size: ${messageWithContext.length} chars, history: ${chatbaseHistory.length} messages`);
-    if (messageWithContext.length > 7500) {
-      console.warn(`[Slack -> Chatbase] WARNING: Message exceeds 7500 char limit, will be truncated by ${messageWithContext.length - 7500} chars`);
+
+    // Prepare the final message and history for Chatbase
+    let finalChatbaseMessage = messageWithContext;
+    let finalChatbaseHistory = chatbaseHistory;
+
+    // If the message exceeds Chatbase's limit (likely due to file content),
+    // chunk the file content and send as conversation history
+    if (needsChunking(messageWithContext)) {
+      console.log(`[Slack -> Chatbase] Message exceeds ${CHATBASE_MESSAGE_LIMIT} chars, applying chunking strategy`);
+
+      // Extract the user's actual question (text before the file section)
+      const fileSectionMatch = messageWithContext.match(/^([\s\S]*?)\n\n---\n\n([\s\S]+)$/);
+
+      if (fileSectionMatch) {
+        const userQuestion = fileSectionMatch[1].trim();
+        const fileContent = fileSectionMatch[2].trim();
+
+        // Chunk the file content (use page-based splitting for PDFs)
+        const fileChunks = splitByPages(fileContent, CHATBASE_MESSAGE_LIMIT);
+        console.log(`[Slack -> Chatbase] Split file content into ${fileChunks.length} chunks`);
+
+        // Build chunked history for the file content
+        const chunkedFileHistory = buildChunkedHistory(fileChunks, "Attached Files");
+
+        // Prepend chunked file history, then add any existing history
+        finalChatbaseHistory = [...chunkedFileHistory, ...chatbaseHistory];
+
+        // The final message is just the user's question (or a prompt to analyze the files)
+        finalChatbaseMessage = userQuestion || "Please analyze the attached files and provide insights.";
+        console.log(`[Slack -> Chatbase] Final message: ${finalChatbaseMessage.length} chars, history: ${finalChatbaseHistory.length} messages`);
+      } else {
+        // No clear file section separator, chunk the entire message
+        const chunks = splitByPages(messageWithContext, CHATBASE_MESSAGE_LIMIT);
+        if (chunks.length > 1) {
+          const chunkedHistory = buildChunkedHistory(chunks.slice(0, -1), "Content");
+          finalChatbaseHistory = [...chunkedHistory, ...chatbaseHistory];
+          finalChatbaseMessage = chunks[chunks.length - 1];
+          console.log(`[Slack -> Chatbase] Chunked entire message into ${chunks.length} parts`);
+        }
+      }
     }
 
     // Get response from Chatbase
     // If we have a conversationId, Chatbase already has the context - just send the new message
     const { response, conversationId: chatbaseConvId } = await sendToChatbase(
-      messageWithContext,
+      finalChatbaseMessage,
       conversation.chatbaseConversationId || undefined,
-      chatbaseHistory
+      finalChatbaseHistory
     );
 
     // Update conversation with Chatbase ID if we got one

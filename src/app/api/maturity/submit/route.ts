@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { splitIntoChunks, buildChunkedHistory, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { generateAssessmentTitle } from "@/lib/openai";
 
 // POST - Submit the completed assessment and create AI recommendations conversation
@@ -66,46 +67,8 @@ export async function POST(request: NextRequest) {
     // Log the total size for debugging
     console.log("Assessment summary length:", assessmentSummary.length, "characters");
 
-    // Chatbase has an 8000 character limit per message
-    // Split the assessment into chunks for the conversation history
-    const CHATBASE_LIMIT = 7500; // Leave some buffer
-
-    const splitIntoChunks = (text: string, maxLength: number): string[] => {
-      const chunks: string[] = [];
-      const sections = text.split(/(?=## )/); // Split by category headers
-
-      let currentChunk = "";
-      for (const section of sections) {
-        if (currentChunk.length + section.length > maxLength) {
-          if (currentChunk) {
-            chunks.push(currentChunk.trim());
-          }
-          // If a single section is too long, split it further
-          if (section.length > maxLength) {
-            const lines = section.split("\n");
-            currentChunk = "";
-            for (const line of lines) {
-              if (currentChunk.length + line.length + 1 > maxLength) {
-                chunks.push(currentChunk.trim());
-                currentChunk = line + "\n";
-              } else {
-                currentChunk += line + "\n";
-              }
-            }
-          } else {
-            currentChunk = section;
-          }
-        } else {
-          currentChunk += section;
-        }
-      }
-      if (currentChunk.trim()) {
-        chunks.push(currentChunk.trim());
-      }
-      return chunks;
-    };
-
-    const assessmentChunks = splitIntoChunks(assessmentSummary, CHATBASE_LIMIT);
+    // Split the assessment into chunks for the conversation history (uses shared chunking utility)
+    const assessmentChunks = splitIntoChunks(assessmentSummary, CHATBASE_MESSAGE_LIMIT);
     console.log(`Split assessment into ${assessmentChunks.length} chunks`);
 
     // Build the full user message for database storage
@@ -138,27 +101,8 @@ export async function POST(request: NextRequest) {
     let chatbaseConvId: string | undefined;
 
     try {
-      // Build conversation history from assessment chunks
-      // Each chunk becomes a "user" message in history, then we send a final request
-      const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-
-      // Add chunks as context in conversation history
-      for (let i = 0; i < assessmentChunks.length; i++) {
-        const chunkLabel = assessmentChunks.length > 1
-          ? `[Assessment Part ${i + 1} of ${assessmentChunks.length}]\n\n`
-          : "";
-        chatbaseHistory.push({
-          role: "user",
-          content: `${chunkLabel}${assessmentChunks[i]}`,
-        });
-        // Add acknowledgment from assistant to maintain conversation flow
-        if (i < assessmentChunks.length - 1) {
-          chatbaseHistory.push({
-            role: "assistant",
-            content: `I've received part ${i + 1} of your GTM Maturity Assessment. Please continue with the remaining sections.`,
-          });
-        }
-      }
+      // Build conversation history from assessment chunks using shared chunking utility
+      const chatbaseHistory = buildChunkedHistory(assessmentChunks, "Assessment");
 
       // Send the final message asking for analysis
       const finalMessage = "Can you assess the maturity of the startup submitting this quiz, based on these questions and answers, and provide them which stage of Pete's GTM Maturity Model they're at, three things they're doing well, three things that they need to work on next, and three resources that they should refer to to help them, and the three chat prompts in Mikey they might consider doing next.";
