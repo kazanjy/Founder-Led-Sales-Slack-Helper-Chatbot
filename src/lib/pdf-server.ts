@@ -3,7 +3,8 @@
  * Uses pdfjs-dist for text extraction without requiring canvas
  */
 
-import * as pdfjsLib from "pdfjs-dist";
+// Use the legacy build for Node.js environments (avoids DOMMatrix errors)
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Configure pdfjs for Node.js environment (no worker needed for text extraction)
 // Disable worker since we're in a serverless environment
