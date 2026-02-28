@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSlackClient, sendSlackMessage } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
+import { handleCommand } from "./commands";
 
 interface SlackEventPayload {
   team_id: string;
@@ -277,6 +278,13 @@ async function handleMention(
     return;
   }
 
+  // Check for hashtag commands (e.g. #instructions)
+  const commandResponse = handleCommand(cleanText);
+  if (commandResponse) {
+    await sendSlackMessage(client, channel, commandResponse, ts);
+    return;
+  }
+
   // Process the message
   console.log("Calling processMessage");
   await processMessage(workspace, dbUser, channel, ts, cleanText);
@@ -320,6 +328,13 @@ async function handleDirectMessage(
   // Send welcome message for first-time users
   if (canSend.welcomeMessage) {
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
+  }
+
+  // Check for hashtag commands (e.g. #instructions)
+  const commandResponse = handleCommand(text);
+  if (commandResponse) {
+    await sendSlackMessage(client, channel, commandResponse, threadTs);
+    return;
   }
 
   await processMessage(workspace, dbUser, channel, threadTs, text, ts);
@@ -391,6 +406,13 @@ async function handleThreadReply(
       "I'm here! What can I help you with?",
       thread_ts
     );
+    return;
+  }
+
+  // Check for hashtag commands (e.g. #instructions)
+  const commandResponse = handleCommand(cleanText);
+  if (commandResponse) {
+    await sendSlackMessage(client, channel, commandResponse, thread_ts);
     return;
   }
 
