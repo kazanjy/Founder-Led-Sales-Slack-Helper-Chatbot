@@ -5,7 +5,7 @@ import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMI
 import { markdownToSlack } from "./markdown";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
-import { extractTextFromPDF, isPDFMimeType, formatPDFForAI } from "@/lib/pdf-server";
+import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
 
 // Slack file object structure (subset of fields we need)
 interface SlackFile {
@@ -205,16 +205,18 @@ async function processSlackFiles(
     }
   }
 
-  // Process PDFs through text extraction
+  // Process PDFs through text extraction (with OCR fallback for scanned PDFs)
   for (const file of pdfFiles) {
     try {
       // Download the PDF from Slack
       const fileBuffer = await downloadSlackFile(file.url_private, botToken);
 
-      // Extract text from PDF
-      const pdfResult = await extractTextFromPDF(fileBuffer, file.name);
-      const formattedContent = formatPDFForAI(pdfResult);
-      console.log(`[Slack PDF] Extracted ${pdfResult.fullText.length} chars from ${file.name} (${pdfResult.totalPages} pages), formatted to ${formattedContent.length} chars`);
+      // Extract text from PDF (with automatic OCR fallback for scanned PDFs)
+      const { result: pdfResult, usedOCR } = await extractTextFromPDFWithOCR(fileBuffer, file.name);
+      const formattedContent = formatPDFForAIWithOCR(pdfResult, usedOCR);
+
+      const ocrNote = usedOCR ? " (OCR)" : "";
+      console.log(`[Slack PDF] Extracted ${pdfResult.fullText.length} chars from ${file.name}${ocrNote} (${pdfResult.totalPages} pages), formatted to ${formattedContent.length} chars`);
       descriptions.push(formattedContent);
 
       // Store PDF in Supabase (as base64)
@@ -227,7 +229,7 @@ async function processSlackFiles(
       });
       storedFiles.push(storedRef);
 
-      console.log(`[Slack] Processed and stored PDF: ${file.name} (${pdfResult.totalPages} pages)`);
+      console.log(`[Slack] Processed and stored PDF: ${file.name} (${pdfResult.totalPages} pages${ocrNote})`);
     } catch (error) {
       console.error(`[Slack] Error processing PDF ${file.name}:`, error);
       descriptions.push(`[PDF: ${file.name}] (Error processing PDF)`);
