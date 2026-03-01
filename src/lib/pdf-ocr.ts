@@ -119,8 +119,9 @@ async function convertPDFToImagesServer(
     throw new Error("Server-side PDF rendering requires the 'canvas' package");
   }
 
-  // Dynamic import pdfjs-dist for server
-  const pdfjsLib = await import("pdfjs-dist");
+  // Dynamic import pdfjs-dist legacy build for Node.js server environment
+  // The legacy build avoids Web Worker issues (DataCloneError) in Node.js
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
   const uint8Array = new Uint8Array(buffer);
   const pdf = await getDocumentProxy(uint8Array);
@@ -132,8 +133,13 @@ async function convertPDFToImagesServer(
   const pages: Array<{ pageNumber: number; dataUrl: string }> = [];
   const scale = 2.0; // Higher scale for better OCR accuracy
 
-  // Get the actual pdfjs document for rendering
-  const pdfDocument = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+  // Get the actual pdfjs document for rendering with worker disabled for Node.js
+  const pdfDocument = await pdfjsLib.getDocument({
+    data: uint8Array,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  }).promise;
 
   for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
     try {
