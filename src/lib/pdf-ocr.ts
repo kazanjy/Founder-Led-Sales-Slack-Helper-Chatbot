@@ -123,6 +123,10 @@ async function convertPDFToImagesServer(
   // The legacy build avoids Web Worker issues (DataCloneError) in Node.js
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
+  // CRITICAL: Disable PDF.js worker completely to prevent DataCloneError in Node.js
+  // This must be set BEFORE creating any document
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+
   const uint8Array = new Uint8Array(buffer);
   const pdf = await getDocumentProxy(uint8Array);
   const totalPages = pdf.numPages;
@@ -133,12 +137,13 @@ async function convertPDFToImagesServer(
   const pages: Array<{ pageNumber: number; dataUrl: string }> = [];
   const scale = 2.0; // Higher scale for better OCR accuracy
 
-  // Get the actual pdfjs document for rendering with worker disabled for Node.js
+  // Get the actual pdfjs document for rendering with worker fully disabled for Node.js
   const pdfDocument = await pdfjsLib.getDocument({
     data: uint8Array,
     useWorkerFetch: false,
     isEvalSupported: false,
     useSystemFonts: true,
+    disableAutoFetch: true,
   }).promise;
 
   for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
