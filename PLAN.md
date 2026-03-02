@@ -1,268 +1,532 @@
-# Web Search Feature Plan for Mikey
+# Pre-Call Planning Applet — Implementation Plan
 
-## Problem Statement
+## Overview
 
-Users doing pre-call planning need real-world context about the company and people they're meeting. Today, Mikey can give great *methodology* advice (from Pete's content via Chatbase) but has no way to pull in *situational* context — what the prospect's company does, recent news, the contact's LinkedIn background, etc.
+A two-part feature:
+1. **Pre-Call Planning Process** — A new applet (like Sales Narrative, Discovery Questions, First Call Checklist) where users generate and version their reusable pre-call planning steps
+2. **Pre-Call Research** — A web-search-powered flow that takes a specific company/contact, researches them via Brave, and synthesizes the results against the user's planning process doc
 
-The goal: let Mikey perform web searches to gather account/contact research, then synthesize that against the user's Sales Narrative, discovery questions, and pre-call planning methodology to produce actionable, personalized prep.
+The planning process must exist before research can run. This follows the same dependency chain pattern as the existing applets:
+
+```
+Sales Narrative → Discovery Questions → First Call Checklist → Pre-Call Planning Process
+                                                                        ↓
+                                                              Pre-Call Research
+                                                            (per-account, on demand)
+```
 
 ---
 
-## Architecture Overview
+## Part 1: Pre-Call Planning Process Applet
 
-### The Core Tension: Chatbase vs. Direct LLM
+### How It Works
 
-The current system routes ALL messages through Chatbase, which hosts Pete's RAG knowledge base. This is great for methodology questions but creates a challenge for web search:
+This follows the **First Call Checklist pattern** (generated from upstream data, editable, markdown output). It does NOT have its own Q&A wizard — it generates from the user's existing Sales Narrative + Discovery Questions + First Call Checklist.
 
-**Chatbase limitations:**
-- 8,000 char message limit (7,500 with buffer)
-- No tool-use / function-calling capability
-- Can't execute searches itself
-- Designed for RAG against Pete's corpus, not for synthesizing external data
+**User journey:**
+1. User navigates to `/pre-call-planning`
+2. If no Sales Narrative exists → prompt to create one first
+3. If no version exists → show "Generate" screen
+4. Click "Generate" → GPT-5 produces a pre-call planning process document
+5. View the generated process with markdown rendering
+6. Edit in place if needed (markdown editor, like First Call Checklist)
+7. Regenerate to create new versions
+8. Version history at `/pre-call-planning/history`
 
-**This means web search can't live *inside* Chatbase — it needs to happen *around* it.**
+### What Gets Generated
 
-### Proposed Architecture: "Orchestrator" Pattern
+The planning process doc is a reusable template — not specific to any account. It captures the user's methodology for preparing for calls, informed by their product/narrative:
+
+```markdown
+# Pre-Call Planning Process
+
+## 1. Account Research Checklist
+- Company basics (size, stage, industry, funding)
+- Recent news and announcements
+- Technology stack / current solutions
+- Key competitors they may be evaluating
+- ...
+
+## 2. Contact Research Checklist
+- Role, tenure, reporting structure
+- LinkedIn activity and interests
+- Previous interactions with your company
+- Likely priorities given their role
+- ...
+
+## 3. Opportunity Qualification
+- How does this account map to your ICP?
+- Which pain points from your narrative are most relevant?
+- What's the likely buying process?
+- ...
+
+## 4. Call Preparation
+- Tailored discovery questions to prioritize
+- Value prop talking points for this persona
+- Objection handling prep
+- Desired outcomes and next steps
+- ...
+
+## 5. Post-Call Debrief Template
+- What did we learn?
+- How did the discovery questions land?
+- Next steps and follow-up items
+- ...
+```
+
+### Database Models
+
+Following the existing pattern exactly:
+
+```prisma
+model PreCallPlanningVersion {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Link to upstream: uses all three as inputs
+  salesNarrativeVersionId       String
+  salesNarrativeVersion         SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id])
+  discoveryQuestionsVersionId   String?
+  discoveryQuestionsVersion     DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id])
+  firstCallChecklistVersionId   String?
+  firstCallChecklistVersion     FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id])
+
+  content     String   @db.Text  // Markdown string (editable, like First Call Checklist)
+
+  // Downstream: research executions use this as their template
+  researchExecutions  PreCallResearch[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("pre_call_planning_versions")
+}
+```
+
+**Why no Q&A model?** The planning process is generated from existing upstream data, not from new user Q&A. Same as Discovery Questions and First Call Checklist. The "inputs" are the Sales Narrative answers + the generated outputs from Discovery Questions and First Call Checklist.
+
+### API Routes
+
+Following the exact existing pattern:
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/pre-call-planning/generate` | POST | Generate from latest upstream data |
+| `/api/pre-call-planning/latest` | GET | Get latest version + dependency flags |
+| `/api/pre-call-planning/versions` | GET | List all versions for history |
+| `/api/pre-call-planning/versions/[id]` | GET | Get specific version |
+| `/api/pre-call-planning/versions/[id]` | PATCH | Save manual edits |
+
+### Generation Prompt Strategy
+
+The generate endpoint:
+1. Fetches latest `SalesNarrativeVersion` (with Q&A answers)
+2. Fetches latest `DiscoveryQuestionsVersion` (parsed JSON categories)
+3. Fetches latest `FirstCallChecklistVersion` (markdown content)
+4. Builds a prompt asking GPT-5 to synthesize a reusable pre-call planning process
+5. Stores result as markdown + upserts GTM variable `PRE_CALL_PLANNING`
+
+**LLM choice:** This is the first place we use a **direct LLM call** (not Chatbase). Chatbase is for Pete's RAG knowledge base — here we need structured generation from user-specific data. Use OpenAI GPT-5 via the existing `openai.ts` module (already configured for vision).
+
+### Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| View/Edit | `/pre-call-planning` | View latest or `?version=id`, edit in place |
+| History | `/pre-call-planning/history` | Version list with timestamps |
+
+No separate `/edit` page needed — unlike Sales Narrative, there's no Q&A wizard. Generation is one-click from the main page.
+
+### GTM Variable
 
 ```
-User Message
-    │
-    ▼
-┌─────────────────────┐
-│  Intent Detection    │  ← Does this need web search?
-│  (lightweight LLM)   │
-└────────┬────────────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-[Search]   [No Search → existing Chatbase flow]
-    │
-    ▼
-┌─────────────────────┐
-│  Web Search API      │  ← Brave/Tavily/SerpAPI
-│  (1-3 queries)       │
-└────────┬────────────┘
-         │
-         ▼
-┌─────────────────────┐
-│  Synthesis LLM       │  ← Claude/GPT-4 with:
-│                       │    - Search results
-│                       │    - User's Sales Narrative
-│                       │    - Pete's methodology (prompt-injected)
-│                       │    - User's discovery questions
-└────────┬────────────┘
-         │
-         ▼
-   Response to User
+Merge field: PRE_CALL_PLANNING
+Name: "Pre-Call Planning Process"
 ```
 
-**Key insight:** When web search is invoked, we **bypass Chatbase** for that response and use a direct LLM call instead. We can still inject Pete's methodology as system prompt content — we just won't get the full RAG retrieval. This is fine because pre-call planning is more about *applying* known frameworks than *retrieving* obscure content.
+Updated on generate and on manual edit (if latest version).
 
 ---
 
-## Detailed Design
+## Part 2: Pre-Call Research (Web Search)
 
-### 1. Trigger Detection
+### How It Works
 
-**Option A: Explicit hashtag command (recommended to start)**
-- `#research <company name>` or `#precall <company> <contact>`
-- Fits the existing `handleCommand` pattern
-- Clear user intent, no false positives
-- Easy to document in `#instructions`
+Once the planning process exists, users can run research for a specific account:
 
-**Option B: LLM-based intent detection**
-- Run a cheap/fast model (Haiku) to classify: "Does this message need web search?"
-- More natural but adds latency and cost to every message
-- Could be a Phase 2 enhancement
+**Slack:** `#precall Acme Corp, Jane Smith VP Sales` or `#callprep Acme Corp`
+**Web App:** Dedicated UI within the pre-call planning applet page
 
-**Recommendation:** Start with explicit commands. Add smart detection later.
-
-### 2. Search Execution
-
-**Search API options:**
-
-| API | Pros | Cons |
-|-----|------|------|
-| **Brave Search API** | Cheap ($0.003/query), good quality, includes snippets | Less programmatic control |
-| **Tavily** | Built for AI agents, returns clean extracts | Newer, $0.01/query |
-| **SerpAPI (Google)** | Best results, most complete | Expensive ($0.05/query) |
-
-**Recommendation:** Brave Search API — best cost/quality ratio for our use case.
-
-**Search strategy for pre-call planning:**
-```
-Input: #precall Acme Corp, Jane Smith VP Sales
-
-Generated queries:
-1. "Acme Corp" company overview products services
-2. "Acme Corp" recent news funding announcements 2025 2026
-3. "Jane Smith" "Acme Corp" LinkedIn OR role
-```
-
-The query generation should be done by a lightweight LLM call that takes the user's input and generates 2-4 targeted search queries.
-
-### 3. Result Processing & Synthesis
-
-After search results come back, we need to:
-
-1. **Extract and clean** the top 3-5 results per query (titles, snippets, URLs)
-2. **Optionally deep-fetch** 1-2 key pages (company About page, recent press release) for richer context
-3. **Synthesize** using a direct LLM call with a structured prompt
-
-**Synthesis prompt structure:**
-```
-System: You are Mikey, a founder-led sales advisor trained on Pete Kazanjy's
-methodology. You're helping a founder prepare for a sales call.
-
-Context — User's Sales Narrative:
-{sales_narrative}
-
-Context — User's Discovery Questions:
-{discovery_questions}
-
-Context — User's First Call Checklist:
-{first_call_checklist}
-
-Context — Web Research Results:
-{formatted_search_results}
-
-Task: Synthesize the research into actionable pre-call preparation. Include:
-1. Company overview (what they do, size, stage, recent news)
-2. Contact background (role, tenure, likely priorities)
-3. Potential pain points relevant to the user's product
-4. Suggested discovery questions tailored to this specific account
-5. Talking points that connect the user's value prop to the prospect's situation
-6. Potential objections and how to handle them
-7. Recommended call structure based on the First Call Checklist
-```
-
-### 4. Integration Points
-
-#### Slack (events.ts)
-- Add `#research` and `#precall` to `handleCommand()` — but these aren't simple string responses, they need async processing
-- Better: detect the command in `processMessage()` before the Chatbase call, execute the search+synthesis pipeline, and return the result directly (bypassing Chatbase for that message)
-
-#### Web App (stream/route.ts)
-- Detect search intent in the message before sending to Chatbase
-- Execute search pipeline
-- Stream the synthesis response via SSE (same pattern as Chatbase streaming, but using direct LLM streaming)
-
-#### Conversation History
-- Store the search results and synthesis as a normal assistant message
-- Future messages in the thread can go back to Chatbase (the search context is now in the conversation history)
-
-### 5. Data Flow for Slack
+### Data Flow
 
 ```
-User: @Mikey #precall Acme Corp, Jane Smith
-
-1. handleMention() → processMessage()
-2. Detect #precall command → extract company/contact
-3. Send "🔍 Researching Acme Corp and Jane Smith..." typing indicator
-4. Generate search queries (Claude Haiku, ~200ms)
-5. Execute 2-4 Brave searches in parallel (~500ms)
-6. Fetch user's Sales Narrative, Discovery Questions, First Call Checklist
-7. Build synthesis prompt with all context
-8. Call Claude Sonnet for synthesis (~3-5s)
-9. Format response for Slack
-10. Send response in thread
-11. Save to conversation/messages for web app access
+User Input: "Acme Corp, Jane Smith VP Sales"
+    │
+    ▼
+┌──────────────────────────────┐
+│ Step 1: Search Plan (GPT-5)  │
+│ Generate 3-5 targeted queries │
+│ based on company + contact   │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ Step 2: Brave Search API     │
+│ Execute queries in parallel  │
+│ Top 5 results per query      │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ Step 3: Parse Results (GPT-5)│
+│ Extract & clean key facts    │
+│ from search snippets/pages   │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ Step 4: Synthesize (GPT-5)   │
+│ Merge research against:      │
+│ - Pre-Call Planning Process   │
+│ - Sales Narrative             │
+│ - Discovery Questions         │
+│ - First Call Checklist        │
+│ → Produce account-specific   │
+│   pre-call brief             │
+└──────────────────────────────┘
 ```
 
-### 6. Data Flow for Web App
+### Database Model
+
+```prisma
+model PreCallResearch {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Link to the planning process used
+  planningVersionId  String
+  planningVersion    PreCallPlanningVersion @relation(fields: [planningVersionId], references: [id])
+
+  // Input
+  companyName   String
+  contactName   String?
+  contactRole   String?
+  userNotes     String?   @db.Text  // Any extra context the user provided
+
+  // Search data (for audit/debugging)
+  searchQueries   String   @db.Text  // JSON: string[]
+  searchResults   String   @db.Text  // JSON: condensed results
+
+  // Output
+  brief           String   @db.Text  // The final synthesized pre-call brief (markdown)
+
+  // Metadata
+  source          String   @default("web")  // "web" or "slack"
+  conversationId  String?  // Link to conversation if created via Slack
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, companyName])
+  @@map("pre_call_research")
+}
+```
+
+### API Routes
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/pre-call-planning/research` | POST | Execute research for a company/contact |
+| `/api/pre-call-planning/research/history` | GET | List past research briefs |
+| `/api/pre-call-planning/research/[id]` | GET | Get specific research brief |
+
+### Research Execution — Detailed Steps
+
+**Step 1: Search Plan Generation**
+```typescript
+// src/lib/search/queries.ts
+// Uses GPT-5 to generate targeted search queries
+
+const prompt = `Given this company and contact, generate 3-5 web search queries
+that would help a salesperson prepare for a first call.
+
+Company: ${companyName}
+Contact: ${contactName}, ${contactRole}
+
+Generate queries to find:
+1. Company overview, products, services, stage
+2. Recent news, funding, announcements
+3. Contact's professional background
+4. Industry trends relevant to the company
+5. Competitive landscape
+
+Return as JSON array of strings.`;
+
+const queries: string[] = await generateSearchQueries(companyName, contactName);
+```
+
+**Step 2: Brave Search Execution**
+```typescript
+// src/lib/search/brave.ts
+// Brave Web Search API client
+
+interface BraveSearchResult {
+  title: string;
+  url: string;
+  description: string;  // Snippet
+  age?: string;          // "2 days ago", etc.
+}
+
+async function braveSearch(query: string): Promise<BraveSearchResult[]> {
+  const response = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
+    {
+      headers: {
+        "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY!,
+        "Accept": "application/json",
+      },
+    }
+  );
+  const data = await response.json();
+  return data.web?.results?.map(r => ({
+    title: r.title,
+    url: r.url,
+    description: r.description,
+    age: r.age,
+  })) || [];
+}
+
+// Execute all queries in parallel
+const allResults = await Promise.all(queries.map(q => braveSearch(q)));
+```
+
+**Step 3: Result Parsing**
+```typescript
+// src/lib/search/results.ts
+// Uses GPT-5 to extract and organize key facts
+
+const parsePrompt = `You are a sales research assistant. Given these raw search results
+about ${companyName}, extract and organize the key facts into a structured research summary.
+
+Search Results:
+${formattedResults}
+
+Extract:
+- Company: what they do, size, stage, funding, key products
+- People: ${contactName}'s role, background, tenure
+- News: recent announcements, press, events
+- Industry: relevant market trends, competitive dynamics
+- Red flags or notable items
+
+Be factual. Cite sources with URLs. Flag anything uncertain.`;
+
+const parsedResearch = await parseSearchResults(formattedResults, companyName, contactName);
+```
+
+**Step 4: Synthesis**
+```typescript
+// src/lib/search/synthesis.ts
+// Uses GPT-5 to produce the final pre-call brief
+
+const synthesisPrompt = `You are Mikey, a founder-led sales advisor.
+A founder is preparing for a sales call. Synthesize the research
+against their pre-call planning process to produce an actionable brief.
+
+## User's Pre-Call Planning Process
+${preCallPlanningContent}
+
+## User's Sales Narrative
+${salesNarrative}
+
+## User's Discovery Questions
+${discoveryQuestions}
+
+## User's First Call Checklist
+${firstCallChecklist}
+
+## Research on ${companyName}
+${parsedResearch}
+
+Produce a pre-call brief that follows the user's planning process structure,
+populated with the research findings. Include:
+- Account overview with key facts
+- How this maps to ICP and which pain points are most relevant
+- Tailored discovery questions for this specific account
+- Talking points connecting the user's value prop to this prospect's situation
+- Potential objections specific to this account and how to handle them
+- Recommended call structure and desired outcomes
+- Sources with URLs for key claims`;
+
+const brief = await synthesizePreCallBrief(...);
+```
+
+### Slack Integration
+
+In `processMessage()` (src/lib/slack/events.ts), before the Chatbase call:
+
+```typescript
+// Detect #precall or #callprep command
+const precallMatch = finalText.match(/#(?:precall|callprep)\s+(.+)/i);
+if (precallMatch) {
+  const input = precallMatch[1].trim();
+  // Parse "Company, Contact Name Role" format
+  const { company, contact, role } = parsePrecallInput(input);
+
+  // Check user has a planning process set up
+  const planningVersion = await getLatestPlanningVersion(user.id);
+  if (!planningVersion) {
+    await sendSlackMessage(client, channel,
+      "You need to set up your Pre-Call Planning Process first! " +
+      "Head to the Mikey web app → Pre-Call Planning to get started.", threadTs);
+    return;
+  }
+
+  // Send typing indicator
+  await sendSlackMessage(client, channel,
+    `Researching ${company}${contact ? ` and ${contact}` : ''}...`, threadTs);
+
+  // Execute research pipeline
+  const brief = await executePreCallResearch(user.id, company, contact, role, planningVersion);
+
+  // Send result (bypasses Chatbase entirely)
+  const slackBrief = markdownToSlack(brief);
+  await sendSlackMessage(client, channel, slackBrief, threadTs);
+
+  // Save as conversation message for web app access
+  await saveResearchToConversation(conversation, user, brief);
+  return;
+}
+```
+
+### Web App Integration
+
+Add a "Research" tab or section to the `/pre-call-planning` page:
 
 ```
-User: types "#precall Acme Corp, Jane Smith" or uses a saved prompt
-
-1. POST /api/conversations/[id]/messages/stream
-2. Detect #precall in message
-3. SSE event: { type: "searching", queries: [...] }
-4. Execute searches
-5. SSE event: { type: "search_complete", resultCount: N }
-6. Stream synthesis response via SSE chunks (same as current Chatbase streaming)
-7. SSE event: { type: "done" }
+┌─────────────────────────────────────────────────┐
+│ Pre-Call Planning                                │
+│                                                  │
+│ [Planning Process] [Run Research] [History]       │
+│                                                  │
+│ ┌─────────────────────────────────────────────┐  │
+│ │ Company: [Acme Corp                       ] │  │
+│ │ Contact: [Jane Smith                      ] │  │
+│ │ Role:    [VP Sales                        ] │  │
+│ │ Notes:   [Met at SaaStr, interested in... ] │  │
+│ │                                             │  │
+│ │ [Run Research]                              │  │
+│ └─────────────────────────────────────────────┘  │
+│                                                  │
+│ ┌─ Status ─────────────────────────────────────┐ │
+│ │ ✓ Generated 4 search queries                 │ │
+│ │ ✓ Searched: "Acme Corp overview products"    │ │
+│ │ ✓ Searched: "Acme Corp funding news 2026"    │ │
+│ │ ● Searching: "Jane Smith Acme Corp LinkedIn" │ │
+│ │ ○ Synthesizing pre-call brief...             │ │
+│ └──────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────┘
 ```
 
-The web UI can show a nice "Searching..." state with the queries being executed.
+Research uses SSE streaming (same pattern as chat) with new event types:
+- `event: search_status` — progress updates for each step
+- `event: chunk` — streaming brief text
+- `event: done` — final result with metadata
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Search Infrastructure
-- [ ] Add Brave Search API integration (`src/lib/search/brave.ts`)
-- [ ] Add search query generation (`src/lib/search/queries.ts`) — uses Claude Haiku
-- [ ] Add result parsing/cleaning (`src/lib/search/results.ts`)
-- [ ] Add synthesis prompt builder (`src/lib/search/synthesis.ts`)
-- [ ] Add direct Claude API call for synthesis (we already have `openai.ts`, add `anthropic.ts` or extend it)
+### Phase 1: Pre-Call Planning Process Applet
+- [ ] Prisma migration: `PreCallPlanningVersion` model
+- [ ] API routes: generate, latest, versions, versions/[id] (GET + PATCH)
+- [ ] Generate endpoint: fetch upstream data, build prompt, call GPT-5, store
+- [ ] GTM variable: `PRE_CALL_PLANNING` merge field
+- [ ] Page: `/pre-call-planning` (view/edit, markdown rendering)
+- [ ] Page: `/pre-call-planning/history` (version list)
+- [ ] Homepage: add CTA card for Pre-Call Planning
+- [ ] Attachments: add to attachment picker for chat context
 
-### Phase 2: Slack Integration
-- [ ] Add `#precall` and `#research` command detection in `processMessage()`
-- [ ] Wire up search pipeline in Slack message flow
-- [ ] Add typing indicators during search
-- [ ] Handle the Chatbase bypass (send synthesis directly, not via Chatbase)
-- [ ] Store results as conversation messages
+### Phase 2: Search Infrastructure
+- [ ] Brave Search API client (`src/lib/search/brave.ts`)
+- [ ] Query generation (`src/lib/search/queries.ts`)
+- [ ] Result parsing (`src/lib/search/results.ts`)
+- [ ] Synthesis engine (`src/lib/search/synthesis.ts`)
+- [ ] Types (`src/lib/search/types.ts`)
 
-### Phase 3: Web App Integration
-- [ ] Add search detection in streaming endpoint
-- [ ] Add new SSE event types for search progress
-- [ ] Update chat UI to show search/synthesis progress states
-- [ ] Add "Pre-Call Planning" as a saved prompt template with merge fields
+### Phase 3: Research Integration
+- [ ] Prisma migration: `PreCallResearch` model
+- [ ] API route: `/api/pre-call-planning/research` (POST with SSE)
+- [ ] API route: `/api/pre-call-planning/research/history` (GET)
+- [ ] API route: `/api/pre-call-planning/research/[id]` (GET)
+- [ ] Web UI: Research form + progress + brief display on `/pre-call-planning`
+- [ ] Slack: `#precall` / `#callprep` command in processMessage()
+- [ ] Commands: add to `#instructions` help text
 
-### Phase 4: Polish & Enhancement
-- [ ] Add LLM-based intent detection (auto-detect when search would help)
-- [ ] Add deep page fetching for richer context
-- [ ] Add LinkedIn profile parsing (if accessible)
-- [ ] Cache search results per company (avoid re-searching within 24h)
-- [ ] Rate limiting per user for search queries
-
----
-
-## Key Decisions to Make
-
-1. **Search API**: Brave vs. Tavily vs. SerpAPI
-   - Recommendation: Brave (cheapest, good quality)
-
-2. **Synthesis LLM**: Claude vs. GPT-4
-   - Recommendation: Claude Sonnet — you're already using OpenAI for vision, adding Anthropic for synthesis keeps costs reasonable and quality high
-
-3. **Trigger mechanism**: Explicit command vs. auto-detect
-   - Recommendation: Start with `#precall` / `#research` commands, add auto-detect later
-
-4. **Chatbase bypass**: When search is invoked, skip Chatbase entirely?
-   - Recommendation: Yes — inject Pete's key frameworks directly into the synthesis prompt instead. Chatbase's value is RAG over Pete's content, but for pre-call planning we know exactly which frameworks to apply (discovery questions, first call checklist, etc.)
-
-5. **Cost management**: Each search invocation costs ~$0.01-0.05 (search) + ~$0.02-0.05 (synthesis LLM)
-   - Consider: count search invocations separately, or just count as 1 message?
-   - Recommendation: Count as 1 message for simplicity. The cost is comparable to a Chatbase call.
+### Phase 4: Polish
+- [ ] Research history: browseable past briefs
+- [ ] Deep page fetch: optionally scrape 1-2 pages for richer data
+- [ ] Caching: don't re-search the same company within 24h
+- [ ] Rate limiting: cap searches per user per day
+- [ ] "Chat about this brief" — send brief context to a Chatbase conversation
 
 ---
 
 ## New Files
 
 ```
+prisma/migrations/YYYYMMDD_add_pre_call_planning/migration.sql
+scripts/seed-pre-call-planning.ts              (if we add seeded questions later)
+
 src/lib/search/
   brave.ts          — Brave Search API client
-  queries.ts        — Search query generation (LLM-powered)
-  results.ts        — Result parsing and formatting
-  synthesis.ts      — Synthesis prompt building and LLM call
+  queries.ts        — Search query generation (GPT-5)
+  results.ts        — Result parsing and formatting (GPT-5)
+  synthesis.ts      — Final brief synthesis (GPT-5)
   types.ts          — Shared types
+
+src/app/pre-call-planning/
+  page.tsx           — Main view/edit + research UI
+  history/page.tsx   — Version history
+
+src/app/api/pre-call-planning/
+  generate/route.ts              — Generate planning process
+  latest/route.ts                — Get latest version
+  versions/route.ts              — List versions
+  versions/[id]/route.ts         — Get/edit specific version
+  research/route.ts              — Execute research (SSE)
+  research/history/route.ts      — List past research
+  research/[id]/route.ts         — Get specific research brief
 ```
 
 ## Modified Files
 
 ```
-src/lib/slack/events.ts     — Add search detection in processMessage()
-src/lib/slack/commands.ts   — Add #precall and #research help text
-src/app/api/conversations/[id]/messages/stream/route.ts — Add search flow
-src/app/chat/[[...id]]/page.tsx — UI for search progress states
-.env.example                — Add BRAVE_API_KEY, ANTHROPIC_API_KEY
+prisma/schema.prisma                — New models + User relations
+src/lib/slack/events.ts             — #precall/#callprep detection in processMessage()
+src/lib/slack/commands.ts           — Add to #instructions help text
+src/app/page.tsx                    — Homepage CTA card
+src/app/api/attachments/available/route.ts  — Add preCallPlanning attachment
+src/app/api/attachments/content/[type]/route.ts — Fetch content
+.env.example                        — BRAVE_SEARCH_API_KEY
 ```
 
 ## Environment Variables
 
 ```
-BRAVE_SEARCH_API_KEY=       — Brave Search API key
-ANTHROPIC_API_KEY=          — For Claude synthesis calls (or reuse OpenAI)
+BRAVE_SEARCH_API_KEY=    — Brave Search API key ($3/1000 queries)
 ```
+
+## Cost Estimate Per Research Execution
+
+| Step | Cost |
+|------|------|
+| Query generation (GPT-5, ~500 tokens) | ~$0.01 |
+| Brave Search (3-5 queries) | ~$0.01-0.02 |
+| Result parsing (GPT-5, ~2000 tokens) | ~$0.03 |
+| Synthesis (GPT-5, ~3000 tokens out) | ~$0.05 |
+| **Total per research** | **~$0.10** |
+
+Compare to: Chatbase message ~$0.01-0.03. Research is ~3-5x more expensive, but it's a high-value action. Counting it as 1 message toward limits is reasonable.
