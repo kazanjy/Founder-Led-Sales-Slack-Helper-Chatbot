@@ -8,6 +8,7 @@ interface SlackEventPayload {
   team_id: string;
   event: {
     type: string;
+    subtype?: string;
     user?: string;
     text?: string;
     channel?: string;
@@ -27,8 +28,13 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
 
   console.log("handleSlackEvent called:", { team_id, eventType: event.type, bot_id: event.bot_id });
 
-  // Handle member_joined_channel - post welcome when Mikey is added to a new channel
-  if (event.type === "member_joined_channel") {
+  // Handle bot joining a channel - post welcome when Mikey is added to a new channel
+  // This fires as a message with subtype "channel_join" or "group_join" (private channels),
+  // or as a member_joined_channel event, so we check before the bot_id filter
+  if (
+    event.type === "member_joined_channel" ||
+    (event.type === "message" && (event.subtype === "channel_join" || event.subtype === "group_join"))
+  ) {
     await handleBotChannelJoin(team_id, event);
     return;
   }
