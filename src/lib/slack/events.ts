@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { getSlackClient, sendSlackMessage } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { markdownToSlack } from "./markdown";
-import { handleCommand } from "./commands";
+import { handleCommand, INSTRUCTIONS_MESSAGE } from "./commands";
 
 interface SlackEventPayload {
   team_id: string;
@@ -97,10 +97,7 @@ async function handleBotChannelJoin(
   try {
     await client.chat.postMessage({
       channel,
-      text:
-        "👋 Hey team! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
-        "Ask me anything about sales strategies, outreach, objection handling, and more - just @mention me!\n\n" +
-        "Here's to some founder-led selling success! 🚀",
+      text: INSTRUCTIONS_MESSAGE,
     });
   } catch (error) {
     console.error("Error posting channel welcome:", error);

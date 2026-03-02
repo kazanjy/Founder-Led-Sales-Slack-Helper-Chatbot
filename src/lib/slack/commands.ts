@@ -6,7 +6,7 @@
 /**
  * The #instructions response message (Slack mrkdwn format)
  */
-const INSTRUCTIONS_MESSAGE = `👋🌊 *Hey there! I'm Mikey — your AI-powered Founder-Led Sales assistant!* 🌊👋
+export const INSTRUCTIONS_MESSAGE = `👋🌊 *Hey there! I'm Mikey — your AI-powered Founder-Led Sales assistant!* 🌊👋
 
 So glad you're here! Let me give you the full rundown on how to get the most out of me. 🚀
 
