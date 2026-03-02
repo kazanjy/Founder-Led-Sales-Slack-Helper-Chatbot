@@ -1,1186 +1,268 @@
-# Mikey - Founder-Led Sales Bot
+# Web Search Feature Plan for Mikey
 
-## Overview
+## Problem Statement
 
-Mikey is an AI-powered founder-led sales assistant. Users can access Mikey through:
+Users doing pre-call planning need real-world context about the company and people they're meeting. Today, Mikey can give great *methodology* advice (from Pete's content via Chatbase) but has no way to pull in *situational* context — what the prospect's company does, recent news, the contact's LinkedIn background, etc.
 
-1. **Web App** - Chat directly on the website, sign up with email
-2. **Slack App** - @mention or DM Mikey in Slack
-
-Users can start with either entry point and optionally connect the other later. All conversations sync across both interfaces.
+The goal: let Mikey perform web searches to gather account/contact research, then synthesize that against the user's Sales Narrative, discovery questions, and pre-call planning methodology to produce actionable, personalized prep.
 
 ---
 
-## Architecture
+## Architecture Overview
+
+### The Core Tension: Chatbase vs. Direct LLM
+
+The current system routes ALL messages through Chatbase, which hosts Pete's RAG knowledge base. This is great for methodology questions but creates a challenge for web search:
+
+**Chatbase limitations:**
+- 8,000 char message limit (7,500 with buffer)
+- No tool-use / function-calling capability
+- Can't execute searches itself
+- Designed for RAG against Pete's corpus, not for synthesizing external data
+
+**This means web search can't live *inside* Chatbase — it needs to happen *around* it.**
+
+### Proposed Architecture: "Orchestrator" Pattern
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Web App       │────▶│                 │────▶│                 │
-│  (Chat + Auth)  │◀────│  Vercel API     │────▶│    Chatbase     │
-└─────────────────┘     │  (Node.js/TS)   │◀────│    Agent        │
-                        │                 │     └─────────────────┘
-┌─────────────────┐     │                 │
-│   Slack App     │────▶│                 │
-│  (Bot + OAuth)  │◀────│                 │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                        ┌────────▼────────┐
-                        │    Database     │
-                        │  (PostgreSQL)   │
-                        │  - Accounts     │
-                        │  - Users        │
-                        │  - Workspaces   │
-                        │  - Licenses     │
-                        │  - Chat History │
-                        │  - Referrals    │
-                        └─────────────────┘
-```
-
-### Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Runtime | Node.js / TypeScript |
-| Framework | Next.js (App Router) |
-| Hosting | Vercel |
-| Database | PostgreSQL (Vercel Postgres or Neon) |
-| ORM | Prisma |
-| Slack SDK | @slack/bolt |
-| Payments | Stripe |
-| Auth (Web) | Email/password + OAuth (Slack, Google) |
-
----
-
-## Core Features
-
-### 0. Account Model & Entry Points
-
-**Two Ways to Start:**
-
-| Entry Point | Flow |
-|-------------|------|
-| **Web App** | Sign up with email → Start chatting → Optionally connect Slack later |
-| **Slack App** | Install to workspace → Start chatting → Optionally access web dashboard |
-
-**Account Structure:**
-
-```
-Account (billing entity)
-├── Email/password login
-├── Connected OAuth providers (Slack, Google)
-├── License/subscription
-├── Billing info
-│
-└── Users (one per Slack workspace connection)
-    ├── Slack User in Workspace A
-    ├── Slack User in Workspace B
-    └── Web-only user (no Slack)
-```
-
-**Key Behaviors:**
-- Account owns the license and billing
-- Account can exist without Slack (web-only users)
-- Account can connect to multiple Slack workspaces
-- Each Slack workspace connection creates a "User" record
-- Chat history syncs across web and Slack
-- Conversations from web show in dashboard alongside Slack conversations
-
-**Web Chat Interface:**
-- Real-time chat UI (similar to ChatGPT/Claude)
-- Same Chatbase backend as Slack
-- Full conversation history
-- No Slack required
-
-**Connecting Slack Later:**
-1. User signs up on web, starts using Mikey
-2. Later clicks "Connect Slack" in settings
-3. OAuth flow links their Slack identity to existing account
-4. Future Slack messages tied to same account/license
-
-**Linking Existing Slack User to Web Account:**
-1. User starts via Slack install
-2. Visits web, clicks "Sign in with Slack"
-3. Account auto-created/linked from Slack identity
-4. Can add email/password for direct web login
-
----
-
-### 1. Slack Bot Interaction
-
-**Invocation:**
-- **In channels:** User @mentions `@Mikey` - bot responds in a thread under the original message
-- **In DMs:** User messages Mikey directly (no @mention needed) - bot responds in the DM
-
-**Rate Limiting:**
-- 1,000 messages per user per day (configurable globally and per-workspace)
-- Prevents abuse while being generous for normal use
-
-**Threaded Conversations:**
-- Initial @mention creates a new conversation thread
-- Subsequent replies in that thread continue the conversation (no need to @mention again)
-- Each thread = one conversation context sent to Chatbase
-
-**Rich Formatting:**
-- Markdown (bold, italic, strikethrough)
-- Code blocks (inline and fenced)
-- Bulleted and numbered lists
-- Links
-- Emojis
-- Tables (using Slack's mrkdwn format)
-
-**License Check Flow:**
-```
-User @mentions Mikey
-        │
-        ▼
-┌───────────────────┐
-│ Is user licensed? │
-└────────┬──────────┘
+User Message
+    │
+    ▼
+┌─────────────────────┐
+│  Intent Detection    │  ← Does this need web search?
+│  (lightweight LLM)   │
+└────────┬────────────┘
          │
     ┌────┴────┐
     │         │
-   Yes        No
-    │         │
     ▼         ▼
- Process   ┌─────────────────────────────┐
- message   │ Is user in trial period?    │
-           │ (< 7 days since first msg)  │
-           └──────────────┬──────────────┘
-                    ┌─────┴─────┐
-                   Yes          No
-                    │           │
-                    ▼           ▼
-                Process    Send trial ended
-                message    message
-                (+ welcome
-                if first msg)
+[Search]   [No Search → existing Chatbase flow]
+    │
+    ▼
+┌─────────────────────┐
+│  Web Search API      │  ← Brave/Tavily/SerpAPI
+│  (1-3 queries)       │
+└────────┬────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│  Synthesis LLM       │  ← Claude/GPT-4 with:
+│                       │    - Search results
+│                       │    - User's Sales Narrative
+│                       │    - Pete's methodology (prompt-injected)
+│                       │    - User's discovery questions
+└────────┬────────────┘
+         │
+         ▼
+   Response to User
 ```
 
-**First Message Response:**
-> "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
-
-**Trial Ended Response:**
-> "Your trial is all done! If you liked Mikey, go ahead and subscribe!"
+**Key insight:** When web search is invoked, we **bypass Chatbase** for that response and use a direct LLM call instead. We can still inject Pete's methodology as system prompt content — we just won't get the full RAG retrieval. This is fine because pre-call planning is more about *applying* known frameworks than *retrieving* obscure content.
 
 ---
 
-### 2. Licensing System
+## Detailed Design
 
-**License Types:**
+### 1. Trigger Detection
 
-| Type | Description |
-|------|-------------|
-| **Individual Seat** | Single user license, tied to Slack user ID |
-| **Workspace Bundle** | Up to X seats for a workspace (admin allocates) |
+**Option A: Explicit hashtag command (recommended to start)**
+- `#research <company name>` or `#precall <company> <contact>`
+- Fits the existing `handleCommand` pattern
+- Clear user intent, no false positives
+- Easy to document in `#instructions`
 
-**License States:**
-- `trial` - Using trial allocation
-- `active` - Fully licensed
-- `expired` - License/trial expired
-- `suspended` - Manually suspended
+**Option B: LLM-based intent detection**
+- Run a cheap/fast model (Haiku) to classify: "Does this message need web search?"
+- More natural but adds latency and cost to every message
+- Could be a Phase 2 enhancement
 
-**Trial Configuration:**
+**Recommendation:** Start with explicit commands. Add smart detection later.
 
-```typescript
-const TRIAL_DAYS = 7;  // Unlimited messages for 7 days
+### 2. Search Execution
+
+**Search API options:**
+
+| API | Pros | Cons |
+|-----|------|------|
+| **Brave Search API** | Cheap ($0.003/query), good quality, includes snippets | Less programmatic control |
+| **Tavily** | Built for AI agents, returns clean extracts | Newer, $0.01/query |
+| **SerpAPI (Google)** | Best results, most complete | Expensive ($0.05/query) |
+
+**Recommendation:** Brave Search API — best cost/quality ratio for our use case.
+
+**Search strategy for pre-call planning:**
+```
+Input: #precall Acme Corp, Jane Smith VP Sales
+
+Generated queries:
+1. "Acme Corp" company overview products services
+2. "Acme Corp" recent news funding announcements 2025 2026
+3. "Jane Smith" "Acme Corp" LinkedIn OR role
 ```
 
-**Trial Behavior (CURRENT IMPLEMENTATION):**
-- Trial starts on first @mention
-- 7 days of unlimited messages
-- First message shows welcome: "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
-- Trial ends after 7 days
-- Expired message: "Your trial is all done! If you liked Mikey, go ahead and subscribe!"
+The query generation should be done by a lightweight LLM call that takes the user's input and generates 2-4 targeted search queries.
 
----
+### 3. Result Processing & Synthesis
 
-### 3. Referral System
+After search results come back, we need to:
 
-**Earning Messages:**
-- Licensed or trial users can invite others
-- When invitee signs up/installs → inviter earns bonus messages
-- Configurable bonus amount (e.g., +10 messages per referral)
+1. **Extract and clean** the top 3-5 results per query (titles, snippets, URLs)
+2. **Optionally deep-fetch** 1-2 key pages (company About page, recent press release) for richer context
+3. **Synthesize** using a direct LLM call with a structured prompt
 
-**Referral Tracking:**
-```typescript
-interface Referral {
-  referrerUserId: string;
-  referredUserId: string;
-  referredAt: Date;
-  bonusAwarded: number;
-  status: 'pending' | 'completed';
-}
+**Synthesis prompt structure:**
+```
+System: You are Mikey, a founder-led sales advisor trained on Pete Kazanjy's
+methodology. You're helping a founder prepare for a sales call.
+
+Context — User's Sales Narrative:
+{sales_narrative}
+
+Context — User's Discovery Questions:
+{discovery_questions}
+
+Context — User's First Call Checklist:
+{first_call_checklist}
+
+Context — Web Research Results:
+{formatted_search_results}
+
+Task: Synthesize the research into actionable pre-call preparation. Include:
+1. Company overview (what they do, size, stage, recent news)
+2. Contact background (role, tenure, likely priorities)
+3. Potential pain points relevant to the user's product
+4. Suggested discovery questions tailored to this specific account
+5. Talking points that connect the user's value prop to the prospect's situation
+6. Potential objections and how to handle them
+7. Recommended call structure based on the First Call Checklist
 ```
 
-**Referral Flow:**
-1. User gets unique referral link/code
-2. New user installs or joins via link
-3. On first @mention, referral is credited
-4. Referrer gets bonus messages added to their account
+### 4. Integration Points
 
----
+#### Slack (events.ts)
+- Add `#research` and `#precall` to `handleCommand()` — but these aren't simple string responses, they need async processing
+- Better: detect the command in `processMessage()` before the Chatbase call, execute the search+synthesis pipeline, and return the result directly (bypassing Chatbase for that message)
 
-### 4. Onboarding Flow
+#### Web App (stream/route.ts)
+- Detect search intent in the message before sending to Chatbase
+- Execute search pipeline
+- Stream the synthesis response via SSE (same pattern as Chatbase streaming, but using direct LLM streaming)
 
-**Slack App Installation (CURRENT IMPLEMENTATION):**
-1. Admin clicks "Add to Slack" on marketing site
-2. Slack OAuth flow → grants permissions
-3. Workspace + installing user recorded in database
-4. Redirect to channel selection page
-5. User selects channel for Mikey to join
-6. Bot joins channel and posts welcome message:
+#### Conversation History
+- Store the search results and synthesis as a normal assistant message
+- Future messages in the thread can go back to Chatbase (the search context is now in the conversation history)
 
-> "Hey team! I'm Mikey, your Founder-Led Sales assistant. I'm here to help with sales strategies, outreach, objection handling, and more.
->
-> To get started, just @mention me with your question - like this: @Mikey how do I handle pricing objections?
->
-> You can also DM me directly if you prefer a private conversation.
->
-> Here's to some founder-led selling success!"
-
-**First @mention (new user in existing workspace):**
-1. User @mentions Mikey
-2. System creates user record, starts 7-day trial
-3. Mikey responds with welcome + answer:
-
-> "Thanks for sending Mikey your first message! You've just started your trial - you have 7 days to ask Mikey as much as you'd like! Have fun!"
->
-> [Answer to their question]
-
----
-
-### 5. Web Dashboard
-
-**Authentication:**
-- "Sign in with Slack" (OAuth)
-- Links Slack identity to web session
-- No separate username/password needed
-
-**User Dashboard:**
+### 5. Data Flow for Slack
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Mikey Dashboard                    [User ▼] [Sign Out] │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  License Status: Trial (12 days, 34 messages left)      │
-│  [Upgrade to Full License]                              │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  📜 Chat History                                        │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │ Jan 15 - "How do I handle pricing objections?"    │  │
-│  │ #sales-team • 8 messages                          │  │
-│  └───────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │ Jan 14 - "Cold email template for SaaS founders"  │  │
-│  │ #general • 5 messages                             │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  🎁 Referrals                                           │
-│  Share your link: https://mikey.app/r/abc123            │
-│  Earn 10 bonus messages for each person who signs up!   │
-│                                                         │
-│  Referrals: 3 completed • 30 messages earned            │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+User: @Mikey #precall Acme Corp, Jane Smith
+
+1. handleMention() → processMessage()
+2. Detect #precall command → extract company/contact
+3. Send "🔍 Researching Acme Corp and Jane Smith..." typing indicator
+4. Generate search queries (Claude Haiku, ~200ms)
+5. Execute 2-4 Brave searches in parallel (~500ms)
+6. Fetch user's Sales Narrative, Discovery Questions, First Call Checklist
+7. Build synthesis prompt with all context
+8. Call Claude Sonnet for synthesis (~3-5s)
+9. Format response for Slack
+10. Send response in thread
+11. Save to conversation/messages for web app access
 ```
 
-**Workspace Admin Dashboard (additional features):**
+### 6. Data Flow for Web App
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Workspace Admin                                        │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Workspace: Acme Corp                                   │
-│  Plan: Team (25 seats) • 18 active users                │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  👥 Licensed Users                                      │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │ @john.doe    │ Active  │ 142 msgs │ [Revoke]   │    │
-│  │ @jane.smith  │ Active  │ 89 msgs  │ [Revoke]   │    │
-│  │ @bob.wilson  │ Trial   │ 23 left  │ [License]  │    │
-│  └─────────────────────────────────────────────────┘    │
-│                                                         │
-│  [+ Add User] [Manage Billing]                          │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  ⚙️ Trial Settings (for new users in your workspace)    │
-│                                                         │
-│  Trial Days:     [14    ] (0 = no time trial)           │
-│  Trial Messages: [50    ] (0 = no message trial)        │
-│                                                         │
-│  [Save Settings]                                        │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+User: types "#precall Acme Corp, Jane Smith" or uses a saved prompt
+
+1. POST /api/conversations/[id]/messages/stream
+2. Detect #precall in message
+3. SSE event: { type: "searching", queries: [...] }
+4. Execute searches
+5. SSE event: { type: "search_complete", resultCount: N }
+6. Stream synthesis response via SSE chunks (same as current Chatbase streaming)
+7. SSE event: { type: "done" }
 ```
 
----
-
-### 6. Payments (Stripe Integration)
-
-**Pricing Model:**
-
-| Billing | First Seat | Additional Seats | Discount |
-|---------|------------|------------------|----------|
-| Monthly | $99/month | $39/month each | - |
-| Annual | $69/month ($828/yr) | $27/month ($324/yr) each | ~30% off |
-
-*Pricing is configurable at both global default and per-user/account level.*
-
-**Monthly Examples:**
-- 1 user: $99/month
-- 5 users: $99 + (4 × $39) = $255/month
-- 10 users: $99 + (9 × $39) = $450/month
-
-**Annual Examples (paid upfront):**
-- 1 user: $828/year ($69/month effective)
-- 5 users: $828 + (4 × $324) = $2,124/year ($177/month effective)
-- 10 users: $828 + (9 × $324) = $3,744/year ($312/month effective)
-
-**Self-Service Flow:**
-1. User clicks "Upgrade" in Slack DM or web dashboard
-2. Redirected to Stripe Checkout
-3. On success, webhook updates license status
-4. User notified via Slack DM
-
-**Manual/Invoice Flow:**
-1. Admin creates license manually in admin panel
-2. Sets user/workspace, seat count, expiration
-3. Can attach notes (PO number, invoice ID, etc.)
-4. No Stripe interaction required
-
-**Stripe Webhook Events:**
-- `checkout.session.completed` → Activate license
-- `invoice.paid` → Extend license
-- `invoice.payment_failed` → Notify, grace period
-- `customer.subscription.deleted` → Expire license
-
----
-
-### 7. Admin Panel (Internal)
-
-**For you to manage the system:**
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Mikey Admin Panel                                      │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  [Workspaces] [Users] [Licenses] [Settings] [Analytics] │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  📊 Quick Stats                                         │
-│  Workspaces: 47 | Users: 312 | Messages Today: 1,429   │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  🔧 Manual License Grant                                │
-│                                                         │
-│  Workspace: [Select or search...          ▼]            │
-│  User:      [Select or search...          ▼]            │
-│  Type:      [● Individual  ○ Workspace Bundle]          │
-│  Seats:     [1       ] (for bundles)                    │
-│  Expires:   [2025-12-31] or [Never ☑]                   │
-│  Notes:     [Invoice #1234                    ]         │
-│                                                         │
-│  [Grant License]                                        │
-│                                                         │
-│  ─────────────────────────────────────────────────────  │
-│                                                         │
-│  ⚙️ Global Defaults                                     │
-│                                                         │
-│  Default Trial Days:     [14]                           │
-│  Default Trial Messages: [50]                           │
-│  Referral Bonus:         [10] messages                  │
-│                                                         │
-│  [Save Defaults]                                        │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Data Models
-
-### Core Entities
-
-```typescript
-// Account (top-level billing entity)
-interface Account {
-  id: string;
-
-  // Auth - at least one required
-  email: string | null;
-  passwordHash: string | null;
-
-  // Profile
-  name: string | null;
-
-  // Trial tracking (account-level)
-  trialStartedAt: Date | null;
-  trialMessagesRemaining: number;
-
-  // License
-  licenseStatus: 'trial' | 'active' | 'expired' | 'suspended';
-  licenseId: string | null;
-
-  // Rate limiting
-  messagesToday: number;
-  messageCountResetAt: Date;
-
-  // Referral
-  referralCode: string;
-  referredByAccountId: string | null;
-  bonusMessagesEarned: number;
-
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// OAuth Connection (Slack, Google, etc.)
-interface OAuthConnection {
-  id: string;
-  accountId: string;
-
-  provider: 'slack' | 'google';
-  providerAccountId: string;  // Slack user ID or Google ID
-  providerEmail: string | null;
-
-  // Slack-specific
-  slackTeamId: string | null;
-  slackTeamName: string | null;
-
-  accessToken: string | null;
-  refreshToken: string | null;
-  expiresAt: Date | null;
-
-  createdAt: Date;
-}
-
-// Workspace (Slack workspace - for bot installation)
-interface Workspace {
-  id: string;
-  slackTeamId: string;
-  slackTeamName: string;
-  installedAt: Date;
-  installedByAccountId: string;
-
-  // Bot token for this workspace
-  botToken: string;
-  botUserId: string | null;
-
-  // Trial config overrides (null = use global defaults)
-  trialDays: number | null;
-  trialMessages: number | null;
-
-  // Rate limiting override (null = use global default)
-  dailyMessageLimit: number | null;
-}
-
-// License
-interface License {
-  id: string;
-  accountId: string;  // Licenses belong to accounts
-
-  // Billing interval
-  billingInterval: 'monthly' | 'annual';
-
-  // Seat management
-  seatLimit: number;
-  seatsUsed: number;
-
-  // Pricing override (null = use global defaults)
-  // Monthly: $99 first, $39 additional
-  // Annual: $69 first, $27 additional (~30% off)
-  priceFirstSeatCents: number | null;
-  priceAdditionalSeatCents: number | null;
-
-  // Billing
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-
-  // Manual override
-  manuallyGranted: boolean;
-  grantedByAdminId: string | null;
-  notes: string | null;
-
-  status: 'active' | 'expired' | 'cancelled' | 'suspended';
-  expiresAt: Date | null;
-
-  createdAt: Date;
-}
-
-// Conversation (can be from web or Slack)
-interface Conversation {
-  id: string;
-  accountId: string;
-
-  // Source - either web or Slack
-  source: 'web' | 'slack';
-
-  // Slack-specific (null for web conversations)
-  workspaceId: string | null;
-  slackChannelId: string | null;
-  slackThreadTs: string | null;
-
-  // For Chatbase context
-  chatbaseConversationId: string | null;
-
-  title: string | null;  // Auto-generated or user-set
-  firstMessagePreview: string | null;
-  messageCount: number;
-
-  createdAt: Date;
-  lastMessageAt: Date;
-}
-
-// Message (individual message in conversation)
-interface Message {
-  id: string;
-  conversationId: string;
-
-  role: 'user' | 'assistant';
-  content: string;
-
-  // Slack reference (null for web messages)
-  slackMessageTs: string | null;
-
-  createdAt: Date;
-}
-
-// Referral
-interface Referral {
-  id: string;
-  referrerAccountId: string;
-  referredAccountId: string;
-
-  bonusAwarded: number;
-  status: 'pending' | 'completed';
-
-  completedAt: Date | null;
-  createdAt: Date;
-}
-
-// Shared Conversation Link
-interface SharedConversation {
-  id: string;
-  conversationId: string;
-  createdByAccountId: string;
-
-  shareCode: string;  // e.g., "abc123" for mikey.app/c/abc123
-
-  // Optional protection
-  passwordHash: string | null;
-  expiresAt: Date | null;
-
-  viewCount: number;
-
-  createdAt: Date;
-}
-
-// Global Settings (single row)
-interface GlobalSettings {
-  id: string;
-
-  // Default pricing - Monthly
-  defaultMonthlyFirstSeatCents: number;       // 9900 = $99
-  defaultMonthlyAdditionalSeatCents: number;  // 3900 = $39
-
-  // Default pricing - Annual (per month, paid yearly)
-  defaultAnnualFirstSeatCents: number;        // 6900 = $69
-  defaultAnnualAdditionalSeatCents: number;   // 2700 = $27
-
-  // Default trial
-  defaultTrialDays: number;
-  defaultTrialMessages: number;
-
-  // Default rate limit
-  defaultDailyMessageLimit: number;  // 1000
-
-  // Referral
-  referralBonusMessages: number;
-
-  updatedAt: Date;
-}
-```
-
----
-
-## API Routes
-
-### Slack Endpoints
-
-| Route | Purpose |
-|-------|---------|
-| `POST /api/slack/events` | Slack Events API (messages, app mentions) |
-| `POST /api/slack/interactions` | Button clicks, modal submissions |
-| `GET /api/slack/oauth` | OAuth callback for app installation |
-| `GET /api/slack/oauth/callback` | Complete OAuth flow |
-
-### Web Dashboard API
-
-| Route | Purpose |
-|-------|---------|
-| `GET /api/auth/slack` | Initiate Slack OAuth for web login |
-| `GET /api/auth/slack/callback` | Complete web auth |
-| `GET /api/user/me` | Get current user profile + license status |
-| `GET /api/conversations` | List user's conversations |
-| `GET /api/conversations/:id` | Get conversation with messages |
-| `GET /api/referrals` | Get user's referral stats |
-
-### Payment Endpoints
-
-| Route | Purpose |
-|-------|---------|
-| `POST /api/stripe/create-checkout` | Create Stripe checkout session |
-| `POST /api/stripe/webhook` | Handle Stripe webhooks |
-| `GET /api/stripe/portal` | Get Stripe customer portal URL |
-
-### Admin API
-
-| Route | Purpose |
-|-------|---------|
-| `GET /api/admin/workspaces` | List all workspaces |
-| `GET /api/admin/users` | List/search users |
-| `POST /api/admin/licenses` | Create manual license |
-| `PATCH /api/admin/licenses/:id` | Update license |
-| `GET /api/admin/analytics` | Usage statistics |
-| `PATCH /api/admin/settings` | Update global defaults |
-
----
-
-## Project Structure
-
-```
-/
-├── app/                          # Next.js App Router
-│   ├── page.tsx                  # Marketing landing page
-│   ├── dashboard/
-│   │   ├── page.tsx              # User dashboard
-│   │   ├── conversations/
-│   │   │   └── [id]/page.tsx     # Conversation detail
-│   │   └── admin/
-│   │       ├── page.tsx          # Admin overview
-│   │       ├── workspaces/       # Workspace management
-│   │       ├── users/            # User management
-│   │       └── licenses/         # License management
-│   ├── api/
-│   │   ├── slack/
-│   │   │   ├── events/route.ts   # Slack events webhook
-│   │   │   ├── interactions/route.ts
-│   │   │   └── oauth/route.ts
-│   │   ├── auth/
-│   │   │   └── slack/route.ts    # Web auth
-│   │   ├── stripe/
-│   │   │   ├── webhook/route.ts
-│   │   │   └── checkout/route.ts
-│   │   ├── user/route.ts
-│   │   ├── conversations/route.ts
-│   │   └── admin/
-│   │       └── ...
-│   └── layout.tsx
-│
-├── lib/
-│   ├── slack/
-│   │   ├── client.ts             # Slack Web API client
-│   │   ├── events.ts             # Event handlers
-│   │   ├── formatting.ts         # Markdown → Slack mrkdwn
-│   │   └── messages.ts           # Message templates
-│   ├── chatbase/
-│   │   └── client.ts             # Chatbase API client
-│   ├── licensing/
-│   │   ├── check.ts              # License validation
-│   │   ├── trial.ts              # Trial logic
-│   │   └── referrals.ts          # Referral processing
-│   ├── stripe/
-│   │   ├── client.ts
-│   │   └── webhooks.ts
-│   └── db/
-│       └── prisma.ts             # Prisma client
-│
-├── prisma/
-│   └── schema.prisma             # Database schema
-│
-├── components/                   # React components
-│   ├── ui/                       # Shared UI components
-│   ├── dashboard/                # Dashboard components
-│   └── admin/                    # Admin panel components
-│
-├── public/
-├── .env.example
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+The web UI can show a nice "Searching..." state with the queries being executed.
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Core Slack Bot *(DONE)*
-- [x] Project setup (Next.js, Prisma, database)
-- [x] Slack app OAuth flow
-- [x] Basic @mention handling
-- [x] Chatbase integration
-- [x] Threaded replies
-- [x] Rich text formatting (Slack mrkdwn)
-- [x] DM support
-- [x] App Home tab
-- [x] Channel selection on install
-- [x] Welcome message to channel
+### Phase 1: Core Search Infrastructure
+- [ ] Add Brave Search API integration (`src/lib/search/brave.ts`)
+- [ ] Add search query generation (`src/lib/search/queries.ts`) — uses Claude Haiku
+- [ ] Add result parsing/cleaning (`src/lib/search/results.ts`)
+- [ ] Add synthesis prompt builder (`src/lib/search/synthesis.ts`)
+- [ ] Add direct Claude API call for synthesis (we already have `openai.ts`, add `anthropic.ts` or extend it)
 
-### Phase 2: Account System & Web Auth
-- [ ] Account model (replaces user-centric model)
-- [ ] Email/password signup and login
-- [ ] OAuth connections (Slack, Google)
-- [ ] Session management
-- [ ] Link Slack identity to existing account
-- [ ] Allow web-only users without Slack workspace install (Sign in with Slack for identity only)
+### Phase 2: Slack Integration
+- [ ] Add `#precall` and `#research` command detection in `processMessage()`
+- [ ] Wire up search pipeline in Slack message flow
+- [ ] Add typing indicators during search
+- [ ] Handle the Chatbase bypass (send synthesis directly, not via Chatbase)
+- [ ] Store results as conversation messages
 
-### Phase 3: Web Chat Interface
-- [ ] Real-time chat UI
-- [ ] Conversation management
-- [ ] Chat history display
-- [ ] Same Chatbase backend as Slack
+### Phase 3: Web App Integration
+- [ ] Add search detection in streaming endpoint
+- [ ] Add new SSE event types for search progress
+- [ ] Update chat UI to show search/synthesis progress states
+- [ ] Add "Pre-Call Planning" as a saved prompt template with merge fields
 
-### Phase 4: Licensing & Trials
-- [x] Trial system (7-day unlimited)
-- [x] License checking in event handlers
-- [x] Unlicensed/expired user responses
-- [x] First message welcome
-- [ ] Account-level licensing (migrate from user-level)
-
-### Phase 5: Payments
-- [x] Stripe integration (individual seats)
-- [x] Monthly ($99) vs Annual ($828/yr) billing
-- [x] Checkout flow (self-service)
-- [x] Webhook handling (checkout, invoice, subscription events)
-- [x] Customer portal (manage subscription)
-- [ ] Multi-seat pricing (first seat $99, additional seats $39/mo)
-- [ ] Workspace bundles (admin pays for team)
-- [ ] Manual license granting (admin)
-
-### Phase 6: Referrals & Growth
-- [ ] Referral code generation
-- [ ] Referral tracking
-- [ ] Bonus message crediting
-- [ ] Referral dashboard UI
-
-### Phase 7: Admin Panel
-
-#### 7.1 Admin Authentication & Security
-- [ ] Admin authentication (separate from regular users)
-- [ ] Admin role check middleware
-- [ ] Audit log for all admin actions
-- [ ] Session timeout for admin sessions
-- [ ] Optional: Role-based access (super admin vs support)
-
-#### 7.2 User Management (Priority: High)
-- [ ] **User List View**
-  - [ ] Paginated table with search/filter
-  - [ ] Search by email, name, Slack username
-  - [ ] Filter by: license status, identity type (Google/Slack/both), workspace
-  - [ ] Sort by: created date, last login, message count
-  - [ ] Quick stats: total users, active trials, licensed users
-
-- [ ] **User Detail View**
-  - [ ] Profile info (name, email, avatar)
-  - [ ] Identity providers (Google connected? Slack connected?)
-  - [ ] License status and trial info
-  - [ ] Last login timestamp
-  - [ ] Message count / usage stats
-  - [ ] Workspace membership
-  - [ ] Link to Stripe customer (if exists)
-  - [ ] Conversation history (recent conversations)
-
-- [ ] **User Actions**
-  - [ ] Edit license status (trial → active, extend trial, etc.)
-  - [ ] Modify trial dates (start date, extend/shorten)
-  - [ ] Manually grant/revoke license
-  - [ ] Disconnect Slack account
-  - [ ] Disconnect Google account
-  - [ ] Impersonate user (login as them for debugging)
-  - [ ] Delete/deactivate account
-  - [ ] Send password reset (if email auth)
-  - [ ] Add admin notes to user record
-
-#### 7.3 Billing & Subscription Management (Priority: High)
-- [ ] **Subscription Overview**
-  - [ ] List all paying customers
-  - [ ] MRR/ARR display
-  - [ ] Recent transactions
-  - [ ] Failed payments requiring attention
-
-- [ ] **User Billing Actions**
-  - [ ] View payment history
-  - [ ] Link to Stripe dashboard for customer
-  - [ ] Manually grant license (no Stripe)
-  - [ ] Extend license expiration
-  - [ ] Issue refund (via Stripe)
-  - [ ] Cancel subscription
-  - [ ] Comp a user (free license with notes)
-
-- [ ] **Trial Management**
-  - [ ] View users in trial
-  - [ ] Extend trial for specific users
-  - [ ] Bulk trial extension (e.g., for a promo)
-  - [ ] Trial conversion metrics
-
-#### 7.4 Workspace Management
-- [ ] List all connected workspaces
-- [ ] Workspace details (name, user count, install date)
-- [ ] View users in each workspace
-- [ ] Bot token health check (is token still valid?)
-- [ ] Disconnect workspace entirely
-- [ ] Workspace-level settings (trial overrides, etc.)
-
-#### 7.5 Analytics Dashboard
-- [ ] **User Metrics**
-  - [ ] DAU / WAU / MAU
-  - [ ] New signups over time
-  - [ ] Signups by provider (Google vs Slack)
-  - [ ] User retention / churn
-
-- [ ] **Usage Metrics**
-  - [ ] Messages per day/week/month
-  - [ ] Average messages per user
-  - [ ] Most active users
-  - [ ] Peak usage times
-
-- [ ] **Revenue Metrics**
-  - [ ] MRR / ARR
-  - [ ] Trial → Paid conversion rate
-  - [ ] Churn rate
-  - [ ] ARPU (average revenue per user)
-
-#### 7.6 System & Support Tools
-- [ ] Recent errors / failed API calls log
-- [ ] Webhook delivery status
-- [ ] Search conversations (for support)
-- [ ] View any user's conversation history
-- [ ] Global settings management
-  - [ ] Default trial duration
-  - [ ] Default pricing
-  - [ ] Rate limits
-  - [ ] Feature flags
-
-#### 7.7 Admin API Routes
-
-| Route | Purpose |
-|-------|---------|
-| `GET /api/admin/users` | List/search users with pagination |
-| `GET /api/admin/users/:id` | Get user details |
-| `PATCH /api/admin/users/:id` | Update user (license, trial, etc.) |
-| `POST /api/admin/users/:id/impersonate` | Get impersonation token |
-| `DELETE /api/admin/users/:id/slack` | Disconnect Slack |
-| `DELETE /api/admin/users/:id/google` | Disconnect Google |
-| `GET /api/admin/workspaces` | List workspaces |
-| `GET /api/admin/workspaces/:id` | Workspace details |
-| `DELETE /api/admin/workspaces/:id` | Disconnect workspace |
-| `GET /api/admin/billing/overview` | Revenue metrics |
-| `GET /api/admin/billing/transactions` | Recent transactions |
-| `POST /api/admin/licenses` | Manually grant license |
-| `PATCH /api/admin/licenses/:id` | Update license |
-| `GET /api/admin/analytics` | Usage statistics |
-| `GET /api/admin/settings` | Get global settings |
-| `PATCH /api/admin/settings` | Update global settings |
-| `GET /api/admin/audit-log` | View admin action history |
-
-#### 7.8 Admin UI Structure
-
-```
-/admin
-├── /admin                    # Dashboard overview (quick stats)
-├── /admin/users              # User list with search/filter
-│   └── /admin/users/[id]     # User detail + actions
-├── /admin/workspaces         # Workspace list
-│   └── /admin/workspaces/[id]# Workspace detail
-├── /admin/billing            # Billing overview
-│   └── /admin/billing/transactions
-├── /admin/analytics          # Charts and metrics
-├── /admin/settings           # Global configuration
-└── /admin/audit-log          # Admin action history
-```
-
-#### 7.9 Implementation Order
-
-1. **Admin Auth** - Secure the admin routes first
-2. **User List + Search** - Core functionality to find users
-3. **User Detail View** - See everything about a user
-4. **User Actions** - License management, trial edits
-5. **Billing Integration** - Stripe links, manual licenses
-6. **Workspaces** - View and manage workspaces
-7. **Analytics** - Usage and revenue metrics
-8. **Audit Log** - Track admin actions
+### Phase 4: Polish & Enhancement
+- [ ] Add LLM-based intent detection (auto-detect when search would help)
+- [ ] Add deep page fetching for richer context
+- [ ] Add LinkedIn profile parsing (if accessible)
+- [ ] Cache search results per company (avoid re-searching within 24h)
+- [ ] Rate limiting per user for search queries
 
 ---
+
+## Key Decisions to Make
+
+1. **Search API**: Brave vs. Tavily vs. SerpAPI
+   - Recommendation: Brave (cheapest, good quality)
+
+2. **Synthesis LLM**: Claude vs. GPT-4
+   - Recommendation: Claude Sonnet — you're already using OpenAI for vision, adding Anthropic for synthesis keeps costs reasonable and quality high
+
+3. **Trigger mechanism**: Explicit command vs. auto-detect
+   - Recommendation: Start with `#precall` / `#research` commands, add auto-detect later
+
+4. **Chatbase bypass**: When search is invoked, skip Chatbase entirely?
+   - Recommendation: Yes — inject Pete's key frameworks directly into the synthesis prompt instead. Chatbase's value is RAG over Pete's content, but for pre-call planning we know exactly which frameworks to apply (discovery questions, first call checklist, etc.)
+
+5. **Cost management**: Each search invocation costs ~$0.01-0.05 (search) + ~$0.02-0.05 (synthesis LLM)
+   - Consider: count search invocations separately, or just count as 1 message?
+   - Recommendation: Count as 1 message for simplicity. The cost is comparable to a Chatbase call.
+
+---
+
+## New Files
+
+```
+src/lib/search/
+  brave.ts          — Brave Search API client
+  queries.ts        — Search query generation (LLM-powered)
+  results.ts        — Result parsing and formatting
+  synthesis.ts      — Synthesis prompt building and LLM call
+  types.ts          — Shared types
+```
+
+## Modified Files
+
+```
+src/lib/slack/events.ts     — Add search detection in processMessage()
+src/lib/slack/commands.ts   — Add #precall and #research help text
+src/app/api/conversations/[id]/messages/stream/route.ts — Add search flow
+src/app/chat/[[...id]]/page.tsx — UI for search progress states
+.env.example                — Add BRAVE_API_KEY, ANTHROPIC_API_KEY
+```
 
 ## Environment Variables
 
-```bash
-# App
-NEXT_PUBLIC_APP_URL=https://mikey.app
-
-# Database
-DATABASE_URL=postgresql://...
-
-# Slack
-SLACK_CLIENT_ID=
-SLACK_CLIENT_SECRET=
-SLACK_SIGNING_SECRET=
-SLACK_BOT_TOKEN=  # Per-workspace, stored in DB after OAuth
-
-# Chatbase
-CHATBASE_API_KEY=
-CHATBASE_CHATBOT_ID=
-
-# Stripe
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
-
-# Admin
-ADMIN_SECRET=  # For admin panel access
 ```
-
----
-
-## Finalized Decisions
-
-| Topic | Decision |
-|-------|----------|
-| **Entry Points** | Web app (email signup) OR Slack install - can connect both |
-| **Trial** | 7 days unlimited messages (starts on first @mention) |
-| **Pricing - Monthly** | $99/month first seat, $39/month each additional |
-| **Pricing - Annual** | $69/month first seat, $27/month additional (~30% off, paid upfront) |
-| **Pricing Config** | Configurable at global default and per-account level |
-| **Rate Limiting** | 1,000 messages/day per account (configurable) - *not yet enforced* |
-| **Chat History Retention** | Forever |
-| **Multi-workspace** | Accounts can connect multiple Slack workspaces |
-| **DMs** | Supported - users can DM Mikey directly or @mention in channels |
-| **Thread Context** | Each thread = one Chatbase conversation (isolated from other threads) |
-| **Export** | Download, copy to clipboard, shareable URLs |
-
----
-
-## Export Features
-
-Users can share and export their conversations:
-
-- **Download** - Export as PDF, Markdown, or plain text
-- **Copy to clipboard** - One-click copy of conversation *(implemented)*
-- **Shareable URL** - Generate a public link to share with others *(implemented)*
-  - Optional: password protection
-  - Optional: expiration date
-  - Read-only view for recipients
-
----
-
-## Shared Conversation Experience (Public View)
-
-When a non-logged-in user accesses a shared conversation link (`/share/[code]`), they see:
-
-### Current Implementation
-- Clean, minimal page with just the conversation
-- Mikey branding in header with "Try Mikey" CTA button
-- Descriptive text: "This is a shared conversation from Mikey, the Founder-Led Sales assistant."
-- Same message styling as main app (17px font, user messages right-aligned, Mikey responses with markdown)
-- Footer with "Try Mikey" button
-- All CTAs open in new tab (preserves share page)
-
-### Social Previews / Link Unfurling *(DONE)*
-- [x] Open Graph meta tags for rich previews
-- [x] `og:title` - "Shared chat from Mikey - The Founder-Led Sales Helper | Topic: [user's question]"
-- [x] `og:description` - Preview of Mikey's response (first 200 chars)
-- [x] `og:image` - Mikey avatar/icon (512x512)
-- [x] Twitter Card meta tags (`twitter:card`, `twitter:image`, etc.)
-- [x] Works on Twitter/X, Slack, iMessage (tested)
-
-### TODO: Additional Share Page Improvements
-
-- [ ] **CTA merchandising**
-  - [ ] Include value props: "7-day free trial • No credit card required • Works in Slack"
-  - [ ] Secondary link: "Learn more about Mikey"
-
-- [ ] **Social proof on shared pages**
-  - [ ] Consider showing "X people have viewed this conversation"
-  - [ ] Optional: testimonial snippet or trust badges
-
-- [ ] **Inline CTAs**
-  - [ ] After particularly good Mikey responses, show subtle inline prompt
-  - [ ] Example: "💡 Want personalized advice like this? [Try Mikey →]"
-
-- [ ] **Mobile optimization**
-  - [ ] Ensure shared page looks great on mobile
-  - [ ] Sticky CTA on mobile scroll
-
-- [ ] **Advanced social previews**
-  - [ ] Create dedicated social preview image (1200x630px recommended)
-  - [ ] Consider dynamic OG image generation (show actual question in preview image)
-  - [ ] Test on LinkedIn, Facebook
-
-- [ ] **SEO considerations**
-  - [ ] Consider if shared conversations should be indexable
-  - [ ] Add robots meta tag if we don't want indexing
-
----
-
-### Phase 8: Future Features
-
-- [ ] **Chat Search & Discovery**
-  - [ ] Full-text search across conversation history
-  - [ ] AI-generated chat titles (use AI to create meaningful titles from conversation content)
-  - [ ] Filter by date range, source (web/Slack), topic
-  - [ ] Search within a specific conversation
-  - [ ] Pinned/favorite conversations
-
-- [ ] Sales call grading (user provides call link → read transcript → grade against rubric)
-- [ ] Configurable trial length per workspace
-- [ ] Analytics/usage tracking
-- [ ] App Home enhancements
-- [ ] **Guided Prompts & Prompt Library**
-  - [ ] Enhance suggested prompts on web UI start page
-  - [ ] Create comprehensive prompt library with nested taxonomy:
-    - [ ] **GTM Strategy** - maturity assessment, ICP definition, positioning
-    - [ ] **Prospecting** - discovery questions, outbound messaging, sequences
-    - [ ] **Sales Calls** - first call structure, demo flow, objection handling
-    - [ ] **Sales Playbook** - playbook creation, process documentation
-    - [ ] **Team Building** - hiring process, onboarding plans, coaching
-    - [ ] **Deal Management** - pipeline review, forecasting, negotiation
-  - [ ] Browsable prompt library page in web UI
-  - [ ] Quick-select prompts from library to start new conversation
-  - [ ] Consider prompt library in Slack App Home tab
-
-- [ ] **Enhanced Canned Prompts (Abstracted Experiences)**
-  - [ ] Upgrade existing prompts to use "display text" vs "actual prompt" pattern (like Quiz & Tutoring CTAs)
-  - [ ] Create richer prompt experiences with detailed system instructions:
-    - [ ] Cold email workshop - guided session with examples and iterations
-    - [ ] Objection handling practice - roleplay scenarios
-    - [ ] Discovery call simulation - interactive practice
-    - [ ] Pricing strategy advisor - structured pricing analysis
-    - [ ] Sales pitch refinement - iterative feedback loop
-  - [ ] Consider multi-turn prompt templates (not just single messages)
-  - [ ] Analytics on which prompts are most used/valuable
-
-- [ ] **User Custom Prompts**
-  - [ ] Allow users to create their own saved prompts
-  - [ ] Custom CTA button text + underlying prompt content
-  - [ ] Personal prompt library (user-specific)
-  - [ ] Optional: Share prompts with team (workspace-level)
-  - [ ] Import/export prompts
-  - [ ] Prompt suggestions based on usage patterns
-
-- [ ] **User Configuration & Settings**
-  - [ ] **Ideal Customer Profile (ICP)**
-    - [ ] Company size, industry, geography
-    - [ ] Target personas and titles
-    - [ ] Pain points and use cases
-    - [ ] Mikey uses ICP context to personalize advice
-  - [ ] **Product/Service Context**
-    - [ ] Value propositions
-    - [ ] Key differentiators
-    - [ ] Pricing model overview
-    - [ ] Competitive positioning
-  - [ ] **Sales Context**
-    - [ ] Current sales stage/maturity
-    - [ ] Team size and structure
-    - [ ] Typical deal size and sales cycle
-  - [ ] Settings automatically injected into Mikey conversations for personalized responses
-  - [ ] UI for managing these settings in web dashboard
-  - [ ] Consider workspace-level defaults vs user-level overrides
-
-- [ ] **Merge Fields in Saved Prompts**
-  - [ ] **GTM Variables (User Configuration):**
-    - [ ] **Core Positioning:**
-      - [ ] `{{ICP}}` - Ideal Customer Profile (company size, industry, personas)
-      - [ ] `{{VALUE_PROP}}` - Value Proposition / Unique Selling Proposition
-      - [ ] `{{PRODUCT}}` - Product/Service description (elevator pitch)
-      - [ ] `{{PAIN_POINTS}}` - Key Pain Points Solved
-      - [ ] `{{DIFFERENTIATORS}}` - Competitive Differentiators
-    - [ ] **Sales Process:**
-      - [ ] `{{SALES_MOTION}}` - Sales motion type (PLG, enterprise, transactional, etc.)
-      - [ ] `{{QUALIFICATION_CRITERIA}}` - Qualification framework (BANT/MEDDIC/custom)
-      - [ ] `{{PRECALL_PROTOCOL}}` - Precall Planning Protocol
-      - [ ] `{{DEAL_INSPECTION}}` - Deal Inspection Protocol
-      - [ ] `{{DISCOVERY_FRAMEWORK}}` - Discovery Question Framework
-      - [ ] `{{COMMON_OBJECTIONS}}` - Common Objections & Responses
-    - [ ] **Deal Context:**
-      - [ ] `{{AVG_DEAL_SIZE}}` - Average Deal Size / ACV
-      - [ ] `{{SALES_CYCLE}}` - Typical Sales Cycle Length
-      - [ ] `{{BUYER_PERSONAS}}` - Key Stakeholders / Buyer Personas
-      - [ ] `{{DECISION_PROCESS}}` - Decision Process (who signs, who influences)
-    - [ ] **Company Context:**
-      - [ ] `{{COMPANY_STAGE}}` - Company Stage (pre-revenue, seed, scaling, etc.)
-      - [ ] `{{FOUNDER_BIO}}` - Founder Background (for credibility/rapport)
-      - [ ] `{{SOCIAL_PROOF}}` - Customer Success Stories / Social Proof
-    - [ ] **Outreach:**
-      - [ ] `{{MESSAGING_TONE}}` - Outbound Messaging Tone/Style
-      - [ ] `{{EMAIL_SIGNATURE}}` - Email Signature
-  - [ ] **Custom merge fields:**
-    - [ ] User can create their own named config variables
-    - [ ] Manage custom merge fields in settings UI
-  - [ ] **Merge field usage in prompts:**
-    - [ ] Syntax: `{{FIELD_NAME}}` in prompt text
-    - [ ] Preview in edit modal shows resolved values
-    - [ ] Warning if merge field is used but not configured
-    - [ ] Autocomplete/insert merge field picker in prompt editor
-  - [ ] **Example usage:**
-    - [ ] Prompt: "Help me write a cold email for {{ICP}} highlighting {{VALUE_PROP}}"
-    - [ ] Prompt: "Role-play a discovery call where I'm selling to {{BUYER_PERSONAS}}"
-    - [ ] Prompt: "Help me handle objections using {{COMMON_OBJECTIONS}} for {{PRODUCT}}"
-    - [ ] Prompt: "Review this deal against my {{QUALIFICATION_CRITERIA}}"
-  - [ ] **Merge field expansion:**
-    - [ ] Fields expanded at send time (not stored expanded)
-    - [ ] If field is empty/not configured, prompt user to fill it or send without
-    - [ ] Option to "fill in the blank" inline before sending
-  - [ ] **GTM Variables Progress Indicator:**
-    - [ ] Show users their progress on filling out GTM Variables
-    - [ ] Widget similar to Maturity Assessment showing % complete
-    - [ ] Visual indicator of which variables are filled vs empty
-    - [ ] Quick link to settings to fill in missing variables
-    - [ ] Prompt users to complete their profile for better personalized responses
-
-- [ ] **Structured Onboarding Flow**
-  - [ ] Multi-step onboarding wizard for new users
-  - [ ] **Sales Maturity Questionnaire:**
-    - [ ] Current revenue stage (pre-revenue, <$1M, $1-5M, $5M+)
-    - [ ] Sales team size (solo founder, 1-3 reps, 4+ reps)
-    - [ ] Sales process maturity (ad-hoc, some process, documented playbook)
-    - [ ] Biggest current challenge (lead gen, closing, scaling, hiring)
-    - [ ] Primary sales motion (inbound, outbound, PLG, channel)
-  - [ ] Personalized recommendations based on questionnaire answers
-  - [ ] Pre-populate GTM variables from questionnaire responses
-  - [ ] Suggested prompts/workflows based on maturity level
-  - [ ] Skip option for experienced users
-  - [ ] Revisit/update answers in settings
-
-- [ ] **Support Bot Integration**
-  - [ ] Integrate third-party support bot for user help/support
-  - [ ] Consider options: Intercom, Zendesk, Crisp, HelpScout, etc.
-  - [ ] In-app chat widget for real-time support
-  - [ ] Knowledge base / FAQ integration
-  - [ ] Ticket escalation workflow
-
-### Cleanup Tasks
-- [ ] Remove debug console.log statements before production
-
----
-
-## Next Steps
-
-1. ~~Create Slack app in Slack API dashboard~~ ✓
-2. ~~Set up Vercel project and database~~ ✓
-3. ~~Begin Phase 1 implementation~~ ✓
-4. **Current:** Phase 2 (Account system + Web auth) and Phase 3 (Web chat)
-5. Then: Phase 5 (Payments) to start monetization
+BRAVE_SEARCH_API_KEY=       — Brave Search API key
+ANTHROPIC_API_KEY=          — For Claude synthesis calls (or reuse OpenAI)
+```
