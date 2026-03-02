@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
+import { INSTRUCTIONS_MESSAGE } from "@/lib/slack/commands";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -32,11 +33,7 @@ export async function POST(request: NextRequest) {
     // Post welcome message to the selected channel
     await client.chat.postMessage({
       channel: channel_id,
-      text:
-        "👋 Hey team! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
-        `I was just added to this workspace by <@${workspace.installedByUserId}>.\n\n` +
-        "Ask me anything about sales strategies, outreach, objection handling, and more - just @mention me!\n\n" +
-        "Here's to some founder-led selling success! 🚀",
+      text: INSTRUCTIONS_MESSAGE,
     });
 
     return NextResponse.json({ success: true });

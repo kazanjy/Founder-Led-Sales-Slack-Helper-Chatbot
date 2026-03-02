@@ -3,6 +3,7 @@ import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { markdownToSlack } from "./markdown";
+import { handleCommand, INSTRUCTIONS_MESSAGE } from "./commands";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -22,6 +23,7 @@ interface SlackEventPayload {
   team_id: string;
   event: {
     type: string;
+    subtype?: string;
     user?: string;
     text?: string;
     channel?: string;
@@ -247,6 +249,17 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
 
   console.log("handleSlackEvent called:", { team_id, eventType: event.type, bot_id: event.bot_id });
 
+  // Handle bot joining a channel - post welcome when Mikey is added to a new channel
+  // This fires as a message with subtype "channel_join" or "group_join" (private channels),
+  // or as a member_joined_channel event, so we check before the bot_id filter
+  if (
+    event.type === "member_joined_channel" ||
+    (event.type === "message" && (event.subtype === "channel_join" || event.subtype === "group_join"))
+  ) {
+    await handleBotChannelJoin(team_id, event);
+    return;
+  }
+
   // Ignore bot messages to prevent loops
   if (event.bot_id) {
     console.log("Ignoring bot message");
@@ -274,6 +287,45 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
 
   // Thread replies without @mention are intentionally ignored.
   // Mikey only responds when explicitly @mentioned.
+}
+
+/**
+ * Handle bot being added to a new channel
+ * Posts a welcome message so the team knows Mikey is ready
+ */
+async function handleBotChannelJoin(
+  teamId: string,
+  event: SlackEventPayload["event"]
+) {
+  const { user, channel } = event;
+  if (!user || !channel) return;
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { slackTeamId: teamId },
+  });
+
+  if (!workspace) {
+    console.error("Workspace not found for channel join:", teamId);
+    return;
+  }
+
+  // Only post a welcome if it's the bot itself joining, not a regular user
+  if (user !== workspace.botUserId) {
+    return;
+  }
+
+  console.log("Mikey added to channel, posting welcome:", { teamId, channel });
+
+  const client = getSlackClient(workspace.botToken);
+
+  try {
+    await client.chat.postMessage({
+      channel,
+      text: INSTRUCTIONS_MESSAGE,
+    });
+  } catch (error) {
+    console.error("Error posting channel welcome:", error);
+  }
 }
 
 /**
@@ -514,6 +566,13 @@ async function handleMention(
     return;
   }
 
+  // Check for hashtag commands (e.g. #instructions)
+  const commandResponse = handleCommand(cleanText);
+  if (commandResponse) {
+    await sendSlackMessage(client, channel, commandResponse, ts);
+    return;
+  }
+
   // Check if Mikey is being summoned into an existing thread
   // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
   let priorThreadContext: string | undefined;
@@ -626,6 +685,13 @@ async function handleDirectMessage(
   // Send welcome message for first-time users
   if (canSend.welcomeMessage) {
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
+  }
+
+  // Check for hashtag commands (e.g. #instructions)
+  const commandResponse = handleCommand(text || "");
+  if (commandResponse) {
+    await sendSlackMessage(client, channel, commandResponse, threadTs);
+    return;
   }
 
   await processMessage(
