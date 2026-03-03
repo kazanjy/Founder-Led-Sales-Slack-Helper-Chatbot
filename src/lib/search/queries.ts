@@ -5,101 +5,46 @@ import type { ParsedSearchInput, SearchPlan, SearchQuery, DirectFetch } from "./
  *
  * This is deterministic — no AI call needed. The queries are templated
  * based on what information we have about the prospect.
+ *
+ * We intentionally keep the search surface tight: LinkedIn company page,
+ * LinkedIn prospect profile, and Crunchbase company page.
  */
 export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
   const queries: SearchQuery[] = [];
   const directFetches: DirectFetch[] = [];
 
   const company = input.companyName;
-  const domain = input.companyDomain;
 
-  // ── Company Research Queries ──────────────────────────────────
-
-  // Core company info
+  // ── LinkedIn Company Page ──────────────────────────────────────
   queries.push({
-    query: `"${company}" company overview`,
-    purpose: "Company overview and description",
+    query: `site:linkedin.com/company "${company}"`,
+    purpose: "LinkedIn company page",
     priority: 1,
   });
 
-  // Funding and stage
-  queries.push({
-    query: `"${company}" funding round investors`,
-    purpose: "Funding history and investors",
-    priority: 2,
-  });
-
-  // Recent news
-  queries.push({
-    query: `"${company}" news announcement 2025 OR 2026`,
-    purpose: "Recent company news and announcements",
-    priority: 2,
-  });
-
-  // Technology and product
-  queries.push({
-    query: `"${company}" product technology platform`,
-    purpose: "Product and technology details",
-    priority: 3,
-  });
-
-  // Company size and hiring
-  queries.push({
-    query: `"${company}" employees team size hiring`,
-    purpose: "Company size and growth signals",
-    priority: 3,
-  });
-
-  // ── Contact Research Queries ──────────────────────────────────
-
+  // ── LinkedIn Prospect Profile ──────────────────────────────────
   if (input.contactName) {
     const contact = input.contactName;
     const title = input.contactTitle;
-    // Build a disambiguating suffix: "FirstName LastName" "Company" "Title"
     const entityParts = [`"${contact}"`, `"${company}"`];
     if (title) entityParts.push(`"${title}"`);
     const entityClause = entityParts.join(" ");
 
-    // LinkedIn profile (site-scoped for better results)
     queries.push({
       query: `site:linkedin.com/in ${entityClause}`,
       purpose: `${contact}'s LinkedIn profile`,
       priority: 1,
     });
-
-    // General professional background (catches non-LinkedIn sources)
-    queries.push({
-      query: `${entityClause} background OR bio OR profile`,
-      purpose: `${contact}'s professional background`,
-      priority: 2,
-    });
-
-    // Published content / speaking
-    queries.push({
-      query: `${entityClause} interview OR podcast OR article OR blog`,
-      purpose: `${contact}'s public thought leadership and interviews`,
-      priority: 3,
-    });
   }
 
-  // ── Industry / Competitive Queries ────────────────────────────
-
-  if (input.industry) {
-    queries.push({
-      query: `${input.industry} market trends 2025 2026`,
-      purpose: "Industry trends and market context",
-      priority: 4,
-    });
-  }
-
-  // Competitors
+  // ── Crunchbase Company Page ────────────────────────────────────
   queries.push({
-    query: `"${company}" competitors alternatives`,
-    purpose: "Competitive landscape",
-    priority: 3,
+    query: `site:crunchbase.com/organization "${company}"`,
+    purpose: "Crunchbase company profile",
+    priority: 1,
   });
 
-  // ── Direct URL Fetches ────────────────────────────────────────
+  // ── Direct URL Fetches ─────────────────────────────────────────
 
   // User-provided URLs
   for (const url of input.urls) {
@@ -109,29 +54,13 @@ export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
     });
   }
 
-  // If we have a domain, fetch the homepage and about page
-  if (domain) {
-    directFetches.push({
-      url: `https://${domain}`,
-      purpose: "Company homepage",
-    });
-
-    directFetches.push({
-      url: `https://${domain}/about`,
-      purpose: "Company about page",
-    });
-  }
-
-  // LinkedIn profile if provided
+  // LinkedIn profile if provided directly
   if (input.contactLinkedIn) {
     directFetches.push({
       url: input.contactLinkedIn,
       purpose: "Contact LinkedIn profile",
     });
   }
-
-  // Sort queries by priority
-  queries.sort((a, b) => a.priority - b.priority);
 
   return {
     queries,
