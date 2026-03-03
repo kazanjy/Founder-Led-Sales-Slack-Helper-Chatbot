@@ -99,6 +99,7 @@ model User {
   salesNarrativeVersions SalesNarrativeVersion[]
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
   firstCallChecklistVersions FirstCallChecklistVersion[]
+  preCallPlanningVersions PreCallPlanningVersion[]
   attachmentPreference UserAttachmentPreference?
 
   // Track update-in-progress state for maturity assessment
@@ -613,11 +614,39 @@ model FirstCallChecklistVersion {
   // Generated output - the first call checklist content (markdown)
   content     String   @db.Text
 
+  // Pre-call planning versions generated from this checklist
+  preCallPlanningVersions PreCallPlanningVersion[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("first_call_checklist_versions")
+}
+
+// ============================================
+// PRE-CALL PLANNING PROCESS APP
+// ============================================
+
+// Generated pre-call planning process versions
+model PreCallPlanningVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The first call checklist version used as input
+  firstCallChecklistVersionId String
+  firstCallChecklistVersion   FirstCallChecklistVersion @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output - the pre-call planning process content (markdown)
+  content     String   @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("pre_call_planning_versions")
 }
 
 // User preferences for prompt attachments
