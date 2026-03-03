@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,7 +33,26 @@ interface ProgressUpdate {
 }
 
 export default function PreCallResearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ResearchContent />
+    </Suspense>
+  );
+}
+
+function ResearchContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [researching, setResearching] = useState(false);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
@@ -50,6 +69,24 @@ export default function PreCallResearchPage() {
   const [urls, setUrls] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
+
+  const loadBriefById = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/pre-call-planning/research/${id}`);
+      if (!response.ok) throw new Error("Failed to load");
+      const data = await response.json();
+      setBrief({
+        id: data.research.id,
+        companyName: data.research.companyName,
+        contactName: data.research.contactName,
+        content: data.research.content,
+        sources: data.research.sources as { title: string; url: string }[],
+        createdAt: data.research.createdAt,
+      });
+    } catch (error) {
+      console.error("Error loading brief:", error);
+    }
+  }, []);
 
   useEffect(() => {
     document.title = "Pre-Call Research - Mikey";
@@ -78,6 +115,12 @@ export default function PreCallResearchPage() {
           const data = await historyRes.json();
           setHistory(data.researches || []);
         }
+
+        // Auto-load brief from URL param
+        const idFromUrl = searchParams.get("id");
+        if (idFromUrl) {
+          loadBriefById(idFromUrl);
+        }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -85,7 +128,7 @@ export default function PreCallResearchPage() {
       }
     }
     loadData();
-  }, [router]);
+  }, [router, searchParams, loadBriefById]);
 
   const handleResearch = async () => {
     if (!companyName.trim()) {
@@ -170,6 +213,8 @@ export default function PreCallResearchPage() {
             } else if (eventType === "complete") {
               setBrief(parsed);
               setProgress(null);
+              // Update URL with the new brief ID
+              router.replace(`/pre-call-planning/research?id=${parsed.id}`, { scroll: false });
               // Add to history
               setHistory((prev) => [
                 {
@@ -206,21 +251,8 @@ export default function PreCallResearchPage() {
   };
 
   const handleLoadBrief = async (id: string) => {
-    try {
-      const response = await fetch(`/api/pre-call-planning/research/${id}`);
-      if (!response.ok) throw new Error("Failed to load");
-      const data = await response.json();
-      setBrief({
-        id: data.research.id,
-        companyName: data.research.companyName,
-        contactName: data.research.contactName,
-        content: data.research.content,
-        sources: data.research.sources as { title: string; url: string }[],
-        createdAt: data.research.createdAt,
-      });
-    } catch (error) {
-      console.error("Error loading brief:", error);
-    }
+    router.replace(`/pre-call-planning/research?id=${id}`, { scroll: false });
+    await loadBriefById(id);
   };
 
   const handleCopy = async () => {
