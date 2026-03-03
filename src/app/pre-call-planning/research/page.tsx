@@ -123,8 +123,14 @@ export default function PreCallResearchPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Research failed");
+        let errorMessage = `Research failed (${response.status})`;
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          // Response may not be JSON (e.g. 405 with empty body)
+        }
+        throw new Error(errorMessage);
       }
 
       // Read SSE stream
