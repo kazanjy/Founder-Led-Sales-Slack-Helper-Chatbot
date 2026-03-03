@@ -1,10 +1,4 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { parseSearchInput } from "@/lib/search/input-parser";
-import { generateSearchPlan } from "@/lib/search/queries";
-import { executeSearchPlan } from "@/lib/search/results";
-import { synthesizeResearchBrief } from "@/lib/search/synthesis";
 import type { SearchInput } from "@/lib/search/types";
 
 // Allow up to 120s for search + AI synthesis
@@ -12,7 +6,28 @@ export const maxDuration = 120;
 
 // POST - Run pre-call research with SSE streaming progress updates
 export async function POST(request: NextRequest) {
+  console.log("[Research] POST handler called");
+
   try {
+    // Dynamic imports — prevents module-level failures from causing silent 405s
+    const [
+      { prisma },
+      { getCurrentUser },
+      { parseSearchInput },
+      { generateSearchPlan },
+      { executeSearchPlan },
+      { synthesizeResearchBrief },
+    ] = await Promise.all([
+      import("@/lib/db"),
+      import("@/lib/auth"),
+      import("@/lib/search/input-parser"),
+      import("@/lib/search/queries"),
+      import("@/lib/search/results"),
+      import("@/lib/search/synthesis"),
+    ]);
+
+    console.log("[Research] All modules loaded successfully");
+
     const user = await getCurrentUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -119,7 +134,7 @@ export async function POST(request: NextRequest) {
             createdAt: research.createdAt,
           });
         } catch (error) {
-          console.error("[Research] Error:", error);
+          console.error("[Research] Stream error:", error);
           sendEvent("error", {
             message: error instanceof Error ? error.message : "Research failed. Please try again.",
           });
@@ -137,9 +152,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[Research] Error:", error);
+    console.error("[Research] Fatal error (likely module import failure):", error);
     return new Response(
-      JSON.stringify({ error: "Failed to start research" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Failed to start research",
+      }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
