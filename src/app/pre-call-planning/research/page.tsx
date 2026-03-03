@@ -474,14 +474,14 @@ function ResearchContent() {
             {history.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Research</h2>
-                <Link
-                  href="/pre-call-planning/history"
-                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-                >
-                  View All
-                </Link>
-              </div>
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Research</h2>
+                  <Link
+                    href="/pre-call-planning/history"
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    View All
+                  </Link>
+                </div>
                 <div className="space-y-2">
                   {history.slice(0, 10).map((item) => (
                     <button
@@ -501,6 +501,7 @@ function ResearchContent() {
                           <span className="ml-1 text-purple-500">via Slack</span>
                         )}
                       </div>
+                      <div className="text-xs text-gray-400 mt-0.5 font-mono">{item.id}</div>
                     </button>
                   ))}
                 </div>

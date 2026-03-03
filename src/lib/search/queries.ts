@@ -54,24 +54,29 @@ export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
 
   if (input.contactName) {
     const contact = input.contactName;
+    const title = input.contactTitle;
+    // Build a disambiguating suffix: "FirstName LastName" "Company" "Title"
+    const entityParts = [`"${contact}"`, `"${company}"`];
+    if (title) entityParts.push(`"${title}"`);
+    const entityClause = entityParts.join(" ");
 
     // LinkedIn profile (site-scoped for better results)
     queries.push({
-      query: `site:linkedin.com/in "${contact}" "${company}"`,
+      query: `site:linkedin.com/in ${entityClause}`,
       purpose: `${contact}'s LinkedIn profile`,
       priority: 1,
     });
 
     // General professional background (catches non-LinkedIn sources)
     queries.push({
-      query: `"${contact}" "${company}" background OR bio OR profile`,
+      query: `${entityClause} background OR bio OR profile`,
       purpose: `${contact}'s professional background`,
       priority: 2,
     });
 
     // Published content / speaking
     queries.push({
-      query: `"${contact}" "${company}" interview OR podcast OR article OR blog`,
+      query: `${entityClause} interview OR podcast OR article OR blog`,
       purpose: `${contact}'s public thought leadership and interviews`,
       priority: 3,
     });
