@@ -1,33 +1,82 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { SearchInput } from "@/lib/search/types";
 
 // Allow up to 120s for search + AI synthesis
 export const maxDuration = 120;
 
+// GET - Diagnostic endpoint to verify route is deployed
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    route: "/api/pre-call-planning/research",
+    methods: ["GET", "POST"],
+    timestamp: new Date().toISOString(),
+    version: "2024-03-03-v3",
+  });
+}
+
 // POST - Run pre-call research with SSE streaming progress updates
 export async function POST(request: NextRequest) {
   console.log("[Research] POST handler called");
 
+  // Dynamically import all dependencies to prevent module-level failures
+  let prisma, getCurrentUser, parseSearchInput, generateSearchPlan, executeSearchPlan, synthesizeResearchBrief;
+
   try {
-    // Dynamic imports — prevents module-level failures from causing silent 405s
-    const [
-      { prisma },
-      { getCurrentUser },
-      { parseSearchInput },
-      { generateSearchPlan },
-      { executeSearchPlan },
-      { synthesizeResearchBrief },
-    ] = await Promise.all([
-      import("@/lib/db"),
-      import("@/lib/auth"),
-      import("@/lib/search/input-parser"),
-      import("@/lib/search/queries"),
-      import("@/lib/search/results"),
-      import("@/lib/search/synthesis"),
-    ]);
+    const dbModule = await import("@/lib/db");
+    prisma = dbModule.prisma;
+    console.log("[Research] db loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/db:", e);
+    return NextResponse.json({ error: "Internal error: db module" }, { status: 500 });
+  }
 
-    console.log("[Research] All modules loaded successfully");
+  try {
+    const authModule = await import("@/lib/auth");
+    getCurrentUser = authModule.getCurrentUser;
+    console.log("[Research] auth loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/auth:", e);
+    return NextResponse.json({ error: "Internal error: auth module" }, { status: 500 });
+  }
 
+  try {
+    const parserModule = await import("@/lib/search/input-parser");
+    parseSearchInput = parserModule.parseSearchInput;
+    console.log("[Research] input-parser loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/search/input-parser:", e);
+    return NextResponse.json({ error: "Internal error: input-parser module" }, { status: 500 });
+  }
+
+  try {
+    const queriesModule = await import("@/lib/search/queries");
+    generateSearchPlan = queriesModule.generateSearchPlan;
+    console.log("[Research] queries loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/search/queries:", e);
+    return NextResponse.json({ error: "Internal error: queries module" }, { status: 500 });
+  }
+
+  try {
+    const resultsModule = await import("@/lib/search/results");
+    executeSearchPlan = resultsModule.executeSearchPlan;
+    console.log("[Research] results loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/search/results:", e);
+    return NextResponse.json({ error: "Internal error: results module" }, { status: 500 });
+  }
+
+  try {
+    const synthesisModule = await import("@/lib/search/synthesis");
+    synthesizeResearchBrief = synthesisModule.synthesizeResearchBrief;
+    console.log("[Research] synthesis loaded");
+  } catch (e) {
+    console.error("[Research] Failed to import @/lib/search/synthesis:", e);
+    return NextResponse.json({ error: "Internal error: synthesis module" }, { status: 500 });
+  }
+
+  try {
     const user = await getCurrentUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -152,7 +201,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[Research] Fatal error (likely module import failure):", error);
+    console.error("[Research] Fatal error:", error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Failed to start research",
