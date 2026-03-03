@@ -156,47 +156,104 @@ Updated on generate and on manual edit (if latest version).
 
 Once the planning process exists, users can run research for a specific account:
 
-**Slack:** `#precall Acme Corp, Jane Smith VP Sales` or `#callprep Acme Corp`
-**Web App:** Dedicated UI within the pre-call planning applet page
+**Slack:** `#precall` or `#callprep` followed by freeform info (names, URLs, notes — any order)
+**Web App:** Dedicated UI within the pre-call planning applet page with structured fields
+
+### User Input — Flexible & Forgiving
+
+Users can provide input in any messy combination. A GPT-5 "input parsing" step makes sense of it.
+
+**Web App form fields** (all optional except Company Name):
+- Company Name (required)
+- Company Website URL
+- LinkedIn Company Page URL
+- Crunchbase URL
+- Contact First Name
+- Contact Last Name
+- Contact Title / Role
+- Contact LinkedIn Profile URL
+- Additional Notes (freeform)
+
+**Slack examples** (freeform, parsed by GPT-5):
+```
+#precall Acme Corp, Jane Smith VP Sales
+#precall Acme Corp https://acme.com Jane Smith https://linkedin.com/in/janesmith
+#callprep company: Acme Corp, contact: Jane Smith, VP Sales, linkedin.com/in/janesmith, crunchbase.com/organization/acme
+#precall Meeting with Jane Smith at Acme Corp tomorrow, she's VP Sales. Their site is acme.com and they just raised a Series B
+```
+
+All of these should work. The input parser extracts structured data from whatever the user provides.
 
 ### Data Flow
 
 ```
-User Input: "Acme Corp, Jane Smith VP Sales"
+User Input (freeform or structured)
     │
     ▼
-┌──────────────────────────────┐
-│ Step 1: Search Plan (GPT-5)  │
-│ Generate 3-5 targeted queries │
-│ based on company + contact   │
-└──────────┬───────────────────┘
+┌──────────────────────────────────┐
+│ Step 0: Parse Input (GPT-5)      │
+│ Extract: company, contact, role, │
+│ URLs (LinkedIn, website, CB),    │
+│ any extra context/notes          │
+└──────────┬───────────────────────┘
            │
            ▼
-┌──────────────────────────────┐
-│ Step 2: Brave Search API     │
-│ Execute queries in parallel  │
-│ Top 5 results per query      │
-└──────────┬───────────────────┘
+┌──────────────────────────────────┐
+│ Step 1: Search Plan (GPT-5)      │
+│ Generate targeted queries using  │
+│ parsed fields + known URL targets│
+└──────────┬───────────────────────┘
            │
            ▼
-┌──────────────────────────────┐
-│ Step 3: Parse Results (GPT-5)│
-│ Extract & clean key facts    │
-│ from search snippets/pages   │
-└──────────┬───────────────────┘
+┌──────────────────────────────────┐
+│ Step 2: Execute Searches         │
+│ A) Brave Search (generated Qs)   │
+│ B) Direct fetch user-provided    │
+│    URLs (website, LinkedIn, CB)  │
+│ Both in parallel                 │
+└──────────┬───────────────────────┘
            │
            ▼
-┌──────────────────────────────┐
-│ Step 4: Synthesize (GPT-5)   │
-│ Merge research against:      │
-│ - Pre-Call Planning Process   │
-│ - Sales Narrative             │
-│ - Discovery Questions         │
-│ - First Call Checklist        │
-│ → Produce account-specific   │
-│   pre-call brief             │
-└──────────────────────────────┘
+┌──────────────────────────────────┐
+│ Step 3: Parse Results (GPT-5)    │
+│ Extract & organize key facts     │
+│ from all sources                 │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│ Step 4: Synthesize (GPT-5)       │
+│ Merge research against:          │
+│ - Pre-Call Planning Process      │
+│ - Sales Narrative                │
+│ - Discovery Questions            │
+│ - First Call Checklist           │
+│ → Produce account-specific       │
+│   pre-call brief                 │
+└──────────────────────────────────┘
 ```
+
+### Search Targets — What We Look For
+
+**For the Account:**
+| Target | How | Priority |
+|--------|-----|----------|
+| LinkedIn Company Page | User-provided URL OR Brave: `"Company Name" site:linkedin.com/company` | High |
+| Company Website | User-provided URL OR Brave: `"Company Name" official website` | High |
+| Crunchbase | User-provided URL OR Brave: `"Company Name" site:crunchbase.com` | Medium |
+| Recent News | Brave: `"Company Name" news funding announcement {current_year}` | High |
+| Industry/Competitive | Brave: `"Company Name" competitors market {industry}` | Medium |
+
+**For the Contact:**
+| Target | How | Priority |
+|--------|-----|----------|
+| LinkedIn Profile | User-provided URL OR Brave: `"First Last" "Company Name" site:linkedin.com/in` | High |
+| Professional Background | Brave: `"First Last" "Company Name" {role}` | Medium |
+| Public Content | Brave: `"First Last" conference talk podcast interview` | Low |
+
+**Direct URL fetching:** When the user provides a URL (LinkedIn profile, company website, Crunchbase), we fetch the page content directly (in addition to Brave searches). This gives us richer data than search snippets alone. These fetches run in parallel with the Brave queries.
+
+**LinkedIn note:** LinkedIn pages often require authentication for full content. The Brave search *for* LinkedIn will return the public snippet (title, headline, summary). If the user provides a LinkedIn URL directly, we can attempt to fetch the public view — if blocked, we fall back to the Brave snippet. This is good enough for pre-call prep; we're not trying to scrape full profiles.
 
 ### Database Model
 
@@ -210,15 +267,22 @@ model PreCallResearch {
   planningVersionId  String
   planningVersion    PreCallPlanningVersion @relation(fields: [planningVersionId], references: [id])
 
-  // Input
-  companyName   String
-  contactName   String?
-  contactRole   String?
-  userNotes     String?   @db.Text  // Any extra context the user provided
+  // Parsed input (structured from freeform or form input)
+  companyName           String
+  companyWebsiteUrl     String?
+  companyLinkedInUrl    String?
+  companyCrunchbaseUrl  String?
+  contactFirstName      String?
+  contactLastName       String?
+  contactRole           String?
+  contactLinkedInUrl    String?
+  userNotes             String?   @db.Text  // Extra context the user provided
+  rawInput              String?   @db.Text  // Original freeform input (Slack)
 
   // Search data (for audit/debugging)
   searchQueries   String   @db.Text  // JSON: string[]
   searchResults   String   @db.Text  // JSON: condensed results
+  fetchedUrls     String?  @db.Text  // JSON: URLs directly fetched + status
 
   // Output
   brief           String   @db.Text  // The final synthesized pre-call brief (markdown)
@@ -245,85 +309,178 @@ model PreCallResearch {
 
 ### Research Execution — Detailed Steps
 
-**Step 1: Search Plan Generation**
+**Step 0: Input Parsing (GPT-5)**
+
+This is the "make sense of it" step. Takes whatever the user typed and extracts structured fields.
+
 ```typescript
-// src/lib/search/queries.ts
-// Uses GPT-5 to generate targeted search queries
+// src/lib/search/input-parser.ts
 
-const prompt = `Given this company and contact, generate 3-5 web search queries
-that would help a salesperson prepare for a first call.
+interface ParsedResearchInput {
+  companyName: string;
+  companyWebsiteUrl?: string;
+  companyLinkedInUrl?: string;
+  companyCrunchbaseUrl?: string;
+  contactFirstName?: string;
+  contactLastName?: string;
+  contactRole?: string;
+  contactLinkedInUrl?: string;
+  userNotes?: string;
+}
 
-Company: ${companyName}
-Contact: ${contactName}, ${contactRole}
+// For Slack — freeform text after #precall
+async function parseResearchInput(rawInput: string): Promise<ParsedResearchInput> {
+  const prompt = `Extract structured information from this sales research request.
+The user is preparing for a sales call and provided the following:
 
-Generate queries to find:
-1. Company overview, products, services, stage
-2. Recent news, funding, announcements
-3. Contact's professional background
-4. Industry trends relevant to the company
-5. Competitive landscape
+"${rawInput}"
 
-Return as JSON array of strings.`;
+Extract into JSON:
+{
+  "companyName": "...",           // required
+  "companyWebsiteUrl": "...",     // if a company website URL was provided
+  "companyLinkedInUrl": "...",    // if a LinkedIn company page URL was provided
+  "companyCrunchbaseUrl": "...", // if a Crunchbase URL was provided
+  "contactFirstName": "...",
+  "contactLastName": "...",
+  "contactRole": "...",           // title, role, department
+  "contactLinkedInUrl": "...",    // if a LinkedIn profile URL was provided
+  "userNotes": "..."              // any additional context that doesn't fit above
+}
 
-const queries: string[] = await generateSearchQueries(companyName, contactName);
+Rules:
+- Detect URLs by domain: linkedin.com/in/... → contactLinkedInUrl,
+  linkedin.com/company/... → companyLinkedInUrl, crunchbase.com → companyCrunchbaseUrl,
+  anything else → companyWebsiteUrl
+- If just a name and company are given, that's fine — leave URL fields null
+- Be generous in interpretation — "she's VP Sales" → contactRole: "VP Sales"
+
+Return only valid JSON.`;
+
+  // GPT-5 call, parse JSON response
+}
+
+// For Web App — already structured from form, no parsing needed
+// Just pass the form fields directly to the research pipeline
 ```
 
-**Step 2: Brave Search Execution**
+**Step 1: Search Plan Generation (GPT-5)**
+
+Takes the parsed input and generates targeted Brave queries. Knows which URLs the user already provided (so it doesn't waste queries searching for those).
+
 ```typescript
-// src/lib/search/brave.ts
-// Brave Web Search API client
+// src/lib/search/queries.ts
+
+interface SearchPlan {
+  braveQueries: string[];           // 3-6 queries for Brave
+  directFetchUrls: string[];        // User-provided URLs to fetch directly
+}
+
+async function generateSearchPlan(input: ParsedResearchInput): Promise<SearchPlan> {
+  // Collect user-provided URLs for direct fetching
+  const directFetchUrls: string[] = [];
+  if (input.companyWebsiteUrl) directFetchUrls.push(input.companyWebsiteUrl);
+  if (input.companyLinkedInUrl) directFetchUrls.push(input.companyLinkedInUrl);
+  if (input.companyCrunchbaseUrl) directFetchUrls.push(input.companyCrunchbaseUrl);
+  if (input.contactLinkedInUrl) directFetchUrls.push(input.contactLinkedInUrl);
+
+  // GPT-5 generates Brave queries — skipping targets we already have URLs for
+  const prompt = `Generate web search queries to research this company and contact
+for a sales call preparation.
+
+Company: ${input.companyName}
+Contact: ${input.contactFirstName} ${input.contactLastName}, ${input.contactRole}
+
+URLs already provided by the user (do NOT search for these — we'll fetch them directly):
+${directFetchUrls.map(u => `- ${u}`).join('\n') || '(none)'}
+
+Generate 3-6 Brave search queries to find what we DON'T already have:
+${!input.companyLinkedInUrl ? '- LinkedIn company page: "Company Name" site:linkedin.com/company' : ''}
+${!input.companyWebsiteUrl ? '- Company website and overview' : ''}
+${!input.companyCrunchbaseUrl ? '- Crunchbase profile: "Company Name" site:crunchbase.com' : ''}
+${!input.contactLinkedInUrl ? '- Contact LinkedIn: "First Last" "Company" site:linkedin.com/in' : ''}
+- Recent news, funding, announcements (always search for this)
+- Industry context, competitive landscape (always search for this)
+
+Return as JSON array of query strings.`;
+
+  const braveQueries = await callGPT5(prompt); // parse JSON array
+  return { braveQueries, directFetchUrls };
+}
+```
+
+**Step 2: Search + Fetch Execution (parallel)**
+
+Two things happen at the same time:
+- Brave Search API for the generated queries
+- Direct HTTP fetch for any user-provided URLs
+
+```typescript
+// src/lib/search/brave.ts — Brave Web Search API client
+// src/lib/search/fetcher.ts — Direct URL page fetcher
 
 interface BraveSearchResult {
   title: string;
   url: string;
-  description: string;  // Snippet
-  age?: string;          // "2 days ago", etc.
+  description: string;
+  age?: string;
 }
 
-async function braveSearch(query: string): Promise<BraveSearchResult[]> {
-  const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-    {
-      headers: {
-        "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY!,
-        "Accept": "application/json",
-      },
-    }
-  );
-  const data = await response.json();
-  return data.web?.results?.map(r => ({
-    title: r.title,
-    url: r.url,
-    description: r.description,
-    age: r.age,
-  })) || [];
+interface FetchedPage {
+  url: string;
+  title: string;
+  content: string;   // Cleaned text, truncated to ~5000 chars
+  success: boolean;
+  error?: string;
 }
 
-// Execute all queries in parallel
-const allResults = await Promise.all(queries.map(q => braveSearch(q)));
+async function executeSearchPlan(plan: SearchPlan): Promise<{
+  braveResults: BraveSearchResult[][];
+  fetchedPages: FetchedPage[];
+}> {
+  // Run ALL searches and fetches in parallel
+  const [braveResults, fetchedPages] = await Promise.all([
+    // Brave queries
+    Promise.all(plan.braveQueries.map(q => braveSearch(q))),
+    // Direct URL fetches (with timeout, HTML→text conversion)
+    Promise.all(plan.directFetchUrls.map(url => fetchAndCleanPage(url))),
+  ]);
+
+  return { braveResults, fetchedPages };
+}
+
+// fetchAndCleanPage: fetch URL, strip HTML, extract readable text
+// Handles: timeouts, blocked pages (LinkedIn), error gracefully
+// For LinkedIn: if blocked (302/403), still useful — Brave snippet covers it
 ```
 
-**Step 3: Result Parsing**
+**Step 3: Result Parsing (GPT-5)**
+
+Now has both search snippets AND full page content from direct fetches.
+
 ```typescript
 // src/lib/search/results.ts
-// Uses GPT-5 to extract and organize key facts
 
-const parsePrompt = `You are a sales research assistant. Given these raw search results
-about ${companyName}, extract and organize the key facts into a structured research summary.
+const parsePrompt = `You are a sales research assistant. Given these search results
+and fetched page content about ${input.companyName}, extract and organize key facts.
 
-Search Results:
-${formattedResults}
+## Brave Search Results
+${formattedBraveResults}
 
-Extract:
-- Company: what they do, size, stage, funding, key products
-- People: ${contactName}'s role, background, tenure
-- News: recent announcements, press, events
-- Industry: relevant market trends, competitive dynamics
-- Red flags or notable items
+## Directly Fetched Pages
+${formattedFetchedPages}
 
-Be factual. Cite sources with URLs. Flag anything uncertain.`;
+Extract and organize:
+- **Company**: what they do, size, stage, funding, key products/services, tech stack
+- **People**: ${input.contactFirstName} ${input.contactLastName}'s role, background,
+  tenure, LinkedIn headline, recent activity
+- **Funding/Growth**: recent funding, revenue signals, hiring activity
+- **News**: recent announcements, press releases, product launches
+- **Industry**: market trends, competitive dynamics, adjacent players
+- **Red Flags**: anything concerning (layoffs, lawsuits, leadership changes)
 
-const parsedResearch = await parseSearchResults(formattedResults, companyName, contactName);
+Be factual. Cite sources with URLs. Flag anything uncertain or unverified.
+Distinguish between confirmed facts and inferences.`;
 ```
 
 **Step 4: Synthesis**
@@ -368,12 +525,10 @@ const brief = await synthesizePreCallBrief(...);
 In `processMessage()` (src/lib/slack/events.ts), before the Chatbase call:
 
 ```typescript
-// Detect #precall or #callprep command
-const precallMatch = finalText.match(/#(?:precall|callprep)\s+(.+)/i);
+// Detect #precall or #callprep command — everything after the hashtag is freeform input
+const precallMatch = finalText.match(/#(?:precall|callprep)\s+([\s\S]+)/i);
 if (precallMatch) {
-  const input = precallMatch[1].trim();
-  // Parse "Company, Contact Name Role" format
-  const { company, contact, role } = parsePrecallInput(input);
+  const rawInput = precallMatch[1].trim();
 
   // Check user has a planning process set up
   const planningVersion = await getLatestPlanningVersion(user.id);
@@ -384,21 +539,33 @@ if (precallMatch) {
     return;
   }
 
-  // Send typing indicator
+  // Step 0: Parse freeform input via GPT-5
+  const parsed = await parseResearchInput(rawInput);
+
+  // Send status message
+  const contactDisplay = [parsed.contactFirstName, parsed.contactLastName].filter(Boolean).join(' ');
   await sendSlackMessage(client, channel,
-    `Researching ${company}${contact ? ` and ${contact}` : ''}...`, threadTs);
+    `Researching ${parsed.companyName}${contactDisplay ? ` and ${contactDisplay}` : ''}...`, threadTs);
 
-  // Execute research pipeline
-  const brief = await executePreCallResearch(user.id, company, contact, role, planningVersion);
+  // Steps 1-4: Execute research pipeline (bypasses Chatbase entirely)
+  const brief = await executePreCallResearch(user.id, parsed, planningVersion);
 
-  // Send result (bypasses Chatbase entirely)
   const slackBrief = markdownToSlack(brief);
   await sendSlackMessage(client, channel, slackBrief, threadTs);
 
   // Save as conversation message for web app access
-  await saveResearchToConversation(conversation, user, brief);
+  await saveResearchToConversation(conversation, user, rawInput, brief);
   return;
 }
+```
+
+**Slack examples that all work:**
+```
+@Mikey #precall Acme Corp, Jane Smith VP Sales
+@Mikey #callprep Acme Corp https://acme.com Jane Smith https://linkedin.com/in/janesmith
+@Mikey #precall Meeting with Jane Smith tomorrow at Acme Corp. She's their VP Sales.
+       Their website is acme.com. Found her on linkedin.com/in/janesmith.
+       They just raised Series B according to crunchbase.com/organization/acme
 ```
 
 ### Web App Integration
@@ -406,28 +573,43 @@ if (precallMatch) {
 Add a "Research" tab or section to the `/pre-call-planning` page:
 
 ```
-┌─────────────────────────────────────────────────┐
-│ Pre-Call Planning                                │
-│                                                  │
-│ [Planning Process] [Run Research] [History]       │
-│                                                  │
-│ ┌─────────────────────────────────────────────┐  │
-│ │ Company: [Acme Corp                       ] │  │
-│ │ Contact: [Jane Smith                      ] │  │
-│ │ Role:    [VP Sales                        ] │  │
-│ │ Notes:   [Met at SaaStr, interested in... ] │  │
-│ │                                             │  │
-│ │ [Run Research]                              │  │
-│ └─────────────────────────────────────────────┘  │
-│                                                  │
-│ ┌─ Status ─────────────────────────────────────┐ │
-│ │ ✓ Generated 4 search queries                 │ │
-│ │ ✓ Searched: "Acme Corp overview products"    │ │
-│ │ ✓ Searched: "Acme Corp funding news 2026"    │ │
-│ │ ● Searching: "Jane Smith Acme Corp LinkedIn" │ │
-│ │ ○ Synthesizing pre-call brief...             │ │
-│ └──────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Pre-Call Planning                                         │
+│                                                           │
+│ [Planning Process] [Run Research] [Research History]       │
+│                                                           │
+│ ┌── Account ───────────────────────────────────────────┐  │
+│ │ Company Name*:     [Acme Corp                      ] │  │
+│ │ Company Website:   [https://acme.com               ] │  │
+│ │ LinkedIn Company:  [linkedin.com/company/acme      ] │  │
+│ │ Crunchbase:        [crunchbase.com/organization/...] │  │
+│ └──────────────────────────────────────────────────────┘  │
+│                                                           │
+│ ┌── Contact ───────────────────────────────────────────┐  │
+│ │ First Name:        [Jane                           ] │  │
+│ │ Last Name:         [Smith                          ] │  │
+│ │ Title / Role:      [VP Sales                       ] │  │
+│ │ LinkedIn Profile:  [linkedin.com/in/janesmith      ] │  │
+│ └──────────────────────────────────────────────────────┘  │
+│                                                           │
+│ ┌── Additional Context ────────────────────────────────┐  │
+│ │ [Met at SaaStr last week. She mentioned they're    ] │  │
+│ │ [evaluating new sales tools. Series B company.     ] │  │
+│ └──────────────────────────────────────────────────────┘  │
+│                                                           │
+│ [Run Research]                                            │
+│                                                           │
+│ ┌─ Progress ───────────────────────────────────────────┐  │
+│ │ ✓ Parsed input: Acme Corp + Jane Smith (VP Sales)    │  │
+│ │ ✓ Generated 4 search queries                         │  │
+│ │ ✓ Fetched: https://acme.com (company website)        │  │
+│ │ ✓ Fetched: linkedin.com/in/janesmith                 │  │
+│ │ ✓ Searched: "Acme Corp" funding news 2026            │  │
+│ │ ✓ Searched: "Acme Corp" competitors market           │  │
+│ │ ● Parsing and organizing research...                 │  │
+│ │ ○ Synthesizing pre-call brief...                     │  │
+│ └──────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 Research uses SSE streaming (same pattern as chat) with new event types:
@@ -450,11 +632,13 @@ Research uses SSE streaming (same pattern as chat) with new event types:
 - [ ] Attachments: add to attachment picker for chat context
 
 ### Phase 2: Search Infrastructure
+- [ ] Types and interfaces (`src/lib/search/types.ts`)
+- [ ] Input parser — GPT-5 freeform → structured (`src/lib/search/input-parser.ts`)
 - [ ] Brave Search API client (`src/lib/search/brave.ts`)
-- [ ] Query generation (`src/lib/search/queries.ts`)
+- [ ] Direct URL page fetcher with HTML→text (`src/lib/search/fetcher.ts`)
+- [ ] Search plan generation — queries + direct URLs (`src/lib/search/queries.ts`)
 - [ ] Result parsing (`src/lib/search/results.ts`)
 - [ ] Synthesis engine (`src/lib/search/synthesis.ts`)
-- [ ] Types (`src/lib/search/types.ts`)
 
 ### Phase 3: Research Integration
 - [ ] Prisma migration: `PreCallResearch` model
@@ -482,10 +666,12 @@ scripts/seed-pre-call-planning.ts              (if we add seeded questions later
 
 src/lib/search/
   brave.ts          — Brave Search API client
-  queries.ts        — Search query generation (GPT-5)
+  fetcher.ts        — Direct URL page fetcher (HTML→text)
+  input-parser.ts   — GPT-5 freeform input → structured fields
+  queries.ts        — Search plan generation (GPT-5)
   results.ts        — Result parsing and formatting (GPT-5)
   synthesis.ts      — Final brief synthesis (GPT-5)
-  types.ts          — Shared types
+  types.ts          — Shared types (ParsedResearchInput, SearchPlan, etc.)
 
 src/app/pre-call-planning/
   page.tsx           — Main view/edit + research UI
