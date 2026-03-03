@@ -1,10 +1,10 @@
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import type { SearchResults, ResearchBrief, SearchProgressCallback } from "./types";
 import { formatResultsForSynthesis } from "./results";
 
 /**
  * Synthesize search results into a structured research brief
- * using the main AI (Chatbase).
+ * using OpenAI directly (bypasses Chatbase's 8K char limit).
  */
 export async function synthesizeResearchBrief(
   results: SearchResults,
@@ -23,11 +23,7 @@ export async function synthesizeResearchBrief(
     ? `\n\n## CONTACT TO RESEARCH\n- Name: ${parsedInput.contactName}\n- Title: ${parsedInput.contactTitle || "Unknown"}\n- LinkedIn: ${parsedInput.contactLinkedIn || "Not provided"}`
     : "";
 
-  const prompt = `You are a sales research analyst preparing a pre-call intelligence brief for a founder's upcoming sales call.
-
-## YOUR TASK
-
-Synthesize the search results below into a comprehensive, actionable research brief. This brief will be used by a founder to prepare for a sales call with ${parsedInput.companyName}${parsedInput.contactName ? ` (specifically with ${parsedInput.contactName})` : ""}.
+  const systemPrompt = `You are a sales research analyst preparing a pre-call intelligence brief for a founder's upcoming sales call.
 
 ## BRIEF STRUCTURE
 
@@ -75,7 +71,9 @@ Make the brief specific and actionable. Avoid generic advice. Every point should
 
 If information for a section is not available from the search results, say "Not found in research — ask on the call" rather than making things up.
 
-DO NOT wrap the output in code blocks.
+DO NOT wrap the output in code blocks.`;
+
+  const userPrompt = `Synthesize the search results below into a comprehensive, actionable research brief for a sales call with ${parsedInput.companyName}${parsedInput.contactName ? ` (specifically with ${parsedInput.contactName})` : ""}.
 
 ## COMPANY TO RESEARCH
 - Company: ${parsedInput.companyName}
@@ -91,12 +89,22 @@ ${formattedResults}
 
 Now generate the research brief.`;
 
+  console.log(`[Synthesis] Prompt size: system=${systemPrompt.length}, user=${userPrompt.length}, total=${systemPrompt.length + userPrompt.length} chars`);
+
   let aiResponse = "";
   try {
-    const chatbaseResult = await sendToChatbase(prompt);
-    aiResponse = chatbaseResult.response;
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+    });
+
+    aiResponse = response.choices[0]?.message?.content || "";
   } catch (error) {
-    console.error("[Synthesis] Chatbase error:", error);
+    console.error("[Synthesis] OpenAI error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Failed to synthesize research brief: ${message}`);
   }

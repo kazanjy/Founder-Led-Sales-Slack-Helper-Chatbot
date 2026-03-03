@@ -12,9 +12,8 @@ interface ChatbaseResponse {
   [key: string]: unknown;
 }
 
-// Chatbase uses underlying LLMs (GPT-4, Claude, etc.) with 128K+ context windows.
-// Previous 7500 char limit was overly conservative and truncated research data.
-const CHATBASE_MESSAGE_LIMIT = 50_000;
+// Chatbase enforces an 8000 character limit per message
+const CHATBASE_MESSAGE_LIMIT = 7500; // Leave buffer
 
 // Timeout for non-streaming Chatbase requests (ms)
 const CHATBASE_TIMEOUT_MS = 90_000; // 90 seconds
