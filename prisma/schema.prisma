@@ -100,6 +100,7 @@ model User {
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
   firstCallChecklistVersions FirstCallChecklistVersion[]
   preCallPlanningVersions PreCallPlanningVersion[]
+  preCallResearch PreCallResearch[]
   attachmentPreference UserAttachmentPreference?
 
   // Track update-in-progress state for maturity assessment
@@ -647,6 +648,39 @@ model PreCallPlanningVersion {
 
   @@index([userId, createdAt])
   @@map("pre_call_planning_versions")
+}
+
+// ============================================
+// PRE-CALL RESEARCH APP
+// ============================================
+
+// Pre-call research briefs generated from web search
+model PreCallResearch {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Research input
+  companyName   String
+  contactName   String?
+  contactTitle  String?
+  freeformInput String?  @db.Text
+
+  // Generated research brief (markdown)
+  content     String   @db.Text
+
+  // Sources used (JSON array of {title, url})
+  sources     Json     @default("[]")
+
+  // Source of the request
+  source      String   @default("web")  // "web" | "slack"
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, companyName])
+  @@map("pre_call_research")
 }
 
 // User preferences for prompt attachments

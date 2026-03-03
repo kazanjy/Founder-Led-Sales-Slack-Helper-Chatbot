@@ -274,7 +274,8 @@ export default function ChatPage() {
     salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
     discoveryQuestions: { hasGenerated: boolean } | null;
     firstCallChecklist: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null });
+    preCallPlanning: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -383,6 +384,16 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             firstCallChecklist: { hasGenerated: !!fccData.hasFirstCallChecklist }
+          }));
+        }
+
+        // Fetch Pre-Call Planning progress
+        const pcpRes = await fetch("/api/pre-call-planning/latest");
+        if (pcpRes.ok) {
+          const pcpData = await pcpRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            preCallPlanning: { hasGenerated: !!pcpData.hasPreCallPlanning }
           }));
         }
       } catch (error) {
@@ -2444,6 +2455,32 @@ export default function ChatPage() {
                 <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
             </a>
+            <a
+              href="/pre-call-planning"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.preCallPlanning?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>🎯</span>
+              <span className="flex-1">Pre-Call Planning</span>
+              {!appProgress.preCallPlanning?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
+              )}
+            </a>
+            <a
+              href="/pre-call-planning/research"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full border-2 border-blue-400 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              </span>
+              <span>🔍</span>
+              <span className="flex-1">Pre-Call Research</span>
+              <span className="text-xs text-blue-600 font-medium">New</span>
+            </a>
           </div>
         </div>
 
@@ -3181,6 +3218,33 @@ export default function ChatPage() {
                       ) : (
                         <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
                       )}
+                    </a>
+                    <a
+                      href={appProgress.preCallPlanning?.hasGenerated ? "/pre-call-planning/history" : "/pre-call-planning"}
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">🎯</span>
+                        {appProgress.preCallPlanning?.hasGenerated && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Pre-Call Planning</span>
+                      {appProgress.preCallPlanning?.hasGenerated ? (
+                        <span className="text-xs text-green-600">Completed</span>
+                      ) : (
+                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
+                      )}
+                    </a>
+                    <a
+                      href="/pre-call-planning/research"
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all text-center group"
+                    >
+                      <div className="relative">
+                        <span className="text-3xl">🔍</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Pre-Call Research</span>
+                      <span className="text-xs text-blue-600 group-hover:underline">Research →</span>
                     </a>
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { markdownToSlack } from "./markdown";
-import { handleCommand, INSTRUCTIONS_MESSAGE } from "./commands";
+import { handleCommand, INSTRUCTIONS_MESSAGE, parseResearchCommand } from "./commands";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -573,6 +573,13 @@ async function handleMention(
     return;
   }
 
+  // Check for #research / #precall / #callprep commands
+  const researchQuery = parseResearchCommand(cleanText);
+  if (researchQuery) {
+    await handleResearchCommand(workspace, dbUser, client, channel, threadTs, researchQuery);
+    return;
+  }
+
   // Check if Mikey is being summoned into an existing thread
   // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
   let priorThreadContext: string | undefined;
@@ -694,6 +701,13 @@ async function handleDirectMessage(
     return;
   }
 
+  // Check for #research / #precall / #callprep commands
+  const researchQuery = parseResearchCommand(text || "");
+  if (researchQuery) {
+    await handleResearchCommand(workspace, dbUser, client, channel, threadTs, researchQuery);
+    return;
+  }
+
   await processMessage(
     workspace,
     dbUser,
@@ -704,6 +718,83 @@ async function handleDirectMessage(
     undefined, // no prior thread context for DMs
     hasFiles ? files : undefined
   );
+}
+
+/**
+ * Handle a #research / #precall / #callprep command from Slack.
+ * Runs the full search pipeline and sends the research brief as a Slack message.
+ */
+async function handleResearchCommand(
+  workspace: { id: string; botToken: string; botUserId: string | null },
+  user: { id: string; slackUserId: string | null },
+  client: ReturnType<typeof getSlackClient>,
+  channel: string,
+  threadTs: string,
+  query: { companyName: string; contactInfo?: string }
+) {
+  // Send acknowledgment
+  await sendSlackMessage(
+    client,
+    channel,
+    `🔍 _Researching *${query.companyName}*${query.contactInfo ? ` (${query.contactInfo})` : ""}... This may take 30-60 seconds._`,
+    threadTs
+  );
+
+  try {
+    // Import search modules dynamically to avoid circular dependencies
+    const { parseSearchInput } = await import("@/lib/search/input-parser");
+    const { generateSearchPlan } = await import("@/lib/search/queries");
+    const { executeSearchPlan } = await import("@/lib/search/results");
+    const { synthesizeResearchBrief } = await import("@/lib/search/synthesis");
+
+    // Build freeform text from the parsed command
+    const freeformText = query.contactInfo
+      ? `${query.companyName}, ${query.contactInfo}`
+      : query.companyName;
+
+    // Run the research pipeline
+    const parsedInput = await parseSearchInput({
+      freeformText,
+      companyName: query.companyName,
+    });
+
+    const plan = generateSearchPlan(parsedInput);
+    const results = await executeSearchPlan(plan);
+    const brief = await synthesizeResearchBrief(results);
+
+    // Save to database
+    await prisma.preCallResearch.create({
+      data: {
+        userId: user.id,
+        companyName: parsedInput.companyName,
+        contactName: parsedInput.contactName,
+        contactTitle: parsedInput.contactTitle,
+        freeformInput: freeformText,
+        content: brief.content,
+        sources: brief.sources,
+        source: "slack",
+      },
+    });
+
+    // Convert to Slack format and send
+    const slackBrief = markdownToSlack(brief.content);
+
+    // Add header and web link
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+    const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n\n`;
+    const footer = `\n\n_View your research history at ${appUrl}/pre-call-planning/research_`;
+
+    await sendSlackMessage(client, channel, header + slackBrief + footer, threadTs);
+  } catch (error) {
+    console.error("[Slack Research] Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await sendSlackMessage(
+      client,
+      channel,
+      `❌ Sorry, I couldn't complete the research for *${query.companyName}*. ${errorMessage}\n\nYou can also try the web app at ${process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai"}/pre-call-planning/research`,
+      threadTs
+    );
+  }
 }
 
 /**
