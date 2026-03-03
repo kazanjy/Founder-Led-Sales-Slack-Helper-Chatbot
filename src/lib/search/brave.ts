@@ -63,6 +63,12 @@ export async function braveSearch(
 
     console.log(`[BraveSearch] "${query}" returned ${results.length} results`);
 
+    // Log LinkedIn-specific results for validation
+    const linkedInResults = results.filter((r) => r.url.includes("linkedin.com"));
+    if (linkedInResults.length > 0) {
+      console.log(`[BraveSearch] LinkedIn results for "${query}":`, linkedInResults.map((r) => r.url));
+    }
+
     return {
       query,
       purpose,

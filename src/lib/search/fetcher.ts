@@ -9,6 +9,18 @@ const FETCH_TIMEOUT = 10000;
  * Fetch a URL and extract its text content (HTML stripped).
  */
 export async function fetchPage(url: string, purpose: string): Promise<FetchedPage> {
+  // Skip LinkedIn URLs — they block server-side fetching and return empty/login pages
+  if (url.includes("linkedin.com")) {
+    console.log(`[Fetcher] Skipping LinkedIn URL (blocked by anti-scraping): ${url}`);
+    return {
+      url,
+      purpose,
+      textContent: "",
+      success: false,
+      error: "LinkedIn blocks server-side fetching — content available via Brave search snippets",
+    };
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);

@@ -55,11 +55,18 @@ export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
   if (input.contactName) {
     const contact = input.contactName;
 
-    // LinkedIn profile
+    // LinkedIn profile (site-scoped for better results)
     queries.push({
-      query: `"${contact}" "${company}" LinkedIn`,
-      purpose: `${contact}'s professional background`,
+      query: `site:linkedin.com/in "${contact}" "${company}"`,
+      purpose: `${contact}'s LinkedIn profile`,
       priority: 1,
+    });
+
+    // General professional background (catches non-LinkedIn sources)
+    queries.push({
+      query: `"${contact}" "${company}" background OR bio OR profile`,
+      purpose: `${contact}'s professional background`,
+      priority: 2,
     });
 
     // Published content / speaking
