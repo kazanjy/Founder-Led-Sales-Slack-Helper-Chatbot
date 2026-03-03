@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SearchInput } from "@/lib/search/types";
 
+// Force dynamic — never cache this route (prevents stale 405 from Vercel CDN)
+export const dynamic = "force-dynamic";
+
 // Allow up to 120s for search + AI synthesis
 export const maxDuration = 120;
 

@@ -110,7 +110,7 @@ export default function PreCallResearchPage() {
         .map((u) => u.trim())
         .filter((u) => u.length > 0);
 
-      const response = await fetch("/api/pre-call-planning/research", {
+      const response = await fetch("/api/pre-call-planning/research-run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
