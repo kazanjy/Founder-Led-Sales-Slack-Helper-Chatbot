@@ -146,10 +146,14 @@ Now generate the research brief.`;
     progress: 100,
   });
 
+  // Combine system + user prompt as the full search context
+  const searchContext = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
   return {
     companyName: parsedInput.companyName,
     contactName: parsedInput.contactName,
     content,
+    searchContext,
     sources,
     generatedAt: new Date(),
   };

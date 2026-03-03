@@ -771,6 +771,7 @@ async function handleResearchCommand(
         contactTitle: parsedInput.contactTitle,
         freeformInput: freeformText,
         content: brief.content,
+        searchContext: brief.searchContext,
         sources: brief.sources,
         source: "slack",
       },

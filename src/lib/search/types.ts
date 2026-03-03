@@ -104,6 +104,8 @@ export interface ResearchBrief {
   contactName?: string;
   /** The full markdown research brief */
   content: string;
+  /** Full search context prompt sent to the LLM */
+  searchContext: string;
   /** Sources used */
   sources: { title: string; url: string }[];
   /** When the research was generated */

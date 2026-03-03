@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
               contactTitle: parsedInput.contactTitle,
               freeformInput: freeformText || companyName,
               content: brief.content,
+              searchContext: brief.searchContext,
               sources: brief.sources,
               source: "web",
             },

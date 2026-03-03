@@ -670,6 +670,9 @@ model PreCallResearch {
   // Generated research brief (markdown)
   content     String   @db.Text
 
+  // Full search context prompt sent to the LLM for synthesis
+  searchContext String?  @db.Text
+
   // Sources used (JSON array of {title, url})
   sources     Json     @default("[]")
 
