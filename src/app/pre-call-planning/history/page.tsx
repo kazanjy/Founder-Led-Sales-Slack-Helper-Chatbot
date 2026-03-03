@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -28,43 +28,33 @@ interface HistoryItem {
 }
 
 export default function PreCallPlanningHistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600">Loading history...</p>
+        </div>
+      </div>
+    }>
+      <HistoryContent />
+    </Suspense>
+  );
+}
+
+function HistoryContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedBrief, setSelectedBrief] = useState<ResearchBrief | null>(null);
   const [loadingBrief, setLoadingBrief] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    document.title = "Pre-Call Planning History - Mikey";
-  }, []);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const authRes = await fetch("/api/auth/me");
-        const authData = await authRes.json();
-        if (!authData.user) {
-          router.push("/?error=not_logged_in");
-          return;
-        }
-
-        const historyRes = await fetch("/api/pre-call-planning/research/history");
-        if (historyRes.ok) {
-          const data = await historyRes.json();
-          setHistory(data.researches || []);
-        }
-      } catch (error) {
-        console.error("Error loading history:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [router]);
-
-  const handleSelectBrief = async (id: string) => {
+  const loadBrief = useCallback(async (id: string) => {
     if (selectedBrief?.id === id) return;
     setLoadingBrief(true);
     try {
@@ -86,6 +76,47 @@ export default function PreCallPlanningHistoryPage() {
     } finally {
       setLoadingBrief(false);
     }
+  }, [selectedBrief?.id]);
+
+  useEffect(() => {
+    document.title = "Pre-Call Planning History - Mikey";
+  }, []);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const authRes = await fetch("/api/auth/me");
+        const authData = await authRes.json();
+        if (!authData.user) {
+          router.push("/?error=not_logged_in");
+          return;
+        }
+
+        const historyRes = await fetch("/api/pre-call-planning/research/history");
+        if (historyRes.ok) {
+          const data = await historyRes.json();
+          setHistory(data.researches || []);
+
+          // Auto-load brief from URL param
+          const idFromUrl = searchParams.get("id");
+          if (idFromUrl) {
+            loadBrief(idFromUrl);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading history:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [router, searchParams, loadBrief]);
+
+  const handleSelectBrief = (id: string) => {
+    // Update URL with selected brief ID
+    router.push(`/pre-call-planning/history?id=${id}`, { scroll: false });
+    loadBrief(id);
   };
 
   const handleCopy = async () => {
