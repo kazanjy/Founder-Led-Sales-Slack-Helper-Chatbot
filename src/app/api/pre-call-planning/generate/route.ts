@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 
+// Allow up to 120s for Chatbase AI generation
+export const maxDuration = 120;
+
 // POST - Generate pre-call planning process from first call checklist, discovery questions, and sales narrative
 export async function POST() {
   try {
@@ -51,143 +54,54 @@ export async function POST() {
       );
     }
 
-    // Build the Q&A inputs section from the sales narrative
     const narrative = latestChecklist.discoveryQuestionsVersion.salesNarrativeVersion;
-    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
-    let qaInputsSection = "";
-
-    for (const category of categoryOrder) {
-      const categoryAnswers = narrative.answers.filter(
-        (a) => a.question.category === category
-      );
-      if (categoryAnswers.length === 0) continue;
-
-      qaInputsSection += `### ${category}\n\n`;
-      for (const answer of categoryAnswers) {
-        qaInputsSection += `**Q${answer.question.globalOrder}: ${answer.question.question}**\n`;
-        qaInputsSection += `${answer.answer || "_Not answered_"}\n\n`;
-      }
-    }
-
-    // Parse and format the discovery questions
-    let discoveryQuestionsSection = "";
-    try {
-      const discoveryQuestionsContent = JSON.parse(latestChecklist.discoveryQuestionsVersion.content);
-      for (const category of discoveryQuestionsContent.categories) {
-        discoveryQuestionsSection += `### ${category.name}\n`;
-        for (let i = 0; i < category.questions.length; i++) {
-          const q = category.questions[i];
-          discoveryQuestionsSection += `${i + 1}. ${q.primary}\n`;
-          if (q.followUps && q.followUps.length > 0) {
-            for (const followUp of q.followUps) {
-              discoveryQuestionsSection += `   - ${followUp}\n`;
-            }
-          }
-        }
-        discoveryQuestionsSection += "\n";
-      }
-    } catch {
-      discoveryQuestionsSection = latestChecklist.discoveryQuestionsVersion.content;
-    }
 
     // Build the prompt for Chatbase
-    const systemPrompt = `You are an expert B2B sales coach specializing in pre-call preparation and planning processes for founders.
+    // IMPORTANT: Instructions come FIRST so they survive if the message gets truncated.
+    // The First Call Checklist already contains distilled info from the narrative, Q&A, and
+    // discovery questions, so we only include the checklist + narrative (skip raw Q&A and
+    // discovery questions to stay within the 7500-char Chatbase limit).
+    const systemPrompt = `You are an expert B2B sales coach. Generate a Pre-Call Planning Process — the preparation ritual a founder uses BEFORE every sales call. This is NOT the call itself; it's how to PREPARE.
 
-## YOUR GOAL
+## OUTPUT REQUIREMENTS
+- Return raw markdown (NO code blocks)
+- Be specific to THIS company's value prop, market, and sales motion
+- Reference personas/strategies from the First Call Checklist below
+- Include fillable templates
 
-Generate a comprehensive, standalone Pre-Call Planning Process document that a founder can use BEFORE EVERY sales call to systematically prepare. This is NOT the call checklist itself — it's the preparation ritual and research process that happens BEFORE the call starts.
+## DOCUMENT STRUCTURE (include all 9 sections):
 
-The First Call Checklist already tells them what to DO on the call. This document tells them how to PREPARE for it.
+1. **Research Framework** — Step-by-step process for researching each prospect: company info, individual prospect, competitive landscape, industry context.
 
-## YOUR TASK
+2. **Prospect Intelligence Template** — Fill-in template: company snapshot, prospect profile, hypothesized pain points, connection points, competitive context.
 
-Generate a Pre-Call Planning Process for the company described below. Your document should include:
+3. **Persona Matching Process** — How to identify organizational and individual personas, adjust approach, spot red flags.
 
-1. **Research Framework** — A step-by-step process for researching each prospect before a call. Include specific places to look, what to look for, and how to organize findings. Cover:
-   - Company research (size, stage, funding, tech stack, recent news, job postings)
-   - Individual prospect research (role, tenure, LinkedIn activity, published content, career trajectory)
-   - Competitive landscape research (what tools/solutions they currently use, recent vendor evaluations)
-   - Industry/market context research (trends affecting their business, regulatory changes, market shifts)
+4. **Call Objective Setting** — Framework: primary objective, secondary objectives, minimum viable outcome, disqualification criteria, pre-planned next steps.
 
-2. **Prospect Intelligence Template** — A fill-in-the-blank template the founder can complete for each prospect. Include fields for:
-   - Company snapshot (industry, size, stage, key metrics)
-   - Prospect profile (name, role, background, likely motivations)
-   - Hypothesized pain points (based on persona matching from the First Call Checklist)
-   - Connection points (shared contacts, shared interests, relevant experience)
-   - Competitive context (current solutions, likely alternatives being evaluated)
+5. **Opening Strategy Preparation** — First 3 minutes: rapport hooks, credibility statement, agenda framing, permission-based opening.
 
-3. **Persona Matching Process** — How to use the persona libraries from the First Call Checklist to match each prospect:
-   - Step-by-step process for identifying organizational persona
-   - Step-by-step process for identifying individual persona
-   - How to adjust approach based on persona combination
-   - Red flags that suggest persona mismatch
+6. **Question Sequencing Plan** — Which discovery questions to prioritize, persona-specific variants, follow-up trees, pain signals.
 
-4. **Call Objective Setting** — A framework for defining what success looks like BEFORE each call:
-   - Primary objective (the one thing that must happen)
-   - Secondary objectives (nice-to-haves)
-   - Minimum viable outcome (the least acceptable result)
-   - Disqualification criteria (when to end the call early)
-   - Next step options (pre-planned based on call outcome scenarios)
+7. **Objection Preparation** — Likely objections by persona, prepared responses, bridge statements.
 
-5. **Opening Strategy Preparation** — How to prepare the first 3 minutes:
-   - Rapport hooks to research and prepare (specific to this prospect)
-   - Credibility statement customization (which proof points to lead with)
-   - Agenda framing (how to position the call purpose)
-   - Permission-based opening (how to establish collaborative tone)
+8. **Logistics & Environment Checklist** — Tech setup, environment, materials, timing, mental prep.
 
-6. **Question Sequencing Plan** — How to prepare the discovery portion:
-   - Which questions from the Discovery Questions to prioritize for THIS prospect
-   - Persona-specific question variants to prepare
-   - Follow-up question trees to anticipate
-   - Signals of pain to listen for (customized to this prospect's likely situation)
-
-7. **Objection Preparation** — Pre-call objection readiness:
-   - Most likely objections based on persona
-   - Prepared responses for each
-   - Bridge statements to redirect conversations
-   - When to acknowledge vs. when to challenge
-
-8. **Logistics & Environment Checklist** — The practical preparation:
-   - Technology setup (video, screen share, CRM open, notes template ready)
-   - Environment (quiet space, professional background, lighting)
-   - Materials (one-pager, case study, demo environment)
-   - Timing (buffer before call, calendar holds after for notes)
-   - Mental preparation (confidence routine, energy management)
-
-9. **Post-Call Protocol** — What to do in the 15 minutes immediately after:
-   - Note-taking template (what to capture)
-   - CRM update checklist
-   - Follow-up email template
-   - Internal debrief template (what went well, what to improve)
-   - Next step execution (send what was promised, schedule what was agreed)
-
-Make the process specific and actionable for THIS company's unique value proposition, target market, and sales motion. Reference the personas, questions, and strategies from their First Call Checklist. Include specific templates they can print and fill in.
-
-DO NOT wrap the output in code blocks. Just return the raw markdown.
+9. **Post-Call Protocol** — Note-taking template, CRM updates, follow-up email, debrief, next step execution.
 
 ---
 
-## COMPANY CONTEXT
-
-### FIRST CALL CHECKLIST:
+## FIRST CALL CHECKLIST:
 
 ${latestChecklist.content}
 
-### SALES NARRATIVE:
+## SALES NARRATIVE:
 
 ${narrative.narrative}
 
-### QUESTIONNAIRE INPUTS (Raw Q&A):
-
-${qaInputsSection}
-
-### DISCOVERY QUESTIONS:
-
-${discoveryQuestionsSection}
-
 ---
 
-Now generate a comprehensive Pre-Call Planning Process document for this company, following the structure outlined above. Make it specific, actionable, and immediately usable.`;
+Generate the Pre-Call Planning Process now.`;
 
     console.log(`Sending pre-call planning prompt: ${systemPrompt.length} chars`);
 

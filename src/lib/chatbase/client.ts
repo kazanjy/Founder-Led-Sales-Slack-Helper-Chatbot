@@ -15,6 +15,9 @@ interface ChatbaseResponse {
 // Chatbase has an 8000 character limit per message
 const CHATBASE_MESSAGE_LIMIT = 7500; // Leave buffer
 
+// Timeout for non-streaming Chatbase requests (ms)
+const CHATBASE_TIMEOUT_MS = 90_000; // 90 seconds
+
 /**
  * Truncate a message to fit within Chatbase's limit
  */
@@ -49,22 +52,40 @@ export async function sendToChatbase(
   // Truncate current message if needed
   const safeMessage = truncateMessage(message);
 
-  const response = await fetch("https://www.chatbase.co/api/v1/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${CHATBASE_API_KEY}`,
-    },
-    body: JSON.stringify({
-      chatbotId: CHATBASE_CHATBOT_ID,
-      messages: [
-        ...safeHistory,
-        { role: "user", content: safeMessage },
-      ],
-      conversationId: conversationId || undefined,
-      stream: false,
-    }),
-  });
+  // Add timeout to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CHATBASE_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch("https://www.chatbase.co/api/v1/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${CHATBASE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        chatbotId: CHATBASE_CHATBOT_ID,
+        messages: [
+          ...safeHistory,
+          { role: "user", content: safeMessage },
+        ],
+        conversationId: conversationId || undefined,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+  } catch (fetchError) {
+    clearTimeout(timeoutId);
+    if (fetchError instanceof Error && fetchError.name === "AbortError") {
+      throw new Error(
+        "Chatbase request timed out after 90 seconds. The AI service may be overloaded. Please try again."
+      );
+    }
+    throw fetchError;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

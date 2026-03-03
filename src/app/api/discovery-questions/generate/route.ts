@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 
+// Allow up to 120s for Chatbase AI generation
+export const maxDuration = 120;
+
 // POST - Generate discovery questions from the latest sales narrative
 export async function POST() {
   try {
@@ -61,45 +64,17 @@ export async function POST() {
     }
 
     // Build the prompt for Chatbase
+    // IMPORTANT: Keep output format instructions BEFORE the variable-length content
+    // so they survive if Chatbase truncates the message
     const systemPrompt = `You are an expert B2B sales coach helping founders create discovery questions for sales calls.
 
-Based on the sales narrative and questionnaire inputs below, generate a comprehensive set of discovery questions that a founder can use during sales calls to understand prospects better and qualify opportunities.
+## OUTPUT FORMAT (CRITICAL — follow this exactly):
 
-## SALES NARRATIVE:
-
-${latestNarrative.narrative}
-
-## QUESTIONNAIRE INPUTS (Raw Q&A):
-
-${qaInputsSection}
-
-## INSTRUCTIONS:
-
-Generate discovery questions organized into the following categories:
-
-1. **Problem Discovery** - Questions to uncover if the prospect experiences the problem your solution addresses, how severe it is, and how it impacts their business.
-
-2. **Current State** - Questions about how they currently handle the problem, what solutions they've tried, and why those aren't working.
-
-3. **Impact & Urgency** - Questions to quantify the cost of the problem (time, money, opportunity cost) and understand timeline/urgency.
-
-4. **Decision Process** - Questions about who else is involved in decisions, budget considerations, and evaluation criteria.
-
-5. **Fit Qualification** - Questions to determine if the prospect is a good fit for your solution based on their situation.
-
-For each category:
-- Provide 4-6 specific, open-ended questions
-- Include follow-up probing questions where relevant
-- Make questions conversational, not interrogative
-- Tailor questions to the specific problem/solution in the narrative
-
-## OUTPUT FORMAT:
-
-Respond with valid JSON in this exact format (no markdown code blocks):
+Respond with valid JSON in this exact format (no markdown code blocks, no extra text):
 {
   "categories": [
     {
-      "name": "Problem Discovery",
+      "name": "Category Name",
       "description": "Brief description of this category's purpose",
       "questions": [
         {
@@ -109,7 +84,22 @@ Respond with valid JSON in this exact format (no markdown code blocks):
       ]
     }
   ]
-}`;
+}
+
+## INSTRUCTIONS:
+
+Generate discovery questions organized into these 5 categories:
+1. **Problem Discovery** - Uncover if the prospect has the problem, how severe it is, business impact.
+2. **Current State** - How they handle the problem today, solutions tried, why those fail.
+3. **Impact & Urgency** - Quantify costs (time, money, opportunity), timeline/urgency.
+4. **Decision Process** - Who's involved, budget, evaluation criteria.
+5. **Fit Qualification** - Is this prospect a good fit for the solution?
+
+For each category: 4-6 open-ended questions with follow-up probes. Conversational, not interrogative. Tailored to the specific problem/solution below.
+
+## SALES NARRATIVE:
+
+${latestNarrative.narrative}`;
 
     console.log(`Sending discovery questions prompt: ${systemPrompt.length} chars`);
 

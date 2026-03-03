@@ -7,6 +7,9 @@ import { executeSearchPlan } from "@/lib/search/results";
 import { synthesizeResearchBrief } from "@/lib/search/synthesis";
 import type { SearchInput } from "@/lib/search/types";
 
+// Allow up to 120s for search + AI synthesis
+export const maxDuration = 120;
+
 // POST - Run pre-call research with SSE streaming progress updates
 export async function POST(request: NextRequest) {
   try {

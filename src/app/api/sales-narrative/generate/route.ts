@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 
+// Allow up to 120s for Chatbase AI generation
+export const maxDuration = 120;
+
 // POST - Generate sales narrative from questionnaire answers
 export async function POST() {
   try {
