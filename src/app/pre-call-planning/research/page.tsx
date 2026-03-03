@@ -473,7 +473,15 @@ function ResearchContent() {
             {/* History */}
             {history.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Research</h2>
+                <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Recent Research</h2>
+                <Link
+                  href="/pre-call-planning/history"
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  View All
+                </Link>
+              </div>
                 <div className="space-y-2">
                   {history.slice(0, 10).map((item) => (
                     <button
