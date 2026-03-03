@@ -1,4 +1,4 @@
-import { JSDOM } from "jsdom";
+import * as cheerio from "cheerio";
 import type { FetchedPage } from "./types";
 
 /** Max text content length to extract from a page */
@@ -85,20 +85,18 @@ export async function fetchPage(url: string, purpose: string): Promise<FetchedPa
 }
 
 /**
- * Extract readable text content from HTML using jsdom.
+ * Extract readable text content from HTML using cheerio.
  */
 function extractTextFromHtml(html: string): { title?: string; textContent: string } {
-  const dom = new JSDOM(html);
-  const document = dom.window.document;
+  const $ = cheerio.load(html);
 
   // Get title
-  const title = document.querySelector("title")?.textContent?.trim();
+  const title = $("title").first().text().trim() || undefined;
 
   // Remove elements that don't contribute useful text
   const removeTags = ["script", "style", "nav", "footer", "header", "iframe", "noscript", "svg", "aside"];
   for (const tag of removeTags) {
-    const elements = document.querySelectorAll(tag);
-    elements.forEach((el) => el.remove());
+    $(tag).remove();
   }
 
   // Remove common noise selectors
@@ -120,8 +118,7 @@ function extractTextFromHtml(html: string): { title?: string; textContent: strin
 
   for (const selector of noiseSelectors) {
     try {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach((el) => el.remove());
+      $(selector).remove();
     } catch {
       // Invalid selector, skip
     }
@@ -129,19 +126,19 @@ function extractTextFromHtml(html: string): { title?: string; textContent: strin
 
   // Try to find main content area
   const mainContent =
-    document.querySelector("main") ||
-    document.querySelector("article") ||
-    document.querySelector('[role="main"]') ||
-    document.querySelector("#content") ||
-    document.querySelector(".content") ||
-    document.body;
+    $("main").first().length ? $("main").first() :
+    $("article").first().length ? $("article").first() :
+    $('[role="main"]').first().length ? $('[role="main"]').first() :
+    $("#content").first().length ? $("#content").first() :
+    $(".content").first().length ? $(".content").first() :
+    $("body");
 
-  if (!mainContent) {
+  if (!mainContent.length) {
     return { title, textContent: "" };
   }
 
   // Extract text and clean up whitespace
-  let text = mainContent.textContent || "";
+  let text = mainContent.text();
 
   // Collapse whitespace: multiple spaces/tabs to single space, multiple newlines to double
   text = text
