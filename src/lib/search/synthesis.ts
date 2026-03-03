@@ -97,7 +97,8 @@ Now generate the research brief.`;
     aiResponse = chatbaseResult.response;
   } catch (error) {
     console.error("[Synthesis] Chatbase error:", error);
-    throw new Error("Failed to synthesize research brief. Please try again.");
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to synthesize research brief: ${message}`);
   }
 
   // Clean up response

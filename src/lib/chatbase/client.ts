@@ -74,7 +74,26 @@ export async function sendToChatbase(
     throw new Error(`Chatbase API error: ${response.status} - ${errorText}`);
   }
 
-  const data = (await response.json()) as ChatbaseResponse;
+  // Parse response with robust error handling — Chatbase can return truncated JSON
+  let data: ChatbaseResponse;
+  const responseText = await response.text();
+  try {
+    data = JSON.parse(responseText) as ChatbaseResponse;
+  } catch (parseError) {
+    console.error("Chatbase response parse error:", parseError);
+    console.error("Response text length:", responseText.length);
+    console.error("Response text (first 500 chars):", responseText.substring(0, 500));
+    throw new Error(
+      "Failed to parse Chatbase response. The AI service may have returned an incomplete response. Please try again."
+    );
+  }
+
+  if (!data.text) {
+    console.error("Chatbase response missing text field:", JSON.stringify(data).substring(0, 500));
+    throw new Error(
+      "Chatbase returned an empty response. Please try again."
+    );
+  }
 
   return {
     response: data.text,
