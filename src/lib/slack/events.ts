@@ -580,6 +580,12 @@ async function handleMention(
     return;
   }
 
+  // Check if this is a follow-up to a pending research request in this thread
+  if (thread_ts && thread_ts !== ts) {
+    const handled = await handleResearchFollowUp(workspace, dbUser, client, channel, threadTs, cleanText);
+    if (handled) return;
+  }
+
   // Check if Mikey is being summoned into an existing thread
   // (thread_ts exists and differs from ts, meaning we're replying to an existing thread)
   let priorThreadContext: string | undefined;
@@ -708,6 +714,12 @@ async function handleDirectMessage(
     return;
   }
 
+  // Check if this is a follow-up to a pending research request in this thread
+  if (thread_ts && thread_ts !== ts) {
+    const handled = await handleResearchFollowUp(workspace, dbUser, client, channel, threadTs, text || "");
+    if (handled) return;
+  }
+
   await processMessage(
     workspace,
     dbUser,
@@ -724,6 +736,11 @@ async function handleDirectMessage(
  * Handle a #research / #precall / #callprep command from Slack.
  * Runs the full search pipeline and sends the research brief as a Slack message.
  */
+/**
+ * Handle a #research command: parse what the user provided, store pending state,
+ * show extracted fields, and ask for anything missing.
+ * If all required fields are present, run the research immediately.
+ */
 async function handleResearchCommand(
   workspace: { id: string; botToken: string; botUserId: string | null },
   user: { id: string; slackUserId: string | null },
@@ -732,31 +749,210 @@ async function handleResearchCommand(
   threadTs: string,
   query: { companyName: string; contactInfo?: string }
 ) {
-  // Send acknowledgment
-  await sendSlackMessage(
-    client,
-    channel,
-    `🔍 _Researching *${query.companyName}*${query.contactInfo ? ` (${query.contactInfo})` : ""}... This may take 30-60 seconds._`,
-    threadTs
-  );
-
   try {
-    // Import search modules dynamically to avoid circular dependencies
-    const { parseSearchInput } = await import("@/lib/search/input-parser");
-    const { generateSearchPlan } = await import("@/lib/search/queries");
-    const { executeSearchPlan } = await import("@/lib/search/results");
-    const { synthesizeResearchBrief } = await import("@/lib/search/synthesis");
+    const { parseResearchFields, mergeResearchFields, getMissingFields, buildIntakeMessage, buildReadyMessage } =
+      await import("@/lib/search/research-intake");
 
     // Build freeform text from the parsed command
     const freeformText = query.contactInfo
       ? `${query.companyName}, ${query.contactInfo}`
       : query.companyName;
 
-    // Run the research pipeline
-    const parsedInput = await parseSearchInput({
-      freeformText,
-      companyName: query.companyName,
+    // Parse what the user gave us
+    const parsed = await parseResearchFields(freeformText);
+
+    // Ensure companyName is set from the command if GPT missed it
+    if (!parsed.companyName && query.companyName) {
+      parsed.companyName = query.companyName;
+    }
+
+    const missing = getMissingFields(parsed);
+
+    if (missing.length === 0) {
+      // We have everything — run research immediately
+      await sendSlackMessage(client, channel, buildReadyMessage(parsed), threadTs);
+      await executeResearchPipeline(workspace, user, client, channel, threadTs, parsed);
+    } else {
+      // Store pending request and ask for missing info
+      await prisma.pendingResearchRequest.upsert({
+        where: { slackChannel_slackThreadTs: { slackChannel: channel, slackThreadTs: threadTs } },
+        create: {
+          userId: user.id,
+          slackChannel: channel,
+          slackThreadTs: threadTs,
+          companyName: parsed.companyName,
+          companyDomain: parsed.companyDomain,
+          contactName: parsed.contactName,
+          contactTitle: parsed.contactTitle,
+          contactLinkedIn: parsed.contactLinkedIn,
+          urls: parsed.urls,
+          status: "gathering",
+        },
+        update: {
+          companyName: parsed.companyName,
+          companyDomain: parsed.companyDomain,
+          contactName: parsed.contactName,
+          contactTitle: parsed.contactTitle,
+          contactLinkedIn: parsed.contactLinkedIn,
+          urls: parsed.urls,
+          status: "gathering",
+        },
+      });
+
+      await sendSlackMessage(client, channel, buildIntakeMessage(parsed, missing), threadTs);
+    }
+  } catch (error) {
+    console.error("[Slack Research] Error starting research intake:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await sendSlackMessage(
+      client,
+      channel,
+      `❌ Sorry, something went wrong starting the research. ${errorMessage}`,
+      threadTs
+    );
+  }
+}
+
+/**
+ * Check if a thread reply is a follow-up to a pending research request.
+ * If so, parse the new info, merge it, and either ask for more or run the research.
+ * Returns true if the message was handled as a research follow-up.
+ */
+async function handleResearchFollowUp(
+  workspace: { id: string; botToken: string; botUserId: string | null },
+  user: { id: string; slackUserId: string | null },
+  client: ReturnType<typeof getSlackClient>,
+  channel: string,
+  threadTs: string,
+  text: string
+): Promise<boolean> {
+  // Look for a pending research request in this thread
+  const pending = await prisma.pendingResearchRequest.findUnique({
+    where: { slackChannel_slackThreadTs: { slackChannel: channel, slackThreadTs: threadTs } },
+  });
+
+  if (!pending || pending.status !== "gathering") {
+    return false; // Not a research follow-up
+  }
+
+  try {
+    const { parseResearchFields, mergeResearchFields, getMissingFields, buildIntakeMessage, buildReadyMessage } =
+      await import("@/lib/search/research-intake");
+
+    const cleanText = text.trim().toLowerCase();
+
+    // Check if user wants to proceed with what we have
+    const goCommands = ["go", "run", "run it", "go ahead", "proceed", "do it", "let's go", "lets go", "research", "start"];
+    const wantsToGo = goCommands.includes(cleanText);
+
+    // Load existing fields from the pending request
+    const existing = {
+      companyName: pending.companyName,
+      companyDomain: pending.companyDomain,
+      contactName: pending.contactName,
+      contactTitle: pending.contactTitle,
+      contactLinkedIn: pending.contactLinkedIn,
+      urls: (pending.urls as string[]) || [],
+    };
+
+    if (wantsToGo) {
+      // User says go — need at minimum a company name
+      if (!existing.companyName) {
+        await sendSlackMessage(
+          client, channel,
+          "I need at least a *company name* before I can run the research. What company are you meeting with?",
+          threadTs
+        );
+        return true;
+      }
+
+      // Mark as completed and run
+      await prisma.pendingResearchRequest.update({
+        where: { id: pending.id },
+        data: { status: "completed" },
+      });
+
+      await sendSlackMessage(client, channel, buildReadyMessage(existing), threadTs);
+      await executeResearchPipeline(workspace, user, client, channel, threadTs, existing);
+      return true;
+    }
+
+    // Parse the new text for additional fields
+    const newFields = await parseResearchFields(text);
+    const merged = mergeResearchFields(existing, newFields);
+    const missing = getMissingFields(merged);
+
+    // Update the pending request with merged fields
+    await prisma.pendingResearchRequest.update({
+      where: { id: pending.id },
+      data: {
+        companyName: merged.companyName,
+        companyDomain: merged.companyDomain,
+        contactName: merged.contactName,
+        contactTitle: merged.contactTitle,
+        contactLinkedIn: merged.contactLinkedIn,
+        urls: merged.urls,
+      },
     });
+
+    if (missing.length === 0) {
+      // All fields collected — run automatically
+      await prisma.pendingResearchRequest.update({
+        where: { id: pending.id },
+        data: { status: "completed" },
+      });
+
+      await sendSlackMessage(client, channel, buildReadyMessage(merged), threadTs);
+      await executeResearchPipeline(workspace, user, client, channel, threadTs, merged);
+    } else {
+      // Still missing some fields — show updated status
+      await sendSlackMessage(client, channel, buildIntakeMessage(merged, missing), threadTs);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[Slack Research] Error handling follow-up:", error);
+    return false; // Let it fall through to normal message handling
+  }
+}
+
+/**
+ * Execute the full research pipeline and send the brief back to Slack.
+ */
+async function executeResearchPipeline(
+  workspace: { id: string; botToken: string; botUserId: string | null },
+  user: { id: string; slackUserId: string | null },
+  client: ReturnType<typeof getSlackClient>,
+  channel: string,
+  threadTs: string,
+  fields: {
+    companyName: string | null;
+    companyDomain: string | null;
+    contactName: string | null;
+    contactTitle: string | null;
+    contactLinkedIn: string | null;
+    urls: string[];
+  }
+) {
+  try {
+    const { parseSearchInput } = await import("@/lib/search/input-parser");
+    const { generateSearchPlan } = await import("@/lib/search/queries");
+    const { executeSearchPlan } = await import("@/lib/search/results");
+    const { synthesizeResearchBrief } = await import("@/lib/search/synthesis");
+
+    // Build structured input from the collected fields
+    const parsedInput = await parseSearchInput({
+      companyName: fields.companyName || undefined,
+      contactName: fields.contactName || undefined,
+      contactTitle: fields.contactTitle || undefined,
+      contactLinkedIn: fields.contactLinkedIn || undefined,
+      urls: fields.urls,
+    });
+
+    // If we have a company domain but parseSearchInput didn't pick it up
+    if (fields.companyDomain && !parsedInput.companyDomain) {
+      parsedInput.companyDomain = fields.companyDomain;
+    }
 
     const plan = generateSearchPlan(parsedInput);
     const results = await executeSearchPlan(plan);
@@ -769,7 +965,7 @@ async function handleResearchCommand(
         companyName: parsedInput.companyName,
         contactName: parsedInput.contactName,
         contactTitle: parsedInput.contactTitle,
-        freeformInput: freeformText,
+        freeformInput: JSON.stringify(fields),
         content: brief.content,
         searchContext: brief.searchContext,
         sources: brief.sources,
@@ -779,20 +975,18 @@ async function handleResearchCommand(
 
     // Convert to Slack format and send
     const slackBrief = markdownToSlack(brief.content);
-
-    // Add header and web link
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
     const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n\n`;
     const footer = `\n\n_View your research history at ${appUrl}/pre-call-planning/research_`;
 
     await sendSlackMessage(client, channel, header + slackBrief + footer, threadTs);
   } catch (error) {
-    console.error("[Slack Research] Error:", error);
+    console.error("[Slack Research] Pipeline error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     await sendSlackMessage(
       client,
       channel,
-      `❌ Sorry, I couldn't complete the research for *${query.companyName}*. ${errorMessage}\n\nYou can also try the web app at ${process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai"}/pre-call-planning/research`,
+      `❌ Sorry, I couldn't complete the research. ${errorMessage}\n\nYou can also try the web app at ${process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai"}/pre-call-planning/research`,
       threadTs
     );
   }

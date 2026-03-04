@@ -112,6 +112,13 @@ IMPORTANT: You have access to the seller's own Sales Narrative, First Call Check
 
 Generate the brief in this exact structure:
 
+### TL;DR — Executive Summary
+A concise 3-5 sentence executive summary at the very top of the brief. It should tell the reader at a glance:
+- Who the person is (name, title, what they do) and which human persona they most closely match${hasSalesContext ? " (from the seller's playbook)" : ""}
+- What the company is (name, what they do, stage/size) and which organizational persona they most closely match${hasSalesContext ? " (from the seller's playbook)" : ""}
+- The 1-2 most important things to know going into this call — what they likely care about, what to lead with, and any key risk or opportunity
+This should be punchy, specific, and immediately useful — not generic filler. A founder should be able to read ONLY this section 5 minutes before the call and walk in prepared.
+
 ### Company Snapshot
 - What the company does (1-2 sentences)
 - Industry, stage, size

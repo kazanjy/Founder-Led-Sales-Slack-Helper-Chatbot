@@ -101,6 +101,7 @@ model User {
   firstCallChecklistVersions FirstCallChecklistVersion[]
   preCallPlanningVersions PreCallPlanningVersion[]
   preCallResearch PreCallResearch[]
+  pendingResearchRequests PendingResearchRequest[]
   attachmentPreference UserAttachmentPreference?
 
   // Track update-in-progress state for maturity assessment
@@ -684,6 +685,37 @@ model PreCallResearch {
   @@index([userId, createdAt])
   @@index([userId, companyName])
   @@map("pre_call_research")
+}
+
+// Tracks multi-turn research intake via Slack
+// Stores extracted fields while waiting for the user to confirm or provide missing info
+model PendingResearchRequest {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Slack thread coordinates so we can match follow-up replies
+  slackChannel  String
+  slackThreadTs String
+
+  // Extracted fields (accumulated across turns)
+  companyName     String?
+  companyDomain   String?
+  contactName     String?
+  contactTitle    String?
+  contactLinkedIn String?
+  urls            Json      @default("[]")  // string[]
+
+  // Status: gathering → ready → completed / expired
+  status        String   @default("gathering")  // "gathering" | "completed" | "expired"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([slackChannel, slackThreadTs])
+  @@index([userId, status])
+  @@map("pending_research_requests")
 }
 
 // User preferences for prompt attachments
