@@ -188,6 +188,35 @@ export async function uploadStandaloneFile(
 }
 
 /**
+ * Create a signed upload URL so the client can upload directly to Supabase,
+ * bypassing the Next.js 1MB body limit for App Router route handlers.
+ */
+export async function createSignedUploadUrl(
+  userId: string,
+  fileName: string,
+  fileType: "image" | "pdf"
+): Promise<{ storagePath: string; signedUrl: string; token: string }> {
+  const timestamp = Date.now();
+  const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const storagePath = `${userId}/files/${timestamp}-${safeName}`;
+
+  const { data, error } = await getSupabase().storage
+    .from(ATTACHMENTS_BUCKET)
+    .createSignedUploadUrl(storagePath);
+
+  if (error || !data) {
+    console.error("[Storage] Signed upload URL error:", error);
+    throw new Error(`Failed to create upload URL: ${error?.message || "No data"}`);
+  }
+
+  return {
+    storagePath,
+    signedUrl: data.signedUrl,
+    token: data.token,
+  };
+}
+
+/**
  * Download a file from Supabase Storage and return as Buffer
  */
 export async function downloadFile(storagePath: string): Promise<Buffer> {

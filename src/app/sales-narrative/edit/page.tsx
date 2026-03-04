@@ -247,33 +247,57 @@ function SalesNarrativeEditContent() {
 
     setPrefilling(true);
     try {
-      // Step 1: Upload PDFs to Supabase so they're saved permanently
+      // Step 1: Upload PDFs directly to Supabase via signed URLs
+      // (bypasses Next.js App Router 1 MB body limit for route handlers)
       let uploadedPdfs: { name: string; storagePath: string }[] = [];
       if (prefillFiles.length > 0) {
-        const uploadForm = new FormData();
-        for (const file of prefillFiles) {
-          uploadForm.append("files", file);
-        }
-        uploadForm.append("source", "narrative-prefill");
-
-        const uploadRes = await fetch("/api/files/upload", {
+        // 1a: Get signed upload URLs from the server
+        const urlRes = await fetch("/api/files/upload-url", {
           method: "POST",
-          body: uploadForm,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: prefillFiles.map((f) => ({ name: f.name })),
+            source: "narrative-prefill",
+          }),
         });
 
-        if (!uploadRes.ok) {
-          let errorMsg = "Failed to upload files";
+        if (!urlRes.ok) {
+          let errorMsg = "Failed to prepare upload";
           try {
-            const data = await uploadRes.json();
+            const data = await urlRes.json();
             errorMsg = data.error || errorMsg;
           } catch {
-            errorMsg = `Upload error (${uploadRes.status})`;
+            errorMsg = `Upload error (${urlRes.status})`;
           }
           throw new Error(errorMsg);
         }
 
-        const uploadData = await uploadRes.json();
-        uploadedPdfs = uploadData.files.map((f: { name: string; storagePath: string }) => ({
+        const urlData = await urlRes.json();
+        const fileEntries: Array<{
+          name: string;
+          type: string;
+          storagePath: string;
+          signedUrl: string;
+          token: string;
+        }> = urlData.files;
+
+        // 1b: Upload each file directly to Supabase using the signed URL
+        for (let i = 0; i < fileEntries.length; i++) {
+          const entry = fileEntries[i];
+          const file = prefillFiles.find((f) => f.name === entry.name) || prefillFiles[i];
+
+          const uploadRes = await fetch(entry.signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+            body: file,
+          });
+
+          if (!uploadRes.ok) {
+            throw new Error(`Failed to upload ${entry.name} (${uploadRes.status})`);
+          }
+        }
+
+        uploadedPdfs = fileEntries.map((f) => ({
           name: f.name,
           storagePath: f.storagePath,
         }));
