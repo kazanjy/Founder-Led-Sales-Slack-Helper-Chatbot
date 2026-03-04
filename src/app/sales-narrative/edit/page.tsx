@@ -33,6 +33,17 @@ const LOADING_MESSAGES = [
   "Perfecting your positioning",
 ];
 
+// Loading messages for the pre-fill process
+const PREFILL_MESSAGES = [
+  "Crawling your website",
+  "Reading your materials",
+  "Extracting key information",
+  "Analyzing your product",
+  "Identifying your value prop",
+  "Understanding your customers",
+  "Drafting your answers",
+];
+
 export default function SalesNarrativeEditPage() {
   return (
     <Suspense fallback={
@@ -68,6 +79,15 @@ function SalesNarrativeEditContent() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
+  // Smart Pre-Fill state
+  const [prefillUrl, setPrefillUrl] = useState("");
+  const [prefillFiles, setPrefillFiles] = useState<File[]>([]);
+  const [prefilling, setPrefilling] = useState(false);
+  const [prefillMessageIndex, setPrefillMessageIndex] = useState(0);
+  const [prefillDone, setPrefillDone] = useState(false);
+  const [prefillPanelOpen, setPrefillPanelOpen] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Set browser tab title
   useEffect(() => {
     document.title = "Edit Sales Narrative - Mikey";
@@ -86,6 +106,20 @@ function SalesNarrativeEditContent() {
 
     return () => clearInterval(interval);
   }, [generating]);
+
+  // Cycle through pre-fill loading messages
+  useEffect(() => {
+    if (!prefilling) {
+      setPrefillMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setPrefillMessageIndex((prev) => (prev + 1) % PREFILL_MESSAGES.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [prefilling]);
 
   // Handle sticky header
   useEffect(() => {
@@ -206,6 +240,86 @@ function SalesNarrativeEditContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePrefill = async () => {
+    if (!prefillUrl.trim() && prefillFiles.length === 0) return;
+
+    setPrefilling(true);
+    try {
+      const formData = new FormData();
+      if (prefillUrl.trim()) {
+        formData.append("websiteUrl", prefillUrl.trim());
+      }
+      for (const file of prefillFiles) {
+        formData.append("files", file);
+      }
+
+      const response = await fetch("/api/sales-narrative/prefill", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Pre-fill failed");
+      }
+
+      const data = await response.json();
+      const prefillAnswers: Record<string, string> = data.answers;
+
+      // Merge: only fill empty fields, and track which ones we filled
+      const filledIds: string[] = [];
+      setAnswers((prev) => {
+        const updated = { ...prev };
+        for (const [questionId, answer] of Object.entries(prefillAnswers)) {
+          if (!updated[questionId]?.trim() && answer.trim()) {
+            updated[questionId] = answer;
+            filledIds.push(questionId);
+          }
+        }
+        return updated;
+      });
+
+      setPrefillDone(true);
+      setPrefillPanelOpen(false);
+      setHasUnsavedChanges(true);
+
+      // Auto-save the pre-filled answers (only the ones we actually filled)
+      for (const questionId of filledIds) {
+        const answer = prefillAnswers[questionId];
+        if (answer?.trim()) {
+          handleSaveAnswer(questionId, answer);
+        }
+      }
+
+      await showAlert({
+        title: "Pre-Fill Complete",
+        message: `Pre-filled ${data.filledCount} of ${data.totalQuestions} questions from your materials. Review and edit the answers below!`,
+        variant: "info",
+      });
+    } catch (error) {
+      console.error("Pre-fill error:", error);
+      await showAlert({
+        title: "Pre-Fill Error",
+        message: error instanceof Error ? error.message : "Failed to pre-fill. Please try again.",
+        variant: "danger",
+      });
+    } finally {
+      setPrefilling(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    const pdfs = selected.filter((f) => f.type === "application/pdf");
+    setPrefillFiles((prev) => [...prev, ...pdfs]);
+    // Reset input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setPrefillFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleGenerate = async () => {
@@ -393,6 +507,149 @@ function SalesNarrativeEditContent() {
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Smart Pre-Fill Panel */}
+        <div className="mb-8">
+          <button
+            onClick={() => setPrefillPanelOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl hover:border-amber-300 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900">
+                  Smart Pre-Fill {prefillDone && <span className="text-green-600 text-sm font-normal ml-2">Done!</span>}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Provide your website URL and/or sales decks to auto-fill answers
+                </p>
+              </div>
+            </div>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${prefillPanelOpen ? "rotate-180" : ""}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {prefillPanelOpen && (
+            <div className="mt-2 bg-white border-2 border-amber-200 rounded-xl p-6 space-y-5">
+              {/* Website URL */}
+              <div>
+                <label htmlFor="prefill-url" className="block text-sm font-medium text-gray-700 mb-1">
+                  Website URL
+                </label>
+                <input
+                  id="prefill-url"
+                  type="url"
+                  value={prefillUrl}
+                  onChange={(e) => setPrefillUrl(e.target.value)}
+                  placeholder="https://yourcompany.com"
+                  disabled={prefilling}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  We&apos;ll crawl your site for product, solution, customer, and pricing pages
+                </p>
+              </div>
+
+              {/* PDF Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  PDF Files <span className="text-gray-400 font-normal">(sales decks, one-pagers, etc.)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={prefilling}
+                    className="px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-400 hover:bg-amber-50 transition-colors text-sm text-gray-600 flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add PDFs
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {prefillFiles.length === 0 && (
+                    <span className="text-sm text-gray-400">No files selected</span>
+                  )}
+                </div>
+
+                {/* File chips */}
+                {prefillFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {prefillFiles.map((file, i) => (
+                      <span
+                        key={`${file.name}-${i}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-800"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {file.name}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(i)}
+                          disabled={prefilling}
+                          className="ml-0.5 text-amber-500 hover:text-amber-700 disabled:opacity-50"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action button */}
+              <div className="flex items-center gap-4 pt-2">
+                <button
+                  onClick={handlePrefill}
+                  disabled={prefilling || (!prefillUrl.trim() && prefillFiles.length === 0)}
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-md hover:shadow-lg flex items-center gap-2"
+                >
+                  {prefilling ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {PREFILL_MESSAGES[prefillMessageIndex]}...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Analyze &amp; Pre-Fill
+                    </>
+                  )}
+                </button>
+
+                {prefilling && (
+                  <p className="text-sm text-gray-500 animate-pulse">
+                    This may take 30-60 seconds...
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {grouped.map((category, categoryIndex) => {
           const colors = categoryColors[category.category] || categoryColors.Problem;
           return (
