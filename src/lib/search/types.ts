@@ -92,6 +92,8 @@ export interface SearchResults {
   searchResults: BraveSearchResponse[];
   /** Results from direct URL fetches */
   fetchedPages: FetchedPage[];
+  /** Formatted text from People Data Labs enrichment */
+  pdlData?: string;
   /** Total number of results across all queries */
   totalResults: number;
 }

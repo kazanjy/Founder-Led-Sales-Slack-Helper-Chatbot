@@ -148,10 +148,7 @@ function ResearchContent() {
     abortRef.current = controller;
 
     try {
-      const urlList = urls
-        .split("\n")
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0);
+      const homepageUrl = urls.trim();
 
       const response = await fetch("/api/pre-call-planning/research-run", {
         method: "POST",
@@ -160,7 +157,7 @@ function ResearchContent() {
           companyName: companyName.trim(),
           contactName: contactName.trim() || undefined,
           contactTitle: contactTitle.trim() || undefined,
-          urls: urlList.length > 0 ? urlList : undefined,
+          urls: homepageUrl ? [homepageUrl] : undefined,
         }),
         signal: controller.signal,
       });
@@ -416,17 +413,16 @@ function ResearchContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URLs to include
+                    Company Homepage URL
                   </label>
-                  <textarea
+                  <input
+                    type="url"
                     value={urls}
                     onChange={(e) => setUrls(e.target.value)}
-                    placeholder={"https://example.com\nhttps://example.com/about"}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none text-sm"
+                    placeholder="https://acme.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
                     disabled={researching}
                   />
-                  <p className="text-xs text-gray-400 mt-1">One URL per line</p>
                 </div>
 
                 <button
