@@ -3,12 +3,16 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
-import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
 
 // Allow up to 120s for crawling + LLM
 export const maxDuration = 120;
 
-// POST - Pre-fill sales narrative Q&A from website URL and/or PDFs
+interface PrefillRequest {
+  websiteUrl?: string;
+  pdfTexts?: { name: string; text: string }[];
+}
+
+// POST - Pre-fill sales narrative Q&A from website URL and/or PDF text
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -16,19 +20,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Parse multipart form data
-    const formData = await request.formData();
-    const websiteUrl = formData.get("websiteUrl") as string | null;
-    const files = formData.getAll("files") as File[];
+    const body: PrefillRequest = await request.json();
+    const { websiteUrl, pdfTexts } = body;
 
-    if (!websiteUrl?.trim() && files.length === 0) {
+    if (!websiteUrl?.trim() && (!pdfTexts || pdfTexts.length === 0)) {
       return NextResponse.json(
         { error: "Provide a website URL and/or at least one PDF file." },
         { status: 400 }
       );
     }
 
-    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, PDFs=${files.length}`);
+    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, PDFs=${pdfTexts?.length || 0}`);
 
     // Load the questions we need to answer
     const questions = await prisma.salesNarrativeQuestion.findMany({
@@ -44,47 +46,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gather context in parallel
+    // Gather context
     const contextParts: string[] = [];
-
-    const tasks: Promise<void>[] = [];
 
     // Website crawling
     if (websiteUrl?.trim()) {
-      tasks.push(
-        crawlWebsiteForContext(websiteUrl.trim())
-          .then((text) => {
-            if (text) {
-              contextParts.push(`## WEBSITE CONTENT\n\n${text}`);
-            }
-          })
-          .catch((err) => {
-            console.error("[Prefill] Website crawl failed:", err);
-            // Non-fatal — continue with PDFs if available
-          })
-      );
-    }
-
-    // PDF parsing
-    for (const file of files) {
-      if (file.type !== "application/pdf") {
-        console.warn(`[Prefill] Skipping non-PDF file: ${file.name} (${file.type})`);
-        continue;
+      try {
+        const text = await crawlWebsiteForContext(websiteUrl.trim());
+        if (text) {
+          contextParts.push(`## WEBSITE CONTENT\n\n${text}`);
+        }
+      } catch (err) {
+        console.error("[Prefill] Website crawl failed:", err);
+        // Non-fatal — continue with PDFs if available
       }
-
-      tasks.push(
-        (async () => {
-          const buffer = Buffer.from(await file.arrayBuffer());
-          const { result, usedOCR } = await extractTextFromPDFWithOCR(buffer, file.name, 30);
-          const formatted = formatPDFForAIWithOCR(result, usedOCR);
-          if (formatted) {
-            contextParts.push(`## PDF: ${file.name}\n\n${formatted}`);
-          }
-        })()
-      );
     }
 
-    await Promise.all(tasks);
+    // PDF text (already extracted client-side)
+    if (pdfTexts) {
+      for (const pdf of pdfTexts) {
+        if (pdf.text.trim()) {
+          contextParts.push(`## PDF: ${pdf.name}\n\n${pdf.text}`);
+        }
+      }
+    }
 
     const combinedContext = contextParts.join("\n\n---\n\n");
 
@@ -126,7 +111,7 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
 {"questionId1": "answer text...", "questionId2": "answer text...", ...}`;
 
     // Chunk the context into Chatbase conversation history if needed
-    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
     let finalMessage = `${instructionPrompt}\n\n## COMPANY CONTEXT\n\n${combinedContext}`;
 
     if (finalMessage.length > CHATBASE_LIMIT) {

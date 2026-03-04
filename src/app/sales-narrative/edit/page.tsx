@@ -247,22 +247,42 @@ function SalesNarrativeEditContent() {
 
     setPrefilling(true);
     try {
-      const formData = new FormData();
-      if (prefillUrl.trim()) {
-        formData.append("websiteUrl", prefillUrl.trim());
-      }
+      // Extract PDF text client-side to avoid body size limits
+      const pdfTexts: { name: string; text: string }[] = [];
       for (const file of prefillFiles) {
-        formData.append("files", file);
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const uint8 = new Uint8Array(arrayBuffer);
+          const { extractText, getDocumentProxy } = await import("unpdf");
+          const pdf = await getDocumentProxy(uint8);
+          const result = await extractText(pdf, { mergePages: true });
+          const text = Array.isArray(result.text) ? result.text.join("\n\n") : result.text;
+          if (text?.trim()) {
+            pdfTexts.push({ name: file.name, text: text.trim() });
+          }
+        } catch (err) {
+          console.error(`Failed to extract text from ${file.name}:`, err);
+        }
       }
 
       const response = await fetch("/api/sales-narrative/prefill", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          websiteUrl: prefillUrl.trim() || undefined,
+          pdfTexts: pdfTexts.length > 0 ? pdfTexts : undefined,
+        }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Pre-fill failed");
+        let errorMsg = "Pre-fill failed";
+        try {
+          const data = await response.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          errorMsg = `Server error (${response.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
