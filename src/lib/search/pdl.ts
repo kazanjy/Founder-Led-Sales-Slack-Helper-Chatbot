@@ -209,7 +209,7 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
   if (pdl.person) {
     const p = pdl.person;
     const lines: string[] = [];
-    lines.push(`### People Data Labs: ${p.full_name || "Unknown"}`);
+    lines.push(`### Contact Profile: ${p.full_name || "Unknown"}`);
     if (p.job_title) lines.push(`- **Current Title:** ${p.job_title}`);
     if (p.job_company_name) lines.push(`- **Current Company:** ${p.job_company_name}`);
     if (p.industry) lines.push(`- **Industry:** ${p.industry}`);
@@ -244,13 +244,13 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
 
     sections.push(lines.join("\n"));
   } else if (pdl.personError) {
-    sections.push(`### People Data Labs: Person\nNo data available (${pdl.personError})`);
+    sections.push(`### Contact Profile\nNo data available (${pdl.personError})`);
   }
 
   if (pdl.company) {
     const c = pdl.company;
     const lines: string[] = [];
-    lines.push(`### People Data Labs: ${c.display_name || c.name || "Unknown Company"}`);
+    lines.push(`### Company Profile: ${c.display_name || c.name || "Unknown Company"}`);
     if (c.summary) lines.push(`- **Description:** ${c.summary}`);
     if (c.industry) lines.push(`- **Industry:** ${c.industry}`);
     if (c.size) lines.push(`- **Size:** ${c.size}`);
@@ -291,7 +291,7 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
     if (c.tags?.length > 0) lines.push(`- **Tags:** ${c.tags.join(", ")}`);
     sections.push(lines.join("\n"));
   } else if (pdl.companyError) {
-    sections.push(`### People Data Labs: Company\nNo data available (${pdl.companyError})`);
+    sections.push(`### Company Profile\nNo data available (${pdl.companyError})`);
   }
 
   return sections.join("\n\n---\n\n");
