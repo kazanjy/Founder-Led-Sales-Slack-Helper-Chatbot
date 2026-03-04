@@ -65,6 +65,7 @@ function DiscoveryQuestionsContent() {
   const [copiedQuestion, setCopiedQuestion] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showChecklistBanner, setShowChecklistBanner] = useState(true);
+  const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
@@ -114,6 +115,19 @@ function DiscoveryQuestionsContent() {
               setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
             }
           }
+        }
+
+        // Check if first call checklist already exists
+        try {
+          const fccRes = await fetch("/api/first-call-checklist/latest");
+          if (fccRes.ok) {
+            const fccData = await fccRes.json();
+            if (fccData.hasFirstCallChecklist) {
+              setHasFirstCallChecklist(true);
+            }
+          }
+        } catch {
+          // Ignore
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -442,7 +456,7 @@ function DiscoveryQuestionsContent() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Dismissable First Call Checklist Banner */}
-        {showChecklistBanner && (
+        {showChecklistBanner && !hasFirstCallChecklist && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -577,7 +591,7 @@ function DiscoveryQuestionsContent() {
         </div>{/* end main content */}
 
         {/* Right sidebar: First Call Checklist ad widget */}
-        <div className="hidden lg:block w-64 flex-shrink-0">
+        {!hasFirstCallChecklist && <div className="hidden lg:block w-64 flex-shrink-0">
           <div className="sticky top-8">
             <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
@@ -630,7 +644,7 @@ function DiscoveryQuestionsContent() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
         </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}

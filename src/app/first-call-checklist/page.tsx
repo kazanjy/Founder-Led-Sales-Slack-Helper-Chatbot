@@ -60,6 +60,7 @@ function FirstCallChecklistContent() {
   const [generating, setGenerating] = useState(false);
   const [version, setVersion] = useState<FirstCallChecklistVersion | null>(null);
   const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
+  const [hasPreCallPlanning, setHasPreCallPlanning] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Edit state
@@ -110,6 +111,19 @@ function FirstCallChecklistContent() {
             setVersion(data.version);
             setEditedContent(data.version?.content || "");
           }
+        }
+
+        // Check if pre-call checklist already exists
+        try {
+          const pcpRes = await fetch("/api/pre-call-planning/latest");
+          if (pcpRes.ok) {
+            const pcpData = await pcpRes.json();
+            if (pcpData.hasPreCallPlanning) {
+              setHasPreCallPlanning(true);
+            }
+          }
+        } catch {
+          // Ignore
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -517,8 +531,8 @@ function FirstCallChecklistContent() {
           </div>
         )}
 
-        {/* What's Next - only show when not editing */}
-        {!isEditing && (
+        {/* What's Next - only show when not editing and pre-call checklist not yet created */}
+        {!isEditing && !hasPreCallPlanning && (
           <div className="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white">
             <h3 className="text-xl font-bold mb-2">What&apos;s Next?</h3>
             <p className="text-purple-100 mb-6">

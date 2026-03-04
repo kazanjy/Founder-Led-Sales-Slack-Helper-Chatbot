@@ -58,6 +58,7 @@ function SalesNarrativeContent() {
 
   // Discovery questions banner
   const [showDiscoveryBanner, setShowDiscoveryBanner] = useState(true);
+  const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -110,6 +111,18 @@ function SalesNarrativeContent() {
             router.push("/sales-narrative/edit");
             return;
           }
+        }
+        // Check if discovery questions already exist
+        try {
+          const dqRes = await fetch("/api/discovery-questions/latest");
+          if (dqRes.ok) {
+            const dqData = await dqRes.json();
+            if (dqData.hasDiscoveryQuestions) {
+              setHasDiscoveryQuestions(true);
+            }
+          }
+        } catch {
+          // Ignore
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -375,7 +388,7 @@ function SalesNarrativeContent() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Dismissable Discovery Questions Banner */}
-        {showDiscoveryBanner && !isEditing && (
+        {showDiscoveryBanner && !isEditing && !hasDiscoveryQuestions && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -772,7 +785,7 @@ function SalesNarrativeContent() {
         </div>{/* end main content */}
 
         {/* Right sidebar: Discovery Questions ad widget */}
-        {!isEditing && (
+        {!isEditing && !hasDiscoveryQuestions && (
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-8">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
