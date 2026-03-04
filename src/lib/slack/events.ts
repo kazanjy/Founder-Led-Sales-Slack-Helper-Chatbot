@@ -535,11 +535,11 @@ async function handleMention(
   const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
   console.log("User:", dbUser.id);
 
-  // Track last active time for this Slack interaction
-  await prisma.user.update({
+  // Track last active time for this Slack interaction (non-blocking)
+  prisma.user.update({
     where: { id: dbUser.id },
     data: { lastActiveAt: new Date() },
-  });
+  }).catch((err: unknown) => console.warn("Failed to update lastActiveAt:", err));
 
   // Check if user can send messages (license/trial check)
   const canSend = await checkUserCanSendMessage(dbUser);
@@ -692,11 +692,11 @@ async function handleDirectMessage(
   // Get or create user
   const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
 
-  // Track last active time for this Slack interaction
-  await prisma.user.update({
+  // Track last active time for this Slack interaction (non-blocking)
+  prisma.user.update({
     where: { id: dbUser.id },
     data: { lastActiveAt: new Date() },
-  });
+  }).catch((err: unknown) => console.warn("Failed to update lastActiveAt:", err));
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);
