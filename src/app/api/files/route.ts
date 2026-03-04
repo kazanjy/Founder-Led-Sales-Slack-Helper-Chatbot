@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         imagesIncluded: { not: Prisma.JsonNull },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { lastMessageAt: "desc" },
       select: {
         id: true,
         title: true,
-        updatedAt: true,
+        lastMessageAt: true,
         imagesIncluded: true,
       },
     });
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           pageCount: file.pageCount,
           conversationId: conv.id,
           conversationTitle: conv.title,
-          date: conv.updatedAt,
+          date: conv.lastMessageAt,
         });
       }
     }
