@@ -131,7 +131,12 @@ export async function GET(request: NextRequest) {
     } else if (sortBy === "licenseStatus") {
       orderBy = { licenseStatus: sortOrder as "asc" | "desc" };
     } else if (sortBy === "lastActivity") {
-      orderBy = { lastActiveAt: sortOrder as "asc" | "desc" };
+      // lastActiveAt is nullable — push NULLs to the end regardless of direction,
+      // then fall back to updatedAt for users without explicit activity tracking.
+      orderBy = [
+        { lastActiveAt: { sort: sortOrder as "asc" | "desc", nulls: "last" } },
+        { updatedAt: sortOrder as "asc" | "desc" },
+      ];
     } else if (sortBy === "messageCount") {
       orderBy = { messages: { _count: sortOrder as "asc" | "desc" } };
     } else if (sortBy === "conversationCount") {
