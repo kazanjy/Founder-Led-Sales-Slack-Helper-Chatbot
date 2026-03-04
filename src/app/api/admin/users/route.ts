@@ -113,16 +113,36 @@ export async function GET(request: NextRequest) {
       where.slackUserId = { not: null };
     }
 
+    // Filter by workspace
+    const workspaceId = searchParams.get("workspaceId") || "";
+    if (workspaceId) {
+      where.workspaceId = workspaceId;
+    }
+
     // Build orderBy
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const orderBy: Record<string, any> = {};
+    let orderBy: Record<string, any> | Record<string, any>[] = {};
     if (sortBy === "createdAt") {
-      orderBy.createdAt = sortOrder as "asc" | "desc";
+      orderBy = { createdAt: sortOrder as "asc" | "desc" };
     } else if (sortBy === "name") {
-      orderBy.name = sortOrder as "asc" | "desc";
+      orderBy = { name: sortOrder as "asc" | "desc" };
     } else if (sortBy === "email") {
-      orderBy.email = sortOrder as "asc" | "desc";
+      orderBy = { email: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "licenseStatus") {
+      orderBy = { licenseStatus: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "lastActivity") {
+      orderBy = { lastActiveAt: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "messageCount") {
+      orderBy = { messages: { _count: sortOrder as "asc" | "desc" } };
+    } else if (sortBy === "conversationCount") {
+      orderBy = { conversations: { _count: sortOrder as "asc" | "desc" } };
     }
+
+    // Get workspaces for filter dropdown
+    const workspaces = await prisma.workspace.findMany({
+      select: { id: true, slackTeamName: true },
+      orderBy: { slackTeamName: "asc" },
+    });
 
     // Get users with pagination
     const [users, total] = await Promise.all([
@@ -210,6 +230,7 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      workspaces: workspaces.map(w => ({ id: w.id, name: w.slackTeamName })),
     });
   } catch (error) {
     console.error("Admin users error:", error);

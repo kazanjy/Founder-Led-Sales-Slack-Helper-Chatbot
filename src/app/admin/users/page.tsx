@@ -29,16 +29,27 @@ interface Pagination {
   totalPages: number;
 }
 
+interface WorkspaceOption {
+  id: string;
+  name: string;
+}
+
+type SortField = "name" | "licenseStatus" | "conversationCount" | "messageCount" | "lastActivity" | "createdAt";
+
 export default function AdminUsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [users, setUsers] = useState<User[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "");
   const [identityType, setIdentityType] = useState(searchParams.get("identityType") || "");
+  const [workspaceId, setWorkspaceId] = useState(searchParams.get("workspaceId") || "");
+  const [sortBy, setSortBy] = useState<SortField>((searchParams.get("sortBy") as SortField) || "createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">((searchParams.get("sortOrder") as "asc" | "desc") || "desc");
 
   // Create user modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -63,19 +74,23 @@ export default function AdminUsersPage() {
       if (search) params.set("search", search);
       if (status) params.set("status", status);
       if (identityType) params.set("identityType", identityType);
+      if (workspaceId) params.set("workspaceId", workspaceId);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
 
       const res = await fetch(`/api/admin/users?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users);
         setPagination(data.pagination);
+        if (data.workspaces) setWorkspaces(data.workspaces);
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, search, status, identityType]);
+  }, [currentPage, search, status, identityType, workspaceId, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchUsers();
@@ -95,6 +110,35 @@ export default function AdminUsersPage() {
       params.set("page", "1");
     }
     router.push(`/admin/users?${params.toString()}`);
+  };
+
+  const handleSort = (field: SortField) => {
+    let newOrder: "asc" | "desc" = "desc";
+    if (sortBy === field) {
+      newOrder = sortOrder === "desc" ? "asc" : "desc";
+    }
+    setSortBy(field);
+    setSortOrder(newOrder);
+    updateUrl({ sortBy: field, sortOrder: newOrder });
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortBy !== field) {
+      return (
+        <svg className="w-3 h-3 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    return sortOrder === "asc" ? (
+      <svg className="w-3 h-3 ml-1 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-3 h-3 ml-1 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -218,6 +262,8 @@ export default function AdminUsersPage() {
     return date.toLocaleDateString();
   };
 
+  const hasFilters = search || status || identityType || workspaceId;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -265,7 +311,7 @@ export default function AdminUsersPage() {
           {/* Status filter */}
           <select
             value={status}
-            onChange={(e) => updateUrl({ status: e.target.value })}
+            onChange={(e) => { setStatus(e.target.value); updateUrl({ status: e.target.value }); }}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Statuses</option>
@@ -278,7 +324,7 @@ export default function AdminUsersPage() {
           {/* Identity filter */}
           <select
             value={identityType}
-            onChange={(e) => updateUrl({ identityType: e.target.value })}
+            onChange={(e) => { setIdentityType(e.target.value); updateUrl({ identityType: e.target.value }); }}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Identity Types</option>
@@ -287,11 +333,28 @@ export default function AdminUsersPage() {
             <option value="both">Both Connected</option>
           </select>
 
+          {/* Workspace filter */}
+          {workspaces.length > 0 && (
+            <select
+              value={workspaceId}
+              onChange={(e) => { setWorkspaceId(e.target.value); updateUrl({ workspaceId: e.target.value }); }}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Workspaces</option>
+              {workspaces.map((ws) => (
+                <option key={ws.id} value={ws.id}>{ws.name}</option>
+              ))}
+            </select>
+          )}
+
           {/* Clear filters */}
-          {(search || status || identityType) && (
+          {hasFilters && (
             <button
               onClick={() => {
                 setSearch("");
+                setStatus("");
+                setIdentityType("");
+                setWorkspaceId("");
                 router.push("/admin/users");
               }}
               className="px-3 py-2 text-gray-600 hover:text-gray-900"
@@ -313,26 +376,56 @@ export default function AdminUsersPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center">
+                      User
+                      <SortIcon field="name" />
+                    </div>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Identity
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort("licenseStatus")}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      <SortIcon field="licenseStatus" />
+                    </div>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[200px]">
                     Workspace
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Usage
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort("messageCount")}
+                  >
+                    <div className="flex items-center">
+                      Usage
+                      <SortIcon field="messageCount" />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Active
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort("lastActivity")}
+                  >
+                    <div className="flex items-center">
+                      Last Active
+                      <SortIcon field="lastActivity" />
+                    </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Joined
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    <div className="flex items-center">
+                      Joined
+                      <SortIcon field="createdAt" />
+                    </div>
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
