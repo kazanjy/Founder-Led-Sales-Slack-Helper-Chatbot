@@ -959,7 +959,7 @@ async function executeResearchPipeline(
     const brief = await synthesizeResearchBrief(results, undefined, user.id);
 
     // Save to database
-    await prisma.preCallResearch.create({
+    const research = await prisma.preCallResearch.create({
       data: {
         userId: user.id,
         companyName: parsedInput.companyName,
@@ -976,10 +976,10 @@ async function executeResearchPipeline(
     // Convert to Slack format and send
     const slackBrief = markdownToSlack(brief.content);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
-    const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n\n`;
-    const footer = `\n\n_View your research history at ${appUrl}/pre-call-planning/research_`;
+    const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
+    const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n🔗 <${reportUrl}|View full report on askmikey.ai>\n\n`;
 
-    await sendSlackMessage(client, channel, header + slackBrief + footer, threadTs);
+    await sendSlackMessage(client, channel, header + slackBrief, threadTs);
   } catch (error) {
     console.error("[Slack Research] Pipeline error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
