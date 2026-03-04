@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
             id: research.id,
             companyName: brief.companyName,
             contactName: brief.contactName,
+            contactTitle: parsedInput.contactTitle,
             content: brief.content,
             sources: brief.sources,
             createdAt: research.createdAt,

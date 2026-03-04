@@ -12,6 +12,7 @@ interface ResearchBrief {
   id: string;
   companyName: string;
   contactName?: string;
+  contactTitle?: string;
   content: string;
   sources: { title: string; url: string }[];
   createdAt: string;
@@ -80,6 +81,7 @@ function ResearchContent() {
         id: data.research.id,
         companyName: data.research.companyName,
         contactName: data.research.contactName,
+        contactTitle: data.research.contactTitle,
         content: data.research.content,
         sources: data.research.sources as { title: string; url: string }[],
         createdAt: data.research.createdAt,
@@ -513,7 +515,6 @@ function ResearchContent() {
                           <span className="ml-1 text-purple-500">via Slack</span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5 font-mono">{item.id}</div>
                     </button>
                   ))}
                 </div>
@@ -529,7 +530,7 @@ function ResearchContent() {
                   <h2 className="text-lg font-semibold text-gray-900">
                     {brief.companyName}
                     {brief.contactName && (
-                      <span className="text-gray-500 font-normal"> — {brief.contactName}</span>
+                      <span className="text-gray-500 font-normal"> — {brief.contactName}{brief.contactTitle ? `, ${brief.contactTitle}` : ""}</span>
                     )}
                   </h2>
                   <p className="text-sm text-gray-500">
