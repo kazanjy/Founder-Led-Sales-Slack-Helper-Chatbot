@@ -115,11 +115,72 @@ Here's to some founder-led selling success! 🏄‍♂️🌊🚀
 _Powered by Claude • Trained on Pete Kazanjy's founder-led sales expertise_`;
 
 /**
+ * The #precall #instructions response message (Slack mrkdwn format)
+ */
+export const PRECALL_INSTRUCTIONS_MESSAGE = `🔍🌊 *Pre-Call Research with Mikey — How It Works!* 🌊🔍
+
+Need to prep for an upcoming sales call? I've got you covered! Here's how to use my *Pre-Call Research* feature to walk into every meeting fully prepared. 🚀
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+📝 *How to Start a Research Brief*
+
+Just type \`#research\` or \`#precall\` followed by whatever you know about the person or company you're meeting with. I'm flexible — give me as much or as little as you have!
+
+*Examples:*
+> \`#precall Acme Corp\`
+> \`#research Acme Corp, Jane Doe CTO\`
+> \`#precall Acme Corp, Jane Doe, linkedin.com/in/janedoe, acme.com\`
+
+You can also use \`#callprep\` — they all work the same way!
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 *What Happens Next*
+
+1️⃣ I'll parse whatever you gave me — company name, contact name, title, LinkedIn URL, website — and show you what I found
+2️⃣ If I'm missing key details, I'll ask you to fill in the gaps
+3️⃣ Once I have what I need, I'll generate a *comprehensive research brief* including:
+
+• 🏢 *Company Overview* — what they do, size, funding, recent news
+• 👤 *Contact Profile* — background, role, likely priorities
+• 🎯 *Persona Matching* — what type of buyer they are and what they care about
+• 💡 *Point of View* — a tailored perspective on how your solution maps to their world
+• 📞 *Recommended Call Focus Areas* — specific topics and discovery questions for your meeting
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *Pro Tips*
+
+• 🌊 The more info you provide upfront, the faster we get to your brief — but even just a company name works!
+• 🌊 Include a *LinkedIn URL* if you have one — it dramatically improves the contact research
+• 🌊 I'll reply in a thread so you can easily find your brief later
+• 🌊 Every brief is saved — visit *askmikey.ai* to view your full research history and share briefs with your team
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 *Pre-Call Research on the Web*
+
+You can also run pre-call research at *askmikey.ai/pre-call-planning/research* for a richer experience with full formatting and easy sharing! 🖥️
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+Ready to prep? Just type \`#precall\` followed by your prospect's details and let's get started! 🏄‍♂️🌊`;
+
+/**
  * Check if a message is a hashtag command and return the response if so.
  * Returns the response string if a command matched, or null if no command found.
  */
 export function handleCommand(text: string): string | null {
   const cleaned = text.trim().toLowerCase();
+
+  // Match #precall #instructions (must check before generic #instructions)
+  if (
+    (cleaned.includes("#precall") || cleaned.includes("#research") || cleaned.includes("#callprep")) &&
+    cleaned.includes("#instructions")
+  ) {
+    return PRECALL_INSTRUCTIONS_MESSAGE;
+  }
 
   // Match #instructions anywhere in the message
   if (cleaned.includes("#instructions")) {
