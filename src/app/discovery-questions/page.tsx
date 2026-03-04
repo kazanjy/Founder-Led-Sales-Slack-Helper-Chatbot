@@ -239,13 +239,16 @@ function DiscoveryQuestionsContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-gray-600">Loading discovery questions...</p>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Loading discovery questions...</p>
+          </div>
         </div>
       </div>
     );
@@ -254,22 +257,25 @@ function DiscoveryQuestionsContent() {
   // No sales narrative - need to create one first
   if (!hasSalesNarrative && !version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">📝</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Narrative Required</h1>
-          <p className="text-gray-600 mb-6">
-            Discovery questions are generated from your sales narrative. Create a sales narrative first to get started.
-          </p>
-          <Link
-            href="/sales-narrative/edit"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Create Sales Narrative
-          </Link>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">📝</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Narrative Required</h1>
+            <p className="text-gray-600 mb-6">
+              Discovery questions are generated from your sales narrative. Create a sales narrative first to get started.
+            </p>
+            <Link
+              href="/sales-narrative/edit"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Create Sales Narrative
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -278,35 +284,38 @@ function DiscoveryQuestionsContent() {
   // Has sales narrative but no discovery questions yet
   if (!version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">🔍</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Discovery Questions</h1>
-          <p className="text-gray-600 mb-6">
-            Generate a set of discovery questions based on your sales narrative to use during sales calls.
-          </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Generate Discovery Questions
-              </>
-            )}
-          </button>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">🔍</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Discovery Questions</h1>
+            <p className="text-gray-600 mb-6">
+              Generate a set of discovery questions based on your sales narrative to use during sales calls.
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+            >
+              {generating ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Generate Discovery Questions
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );

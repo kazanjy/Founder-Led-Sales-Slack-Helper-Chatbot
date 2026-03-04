@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/chat", label: "Chat" },
-  { href: "/sales-narrative", label: "Sales Narrative" },
-  { href: "/discovery-questions", label: "Discovery Questions" },
-  { href: "/first-call-checklist", label: "First Call Checklist" },
-  { href: "/pre-call-planning", label: "Pre-Call Planning" },
-  { href: "/pre-call-planning/research", label: "Pre-Call Research" },
+  { href: "/chat", label: "💬 Chat" },
+  { href: "/sales-narrative", label: "📖 Sales Narrative" },
+  { href: "/discovery-questions", label: "🔍 Discovery Questions" },
+  { href: "/first-call-checklist", label: "✅ First Call Checklist" },
+  { href: "/pre-call-planning", label: "📋 Pre-Call Planning" },
+  { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research" },
 ];
 
 export default function SalesNavBar() {

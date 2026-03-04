@@ -234,13 +234,16 @@ function PreCallPlanningContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-gray-600">Loading pre-call planning process...</p>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Loading pre-call planning process...</p>
+          </div>
         </div>
       </div>
     );
@@ -249,22 +252,25 @@ function PreCallPlanningContent() {
   // No first call checklist - need to create it first
   if (!hasFirstCallChecklist && !version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">📋</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">First Call Checklist Required</h1>
-          <p className="text-gray-600 mb-6">
-            The pre-call planning process is generated from your first call checklist. Create a first call checklist first to get started.
-          </p>
-          <Link
-            href="/first-call-checklist"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            Create First Call Checklist
-          </Link>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">📋</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">First Call Checklist Required</h1>
+            <p className="text-gray-600 mb-6">
+              The pre-call planning process is generated from your first call checklist. Create a first call checklist first to get started.
+            </p>
+            <Link
+              href="/first-call-checklist"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              Create First Call Checklist
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -273,35 +279,38 @@ function PreCallPlanningContent() {
   // Has first call checklist but no pre-call planning yet
   if (!version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">🎯</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Pre-Call Planning Process</h1>
-          <p className="text-gray-600 mb-6">
-            Create a comprehensive preparation process to use before every sales call. Includes research frameworks, prospect templates, and call preparation checklists.
-          </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Generate Pre-Call Planning Process
-              </>
-            )}
-          </button>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">🎯</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Pre-Call Planning Process</h1>
+            <p className="text-gray-600 mb-6">
+              Create a comprehensive preparation process to use before every sales call. Includes research frameworks, prospect templates, and call preparation checklists.
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+            >
+              {generating ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Generate Pre-Call Planning Process
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );

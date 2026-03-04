@@ -199,13 +199,16 @@ function SalesNarrativeContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-gray-600">Loading narrative...</p>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Loading narrative...</p>
+          </div>
         </div>
       </div>
     );
@@ -213,22 +216,25 @@ function SalesNarrativeContent() {
 
   if (!version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">📝</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">No Narrative Yet</h1>
-          <p className="text-gray-600 mb-6">
-            Answer the sales narrative questionnaire to generate your compelling sales narrative and value propositions.
-          </p>
-          <Link
-            href="/sales-narrative/edit"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Start Questionnaire
-          </Link>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">📝</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Narrative Yet</h1>
+            <p className="text-gray-600 mb-6">
+              Answer the sales narrative questionnaire to generate your compelling sales narrative and value propositions.
+            </p>
+            <Link
+              href="/sales-narrative/edit"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Start Questionnaire
+            </Link>
+          </div>
         </div>
       </div>
     );

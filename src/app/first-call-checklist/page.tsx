@@ -230,13 +230,16 @@ function FirstCallChecklistContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p className="text-gray-600">Loading first call checklist...</p>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center">
+            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Loading first call checklist...</p>
+          </div>
         </div>
       </div>
     );
@@ -245,22 +248,25 @@ function FirstCallChecklistContent() {
   // No discovery questions - need to create them first
   if (!hasDiscoveryQuestions && !version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">🔍</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Discovery Questions Required</h1>
-          <p className="text-gray-600 mb-6">
-            The first call checklist is generated from your discovery questions. Create discovery questions first to get started.
-          </p>
-          <Link
-            href="/discovery-questions"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Create Discovery Questions
-          </Link>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">🔍</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Discovery Questions Required</h1>
+            <p className="text-gray-600 mb-6">
+              The first call checklist is generated from your discovery questions. Create discovery questions first to get started.
+            </p>
+            <Link
+              href="/discovery-questions"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Create Discovery Questions
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -269,35 +275,38 @@ function FirstCallChecklistContent() {
   // Has discovery questions but no checklist yet
   if (!version) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md px-6">
-          <div className="text-6xl mb-4">📋</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate First Call Checklist</h1>
-          <p className="text-gray-600 mb-6">
-            Create a comprehensive checklist to prepare for and execute your first sales calls with prospects.
-          </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
-          >
-            {generating ? (
-              <>
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Generate First Call Checklist
-              </>
-            )}
-          </button>
+      <div className="min-h-screen bg-gray-50">
+        <SalesNavBar />
+        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
+          <div className="text-center max-w-md px-6">
+            <div className="text-6xl mb-4">📋</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate First Call Checklist</h1>
+            <p className="text-gray-600 mb-6">
+              Create a comprehensive checklist to prepare for and execute your first sales calls with prospects.
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+            >
+              {generating ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Generate First Call Checklist
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );
