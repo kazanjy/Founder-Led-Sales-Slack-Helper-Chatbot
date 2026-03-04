@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
           // Stage 4: Synthesize research brief
           const brief = await synthesizeResearchBrief(results, (update) => {
             sendEvent("progress", update);
-          });
+          }, user.id);
 
           // Stage 5: Save to database
           const research = await prisma.preCallResearch.create({

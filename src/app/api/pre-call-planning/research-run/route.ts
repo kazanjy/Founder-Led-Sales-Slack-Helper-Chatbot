@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
           const brief = await synthesizeResearchBrief(results, (update) => {
             sendEvent("progress", update);
-          });
+          }, user.id);
 
           const research = await prisma.preCallResearch.create({
             data: {

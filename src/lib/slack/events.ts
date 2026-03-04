@@ -760,7 +760,7 @@ async function handleResearchCommand(
 
     const plan = generateSearchPlan(parsedInput);
     const results = await executeSearchPlan(plan);
-    const brief = await synthesizeResearchBrief(results);
+    const brief = await synthesizeResearchBrief(results, undefined, user.id);
 
     // Save to database
     await prisma.preCallResearch.create({
