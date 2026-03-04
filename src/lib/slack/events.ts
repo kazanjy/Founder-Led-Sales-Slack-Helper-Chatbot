@@ -1019,10 +1019,26 @@ async function executeResearchPipeline(
       },
     });
 
+    // Create a chat conversation so the user can continue discussing the prospect
+    const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
+    const { createResearchConversation } = await import("@/lib/search/research-conversation");
+    const chatConversation = await createResearchConversation({
+      userId: user.id,
+      researchId: research.id,
+      companyName: parsedInput.companyName,
+      contactName: parsedInput.contactName,
+      contactTitle: parsedInput.contactTitle,
+      contactLinkedIn: fields.contactLinkedIn,
+      companyDomain: fields.companyDomain,
+      urls: fields.urls,
+      briefContent: brief.content,
+      reportUrl,
+    });
+
     // Convert to Slack format and send
     const slackBrief = markdownToSlack(brief.content);
-    const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
-    const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n🔗 <${reportUrl}|View full report on askmikey.ai>\n\n`;
+    const chatUrl = `${appUrl}/chat/${chatConversation.id}`;
+    const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n🔗 <${reportUrl}|View full report> · <${chatUrl}|Continue in chat>\n\n`;
 
     await sendSlackMessage(client, channel, header + slackBrief, threadTs);
   } catch (error) {

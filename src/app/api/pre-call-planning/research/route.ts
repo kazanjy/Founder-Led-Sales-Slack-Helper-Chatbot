@@ -178,6 +178,23 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          // Create a chat conversation so the user can continue discussing
+          const { createResearchConversation } = await import("@/lib/search/research-conversation");
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+          const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
+          const chatConversation = await createResearchConversation({
+            userId: user.id,
+            researchId: research.id,
+            companyName: parsedInput.companyName,
+            contactName: parsedInput.contactName,
+            contactTitle: parsedInput.contactTitle,
+            contactLinkedIn: parsedInput.contactLinkedIn,
+            companyDomain: parsedInput.companyDomain,
+            urls: searchInput.urls,
+            briefContent: brief.content,
+            reportUrl,
+          });
+
           sendEvent("complete", {
             id: research.id,
             companyName: brief.companyName,
@@ -185,6 +202,7 @@ export async function POST(request: NextRequest) {
             content: brief.content,
             sources: brief.sources,
             createdAt: research.createdAt,
+            conversationId: chatConversation.id,
           });
         } catch (error) {
           console.error("[Research] Stream error:", error);
