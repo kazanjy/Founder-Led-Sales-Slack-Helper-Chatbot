@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface ShareDocumentButtonProps {
   documentType: string;
@@ -11,10 +11,35 @@ interface ShareDocumentButtonProps {
 
 export function ShareDocumentButton({ documentType, documentId, title, content }: ShareDocumentButtonProps) {
   const [sharing, setSharing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showPopover, setShowPopover] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(e.target as Node)
+      ) {
+        setShowPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleShare = async () => {
     setSharing(true);
+    setShowPopover(false);
     try {
       const res = await fetch("/api/documents/share", {
         method: "POST",
@@ -24,46 +49,78 @@ export function ShareDocumentButton({ documentType, documentId, title, content }
       const data = await res.json();
       if (data.shareUrl) {
         await navigator.clipboard.writeText(data.shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 3000);
+        showToast("Link copied! This document is now available to anyone with this link.");
+      } else {
+        showToast("Failed to create share link");
       }
     } catch {
-      // silently fail
+      showToast("Failed to create share link");
     } finally {
       setSharing(false);
     }
   };
 
   return (
-    <button
-      onClick={handleShare}
-      disabled={sharing}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-      title="Copy share link"
-    >
-      {copied ? (
-        <>
-          <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="text-green-600">Link copied!</span>
-        </>
-      ) : sharing ? (
-        <>
-          <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Sharing...
-        </>
-      ) : (
-        <>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-          Share Link
-        </>
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onClick={() => setShowPopover(!showPopover)}
+        disabled={sharing}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+      >
+        {sharing ? (
+          <>
+            <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Copying...
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            Link
+          </>
+        )}
+      </button>
+
+      {/* Popover */}
+      {showPopover && (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+        >
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              <h3 className="font-semibold text-gray-900">Share public link</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Create a public link to a snapshot of this document. Anyone with the link can view it &mdash; no login required.
+            </p>
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm disabled:opacity-50"
+            >
+              Copy link to clipboard
+            </button>
+          </div>
+        </div>
       )}
-    </button>
+
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-16 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50">
+          {toast}
+        </div>
+      )}
+    </div>
   );
 }
