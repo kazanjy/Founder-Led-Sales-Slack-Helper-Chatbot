@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
   { href: "/sales-narrative", label: "📖 Sales Narrative", statusKey: "salesNarrative" },
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
-  { href: "/pre-call-planning", label: "📋 Pre-Call Planning", statusKey: "preCallPlanning" },
+  { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
   { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
 ];
 

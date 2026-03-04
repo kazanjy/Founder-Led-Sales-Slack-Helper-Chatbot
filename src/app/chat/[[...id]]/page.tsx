@@ -2467,7 +2467,7 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>🎯</span>
-              <span className="flex-1">Pre-Call Planning</span>
+              <span className="flex-1">Pre-Call Checklist</span>
               {!appProgress.preCallPlanning?.hasGenerated && (
                 <span className="text-xs text-purple-600 font-medium">Start →</span>
               )}
@@ -3243,7 +3243,7 @@ export default function ChatPage() {
                           <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
                         )}
                       </div>
-                      <span className="text-sm font-medium text-gray-700">Pre-Call Planning</span>
+                      <span className="text-sm font-medium text-gray-700">Pre-Call Checklist</span>
                       {appProgress.preCallPlanning?.hasGenerated ? (
                         <span className="text-xs text-green-600">Completed</span>
                       ) : (

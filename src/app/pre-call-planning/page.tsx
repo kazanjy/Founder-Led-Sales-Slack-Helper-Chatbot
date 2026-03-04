@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(
@@ -72,7 +73,7 @@ function PreCallPlanningContent() {
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
-    document.title = "Pre-Call Planning Process - Mikey";
+    document.title = "Pre-Call Checklist - Mikey";
   }, []);
 
   useEffect(() => {
@@ -145,7 +146,7 @@ function PreCallPlanningContent() {
         const data = await response.json();
         await showAlert({
           title: "Error",
-          message: data.error || "Failed to generate pre-call planning process",
+          message: data.error || "Failed to generate pre-call checklist",
           variant: "danger",
         });
         return;
@@ -158,7 +159,7 @@ function PreCallPlanningContent() {
       console.error("Error generating:", error);
       await showAlert({
         title: "Error",
-        message: "Failed to generate pre-call planning process. Please try again.",
+        message: "Failed to generate pre-call checklist. Please try again.",
         variant: "danger",
       });
     } finally {
@@ -242,7 +243,7 @@ function PreCallPlanningContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading pre-call planning process...</p>
+            <p className="text-gray-600">Loading pre-call checklist...</p>
           </div>
         </div>
       </div>
@@ -259,7 +260,7 @@ function PreCallPlanningContent() {
             <div className="text-6xl mb-4">📋</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">First Call Checklist Required</h1>
             <p className="text-gray-600 mb-6">
-              The pre-call planning process is generated from your first call checklist. Create a first call checklist first to get started.
+              The pre-call checklist is generated from your first call checklist. Create a first call checklist first to get started.
             </p>
             <Link
               href="/first-call-checklist"
@@ -284,7 +285,7 @@ function PreCallPlanningContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">🎯</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Pre-Call Planning Process</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Pre-Call Checklist</h1>
             <p className="text-gray-600 mb-6">
               Create a comprehensive preparation process to use before every sales call. Includes research frameworks, prospect templates, and call preparation checklists.
             </p>
@@ -306,7 +307,7 @@ function PreCallPlanningContent() {
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Generate Pre-Call Planning Process
+                  Generate Pre-Call Checklist
                 </>
               )}
             </button>
@@ -336,7 +337,7 @@ function PreCallPlanningContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Planning Process</h1>
+                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Checklist</h1>
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
@@ -401,6 +402,12 @@ function PreCallPlanningContent() {
                       </>
                     )}
                   </button>
+                  <ShareDocumentButton
+                    documentType="preCallPlanning"
+                    documentId={version.id}
+                    title="Pre-Call Checklist"
+                    content={currentContent}
+                  />
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"

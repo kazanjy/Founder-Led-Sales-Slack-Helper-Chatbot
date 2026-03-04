@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 interface NarrativeVersion {
   id: string;
@@ -306,6 +307,12 @@ function SalesNarrativeContent() {
                 </>
               ) : (
                 <>
+                  <ShareDocumentButton
+                    documentType="salesNarrative"
+                    documentId={version.id}
+                    title="Sales Narrative"
+                    content={currentNarrative}
+                  />
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"

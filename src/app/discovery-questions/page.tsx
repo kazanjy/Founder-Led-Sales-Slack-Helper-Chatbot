@@ -6,6 +6,7 @@ import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -347,6 +348,16 @@ function DiscoveryQuestionsContent() {
             </div>
 
             <div className="flex items-center gap-3">
+              <ShareDocumentButton
+                documentType="discoveryQuestions"
+                documentId={version.id}
+                title="Discovery Questions"
+                content={version.content.categories.map((cat: { name: string; questions: { primary: string; followUps?: string[] }[] }) =>
+                  `## ${cat.name}\n\n${cat.questions.map((q: { primary: string; followUps?: string[] }, i: number) =>
+                    `${i + 1}. ${q.primary}${q.followUps?.length ? "\n" + q.followUps.map((f: string) => `   - ${f}`).join("\n") : ""}`
+                  ).join("\n\n")}`
+                ).join("\n\n")}
+              />
               <button
                 onClick={handleCopyAll}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"

@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 interface ResearchBrief {
   id: string;
@@ -302,9 +303,9 @@ function ResearchContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">🎯</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Set Up Your Planning Process First</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Set Up Your Pre-Call Checklist First</h1>
             <p className="text-gray-600 mb-6">
-              Before you can research prospects, you need to generate your Pre-Call Planning Process. This creates a personalized preparation framework based on your First Call Checklist.
+              Before you can research prospects, you need to generate your Pre-Call Checklist. This creates a personalized preparation framework based on your First Call Checklist.
             </p>
             <Link
               href="/pre-call-planning"
@@ -313,10 +314,10 @@ function ResearchContent() {
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Generate Planning Process
+              Generate Pre-Call Checklist
             </Link>
             <p className="text-sm text-gray-400 mt-4">
-              Once your planning process is ready, you can come back here to research any prospect.
+              Once your pre-call checklist is ready, you can come back here to research any prospect.
             </p>
           </div>
         </div>
@@ -347,6 +348,13 @@ function ResearchContent() {
               </div>
             </div>
             {brief && (
+              <div className="flex items-center gap-2">
+              <ShareDocumentButton
+                documentType="preCallResearch"
+                documentId={brief.id}
+                title={`Pre-Call Research: ${brief.companyName}${brief.contactName ? ` - ${brief.contactName}` : ""}`}
+                content={brief.content}
+              />
               <button
                 onClick={handleCopy}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -367,6 +375,7 @@ function ResearchContent() {
                   </>
                 )}
               </button>
+              </div>
             )}
           </div>
         </div>

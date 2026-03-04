@@ -87,6 +87,7 @@ model User {
   referralsMade   Referral[]    @relation("Referrer")
   referralsReceived Referral[]  @relation("Referred")
   sharedConversations SharedConversation[]
+  sharedDocuments     SharedDocument[]
   chatSharesSent      ChatShare[]  @relation("ChatSharesSent")
   chatSharesReceived  ChatShare[]  @relation("ChatSharesReceived")
   sessions        Session[]
@@ -399,6 +400,32 @@ model ChatShare {
   @@index([sharedToUserId])
   @@index([sharedByUserId])
   @@map("chat_shares")
+}
+
+// Shared sales document link (public read-only)
+model SharedDocument {
+  id              String    @id @default(cuid())
+
+  // Which type of document: salesNarrative, discoveryQuestions, firstCallChecklist, preCallPlanning, preCallResearch
+  documentType    String
+  // The version/record ID being shared
+  documentId      String
+
+  createdByUserId String
+  createdBy       User      @relation(fields: [createdByUserId], references: [id])
+
+  shareCode       String    @unique
+
+  // Snapshot of the document content at share time
+  title           String
+  content         String
+
+  viewCount       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  @@index([documentType, documentId])
+  @@map("shared_documents")
 }
 
 // Web session for authenticated users

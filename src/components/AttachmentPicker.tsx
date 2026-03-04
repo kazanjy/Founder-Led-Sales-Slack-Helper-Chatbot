@@ -21,7 +21,7 @@ const ATTACHMENT_METADATA: Record<string, { name: string; appPath: string }> = {
   gtmAssessment: { name: "GTM Assessment", appPath: "/assessment" },
   discoveryQuestions: { name: "Discovery Questions", appPath: "/discovery-questions" },
   firstCallChecklist: { name: "First Call Checklist", appPath: "/first-call-checklist" },
-  preCallPlanning: { name: "Pre-Call Planning Process", appPath: "/pre-call-planning" },
+  preCallPlanning: { name: "Pre-Call Checklist", appPath: "/pre-call-planning" },
 };
 
 export function AttachmentPicker({

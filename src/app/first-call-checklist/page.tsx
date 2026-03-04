@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(
@@ -397,6 +398,12 @@ function FirstCallChecklistContent() {
                       </>
                     )}
                   </button>
+                  <ShareDocumentButton
+                    documentType="firstCallChecklist"
+                    documentId={version.id}
+                    title="First Call Checklist"
+                    content={currentContent}
+                  />
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -495,7 +502,7 @@ function FirstCallChecklistContent() {
           <div className="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white">
             <h3 className="text-xl font-bold mb-2">What&apos;s Next?</h3>
             <p className="text-purple-100 mb-6">
-              Now build your pre-call planning process, or use this checklist to prepare for your sales calls.
+              Now build your pre-call checklist, or use this checklist to prepare for your sales calls.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -505,7 +512,7 @@ function FirstCallChecklistContent() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                Pre-Call Planning Process
+                Pre-Call Checklist
               </Link>
               <Link
                 href="/chat"

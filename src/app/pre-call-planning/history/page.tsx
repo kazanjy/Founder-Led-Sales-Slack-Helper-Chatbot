@@ -79,7 +79,7 @@ function HistoryContent() {
   }, [selectedBrief?.id]);
 
   useEffect(() => {
-    document.title = "Pre-Call Planning History - Mikey";
+    document.title = "Pre-Call Checklist History - Mikey";
   }, []);
 
   useEffect(() => {
@@ -177,7 +177,7 @@ function HistoryContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Planning History</h1>
+                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Checklist History</h1>
                 <p className="text-sm text-gray-500">
                   {history.length} research brief{history.length !== 1 ? "s" : ""}
                 </p>
