@@ -11,9 +11,9 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
-// Dynamically import MDEditor to avoid SSR issues
-const MDEditor = dynamic(
-  () => import("@uiw/react-md-editor"),
+// Dynamically import RichTextEditor to avoid SSR issues
+const RichTextEditor = dynamic(
+  () => import("@/components/RichTextEditor"),
   { ssr: false }
 );
 
@@ -456,16 +456,11 @@ function FirstCallChecklistContent() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
-              <div data-color-mode="light">
-                <MDEditor
-                  value={editedContent}
-                  onChange={(val) => setEditedContent(val || "")}
-                  height={600}
-                  preview="live"
-                  hideToolbar={false}
-                  enableScroll={true}
-                />
-              </div>
+              <RichTextEditor
+                value={editedContent}
+                onChange={(val) => setEditedContent(val)}
+                height={600}
+              />
             ) : (
               <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
