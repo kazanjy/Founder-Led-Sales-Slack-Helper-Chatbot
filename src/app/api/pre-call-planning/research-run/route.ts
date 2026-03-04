@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { companyName, contactName, contactTitle, freeformText, urls } = body;
+    const { companyName, contactName, contactTitle, contactLinkedIn, freeformText, urls } = body;
 
     if (!companyName && !freeformText) {
       return NextResponse.json(
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       companyName,
       contactName,
       contactTitle,
+      contactLinkedIn,
       urls: urls || [],
     };
 

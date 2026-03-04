@@ -66,6 +66,7 @@ function ResearchContent() {
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactTitle, setContactTitle] = useState("");
+  const [contactLinkedIn, setContactLinkedIn] = useState("");
   const [urls, setUrls] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
@@ -157,6 +158,7 @@ function ResearchContent() {
           companyName: companyName.trim(),
           contactName: contactName.trim() || undefined,
           contactTitle: contactTitle.trim() || undefined,
+          contactLinkedIn: contactLinkedIn.trim() || undefined,
           urls: homepageUrl ? [homepageUrl] : undefined,
         }),
         signal: controller.signal,
@@ -371,7 +373,7 @@ function ResearchContent() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company Name *
+                    Company *
                   </label>
                   <input
                     type="text"
@@ -385,7 +387,7 @@ function ResearchContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Name
+                    Name
                   </label>
                   <input
                     type="text"
@@ -399,7 +401,7 @@ function ResearchContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Title
+                    Title
                   </label>
                   <input
                     type="text"
@@ -407,6 +409,20 @@ function ResearchContent() {
                     onChange={(e) => setContactTitle(e.target.value)}
                     placeholder="e.g., VP of Engineering"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    disabled={researching}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    LinkedIn URL
+                  </label>
+                  <input
+                    type="url"
+                    value={contactLinkedIn}
+                    onChange={(e) => setContactLinkedIn(e.target.value)}
+                    placeholder="https://linkedin.com/in/janedoe"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
                     disabled={researching}
                   />
                 </div>

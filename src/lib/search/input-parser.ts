@@ -17,6 +17,7 @@ export async function parseSearchInput(input: SearchInput): Promise<ParsedSearch
       companyName: input.companyName,
       contactName: input.contactName,
       contactTitle: input.contactTitle,
+      contactLinkedIn: input.contactLinkedIn,
       urls: input.urls || [],
     };
   }
@@ -81,7 +82,7 @@ Output: {"companyName":"Example Co","companyDomain":"example.com","contactName":
       companyDomain: parsed.companyDomain || undefined,
       contactName: input.contactName || parsed.contactName || undefined,
       contactTitle: input.contactTitle || parsed.contactTitle || undefined,
-      contactLinkedIn: parsed.contactLinkedIn || undefined,
+      contactLinkedIn: input.contactLinkedIn || parsed.contactLinkedIn || undefined,
       industry: parsed.industry || undefined,
       urls: [...(input.urls || []), ...(parsed.urls || [])],
       additionalContext: parsed.additionalContext || undefined,

@@ -12,6 +12,8 @@ export interface SearchInput {
   contactName?: string;
   /** Explicit contact title if provided separately */
   contactTitle?: string;
+  /** Contact's LinkedIn profile URL */
+  contactLinkedIn?: string;
   /** Direct URLs the user wants fetched */
   urls?: string[];
 }
