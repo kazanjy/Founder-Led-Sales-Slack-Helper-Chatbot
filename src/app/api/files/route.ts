@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getFileUrl, type StoredFileReference } from "@/lib/supabase";
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     const conversations = await prisma.conversation.findMany({
       where: {
         userId: user.id,
-        imagesIncluded: { not: null },
+        imagesIncluded: { not: Prisma.JsonNull },
       },
       orderBy: { updatedAt: "desc" },
       select: {
