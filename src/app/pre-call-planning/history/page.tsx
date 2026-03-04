@@ -254,7 +254,6 @@ function HistoryContent() {
                         <span className="text-purple-500">via Slack</span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5 font-mono">{item.id}</div>
                   </button>
                 ))}
               </div>
@@ -283,7 +282,6 @@ function HistoryContent() {
                       Generated {formatDate(selectedBrief.createdAt)}
                       {selectedBrief.source === "slack" && " via Slack"}
                     </p>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">ID: {selectedBrief.id}</p>
                   </div>
                   <div className="p-6">
                     <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">

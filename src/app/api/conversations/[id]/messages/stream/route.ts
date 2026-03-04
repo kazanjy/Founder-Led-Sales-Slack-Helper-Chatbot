@@ -66,6 +66,12 @@ export async function POST(
     });
   }
 
+  // Track last active time for web interaction
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastActiveAt: new Date() },
+  });
+
   // Check for merge fields and expand them
   const mergeFieldsInMessage = findMergeFields(message);
   let expandedMessage = message;

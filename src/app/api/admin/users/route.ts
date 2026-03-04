@@ -198,8 +198,8 @@ export async function GET(request: NextRequest) {
       // Stats
       conversationCount: user._count.conversations,
       messageCount: user._count.messages,
-      // Last activity
-      lastActivity: user.conversations[0]?.lastMessageAt || user.updatedAt,
+      // Last activity - prefer explicit lastActiveAt, fallback to conversation or updatedAt
+      lastActivity: user.lastActiveAt || user.conversations[0]?.lastMessageAt || user.updatedAt,
     }));
 
     return NextResponse.json({

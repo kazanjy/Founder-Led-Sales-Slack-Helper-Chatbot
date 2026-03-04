@@ -535,6 +535,12 @@ async function handleMention(
   const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
   console.log("User:", dbUser.id);
 
+  // Track last active time for this Slack interaction
+  await prisma.user.update({
+    where: { id: dbUser.id },
+    data: { lastActiveAt: new Date() },
+  });
+
   // Check if user can send messages (license/trial check)
   const canSend = await checkUserCanSendMessage(dbUser);
   console.log("canSend:", canSend);
@@ -685,6 +691,12 @@ async function handleDirectMessage(
 
   // Get or create user
   const dbUser = await getOrCreateUser(workspace.id, user, workspace.botToken);
+
+  // Track last active time for this Slack interaction
+  await prisma.user.update({
+    where: { id: dbUser.id },
+    data: { lastActiveAt: new Date() },
+  });
 
   // Check if user can send messages
   const canSend = await checkUserCanSendMessage(dbUser);

@@ -23,6 +23,7 @@ export interface PDLPersonResult {
   location_name: string | null;
   experience: PDLExperience[];
   education: PDLEducation[];
+  skills: string[];
 }
 
 export interface PDLExperience {
@@ -235,6 +236,10 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
         const parts = [school, degree, major].filter(Boolean);
         lines.push(`- ${parts.join(" — ")}`);
       }
+    }
+
+    if (p.skills?.length > 0) {
+      lines.push(`\n**Skills & Technologies:** ${p.skills.join(", ")}`);
     }
 
     sections.push(lines.join("\n"));

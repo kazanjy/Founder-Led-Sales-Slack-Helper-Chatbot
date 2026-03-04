@@ -109,6 +109,9 @@ model User {
   maturityUpdateIndex      Int?     // Current question index in update mode (0-based)
   maturityUpdateStartedAt  DateTime?
 
+  // Activity tracking
+  lastActiveAt    DateTime?
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
