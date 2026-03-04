@@ -129,8 +129,6 @@ This should be punchy, specific, and immediately useful — not generic filler. 
 ### Key People${parsedInput.contactName ? `\n#### ${parsedInput.contactName}` : ""}
 - Role and likely responsibilities
 - Professional background and career trajectory
-- Published thoughts, interviews, or social media activity
-- Communication style indicators (formal/casual, technical/business, etc.)
 - Connection points (shared interests, mutual connections, common experiences)
 
 ### Business Context
@@ -148,11 +146,6 @@ ${personaAndPovSections}
 - 3-5 specific talking points based on recent news, their content, or shared interests
 - Questions that demonstrate you've done your homework
 - Topics to avoid (controversies, sensitive areas)
-
-### Red Flags & Risks
-- Any potential dealbreakers or concerns
-- Signs this might not be a good fit
-- Areas where information is missing (flag for discovery on the call)
 
 ### Sources
 - List all URLs used with brief descriptions
