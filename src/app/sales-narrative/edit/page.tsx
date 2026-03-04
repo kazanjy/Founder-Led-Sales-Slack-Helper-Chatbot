@@ -247,30 +247,53 @@ function SalesNarrativeEditContent() {
 
     setPrefilling(true);
     try {
-      // Step 1: Read PDFs as base64 and send directly in the prefill request
-      // (same pattern as chat uploads — avoids FormData body size limits)
-      let pdfPayloads: { name: string; base64Data: string }[] = [];
+      // Step 1: Upload PDFs directly to Supabase via signed URLs
+      // (bypasses Vercel's 4.5 MB serverless function body limit entirely)
+      let uploadedPdfs: { name: string; storagePath: string }[] = [];
       if (prefillFiles.length > 0) {
-        pdfPayloads = await Promise.all(
-          prefillFiles.map(
-            (file) =>
-              new Promise<{ name: string; base64Data: string }>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve({ name: file.name, base64Data: reader.result as string });
-                reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-                reader.readAsDataURL(file);
-              })
-          )
-        );
+        const urlRes = await fetch("/api/files/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: prefillFiles.map((f) => ({ name: f.name })),
+            source: "narrative-prefill",
+          }),
+        });
+
+        if (!urlRes.ok) {
+          const msg = await urlRes.json().catch(() => null);
+          throw new Error(msg?.error || `Upload error (${urlRes.status})`);
+        }
+
+        const { files: fileEntries } = (await urlRes.json()) as {
+          files: Array<{ name: string; storagePath: string; signedUrl: string; token: string }>;
+        };
+
+        for (let i = 0; i < fileEntries.length; i++) {
+          const entry = fileEntries[i];
+          const file = prefillFiles.find((f) => f.name === entry.name) || prefillFiles[i];
+
+          const putRes = await fetch(entry.signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+            body: file,
+          });
+
+          if (!putRes.ok) {
+            throw new Error(`Failed to upload ${entry.name} (${putRes.status})`);
+          }
+        }
+
+        uploadedPdfs = fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
       }
 
-      // Step 2: Call prefill with website URL and PDF data
+      // Step 2: Call prefill with website URL and storage paths (tiny request)
       const response = await fetch("/api/sales-narrative/prefill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           websiteUrl: prefillUrl.trim() || undefined,
-          pdfFiles: pdfPayloads.length > 0 ? pdfPayloads : undefined,
+          pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
         }),
       });
 
