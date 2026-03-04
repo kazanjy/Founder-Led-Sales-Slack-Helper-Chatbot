@@ -123,6 +123,18 @@ Need to prep for an upcoming sales call? I've got you covered! Here's how to use
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
+✅ *Before You Start — Set Up Your Playbook*
+
+Pre-call research works best when I know about *your* product and sales motion. Before running your first brief, make sure you've completed these three items:
+
+• *Sales Narrative* — Your value prop and positioning → askmikey.ai/sales-narrative
+• *Discovery Questions* — Your key discovery questions → askmikey.ai/discovery-questions
+• *First Call Checklist* — Your buyer personas and call framework → askmikey.ai/first-call-checklist
+
+These let me match prospects to your personas, form a point of view on what they'll care about, and recommend specific call focus areas. Without them, I won't be able to run a research brief.
+
+━━━━━━━━━━━━━━━━━━━━━━
+
 📝 *How to Start a Research Brief*
 
 Just type \`#research\` or \`#precall\` followed by whatever you know about the person or company you're meeting with. I'm flexible — give me as much or as little as you have!

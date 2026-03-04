@@ -947,6 +947,40 @@ async function executeResearchPipeline(
   }
 ) {
   try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+
+    // Check if user has the required playbook items for a high-quality research brief
+    const [salesNarrative, discoveryQuestions, firstCallChecklist] = await Promise.all([
+      prisma.gtmVariable.findFirst({
+        where: { userId: user.id, mergeField: "SALES_NARRATIVE" },
+        select: { value: true },
+      }),
+      prisma.gtmVariable.findFirst({
+        where: { userId: user.id, mergeField: "DISCOVERY_QUESTIONS" },
+        select: { value: true },
+      }),
+      prisma.gtmVariable.findFirst({
+        where: { userId: user.id, mergeField: "FIRST_CALL_CHECKLIST" },
+        select: { value: true },
+      }),
+    ]);
+
+    const missing: string[] = [];
+    if (!salesNarrative?.value) missing.push(`• *Sales Narrative* — ${appUrl}/sales-narrative`);
+    if (!discoveryQuestions?.value) missing.push(`• *Discovery Questions* — ${appUrl}/discovery-questions`);
+    if (!firstCallChecklist?.value) missing.push(`• *First Call Checklist* — ${appUrl}/first-call-checklist`);
+
+    if (missing.length > 0) {
+      const missingList = missing.join("\n");
+      await sendSlackMessage(
+        client,
+        channel,
+        `⚠️ Before I can generate a great research brief, you need to complete these playbook items first:\n\n${missingList}\n\nThese help me match prospects to your personas, form a point of view on what they'll care about, and recommend specific call focus areas.\n\nOnce you've completed them, come back and run \`#precall\` again!`,
+        threadTs
+      );
+      return;
+    }
+
     const { parseSearchInput } = await import("@/lib/search/input-parser");
     const { generateSearchPlan } = await import("@/lib/search/queries");
     const { executeSearchPlan } = await import("@/lib/search/results");
@@ -987,7 +1021,6 @@ async function executeResearchPipeline(
 
     // Convert to Slack format and send
     const slackBrief = markdownToSlack(brief.content);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
     const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
     const header = `📋 *Pre-Call Research Brief: ${brief.companyName}*${brief.contactName ? ` — ${brief.contactName}` : ""}\n🔗 <${reportUrl}|View full report on askmikey.ai>\n\n`;
 
