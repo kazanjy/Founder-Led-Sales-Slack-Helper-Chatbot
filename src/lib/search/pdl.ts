@@ -42,6 +42,13 @@ export interface PDLEducation {
   end_date: string | null;
 }
 
+export interface PDLFundingRound {
+  funding_type: string | null;
+  money_raised: number | null;
+  date: string | null;
+  investor_names: string[] | null;
+}
+
 export interface PDLCompanyResult {
   name: string | null;
   display_name: string | null;
@@ -59,6 +66,12 @@ export interface PDLCompanyResult {
   tags: string[];
   naics: { industry: string | null }[] | null;
   type: string | null;
+  total_funding_raised: number | null;
+  latest_funding_stage: string | null;
+  latest_funding_date: string | null;
+  number_funding_rounds: number | null;
+  funding_stages: string[] | null;
+  funding_details: PDLFundingRound[] | null;
 }
 
 // ── Enrichment results bundled together ──────────────────────────
@@ -242,6 +255,34 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
     if (c.website) lines.push(`- **Website:** ${c.website}`);
     if (c.linkedin_url) lines.push(`- **LinkedIn:** ${c.linkedin_url}`);
     if (c.location?.name) lines.push(`- **HQ:** ${c.location.name}`);
+
+    // Funding information
+    if (c.total_funding_raised) {
+      const formatted = c.total_funding_raised >= 1_000_000
+        ? `$${(c.total_funding_raised / 1_000_000).toFixed(1)}M`
+        : `$${(c.total_funding_raised / 1_000).toFixed(0)}K`;
+      lines.push(`- **Total Funding Raised:** ${formatted}`);
+    }
+    if (c.latest_funding_stage) lines.push(`- **Latest Funding Stage:** ${c.latest_funding_stage}`);
+    if (c.latest_funding_date) lines.push(`- **Latest Funding Date:** ${c.latest_funding_date}`);
+    if (c.number_funding_rounds) lines.push(`- **Funding Rounds:** ${c.number_funding_rounds}`);
+    if (c.funding_details && c.funding_details.length > 0) {
+      lines.push("\n**Funding History:**");
+      for (const round of c.funding_details.slice(0, 5)) {
+        const type = round.funding_type || "Unknown";
+        const amount = round.money_raised
+          ? round.money_raised >= 1_000_000
+            ? `$${(round.money_raised / 1_000_000).toFixed(1)}M`
+            : `$${(round.money_raised / 1_000).toFixed(0)}K`
+          : "undisclosed";
+        const date = round.date || "unknown date";
+        const investors = round.investor_names?.length
+          ? ` — ${round.investor_names.join(", ")}`
+          : "";
+        lines.push(`- ${type}: ${amount} (${date})${investors}`);
+      }
+    }
+
     if (c.tags?.length > 0) lines.push(`- **Tags:** ${c.tags.join(", ")}`);
     sections.push(lines.join("\n"));
   } else if (pdl.companyError) {
