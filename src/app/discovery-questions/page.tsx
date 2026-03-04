@@ -62,6 +62,7 @@ function DiscoveryQuestionsContent() {
   const [hasSalesNarrative, setHasSalesNarrative] = useState(false);
   const [copiedQuestion, setCopiedQuestion] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [showChecklistBanner, setShowChecklistBanner] = useState(true);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
@@ -392,7 +393,38 @@ function DiscoveryQuestionsContent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Dismissable First Call Checklist Banner */}
+        {showChecklistBanner && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-medium">
+                Congrats on finishing your Discovery Questions! Now let&apos;s use this to{" "}
+                <Link href="/first-call-checklist" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                  create your first call checklist
+                </Link>.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowChecklistBanner(false)}
+              className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <div className="flex gap-8">
+        {/* Left: Main content */}
+        <div className="flex-1 min-w-0">
         <div className="space-y-4">
           {version.content.categories.map((category) => {
             const colors = categoryColors[category.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", icon: "text-gray-500" };
@@ -495,42 +527,64 @@ function DiscoveryQuestionsContent() {
           </div>
         )}
 
-        {/* What's Next */}
-        <div className="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white">
-          <h3 className="text-xl font-bold mb-2">What&apos;s Next?</h3>
-          <p className="text-purple-100 mb-6">
-            Create a first call checklist to prepare for your sales calls with prospects.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/first-call-checklist"
-              className="px-5 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              Create First Call Checklist
-            </Link>
-            <Link
-              href="/chat"
-              className="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              Chat About It
-            </Link>
-            <Link
-              href="/sales-narrative"
-              className="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Sales Narrative
-            </Link>
+        </div>{/* end main content */}
+
+        {/* Right sidebar: First Call Checklist ad widget */}
+        <div className="hidden lg:block w-64 flex-shrink-0">
+          <div className="sticky top-8">
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
+              <p className="text-purple-100 text-sm mb-4">
+                Turn your discovery questions into a structured checklist for your first sales calls.
+              </p>
+              <Link
+                href="/first-call-checklist"
+                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+              >
+                Create Checklist
+              </Link>
+            </div>
+
+            <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+              <h4 className="font-medium text-gray-900 text-sm mb-3">More GTM Tools</h4>
+              <div className="space-y-2">
+                <Link
+                  href="/chat"
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat About It
+                </Link>
+                <Link
+                  href="/sales-narrative"
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Sales Narrative
+                </Link>
+                <Link
+                  href="/assessment/bulk"
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  GTM Assessment
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
+        </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}
     </div>
