@@ -18,6 +18,7 @@ import { convertPDFToImages } from "@/lib/pdf-to-images";
 import { Lightbox, type LightboxImage } from "@/components/Lightbox";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import { ShareChatModal } from "@/components/ShareChatModal";
+import SalesNavBar from "@/components/SalesNavBar";
 
 // Simple merge field detection (matches server-side logic)
 function findMergeFields(text: string): string[] {
@@ -2287,15 +2288,16 @@ export default function ChatPage() {
   }
 
   return (
-    <>
+    <div className="h-screen flex flex-col overflow-hidden">
+      <SalesNavBar />
       {/* Impersonation Banner */}
       {user?.isImpersonating && (
         <ImpersonationBanner userName={user.name || user.email} />
       )}
-      <div className={`h-screen flex bg-white overflow-hidden ${user?.isImpersonating ? "pt-10" : ""}`}>
+      <div className={`flex-1 flex bg-white overflow-hidden`}>
       {/* Sidebar - fixed height, doesn't scroll with chat */}
       <div
-        className={`bg-gray-100 border-r border-gray-200 flex flex-col ${user?.isImpersonating ? "h-[calc(100vh-40px)]" : "h-screen"} flex-shrink-0 overflow-hidden relative ${!isResizingSidebar ? "transition-all duration-300" : ""}`}
+        className={`bg-gray-100 border-r border-gray-200 flex flex-col h-full flex-shrink-0 overflow-hidden relative ${!isResizingSidebar ? "transition-all duration-300" : ""}`}
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
       >
         {/* Resize handle */}
@@ -4316,6 +4318,6 @@ export default function ChatPage() {
     )}
 
     {ConfirmModalElement}
-    </>
+    </div>
   );
 }
