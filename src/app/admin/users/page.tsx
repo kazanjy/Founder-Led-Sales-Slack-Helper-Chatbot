@@ -48,7 +48,7 @@ export default function AdminUsersPage() {
   const [status, setStatus] = useState(searchParams.get("status") || "");
   const [identityType, setIdentityType] = useState(searchParams.get("identityType") || "");
   const [workspaceId, setWorkspaceId] = useState(searchParams.get("workspaceId") || "");
-  const [sortBy, setSortBy] = useState<SortField>((searchParams.get("sortBy") as SortField) || "createdAt");
+  const [sortBy, setSortBy] = useState<SortField>((searchParams.get("sortBy") as SortField) || "lastActivity");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">((searchParams.get("sortOrder") as "asc" | "desc") || "desc");
 
   // Create user modal state
