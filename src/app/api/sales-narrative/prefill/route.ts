@@ -98,7 +98,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Prefill] Total context: ${combinedContext.length} chars from ${contextParts.length} sources`);
+    // Cap total context to prevent oversized Chatbase payloads (413 errors)
+    const MAX_CONTEXT_CHARS = 40000;
+    let trimmedContext = combinedContext;
+    if (trimmedContext.length > MAX_CONTEXT_CHARS) {
+      console.warn(`[Prefill] Trimming context from ${trimmedContext.length} to ${MAX_CONTEXT_CHARS} chars`);
+      trimmedContext = trimmedContext.substring(0, MAX_CONTEXT_CHARS) + "\n\n[Content truncated for length...]";
+    }
+
+    console.log(`[Prefill] Total context: ${trimmedContext.length} chars from ${contextParts.length} sources`);
 
     // Build the question list for the LLM
     const questionList = questions
@@ -110,6 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Build the prompt
     const CHATBASE_LIMIT = 7500;
+    const MAX_HISTORY_CHUNKS = 6; // Cap chunks to keep total payload under Chatbase limits
 
     const instructionPrompt = `You are helping a founder pre-fill their Founding Sales Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly as you can.
 
@@ -130,13 +139,13 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
 
     // Chunk the context into Chatbase conversation history if needed
     const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = `${instructionPrompt}\n\n## COMPANY CONTEXT\n\n${combinedContext}`;
+    let finalMessage = `${instructionPrompt}\n\n## COMPANY CONTEXT\n\n${trimmedContext}`;
 
     if (finalMessage.length > CHATBASE_LIMIT) {
       const chunks: string[] = [];
       let current = "";
 
-      const sections = combinedContext.split(/(?=## )/);
+      const sections = trimmedContext.split(/(?=## )/);
       for (const section of sections) {
         if (current.length + section.length > CHATBASE_LIMIT - 500) {
           if (current) chunks.push(current.trim());
@@ -151,6 +160,12 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
         }
       }
       if (current.trim()) chunks.push(current.trim());
+
+      // Cap the number of chunks to prevent oversized Chatbase payloads
+      if (chunks.length > MAX_HISTORY_CHUNKS) {
+        console.warn(`[Prefill] Capping ${chunks.length} chunks to ${MAX_HISTORY_CHUNKS}`);
+        chunks.length = MAX_HISTORY_CHUNKS;
+      }
 
       for (let i = 0; i < chunks.length; i++) {
         chatbaseHistory.push({
