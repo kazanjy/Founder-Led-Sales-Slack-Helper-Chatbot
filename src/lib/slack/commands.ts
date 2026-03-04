@@ -76,7 +76,7 @@ I come loaded with powerful guided workflows to help you build your GTM engine f
 🔍 *Discovery Questions* — Generate great discovery questions for your product
 📞 *First Call Checklist* — Structure an effective first sales call
 🎯 *Pre-Call Planning Process* — Build a repeatable preparation ritual for every call
-🔍 *Pre-Call Research* — Research a specific prospect before your call (type \`#research Acme Corp\` or \`#research Acme Corp, Jane Doe CTO\`)
+🔍 *Pre-Call Research* — Research a prospect before your call! Just type \`#research\` or \`#precall\` followed by whatever you know — company name, contact name, title, LinkedIn URL, company website — in any format. I'll parse it, show you what I found, ask for anything missing, and then generate a full research brief with persona matching, a point of view on what they'll care about, and recommended call focus areas. Example: \`#research Acme Corp, Jane Doe CTO, linkedin.com/in/janedoe, acme.com\`
 📧 *Outbound Messaging & Sequences* — Write outreach that actually gets replies
 📚 *Sales Playbook Builder* — Put together your complete sales playbook
 💰 *Comp Plan Design* — Design compensation for your first sales reps
@@ -105,7 +105,7 @@ Did you know I also have a *web app*? 🖥️ Head over to *askmikey.ai* to:
 • 🌊 The more context you give me, the better my advice! Tell me about your product, your ICP, and your situation
 • 🌊 I'm great for roleplay — try "Can you pretend to be a skeptical CTO and let me practice my pitch?"
 • 🌊 You can ask me to be more specific, shorter, longer, or to try a different angle — I don't mind! I'm here for you 🤗
-• 🌊 Type \`#research Company Name\` to research a prospect before your call!
+• 🌊 Type \`#research\` or \`#precall\` followed by whatever you know about an upcoming call — I'll walk you through gathering the rest and generate a full pre-call brief!
 • 🌊 Type \`#instructions\` anytime to see this message again!
 
 ━━━━━━━━━━━━━━━━━━━━━━
