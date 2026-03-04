@@ -103,6 +103,7 @@ model User {
   preCallResearch PreCallResearch[]
   pendingResearchRequests PendingResearchRequest[]
   attachmentPreference UserAttachmentPreference?
+  uploadedFiles   UserFile[]
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -739,4 +740,22 @@ model UserAttachmentPreference {
   updatedAt DateTime @updatedAt
 
   @@map("user_attachment_preferences")
+}
+
+// Standalone uploaded files (not tied to a specific conversation)
+model UserFile {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String                    // Original filename
+  type        String                    // "image" | "pdf"
+  storagePath String   @map("storage_path")  // Supabase storage path
+  pageCount   Int?     @map("page_count")    // For multi-page PDFs
+  source      String   @default("upload")    // "narrative-prefill", "upload", etc.
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("user_files")
 }

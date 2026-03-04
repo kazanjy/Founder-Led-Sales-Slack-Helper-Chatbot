@@ -247,30 +247,45 @@ function SalesNarrativeEditContent() {
 
     setPrefilling(true);
     try {
-      // Extract PDF text client-side to avoid body size limits
-      const pdfTexts: { name: string; text: string }[] = [];
-      for (const file of prefillFiles) {
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const uint8 = new Uint8Array(arrayBuffer);
-          const { extractText, getDocumentProxy } = await import("unpdf");
-          const pdf = await getDocumentProxy(uint8);
-          const result = await extractText(pdf, { mergePages: true });
-          const text = Array.isArray(result.text) ? result.text.join("\n\n") : result.text;
-          if (text?.trim()) {
-            pdfTexts.push({ name: file.name, text: text.trim() });
-          }
-        } catch (err) {
-          console.error(`Failed to extract text from ${file.name}:`, err);
+      // Step 1: Upload PDFs to Supabase so they're saved permanently
+      let uploadedPdfs: { name: string; storagePath: string }[] = [];
+      if (prefillFiles.length > 0) {
+        const uploadForm = new FormData();
+        for (const file of prefillFiles) {
+          uploadForm.append("files", file);
         }
+        uploadForm.append("source", "narrative-prefill");
+
+        const uploadRes = await fetch("/api/files/upload", {
+          method: "POST",
+          body: uploadForm,
+        });
+
+        if (!uploadRes.ok) {
+          let errorMsg = "Failed to upload files";
+          try {
+            const data = await uploadRes.json();
+            errorMsg = data.error || errorMsg;
+          } catch {
+            errorMsg = `Upload error (${uploadRes.status})`;
+          }
+          throw new Error(errorMsg);
+        }
+
+        const uploadData = await uploadRes.json();
+        uploadedPdfs = uploadData.files.map((f: { name: string; storagePath: string }) => ({
+          name: f.name,
+          storagePath: f.storagePath,
+        }));
       }
 
+      // Step 2: Call prefill with website URL and storage paths
       const response = await fetch("/api/sales-narrative/prefill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           websiteUrl: prefillUrl.trim() || undefined,
-          pdfTexts: pdfTexts.length > 0 ? pdfTexts : undefined,
+          pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
         }),
       });
 

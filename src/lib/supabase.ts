@@ -153,6 +153,58 @@ export async function getPDFPageUrls(
 }
 
 /**
+ * Upload a standalone file (not tied to a conversation)
+ */
+export async function uploadStandaloneFile(
+  userId: string,
+  file: {
+    name: string;
+    type: "image" | "pdf";
+    buffer: Buffer;
+    mimeType: string;
+  }
+): Promise<StoredFileReference> {
+  const timestamp = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const storagePath = `${userId}/files/${timestamp}-${safeName}`;
+
+  const { error } = await getSupabase().storage
+    .from(ATTACHMENTS_BUCKET)
+    .upload(storagePath, file.buffer, {
+      contentType: file.mimeType,
+      upsert: false,
+    });
+
+  if (error) {
+    console.error("[Storage] Standalone upload error:", error);
+    throw new Error(`Failed to upload file: ${error.message}`);
+  }
+
+  return {
+    name: file.name,
+    type: file.type,
+    storagePath,
+  };
+}
+
+/**
+ * Download a file from Supabase Storage and return as Buffer
+ */
+export async function downloadFile(storagePath: string): Promise<Buffer> {
+  const { data, error } = await getSupabase().storage
+    .from(ATTACHMENTS_BUCKET)
+    .download(storagePath);
+
+  if (error || !data) {
+    console.error("[Storage] Download error:", error);
+    throw new Error(`Failed to download file: ${error?.message || "No data"}`);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
  * Delete all files for a conversation (for cleanup)
  */
 export async function deleteConversationFiles(

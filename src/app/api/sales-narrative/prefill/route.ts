@@ -3,16 +3,18 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
+import { downloadFile } from "@/lib/supabase";
+import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
 
 // Allow up to 120s for crawling + LLM
 export const maxDuration = 120;
 
 interface PrefillRequest {
   websiteUrl?: string;
-  pdfTexts?: { name: string; text: string }[];
+  pdfFiles?: { name: string; storagePath: string }[];
 }
 
-// POST - Pre-fill sales narrative Q&A from website URL and/or PDF text
+// POST - Pre-fill sales narrative Q&A from website URL and/or uploaded PDFs
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -21,16 +23,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body: PrefillRequest = await request.json();
-    const { websiteUrl, pdfTexts } = body;
+    const { websiteUrl, pdfFiles } = body;
 
-    if (!websiteUrl?.trim() && (!pdfTexts || pdfTexts.length === 0)) {
+    if (!websiteUrl?.trim() && (!pdfFiles || pdfFiles.length === 0)) {
       return NextResponse.json(
         { error: "Provide a website URL and/or at least one PDF file." },
         { status: 400 }
       );
     }
 
-    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, PDFs=${pdfTexts?.length || 0}`);
+    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, PDFs=${pdfFiles?.length || 0}`);
 
     // Load the questions we need to answer
     const questions = await prisma.salesNarrativeQuestion.findMany({
@@ -46,30 +48,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gather context
+    // Gather context in parallel
     const contextParts: string[] = [];
+    const tasks: Promise<void>[] = [];
 
     // Website crawling
     if (websiteUrl?.trim()) {
-      try {
-        const text = await crawlWebsiteForContext(websiteUrl.trim());
-        if (text) {
-          contextParts.push(`## WEBSITE CONTENT\n\n${text}`);
-        }
-      } catch (err) {
-        console.error("[Prefill] Website crawl failed:", err);
-        // Non-fatal — continue with PDFs if available
+      tasks.push(
+        crawlWebsiteForContext(websiteUrl.trim())
+          .then((text) => {
+            if (text) {
+              contextParts.push(`## WEBSITE CONTENT\n\n${text}`);
+            }
+          })
+          .catch((err) => {
+            console.error("[Prefill] Website crawl failed:", err);
+          })
+      );
+    }
+
+    // PDF processing — download from Supabase and extract text server-side
+    if (pdfFiles) {
+      for (const pdf of pdfFiles) {
+        tasks.push(
+          (async () => {
+            try {
+              const buffer = await downloadFile(pdf.storagePath);
+              const { result, usedOCR } = await extractTextFromPDFWithOCR(buffer, pdf.name, 30);
+              const formatted = formatPDFForAIWithOCR(result, usedOCR);
+              if (formatted) {
+                contextParts.push(`## PDF: ${pdf.name}\n\n${formatted}`);
+              }
+            } catch (err) {
+              console.error(`[Prefill] Failed to process PDF ${pdf.name}:`, err);
+            }
+          })()
+        );
       }
     }
 
-    // PDF text (already extracted client-side)
-    if (pdfTexts) {
-      for (const pdf of pdfTexts) {
-        if (pdf.text.trim()) {
-          contextParts.push(`## PDF: ${pdf.name}\n\n${pdf.text}`);
-        }
-      }
-    }
+    await Promise.all(tasks);
 
     const combinedContext = contextParts.join("\n\n---\n\n");
 
@@ -115,16 +133,13 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
     let finalMessage = `${instructionPrompt}\n\n## COMPANY CONTEXT\n\n${combinedContext}`;
 
     if (finalMessage.length > CHATBASE_LIMIT) {
-      // Split context into chunks and send as conversation history
       const chunks: string[] = [];
       let current = "";
 
-      // Split by source sections
       const sections = combinedContext.split(/(?=## )/);
       for (const section of sections) {
         if (current.length + section.length > CHATBASE_LIMIT - 500) {
           if (current) chunks.push(current.trim());
-          // If a single section is too big, split it further
           if (section.length > CHATBASE_LIMIT - 500) {
             const subChunks = splitTextIntoChunks(section, CHATBASE_LIMIT - 500);
             chunks.push(...subChunks);
@@ -137,7 +152,6 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
       }
       if (current.trim()) chunks.push(current.trim());
 
-      // Feed chunks as conversation history
       for (let i = 0; i < chunks.length; i++) {
         chatbaseHistory.push({
           role: "user",
@@ -151,7 +165,6 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
         }
       }
 
-      // Final message is just the instructions
       finalMessage = instructionPrompt;
     }
 
@@ -226,7 +239,6 @@ function splitTextIntoChunks(text: string, maxLen: number): string[] {
   for (const para of paragraphs) {
     if (current.length + para.length + 2 > maxLen) {
       if (current) chunks.push(current.trim());
-      // Handle single paragraphs longer than maxLen
       if (para.length > maxLen) {
         for (let i = 0; i < para.length; i += maxLen) {
           chunks.push(para.substring(i, i + maxLen));

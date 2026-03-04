@@ -9,9 +9,10 @@ interface FileEntry {
   type: "image" | "pdf";
   storagePath: string;
   pageCount?: number;
-  conversationId: string;
+  conversationId: string | null;
   conversationTitle: string | null;
-  conversationDate: string;
+  date: string;
+  source?: string;
   url: string | null;
   thumbnailUrl: string | null;
 }
@@ -250,18 +251,27 @@ export default function FilesPage() {
                     <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
                       {file.name}
                     </p>
-                    <Link
-                      href={`/chat/${file.conversationId}`}
-                      className="mt-1 flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 transition-colors truncate"
-                      title={file.conversationTitle || "Untitled chat"}
-                    >
-                      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      {file.conversationTitle || "Untitled chat"}
-                    </Link>
+                    {file.conversationId ? (
+                      <Link
+                        href={`/chat/${file.conversationId}`}
+                        className="mt-1 flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 transition-colors truncate"
+                        title={file.conversationTitle || "Untitled chat"}
+                      >
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        {file.conversationTitle || "Untitled chat"}
+                      </Link>
+                    ) : (
+                      <span className="mt-1 flex items-center gap-1 text-xs text-gray-400 truncate">
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        {file.source === "narrative-prefill" ? "Sales Narrative" : "Uploaded"}
+                      </span>
+                    )}
                     <p className="text-[11px] text-gray-400 mt-0.5">
-                      {formatDate(file.conversationDate)} · {formatTime(file.conversationDate)}
+                      {formatDate(file.date)} · {formatTime(file.date)}
                     </p>
                   </div>
                 </div>

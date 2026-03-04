@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getFileUrl, getPDFPageUrls, type StoredFileReference } from "@/lib/supabase";
+import { getFileUrl, type StoredFileReference } from "@/lib/supabase";
 
 /**
- * GET /api/files — List all uploaded files across the user's conversations,
- * most recent first, with signed URLs and links to the parent conversation.
+ * GET /api/files — List all uploaded files (from conversations + standalone uploads),
+ * most recent first, with signed URLs and links to the parent conversation (if any).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,20 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = 30;
 
-    // Get all conversations that have files, ordered by most recent activity
+    interface FileEntry {
+      name: string;
+      type: "image" | "pdf";
+      storagePath: string;
+      pageCount?: number;
+      conversationId: string | null;
+      conversationTitle: string | null;
+      date: Date;
+      source?: string;
+    }
+
+    const allFiles: FileEntry[] = [];
+
+    // 1. Files from conversations (imagesIncluded JSON)
     const conversations = await prisma.conversation.findMany({
       where: {
         userId: user.id,
@@ -33,19 +46,6 @@ export async function GET(request: NextRequest) {
         imagesIncluded: true,
       },
     });
-
-    // Flatten files from all conversations, keeping conversation context
-    interface FileEntry {
-      name: string;
-      type: "image" | "pdf";
-      storagePath: string;
-      pageCount?: number;
-      conversationId: string;
-      conversationTitle: string | null;
-      conversationDate: Date;
-    }
-
-    const allFiles: FileEntry[] = [];
 
     for (const conv of conversations) {
       const files = conv.imagesIncluded as StoredFileReference[] | null;
@@ -61,10 +61,35 @@ export async function GET(request: NextRequest) {
           pageCount: file.pageCount,
           conversationId: conv.id,
           conversationTitle: conv.title,
-          conversationDate: conv.updatedAt,
+          date: conv.updatedAt,
         });
       }
     }
+
+    // 2. Standalone uploaded files (UserFile records)
+    const standaloneFiles = await prisma.userFile.findMany({
+      where: {
+        userId: user.id,
+        ...(typeFilter ? { type: typeFilter } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    for (const file of standaloneFiles) {
+      allFiles.push({
+        name: file.name,
+        type: file.type as "image" | "pdf",
+        storagePath: file.storagePath,
+        pageCount: file.pageCount ?? undefined,
+        conversationId: null,
+        conversationTitle: null,
+        date: file.createdAt,
+        source: file.source,
+      });
+    }
+
+    // Sort all files by date, most recent first
+    allFiles.sort((a, b) => b.date.getTime() - a.date.getTime());
 
     // Paginate
     const totalFiles = allFiles.length;
@@ -75,13 +100,21 @@ export async function GET(request: NextRequest) {
     const filesWithUrls = await Promise.all(
       paginatedFiles.map(async (file) => {
         if (file.type === "pdf" && file.pageCount) {
-          // For PDFs, get the first page as a thumbnail
+          // For conversation PDFs stored as page images, get the first page as thumbnail
           const firstPagePath = `${file.storagePath}/page-001.jpg`;
           const thumbnailUrl = await getFileUrl(firstPagePath);
           return {
             ...file,
             thumbnailUrl,
             url: null,
+          };
+        } else if (file.type === "pdf") {
+          // For standalone PDFs (raw file, not page images), get the file URL directly
+          const url = await getFileUrl(file.storagePath);
+          return {
+            ...file,
+            url,
+            thumbnailUrl: null, // No image thumbnail for raw PDFs
           };
         } else {
           // For images, get the direct URL
