@@ -11,7 +11,7 @@ export const maxDuration = 120;
 
 interface PrefillRequest {
   websiteUrl?: string;
-  pdfFiles?: { name: string; storagePath: string }[];
+  pdfFiles?: { name: string; storagePath?: string; base64Data?: string }[];
 }
 
 // POST - Pre-fill sales narrative Q&A from website URL and/or uploaded PDFs
@@ -67,13 +67,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // PDF processing — download from Supabase and extract text server-side
+    // PDF processing — accept base64 data directly (like chat) or download from Supabase
     if (pdfFiles) {
       for (const pdf of pdfFiles) {
         tasks.push(
           (async () => {
             try {
-              const buffer = await downloadFile(pdf.storagePath);
+              let buffer: Buffer;
+              if (pdf.base64Data) {
+                // Base64 sent directly from client (same pattern as chat uploads)
+                const raw = pdf.base64Data.includes(",")
+                  ? pdf.base64Data.split(",")[1]
+                  : pdf.base64Data;
+                buffer = Buffer.from(raw, "base64");
+              } else if (pdf.storagePath) {
+                buffer = await downloadFile(pdf.storagePath);
+              } else {
+                console.error(`[Prefill] PDF ${pdf.name}: no data or storagePath`);
+                return;
+              }
               const { result, usedOCR } = await extractTextFromPDFWithOCR(buffer, pdf.name, 30);
               const formatted = formatPDFForAIWithOCR(result, usedOCR);
               if (formatted) {
