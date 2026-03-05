@@ -1,13 +1,14 @@
 /**
  * Website crawler for Sales Narrative pre-fill.
- * Fetches a homepage, discovers relevant sub-pages, and extracts text context.
+ * Two-level crawl: homepage → level-1 pages → discover sub-links → level-2 pages.
  */
 
 import { openai } from "@/lib/openai";
 import { fetchPage } from "@/lib/search/fetcher";
 
 const FETCH_TIMEOUT = 10_000;
-const MAX_PAGES_TO_CRAWL = 20;
+const MAX_LEVEL1_PAGES = 20;
+const MAX_LEVEL2_PAGES = 10;
 const MAX_CONTEXT_LENGTH = 50_000;
 
 export interface CrawlResult {
@@ -17,6 +18,8 @@ export interface CrawlResult {
 
 /**
  * Crawl a website and return combined text context for narrative pre-fill.
+ * Uses a two-level crawl: first picks top pages from the homepage,
+ * then discovers deeper pages (case studies, customer stories, etc.) from those.
  */
 export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> {
   // Normalise the URL
@@ -27,7 +30,7 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
     throw new Error(`Invalid URL: ${url}`);
   }
 
-  console.log(`[Crawler] Starting crawl of ${baseUrl.origin}`);
+  console.log(`[Crawler] Starting two-level crawl of ${baseUrl.origin}`);
 
   // 1. Fetch the homepage HTML (raw — we need links before stripping)
   const homepageHtml = await fetchRawHtml(baseUrl.href);
@@ -45,23 +48,78 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
 
   console.log(`[Crawler] Found ${allLinks.length} unique same-domain links (${links.length} from page, ${sitemapUrls.length} from sitemap)`);
 
-  // 4. Use LLM to pick the most relevant pages
-  const selectedUrls = await selectRelevantPages(allLinks, baseUrl);
-  console.log(`[Crawler] LLM selected ${selectedUrls.length} pages to crawl`);
+  // 4. Use LLM to pick the most relevant level-1 pages
+  const level1Urls = await selectRelevantPages(allLinks, baseUrl, MAX_LEVEL1_PAGES);
+  console.log(`[Crawler] LLM selected ${level1Urls.length} level-1 pages to crawl`);
 
-  // 5. Fetch homepage text + selected pages in parallel
+  // 5. Fetch homepage text + level-1 pages in parallel
+  //    Also fetch raw HTML from level-1 pages to discover sub-links
   const homepageFetch = fetchPage(baseUrl.href, "Homepage");
-  const subpageFetches = selectedUrls.map((u) => fetchPage(u, "Sub-page"));
-  const allFetches = await Promise.all([homepageFetch, ...subpageFetches]);
+  const level1ContentFetches = level1Urls.map((u) => fetchPage(u, "Sub-page"));
+  const level1HtmlFetches = level1Urls.map((u) => fetchRawHtml(u));
 
-  // 6. Combine all text and collect successfully fetched URLs
+  const [homepageResult, ...level1Results] = await Promise.all([
+    homepageFetch,
+    ...level1ContentFetches,
+  ]);
+  const level1HtmlResults = await Promise.all(level1HtmlFetches);
+
+  // Collect level-1 results
   const sections: string[] = [];
   const fetchedUrls: string[] = [];
-  for (const page of allFetches) {
+  const allLevel1Fetches = [homepageResult, ...level1Results];
+
+  for (const page of allLevel1Fetches) {
     if (page.success && page.textContent?.trim()) {
       const label = page.title || page.url;
       sections.push(`=== ${label} (${page.url}) ===\n${page.textContent}`);
       fetchedUrls.push(page.url);
+    }
+  }
+
+  console.log(`[Crawler] Level 1 complete: ${fetchedUrls.length} pages fetched`);
+
+  // 6. Level 2: Discover new links from level-1 pages
+  const alreadyCrawled = new Set(fetchedUrls.map((u) => u.toLowerCase().replace(/\/+$/, "")));
+  alreadyCrawled.add(baseUrl.href.toLowerCase().replace(/\/+$/, ""));
+
+  const newLinks: string[] = [];
+  for (const html of level1HtmlResults) {
+    if (html) {
+      const subLinks = extractLinks(html, baseUrl);
+      for (const link of subLinks) {
+        const key = link.toLowerCase().replace(/\/+$/, "");
+        if (!alreadyCrawled.has(key)) {
+          newLinks.push(link);
+          alreadyCrawled.add(key);
+        }
+      }
+    }
+  }
+
+  const uniqueNewLinks = deduplicateUrls(newLinks);
+  console.log(`[Crawler] Level 2: discovered ${uniqueNewLinks.length} new links from level-1 pages`);
+
+  if (uniqueNewLinks.length > 0) {
+    // 7. LLM picks the best level-2 pages, prioritizing case studies and customer stories
+    const level2Urls = await selectRelevantPages(uniqueNewLinks, baseUrl, MAX_LEVEL2_PAGES, true);
+    console.log(`[Crawler] LLM selected ${level2Urls.length} level-2 pages to crawl`);
+
+    if (level2Urls.length > 0) {
+      // 8. Fetch level-2 pages
+      const level2Fetches = await Promise.all(
+        level2Urls.map((u) => fetchPage(u, "Deep page"))
+      );
+
+      for (const page of level2Fetches) {
+        if (page.success && page.textContent?.trim()) {
+          const label = page.title || page.url;
+          sections.push(`=== ${label} (${page.url}) ===\n${page.textContent}`);
+          fetchedUrls.push(page.url);
+        }
+      }
+
+      console.log(`[Crawler] Level 2 complete: ${level2Urls.length} attempted, ${level2Fetches.filter((f) => f.success).length} succeeded`);
     }
   }
 
@@ -70,7 +128,7 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
     ? combined.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[...content truncated for length...]"
     : combined;
 
-  console.log(`[Crawler] Crawl complete: ${allFetches.filter((f) => f.success).length} pages fetched, ${truncated.length} chars of context`);
+  console.log(`[Crawler] Crawl complete: ${fetchedUrls.length} total pages, ${truncated.length} chars of context`);
   return { text: truncated, urls: fetchedUrls };
 }
 
@@ -198,24 +256,28 @@ function deduplicateUrls(urls: string[]): string[] {
 /**
  * Use LLM to pick the most relevant pages to crawl for sales narrative context.
  */
-async function selectRelevantPages(urls: string[], baseUrl: URL): Promise<string[]> {
+async function selectRelevantPages(urls: string[], baseUrl: URL, maxPages: number, deepCrawl = false): Promise<string[]> {
   if (urls.length === 0) return [];
-  if (urls.length <= MAX_PAGES_TO_CRAWL) return urls;
+  if (urls.length <= maxPages) return urls;
 
   // Truncate the list if massive (some sitemaps have thousands of URLs)
   const urlsForSelection = urls.slice(0, 200);
 
   const numberedList = urlsForSelection.map((u, i) => `${i + 1}. ${u}`).join("\n");
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You select the most useful web pages for understanding a company's product, value proposition, and sales positioning. Pick up to ${MAX_PAGES_TO_CRAWL} URLs.
+  const focusAreas = deepCrawl
+    ? `PRIORITIZE (in order):
+- Individual case studies / customer success stories / customer spotlights
+- Testimonials / reviews / results pages
+- ROI calculators / proof points / data sheets
+- Detailed solution or use-case pages
 
-Focus on pages about:
+Also consider:
+- Product / features detail pages
+- Integration or partner pages
+
+Avoid: blog posts, legal pages, careers, login, docs/API reference, help articles, pages that look like top-level navigation you would have already seen.`
+    : `Focus on pages about:
 - Product / features / how it works
 - Solutions / use cases
 - Customers / case studies / testimonials
@@ -223,13 +285,23 @@ Focus on pages about:
 - About / company story
 - Problems solved / benefits
 
-Avoid: blog posts, legal pages, careers, login, docs/API reference, individual help articles.
+Avoid: blog posts, legal pages, careers, login, docs/API reference, individual help articles.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You select the most useful web pages for understanding a company's product, value proposition, and sales positioning. Pick up to ${maxPages} URLs.
+
+${focusAreas}
 
 Respond with ONLY a JSON array of URL strings, e.g. ["https://...", "https://..."]`,
         },
         {
           role: "user",
-          content: `Website: ${baseUrl.origin}\n\nAvailable pages:\n${numberedList}\n\nPick up to ${MAX_PAGES_TO_CRAWL} most relevant URLs for understanding this company's product and sales positioning.`,
+          content: `Website: ${baseUrl.origin}\n\nAvailable pages:\n${numberedList}\n\nPick up to ${maxPages} most relevant URLs for understanding this company's product and sales positioning.`,
         },
       ],
       temperature: 0,
@@ -238,14 +310,14 @@ Respond with ONLY a JSON array of URL strings, e.g. ["https://...", "https://...
 
     const text = response.choices[0]?.message?.content?.trim() || "[]";
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return urls.slice(0, MAX_PAGES_TO_CRAWL);
+    if (!jsonMatch) return urls.slice(0, maxPages);
 
     const selected: string[] = JSON.parse(jsonMatch[0]);
     // Validate that all selected URLs were in our original list
     const urlSet = new Set(urls);
-    return selected.filter((u) => urlSet.has(u)).slice(0, MAX_PAGES_TO_CRAWL);
+    return selected.filter((u) => urlSet.has(u)).slice(0, maxPages);
   } catch (error) {
     console.error("[Crawler] LLM page selection failed, using first N pages:", error);
-    return urls.slice(0, MAX_PAGES_TO_CRAWL);
+    return urls.slice(0, maxPages);
   }
 }
