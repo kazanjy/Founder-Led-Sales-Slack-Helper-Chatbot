@@ -7,11 +7,22 @@ import { sendToChatbase } from "@/lib/chatbase/client";
 export const maxDuration = 120;
 
 // POST - Generate sales narrative from questionnaire answers
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // Parse optional sources from request body
+    let sourceUrls: string[] = [];
+    let sourcePdfNames: string[] = [];
+    try {
+      const body = await request.json();
+      sourceUrls = body.sourceUrls || [];
+      sourcePdfNames = body.sourcePdfNames || [];
+    } catch {
+      // No body or invalid JSON — that's fine, sources are optional
     }
 
     // Get all enabled questions
@@ -299,6 +310,8 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
         description100w: parsedResponse.description100w,
         description50w: parsedResponse.description50w,
         description25w: parsedResponse.description25w,
+        sourceUrls,
+        sourcePdfNames,
       },
     });
 

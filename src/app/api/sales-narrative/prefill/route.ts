@@ -48,17 +48,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gather context in parallel
+    // Gather context in parallel, tracking sources
     const contextParts: string[] = [];
+    const sourceUrls: string[] = [];
+    const sourcePdfNames: string[] = [];
     const tasks: Promise<void>[] = [];
 
     // Website crawling
     if (websiteUrl?.trim()) {
       tasks.push(
         crawlWebsiteForContext(websiteUrl.trim())
-          .then((text) => {
-            if (text) {
-              contextParts.push(`## WEBSITE CONTENT\n\n${text}`);
+          .then((result) => {
+            if (result.text) {
+              contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
+              sourceUrls.push(...result.urls);
             }
           })
           .catch((err) => {
@@ -90,6 +93,7 @@ export async function POST(request: NextRequest) {
               const formatted = formatPDFForAIWithOCR(result, usedOCR);
               if (formatted) {
                 contextParts.push(`## PDF: ${pdf.name}\n\n${formatted}`);
+                sourcePdfNames.push(pdf.name);
               }
             } catch (err) {
               console.error(`[Prefill] Failed to process PDF ${pdf.name}:`, err);
@@ -245,6 +249,8 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
       answers: validAnswers,
       filledCount,
       totalQuestions: questions.length,
+      sourceUrls,
+      sourcePdfNames,
     });
   } catch (error) {
     console.error("[Prefill] Error:", error);

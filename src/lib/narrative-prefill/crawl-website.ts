@@ -10,10 +10,15 @@ const FETCH_TIMEOUT = 10_000;
 const MAX_PAGES_TO_CRAWL = 8;
 const MAX_CONTEXT_LENGTH = 50_000;
 
+export interface CrawlResult {
+  text: string;
+  urls: string[];  // URLs that were actually fetched successfully
+}
+
 /**
  * Crawl a website and return combined text context for narrative pre-fill.
  */
-export async function crawlWebsiteForContext(url: string): Promise<string> {
+export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> {
   // Normalise the URL
   let baseUrl: URL;
   try {
@@ -28,7 +33,7 @@ export async function crawlWebsiteForContext(url: string): Promise<string> {
   const homepageHtml = await fetchRawHtml(baseUrl.href);
   if (!homepageHtml) {
     console.warn("[Crawler] Could not fetch homepage, returning empty context");
-    return "";
+    return { text: "", urls: [] };
   }
 
   // 2. Extract all same-domain links from the homepage
@@ -49,12 +54,14 @@ export async function crawlWebsiteForContext(url: string): Promise<string> {
   const subpageFetches = selectedUrls.map((u) => fetchPage(u, "Sub-page"));
   const allFetches = await Promise.all([homepageFetch, ...subpageFetches]);
 
-  // 6. Combine all text
+  // 6. Combine all text and collect successfully fetched URLs
   const sections: string[] = [];
+  const fetchedUrls: string[] = [];
   for (const page of allFetches) {
     if (page.success && page.textContent?.trim()) {
       const label = page.title || page.url;
       sections.push(`=== ${label} (${page.url}) ===\n${page.textContent}`);
+      fetchedUrls.push(page.url);
     }
   }
 
@@ -64,7 +71,7 @@ export async function crawlWebsiteForContext(url: string): Promise<string> {
     : combined;
 
   console.log(`[Crawler] Crawl complete: ${allFetches.filter((f) => f.success).length} pages fetched, ${truncated.length} chars of context`);
-  return truncated;
+  return { text: truncated, urls: fetchedUrls };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

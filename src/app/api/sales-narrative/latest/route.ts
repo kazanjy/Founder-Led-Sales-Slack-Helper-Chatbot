@@ -75,6 +75,8 @@ export async function GET() {
         description100w: latestVersion.description100w,
         description50w: latestVersion.description50w,
         description25w: latestVersion.description25w,
+        sourceUrls: latestVersion.sourceUrls,
+        sourcePdfNames: latestVersion.sourcePdfNames,
         createdAt: latestVersion.createdAt,
       },
       answersByCategory,

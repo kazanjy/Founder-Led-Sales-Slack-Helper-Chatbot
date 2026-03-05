@@ -86,6 +86,8 @@ function SalesNarrativeEditContent() {
   const [prefillMessageIndex, setPrefillMessageIndex] = useState(0);
   const [prefillDone, setPrefillDone] = useState(false);
   const [prefillPanelOpen, setPrefillPanelOpen] = useState(true);
+  const [prefillSourceUrls, setPrefillSourceUrls] = useState<string[]>([]);
+  const [prefillSourcePdfNames, setPrefillSourcePdfNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Set browser tab title
@@ -311,6 +313,10 @@ function SalesNarrativeEditContent() {
       const data = await response.json();
       const prefillAnswers: Record<string, string> = data.answers;
 
+      // Track sources used in prefill
+      if (data.sourceUrls?.length) setPrefillSourceUrls(data.sourceUrls);
+      if (data.sourcePdfNames?.length) setPrefillSourcePdfNames(data.sourcePdfNames);
+
       // Merge: only fill empty fields, and track which ones we filled
       const filledIds: string[] = [];
       setAnswers((prev) => {
@@ -374,6 +380,10 @@ function SalesNarrativeEditContent() {
       const response = await fetch("/api/sales-narrative/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceUrls: prefillSourceUrls,
+          sourcePdfNames: prefillSourcePdfNames,
+        }),
       });
 
       if (!response.ok) {
@@ -692,6 +702,47 @@ function SalesNarrativeEditContent() {
             </div>
           )}
         </div>
+
+        {/* Sources Banner - shown after prefill */}
+        {(prefillSourceUrls.length > 0 || prefillSourcePdfNames.length > 0) && (
+          <div className="mb-8 bg-white border border-gray-200 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Sources Used for Pre-Fill
+            </h3>
+            {prefillSourceUrls.length > 0 && (
+              <div className="mb-2">
+                <p className="text-xs font-medium text-gray-500 mb-1">Website Pages Crawled</p>
+                <ul className="space-y-1">
+                  {prefillSourceUrls.map((url, i) => (
+                    <li key={i} className="text-sm text-blue-600 truncate">
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {prefillSourcePdfNames.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">PDF Files</p>
+                <ul className="space-y-1">
+                  {prefillSourcePdfNames.map((name, i) => (
+                    <li key={i} className="text-sm text-gray-700 flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {grouped.map((category, categoryIndex) => {
           const colors = categoryColors[category.category] || categoryColors.Problem;

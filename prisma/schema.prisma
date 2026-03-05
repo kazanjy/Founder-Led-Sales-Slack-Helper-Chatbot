@@ -590,6 +590,10 @@ model SalesNarrativeVersion {
   description50w  String   @db.Text  // 50-word elevator pitch
   description25w  String   @db.Text  // 25-word tagline
 
+  // Sources used to create this narrative (from prefill)
+  sourceUrls      String[]  @default([])  // URLs crawled from website
+  sourcePdfNames  String[]  @default([])  // Names of uploaded PDF files
+
   // Optional: conversation for follow-up chat about the narrative
   conversationId  String?
 

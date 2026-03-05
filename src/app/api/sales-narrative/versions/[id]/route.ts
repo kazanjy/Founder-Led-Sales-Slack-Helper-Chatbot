@@ -79,6 +79,8 @@ export async function GET(
         description100w: version.description100w,
         description50w: version.description50w,
         description25w: version.description25w,
+        sourceUrls: version.sourceUrls,
+        sourcePdfNames: version.sourcePdfNames,
         createdAt: version.createdAt,
       },
       answersByCategory,
@@ -183,6 +185,8 @@ export async function PATCH(
         description100w: updatedVersion.description100w,
         description50w: updatedVersion.description50w,
         description25w: updatedVersion.description25w,
+        sourceUrls: updatedVersion.sourceUrls,
+        sourcePdfNames: updatedVersion.sourcePdfNames,
         createdAt: updatedVersion.createdAt,
       },
     });
