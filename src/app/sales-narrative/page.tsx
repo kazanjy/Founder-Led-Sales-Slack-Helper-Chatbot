@@ -429,14 +429,29 @@ function SalesNarrativeContent() {
             {version.sourceUrls?.length > 0 && (
               <div className="mb-2">
                 <p className="text-xs font-medium text-gray-500 mb-1">Website Pages</p>
-                <ul className="space-y-1">
-                  {version.sourceUrls.map((url, i) => (
-                    <li key={i} className="text-sm text-blue-600 truncate">
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        {url}
-                      </a>
-                    </li>
-                  ))}
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
+                  {[...version.sourceUrls].sort((a, b) => {
+                    try {
+                      const pathA = new URL(a).pathname.toLowerCase();
+                      const pathB = new URL(b).pathname.toLowerCase();
+                      return pathA.localeCompare(pathB);
+                    } catch { return a.localeCompare(b); }
+                  }).map((url, i) => {
+                    let displayPath = "/";
+                    try {
+                      const parsed = new URL(url);
+                      displayPath = parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, "");
+                    } catch {
+                      displayPath = url;
+                    }
+                    return (
+                      <li key={i} className="text-sm text-blue-600 truncate">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline" title={url}>
+                          {displayPath}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
