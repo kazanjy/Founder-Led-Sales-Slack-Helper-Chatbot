@@ -727,7 +727,7 @@ function SalesNarrativeEditContent() {
                     let displayPath = "/";
                     try {
                       const parsed = new URL(url);
-                      displayPath = parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, "");
+                      displayPath = parsed.pathname === "/" ? parsed.host : parsed.pathname.replace(/\/+$/, "");
                     } catch {
                       displayPath = url;
                     }
