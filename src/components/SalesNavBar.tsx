@@ -96,7 +96,7 @@ export default function SalesNavBar() {
   return (
     <nav className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mb-px">
+        <div className="flex items-center gap-1 -mb-px flex-wrap">
           {/* Chat */}
           <Link
             href="/chat"
