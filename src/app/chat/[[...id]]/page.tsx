@@ -276,7 +276,9 @@ export default function ChatPage() {
     discoveryQuestions: { hasGenerated: boolean } | null;
     firstCallChecklist: { hasGenerated: boolean } | null;
     preCallPlanning: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null });
+    emailSequence: { hasGenerated: boolean } | null;
+    linkedInSequence: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -395,6 +397,26 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             preCallPlanning: { hasGenerated: !!pcpData.hasPreCallPlanning }
+          }));
+        }
+
+        // Fetch Email Sequence progress
+        const esRes = await fetch("/api/email-sequence/latest");
+        if (esRes.ok) {
+          const esData = await esRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            emailSequence: { hasGenerated: !!esData.hasEmailSequence }
+          }));
+        }
+
+        // Fetch LinkedIn Sequence progress
+        const lsRes = await fetch("/api/linkedin-sequence/latest");
+        if (lsRes.ok) {
+          const lsData = await lsRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            linkedInSequence: { hasGenerated: !!lsData.hasLinkedInSequence }
           }));
         }
       } catch (error) {
@@ -2482,6 +2504,36 @@ export default function ChatPage() {
               <span>🔍</span>
               <span className="flex-1">Pre-Call Research</span>
               <span className="text-xs text-blue-600 font-medium">New</span>
+            </a>
+            <a
+              href="/email-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.emailSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📧</span>
+              <span className="flex-1">Email Sequence</span>
+              {!appProgress.emailSequence?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
+              )}
+            </a>
+            <a
+              href="/linkedin-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.linkedInSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>💼</span>
+              <span className="flex-1">LinkedIn Sequence</span>
+              {!appProgress.linkedInSequence?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">Start →</span>
+              )}
             </a>
             <a
               href="/files"
