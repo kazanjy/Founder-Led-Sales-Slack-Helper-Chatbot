@@ -110,6 +110,52 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, versionId: clone.id });
       }
 
+      case "emailSequence": {
+        const source = await prisma.emailSequenceVersion.findFirst({
+          where: { id: documentId, userId: user.id },
+        });
+        if (!source) {
+          return NextResponse.json({ error: "Version not found" }, { status: 404 });
+        }
+
+        const clone = await prisma.emailSequenceVersion.create({
+          data: {
+            userId: user.id,
+            salesNarrativeVersionId: source.salesNarrativeVersionId,
+            firstCallChecklistVersionId: source.firstCallChecklistVersionId,
+            orgPersona: source.orgPersona,
+            humanPersona: source.humanPersona,
+            specialNotes: source.specialNotes,
+            content: source.content,
+          },
+        });
+
+        return NextResponse.json({ success: true, versionId: clone.id });
+      }
+
+      case "linkedInSequence": {
+        const source = await prisma.linkedInSequenceVersion.findFirst({
+          where: { id: documentId, userId: user.id },
+        });
+        if (!source) {
+          return NextResponse.json({ error: "Version not found" }, { status: 404 });
+        }
+
+        const clone = await prisma.linkedInSequenceVersion.create({
+          data: {
+            userId: user.id,
+            salesNarrativeVersionId: source.salesNarrativeVersionId,
+            firstCallChecklistVersionId: source.firstCallChecklistVersionId,
+            orgPersona: source.orgPersona,
+            humanPersona: source.humanPersona,
+            specialNotes: source.specialNotes,
+            content: source.content,
+          },
+        });
+
+        return NextResponse.json({ success: true, versionId: clone.id });
+      }
+
       default:
         return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
     }

@@ -18,6 +18,8 @@ const navItems: NavItem[] = [
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
   { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
+  { href: "/email-sequence", label: "📧 Email Sequence", statusKey: "emailSequence" },
+  { href: "/linkedin-sequence", label: "💼 LinkedIn Sequence", statusKey: "linkedInSequence" },
 ];
 
 interface CompletionStatus {
@@ -31,13 +33,15 @@ export default function SalesNavBar() {
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/pre-call-planning/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/pre-call-planning/research/history").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/maturity/progress").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/email-sequence/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/linkedin-sequence/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -47,6 +51,8 @@ export default function SalesNavBar() {
           preCallPlanning: !!planningRes?.hasPreCallPlanning,
           preCallResearch: !!(researchRes?.researches?.length > 0),
           assessment: assessmentRes?.status === "completed",
+          emailSequence: !!emailSeqRes?.hasEmailSequence,
+          linkedInSequence: !!linkedInSeqRes?.hasLinkedInSequence,
         });
       } catch {
         // silently fail - indicators just won't show

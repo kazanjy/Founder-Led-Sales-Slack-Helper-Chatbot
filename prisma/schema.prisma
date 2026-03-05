@@ -103,6 +103,8 @@ model User {
   preCallPlanningVersions PreCallPlanningVersion[]
   preCallResearch PreCallResearch[]
   pendingResearchRequests PendingResearchRequest[]
+  emailSequenceVersions EmailSequenceVersion[]
+  linkedInSequenceVersions LinkedInSequenceVersion[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
 
@@ -600,6 +602,10 @@ model SalesNarrativeVersion {
   // Discovery questions generated from this narrative
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
 
+  // Sequences generated from this narrative
+  emailSequenceVersions EmailSequenceVersion[]
+  linkedInSequenceVersions LinkedInSequenceVersion[]
+
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -653,6 +659,10 @@ model FirstCallChecklistVersion {
 
   // Pre-call planning versions generated from this checklist
   preCallPlanningVersions PreCallPlanningVersion[]
+
+  // Sequences that optionally used this checklist as context
+  emailSequenceVersions EmailSequenceVersion[]
+  linkedInSequenceVersions LinkedInSequenceVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -789,4 +799,76 @@ model UserFile {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("user_files")
+}
+
+// ============================================
+// EMAIL SEQUENCE APP
+// ============================================
+
+model EmailSequenceVersion {
+  id                          String   @id @default(cuid())
+
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId     String
+  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona                  String   @db.Text
+  humanPersona                String   @db.Text
+  specialNotes                String?  @db.Text
+
+  // Generated output
+  content                     String   @db.Text
+
+  // Linked chat thread
+  conversationId              String?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("email_sequence_versions")
+}
+
+// ============================================
+// LINKEDIN SEQUENCE APP
+// ============================================
+
+model LinkedInSequenceVersion {
+  id                          String   @id @default(cuid())
+
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId     String
+  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona                  String   @db.Text
+  humanPersona                String   @db.Text
+  specialNotes                String?  @db.Text
+
+  // Generated output
+  content                     String   @db.Text
+
+  // Linked chat thread
+  conversationId              String?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("linkedin_sequence_versions")
 }
