@@ -133,7 +133,8 @@ This should be punchy, specific, and immediately useful — not generic filler. 
 
 ### Business Context
 - Current challenges or pain points (inferred from news, job postings, industry trends)
-- Technology stack or current solutions (if discoverable)
+- Technology stack or current solutions (if discoverable from job postings/ads, skills data, or other signals)
+- What their job postings/ads reveal about organizational priorities, growth areas, and tools they use
 - Growth trajectory and strategic direction
 - Competitive pressures
 ${personaAndPovSections}
@@ -149,6 +150,7 @@ ${personaAndPovSections}
 
 ### Sources
 - List all URLs used with brief descriptions
+- Always include "People Data Labs (PDL) — person and company enrichment" as a source when PDL data was used
 
 Make the brief specific and actionable. Avoid generic advice. Every point should be grounded in the actual search results provided.
 ${hasSalesContext ? `
@@ -225,6 +227,14 @@ Now generate the research brief.`;
   // Extract sources from search results
   const sources: { title: string; url: string }[] = [];
   const seenUrls = new Set<string>();
+
+  // Disclose People Data Labs as a data source when PDL data was used
+  if (results.pdlData) {
+    sources.push({
+      title: "People Data Labs (PDL) — person and company enrichment",
+      url: "https://www.peopledatalabs.com",
+    });
+  }
 
   for (const searchResponse of results.searchResults) {
     for (const result of searchResponse.results) {
