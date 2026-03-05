@@ -7,7 +7,7 @@ import { openai } from "@/lib/openai";
 import { fetchPage } from "@/lib/search/fetcher";
 
 const FETCH_TIMEOUT = 10_000;
-const MAX_PAGES_TO_CRAWL = 8;
+const MAX_PAGES_TO_CRAWL = 20;
 const MAX_CONTEXT_LENGTH = 50_000;
 
 export interface CrawlResult {
