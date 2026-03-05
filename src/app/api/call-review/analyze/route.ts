@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         source: "WEB",
-        title: `Call Review: ${overall}/${max}`,
+        title: `Call Review: ${[repName, prospectCompany].filter(Boolean).join(" / ") || `${overall}/${max}`}`,
         firstMessagePreview: userMessage.substring(0, 100),
         messageCount: 2,
         lastMessageAt: new Date(),
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         id: version.id,
         callType: "discovery",
         title,
+        transcript,
         scores: analysis,
         overallScore: overall,
         maxScore: max,

@@ -75,6 +75,7 @@ function CallReviewContent() {
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"scorecard" | "transcript">("scorecard");
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
@@ -456,8 +457,52 @@ function CallReviewContent() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <nav className="flex gap-6" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab("scorecard")}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "scorecard"
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Scorecard
+            </button>
+            <button
+              onClick={() => setActiveTab("transcript")}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "transcript"
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Transcript
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Transcript Tab */}
+        {activeTab === "transcript" && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Call Transcript</h2>
+            {version.transcript ? (
+              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed max-h-[70vh] overflow-y-auto">
+                {version.transcript}
+              </pre>
+            ) : (
+              <p className="text-gray-500 text-sm">Transcript not available for this review.</p>
+            )}
+          </div>
+        )}
+
+        {/* Scorecard Tab */}
+        {activeTab === "scorecard" && <>
         {/* Overall Score Card */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -631,6 +676,7 @@ function CallReviewContent() {
             </div>
           </div>
         )}
+        </>}
       </div>
       {ConfirmModalElement}
     </div>

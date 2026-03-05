@@ -35,6 +35,7 @@ export async function GET() {
         id: latestVersion.id,
         callType: latestVersion.callType,
         title: latestVersion.title,
+        transcript: latestVersion.transcript,
         scores,
         overallScore: latestVersion.overallScore,
         maxScore: latestVersion.maxScore,
