@@ -76,6 +76,13 @@ function CallReviewContent() {
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"scorecard" | "transcript">("scorecard");
+  const [recentReviews, setRecentReviews] = useState<Array<{
+    id: string;
+    title: string | null;
+    overallScore: number | null;
+    maxScore: number | null;
+    createdAt: string;
+  }>>([]);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
@@ -108,6 +115,16 @@ function CallReviewContent() {
               setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
             }
           }
+        }
+        // Fetch recent reviews for sidebar
+        try {
+          const versionsRes = await fetch("/api/call-review/versions");
+          if (versionsRes.ok) {
+            const versionsData = await versionsRes.json();
+            setRecentReviews(versionsData.versions || []);
+          }
+        } catch {
+          // Ignore - sidebar is non-critical
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -154,6 +171,11 @@ function CallReviewContent() {
       setVersion(data.version);
       setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
       setTranscript("");
+      // Add to recent reviews list
+      setRecentReviews((prev) => [
+        { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
+        ...prev,
+      ]);
       // Update URL with version ID for sharing/bookmarking
       window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
     } catch (error) {
@@ -272,74 +294,119 @@ function CallReviewContent() {
     return (
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
-        <div className="max-w-3xl mx-auto px-6 py-12">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Discovery Call Review</h1>
-            <p className="text-gray-500 mb-6">
-              Paste a full call transcript below and get an AI-powered scorecard with actionable feedback.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Call Transcript
-                </label>
-                <textarea
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Paste your full call transcript here..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
-                  disabled={analyzing}
-                />
-                <p className="mt-1 text-xs text-gray-400">
-                  {transcript.length.toLocaleString()} characters
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className={`grid ${recentReviews.length > 0 ? "lg:grid-cols-3" : ""} gap-8`}>
+            {/* Main input form */}
+            <div className={recentReviews.length > 0 ? "lg:col-span-2" : ""}>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">Discovery Call Review</h1>
+                <p className="text-gray-500 mb-6">
+                  Paste a full call transcript below and get an AI-powered scorecard with actionable feedback.
                 </p>
-              </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={includeDiscoveryQuestions}
-                    onChange={(e) => setIncludeDiscoveryQuestions(e.target.checked)}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  Include my Discovery Questions for comparison
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={includeSalesNarrative}
-                    onChange={(e) => setIncludeSalesNarrative(e.target.checked)}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  Include my Sales Narrative for context
-                </label>
-              </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Call Transcript
+                    </label>
+                    <textarea
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      placeholder="Paste your full call transcript here..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
+                      disabled={analyzing}
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      {transcript.length.toLocaleString()} characters
+                    </p>
+                  </div>
 
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing || transcript.trim().length < 100}
-                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {analyzing ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Analyzing Call...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    Analyze Call
-                  </>
-                )}
-              </button>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={includeDiscoveryQuestions}
+                        onChange={(e) => setIncludeDiscoveryQuestions(e.target.checked)}
+                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      Include my Discovery Questions for comparison
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={includeSalesNarrative}
+                        onChange={(e) => setIncludeSalesNarrative(e.target.checked)}
+                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      Include my Sales Narrative for context
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={analyzing || transcript.trim().length < 100}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {analyzing ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Analyzing Call...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Analyze Call
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
+
+            {/* Recent Reviews Sidebar */}
+            {recentReviews.length > 0 && (
+              <div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">Recent Reviews</h2>
+                    <Link
+                      href="/call-review/history"
+                      className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                    >
+                      View All
+                    </Link>
+                  </div>
+                  <div className="space-y-2">
+                    {recentReviews.slice(0, 10).map((review) => (
+                      <Link
+                        key={review.id}
+                        href={`/call-review?version=${review.id}`}
+                        className="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="font-medium text-gray-900 text-sm truncate">
+                          {review.title || "Discovery Call"}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {review.overallScore != null && review.maxScore != null && (
+                            <span className={`text-xs font-medium ${getScoreColor(review.overallScore, review.maxScore)}`}>
+                              {review.overallScore}/{review.maxScore} ({Math.round((review.overallScore / review.maxScore) * 100)}%)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {formatDate(review.createdAt)}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {ConfirmModalElement}
