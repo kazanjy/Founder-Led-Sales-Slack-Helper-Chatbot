@@ -106,15 +106,6 @@ function CallReviewContent() {
             setVersion(data.version);
             setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
           }
-        } else {
-          const res = await fetch("/api/call-review/latest");
-          if (res.ok) {
-            const data = await res.json();
-            if (data.hasCallReview) {
-              setVersion(data.version);
-              setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
-            }
-          }
         }
         // Fetch recent reviews for sidebar
         try {
