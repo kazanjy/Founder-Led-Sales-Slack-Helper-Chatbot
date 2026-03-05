@@ -63,10 +63,10 @@ export async function POST(request: NextRequest) {
 
 Generate a LinkedIn outreach sequence targeting the specified persona. The sequence should include:
 
-1. **Connection Request Note** (MUST be under 300 characters — LinkedIn's limit)
-   - Include character count
-   - Personalized, reference something specific
-   - Don't pitch in the connection request
+1. **Connection Request Note** — Leave this BLANK. Just write:
+   > **Connection Request Note**
+   > *(Personalize this — keep under 300 characters. Reference something specific about the person or their company. Don't pitch.)*
+   Do NOT generate any sample text for the connection request.
 
 2. **Follow-up Message 1** (after they accept, Day 1-2)
    - Thank them for connecting
