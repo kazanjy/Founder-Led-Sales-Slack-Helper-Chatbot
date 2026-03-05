@@ -716,7 +716,13 @@ function SalesNarrativeEditContent() {
               <div className="mb-2">
                 <p className="text-xs font-medium text-gray-500 mb-1">Website Pages Crawled</p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
-                  {prefillSourceUrls.map((url, i) => {
+                  {[...prefillSourceUrls].sort((a, b) => {
+                    try {
+                      const pathA = new URL(a).pathname.toLowerCase();
+                      const pathB = new URL(b).pathname.toLowerCase();
+                      return pathA.localeCompare(pathB);
+                    } catch { return a.localeCompare(b); }
+                  }).map((url, i) => {
                     // Strip protocol and domain to show just the path
                     let displayPath = "/";
                     try {
