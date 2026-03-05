@@ -127,12 +127,16 @@ function LinkedInSequenceContent() {
     loadData();
   }, [router, versionId]);
 
+  // Auto-prefill personas when form is visible (no version or regenerating)
   useEffect(() => {
-    if (showForm && !orgPersona && !humanPersona && !prefilling) {
-      handlePrefill();
+    if (!loading && !orgPersona && !humanPersona && !prefilling && hasSalesNarrative) {
+      // Form is visible when there's no version or showForm is true
+      if (!version || showForm) {
+        handlePrefill();
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showForm]);
+  }, [loading, showForm, version, hasSalesNarrative]);
 
   const handlePrefill = async () => {
     setPrefilling(true);
