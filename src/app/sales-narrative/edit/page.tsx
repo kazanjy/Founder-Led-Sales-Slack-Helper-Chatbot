@@ -715,14 +715,24 @@ function SalesNarrativeEditContent() {
             {prefillSourceUrls.length > 0 && (
               <div className="mb-2">
                 <p className="text-xs font-medium text-gray-500 mb-1">Website Pages Crawled</p>
-                <ul className="space-y-1">
-                  {prefillSourceUrls.map((url, i) => (
-                    <li key={i} className="text-sm text-blue-600 truncate">
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        {url}
-                      </a>
-                    </li>
-                  ))}
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
+                  {prefillSourceUrls.map((url, i) => {
+                    // Strip protocol and domain to show just the path
+                    let displayPath = "/";
+                    try {
+                      const parsed = new URL(url);
+                      displayPath = parsed.pathname === "/" ? "/" : parsed.pathname.replace(/\/+$/, "");
+                    } catch {
+                      displayPath = url;
+                    }
+                    return (
+                      <li key={i} className="text-sm text-blue-600 truncate">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline" title={url}>
+                          {displayPath}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
