@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
@@ -67,6 +67,7 @@ function DiscoveryQuestionsContent() {
   const [showChecklistBanner, setShowChecklistBanner] = useState(true);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
   useEffect(() => {
     document.title = "Discovery Questions - Mikey";
@@ -148,6 +149,15 @@ function DiscoveryQuestionsContent() {
 
     loadData();
   }, [router, versionId]);
+
+  // Auto-generate when arriving from a CTA link with ?auto=true
+  useEffect(() => {
+    if (autoGenerateRef.current && !loading && !version && hasSalesNarrative && !generating) {
+      autoGenerateRef.current = false;
+      handleGenerate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, hasSalesNarrative]);
 
   const handleClone = async () => {
     if (!version) return;
@@ -466,7 +476,7 @@ function DiscoveryQuestionsContent() {
               </div>
               <p className="font-medium">
                 Congrats on finishing your Discovery Questions! Now let&apos;s use this to{" "}
-                <Link href="/first-call-checklist" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                <Link href="/first-call-checklist?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                   create your first call checklist
                 </Link>.
               </p>
@@ -604,7 +614,7 @@ function DiscoveryQuestionsContent() {
                 Turn your discovery questions into a structured checklist for your first sales calls.
               </p>
               <Link
-                href="/first-call-checklist"
+                href="/first-call-checklist?auto=true"
                 className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
               >
                 Create Checklist

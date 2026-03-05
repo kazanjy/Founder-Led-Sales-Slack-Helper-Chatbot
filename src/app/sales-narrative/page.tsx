@@ -400,7 +400,7 @@ function SalesNarrativeContent() {
               </div>
               <p className="font-medium">
                 Congrats on finishing your Sales Narrative! Now let&apos;s use this to{" "}
-                <Link href="/discovery-questions" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                <Link href="/discovery-questions?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                   create your discovery questions
                 </Link>.
               </p>
@@ -857,7 +857,7 @@ function SalesNarrativeContent() {
                   Turn your sales narrative into powerful discovery questions that uncover buyer pain points.
                 </p>
                 <Link
-                  href="/discovery-questions"
+                  href="/discovery-questions?auto=true"
                   className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                 >
                   Create Questions

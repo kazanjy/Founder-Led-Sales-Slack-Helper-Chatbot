@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -61,6 +61,7 @@ function FirstCallChecklistContent() {
   const [version, setVersion] = useState<FirstCallChecklistVersion | null>(null);
   const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
   const [hasPreCallPlanning, setHasPreCallPlanning] = useState(false);
+  const [showPreCallBanner, setShowPreCallBanner] = useState(true);
   const [copied, setCopied] = useState(false);
 
   // Edit state
@@ -68,6 +69,7 @@ function FirstCallChecklistContent() {
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
   useEffect(() => {
     document.title = "First Call Checklist - Mikey";
@@ -144,6 +146,15 @@ function FirstCallChecklistContent() {
 
     loadData();
   }, [router, versionId]);
+
+  // Auto-generate when arriving from a CTA link with ?auto=true
+  useEffect(() => {
+    if (autoGenerateRef.current && !loading && !version && hasDiscoveryQuestions && !generating) {
+      autoGenerateRef.current = false;
+      handleGenerate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, hasDiscoveryQuestions]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -492,6 +503,34 @@ function FirstCallChecklistContent() {
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Dismissable Pre-Call Checklist Banner */}
+        {showPreCallBanner && !isEditing && !hasPreCallPlanning && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-medium">
+                Congrats on finishing your First Call Checklist! Now let&apos;s use this to{" "}
+                <Link href="/pre-call-planning?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                  create your pre-call checklist
+                </Link>.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPreCallBanner(false)}
+              className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
@@ -531,44 +570,6 @@ function FirstCallChecklistContent() {
           </div>
         )}
 
-        {/* What's Next - only show when not editing and pre-call checklist not yet created */}
-        {!isEditing && !hasPreCallPlanning && (
-          <div className="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white">
-            <h3 className="text-xl font-bold mb-2">What&apos;s Next?</h3>
-            <p className="text-purple-100 mb-6">
-              Now build your pre-call checklist, or use this checklist to prepare for your sales calls.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/pre-call-planning"
-                className="px-5 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Pre-Call Checklist
-              </Link>
-              <Link
-                href="/chat"
-                className="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Chat About It
-              </Link>
-              <Link
-                href="/discovery-questions"
-                className="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Discovery Questions
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
       {ConfirmModalElement}
     </div>

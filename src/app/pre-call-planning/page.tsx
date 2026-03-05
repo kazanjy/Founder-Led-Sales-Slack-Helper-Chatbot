@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -65,6 +65,7 @@ function PreCallPlanningContent() {
   const [version, setVersion] = useState<PreCallPlanningVersion | null>(null);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
   const [hasPreCallResearch, setHasPreCallResearch] = useState(false);
+  const [showResearchBanner, setShowResearchBanner] = useState(true);
   const [copied, setCopied] = useState(false);
 
   // Edit state
@@ -72,6 +73,7 @@ function PreCallPlanningContent() {
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
   useEffect(() => {
     document.title = "Pre-Call Checklist - Mikey";
@@ -148,6 +150,15 @@ function PreCallPlanningContent() {
 
     loadData();
   }, [router, versionId]);
+
+  // Auto-generate when arriving from a CTA link with ?auto=true
+  useEffect(() => {
+    if (autoGenerateRef.current && !loading && !version && hasFirstCallChecklist && !generating) {
+      autoGenerateRef.current = false;
+      handleGenerate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, hasFirstCallChecklist]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -496,6 +507,34 @@ function PreCallPlanningContent() {
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Dismissable Pre-Call Research Banner */}
+        {showResearchBanner && !isEditing && !hasPreCallResearch && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-medium">
+                Congrats on finishing your Pre-Call Checklist! Now let&apos;s use this to{" "}
+                <Link href="/pre-call-planning/research" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                  research your prospects
+                </Link>.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowResearchBanner(false)}
+              className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
@@ -535,35 +574,6 @@ function PreCallPlanningContent() {
           </div>
         )}
 
-        {/* What's Next - only show when not editing and pre-call research not yet created */}
-        {!isEditing && !hasPreCallResearch && (
-          <div className="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white">
-            <h3 className="text-xl font-bold mb-2">What&apos;s Next?</h3>
-            <p className="text-purple-100 mb-6">
-              Now use your pre-call checklist to research specific prospects before your sales calls.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/pre-call-planning/research"
-                className="px-5 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-medium flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Pre-Call Research
-              </Link>
-              <Link
-                href="/chat"
-                className="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Chat About It
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
       {ConfirmModalElement}
     </div>
