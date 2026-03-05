@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
   { href: "/email-sequence", label: "📧 Email Sequence", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn Sequence", statusKey: "linkedInSequence" },
+  { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
 ];
 
 interface CompletionStatus {
@@ -33,7 +34,7 @@ export default function SalesNavBar() {
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -42,6 +43,7 @@ export default function SalesNavBar() {
           fetch("/api/maturity/progress").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/email-sequence/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/linkedin-sequence/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/call-review/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -53,6 +55,7 @@ export default function SalesNavBar() {
           assessment: assessmentRes?.status === "completed",
           emailSequence: !!emailSeqRes?.hasEmailSequence,
           linkedInSequence: !!linkedInSeqRes?.hasLinkedInSequence,
+          callReview: !!callReviewRes?.hasCallReview,
         });
       } catch {
         // silently fail - indicators just won't show

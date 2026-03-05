@@ -105,6 +105,7 @@ model User {
   pendingResearchRequests PendingResearchRequest[]
   emailSequenceVersions EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
+  callReviewVersions CallReviewVersion[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
 
@@ -871,4 +872,42 @@ model LinkedInSequenceVersion {
 
   @@index([userId, createdAt])
   @@map("linkedin_sequence_versions")
+}
+
+// ============================================
+// CALL REVIEW APP
+// ============================================
+
+model CallReviewVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Call metadata
+  callType    String   @default("discovery") // "discovery" for now, extensible later
+  title       String?  @db.Text
+
+  // The raw transcript
+  transcript  String   @db.Text
+
+  // AI-generated scores (JSON)
+  scores      String   @db.Text
+
+  // Overall score out of max
+  overallScore Int?
+  maxScore     Int?
+
+  // Optional links to user's GTM context used during analysis
+  discoveryQuestionsVersionId String?
+  salesNarrativeVersionId     String?
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("call_review_versions")
 }

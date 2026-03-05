@@ -278,7 +278,8 @@ export default function ChatPage() {
     preCallPlanning: { hasGenerated: boolean } | null;
     emailSequence: { hasGenerated: boolean } | null;
     linkedInSequence: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null });
+    callReview: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -417,6 +418,16 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             linkedInSequence: { hasGenerated: !!lsData.hasLinkedInSequence }
+          }));
+        }
+
+        // Fetch Call Review progress
+        const crRes = await fetch("/api/call-review/latest");
+        if (crRes.ok) {
+          const crData = await crRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            callReview: { hasGenerated: !!crData.hasCallReview }
           }));
         }
       } catch (error) {
@@ -2535,6 +2546,21 @@ export default function ChatPage() {
               <span className="flex-1">LinkedIn Sequence</span>
               {!appProgress.linkedInSequence?.hasGenerated && (
                 <span className="text-xs text-purple-600 font-medium">Start →</span>
+              )}
+            </a>
+            <a
+              href="/call-review"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.callReview?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📞</span>
+              <span className="flex-1">Call Review</span>
+              {!appProgress.callReview?.hasGenerated && (
+                <span className="text-xs text-purple-600 font-medium">New</span>
               )}
             </a>
             <a
