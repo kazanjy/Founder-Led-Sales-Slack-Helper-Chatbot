@@ -54,7 +54,7 @@ export async function POST() {
       );
     }
 
-    const narrative = latestChecklist.discoveryQuestionsVersion.salesNarrativeVersion;
+    const narrative = latestChecklist.discoveryQuestionsVersion?.salesNarrativeVersion;
 
     // Build the prompt for Chatbase
     // IMPORTANT: Instructions come FIRST so they survive if the message gets truncated.
@@ -97,7 +97,7 @@ ${latestChecklist.content}
 
 ## SALES NARRATIVE:
 
-${narrative.narrative}
+${narrative?.narrative ?? "No sales narrative available."}
 
 ---
 

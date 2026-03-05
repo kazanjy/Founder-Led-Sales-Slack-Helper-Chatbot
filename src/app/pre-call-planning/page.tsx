@@ -72,6 +72,10 @@ function PreCallPlanningContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importText, setImportText] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
@@ -192,6 +196,61 @@ function PreCallPlanningContent() {
     }
   };
 
+  const handleImportText = async () => {
+    if (!importText.trim() || importText.trim().length < 50) {
+      await showAlert({ title: "Error", message: "Please provide more content (at least 50 characters).", variant: "danger" });
+      return;
+    }
+    setImporting(true);
+    try {
+      const response = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appletType: "preCallPlanning", content: importText }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({ title: "Error", message: data.error || "Failed to import content", variant: "danger" });
+        return;
+      }
+      const data = await response.json();
+      setVersion(data.version);
+      setEditedContent(data.version?.content || "");
+      setShowImport(false);
+      setImportText("");
+    } catch (error) {
+      console.error("Error importing:", error);
+      await showAlert({ title: "Error", message: "Failed to import content. Please try again.", variant: "danger" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportPDF = async (file: File) => {
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("appletType", "preCallPlanning");
+      const response = await fetch("/api/import", { method: "POST", body: formData });
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({ title: "Error", message: data.error || "Failed to import PDF", variant: "danger" });
+        return;
+      }
+      const data = await response.json();
+      setVersion(data.version);
+      setEditedContent(data.version?.content || "");
+      setShowImport(false);
+      setImportText("");
+    } catch (error) {
+      console.error("Error importing PDF:", error);
+      await showAlert({ title: "Error", message: "Failed to import PDF. Please try again.", variant: "danger" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!version) return;
     const success = await copyMarkdownAsRichText(version.content);
@@ -291,67 +350,134 @@ function PreCallPlanningContent() {
     );
   }
 
-  // No first call checklist - need to create it first
-  if (!hasFirstCallChecklist && !version) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <SalesNavBar />
-        <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
-          <div className="text-center max-w-md px-6">
-            <div className="text-6xl mb-4">📋</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">First Call Checklist Required</h1>
-            <p className="text-gray-600 mb-6">
-              The pre-call checklist is generated from your first call checklist. Create a first call checklist first to get started.
-            </p>
-            <Link
-              href="/first-call-checklist"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              Create First Call Checklist
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Has first call checklist but no pre-call planning yet
+  // No version yet - show generate + import options
   if (!version) {
     return (
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
-          <div className="text-center max-w-md px-6">
-            <div className="text-6xl mb-4">🎯</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Generate Pre-Call Checklist</h1>
-            <p className="text-gray-600 mb-6">
-              Create a comprehensive preparation process to use before every sales call. Includes research frameworks, prospect templates, and call preparation checklists.
-            </p>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50"
-            >
-              {generating ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Generate Pre-Call Checklist
-                </>
-              )}
-            </button>
+          <div className="text-center max-w-lg px-6">
+            {showImport ? (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Your Pre-Call Checklist</h1>
+                <p className="text-gray-600 mb-6">
+                  Paste your existing pre-call preparation document below, or upload a PDF. We&apos;ll organize it into our format.
+                </p>
+                <div className="text-left space-y-4">
+                  <textarea
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                    placeholder="Paste your pre-call checklist or preparation document here..."
+                    rows={10}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-sm"
+                    disabled={importing}
+                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleImportText}
+                      disabled={importing || importText.trim().length < 50}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium disabled:opacity-50"
+                    >
+                      {importing ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Processing...
+                        </>
+                      ) : "Import Text"}
+                    </button>
+                    <span className="text-gray-400 text-sm">or</span>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={importing}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Upload PDF
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImportPDF(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => { setShowImport(false); setImportText(""); }}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                    disabled={importing}
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl mb-4">🎯</div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Pre-Call Checklist</h1>
+                <p className="text-gray-600 mb-6">
+                  {hasFirstCallChecklist
+                    ? "Generate a pre-call checklist from your first call checklist, or import your own."
+                    : "Import your existing pre-call checklist, or create a first call checklist first to auto-generate one."}
+                </p>
+                <div className="flex flex-col items-center gap-3">
+                  {hasFirstCallChecklist && (
+                    <button
+                      onClick={handleGenerate}
+                      disabled={generating}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 w-full justify-center"
+                    >
+                      {generating ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Generate from First Call Checklist
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowImport(true)}
+                    disabled={generating}
+                    className={`inline-flex items-center gap-2 px-6 py-3 ${hasFirstCallChecklist ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg"} rounded-lg transition-all font-medium disabled:opacity-50 w-full justify-center`}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Import Your Own
+                  </button>
+                  {!hasFirstCallChecklist && (
+                    <Link
+                      href="/first-call-checklist"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium w-full justify-center"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                      Create First Call Checklist to Auto-Generate
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

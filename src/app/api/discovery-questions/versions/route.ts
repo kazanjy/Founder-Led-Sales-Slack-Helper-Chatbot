@@ -44,7 +44,7 @@ export async function GET() {
         id: v.id,
         questionCount,
         salesNarrativeVersionId: v.salesNarrativeVersionId,
-        salesNarrativeCreatedAt: v.salesNarrativeVersion.createdAt,
+        salesNarrativeCreatedAt: v.salesNarrativeVersion?.createdAt ?? null,
         createdAt: v.createdAt,
       };
     });

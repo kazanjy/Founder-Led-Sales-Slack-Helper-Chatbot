@@ -624,9 +624,9 @@ model DiscoveryQuestionsVersion {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // The sales narrative version used as input
-  salesNarrativeVersionId String
-  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  // The sales narrative version used as input (null for imported content)
+  salesNarrativeVersionId String?
+  salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Generated output - the discovery questions content
   content     String   @db.Text
@@ -651,9 +651,9 @@ model FirstCallChecklistVersion {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // The discovery questions version used as input
-  discoveryQuestionsVersionId String
-  discoveryQuestionsVersion   DiscoveryQuestionsVersion @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
+  // The discovery questions version used as input (null for imported content)
+  discoveryQuestionsVersionId String?
+  discoveryQuestionsVersion   DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
 
   // Generated output - the first call checklist content (markdown)
   content     String   @db.Text
@@ -683,9 +683,9 @@ model PreCallPlanningVersion {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // The first call checklist version used as input
-  firstCallChecklistVersionId String
-  firstCallChecklistVersion   FirstCallChecklistVersion @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
+  // The first call checklist version used as input (null for imported content)
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
 
   // Generated output - the pre-call planning process content (markdown)
   content     String   @db.Text

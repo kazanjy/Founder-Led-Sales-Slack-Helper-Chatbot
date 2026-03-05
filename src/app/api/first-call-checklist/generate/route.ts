@@ -178,7 +178,7 @@ Make everything specific and actionable — include verbatim scripts, not generi
 
 ## SALES NARRATIVE:
 
-${narrative.narrative}
+${narrative?.narrative ?? "No sales narrative available."}
 
 ## DISCOVERY QUESTIONS:
 
