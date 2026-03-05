@@ -1666,6 +1666,8 @@ export default function ChatPage() {
           conversationId = data.conversation.id;
           setConversations([data.conversation, ...conversations]);
           selectConversation(conversationId);
+          // Re-set since selectConversation resets sending state
+          isSendingRef.current = true;
         }
       } catch (error) {
         console.error("Error creating conversation:", error);
