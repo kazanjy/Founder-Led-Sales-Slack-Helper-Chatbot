@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     const typeLabel = typeLabels[sharedDoc.documentType] || sharedDoc.documentType;
-    const title = `${sharedDoc.title} | ${typeLabel} - Shared from Mikey`;
+    const title = `${sharedDoc.title} - Shared from Mikey`;
 
     const description = sharedDoc.content.length > 200
       ? sharedDoc.content.substring(0, 197) + "..."

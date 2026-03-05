@@ -130,7 +130,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
           </p>
         </div>
 
-        <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 text-[17px]">
+        <div className="prose max-w-none prose-p:my-4 prose-headings:mt-8 prose-headings:mb-4 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-hr:my-8 text-[17px] prose-h2:mt-10 prose-h3:mt-8">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
         </div>
 

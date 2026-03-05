@@ -352,7 +352,7 @@ function ResearchContent() {
               <ShareDocumentButton
                 documentType="preCallResearch"
                 documentId={brief.id}
-                title={`Pre-Call Research: ${brief.companyName}${brief.contactName ? ` - ${brief.contactName}` : ""}`}
+                title={`Pre-Call Research: ${brief.companyName}${brief.contactName ? ` - ${brief.contactName}` : ""}${brief.contactTitle ? `, ${brief.contactTitle}` : ""}`}
                 content={brief.content}
               />
               <button
