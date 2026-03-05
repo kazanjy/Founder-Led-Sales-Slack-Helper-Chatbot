@@ -22,6 +22,8 @@ export interface AnalysisResult {
   summary: string;
   topStrength: string;
   topImprovement: string;
+  repName: string;
+  prospectCompany: string;
 }
 
 /**
@@ -74,6 +76,7 @@ ${contextSection}
 4. Check each red flag — mark as triggered (true/false) with a note
 5. Write a 2-3 sentence overall summary
 6. Identify the top strength and top area for improvement
+7. Extract the sales rep's name and the prospect's company name from the transcript
 
 ## REQUIRED OUTPUT FORMAT
 
@@ -138,7 +141,9 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
   },
   "summary": "2-3 sentence overall assessment",
   "topStrength": "The single biggest strength",
-  "topImprovement": "The single biggest area for improvement"
+  "topImprovement": "The single biggest area for improvement",
+  "repName": "The sales rep's name (or 'Unknown' if not identifiable)",
+  "prospectCompany": "The prospect's company name (or 'Unknown' if not identifiable)"
 }`;
 
   const response = await openai.chat.completions.create({

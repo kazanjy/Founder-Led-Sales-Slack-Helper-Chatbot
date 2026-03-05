@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { DISCOVERY_CALL_RUBRIC } from "@/lib/call-review/rubric";
 
 interface ScoreItem {
@@ -152,6 +153,8 @@ function CallReviewContent() {
       setVersion(data.version);
       setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
       setTranscript("");
+      // Update URL with version ID for sharing/bookmarking
+      window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
     } catch (error) {
       console.error("Error analyzing:", error);
       await showAlert({
@@ -343,6 +346,43 @@ function CallReviewContent() {
     );
   }
 
+  // Build shareable markdown content from the scorecard
+  const buildShareContent = (): string => {
+    let md = `# ${version.title || "Discovery Call Review"}\n\n`;
+    md += `**Score: ${version.overallScore}/${version.maxScore}** (${Math.round((version.overallScore / version.maxScore) * 100)}%)\n\n`;
+    md += `${version.scores.summary}\n\n`;
+    md += `**Top Strength:** ${version.scores.topStrength}\n\n`;
+    md += `**Top Improvement:** ${version.scores.topImprovement}\n\n`;
+
+    // Red flags
+    const flags = version.scores.redFlags
+      ? Object.entries(version.scores.redFlags).filter(([, v]) => v.triggered)
+      : [];
+    if (flags.length > 0) {
+      md += `## Red Flags\n\n`;
+      for (const [key, flag] of flags) {
+        const rubricFlag = DISCOVERY_CALL_RUBRIC.redFlags.find((f) => f.key === key);
+        md += `- **${rubricFlag?.label || key}:** ${flag.note}\n`;
+      }
+      md += "\n";
+    }
+
+    // Sections
+    for (const section of DISCOVERY_CALL_RUBRIC.sections) {
+      const sectionScores = version.scores.sections?.[section.key];
+      if (!sectionScores) continue;
+      const sScore = Object.values(sectionScores.items).reduce((s, i) => s + i.score, 0);
+      md += `## ${section.label} (${sScore}/${section.maxScore})\n\n`;
+      for (const item of section.items) {
+        const scored = sectionScores.items[item.key];
+        if (!scored) continue;
+        md += `- **${item.label}:** ${scored.score}/2 — ${scored.evidence}\n`;
+      }
+      md += "\n";
+    }
+    return md;
+  };
+
   // Show scorecard
   const triggeredFlags = version.scores.redFlags
     ? Object.entries(version.scores.redFlags).filter(([, v]) => v.triggered)
@@ -364,19 +404,34 @@ function CallReviewContent() {
               </Link>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  Discovery Call Review
+                  {version.title || "Discovery Call Review"}
                 </h1>
                 <p className="text-sm text-gray-500">
-                  {formatDate(version.createdAt)}
+                  {formatDate(version.createdAt)} &middot; {version.overallScore}/{version.maxScore} ({Math.round((version.overallScore / version.maxScore) * 100)}%)
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/call-review/history"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                History
+              </Link>
+              <ShareDocumentButton
+                documentType="callReview"
+                documentId={version.id}
+                title={version.title || "Discovery Call Review"}
+                content={buildShareContent()}
+              />
               {version.conversationId && (
                 <Link
                   href={`/chat/${version.conversationId}`}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2 text-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

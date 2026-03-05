@@ -62,10 +62,14 @@ export async function POST(request: NextRequest) {
     // Calculate overall score
     const { overall, max } = calculateOverallScore(analysis);
 
-    // Generate a title from the summary
-    const title = analysis.summary.length > 80
-      ? analysis.summary.substring(0, 77) + "..."
-      : analysis.summary;
+    // Generate a rich title: "Rep Name - Prospect Company - Discovery Call"
+    const repName = analysis.repName && analysis.repName !== "Unknown" ? analysis.repName : null;
+    const prospectCompany = analysis.prospectCompany && analysis.prospectCompany !== "Unknown" ? analysis.prospectCompany : null;
+    const titleParts: string[] = [];
+    if (repName) titleParts.push(repName);
+    if (prospectCompany) titleParts.push(prospectCompany);
+    titleParts.push("Discovery Call");
+    const title = titleParts.join(" - ");
 
     // Save to DB
     const version = await prisma.callReviewVersion.create({

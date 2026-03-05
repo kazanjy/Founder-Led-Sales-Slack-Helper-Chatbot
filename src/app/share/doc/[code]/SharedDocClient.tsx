@@ -17,6 +17,7 @@ const typeLabels: Record<string, string> = {
   firstCallChecklist: "First Call Checklist",
   preCallPlanning: "Pre-Call Checklist",
   preCallResearch: "Pre-Call Research",
+  callReview: "Call Review Scorecard",
 };
 
 interface SharedDocClientProps {

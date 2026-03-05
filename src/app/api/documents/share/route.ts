@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const validTypes = ["salesNarrative", "discoveryQuestions", "firstCallChecklist", "preCallPlanning", "preCallResearch", "emailSequence", "linkedInSequence"];
+    const validTypes = ["salesNarrative", "discoveryQuestions", "firstCallChecklist", "preCallPlanning", "preCallResearch", "emailSequence", "linkedInSequence", "callReview"];
     if (!validTypes.includes(documentType)) {
       return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
     }
