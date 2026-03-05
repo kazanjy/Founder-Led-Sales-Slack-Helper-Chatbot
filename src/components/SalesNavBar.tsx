@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,17 +10,20 @@ interface NavItem {
   statusKey: string;
 }
 
-const navItems: NavItem[] = [
+const topLevelItems: NavItem[] = [
   { href: "/chat", label: "💬 Chat", statusKey: "chat" },
+  { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
+  { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
+  { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
+  { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
+];
+
+const playbookItems: NavItem[] = [
   { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
   { href: "/sales-narrative", label: "📖 Sales Narrative", statusKey: "salesNarrative" },
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
-  { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
-  { href: "/email-sequence", label: "📧 Email Sequence", statusKey: "emailSequence" },
-  { href: "/linkedin-sequence", label: "💼 LinkedIn Sequence", statusKey: "linkedInSequence" },
-  { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
 ];
 
 interface CompletionStatus {
@@ -30,6 +33,8 @@ interface CompletionStatus {
 export default function SalesNavBar() {
   const pathname = usePathname();
   const [status, setStatus] = useState<CompletionStatus>({});
+  const [playbookOpen, setPlaybookOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function fetchStatus() {
@@ -64,6 +69,19 @@ export default function SalesNavBar() {
     fetchStatus();
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setPlaybookOpen(false);
+      }
+    }
+    if (playbookOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [playbookOpen]);
+
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/assessment/bulk") return pathname.startsWith("/assessment");
@@ -72,11 +90,69 @@ export default function SalesNavBar() {
     return pathname === href || pathname.startsWith(href + "/");
   };
 
+  const isPlaybookActive = playbookItems.some((item) => isActive(item.href));
+  const playbookCompletedCount = playbookItems.filter((item) => status[item.statusKey]).length;
+
   return (
     <nav className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mb-px">
-          {navItems.map((item) => (
+          {/* Chat */}
+          <Link
+            href="/chat"
+            className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${
+              isActive("/chat")
+                ? "border-purple-600 text-purple-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            💬 Chat
+          </Link>
+
+          {/* Playbook dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setPlaybookOpen(!playbookOpen)}
+              className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${
+                isPlaybookActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              📒 Playbook
+              {playbookCompletedCount > 0 && (
+                <span className="text-xs text-green-600 font-medium">{playbookCompletedCount}/{playbookItems.length}</span>
+              )}
+              <svg className={`w-3.5 h-3.5 transition-transform ${playbookOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {playbookOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+                {playbookItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setPlaybookOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && (
+                      <span className="text-green-500 text-xs">✔️</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Operational top-level items (skip Chat, already rendered) */}
+          {topLevelItems.slice(1).map((item) => (
             <Link
               key={item.href}
               href={item.href}
