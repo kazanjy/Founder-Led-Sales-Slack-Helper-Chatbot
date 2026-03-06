@@ -132,9 +132,8 @@ This should be punchy, specific, and immediately useful — not generic filler. 
 - Connection points (shared interests, mutual connections, common experiences)
 
 ### Business Context
-- Current challenges or pain points (inferred from news, job postings, industry trends)
-- Technology stack or current solutions (if discoverable from job postings/ads, skills data, or other signals)
-- What their job postings/ads reveal about organizational priorities, growth areas, and tools they use
+- Current challenges or pain points (inferred from news, industry trends, and other signals)
+- Technology stack or current solutions (if discoverable from skills data or other signals)
 - Growth trajectory and strategic direction
 - Competitive pressures
 ${personaAndPovSections}

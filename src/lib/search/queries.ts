@@ -6,8 +6,6 @@ import type { ParsedSearchInput, SearchPlan, SearchQuery } from "./types";
  * Person and company data comes from People Data Labs enrichment
  * (handled in results.ts). This plan also generates:
  * - Direct URL fetches for the company homepage and LinkedIn profile
- * - A Brave search for job postings / ads to infer technographics,
- *   growth areas, and organizational priorities
  */
 export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
   const queries: SearchQuery[] = [];
@@ -28,13 +26,6 @@ export function generateSearchPlan(input: ParsedSearchInput): SearchPlan {
       purpose: "Contact LinkedIn profile",
     });
   }
-
-  // Job postings / ads — reveals tech stack, growth areas, and org priorities
-  queries.push({
-    query: `"${input.companyName}" jobs OR careers OR hiring`,
-    purpose: "Job postings and ads to infer technographics, growth areas, and organizational priorities",
-    priority: 1,
-  });
 
   return {
     queries,
