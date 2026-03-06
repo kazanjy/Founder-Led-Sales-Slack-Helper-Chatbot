@@ -616,6 +616,44 @@ function EmailSequenceContent() {
           </div>
         )}
 
+        {!isEditing && (
+          <div className="mb-6 bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              Generated From
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-800 font-medium">Sales Narrative</p>
+                {version.salesNarrativeVersion && (
+                  <p className="text-sm text-gray-500">
+                    Created {formatDate(version.salesNarrativeVersion.createdAt)}
+                  </p>
+                )}
+              </div>
+              <Link
+                href="/sales-narrative"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+              >
+                View Narrative →
+              </Link>
+            </div>
+            {version.conversationId && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <Link
+                  href={`/chat/${version.conversationId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
+                >
+                  💬 Chat About This Sequence →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
@@ -632,40 +670,6 @@ function EmailSequenceContent() {
           </div>
         </div>
 
-        {/* Source Info + Chat Link */}
-        {!isEditing && (
-          <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Generated From
-            </h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-800 font-medium">Sales Narrative</p>
-                {version.salesNarrativeVersion && (
-                  <p className="text-sm text-gray-500">
-                    Created {formatDate(version.salesNarrativeVersion.createdAt)}
-                  </p>
-                )}
-              </div>
-              <Link
-                href={`/sales-narrative`}
-                className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-              >
-                View Narrative →
-              </Link>
-            </div>
-            {version.conversationId && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <Link
-                  href={`/chat/${version.conversationId}`}
-                  className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
-                >
-                  💬 Chat About This Sequence →
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
       </div>
       {ConfirmModalElement}
     </div>
