@@ -397,6 +397,19 @@ function BulkAssessmentContent() {
                 </span>
               )}
 
+              {/* View History link - show in update mode (implies prior assessments exist) */}
+              {mode === "update" && (
+                <Link
+                  href="/maturity-history"
+                  className="px-3 py-2 text-sm text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  History
+                </Link>
+              )}
+
               {/* Save for Later button */}
               <button
                 onClick={handleSaveAll}

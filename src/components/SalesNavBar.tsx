@@ -96,7 +96,7 @@ export default function SalesNavBar() {
 
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
-    if (href === "/assessment/bulk") return pathname.startsWith("/assessment");
+    if (href === "/assessment/bulk") return pathname.startsWith("/assessment") || pathname.startsWith("/maturity-history");
     if (href === "/pre-call-planning/research") return pathname.startsWith("/pre-call-planning/research");
     if (href === "/pre-call-planning") return pathname === "/pre-call-planning" || pathname === "/pre-call-planning/history";
     return pathname === href || pathname.startsWith(href + "/");
@@ -146,23 +146,29 @@ export default function SalesNavBar() {
 
             {playbookOpen && (
               <div className="absolute top-full left-0 mt-px bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
-                {playbookItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setPlaybookOpen(false)}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                      isActive(item.href)
-                        ? "bg-purple-50 text-purple-700"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="flex-1">{item.label}</span>
-                    {status[item.statusKey] && (
-                      <span className="text-green-500 text-xs">✔️</span>
-                    )}
-                  </Link>
-                ))}
+                {playbookItems.map((item) => {
+                  // When assessment is completed, link to history page instead of the form
+                  const href = item.statusKey === "assessment" && status[item.statusKey]
+                    ? "/maturity-history"
+                    : item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={href}
+                      onClick={() => setPlaybookOpen(false)}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                        isActive(item.href)
+                          ? "bg-purple-50 text-purple-700"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex-1">{item.label}</span>
+                      {status[item.statusKey] && (
+                        <span className="text-green-500 text-xs">✔️</span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
