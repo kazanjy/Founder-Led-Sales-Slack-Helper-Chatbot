@@ -4,7 +4,11 @@ import { getCurrentUser } from "@/lib/auth";
 
 /**
  * POST /api/chat/[id]/clone
- * Clone a shared chat to the current user's account
+ * Clone a chat to the current user's account.
+ * Works for both the owner (branching off) and shared-chat recipients.
+ * The cloned conversation intentionally has no chatbaseConversationId so
+ * that the full message history is sent to Chatbase on the first new message,
+ * preserving all prior context in the new branch.
  */
 export async function POST(
   request: Request,
@@ -19,7 +23,7 @@ export async function POST(
     const { id: conversationId } = await params;
     const userEmail = user.email || user.slackEmail;
 
-    // Get the conversation and verify it's shared with this user
+    // Get the conversation and verify access
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
@@ -60,33 +64,39 @@ export async function POST(
       );
     }
 
-    // If they own it, just return the same conversation
+    // Build the cloned conversation title
+    let clonedTitle: string;
     if (isOwner) {
-      return NextResponse.json({
-        success: true,
-        conversationId: conversation.id,
-        message: "This is already your chat",
-      });
+      // Owner cloning their own chat to branch off
+      clonedTitle = conversation.title
+        ? `${conversation.title} (copy)`
+        : "Chat (copy)";
+    } else {
+      // Cloning a shared chat from someone else
+      const originalOwnerName =
+        conversation.user.name ||
+        conversation.user.email ||
+        conversation.user.slackEmail ||
+        "Unknown";
+      clonedTitle = conversation.title
+        ? `${conversation.title} (from ${originalOwnerName})`
+        : `Chat from ${originalOwnerName}`;
     }
 
-    // Create a cloned conversation
-    const originalOwnerName =
-      conversation.user.name ||
-      conversation.user.email ||
-      conversation.user.slackEmail ||
-      "Unknown";
-
+    // Create a cloned conversation (no chatbaseConversationId — context
+    // will be rebuilt from message history on the first new message)
     const clonedConversation = await prisma.conversation.create({
       data: {
         userId: user.id,
         source: "WEB",
-        title: conversation.title
-          ? `${conversation.title} (from ${originalOwnerName})`
-          : `Chat from ${originalOwnerName}`,
+        title: clonedTitle,
         firstMessagePreview: conversation.firstMessagePreview,
         messageCount: conversation.messageCount,
         ...(conversation.attachmentsIncluded !== null && {
           attachmentsIncluded: conversation.attachmentsIncluded,
+        }),
+        ...(conversation.imagesIncluded !== null && {
+          imagesIncluded: conversation.imagesIncluded,
         }),
       },
     });
