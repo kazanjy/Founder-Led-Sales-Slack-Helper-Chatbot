@@ -20,6 +20,7 @@ export function NewButtonDropdown({
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useRef(`new-btn-pdf-${Math.random().toString(36).slice(2, 8)}`);
 
   const busy = generating || importing;
 
@@ -77,26 +78,25 @@ export function NewButtonDropdown({
             </svg>
             Regenerate
           </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              fileInputRef.current?.click();
-            }}
-            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+          <label
+            htmlFor={fileInputId.current}
+            onClick={() => setOpen(false)}
+            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer"
           >
             <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             Upload PDF
-          </button>
+          </label>
         </div>
       )}
 
       <input
         ref={fileInputRef}
+        id={fileInputId.current}
         type="file"
         accept=".pdf"
-        className="hidden"
+        className="sr-only"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onUploadPDF(file);
