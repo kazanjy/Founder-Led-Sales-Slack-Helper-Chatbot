@@ -592,17 +592,17 @@ function LinkedInSequenceContent() {
 
       <div className="max-w-5xl mx-auto px-6 py-8">
         {!isEditing && (
-          <div className="flex items-center gap-3 mb-6">
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-medium rounded-full">
-              🏢 {version.orgPersona}
-            </span>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
-              👤 {version.humanPersona}
-            </span>
+          <div className="flex flex-col gap-3 mb-6">
+            <div className="px-4 py-3 bg-purple-50 text-purple-800 text-sm rounded-xl border border-purple-100">
+              <span className="font-semibold text-purple-600">Org Persona:</span> {version.orgPersona}
+            </div>
+            <div className="px-4 py-3 bg-blue-50 text-blue-800 text-sm rounded-xl border border-blue-100">
+              <span className="font-semibold text-blue-600">Human Persona:</span> {version.humanPersona}
+            </div>
             {version.specialNotes && (
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
-                📝 {version.specialNotes.length > 40 ? version.specialNotes.substring(0, 40) + "..." : version.specialNotes}
-              </span>
+              <div className="px-4 py-3 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
+                <span className="font-semibold text-gray-500">Notes:</span> {version.specialNotes}
+              </div>
             )}
           </div>
         )}
