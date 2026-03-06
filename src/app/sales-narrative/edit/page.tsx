@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 
 interface Question {
   id: string;
@@ -71,7 +72,6 @@ function SalesNarrativeEditContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [grouped, setGrouped] = useState<CategoryGroup[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -98,19 +98,6 @@ function SalesNarrativeEditContent() {
     document.title = "Edit Sales Narrative - Mikey";
   }, []);
 
-  // Cycle through loading messages when generating
-  useEffect(() => {
-    if (!generating) {
-      setLoadingMessageIndex(0);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setLoadingMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [generating]);
 
   // Cycle through pre-fill loading messages
   useEffect(() => {
@@ -458,41 +445,13 @@ function SalesNarrativeEditContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Generation Loading Overlay */}
-      {generating && (
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 z-50 flex flex-col items-center justify-center text-white">
-          <div className="flex gap-3 text-5xl mb-8">
-            {["✍️", "📝", "✨"].map((emoji, i) => (
-              <span
-                key={i}
-                className="animate-bounce"
-                style={{ animationDelay: `${i * 0.2}s`, animationDuration: "1s" }}
-              >
-                {emoji}
-              </span>
-            ))}
-          </div>
-
-          <div className="relative w-20 h-20 mb-8">
-            <div className="absolute inset-0 border-4 border-white/20 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
-            <div className="absolute inset-2 border-4 border-transparent border-t-white/60 rounded-full animate-spin" style={{ animationDirection: "reverse", animationDuration: "1.5s" }}></div>
-          </div>
-
-          <h3 className="text-2xl font-bold mb-4 text-center px-6">
-            Generating Your Sales Narrative
-          </h3>
-
-          <div className="h-8 flex items-center justify-center">
-            <p className="text-lg text-white/90 animate-pulse">
-              {LOADING_MESSAGES[loadingMessageIndex]}...
-            </p>
-          </div>
-
-          <p className="text-sm text-white/60 mt-8">
-            Creating your narrative, value propositions, and tagline
-          </p>
-        </div>
-      )}
+      <GeneratingOverlay
+        visible={generating}
+        title="Generating Your Sales Narrative"
+        subtitle="Creating your narrative, value propositions, and tagline"
+        emojis={["✍️", "📝", "✨"]}
+        messages={LOADING_MESSAGES}
+      />
 
       {/* Floating Header */}
       <div

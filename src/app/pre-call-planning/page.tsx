@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
@@ -491,6 +492,20 @@ function PreCallPlanningContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={generating}
+        title="Generating Pre-Call Checklist"
+        subtitle="Preparing everything you need before your next call"
+        emojis={["📋", "📞", "🎯"]}
+        messages={[
+          "Reviewing your call checklist",
+          "Analyzing prospect context",
+          "Planning key discussion points",
+          "Mapping objection handlers",
+          "Structuring your approach",
+          "Finalizing your game plan",
+        ]}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">

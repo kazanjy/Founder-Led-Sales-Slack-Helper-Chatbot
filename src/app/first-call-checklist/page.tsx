@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
@@ -487,6 +488,20 @@ function FirstCallChecklistContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={generating}
+        title="Generating First Call Checklist"
+        subtitle="Building a structured checklist to nail your first call"
+        emojis={["✅", "📋", "🎯"]}
+        messages={[
+          "Reviewing your discovery questions",
+          "Mapping key talking points",
+          "Structuring the call flow",
+          "Adding qualification criteria",
+          "Building your checklist",
+          "Finalizing recommendations",
+        ]}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">

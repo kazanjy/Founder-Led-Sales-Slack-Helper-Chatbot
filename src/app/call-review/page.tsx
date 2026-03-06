@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { DISCOVERY_CALL_RUBRIC } from "@/lib/call-review/rubric";
 
@@ -473,6 +474,20 @@ function CallReviewContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={analyzing}
+        title="Analyzing Your Call"
+        subtitle="Reviewing your conversation against the discovery call rubric"
+        emojis={["📞", "🔍", "📊"]}
+        messages={[
+          "Reading your transcript",
+          "Identifying key moments",
+          "Scoring against the rubric",
+          "Analyzing question technique",
+          "Evaluating discovery depth",
+          "Preparing your scorecard",
+        ]}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">

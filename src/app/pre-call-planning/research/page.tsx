@@ -9,6 +9,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 interface ResearchBrief {
@@ -329,6 +330,21 @@ function ResearchContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={researching}
+        title="Researching Your Prospect"
+        subtitle="Deep-diving into your prospect's company and market"
+        emojis={["🔬", "🌐", "📊"]}
+        messages={[
+          "Scanning the web",
+          "Analyzing company data",
+          "Extracting key insights",
+          "Mapping the competitive landscape",
+          "Identifying pain points",
+          "Compiling your brief",
+        ]}
+        progress={progress}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">

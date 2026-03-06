@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
 const RichTextEditor = dynamic(
@@ -487,6 +488,20 @@ function LinkedInSequenceContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={generating}
+        title="Generating LinkedIn Sequence"
+        subtitle="Creating social selling messages that build relationships"
+        emojis={["💼", "🤝", "📱"]}
+        messages={[
+          "Analyzing your sales narrative",
+          "Crafting connection requests",
+          "Writing engaging messages",
+          "Building a value-first sequence",
+          "Optimizing message length",
+          "Polishing your outreach",
+        ]}
+      />
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">

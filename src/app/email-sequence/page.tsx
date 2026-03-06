@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
 const RichTextEditor = dynamic(
@@ -493,6 +494,20 @@ function EmailSequenceContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={generating}
+        title="Generating Email Sequence"
+        subtitle="Crafting a personalized outreach sequence that gets replies"
+        emojis={["📧", "✍️", "💌"]}
+        messages={[
+          "Analyzing your sales narrative",
+          "Crafting subject lines",
+          "Writing compelling openers",
+          "Building value propositions",
+          "Sequencing the cadence",
+          "Polishing your emails",
+        ]}
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
