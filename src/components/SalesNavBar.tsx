@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 interface NavItem {
   href: string;
@@ -35,10 +36,21 @@ export default function SalesNavBar() {
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
 
   useEffect(() => {
     async function fetchStatus() {
       try {
+        // Check impersonation status
+        fetch("/api/auth/me")
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.user?.isImpersonating) {
+              setImpersonating({ active: true, userName: data.user.name || data.user.email || null });
+            }
+          })
+          .catch(() => {});
+
         const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -94,7 +106,11 @@ export default function SalesNavBar() {
   const playbookCompletedCount = playbookItems.filter((item) => status[item.statusKey]).length;
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <>
+    {impersonating.active && (
+      <ImpersonationBanner userName={impersonating.userName} />
+    )}
+    <nav className={`bg-white border-b border-gray-200 ${impersonating.active ? "mt-10" : ""}`}>
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center gap-1 -mb-px flex-wrap">
           {/* Chat */}
@@ -171,5 +187,6 @@ export default function SalesNavBar() {
         </div>
       </div>
     </nav>
+    </>
   );
 }

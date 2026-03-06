@@ -7,7 +7,7 @@ import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
 import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
-import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GetStartedModal from "@/components/GetStartedModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
@@ -2341,10 +2341,6 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <SalesNavBar />
-      {/* Impersonation Banner */}
-      {user?.isImpersonating && (
-        <ImpersonationBanner userName={user.name || user.email} />
-      )}
       <div className={`flex-1 flex bg-white overflow-hidden`}>
       {/* Sidebar - fixed height, doesn't scroll with chat */}
       <div
