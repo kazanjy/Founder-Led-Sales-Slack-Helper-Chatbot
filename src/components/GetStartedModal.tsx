@@ -24,7 +24,7 @@ export default function GetStartedModal({ isOpen, onClose }: GetStartedModalProp
   };
 
   const handleSkip = () => {
-    localStorage.setItem("getStartedModalDismissed", "true");
+    sessionStorage.setItem("getStartedModalDismissed", "true");
     onClose();
   };
 

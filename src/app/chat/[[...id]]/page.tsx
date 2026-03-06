@@ -1276,7 +1276,7 @@ export default function ChatPage() {
     if (showMaturityModal || showProfileModal) return;
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("startAssessment") === "true") return;
-    const dismissed = localStorage.getItem("getStartedModalDismissed");
+    const dismissed = sessionStorage.getItem("getStartedModalDismissed");
     if (dismissed) return;
     setShowGetStartedModal(true);
   }, [loading, user, appProgress.salesNarrative, showMaturityModal, showProfileModal]);
