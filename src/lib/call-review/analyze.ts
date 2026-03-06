@@ -24,6 +24,12 @@ export interface AnalysisResult {
   topImprovement: string;
   repName: string;
   prospectCompany: string;
+  talkTime: {
+    participants: { name: string; role: "rep" | "prospect" | "other"; percentage: number }[];
+    repPercentage: number;
+    prospectPercentage: number;
+    assessment: string;
+  };
 }
 
 /**
@@ -77,6 +83,7 @@ ${contextSection}
 5. Write a 2-3 sentence overall summary
 6. Identify the top strength and top area for improvement
 7. Extract the sales rep's name and the prospect's company name from the transcript
+8. Analyze talk time: identify all participants, their roles (rep/prospect/other), and estimate each person's percentage of total talk time based on transcript length and speaking turns. Calculate the total rep percentage and total prospect percentage (all prospects combined). Provide a brief assessment of the talk time balance (ideal is rep ~40%, prospects ~60%).
 
 ## REQUIRED OUTPUT FORMAT
 
@@ -143,7 +150,16 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
   "topStrength": "The single biggest strength",
   "topImprovement": "The single biggest area for improvement",
   "repName": "The sales rep's name (or 'Unknown' if not identifiable)",
-  "prospectCompany": "The prospect's company name (or 'Unknown' if not identifiable)"
+  "prospectCompany": "The prospect's company name (or 'Unknown' if not identifiable)",
+  "talkTime": {
+    "participants": [
+      { "name": "Rep Name", "role": "rep", "percentage": 42 },
+      { "name": "Prospect Name", "role": "prospect", "percentage": 58 }
+    ],
+    "repPercentage": 42,
+    "prospectPercentage": 58,
+    "assessment": "Brief assessment of talk time balance"
+  }
 }`;
 
   const response = await openai.chat.completions.create({

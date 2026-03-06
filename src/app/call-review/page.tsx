@@ -24,12 +24,24 @@ interface RedFlagResult {
   note: string;
 }
 
+interface TalkTimeParticipant {
+  name: string;
+  role: "rep" | "prospect" | "other";
+  percentage: number;
+}
+
 interface AnalysisResult {
   sections: Record<string, SectionScores>;
   redFlags: Record<string, RedFlagResult>;
   summary: string;
   topStrength: string;
   topImprovement: string;
+  talkTime?: {
+    participants: TalkTimeParticipant[];
+    repPercentage: number;
+    prospectPercentage: number;
+    assessment: string;
+  };
 }
 
 interface CallReviewVersion {
@@ -414,6 +426,16 @@ function CallReviewContent() {
     md += `**Top Strength:** ${version.scores.topStrength}\n\n`;
     md += `**Top Improvement:** ${version.scores.topImprovement}\n\n`;
 
+    // Talk time
+    if (version.scores.talkTime) {
+      md += `## Talk Time\n\n`;
+      md += `**Rep:** ${version.scores.talkTime.repPercentage}% | **Prospect${version.scores.talkTime.participants.filter((p: { role: string }) => p.role === "prospect").length > 1 ? "s" : ""}:** ${version.scores.talkTime.prospectPercentage}%\n\n`;
+      for (const p of version.scores.talkTime.participants) {
+        md += `- ${p.name} (${p.role}): ${p.percentage}%\n`;
+      }
+      md += `\n_${version.scores.talkTime.assessment}_\n\n`;
+    }
+
     // Red flags
     const flags = version.scores.redFlags
       ? Object.entries(version.scores.redFlags).filter(([, v]) => v.triggered)
@@ -629,6 +651,65 @@ function CallReviewContent() {
               style={{ width: `${(version.overallScore / version.maxScore) * 100}%` }}
             />
           </div>
+
+          {/* Talk Time Analysis */}
+          {version.scores.talkTime && (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Talk Time
+              </h3>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 flex h-6 rounded-full overflow-hidden">
+                  <div
+                    className={`${version.scores.talkTime.repPercentage <= 50 ? "bg-blue-500" : "bg-blue-400"} flex items-center justify-center text-xs font-medium text-white`}
+                    style={{ width: `${version.scores.talkTime.repPercentage}%` }}
+                  >
+                    {version.scores.talkTime.repPercentage >= 15 && `${version.scores.talkTime.repPercentage}%`}
+                  </div>
+                  <div
+                    className={`${version.scores.talkTime.prospectPercentage >= 40 ? "bg-green-500" : "bg-orange-400"} flex items-center justify-center text-xs font-medium text-white`}
+                    style={{ width: `${version.scores.talkTime.prospectPercentage}%` }}
+                  >
+                    {version.scores.talkTime.prospectPercentage >= 15 && `${version.scores.talkTime.prospectPercentage}%`}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-4 text-xs text-gray-600 mb-3">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                  Rep ({version.scores.talkTime.repPercentage}%)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-2.5 h-2.5 rounded-full ${version.scores.talkTime.prospectPercentage >= 40 ? "bg-green-500" : "bg-orange-400"} inline-block`} />
+                  Prospect{version.scores.talkTime.participants.filter((p: { name: string; role: string; percentage: number }) => p.role === "prospect").length > 1 ? "s" : ""} ({version.scores.talkTime.prospectPercentage}%)
+                </span>
+              </div>
+              {/* Individual participants */}
+              <div className="space-y-1.5 mb-3">
+                {version.scores.talkTime.participants.map((p: { name: string; role: string; percentage: number }, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="w-24 text-gray-600 truncate font-medium">{p.name}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                      p.role === "rep" ? "bg-blue-100 text-blue-700" : p.role === "prospect" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {p.role}
+                    </span>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${p.role === "rep" ? "bg-blue-500" : p.role === "prospect" ? "bg-green-500" : "bg-gray-400"}`}
+                        style={{ width: `${p.percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-gray-500 w-8 text-right">{p.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 italic">{version.scores.talkTime.assessment}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-green-50 rounded-lg p-3 border border-green-200">
