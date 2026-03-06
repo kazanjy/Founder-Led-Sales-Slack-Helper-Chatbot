@@ -421,6 +421,23 @@ function CallReviewContent() {
                         </div>
                       )}
 
+                      {/* Supported services info */}
+                      {!detectedVendor && !extractionError && !shareUrl.trim() && (
+                        <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                          <p className="font-medium text-gray-600 mb-1.5">Supported services</p>
+                          <div className="space-y-1">
+                            <p>
+                              <span className="text-green-600 font-medium">Auto-extract:</span>{" "}
+                              {ALL_VENDORS.filter((v) => v.extractable).map((v) => v.name).join(", ")}
+                            </p>
+                            <p>
+                              <span className="text-amber-600 font-medium">Paste transcript:</span>{" "}
+                              {ALL_VENDORS.filter((v) => !v.extractable).map((v) => v.name).join(", ")}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Extract button */}
                       <button
                         onClick={async () => {

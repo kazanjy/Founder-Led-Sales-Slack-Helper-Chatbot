@@ -125,6 +125,10 @@ function DiscoveryQuestionsContent() {
             if (data.version?.content?.categories) {
               setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
             }
+            // Update URL with version ID for sharing/bookmarking
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/discovery-questions?version=${data.version.id}`);
+            }
           }
         }
 
@@ -207,6 +211,10 @@ function DiscoveryQuestionsContent() {
       if (data.version?.content?.categories) {
         setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
       }
+      // Update URL with version ID for sharing/bookmarking
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/discovery-questions?version=${data.version.id}`);
+      }
     } catch (error) {
       console.error("Error generating:", error);
       await showAlert({
@@ -241,6 +249,10 @@ function DiscoveryQuestionsContent() {
       if (data.version?.content?.categories) {
         setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
       }
+      // Update URL with version ID for sharing/bookmarking
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/discovery-questions?version=${data.version.id}`);
+      }
       setShowImport(false);
       setImportText("");
     } catch (error) {
@@ -267,6 +279,10 @@ function DiscoveryQuestionsContent() {
       setVersion(data.version);
       if (data.version?.content?.categories) {
         setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
+      }
+      // Update URL with version ID for sharing/bookmarking
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/discovery-questions?version=${data.version.id}`);
       }
       setShowImport(false);
       setImportText("");
