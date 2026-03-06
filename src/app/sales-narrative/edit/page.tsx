@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
@@ -64,6 +64,9 @@ export default function SalesNarrativeEditPage() {
 
 function SalesNarrativeEditContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillUrlFromParam = searchParams.get("prefillUrl");
+  const hasAutoTriggered = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -169,6 +172,16 @@ function SalesNarrativeEditContent() {
 
     loadData();
   }, [router]);
+
+  // Auto-populate URL from query param and flag for auto-trigger
+  const [shouldAutoTriggerPrefill, setShouldAutoTriggerPrefill] = useState(false);
+  useEffect(() => {
+    if (loading || !prefillUrlFromParam || hasAutoTriggered.current) return;
+    hasAutoTriggered.current = true;
+    setPrefillUrl(prefillUrlFromParam);
+    window.history.replaceState({}, "", "/sales-narrative/edit");
+    setShouldAutoTriggerPrefill(true);
+  }, [loading, prefillUrlFromParam]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -358,6 +371,14 @@ function SalesNarrativeEditContent() {
       setPrefilling(false);
     }
   };
+
+  // Auto-trigger prefill when URL was set from query param
+  useEffect(() => {
+    if (shouldAutoTriggerPrefill && !prefilling) {
+      setShouldAutoTriggerPrefill(false);
+      handlePrefill();
+    }
+  }, [shouldAutoTriggerPrefill, prefilling]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);

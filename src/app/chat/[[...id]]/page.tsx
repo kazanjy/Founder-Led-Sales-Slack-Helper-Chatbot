@@ -9,6 +9,7 @@ import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget"
 import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
+import GetStartedModal from "@/components/GetStartedModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
@@ -244,6 +245,7 @@ export default function ChatPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
+  const [showGetStartedModal, setShowGetStartedModal] = useState(false);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1265,6 +1267,19 @@ export default function ChatPage() {
       window.history.replaceState({}, "", newUrl);
     }
   }, [loading, user]);
+
+  // Show "Get Started" modal for users who haven't created a sales narrative yet
+  useEffect(() => {
+    if (loading || !user) return;
+    if (appProgress.salesNarrative === null) return;
+    if (appProgress.salesNarrative.hasGenerated) return;
+    if (showMaturityModal || showProfileModal) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("startAssessment") === "true") return;
+    const dismissed = localStorage.getItem("getStartedModalDismissed");
+    if (dismissed) return;
+    setShowGetStartedModal(true);
+  }, [loading, user, appProgress.salesNarrative, showMaturityModal, showProfileModal]);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -4354,6 +4369,12 @@ export default function ChatPage() {
           setShowGoogleModal(false);
           window.location.href = "/api/auth/google?link=true";
         }}
+      />
+
+      {/* Get Started Modal - prompts new users to create Sales Narrative */}
+      <GetStartedModal
+        isOpen={showGetStartedModal}
+        onClose={() => setShowGetStartedModal(false)}
       />
 
       {/* Profile Completion Modal */}
