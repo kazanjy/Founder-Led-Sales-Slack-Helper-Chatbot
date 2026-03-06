@@ -24,6 +24,9 @@ function isSupportedFile(file: File): boolean {
   return isImageFile(file) || isPDFFile(file);
 }
 
+// Unique ID counter for file inputs
+let fileInputIdCounter = 0;
+
 export function FileAttachmentButton({
   onFilesChange,
   disabled = false,
@@ -37,6 +40,8 @@ export function FileAttachmentButton({
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const imageInputId = useRef(`file-input-image-${++fileInputIdCounter}`);
+  const pdfInputId = useRef(`file-input-pdf-${++fileInputIdCounter}`);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -59,33 +64,38 @@ export function FileAttachmentButton({
   };
 
   const isMaxReached = currentCount >= maxFiles;
+  const isDisabled = disabled || isMaxReached;
 
   return (
     <>
       <input
         ref={imageInputRef}
+        id={imageInputId.current}
         type="file"
         accept="image/*"
         multiple
-        className="hidden"
+        className="sr-only"
         onChange={handleImageChange}
-        disabled={disabled || isMaxReached}
+        disabled={isDisabled}
       />
       <input
         ref={pdfInputRef}
+        id={pdfInputId.current}
         type="file"
         accept=".pdf,application/pdf"
         multiple
-        className="hidden"
+        className="sr-only"
         onChange={handlePDFChange}
-        disabled={disabled || isMaxReached}
+        disabled={isDisabled}
       />
-      {/* Image upload button */}
-      <button
-        type="button"
-        onClick={() => imageInputRef.current?.click()}
-        disabled={disabled || isMaxReached}
-        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      {/* Image upload label (acts as button) */}
+      <label
+        htmlFor={isDisabled ? undefined : imageInputId.current}
+        className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+          isDisabled
+            ? "text-gray-400 opacity-50 cursor-not-allowed"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+        }`}
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach image"}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,13 +106,15 @@ export function FileAttachmentButton({
             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
         </svg>
-      </button>
-      {/* PDF upload button */}
-      <button
-        type="button"
-        onClick={() => pdfInputRef.current?.click()}
-        disabled={disabled || isMaxReached}
-        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      </label>
+      {/* PDF upload label (acts as button) */}
+      <label
+        htmlFor={isDisabled ? undefined : pdfInputId.current}
+        className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+          isDisabled
+            ? "text-gray-400 opacity-50 cursor-not-allowed"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+        }`}
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach PDF"}
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
@@ -113,7 +125,7 @@ export function FileAttachmentButton({
           {/* PDF text */}
           <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
         </svg>
-      </button>
+      </label>
     </>
   );
 }
