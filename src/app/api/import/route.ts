@@ -7,31 +7,17 @@ import { extractTextFromPDFWithOCR } from "@/lib/pdf-server";
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
 
-type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning";
+type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence";
 
-const APPLET_CONFIGS: Record<
-  AppletType,
-  {
-    label: string;
-    mergeField: string;
-    mergeLabel: string;
-  }
-> = {
-  discoveryQuestions: {
-    label: "Discovery Questions",
-    mergeField: "DISCOVERY_QUESTIONS",
-    mergeLabel: "Discovery Questions",
-  },
-  firstCallChecklist: {
-    label: "First Call Checklist",
-    mergeField: "FIRST_CALL_CHECKLIST",
-    mergeLabel: "First Call Checklist",
-  },
-  preCallPlanning: {
-    label: "Pre-Call Checklist",
-    mergeField: "PRE_CALL_PLANNING",
-    mergeLabel: "Pre-Call Planning",
-  },
+const VALID_APPLET_TYPES = new Set<string>([
+  "discoveryQuestions", "firstCallChecklist", "preCallPlanning",
+  "salesNarrative", "emailSequence", "linkedInSequence",
+]);
+
+const MERGE_CONFIGS: Partial<Record<AppletType, { mergeField: string; mergeLabel: string }>> = {
+  discoveryQuestions: { mergeField: "DISCOVERY_QUESTIONS", mergeLabel: "Discovery Questions" },
+  firstCallChecklist: { mergeField: "FIRST_CALL_CHECKLIST", mergeLabel: "First Call Checklist" },
+  preCallPlanning: { mergeField: "PRE_CALL_PLANNING", mergeLabel: "Pre-Call Planning" },
 };
 
 function getDiscoveryQuestionsPrompt(inputText: string): string {
@@ -126,7 +112,71 @@ ${inputText}
 Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
 }
 
-// POST - Import user's own content for any of the 3 applets
+function getSalesNarrativePrompt(inputText: string): string {
+  return `You are an expert B2B sales coach. The user has provided their own sales narrative / value proposition document. Your job is to parse it into a structured format with multiple output lengths.
+
+## INPUT (user's existing sales narrative / value proposition):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Create a full sales narrative that preserves the user's messaging and value propositions
+3. Create progressively shorter versions that capture the essence
+4. Preserve the user's original wording, brand voice, and specific claims as much as possible
+
+## OUTPUT FORMAT (respond with ONLY valid JSON, no markdown):
+
+{
+  "narrative": "The full sales narrative in markdown format. Preserve the user's content, organize with headers and bullet points.",
+  "description100w": "A ~100-word product marketing summary capturing the key value proposition.",
+  "description50w": "A ~50-word elevator pitch.",
+  "description25w": "A ~25-word tagline/one-liner."
+}`;
+}
+
+function getEmailSequencePrompt(inputText: string): string {
+  return `You are an expert B2B sales coach. The user has provided their own email sequence / outreach document. Your job is to restructure it into a well-organized markdown document, preserving their content as faithfully as possible.
+
+## INPUT (user's existing email sequence):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Organize the emails into a clear sequence format with proper markdown
+3. Each email should have a clear subject line, body, and any notes
+4. Preserve the user's original wording, tone, and specific messaging as much as possible
+5. Use proper markdown formatting (headers, bullet points where appropriate)
+
+## OUTPUT:
+
+Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
+}
+
+function getLinkedInSequencePrompt(inputText: string): string {
+  return `You are an expert B2B sales coach. The user has provided their own LinkedIn outreach sequence. Your job is to restructure it into a well-organized markdown document, preserving their content as faithfully as possible.
+
+## INPUT (user's existing LinkedIn sequence):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Organize the messages into a clear sequence format with proper markdown
+3. Each message should be clearly labeled (connection request, follow-up 1, etc.)
+4. Preserve the user's original wording, tone, and specific messaging as much as possible
+5. Use proper markdown formatting (headers, bullet points where appropriate)
+
+## OUTPUT:
+
+Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
+}
+
+// POST - Import user's own content
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -138,6 +188,7 @@ export async function POST(request: NextRequest) {
 
     let appletType: AppletType;
     let inputText: string;
+    let uploadedFileName: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       // PDF upload
@@ -149,11 +200,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
       }
 
-      if (!type || !(type in APPLET_CONFIGS)) {
+      if (!type || !VALID_APPLET_TYPES.has(type)) {
         return NextResponse.json({ error: "Invalid applet type" }, { status: 400 });
       }
 
       appletType = type as AppletType;
+
+      uploadedFileName = file.name;
 
       // Extract text from PDF
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -172,7 +225,7 @@ export async function POST(request: NextRequest) {
       appletType = body.appletType;
       inputText = body.content;
 
-      if (!appletType || !(appletType in APPLET_CONFIGS)) {
+      if (!appletType || !VALID_APPLET_TYPES.has(appletType)) {
         return NextResponse.json({ error: "Invalid applet type" }, { status: 400 });
       }
 
@@ -183,8 +236,6 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-
-    const config = APPLET_CONFIGS[appletType];
 
     // Truncate input to avoid token limits
     const truncatedInput = inputText.substring(0, 30000);
@@ -203,6 +254,16 @@ export async function POST(request: NextRequest) {
         break;
       case "preCallPlanning":
         prompt = getPreCallPlanningPrompt(truncatedInput);
+        break;
+      case "salesNarrative":
+        prompt = getSalesNarrativePrompt(truncatedInput);
+        isJsonOutput = true;
+        break;
+      case "emailSequence":
+        prompt = getEmailSequencePrompt(truncatedInput);
+        break;
+      case "linkedInSequence":
+        prompt = getLinkedInSequencePrompt(truncatedInput);
         break;
     }
 
@@ -227,26 +288,18 @@ export async function POST(request: NextRequest) {
 
     switch (appletType) {
       case "discoveryQuestions": {
-        // Parse JSON response
         const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error("Failed to parse AI response as JSON");
-        }
+        if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
         const parsed = JSON.parse(jsonMatch[0]);
-        if (!parsed.categories || !Array.isArray(parsed.categories)) {
-          throw new Error("Invalid response structure");
-        }
+        if (!parsed.categories || !Array.isArray(parsed.categories)) throw new Error("Invalid response structure");
 
         const version = await prisma.discoveryQuestionsVersion.create({
-          data: {
-            userId: user.id,
-            content: JSON.stringify(parsed),
-          },
+          data: { userId: user.id, content: JSON.stringify(parsed) },
         });
 
-        // Update merge variable
         const mergeContent = formatDiscoveryQuestionsForMerge(parsed);
-        await upsertMergeVariable(user.id, config.mergeField, config.mergeLabel, mergeContent);
+        const mc = MERGE_CONFIGS[appletType]!;
+        await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, mergeContent);
 
         savedVersion = version;
         returnContent = parsed;
@@ -254,18 +307,12 @@ export async function POST(request: NextRequest) {
       }
 
       case "firstCallChecklist": {
-        // Clean markdown
         const cleanContent = cleanMarkdownResponse(aiContent);
-
         const version = await prisma.firstCallChecklistVersion.create({
-          data: {
-            userId: user.id,
-            content: cleanContent,
-          },
+          data: { userId: user.id, content: cleanContent },
         });
-
-        await upsertMergeVariable(user.id, config.mergeField, config.mergeLabel, cleanContent);
-
+        const mc = MERGE_CONFIGS[appletType]!;
+        await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, cleanContent);
         savedVersion = version;
         returnContent = cleanContent;
         break;
@@ -273,29 +320,127 @@ export async function POST(request: NextRequest) {
 
       case "preCallPlanning": {
         const cleanContent = cleanMarkdownResponse(aiContent);
-
         const version = await prisma.preCallPlanningVersion.create({
-          data: {
-            userId: user.id,
-            content: cleanContent,
-          },
+          data: { userId: user.id, content: cleanContent },
         });
-
-        await upsertMergeVariable(user.id, config.mergeField, config.mergeLabel, cleanContent);
-
+        const mc = MERGE_CONFIGS[appletType]!;
+        await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, cleanContent);
         savedVersion = version;
         returnContent = cleanContent;
         break;
       }
+
+      case "salesNarrative": {
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        const pdfNames = uploadedFileName ? [uploadedFileName] : [];
+        const version = await prisma.salesNarrativeVersion.create({
+          data: {
+            userId: user.id,
+            narrative: parsed.narrative || "",
+            description100w: parsed.description100w || "",
+            description50w: parsed.description50w || "",
+            description25w: parsed.description25w || "",
+            sourcePdfNames: pdfNames,
+          },
+        });
+
+        savedVersion = version;
+        returnContent = {
+          id: version.id,
+          narrative: parsed.narrative || "",
+          description100w: parsed.description100w || "",
+          description50w: parsed.description50w || "",
+          description25w: parsed.description25w || "",
+          sourceUrls: [],
+          sourcePdfNames: pdfNames,
+          createdAt: version.createdAt,
+        };
+        break;
+      }
+
+      case "emailSequence": {
+        const cleanContent = cleanMarkdownResponse(aiContent);
+
+        // Email sequences require a salesNarrativeVersionId — use latest if available
+        const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+
+        if (!latestNarrative) {
+          return NextResponse.json(
+            { error: "A sales narrative is required before importing an email sequence. Please create a sales narrative first." },
+            { status: 400 },
+          );
+        }
+
+        const version = await prisma.emailSequenceVersion.create({
+          data: {
+            userId: user.id,
+            content: cleanContent,
+            salesNarrativeVersionId: latestNarrative.id,
+            orgPersona: "Imported via PDF",
+            humanPersona: "Imported via PDF",
+          },
+          include: {
+            salesNarrativeVersion: { select: { id: true, createdAt: true } },
+          },
+        });
+
+        savedVersion = version;
+        returnContent = version;
+        break;
+      }
+
+      case "linkedInSequence": {
+        const cleanContent = cleanMarkdownResponse(aiContent);
+
+        const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+
+        if (!latestNarrative) {
+          return NextResponse.json(
+            { error: "A sales narrative is required before importing a LinkedIn sequence. Please create a sales narrative first." },
+            { status: 400 },
+          );
+        }
+
+        const version = await prisma.linkedInSequenceVersion.create({
+          data: {
+            userId: user.id,
+            content: cleanContent,
+            salesNarrativeVersionId: latestNarrative.id,
+            orgPersona: "Imported via PDF",
+            humanPersona: "Imported via PDF",
+          },
+          include: {
+            salesNarrativeVersion: { select: { id: true, createdAt: true } },
+          },
+        });
+
+        savedVersion = version;
+        returnContent = version;
+        break;
+      }
     }
+
+    // For complex types, returnContent is already the full version object
+    // For simple types, wrap it
+    const isFullObject = ["salesNarrative", "emailSequence", "linkedInSequence"].includes(appletType);
+    const responseVersion = isFullObject
+      ? returnContent
+      : { id: savedVersion.id, content: returnContent, createdAt: savedVersion.createdAt };
 
     return NextResponse.json({
       success: true,
-      version: {
-        id: savedVersion.id,
-        content: returnContent,
-        createdAt: savedVersion.createdAt,
-      },
+      version: responseVersion,
     });
   } catch (error) {
     console.error("Error importing content:", error);

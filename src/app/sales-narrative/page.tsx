@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -9,6 +9,7 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
+import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
 interface NarrativeVersion {
   id: string;
@@ -71,6 +72,7 @@ function SalesNarrativeContent() {
   const [edited50w, setEdited50w] = useState("");
   const [edited25w, setEdited25w] = useState("");
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const [importing, setImporting] = useState(false);
 
   // Set browser tab title
   useEffect(() => {
@@ -212,6 +214,29 @@ function SalesNarrativeContent() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleImportPDF = async (file: File) => {
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("appletType", "salesNarrative");
+      const response = await fetch("/api/import", { method: "POST", body: formData });
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({ title: "Error", message: data.error || "Failed to import PDF", variant: "danger" });
+        return;
+      }
+      const data = await response.json();
+      setVersion(data.version);
+      initEditFields(data.version);
+    } catch (error) {
+      console.error("Error importing PDF:", error);
+      await showAlert({ title: "Error", message: "Failed to import PDF. Please try again.", variant: "danger" });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -392,15 +417,11 @@ function SalesNarrativeContent() {
                     </svg>
                     Clone
                   </button>
-                  <Link
-                    href="/sales-narrative/edit"
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Regenerate
-                  </Link>
+                  <NewButtonDropdown
+                    onRegenerate={() => router.push("/sales-narrative/edit")}
+                    onUploadPDF={handleImportPDF}
+                    importing={importing}
+                  />
                 </>
               )}
             </div>
