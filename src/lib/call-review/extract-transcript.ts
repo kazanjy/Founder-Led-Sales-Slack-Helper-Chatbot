@@ -34,7 +34,7 @@ export async function extractTranscriptFromUrl(
   const waitTimeout = vendor.waitTimeout ?? 15_000;
   const extractionScript = getExtractionScript(vendor);
 
-  // Build the Browserless.io /function endpoint payload.
+  // Build the Browserless.io /chrome/function endpoint payload.
   // This works with Browserless v2 (browserless.io) — the most common
   // hosted headless-browser service. Adjust if using a different provider.
   const browserPayload = {
@@ -53,7 +53,9 @@ export async function extractTranscriptFromUrl(
       headers["Authorization"] = `Bearer ${serviceToken}`;
     }
 
-    const res = await fetch(`${serviceUrl}/function`, {
+    // Browserless v2 hosted service uses /chrome/function path
+    const endpoint = serviceUrl.replace(/\/+$/, "") + "/chrome/function";
+    const res = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(browserPayload),
