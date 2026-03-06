@@ -8,6 +8,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 interface NarrativeVersion {
   id: string;
@@ -338,6 +339,26 @@ function SalesNarrativeContent() {
                 </>
               ) : (
                 <>
+                  <ChatAboutButton
+                    title="Chat About Sales Narrative"
+                    getContext={() => {
+                      let context = "";
+                      if (answersByCategory) {
+                        context += "## Q&A Answers\n\n";
+                        for (const [category, answers] of Object.entries(answersByCategory)) {
+                          context += `### ${category}\n\n`;
+                          for (const qa of answers) {
+                            context += `Q${qa.globalOrder}: ${qa.question}\nA: ${qa.answer || "(Not answered)"}\n\n`;
+                          }
+                        }
+                      }
+                      context += "## Full Narrative\n\n" + (version?.narrative || "") + "\n\n";
+                      context += "## 100-Word Description\n\n" + (version?.description100w || "") + "\n\n";
+                      context += "## 50-Word Description\n\n" + (version?.description50w || "") + "\n\n";
+                      context += "## 25-Word Description\n\n" + (version?.description25w || "") + "\n";
+                      return context;
+                    }}
+                  />
                   <ShareDocumentButton
                     documentType="salesNarrative"
                     documentId={version.id}

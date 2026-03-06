@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 // Dynamically import RichTextEditor to avoid SSR issues
 const RichTextEditor = dynamic(
@@ -545,6 +546,10 @@ function FirstCallChecklistContent() {
                 </>
               ) : (
                 <>
+                  <ChatAboutButton
+                    title="Chat About First Call Checklist"
+                    getContext={() => version?.content || ""}
+                  />
                   <button
                     onClick={handleCopy}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"

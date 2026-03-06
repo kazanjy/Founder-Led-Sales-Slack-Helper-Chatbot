@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { DISCOVERY_CALL_RUBRIC } from "@/lib/call-review/rubric";
 
 interface ScoreItem {
@@ -472,6 +473,43 @@ function CallReviewContent() {
             </div>
 
             <div className="flex items-center gap-2">
+              <ChatAboutButton
+                title="Chat About Call Review"
+                getContext={() => {
+                  let context = "";
+                  if (version?.transcript) {
+                    context += "## Transcript\n\n" + version.transcript + "\n\n";
+                  }
+                  if (version?.scores) {
+                    context += "## Analysis\n\n";
+                    context += "Summary: " + (version.scores.summary || "") + "\n";
+                    context += "Top Strength: " + (version.scores.topStrength || "") + "\n";
+                    context += "Top Improvement: " + (version.scores.topImprovement || "") + "\n";
+                    context += `Score: ${version.overallScore}/${version.maxScore}\n\n`;
+                    for (const section of DISCOVERY_CALL_RUBRIC.sections) {
+                      const sectionScores = version.scores.sections?.[section.key];
+                      if (!sectionScores) continue;
+                      context += `### ${section.label}\n`;
+                      for (const item of section.items) {
+                        const scored = sectionScores.items[item.key];
+                        if (scored) {
+                          context += `- ${item.label}: ${scored.score}/2 — ${scored.evidence}\n`;
+                        }
+                      }
+                      context += "\n";
+                    }
+                  }
+                  context += "## Assessment Rubric\n\n";
+                  for (const section of DISCOVERY_CALL_RUBRIC.sections) {
+                    context += `### ${section.label}\n`;
+                    for (const item of section.items) {
+                      context += `- ${item.label}: 0=${item.scoringGuide["0"]}, 1=${item.scoringGuide["1"]}, 2=${item.scoringGuide["2"]}\n`;
+                    }
+                    context += "\n";
+                  }
+                  return context;
+                }}
+              />
               <Link
                 href="/call-review/history"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"

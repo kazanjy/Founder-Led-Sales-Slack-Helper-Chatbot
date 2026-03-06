@@ -9,6 +9,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 interface ResearchBrief {
   id: string;
@@ -349,6 +350,10 @@ function ResearchContent() {
             </div>
             {brief && (
               <div className="flex items-center gap-2">
+              <ChatAboutButton
+                title={`Chat About Pre-Call Research: ${brief.companyName}`}
+                getContext={() => brief?.content || ""}
+              />
               <ShareDocumentButton
                 documentType="preCallResearch"
                 documentId={brief.id}

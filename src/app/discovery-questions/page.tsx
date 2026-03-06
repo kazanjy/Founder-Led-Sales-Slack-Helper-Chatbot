@@ -7,6 +7,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -646,6 +647,27 @@ function DiscoveryQuestionsContent() {
                 </>
               ) : (
                 <>
+                  <ChatAboutButton
+                    title="Chat About Discovery Questions"
+                    getContext={() => {
+                      if (!version?.content?.categories) return "";
+                      let content = "";
+                      for (const category of version.content.categories) {
+                        content += `## ${category.name}\n${category.description ? category.description + "\n" : ""}\n`;
+                        for (let i = 0; i < category.questions.length; i++) {
+                          const q = category.questions[i];
+                          content += `${i + 1}. ${q.primary}\n`;
+                          if (q.followUps?.length > 0) {
+                            for (const followUp of q.followUps) {
+                              content += `   - ${followUp}\n`;
+                            }
+                          }
+                          content += "\n";
+                        }
+                      }
+                      return content;
+                    }}
+                  />
                   <ShareDocumentButton
                     documentType="discoveryQuestions"
                     documentId={version.id}
