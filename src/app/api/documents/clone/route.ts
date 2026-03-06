@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
         const clone = await prisma.salesNarrativeVersion.create({
           data: {
             userId: user.id,
+            title: source.title,
             narrative: source.narrative,
             description100w: source.description100w,
             description50w: source.description50w,
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: user.id,
             salesNarrativeVersionId: source.salesNarrativeVersionId,
+            title: source.title,
             content: source.content,
           },
         });
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: user.id,
             discoveryQuestionsVersionId: source.discoveryQuestionsVersionId,
+            title: source.title,
             content: source.content,
           },
         });
@@ -103,6 +106,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: user.id,
             firstCallChecklistVersionId: source.firstCallChecklistVersionId,
+            title: source.title,
             content: source.content,
           },
         });

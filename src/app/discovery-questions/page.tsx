@@ -28,6 +28,7 @@ interface DiscoveryQuestionsContent {
 
 interface DiscoveryQuestionsVersion {
   id: string;
+  title: string;
   content: DiscoveryQuestionsContent;
   salesNarrativeVersionId: string;
   salesNarrative?: {
@@ -643,7 +644,7 @@ function DiscoveryQuestionsContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Discovery Questions</h1>
+                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Discovery Questions"}</h1>
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)} · {getTotalQuestions()} questions
                 </p>
@@ -703,7 +704,7 @@ function DiscoveryQuestionsContent() {
                   <ShareDocumentButton
                     documentType="discoveryQuestions"
                     documentId={version.id}
-                    title="Discovery Questions"
+                    title={version.title || "Discovery Questions"}
                     content={version.content.categories.map((cat: { name: string; questions: { primary: string; followUps?: string[] }[] }) =>
                       `## ${cat.name}\n\n${cat.questions.map((q: { primary: string; followUps?: string[] }, i: number) =>
                         `${i + 1}. ${q.primary}${q.followUps?.length ? "\n" + q.followUps.map((f: string) => `   - ${f}`).join("\n") : ""}`

@@ -43,6 +43,7 @@ export async function GET(
     return NextResponse.json({
       version: {
         id: version.id,
+        title: version.title,
         content: version.content,
         discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
         discoveryQuestionsVersion: version.discoveryQuestionsVersion,
@@ -122,6 +123,7 @@ export async function PATCH(
       success: true,
       version: {
         id: updatedVersion.id,
+        title: updatedVersion.title,
         content: updatedVersion.content,
         createdAt: updatedVersion.createdAt,
         updatedAt: updatedVersion.updatedAt,

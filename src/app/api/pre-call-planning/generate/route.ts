@@ -130,11 +130,19 @@ Generate the Pre-Call Planning Process now.`;
     }
     cleanedResponse = cleanedResponse.trim();
 
+    // Build a descriptive title from the product name
+    const productAnswer = narrative?.answers?.find(
+      (a) => a.question.category === "Product"
+    );
+    const productName = productAnswer?.answer || "Sales";
+    const planningTitle = `${productName} - Pre-Call Planning`;
+
     // Create the version record
     const version = await prisma.preCallPlanningVersion.create({
       data: {
         userId: user.id,
         firstCallChecklistVersionId: latestChecklist.id,
+        title: planningTitle,
         content: cleanedResponse,
       },
     });
@@ -163,6 +171,7 @@ Generate the Pre-Call Planning Process now.`;
       success: true,
       version: {
         id: version.id,
+        title: version.title,
         content: cleanedResponse,
         firstCallChecklistVersionId: version.firstCallChecklistVersionId,
         createdAt: version.createdAt,

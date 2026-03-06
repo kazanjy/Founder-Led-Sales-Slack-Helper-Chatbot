@@ -75,6 +75,7 @@ export async function GET(
     return NextResponse.json({
       version: {
         id: version.id,
+        title: version.title,
         narrative: version.narrative,
         description100w: version.description100w,
         description50w: version.description50w,
@@ -181,6 +182,7 @@ export async function PATCH(
       success: true,
       version: {
         id: updatedVersion.id,
+        title: updatedVersion.title,
         narrative: updatedVersion.narrative,
         description100w: updatedVersion.description100w,
         description50w: updatedVersion.description50w,

@@ -15,6 +15,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        title: true,
         createdAt: true,
         updatedAt: true,
         discoveryQuestionsVersion: {

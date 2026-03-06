@@ -47,6 +47,7 @@ export async function GET() {
       hasFirstCallChecklist: true,
       version: {
         id: latestVersion.id,
+        title: latestVersion.title,
         content: latestVersion.content,
         discoveryQuestionsVersionId: latestVersion.discoveryQuestionsVersionId,
         discoveryQuestionsVersion: latestVersion.discoveryQuestionsVersion,

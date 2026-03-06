@@ -148,11 +148,19 @@ ${latestNarrative.narrative}`;
       );
     }
 
+    // Build a descriptive title from the product name
+    const productAnswer = latestNarrative.answers.find(
+      (a) => a.question.category === "Product"
+    );
+    const productName = productAnswer?.answer || "Sales";
+    const discoveryTitle = `${productName} - Discovery Questions`;
+
     // Create the version record
     const version = await prisma.discoveryQuestionsVersion.create({
       data: {
         userId: user.id,
         salesNarrativeVersionId: latestNarrative.id,
+        title: discoveryTitle,
         content: JSON.stringify(parsedResponse),
       },
     });
@@ -182,6 +190,7 @@ ${latestNarrative.narrative}`;
       success: true,
       version: {
         id: version.id,
+        title: version.title,
         content: parsedResponse,
         salesNarrativeVersionId: version.salesNarrativeVersionId,
         createdAt: version.createdAt,

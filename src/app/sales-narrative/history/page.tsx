@@ -7,6 +7,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 
 interface NarrativeVersion {
   id: string;
+  title: string;
   narrative: string;
   description100w: string;
   description50w: string;

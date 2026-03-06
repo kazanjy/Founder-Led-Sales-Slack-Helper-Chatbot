@@ -47,6 +47,7 @@ export async function GET(
     return NextResponse.json({
       version: {
         id: version.id,
+        title: version.title,
         content,
         salesNarrativeVersionId: version.salesNarrativeVersionId,
         salesNarrative: version.salesNarrativeVersion,
@@ -138,6 +139,7 @@ export async function PATCH(
       success: true,
       version: {
         id: updated.id,
+        title: updated.title,
         content: body.content,
         createdAt: updated.createdAt,
       },

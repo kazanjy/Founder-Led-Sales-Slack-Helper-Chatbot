@@ -71,6 +71,7 @@ export async function GET() {
       hasNarrative: true,
       version: {
         id: latestVersion.id,
+        title: latestVersion.title,
         narrative: latestVersion.narrative,
         description100w: latestVersion.description100w,
         description50w: latestVersion.description50w,

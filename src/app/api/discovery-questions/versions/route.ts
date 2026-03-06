@@ -42,6 +42,7 @@ export async function GET() {
 
       return {
         id: v.id,
+        title: v.title,
         questionCount,
         salesNarrativeVersionId: v.salesNarrativeVersionId,
         salesNarrativeCreatedAt: v.salesNarrativeVersion?.createdAt ?? null,

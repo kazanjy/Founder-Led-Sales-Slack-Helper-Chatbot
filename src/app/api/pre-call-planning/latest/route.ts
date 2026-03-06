@@ -53,6 +53,7 @@ export async function GET() {
       hasPreCallPlanning: true,
       version: {
         id: latestVersion.id,
+        title: latestVersion.title,
         content: latestVersion.content,
         firstCallChecklistVersionId: latestVersion.firstCallChecklistVersionId,
         firstCallChecklistVersion: latestVersion.firstCallChecklistVersion,

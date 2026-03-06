@@ -216,11 +216,19 @@ ${discoveryQuestionsSection}`;
     }
     cleanedResponse = cleanedResponse.trim();
 
+    // Build a descriptive title from the product name
+    const productAnswer = narrative?.answers?.find(
+      (a) => a.question.category === "Product"
+    );
+    const productName = productAnswer?.answer || "Sales";
+    const checklistTitle = `${productName} - First Call Checklist`;
+
     // Create the version record
     const version = await prisma.firstCallChecklistVersion.create({
       data: {
         userId: user.id,
         discoveryQuestionsVersionId: latestDiscoveryQuestions.id,
+        title: checklistTitle,
         content: cleanedResponse,
       },
     });
@@ -249,6 +257,7 @@ ${discoveryQuestionsSection}`;
       success: true,
       version: {
         id: version.id,
+        title: version.title,
         content: cleanedResponse,
         discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
         createdAt: version.createdAt,

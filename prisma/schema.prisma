@@ -588,6 +588,7 @@ model SalesNarrativeVersion {
   answers     SalesNarrativeAnswer[]
 
   // Generated outputs
+  title           String   @default("Sales Narrative")  // Descriptive title e.g. "ProductName - Category - Sales Narrative"
   narrative       String   @db.Text  // Full sales narrative prose
   description100w String   @db.Text  // 100-word product description
   description50w  String   @db.Text  // 50-word elevator pitch
@@ -628,7 +629,8 @@ model DiscoveryQuestionsVersion {
   salesNarrativeVersionId String?
   salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
-  // Generated output - the discovery questions content
+  // Generated output
+  title       String   @default("Discovery Questions")  // Descriptive title e.g. "ProductName - Discovery Questions"
   content     String   @db.Text
 
   // First call checklists generated from these discovery questions
@@ -655,7 +657,8 @@ model FirstCallChecklistVersion {
   discoveryQuestionsVersionId String?
   discoveryQuestionsVersion   DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
 
-  // Generated output - the first call checklist content (markdown)
+  // Generated output
+  title       String   @default("First Call Checklist")  // Descriptive title e.g. "ProductName - First Call Checklist"
   content     String   @db.Text
 
   // Pre-call planning versions generated from this checklist
@@ -687,7 +690,8 @@ model PreCallPlanningVersion {
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
 
-  // Generated output - the pre-call planning process content (markdown)
+  // Generated output
+  title       String   @default("Pre-Call Planning")  // Descriptive title e.g. "ProductName - Pre-Call Planning"
   content     String   @db.Text
 
   createdAt   DateTime @default(now())

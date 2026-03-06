@@ -22,6 +22,7 @@ const RichTextEditor = dynamic(
 
 interface PreCallPlanningVersion {
   id: string;
+  title: string;
   content: string;
   firstCallChecklistVersionId: string;
   firstCallChecklistVersion?: {
@@ -521,7 +522,7 @@ function PreCallPlanningContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Checklist</h1>
+                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Pre-Call Planning"}</h1>
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
@@ -593,7 +594,7 @@ function PreCallPlanningContent() {
                   <ShareDocumentButton
                     documentType="preCallPlanning"
                     documentId={version.id}
-                    title="Pre-Call Checklist"
+                    title={version.title || "Pre-Call Planning"}
                     content={currentContent}
                   />
                   <button

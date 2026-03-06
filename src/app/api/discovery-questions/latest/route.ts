@@ -50,6 +50,7 @@ export async function GET() {
       hasDiscoveryQuestions: true,
       version: {
         id: latestVersion.id,
+        title: latestVersion.title,
         content,
         salesNarrativeVersionId: latestVersion.salesNarrativeVersionId,
         salesNarrative: latestVersion.salesNarrativeVersion,

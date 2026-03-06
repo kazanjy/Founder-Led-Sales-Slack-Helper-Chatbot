@@ -293,8 +293,9 @@ export async function POST(request: NextRequest) {
         const parsed = JSON.parse(jsonMatch[0]);
         if (!parsed.categories || !Array.isArray(parsed.categories)) throw new Error("Invalid response structure");
 
+        const dqImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Discovery Questions` : "Imported Discovery Questions";
         const version = await prisma.discoveryQuestionsVersion.create({
-          data: { userId: user.id, content: JSON.stringify(parsed) },
+          data: { userId: user.id, title: dqImportTitle, content: JSON.stringify(parsed) },
         });
 
         const mergeContent = formatDiscoveryQuestionsForMerge(parsed);
@@ -308,8 +309,9 @@ export async function POST(request: NextRequest) {
 
       case "firstCallChecklist": {
         const cleanContent = cleanMarkdownResponse(aiContent);
+        const fccImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - First Call Checklist` : "Imported First Call Checklist";
         const version = await prisma.firstCallChecklistVersion.create({
-          data: { userId: user.id, content: cleanContent },
+          data: { userId: user.id, title: fccImportTitle, content: cleanContent },
         });
         const mc = MERGE_CONFIGS[appletType]!;
         await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, cleanContent);
@@ -320,8 +322,9 @@ export async function POST(request: NextRequest) {
 
       case "preCallPlanning": {
         const cleanContent = cleanMarkdownResponse(aiContent);
+        const pcpImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Pre-Call Planning` : "Imported Pre-Call Planning";
         const version = await prisma.preCallPlanningVersion.create({
-          data: { userId: user.id, content: cleanContent },
+          data: { userId: user.id, title: pcpImportTitle, content: cleanContent },
         });
         const mc = MERGE_CONFIGS[appletType]!;
         await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, cleanContent);
@@ -336,9 +339,11 @@ export async function POST(request: NextRequest) {
         const parsed = JSON.parse(jsonMatch[0]);
 
         const pdfNames = uploadedFileName ? [uploadedFileName] : [];
+        const importTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Sales Narrative` : "Imported Sales Narrative";
         const version = await prisma.salesNarrativeVersion.create({
           data: {
             userId: user.id,
+            title: importTitle,
             narrative: parsed.narrative || "",
             description100w: parsed.description100w || "",
             description50w: parsed.description50w || "",
@@ -350,6 +355,7 @@ export async function POST(request: NextRequest) {
         savedVersion = version;
         returnContent = {
           id: version.id,
+          title: version.title,
           narrative: parsed.narrative || "",
           description100w: parsed.description100w || "",
           description50w: parsed.description50w || "",

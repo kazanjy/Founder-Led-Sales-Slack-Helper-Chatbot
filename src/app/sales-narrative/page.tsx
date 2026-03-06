@@ -13,6 +13,7 @@ import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
 interface NarrativeVersion {
   id: string;
+  title: string;
   narrative: string;
   description100w: string;
   description50w: string;
@@ -322,7 +323,7 @@ function SalesNarrativeContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Sales Narrative</h1>
+                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Sales Narrative"}</h1>
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                 </p>
@@ -387,7 +388,7 @@ function SalesNarrativeContent() {
                   <ShareDocumentButton
                     documentType="salesNarrative"
                     documentId={version.id}
-                    title="Sales Narrative"
+                    title={version.title || "Sales Narrative"}
                     content={currentNarrative}
                   />
                   <button

@@ -149,6 +149,9 @@ And all of this is available to you for **$6,000 per user, per year**. That incl
 ## OUTPUT REQUIREMENTS
 
 Generate:
+
+0. **NARRATIVE TITLE** - A short, descriptive title for this sales narrative in the format: "[Product Name] - [Category/Market] - Sales Narrative". For example: "TalentBin - Technical Recruiting - Sales Narrative" or "Salesforce - B2B CRM - Sales Narrative". The title should make it immediately clear what product and market the narrative is about.
+
 1. **SALES NARRATIVE** - MUST contain exactly 8 sections, each starting with a bold header:
    - "**What's the problem?**" (then 1-3 paragraphs)
    - "**Who has the problem?**" (then 1-3 paragraphs)
@@ -174,7 +177,7 @@ ${answersSummary}
 ---
 
 IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code blocks, just raw JSON):
-{"narrative": "The full sales narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
+{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full sales narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
 
     // Chatbase has an 8000 character limit per message
     // If the prompt is too long, we need to chunk it
@@ -253,7 +256,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
 4. A 25-WORD DESCRIPTION - Tagline
 
 IMPORTANT: Respond ONLY with valid JSON (no markdown):
-{"narrative": "...", "description100w": "...", "description50w": "...", "description25w": "..."}`;
+{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "...", "description100w": "...", "description50w": "...", "description25w": "..."}`;
     }
 
     console.log(`Sending to Chatbase: ${chatbaseHistory.length} history messages, final message: ${finalMessage.length} chars`);
@@ -274,6 +277,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
 
     // Parse the JSON response
     let parsedResponse: {
+      narrativeTitle?: string;
       narrative: string;
       description100w: string;
       description50w: string;
@@ -302,10 +306,14 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
       );
     }
 
+    // Build a descriptive title; fall back to "ProductName - Sales Narrative" if the LLM didn't provide one
+    const narrativeTitle = parsedResponse.narrativeTitle || `${productName} - Sales Narrative`;
+
     // Create the version record
     const version = await prisma.salesNarrativeVersion.create({
       data: {
         userId: user.id,
+        title: narrativeTitle,
         narrative: parsedResponse.narrative,
         description100w: parsedResponse.description100w,
         description50w: parsedResponse.description50w,
@@ -360,6 +368,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
       success: true,
       version: {
         id: version.id,
+        title: version.title,
         narrative: version.narrative,
         description100w: version.description100w,
         description50w: version.description50w,

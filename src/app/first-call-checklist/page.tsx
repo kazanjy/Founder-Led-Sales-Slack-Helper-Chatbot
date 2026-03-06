@@ -22,6 +22,7 @@ const RichTextEditor = dynamic(
 
 interface FirstCallChecklistVersion {
   id: string;
+  title: string;
   content: string;
   discoveryQuestionsVersionId: string;
   discoveryQuestionsVersion?: {
@@ -517,7 +518,7 @@ function FirstCallChecklistContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">First Call Checklist</h1>
+                <h1 className="text-xl font-semibold text-gray-900">{version.title || "First Call Checklist"}</h1>
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
@@ -589,7 +590,7 @@ function FirstCallChecklistContent() {
                   <ShareDocumentButton
                     documentType="firstCallChecklist"
                     documentId={version.id}
-                    title="First Call Checklist"
+                    title={version.title || "First Call Checklist"}
                     content={currentContent}
                   />
                   <button
