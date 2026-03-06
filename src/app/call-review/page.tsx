@@ -9,6 +9,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { DISCOVERY_CALL_RUBRIC } from "@/lib/call-review/rubric";
+import { detectVendor, ALL_VENDORS } from "@/lib/call-review/vendors";
 
 interface ScoreItem {
   score: number;
@@ -88,6 +89,13 @@ function CallReviewContent() {
   const [transcript, setTranscript] = useState("");
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
+  const [inputMode, setInputMode] = useState<"link" | "paste">("link");
+  const [shareUrl, setShareUrl] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [extractionFallback, setExtractionFallback] = useState<string | null>(null);
+  const [detectedVendor, setDetectedVendor] = useState<ReturnType<typeof detectVendor>>(null);
+  const [extractedFrom, setExtractedFrom] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"scorecard" | "transcript">("scorecard");
   const [recentReviews, setRecentReviews] = useState<Array<{
@@ -159,6 +167,8 @@ function CallReviewContent() {
           transcript: transcript.trim(),
           includeDiscoveryQuestions,
           includeSalesNarrative,
+          sourceUrl: shareUrl || undefined,
+          sourceVendor: extractedFrom || undefined,
         }),
       });
 
@@ -306,69 +316,284 @@ function CallReviewContent() {
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">Discovery Call Review</h1>
                 <p className="text-gray-500 mb-6">
-                  Paste a full call transcript below and get an AI-powered scorecard with actionable feedback.
+                  Share a call recording link or paste a transcript to get an AI-powered scorecard with actionable feedback.
                 </p>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Call Transcript
-                    </label>
-                    <textarea
-                      value={transcript}
-                      onChange={(e) => setTranscript(e.target.value)}
-                      placeholder="Paste your full call transcript here..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
-                      disabled={analyzing}
-                    />
-                    <p className="mt-1 text-xs text-gray-400">
-                      {transcript.length.toLocaleString()} characters
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={includeDiscoveryQuestions}
-                        onChange={(e) => setIncludeDiscoveryQuestions(e.target.checked)}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      Include my Discovery Questions for comparison
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={includeSalesNarrative}
-                        onChange={(e) => setIncludeSalesNarrative(e.target.checked)}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      Include my Sales Narrative for context
-                    </label>
-                  </div>
-
+                {/* Input mode tabs */}
+                <div className="flex border-b border-gray-200 mb-5">
                   <button
-                    onClick={handleAnalyze}
-                    disabled={analyzing || transcript.trim().length < 100}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                    onClick={() => setInputMode("link")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      inputMode === "link"
+                        ? "border-purple-600 text-purple-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
                   >
-                    {analyzing ? (
-                      <>
-                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Analyzing Call...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                        Analyze Call
-                      </>
-                    )}
+                    Paste Link
                   </button>
+                  <button
+                    onClick={() => setInputMode("paste")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      inputMode === "paste"
+                        ? "border-purple-600 text-purple-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    Paste Transcript
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* ── Paste Link tab ──────────────────────────────── */}
+                  {inputMode === "link" && !transcript && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Share Link
+                        </label>
+                        <input
+                          type="url"
+                          value={shareUrl}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setShareUrl(val);
+                            setExtractionError(null);
+                            setExtractionFallback(null);
+                            const v = detectVendor(val);
+                            setDetectedVendor(v);
+                          }}
+                          placeholder="Paste a share link from Sybill, Fathom, Fireflies, Otter, Circleback..."
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          disabled={extracting}
+                        />
+                      </div>
+
+                      {/* Vendor detection badge */}
+                      {detectedVendor && detectedVendor.extractable && (
+                        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>{detectedVendor.name}</strong> detected — ready to extract transcript</span>
+                        </div>
+                      )}
+
+                      {/* Non-extractable vendor warning */}
+                      {detectedVendor && !detectedVendor.extractable && (
+                        <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <p className="font-medium mb-1">{detectedVendor.name} — Manual paste required</p>
+                          <p className="text-amber-700">{detectedVendor.manualPasteInstructions}</p>
+                          <button
+                            onClick={() => setInputMode("paste")}
+                            className="mt-2 text-purple-600 hover:text-purple-700 font-medium underline text-xs"
+                          >
+                            Switch to Paste Transcript
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Unrecognized URL */}
+                      {shareUrl.trim().length > 10 && !detectedVendor && /^https?:\/\//.test(shareUrl.trim()) && (
+                        <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                          We don&apos;t recognize this link yet. You can try extracting, or{" "}
+                          <button
+                            onClick={() => setInputMode("paste")}
+                            className="text-purple-600 hover:text-purple-700 font-medium underline"
+                          >
+                            paste the transcript directly
+                          </button>.
+                        </div>
+                      )}
+
+                      {/* Extraction error */}
+                      {extractionError && (
+                        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          <p>{extractionError}</p>
+                          {extractionFallback && (
+                            <p className="mt-1 text-red-600">{extractionFallback}</p>
+                          )}
+                          <button
+                            onClick={() => setInputMode("paste")}
+                            className="mt-2 text-purple-600 hover:text-purple-700 font-medium underline text-xs"
+                          >
+                            Paste Manually Instead
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Extract button */}
+                      <button
+                        onClick={async () => {
+                          setExtracting(true);
+                          setExtractionError(null);
+                          setExtractionFallback(null);
+                          try {
+                            const res = await fetch("/api/call-review/extract", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ url: shareUrl.trim() }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setExtractionError(data.error || "Extraction failed.");
+                              setExtractionFallback(data.manualInstructions || null);
+                            } else {
+                              setTranscript(data.transcript);
+                              setExtractedFrom(data.vendor || null);
+                            }
+                          } catch {
+                            setExtractionError("Network error. Please try again or paste the transcript manually.");
+                          } finally {
+                            setExtracting(false);
+                          }
+                        }}
+                        disabled={extracting || !shareUrl.trim() || (detectedVendor !== null && !detectedVendor.extractable)}
+                        className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {extracting ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Extracting transcript{detectedVendor ? ` from ${detectedVendor.name}` : ""}... (15-30 seconds)
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Extract Transcript
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Extracted transcript review ───────────────── */}
+                  {inputMode === "link" && transcript && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>
+                            Transcript extracted{extractedFrom ? ` from ${extractedFrom}` : ""}{" "}
+                            ({transcript.length.toLocaleString()} characters). Review and edit if needed.
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setTranscript("");
+                            setExtractedFrom(null);
+                            setShareUrl("");
+                            setDetectedVendor(null);
+                          }}
+                          className="text-xs text-gray-500 hover:text-gray-700 underline flex-shrink-0 ml-2"
+                        >
+                          Clear and start over
+                        </button>
+                      </div>
+                      <textarea
+                        value={transcript}
+                        onChange={(e) => setTranscript(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
+                        disabled={analyzing}
+                      />
+                      <p className="text-xs text-gray-400">
+                        {transcript.length.toLocaleString()} characters
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── Paste Transcript tab ───────────────────────── */}
+                  {inputMode === "paste" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Call Transcript
+                      </label>
+                      <textarea
+                        value={transcript}
+                        onChange={(e) => setTranscript(e.target.value)}
+                        placeholder="Paste your full call transcript here..."
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
+                        disabled={analyzing}
+                      />
+                      <p className="mt-1 text-xs text-gray-400">
+                        {transcript.length.toLocaleString()} characters
+                      </p>
+
+                      {/* Vendor copy-transcript guidance */}
+                      <details className="mt-3">
+                        <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700 font-medium">
+                          Where to find your transcript
+                        </summary>
+                        <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-1.5">
+                          {ALL_VENDORS.filter((v) => v.extractable).map((v) => (
+                            <div key={v.id}>
+                              <strong>{v.name}:</strong> {v.manualPasteInstructions}
+                            </div>
+                          ))}
+                          <hr className="border-gray-200 my-2" />
+                          {ALL_VENDORS.filter((v) => !v.extractable).map((v) => (
+                            <div key={v.id} className="text-amber-700">
+                              <strong>{v.name}:</strong> {v.manualPasteInstructions}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+
+                  {/* ── Shared controls (both tabs) ────────────────── */}
+                  {(inputMode === "paste" || (inputMode === "link" && transcript)) && (
+                    <>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={includeDiscoveryQuestions}
+                            onChange={(e) => setIncludeDiscoveryQuestions(e.target.checked)}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          Include my Discovery Questions for comparison
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={includeSalesNarrative}
+                            onChange={(e) => setIncludeSalesNarrative(e.target.checked)}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          Include my Sales Narrative for context
+                        </label>
+                      </div>
+
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={analyzing || transcript.trim().length < 100}
+                        className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {analyzing ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Analyzing Call...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            Analyze Call
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

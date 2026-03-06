@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { transcript, includeDiscoveryQuestions, includeSalesNarrative } = await request.json();
+    const { transcript, includeDiscoveryQuestions, includeSalesNarrative, sourceUrl, sourceVendor } = await request.json();
 
     if (!transcript || transcript.trim().length < 100) {
       return NextResponse.json(
@@ -83,6 +83,8 @@ export async function POST(request: NextRequest) {
         maxScore: max,
         discoveryQuestionsVersionId,
         salesNarrativeVersionId,
+        sourceUrl: sourceUrl || null,
+        sourceVendor: sourceVendor || null,
       },
     });
 

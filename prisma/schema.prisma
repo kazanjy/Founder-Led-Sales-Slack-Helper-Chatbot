@@ -891,6 +891,10 @@ model CallReviewVersion {
   // The raw transcript
   transcript  String   @db.Text
 
+  // Source tracking (if transcript was extracted from a share link)
+  sourceUrl    String?  @db.Text
+  sourceVendor String?
+
   // AI-generated scores (JSON)
   scores      String   @db.Text
 
