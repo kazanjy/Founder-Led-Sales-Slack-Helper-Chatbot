@@ -91,7 +91,8 @@ function SalesNarrativeEditContent() {
   const [prefillPanelOpen, setPrefillPanelOpen] = useState(true);
   const [prefillSourceUrls, setPrefillSourceUrls] = useState<string[]>([]);
   const [prefillSourcePdfNames, setPrefillSourcePdfNames] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   // Set browser tab title
   useEffect(() => {
@@ -367,12 +368,42 @@ function SalesNarrativeEditContent() {
     }
   }, [shouldAutoTriggerPrefill, prefilling]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const addPdfFiles = (files: File[]) => {
+    const pdfs = files.filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    if (pdfs.length > 0) setPrefillFiles((prev) => [...prev, ...pdfs]);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    const pdfs = selected.filter((f) => f.type === "application/pdf");
-    setPrefillFiles((prev) => [...prev, ...pdfs]);
+    addPdfFiles(Array.from(e.target.files || []));
     // Reset input so the same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+    if (!prefilling) addPdfFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) setIsDraggingOver(false);
   };
 
   const handleRemoveFile = (index: number) => {
@@ -590,62 +621,80 @@ function SalesNarrativeEditContent() {
                 </p>
               </div>
 
-              {/* PDF Upload */}
+              {/* PDF Upload Drop Zone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   PDF Files <span className="text-gray-400 font-normal">(sales decks, one-pagers, etc.)</span>
                 </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={prefilling}
-                    className="px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-amber-400 hover:bg-amber-50 transition-colors text-sm text-gray-600 flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add PDFs
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {prefillFiles.length === 0 && (
-                    <span className="text-sm text-gray-400">No files selected</span>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  className={`relative border-2 border-dashed rounded-lg transition-colors ${
+                    isDraggingOver
+                      ? "border-amber-400 bg-amber-50"
+                      : "border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                  } ${prefilling ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  {prefillFiles.length === 0 ? (
+                    <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-600">
+                        {isDraggingOver ? "Drop PDFs here" : "Click to upload or drag & drop"}
+                      </span>
+                      <span className="text-xs text-gray-400 mt-1">PDF files only</span>
+                    </label>
+                  ) : (
+                    <div className="p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {prefillFiles.map((file, i) => (
+                          <span
+                            key={`${file.name}-${i}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-800"
+                          >
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            {file.name}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(i)}
+                              disabled={prefilling}
+                              className="ml-0.5 text-amber-500 hover:text-amber-700 disabled:opacity-50"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <label className="inline-flex items-center gap-1.5 mt-3 text-sm text-amber-600 hover:text-amber-700 cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          multiple
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add more PDFs
+                      </label>
+                    </div>
                   )}
                 </div>
-
-                {/* File chips */}
-                {prefillFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {prefillFiles.map((file, i) => (
-                      <span
-                        key={`${file.name}-${i}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-800"
-                      >
-                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        {file.name}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(i)}
-                          disabled={prefilling}
-                          className="ml-0.5 text-amber-500 hover:text-amber-700 disabled:opacity-50"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Action button */}
