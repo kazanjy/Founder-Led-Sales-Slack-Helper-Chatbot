@@ -80,7 +80,7 @@ function SalesNarrativeEditContent() {
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Smart Pre-Fill state
   const [prefillUrl, setPrefillUrl] = useState("");
@@ -318,14 +318,34 @@ function SalesNarrativeEditContent() {
       if (data.sourceUrls?.length) setPrefillSourceUrls(data.sourceUrls);
       if (data.sourcePdfNames?.length) setPrefillSourcePdfNames(data.sourcePdfNames);
 
-      // Merge: only fill empty fields, and track which ones we filled
+      // Check if any existing fields already have content
+      let overwriteExisting = false;
+      const hasExistingAnswers = Object.entries(prefillAnswers).some(
+        ([questionId, answer]) => answer.trim() && answers[questionId]?.trim()
+      );
+
+      if (hasExistingAnswers) {
+        overwriteExisting = await showConfirm({
+          title: "Overwrite Existing Answers?",
+          message:
+            "Some questions already have answers. Do you want to overwrite them with the new pre-filled answers, or only fill in the empty fields?",
+          variant: "warning",
+          confirmLabel: "Overwrite All",
+          cancelLabel: "Only Fill Empty",
+        });
+      }
+
+      // Merge answers, optionally overwriting existing ones
       const filledIds: string[] = [];
       setAnswers((prev) => {
         const updated = { ...prev };
         for (const [questionId, answer] of Object.entries(prefillAnswers)) {
-          if (!updated[questionId]?.trim() && answer.trim()) {
-            updated[questionId] = answer;
-            filledIds.push(questionId);
+          if (answer.trim()) {
+            const existingHasContent = !!updated[questionId]?.trim();
+            if (!existingHasContent || overwriteExisting) {
+              updated[questionId] = answer;
+              filledIds.push(questionId);
+            }
           }
         }
         return updated;
@@ -345,7 +365,7 @@ function SalesNarrativeEditContent() {
 
       await showAlert({
         title: "Pre-Fill Complete",
-        message: `Pre-filled ${data.filledCount} of ${data.totalQuestions} questions from your materials. Review and edit the answers below!`,
+        message: `Updated ${filledIds.length} of ${data.totalQuestions} questions from your materials. Review and edit the answers below!`,
         variant: "info",
       });
     } catch (error) {
