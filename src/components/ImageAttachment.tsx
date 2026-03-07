@@ -24,9 +24,6 @@ function isSupportedFile(file: File): boolean {
   return isImageFile(file) || isPDFFile(file);
 }
 
-// Unique ID counter for file inputs
-let fileInputIdCounter = 0;
-
 export function FileAttachmentButton({
   onFilesChange,
   disabled = false,
@@ -40,8 +37,6 @@ export function FileAttachmentButton({
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
-  const imageInputId = useRef(`file-input-image-${++fileInputIdCounter}`);
-  const pdfInputId = useRef(`file-input-pdf-${++fileInputIdCounter}`);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -70,27 +65,27 @@ export function FileAttachmentButton({
     <>
       <input
         ref={imageInputRef}
-        id={imageInputId.current}
         type="file"
         accept="image/*"
         multiple
-        className="sr-only"
+        className="hidden"
         onChange={handleImageChange}
         disabled={isDisabled}
       />
       <input
         ref={pdfInputRef}
-        id={pdfInputId.current}
         type="file"
         accept=".pdf,application/pdf"
         multiple
-        className="sr-only"
+        className="hidden"
         onChange={handlePDFChange}
         disabled={isDisabled}
       />
-      {/* Image upload label (acts as button) */}
-      <label
-        htmlFor={isDisabled ? undefined : imageInputId.current}
+      {/* Image upload button */}
+      <button
+        type="button"
+        onClick={() => imageInputRef.current?.click()}
+        disabled={isDisabled}
         className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
           isDisabled
             ? "text-gray-400 opacity-50 cursor-not-allowed"
@@ -106,10 +101,12 @@ export function FileAttachmentButton({
             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
         </svg>
-      </label>
-      {/* PDF upload label (acts as button) */}
-      <label
-        htmlFor={isDisabled ? undefined : pdfInputId.current}
+      </button>
+      {/* PDF upload button */}
+      <button
+        type="button"
+        onClick={() => pdfInputRef.current?.click()}
+        disabled={isDisabled}
         className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
           isDisabled
             ? "text-gray-400 opacity-50 cursor-not-allowed"
@@ -125,7 +122,7 @@ export function FileAttachmentButton({
           {/* PDF text */}
           <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
         </svg>
-      </label>
+      </button>
     </>
   );
 }
