@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cap total context to prevent oversized Chatbase payloads (413 errors)
-    const MAX_CONTEXT_CHARS = 40000;
+    const MAX_CONTEXT_CHARS = 60000;
     let trimmedContext = combinedContext;
     if (trimmedContext.length > MAX_CONTEXT_CHARS) {
       console.warn(`[Prefill] Trimming context from ${trimmedContext.length} to ${MAX_CONTEXT_CHARS} chars`);
@@ -134,9 +134,9 @@ export async function POST(request: NextRequest) {
 
     // Build the prompt
     const CHATBASE_LIMIT = 7500;
-    const MAX_HISTORY_CHUNKS = 6; // Cap chunks to keep total payload under Chatbase limits
+    const MAX_HISTORY_CHUNKS = 10; // Allow more chunks to pass richer context to the LLM
 
-    const instructionPrompt = `You are helping a founder pre-fill their Founding Sales Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly as you can.
+    const instructionPrompt = `You are helping a founder pre-fill their Founding Sales Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
 
 ## QUESTIONS TO ANSWER
 
@@ -144,11 +144,16 @@ ${questionList}
 
 ## INSTRUCTIONS
 
-- Answer each question in 2-5 sentences based on what you can infer from the context
-- If you can't find information for a question, provide your best inference or leave it as an empty string
-- Be specific — use actual product names, features, metrics, and customer types found in the context
+- Write RICH, DETAILED answers — aim for 3-8 sentences per question. More detail is always better.
+- Pull in EVERY relevant detail from the context: specific product names, feature names, metrics, customer names, use cases, integrations, ROI figures, quotes, and competitive differentiators
+- For "Who has the problem?" — list ALL organizational personas and human personas you can identify from the context, with specifics about each
+- For "How do people currently solve this problem?" — enumerate every alternative/competitor mentioned and how each falls short
+- For "How do you know it's better?" — include ALL proof points: customer quotes, metrics, case study results, awards, and third-party validation found in the context
+- For pricing — include specific tiers, plans, and numbers if found
+- If the context contains customer stories or case studies, weave those specifics into relevant answers
 - Write in first person as if the founder is answering ("We solve...", "Our customers...", "Our product...")
-- For pricing, include specific numbers if found
+- If you truly can't find information for a question, provide your best inference or leave it as an empty string
+- Do NOT be brief — the founder wants comprehensive draft answers they can edit down, not thin summaries they have to expand
 
 Respond with ONLY valid JSON mapping question IDs to answer strings:
 {"questionId1": "answer text...", "questionId2": "answer text...", ...}`;

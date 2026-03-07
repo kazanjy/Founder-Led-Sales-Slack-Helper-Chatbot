@@ -9,7 +9,7 @@ import { fetchPage } from "@/lib/search/fetcher";
 const FETCH_TIMEOUT = 10_000;
 const MAX_LEVEL1_PAGES = 20;
 const MAX_LEVEL2_PAGES = 10;
-const MAX_CONTEXT_LENGTH = 50_000;
+const MAX_CONTEXT_LENGTH = 70_000;
 
 export interface CrawlResult {
   text: string;
