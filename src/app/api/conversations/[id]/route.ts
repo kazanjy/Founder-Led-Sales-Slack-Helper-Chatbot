@@ -113,17 +113,23 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Allow updating archived status and title
+  // Validate mode if provided
+  const validModes = ["CHATBASE", "DIRECT"];
+  const newMode = body.mode && validModes.includes(body.mode) ? body.mode : undefined;
+
+  // Allow updating archived status, title, and mode
   const updatedConversation = await prisma.conversation.update({
     where: { id },
     data: {
       archived: body.archived ?? conversation.archived,
       title: body.title !== undefined ? body.title : conversation.title,
+      ...(newMode ? { mode: newMode } : {}),
     },
     select: {
       id: true,
       archived: true,
       title: true,
+      mode: true,
     },
   });
 

@@ -179,6 +179,7 @@ interface Conversation {
   archived?: boolean;
   attachmentsIncluded?: string[] | null;
   imagesIncluded?: AttachedFile[] | StoredFileRef[] | null; // Base64 (session) or storage refs (from DB)
+  mode?: "CHATBASE" | "DIRECT";
 }
 
 interface SearchResult {
@@ -266,6 +267,8 @@ export default function ChatPage() {
   const [processingImages, setProcessingImages] = useState(false); // Image vision processing
   const [processingStatus, setProcessingStatus] = useState<string | null>(null); // Status message during processing
   const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
+  const [conversationMode, setConversationMode] = useState<"CHATBASE" | "DIRECT">("CHATBASE"); // Chat mode toggle
+  const [switchingMode, setSwitchingMode] = useState(false); // Loading state for mode switch
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]); // Lightbox images
   const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
   const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
@@ -1142,6 +1145,9 @@ export default function ChatPage() {
 
     setSelectedConversation(conversationId);
     isInitialLoad.current = true; // Reset for new conversation
+    // Set mode from conversation list data, or default to CHATBASE for new chats
+    const conv = conversations.find(c => c.id === conversationId);
+    setConversationMode(conv?.mode || "CHATBASE");
     // Use pushState to update URL without triggering Next.js navigation
     const newUrl = conversationId ? `/chat/${conversationId}` : '/chat';
     window.history.pushState({}, '', newUrl);
@@ -1172,6 +1178,44 @@ export default function ChatPage() {
       setSidebarCollapsed(true);
     }
   }, []);
+
+  // Toggle between Mikey (Chatbase) and Direct (OpenAI GPT) mode
+  const toggleConversationMode = useCallback(async () => {
+    if (switchingMode || sending) return;
+    const newMode = conversationMode === "CHATBASE" ? "DIRECT" : "CHATBASE";
+
+    // If no conversation exists yet, just update local state
+    if (!selectedConversation) {
+      setConversationMode(newMode);
+      return;
+    }
+
+    setSwitchingMode(true);
+    try {
+      const res = await fetch(`/api/conversations/${selectedConversation}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: newMode }),
+      });
+      if (res.ok) {
+        setConversationMode(newMode);
+        // Update the conversation in the list too
+        setConversations(prev =>
+          prev.map(c => c.id === selectedConversation ? { ...c, mode: newMode } : c)
+        );
+        setToast({
+          message: newMode === "DIRECT"
+            ? "Switched to Direct Mode — full context, no knowledge base"
+            : "Switched to Mikey Mode — knowledge base active",
+          position: "bottom",
+        });
+      }
+    } catch (error) {
+      console.error("Error switching mode:", error);
+    } finally {
+      setSwitchingMode(false);
+    }
+  }, [conversationMode, selectedConversation, switchingMode, sending, setToast, setConversations]);
 
   // Save sidebar state to localStorage when it changes
   const toggleSidebar = useCallback(() => {
@@ -1301,6 +1345,10 @@ export default function ChatPage() {
         const res = await fetch(`/api/conversations/${selectedConversation}`);
         const data = await res.json();
         setMessages(data.conversation?.messages || []);
+        // Sync mode from server
+        if (data.conversation?.mode) {
+          setConversationMode(data.conversation.mode);
+        }
 
         // Load attached files if conversation has imagesIncluded
         if (data.conversation?.imagesIncluded && data.conversation.imagesIncluded.length > 0) {
@@ -1687,11 +1735,15 @@ export default function ChatPage() {
     if (!conversationId) {
       isNewConversation = true;
       try {
-        const res = await fetch("/api/conversations", { method: "POST" });
+        const res = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: conversationMode }),
+        });
         const data = await res.json();
         if (data.conversation) {
           conversationId = data.conversation.id;
-          setConversations([data.conversation, ...conversations]);
+          setConversations([{ ...data.conversation, mode: conversationMode }, ...conversations]);
           selectConversation(conversationId);
           // Re-set since selectConversation resets sending state
           isSendingRef.current = true;
@@ -2662,7 +2714,12 @@ export default function ChatPage() {
                       </>
                     )}
                   </div>
-                  <p className="text-[15px] text-gray-900 truncate pr-8">
+                  <p className="text-[15px] text-gray-900 truncate pr-8 flex items-center gap-1.5">
+                    {conv.mode === "DIRECT" && (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 flex-shrink-0">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                    )}
                     {animatingTitleId === conv.id ? (
                       <span>
                         {animatingTitleText}
@@ -2919,6 +2976,36 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+
+            {/* Direct Mode toggle */}
+            <button
+              onClick={toggleConversationMode}
+              disabled={switchingMode}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
+                conversationMode === "DIRECT"
+                  ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
+                  : "text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
+              } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
+              title={conversationMode === "DIRECT"
+                ? "Direct Mode: Full context GPT, no knowledge base. Click to switch to Mikey Mode."
+                : "Mikey Mode: Uses knowledge base. Click to switch to Direct Mode."}
+            >
+              {conversationMode === "DIRECT" ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                  </svg>
+                  Direct
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Mikey
+                </>
+              )}
+            </button>
 
             {/* Settings button */}
             <a

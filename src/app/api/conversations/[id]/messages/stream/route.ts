@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getCurrentUser, canUserChat } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { streamFromChatbase } from "@/lib/chatbase/client";
+import { streamFromOpenAI } from "@/lib/openai-chat";
 import { expandMergeFields, findMergeFields } from "@/lib/default-gtm-variables";
 import { generateChatTitle } from "@/lib/openai";
 
@@ -161,10 +162,39 @@ export async function POST(
       });
   }
 
-  // Build conversation history if needed
-  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+  // Determine conversation mode
+  const isDirectMode = conversation.mode === "DIRECT";
 
-  if (!conversation.chatbaseConversationId) {
+  // Build conversation history
+  let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+  let directHistory: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
+
+  if (isDirectMode) {
+    // Direct mode: load ALL messages for full context (GPT handles large context windows)
+    const history = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { createdAt: "asc" },
+    });
+
+    directHistory = await Promise.all(
+      history.slice(0, -1).map(async (msg: { role: string; content: string }) => {
+        let content = msg.content;
+        if (msg.role === "USER" && findMergeFields(msg.content).length > 0) {
+          const userVariables = await prisma.gtmVariable.findMany({
+            where: { userId: user.id },
+            select: { mergeField: true, value: true },
+          });
+          const expansion = expandMergeFields(msg.content, userVariables);
+          content = expansion.expanded;
+        }
+        return {
+          role: msg.role.toLowerCase() as "user" | "assistant",
+          content,
+        };
+      })
+    );
+  } else if (!conversation.chatbaseConversationId) {
+    // Chatbase mode without existing conversation: send recent history
     const history = await prisma.message.findMany({
       where: { conversationId: conversation.id },
       orderBy: { createdAt: "asc" },
@@ -216,17 +246,9 @@ export async function POST(
           );
         }
 
-        // Stream from Chatbase with buffering for smoother display
-        const chatbaseStream = streamFromChatbase(
-          expandedMessage,
-          conversation.chatbaseConversationId || undefined,
-          chatbaseHistory
-        );
-
         let fullResponse = "";
-        let chatbaseConvId: string | undefined;
         let buffer = "";
-        const MIN_CHUNK_SIZE = 15; // Buffer until we have at least this many chars
+        const MIN_CHUNK_SIZE = 15;
 
         // Helper to flush buffer to client
         const flushBuffer = () => {
@@ -238,35 +260,61 @@ export async function POST(
           }
         };
 
-        // Iterate through the async generator
-        while (true) {
-          const result = await chatbaseStream.next();
-          if (result.done) {
-            // Generator finished, flush remaining buffer and get return value
-            flushBuffer();
-            if (result.value && typeof result.value === "object") {
-              chatbaseConvId = result.value.conversationId;
+        if (isDirectMode) {
+          // ===== DIRECT MODE: Stream from OpenAI GPT =====
+          const openaiStream = streamFromOpenAI(expandedMessage, directHistory);
+
+          while (true) {
+            const result = await openaiStream.next();
+            if (result.done) {
+              flushBuffer();
+              break;
             }
-            break;
+
+            const chunk = result.value;
+            fullResponse += chunk;
+            buffer += chunk;
+
+            if (buffer.length >= MIN_CHUNK_SIZE || /[.!?]\s*$/.test(buffer) || buffer.includes("\n")) {
+              flushBuffer();
+            }
+          }
+        } else {
+          // ===== CHATBASE MODE: Stream from Chatbase (existing behavior) =====
+          const chatbaseStream = streamFromChatbase(
+            expandedMessage,
+            conversation.chatbaseConversationId || undefined,
+            chatbaseHistory
+          );
+
+          let chatbaseConvId: string | undefined;
+
+          while (true) {
+            const result = await chatbaseStream.next();
+            if (result.done) {
+              flushBuffer();
+              if (result.value && typeof result.value === "object") {
+                chatbaseConvId = result.value.conversationId;
+              }
+              break;
+            }
+
+            const chunk = result.value;
+            fullResponse += chunk;
+            buffer += chunk;
+
+            if (buffer.length >= MIN_CHUNK_SIZE || /[.!?]\s*$/.test(buffer) || buffer.includes("\n")) {
+              flushBuffer();
+            }
           }
 
-          // result.value is a text chunk
-          const chunk = result.value;
-          fullResponse += chunk;
-          buffer += chunk;
-
-          // Send buffer when it's large enough or contains sentence-ending punctuation
-          if (buffer.length >= MIN_CHUNK_SIZE || /[.!?]\s*$/.test(buffer) || buffer.includes("\n")) {
-            flushBuffer();
+          // Update conversation with Chatbase ID if we got one
+          if (chatbaseConvId && !conversation.chatbaseConversationId) {
+            await prisma.conversation.update({
+              where: { id: conversation.id },
+              data: { chatbaseConversationId: chatbaseConvId },
+            });
           }
-        }
-
-        // Update conversation with Chatbase ID if we got one
-        if (chatbaseConvId && !conversation.chatbaseConversationId) {
-          await prisma.conversation.update({
-            where: { id: conversation.id },
-            data: { chatbaseConversationId: chatbaseConvId },
-          });
         }
 
         // Save the complete assistant message
@@ -300,7 +348,7 @@ export async function POST(
 
         controller.close();
       } catch (error) {
-        console.error("Error streaming from Chatbase:", error);
+        console.error(`Error streaming from ${isDirectMode ? "OpenAI" : "Chatbase"}:`, error);
         controller.enqueue(
           encoder.encode(
             `event: error\ndata: ${JSON.stringify({ error: "Failed to get response from AI" })}\n\n`

@@ -35,6 +35,7 @@ export async function GET(request: Request) {
       archived: true,
       attachmentsIncluded: true,
       imagesIncluded: true,
+      mode: true,
     },
   });
 
@@ -43,19 +44,31 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/conversations - Create a new web conversation
+ * Optional body: { mode: "CHATBASE" | "DIRECT" }
  */
-export async function POST() {
+export async function POST(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Parse optional body for mode
+  let mode: "CHATBASE" | "DIRECT" = "CHATBASE";
+  try {
+    const body = await request.json();
+    if (body.mode === "DIRECT") {
+      mode = "DIRECT";
+    }
+  } catch {
+    // No body or invalid JSON — use defaults
+  }
+
   const conversation = await prisma.conversation.create({
     data: {
       userId: user.id,
       source: "WEB",
-      // No workspace, channel, or thread for web conversations
+      mode,
     },
   });
 

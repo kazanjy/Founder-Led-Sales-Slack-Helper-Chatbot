@@ -263,6 +263,9 @@ model Conversation {
   // Source of the conversation
   source          ConversationSource @default(SLACK)
 
+  // Chat mode: CHATBASE (default RAG) or DIRECT (OpenAI GPT)
+  mode            ConversationMode   @default(CHATBASE)
+
   // Slack reference (null for web conversations)
   slackChannelId  String?
   slackThreadTs   String?   // Thread timestamp = unique thread ID
@@ -301,6 +304,11 @@ model Conversation {
 enum ConversationSource {
   SLACK
   WEB
+}
+
+enum ConversationMode {
+  CHATBASE  // Default: RAG via Chatbase knowledge base
+  DIRECT    // Direct OpenAI GPT calls, no RAG
 }
 
 // Individual message in a conversation
