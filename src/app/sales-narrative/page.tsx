@@ -15,6 +15,7 @@ interface NarrativeVersion {
   id: string;
   title: string;
   narrative: string;
+  description1000w: string | null;
   description100w: string;
   description50w: string;
   description25w: string;
@@ -59,7 +60,7 @@ function SalesNarrativeContent() {
   const [version, setVersion] = useState<NarrativeVersion | null>(null);
   const [answersByCategory, setAnswersByCategory] = useState<AnswersByCategory | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"qa" | "narrative" | "100w" | "50w" | "25w">("narrative");
+  const [activeTab, setActiveTab] = useState<"qa" | "narrative" | "1000w" | "100w" | "50w" | "25w">("narrative");
 
   // Discovery questions banner
   const [showDiscoveryBanner, setShowDiscoveryBanner] = useState(true);
@@ -69,6 +70,7 @@ function SalesNarrativeContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedNarrative, setEditedNarrative] = useState("");
+  const [edited1000w, setEdited1000w] = useState("");
   const [edited100w, setEdited100w] = useState("");
   const [edited50w, setEdited50w] = useState("");
   const [edited25w, setEdited25w] = useState("");
@@ -142,6 +144,7 @@ function SalesNarrativeContent() {
 
   const initEditFields = (v: NarrativeVersion) => {
     setEditedNarrative(v.narrative);
+    setEdited1000w(v.description1000w || "");
     setEdited100w(v.description100w);
     setEdited50w(v.description50w);
     setEdited25w(v.description25w);
@@ -195,6 +198,7 @@ function SalesNarrativeContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           narrative: editedNarrative,
+          description1000w: edited1000w || null,
           description100w: edited100w,
           description50w: edited50w,
           description25w: edited25w,
@@ -301,6 +305,7 @@ function SalesNarrativeContent() {
 
   // Get current content (edited or original)
   const currentNarrative = isEditing ? editedNarrative : version.narrative;
+  const current1000w = isEditing ? edited1000w : (version.description1000w || "");
   const current100w = isEditing ? edited100w : version.description100w;
   const current50w = isEditing ? edited50w : version.description50w;
   const current25w = isEditing ? edited25w : version.description25w;
@@ -379,6 +384,9 @@ function SalesNarrativeContent() {
                         }
                       }
                       context += "## Full Narrative\n\n" + (version?.narrative || "") + "\n\n";
+                      if (version?.description1000w) {
+                        context += "## 1000-Word Narrative\n\n" + version.description1000w + "\n\n";
+                      }
                       context += "## 100-Word Description\n\n" + (version?.description100w || "") + "\n\n";
                       context += "## 50-Word Description\n\n" + (version?.description50w || "") + "\n\n";
                       context += "## 25-Word Description\n\n" + (version?.description25w || "") + "\n";
@@ -541,6 +549,18 @@ function SalesNarrativeContent() {
           >
             Full Narrative
           </button>
+          {current1000w && (
+            <button
+              onClick={() => setActiveTab("1000w")}
+              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === "1000w"
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              1000 Words
+            </button>
+          )}
           <button
             onClick={() => setActiveTab("100w")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
@@ -629,7 +649,7 @@ function SalesNarrativeContent() {
               <div>
                 <h2 className="font-semibold text-gray-900">Full Sales Narrative</h2>
                 <p className="text-sm text-gray-500">
-                  {getWordCount(currentNarrative)} words
+                  {getWordCount(currentNarrative)} words - Complete version
                 </p>
               </div>
               {!isEditing && (
@@ -665,6 +685,54 @@ function SalesNarrativeContent() {
               ) : (
                 <div className="prose prose-gray max-w-none">
                   <ReactMarkdown>{currentNarrative}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "1000w" && current1000w && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div>
+                <h2 className="font-semibold text-gray-900">1000-Word Narrative</h2>
+                <p className="text-sm text-gray-500">
+                  {getWordCount(current1000w)} words - Condensed version
+                </p>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => handleCopy(current1000w, "1000w")}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  {copiedField === "1000w" ? (
+                    <>
+                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            <div className="p-6">
+              {isEditing ? (
+                <textarea
+                  value={edited1000w}
+                  onChange={(e) => setEdited1000w(e.target.value)}
+                  className="w-full min-h-[300px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 font-normal"
+                />
+              ) : (
+                <div className="prose prose-gray max-w-none">
+                  <ReactMarkdown>{current1000w}</ReactMarkdown>
                 </div>
               )}
             </div>

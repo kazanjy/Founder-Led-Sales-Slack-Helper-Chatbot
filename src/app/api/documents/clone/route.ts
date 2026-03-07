@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             title: source.title,
             narrative: source.narrative,
+            description1000w: source.description1000w,
             description100w: source.description100w,
             description50w: source.description50w,
             description25w: source.description25w,

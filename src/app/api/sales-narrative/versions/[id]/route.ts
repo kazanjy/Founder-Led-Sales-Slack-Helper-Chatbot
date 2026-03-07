@@ -77,6 +77,7 @@ export async function GET(
         id: version.id,
         title: version.title,
         narrative: version.narrative,
+        description1000w: version.description1000w,
         description100w: version.description100w,
         description50w: version.description50w,
         description25w: version.description25w,
@@ -108,7 +109,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { narrative, description100w, description50w, description25w } = body;
+    const { narrative, description1000w, description100w, description50w, description25w } = body;
 
     // Find the version
     const version = await prisma.salesNarrativeVersion.findUnique({
@@ -127,12 +128,14 @@ export async function PATCH(
     // Build update object with only provided fields
     const updateData: {
       narrative?: string;
+      description1000w?: string | null;
       description100w?: string;
       description50w?: string;
       description25w?: string;
     } = {};
 
     if (narrative !== undefined) updateData.narrative = narrative;
+    if (description1000w !== undefined) updateData.description1000w = description1000w;
     if (description100w !== undefined) updateData.description100w = description100w;
     if (description50w !== undefined) updateData.description50w = description50w;
     if (description25w !== undefined) updateData.description25w = description25w;
@@ -153,6 +156,7 @@ export async function PATCH(
     if (latestVersion && latestVersion.id === id) {
       const mergeVariables = [
         { mergeField: "SALES_NARRATIVE", name: "Sales Narrative", value: updatedVersion.narrative },
+        { mergeField: "VALUE_PROP_1000W", name: "Value Proposition (1000 words)", value: updatedVersion.description1000w || "" },
         { mergeField: "VALUE_PROP_100W", name: "Value Proposition (100 words)", value: updatedVersion.description100w },
         { mergeField: "VALUE_PROP_50W", name: "Value Proposition (50 words)", value: updatedVersion.description50w },
         { mergeField: "VALUE_PROP_25W", name: "Value Proposition (25 words)", value: updatedVersion.description25w },
@@ -184,6 +188,7 @@ export async function PATCH(
         id: updatedVersion.id,
         title: updatedVersion.title,
         narrative: updatedVersion.narrative,
+        description1000w: updatedVersion.description1000w,
         description100w: updatedVersion.description100w,
         description50w: updatedVersion.description50w,
         description25w: updatedVersion.description25w,

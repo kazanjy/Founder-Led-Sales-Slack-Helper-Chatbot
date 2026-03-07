@@ -152,23 +152,25 @@ Generate:
 
 0. **NARRATIVE TITLE** - A short, descriptive title for this sales narrative in the format: "[Product Name] - [Category/Market] - Sales Narrative". For example: "TalentBin - Technical Recruiting - Sales Narrative" or "Salesforce - B2B CRM - Sales Narrative". The title should make it immediately clear what product and market the narrative is about.
 
-1. **SALES NARRATIVE** - MUST contain exactly 8 sections, each starting with a bold header:
-   - "**What's the problem?**" (then 1-3 paragraphs)
-   - "**Who has the problem?**" (then 1-3 paragraphs)
-   - "**What's the cost of not solving the problem?**" (then 1-3 paragraphs)
-   - "**How is this currently solved? Why doesn't that work?**" (then 1-3 paragraphs)
-   - "**What has changed?**" (then 1-3 paragraphs)
-   - "**How does it work?**" (then 1-3 paragraphs)
-   - "**How do you know it's better?**" (then 1-3 paragraphs)
-   - "**Pricing**" (then 1-3 paragraphs)
+1. **SALES NARRATIVE (~2000 WORDS)** - MUST contain exactly 8 sections, each starting with a bold header. TARGET LENGTH: approximately 2000 words total. Each section should be 2-4 substantial paragraphs of rich, detailed prose. Go deep on specifics, examples, and compelling details. Do NOT be brief - this is the flagship document and needs to be comprehensive and persuasive:
+   - "**What's the problem?**" (then 2-4 paragraphs)
+   - "**Who has the problem?**" (then 2-4 paragraphs)
+   - "**What's the cost of not solving the problem?**" (then 2-4 paragraphs)
+   - "**How is this currently solved? Why doesn't that work?**" (then 2-4 paragraphs)
+   - "**What has changed?**" (then 2-4 paragraphs)
+   - "**How does it work?**" (then 2-4 paragraphs)
+   - "**How do you know it's better?**" (then 2-4 paragraphs)
+   - "**Pricing**" (then 2-4 paragraphs)
 
-   FAILURE TO INCLUDE THESE EXACT BOLD HEADERS MAKES THE OUTPUT INVALID. Look at the TalentBin and Salesforce examples above - every section begins with its bold header. Your output MUST follow this same pattern.
+   FAILURE TO INCLUDE THESE EXACT BOLD HEADERS MAKES THE OUTPUT INVALID. Look at the TalentBin and Salesforce examples above - every section begins with its bold header. Your output MUST follow this same pattern. IMPORTANT: The full narrative MUST be approximately 2000 words. Do not produce a short narrative.
 
-2. **100-WORD DESCRIPTION** - A product marketing summary suitable for a website or pitch deck. Covers problem, solution, and key differentiator. No headers needed.
+2. **1000-WORD CONDENSED NARRATIVE** - A condensed version of the full narrative, approximately 1000 words. Still follows the same 8-section structure with the same bold headers, but each section is shorter (1-2 paragraphs). This is a tighter, more focused version that hits the key points without the depth of the full version.
 
-3. **50-WORD DESCRIPTION** - An elevator pitch that can be spoken in ~20 seconds. Problem + solution + why it's better. No headers needed.
+3. **100-WORD DESCRIPTION** - A product marketing summary suitable for a website or pitch deck. Covers problem, solution, and key differentiator. No headers needed.
 
-4. **25-WORD DESCRIPTION** - A tagline or one-liner that captures the essence. No headers needed.
+4. **50-WORD DESCRIPTION** - An elevator pitch that can be spoken in ~20 seconds. Problem + solution + why it's better. No headers needed.
+
+5. **25-WORD DESCRIPTION** - A tagline or one-liner that captures the essence. No headers needed.
 
 ## QUESTIONNAIRE ANSWERS:
 
@@ -177,7 +179,7 @@ ${answersSummary}
 ---
 
 IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code blocks, just raw JSON):
-{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full sales narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
+{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full ~2000-word sales narrative with question headers...", "description1000w": "The ~1000-word condensed narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
 
     // Chatbase has an 8000 character limit per message
     // If the prompt is too long, we need to chunk it
@@ -223,40 +225,42 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       // Final message includes generation instructions WITH header requirements
       finalMessage = `Based on all the questionnaire answers I've shared, please generate:
 
-1. A SALES NARRATIVE following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid:
+1. A SALES NARRATIVE (~2000 WORDS) following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid. TARGET: approximately 2000 words total with 2-4 substantial paragraphs per section:
 
 **What's the problem?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **Who has the problem?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **What's the cost of not solving the problem?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **How is this currently solved? Why doesn't that work?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **What has changed?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **How does it work?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **How do you know it's better?**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
 **Pricing**
-(1-3 paragraphs of flowing prose)
+(2-4 paragraphs of flowing prose)
 
-2. A 100-WORD DESCRIPTION - Product marketing summary
+2. A 1000-WORD CONDENSED NARRATIVE - Same 8-section structure with bold headers, but shorter (1-2 paragraphs per section)
 
-3. A 50-WORD DESCRIPTION - Elevator pitch
+3. A 100-WORD DESCRIPTION - Product marketing summary
 
-4. A 25-WORD DESCRIPTION - Tagline
+4. A 50-WORD DESCRIPTION - Elevator pitch
+
+5. A 25-WORD DESCRIPTION - Tagline
 
 IMPORTANT: Respond ONLY with valid JSON (no markdown):
-{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "...", "description100w": "...", "description50w": "...", "description25w": "..."}`;
+{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "...", "description1000w": "...", "description100w": "...", "description50w": "...", "description25w": "..."}`;
     }
 
     console.log(`Sending to Chatbase: ${chatbaseHistory.length} history messages, final message: ${finalMessage.length} chars`);
@@ -279,6 +283,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
     let parsedResponse: {
       narrativeTitle?: string;
       narrative: string;
+      description1000w?: string;
       description100w: string;
       description50w: string;
       description25w: string;
@@ -315,6 +320,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
         userId: user.id,
         title: narrativeTitle,
         narrative: parsedResponse.narrative,
+        description1000w: parsedResponse.description1000w || null,
         description100w: parsedResponse.description100w,
         description50w: parsedResponse.description50w,
         description25w: parsedResponse.description25w,
@@ -338,6 +344,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
     // Update merge variables with the latest narrative outputs
     const mergeVariables = [
       { mergeField: "SALES_NARRATIVE", name: "Sales Narrative", value: parsedResponse.narrative },
+      { mergeField: "VALUE_PROP_1000W", name: "Value Proposition (1000 words)", value: parsedResponse.description1000w || "" },
       { mergeField: "VALUE_PROP_100W", name: "Value Proposition (100 words)", value: parsedResponse.description100w },
       { mergeField: "VALUE_PROP_50W", name: "Value Proposition (50 words)", value: parsedResponse.description50w },
       { mergeField: "VALUE_PROP_25W", name: "Value Proposition (25 words)", value: parsedResponse.description25w },
@@ -370,6 +377,7 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
         id: version.id,
         title: version.title,
         narrative: version.narrative,
+        description1000w: version.description1000w,
         description100w: version.description100w,
         description50w: version.description50w,
         description25w: version.description25w,

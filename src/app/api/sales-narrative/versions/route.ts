@@ -17,6 +17,7 @@ export async function GET() {
         id: true,
         title: true,
         narrative: true,
+        description1000w: true,
         description100w: true,
         description50w: true,
         description25w: true,

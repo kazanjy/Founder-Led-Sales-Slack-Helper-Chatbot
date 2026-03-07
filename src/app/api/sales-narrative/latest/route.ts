@@ -73,6 +73,7 @@ export async function GET() {
         id: latestVersion.id,
         title: latestVersion.title,
         narrative: latestVersion.narrative,
+        description1000w: latestVersion.description1000w,
         description100w: latestVersion.description100w,
         description50w: latestVersion.description50w,
         description25w: latestVersion.description25w,

@@ -9,6 +9,7 @@ interface NarrativeVersion {
   id: string;
   title: string;
   narrative: string;
+  description1000w: string | null;
   description100w: string;
   description50w: string;
   description25w: string;

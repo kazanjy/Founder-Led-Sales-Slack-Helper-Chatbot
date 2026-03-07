@@ -589,7 +589,8 @@ model SalesNarrativeVersion {
 
   // Generated outputs
   title           String   @default("Sales Narrative")  // Descriptive title e.g. "ProductName - Category - Sales Narrative"
-  narrative       String   @db.Text  // Full sales narrative prose
+  narrative       String   @db.Text  // Full sales narrative prose (~2000 words, used for context attachment)
+  description1000w String? @db.Text  // 1000-word condensed narrative
   description100w String   @db.Text  // 100-word product description
   description50w  String   @db.Text  // 50-word elevator pitch
   description25w  String   @db.Text  // 25-word tagline
