@@ -82,19 +82,21 @@ export async function POST(request: Request) {
     console.log("Sales narrative answers summary length:", answersSummary.length, "characters");
 
     // Build the prompt for Chatbase
-    const systemPrompt = `You are helping a founder create their sales narrative following the "Founding Sales Sales Narrative" approach by Pete Kazanjy.
+    const systemPrompt = `You are helping a founder create their sales narrative.
 
 The product/service name is: ${productName}
 
 Based on the questionnaire answers below, generate a compelling sales narrative and product descriptions.
 
-## THE FOUNDING SALES SALES NARRATIVE FORMAT
+IMPORTANT: Do NOT mention "Pete Kazanjy" or "Founding Sales" anywhere in the generated text. The output should be entirely about the user's product/service with no references to the methodology's author or origin.
+
+## THE SALES NARRATIVE FORMAT
 
 The Sales Narrative is a flowing prose document (NOT bullet points) that weaves the answers into a cohesive, persuasive story.
 
 ### CRITICAL REQUIREMENT: SECTION HEADERS ARE MANDATORY
 
-You MUST include bold section headers at the start of each section. These headers are NOT optional - they are a defining characteristic of the Founding Sales format. Without them, the output is incorrect.
+You MUST include bold section headers at the start of each section. These headers are NOT optional - they are a defining characteristic of the sales narrative format. Without them, the output is incorrect.
 
 Each section MUST begin with its header in bold, exactly like this:
 - **What's the problem?**
@@ -223,9 +225,9 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       }
 
       // Final message includes generation instructions WITH header requirements
-      finalMessage = `Based on all the questionnaire answers I've shared, please generate:
+      finalMessage = `Based on all the questionnaire answers I've shared, please generate the following. IMPORTANT: Do NOT mention "Pete Kazanjy" or "Founding Sales" anywhere in the generated text.
 
-1. A SALES NARRATIVE (~2000 WORDS) following the Founding Sales format by Pete Kazanjy. This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid. TARGET: approximately 2000 words total with 2-4 substantial paragraphs per section:
+1. A SALES NARRATIVE (~2000 WORDS). This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid. TARGET: approximately 2000 words total with 2-4 substantial paragraphs per section:
 
 **What's the problem?**
 (2-4 paragraphs of flowing prose)

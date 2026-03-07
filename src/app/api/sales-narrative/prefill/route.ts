@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     const CHATBASE_LIMIT = 7500;
     const MAX_HISTORY_CHUNKS = 10; // Allow more chunks to pass richer context to the LLM
 
-    const instructionPrompt = `You are helping a founder pre-fill their Founding Sales Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
+    const instructionPrompt = `You are helping a founder pre-fill their Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
 
 ## QUESTIONS TO ANSWER
 
