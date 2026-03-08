@@ -25,29 +25,71 @@ export async function extractTranscriptFromUrl(
   url: string,
   vendor: VendorConfig,
 ): Promise<ExtractionResult> {
+  const overallStart = Date.now();
+
   // ── Attempt 1: Direct HTML fetch ──────────────────────────────────────
-  console.log(`[extract-transcript] Trying direct fetch for ${vendor.name}: ${url}`);
+  console.log(`[extract-transcript] Starting extraction`, {
+    vendor: vendor.name,
+    vendorId: vendor.id,
+    url,
+    browserlessConfigured: !!process.env.BROWSER_SERVICE_URL,
+  });
+
   const directResult = await extractTranscriptDirect(url, vendor);
 
   if ("transcript" in directResult) {
-    console.log(`[extract-transcript] Direct fetch succeeded (${directResult.transcript.length} chars)`);
+    console.log(`[extract-transcript] Direct fetch succeeded`, {
+      vendor: vendor.name,
+      url,
+      elapsed: `${Date.now() - overallStart}ms`,
+      transcriptLength: directResult.transcript.length,
+    });
     return directResult;
   }
 
-  console.log(`[extract-transcript] Direct fetch failed: ${directResult.error}`);
+  console.log(`[extract-transcript] Direct fetch failed, reason: ${directResult.error}`, {
+    vendor: vendor.name,
+    url,
+    elapsed: `${Date.now() - overallStart}ms`,
+  });
 
   // ── Attempt 2: Headless browser (Browserless) ─────────────────────────
   const serviceUrl = process.env.BROWSER_SERVICE_URL;
   if (serviceUrl) {
-    console.log(`[extract-transcript] Falling back to Browserless for ${vendor.name}`);
+    console.log(`[extract-transcript] Falling back to Browserless`, {
+      vendor: vendor.name,
+      url,
+      serviceUrl: serviceUrl.replace(/\/+$/, ""),
+    });
+
     const browserResult = await extractTranscriptViaBrowser(url, vendor, serviceUrl);
+
     if ("transcript" in browserResult) {
-      console.log(`[extract-transcript] Browserless succeeded (${browserResult.transcript.length} chars)`);
+      console.log(`[extract-transcript] Browserless fallback succeeded`, {
+        vendor: vendor.name,
+        url,
+        totalElapsed: `${Date.now() - overallStart}ms`,
+        transcriptLength: browserResult.transcript.length,
+      });
       return browserResult;
     }
-    console.log(`[extract-transcript] Browserless also failed: ${browserResult.error}`);
+
+    console.warn(`[extract-transcript] Both extraction methods failed`, {
+      vendor: vendor.name,
+      url,
+      totalElapsed: `${Date.now() - overallStart}ms`,
+      directError: directResult.error,
+      browserError: browserResult.error,
+    });
     return browserResult;
   }
+
+  console.warn(`[extract-transcript] Direct fetch failed and Browserless not configured`, {
+    vendor: vendor.name,
+    url,
+    totalElapsed: `${Date.now() - overallStart}ms`,
+    error: directResult.error,
+  });
 
   // Neither approach worked
   return { error: directResult.error };
@@ -66,6 +108,7 @@ async function extractTranscriptDirect(
   url: string,
   vendor: VendorConfig,
 ): Promise<ExtractionResult> {
+  const startTime = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
@@ -81,20 +124,49 @@ async function extractTranscriptDirect(
       redirect: "follow",
     });
 
+    const elapsed = Date.now() - startTime;
+
     if (!response.ok) {
-      return { error: `Page returned HTTP ${response.status}.` };
+      console.warn(`[extract-transcript:direct] HTTP error`, {
+        vendor: vendor.id,
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        elapsed: `${elapsed}ms`,
+      });
+      return { error: `Page returned HTTP ${response.status} (${response.statusText}).` };
     }
 
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+      console.warn(`[extract-transcript:direct] Non-HTML content type`, {
+        vendor: vendor.id,
+        url,
+        contentType,
+        elapsed: `${elapsed}ms`,
+      });
       return { error: `Unexpected content type: ${contentType}` };
     }
 
     const html = await response.text();
 
+    console.log(`[extract-transcript:direct] Fetched HTML`, {
+      vendor: vendor.id,
+      url,
+      elapsed: `${Date.now() - startTime}ms`,
+      htmlLength: html.length,
+      contentType,
+      finalUrl: response.url !== url ? response.url : "(no redirect)",
+    });
+
     // Check for login / auth pages
     if (/sign.?in|log.?in|authenticate/i.test(html.substring(0, 2000)) &&
         !/<[^>]*class="[^"]*transcript/i.test(html)) {
+      console.warn(`[extract-transcript:direct] Login page detected`, {
+        vendor: vendor.id,
+        url,
+        htmlPreview: html.substring(0, 300).replace(/\s+/g, " "),
+      });
       return {
         error:
           "This link appears to require login. Please open the call, copy the transcript, and paste it below.",
@@ -103,12 +175,41 @@ async function extractTranscriptDirect(
 
     // Try vendor-specific HTML extraction
     const result = extractTranscriptFromHtml(html, vendor);
+
+    if ("error" in result) {
+      console.warn(`[extract-transcript:direct] HTML parsing failed`, {
+        vendor: vendor.id,
+        url,
+        elapsed: `${Date.now() - startTime}ms`,
+        error: result.error,
+        htmlLength: html.length,
+        // Log whether common transcript markers exist in the raw HTML
+        hasTranscriptClass: /<[^>]*class="[^"]*transcript/i.test(html),
+        hasTranscriptId: /<[^>]*id="[^"]*transcript/i.test(html),
+        hasTranscriptData: /<[^>]*data-[^=]*="[^"]*transcript/i.test(html),
+      });
+    }
+
     return result;
   } catch (err) {
+    const elapsed = Date.now() - startTime;
+
     if (err instanceof DOMException && err.name === "AbortError") {
-      return { error: "Direct fetch timed out." };
+      console.warn(`[extract-transcript:direct] Timed out after ${elapsed}ms`, {
+        vendor: vendor.id,
+        url,
+      });
+      return { error: `Direct fetch timed out after ${FETCH_TIMEOUT / 1000}s.` };
     }
+
     const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[extract-transcript:direct] Fetch error`, {
+      vendor: vendor.id,
+      url,
+      elapsed: `${elapsed}ms`,
+      error: msg,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return { error: `Direct fetch failed: ${msg}` };
   } finally {
     clearTimeout(timeout);
@@ -208,10 +309,22 @@ async function extractTranscriptViaBrowser(
   serviceUrl: string,
 ): Promise<ExtractionResult> {
   const serviceToken = process.env.BROWSER_SERVICE_TOKEN;
+  const startTime = Date.now();
 
   const waitSelector = vendor.waitSelector || "[class*='transcript']";
   const waitTimeout = vendor.waitTimeout ?? 15_000;
   const extractionScript = getExtractionScript(vendor);
+
+  const endpoint = serviceUrl.replace(/\/+$/, "") + "/chrome/function";
+
+  console.log(`[extract-transcript:browser] Starting extraction`, {
+    vendor: vendor.id,
+    url,
+    endpoint,
+    waitSelector,
+    waitTimeout,
+    hasToken: !!serviceToken,
+  });
 
   const browserPayload = {
     code: buildBrowserFunction(url, waitSelector, waitTimeout, extractionScript),
@@ -229,7 +342,6 @@ async function extractTranscriptViaBrowser(
       headers["Authorization"] = `Bearer ${serviceToken}`;
     }
 
-    const endpoint = serviceUrl.replace(/\/+$/, "") + "/chrome/function";
     const res = await fetch(endpoint, {
       method: "POST",
       headers,
@@ -237,48 +349,91 @@ async function extractTranscriptViaBrowser(
       signal: controller.signal,
     });
 
+    const elapsed = Date.now() - startTime;
+
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(
-        `[extract-transcript] Browser service error ${res.status}: ${text}`,
-      );
+      const responseBody = await res.text().catch(() => "(could not read response body)");
+      console.error(`[extract-transcript:browser] HTTP error`, {
+        vendor: vendor.id,
+        url,
+        status: res.status,
+        statusText: res.statusText,
+        elapsed: `${elapsed}ms`,
+        responseHeaders: Object.fromEntries(res.headers.entries()),
+        responseBody: responseBody.substring(0, 1000),
+      });
 
       if (res.status === 401 || res.status === 403) {
         return {
-          error:
-            "Browser service authentication failed. Check BROWSER_SERVICE_TOKEN.",
+          error: `Browser service auth failed (HTTP ${res.status}). Check BROWSER_SERVICE_TOKEN.`,
         };
       }
       return {
-        error:
-          "Transcript extraction service returned an error. Please paste your transcript manually.",
+        error: `Browser service returned HTTP ${res.status}. Please paste your transcript manually.`,
       };
     }
 
     const data = await res.json();
+    const elapsed2 = Date.now() - startTime;
 
     if (data.error) {
+      console.warn(`[extract-transcript:browser] Extraction script returned error`, {
+        vendor: vendor.id,
+        url,
+        elapsed: `${elapsed2}ms`,
+        error: data.error,
+      });
       return { error: data.error };
     }
 
+    const rawLength = (data.transcript || "").length;
     const transcript = normalizeTranscript(data.transcript || "");
 
     if (!transcript || transcript.length < 50) {
+      console.warn(`[extract-transcript:browser] Transcript too short`, {
+        vendor: vendor.id,
+        url,
+        elapsed: `${elapsed2}ms`,
+        rawLength,
+        normalizedLength: transcript.length,
+        preview: transcript.substring(0, 200),
+      });
       return {
         error:
           "The extracted transcript appears too short or empty. The page may require login, or the transcript is not publicly visible.",
       };
     }
 
+    console.log(`[extract-transcript:browser] Success`, {
+      vendor: vendor.id,
+      url,
+      elapsed: `${elapsed2}ms`,
+      transcriptLength: transcript.length,
+      title: data.title || "(none)",
+    });
+
     return { transcript, title: data.title || undefined };
   } catch (err) {
+    const elapsed = Date.now() - startTime;
+
     if (err instanceof DOMException && err.name === "AbortError") {
+      console.error(`[extract-transcript:browser] Timed out after ${elapsed}ms`, {
+        vendor: vendor.id,
+        url,
+      });
       return {
         error:
           "Transcript extraction timed out after 45 seconds. Please paste your transcript manually.",
       };
     }
-    console.error("[extract-transcript] Unexpected error:", err);
+
+    console.error(`[extract-transcript:browser] Unexpected error`, {
+      vendor: vendor.id,
+      url,
+      elapsed: `${elapsed}ms`,
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return {
       error:
         "Unexpected error during transcript extraction. Please paste your transcript manually.",
