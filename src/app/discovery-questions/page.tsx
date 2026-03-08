@@ -637,24 +637,25 @@ function DiscoveryQuestionsContent() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 Back
               </Link>
-              <div>
+              <div className="flex-1 min-w-0">
                 {isEditing ? (
-                  <input
-                    type="text"
+                  <textarea
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Discovery Questions"
-                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-2 py-1 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    rows={1}
+                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
+                    style={{ minHeight: "2.5rem" }}
                   />
                 ) : (
                   <h1 className="text-xl font-semibold text-gray-900">{version.title || "Discovery Questions"}</h1>
