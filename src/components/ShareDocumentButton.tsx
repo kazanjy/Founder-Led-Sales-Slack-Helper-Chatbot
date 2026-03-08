@@ -47,6 +47,11 @@ export function ShareDocumentButton({ documentType, documentId, title, content }
         body: JSON.stringify({ documentType, documentId, title, content }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        console.error("Share error:", data.error);
+        showToast(data.error || "Failed to create share link");
+        return;
+      }
       if (data.shareUrl) {
         await navigator.clipboard.writeText(data.shareUrl);
         showToast("Link copied! This document is now available to anyone with this link.");

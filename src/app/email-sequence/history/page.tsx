@@ -9,6 +9,7 @@ interface VersionSummary {
   id: string;
   orgPersona: string;
   humanPersona: string;
+  specialNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +149,11 @@ export default function EmailSequenceHistoryPage() {
                         {version.humanPersona}
                       </span>
                     </div>
+                    {version.specialNotes && (
+                      <p className="text-xs text-gray-500 mb-1 line-clamp-1">
+                        <span className="font-medium text-gray-600">Notes:</span> {version.specialNotes}
+                      </p>
+                    )}
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span>Created {formatDate(version.createdAt)}</span>
                       {version.updatedAt !== version.createdAt && (

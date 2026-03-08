@@ -17,6 +17,7 @@ export async function GET() {
         id: true,
         orgPersona: true,
         humanPersona: true,
+        specialNotes: true,
         scriptType: true,
         createdAt: true,
         updatedAt: true,

@@ -15,7 +15,7 @@ const topLevelItems: NavItem[] = [
   { href: "/chat", label: "💬 Chat", statusKey: "chat" },
   { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
   { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
-  { href: "/cold-call-script", label: "🎯 Cold Call", statusKey: "coldCallScript" },
+  { href: "/call-scripts", label: "🎯 Call Scripts", statusKey: "coldCallScript" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
 ];

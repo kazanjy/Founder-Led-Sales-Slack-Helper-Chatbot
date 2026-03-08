@@ -9,6 +9,7 @@ interface VersionSummary {
   id: string;
   orgPersona: string;
   humanPersona: string;
+  specialNotes?: string | null;
   scriptType: string;
   createdAt: string;
   updatedAt: string;
@@ -20,7 +21,7 @@ export default function ColdCallScriptHistoryPage() {
   const [versions, setVersions] = useState<VersionSummary[]>([]);
 
   useEffect(() => {
-    document.title = "Cold Call Script History - Mikey";
+    document.title = "Call Script History - Mikey";
   }, []);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export default function ColdCallScriptHistoryPage() {
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center gap-4">
             <Link
-              href="/cold-call-script"
+              href="/call-scripts"
               className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,7 +96,7 @@ export default function ColdCallScriptHistoryPage() {
               Back
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Cold Call Script History</h1>
+              <h1 className="text-xl font-semibold text-gray-900">Call Script History</h1>
               <p className="text-sm text-gray-500">
                 {versions.length} version{versions.length !== 1 ? "s" : ""} generated
               </p>
@@ -113,10 +114,10 @@ export default function ColdCallScriptHistoryPage() {
               Generate your first cold call script to see history here.
             </p>
             <Link
-              href="/cold-call-script"
+              href="/call-scripts"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
             >
-              Generate Cold Call Script
+              Generate Call Script
             </Link>
           </div>
         ) : (
@@ -124,7 +125,7 @@ export default function ColdCallScriptHistoryPage() {
             {versions.map((version, index) => (
               <Link
                 key={version.id}
-                href={`/cold-call-script?version=${version.id}`}
+                href={`/call-scripts?version=${version.id}`}
                 className="block bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
@@ -159,6 +160,11 @@ export default function ColdCallScriptHistoryPage() {
                         {version.humanPersona}
                       </span>
                     </div>
+                    {version.specialNotes && (
+                      <p className="text-xs text-gray-500 mb-1 line-clamp-1">
+                        <span className="font-medium text-gray-600">Notes:</span> {version.specialNotes}
+                      </p>
+                    )}
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span>Created {formatDate(version.createdAt)}</span>
                       {version.updatedAt !== version.createdAt && (

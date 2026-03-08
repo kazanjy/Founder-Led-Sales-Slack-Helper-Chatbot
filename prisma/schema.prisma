@@ -430,7 +430,7 @@ model SharedDocument {
 
   // Snapshot of the document content at share time
   title           String
-  content         String
+  content         String   @db.Text
 
   viewCount       Int       @default(0)
 

@@ -83,7 +83,7 @@ function ColdCallScriptContent() {
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    document.title = "Cold Call Script - Mikey";
+    document.title = "Call Script - Mikey";
   }, []);
 
   useEffect(() => {
@@ -374,7 +374,7 @@ function ColdCallScriptContent() {
           <div className="w-full max-w-lg px-6">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-                {version ? "Regenerate" : "Generate"} Cold Call Script
+                {version ? "Regenerate" : "Generate"} Call Script
               </h1>
               <p className="text-gray-500 mb-6">Configure the target persona and script type for your cold call.</p>
 
@@ -516,7 +516,7 @@ function ColdCallScriptContent() {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Generate Cold Call Script
+                        Generate Call Script
                       </>
                     )}
                   </button>
@@ -538,7 +538,7 @@ function ColdCallScriptContent() {
       <SalesNavBar />
       <GeneratingOverlay
         visible={generating}
-        title="Generating Cold Call Script"
+        title="Generating Call Script"
         subtitle="Building a phone script that opens doors and books meetings"
         emojis={["📞", "🎯", "💬"]}
         messages={[
@@ -565,7 +565,7 @@ function ColdCallScriptContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Cold Call Script</h1>
+                <h1 className="text-xl font-semibold text-gray-900">Call Script</h1>
                 <p className="text-sm text-gray-500">
                   {scriptTypeLabel(version.scriptType)} · Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
@@ -633,7 +633,7 @@ function ColdCallScriptContent() {
                   <ShareDocumentButton
                     documentType="coldCallScript"
                     documentId={version.id}
-                    title={`Cold Call Script: ${version.orgPersona} — ${version.humanPersona}`}
+                    title={`Call Script: ${version.orgPersona} — ${version.humanPersona}`}
                     content={currentContent}
                   />
                   <button
@@ -646,7 +646,7 @@ function ColdCallScriptContent() {
                     Edit
                   </button>
                   <Link
-                    href="/cold-call-script/history"
+                    href="/call-scripts/history"
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

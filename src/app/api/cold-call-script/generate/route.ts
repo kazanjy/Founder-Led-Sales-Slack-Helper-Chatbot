@@ -130,7 +130,7 @@ ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
 
     // Create linked chat conversation
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
-    const reportUrl = `${appUrl}/cold-call-script?version=${version.id}`;
+    const reportUrl = `${appUrl}/call-scripts?version=${version.id}`;
 
     const conversation = await createSequenceConversation({
       userId: user.id,
