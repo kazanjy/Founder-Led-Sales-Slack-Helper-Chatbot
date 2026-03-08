@@ -1179,10 +1179,9 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Toggle between Mikey (Chatbase) and Direct (OpenAI GPT) mode
-  const toggleConversationMode = useCallback(async () => {
-    if (switchingMode || sending) return;
-    const newMode = conversationMode === "CHATBASE" ? "DIRECT" : "CHATBASE";
+  // Switch between Mikey (Chatbase) and Direct (OpenAI GPT) mode
+  const setConversationModeTo = useCallback(async (newMode: "CHATBASE" | "DIRECT") => {
+    if (switchingMode || sending || conversationMode === newMode) return;
 
     // If no conversation exists yet, just update local state
     if (!selectedConversation) {
@@ -1205,8 +1204,8 @@ export default function ChatPage() {
         );
         setToast({
           message: newMode === "DIRECT"
-            ? "Switched to Direct Mode — full context, no knowledge base"
-            : "Switched to Mikey Mode — knowledge base active",
+            ? "Switched to Direct LLM — full context, no RAG"
+            : "Switched to Founding Sales Content — RAG active",
           position: "bottom",
         });
       }
@@ -2977,35 +2976,48 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-2">
 
-            {/* Direct Mode toggle */}
-            <button
-              onClick={toggleConversationMode}
-              disabled={switchingMode}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
-                conversationMode === "DIRECT"
-                  ? "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100"
-                  : "text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
-              } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
-              title={conversationMode === "DIRECT"
-                ? "Direct Mode: Full context GPT, no knowledge base. Click to switch to Mikey Mode."
-                : "Mikey Mode: Uses knowledge base. Click to switch to Direct Mode."}
-            >
-              {conversationMode === "DIRECT" ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                  </svg>
-                  Direct
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  Mikey
-                </>
-              )}
-            </button>
+            {/* Mode selector flags */}
+            <div className="flex items-center gap-1">
+              {/* Founding Sales Content (RAG) flag */}
+              <div className="relative group">
+                <button
+                  onClick={() => setConversationModeTo("CHATBASE")}
+                  disabled={switchingMode}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
+                    conversationMode === "CHATBASE"
+                      ? "bg-blue-50 text-blue-700 border-blue-300"
+                      : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                  } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span>🌊</span>
+                  Founding Sales Content
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  <p>GPT 5.2 on top of a RAG implementation of Founding Sales and all of Pete&apos;s other writings and courses.</p>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                </div>
+              </div>
+
+              {/* Direct LLM flag */}
+              <div className="relative group">
+                <button
+                  onClick={() => setConversationModeTo("DIRECT")}
+                  disabled={switchingMode}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
+                    conversationMode === "DIRECT"
+                      ? "bg-orange-50 text-orange-700 border-orange-300"
+                      : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                  } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span>⚡️</span>
+                  Direct LLM
+                </button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                  <p>Direct GPT 5.2 interaction for larger context window and &ldquo;clean&rdquo; interactions with no RAG involvement.</p>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                </div>
+              </div>
+            </div>
 
             {/* Settings button */}
             <a
