@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { extractTextFromPDFWithOCR } from "@/lib/pdf-server";
+import Papa from "papaparse";
 
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
     let uploadedFileName: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
-      // PDF upload
+      // File upload (PDF or CSV)
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
       const type = formData.get("appletType") as string;
@@ -208,14 +209,43 @@ export async function POST(request: NextRequest) {
 
       uploadedFileName = file.name;
 
-      // Extract text from PDF
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const { result } = await extractTextFromPDFWithOCR(buffer, file.name, 30);
-      inputText = result.fullText;
+      const isCSV = file.name.toLowerCase().endsWith(".csv") || file.type === "text/csv";
+
+      if (isCSV) {
+        // Parse CSV and convert to readable text
+        const csvText = await file.text();
+        const parsed = Papa.parse<Record<string, string>>(csvText, {
+          header: true,
+          skipEmptyLines: true,
+        });
+
+        if (parsed.errors.length > 0 && parsed.data.length === 0) {
+          return NextResponse.json(
+            { error: "Could not parse the CSV file. Please check the format and try again." },
+            { status: 400 },
+          );
+        }
+
+        // Convert rows to readable text: "Column: Value" format separated by dividers
+        inputText = parsed.data
+          .map((row) =>
+            Object.entries(row)
+              .filter(([, val]) => val && val.trim())
+              .map(([key, val]) => `${key}: ${val}`)
+              .join("\n"),
+          )
+          .filter((block) => block.trim())
+          .join("\n---\n");
+      } else {
+        // Extract text from PDF
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const { result } = await extractTextFromPDFWithOCR(buffer, file.name, 30);
+        inputText = result.fullText;
+      }
 
       if (!inputText || inputText.trim().length < 50) {
         return NextResponse.json(
-          { error: "Could not extract enough text from the PDF. Please try pasting the content instead." },
+          { error: `Could not extract enough text from the ${isCSV ? "CSV" : "PDF"}. Please try pasting the content instead.` },
           { status: 400 },
         );
       }
@@ -293,7 +323,7 @@ export async function POST(request: NextRequest) {
         const parsed = JSON.parse(jsonMatch[0]);
         if (!parsed.categories || !Array.isArray(parsed.categories)) throw new Error("Invalid response structure");
 
-        const dqImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Discovery Questions` : "Imported Discovery Questions";
+        const dqImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - Discovery Questions` : "Imported Discovery Questions";
         const version = await prisma.discoveryQuestionsVersion.create({
           data: { userId: user.id, title: dqImportTitle, content: JSON.stringify(parsed) },
         });
@@ -309,7 +339,7 @@ export async function POST(request: NextRequest) {
 
       case "firstCallChecklist": {
         const cleanContent = cleanMarkdownResponse(aiContent);
-        const fccImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - First Call Checklist` : "Imported First Call Checklist";
+        const fccImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - First Call Checklist` : "Imported First Call Checklist";
         const version = await prisma.firstCallChecklistVersion.create({
           data: { userId: user.id, title: fccImportTitle, content: cleanContent },
         });
@@ -322,7 +352,7 @@ export async function POST(request: NextRequest) {
 
       case "preCallPlanning": {
         const cleanContent = cleanMarkdownResponse(aiContent);
-        const pcpImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Pre-Call Planning` : "Imported Pre-Call Planning";
+        const pcpImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - Pre-Call Planning` : "Imported Pre-Call Planning";
         const version = await prisma.preCallPlanningVersion.create({
           data: { userId: user.id, title: pcpImportTitle, content: cleanContent },
         });
@@ -339,7 +369,7 @@ export async function POST(request: NextRequest) {
         const parsed = JSON.parse(jsonMatch[0]);
 
         const pdfNames = uploadedFileName ? [uploadedFileName] : [];
-        const importTitle = uploadedFileName ? `${uploadedFileName.replace(/\.pdf$/i, "")} - Sales Narrative` : "Imported Sales Narrative";
+        const importTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - Sales Narrative` : "Imported Sales Narrative";
         const version = await prisma.salesNarrativeVersion.create({
           data: {
             userId: user.id,
@@ -391,8 +421,8 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             content: cleanContent,
             salesNarrativeVersionId: latestNarrative.id,
-            orgPersona: "Imported via PDF",
-            humanPersona: "Imported via PDF",
+            orgPersona: "Imported via file upload",
+            humanPersona: "Imported via file upload",
           },
           include: {
             salesNarrativeVersion: { select: { id: true, createdAt: true } },
@@ -425,8 +455,8 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             content: cleanContent,
             salesNarrativeVersionId: latestNarrative.id,
-            orgPersona: "Imported via PDF",
-            humanPersona: "Imported via PDF",
+            orgPersona: "Imported via file upload",
+            humanPersona: "Imported via file upload",
           },
           include: {
             salesNarrativeVersion: { select: { id: true, createdAt: true } },
