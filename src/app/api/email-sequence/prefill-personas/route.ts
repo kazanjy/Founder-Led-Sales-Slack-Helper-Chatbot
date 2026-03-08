@@ -25,14 +25,23 @@ export async function POST() {
       );
     }
 
-    const prompt = `Based on this sales narrative, suggest the most likely:
-1. Organizational persona — the type of company they sell to (e.g. "Series B SaaS company", "Enterprise manufacturing firm")
-2. Human persona — the buyer role they should target (e.g. "VP of Sales", "Head of Engineering")
+    // Use the shorter descriptions to stay well under the Chatbase 7500-char limit.
+    // The full narrative can be 10K+ chars and gets truncated, losing the JSON instruction.
+    const narrativeSummary =
+      latestNarrative.description100w ||
+      latestNarrative.description50w ||
+      latestNarrative.description25w ||
+      latestNarrative.narrative.substring(0, 2000);
 
-Sales Narrative:
-${latestNarrative.narrative}
+    const prompt = `You MUST respond ONLY with valid JSON (no markdown, no explanation, no code blocks).
+Required format: { "orgPersona": "...", "humanPersona": "..." }
 
-Respond ONLY with valid JSON (no markdown, no code blocks): { "orgPersona": "...", "humanPersona": "..." }`;
+Based on this sales narrative, suggest the most likely:
+1. orgPersona — the type of company they sell to (e.g. "Series B SaaS company", "Enterprise manufacturing firm")
+2. humanPersona — the buyer role they should target (e.g. "VP of Sales", "Head of Engineering")
+
+Sales Narrative Summary:
+${narrativeSummary}`;
 
     let chatbaseResult;
     try {
