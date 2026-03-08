@@ -3020,50 +3020,6 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-
-            {/* Mode selector flags */}
-            <div className="flex items-center gap-1">
-              {/* Founding Sales Content (RAG) flag */}
-              <div className="relative group">
-                <button
-                  onClick={() => setConversationModeTo("CHATBASE")}
-                  disabled={switchingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
-                    conversationMode === "CHATBASE"
-                      ? "bg-blue-50 text-blue-700 border-blue-300"
-                      : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
-                  } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span>🌊</span>
-                  Founding Sales Content
-                </button>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  <p>GPT 5.2 on top of a RAG implementation of Founding Sales and all of Pete&apos;s other writings and courses.</p>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
-                </div>
-              </div>
-
-              {/* Direct LLM flag */}
-              <div className="relative group">
-                <button
-                  onClick={() => setConversationModeTo("DIRECT")}
-                  disabled={switchingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all border ${
-                    conversationMode === "DIRECT"
-                      ? "bg-orange-50 text-orange-700 border-orange-300"
-                      : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
-                  } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <span>⚡️</span>
-                  Direct LLM
-                </button>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                  <p>Direct GPT 5.2 interaction for larger context window and &ldquo;clean&rdquo; interactions with no RAG involvement.</p>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900"></div>
-                </div>
-              </div>
-            </div>
-
             {/* Settings button */}
             <a
               href="/settings"
@@ -3882,13 +3838,63 @@ export default function ChatPage() {
                       ) : null}
                     </div>
                   )}
-                  {/* Processing status */}
-                  {processingStatus && (
-                    <div className="px-4 py-2 text-sm text-blue-600 flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                      {processingStatus}
+                  {/* Mode selector + processing status row */}
+                  <div className="flex items-center justify-between px-4 pt-2">
+                    {/* Processing status */}
+                    <div className="flex-1">
+                      {processingStatus && (
+                        <div className="text-sm text-blue-600 flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          {processingStatus}
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    {/* Mode selector flags */}
+                    <div className="flex items-center gap-1">
+                      {/* Founding Sales Content (RAG) flag */}
+                      <div className="relative group">
+                        <button
+                          type="button"
+                          onClick={() => setConversationModeTo("CHATBASE")}
+                          disabled={switchingMode}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
+                            conversationMode === "CHATBASE"
+                              ? "bg-blue-50 text-blue-700 border-blue-300"
+                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                          } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          <span>🌊</span>
+                          Founding Sales Content
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                          <p>GPT 5.2 on top of a RAG implementation of Founding Sales and all of Pete&apos;s other writings and courses.</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+
+                      {/* Direct LLM flag */}
+                      <div className="relative group">
+                        <button
+                          type="button"
+                          onClick={() => setConversationModeTo("DIRECT")}
+                          disabled={switchingMode}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
+                            conversationMode === "DIRECT"
+                              ? "bg-orange-50 text-orange-700 border-orange-300"
+                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                          } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                          <span>⚡️</span>
+                          Direct LLM
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                          <p>Direct GPT 5.2 interaction for larger context window and &ldquo;clean&rdquo; interactions with no RAG involvement.</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Full-width textarea */}
                   <textarea
