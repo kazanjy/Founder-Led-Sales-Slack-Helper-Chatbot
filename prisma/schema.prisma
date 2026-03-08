@@ -105,6 +105,7 @@ model User {
   pendingResearchRequests PendingResearchRequest[]
   emailSequenceVersions EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
+  coldCallScriptVersions ColdCallScriptVersion[]
   callReviewVersions CallReviewVersion[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
@@ -616,6 +617,7 @@ model SalesNarrativeVersion {
   // Sequences generated from this narrative
   emailSequenceVersions EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
+  coldCallScriptVersions ColdCallScriptVersion[]
 
   createdAt   DateTime @default(now())
 
@@ -676,6 +678,7 @@ model FirstCallChecklistVersion {
   // Sequences that optionally used this checklist as context
   emailSequenceVersions EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
+  coldCallScriptVersions ColdCallScriptVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -885,6 +888,45 @@ model LinkedInSequenceVersion {
 
   @@index([userId, createdAt])
   @@map("linkedin_sequence_versions")
+}
+
+// ============================================
+// COLD CALL SCRIPT APP
+// ============================================
+
+model ColdCallScriptVersion {
+  id                          String   @id @default(cuid())
+
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId     String
+  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona                  String   @db.Text
+  humanPersona                String   @db.Text
+  specialNotes                String?  @db.Text
+
+  // Script type: "outbound" (cold call) or "inbound" (lead response)
+  scriptType                  String   @default("outbound")
+
+  // Generated output
+  content                     String   @db.Text
+
+  // Linked chat thread
+  conversationId              String?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("cold_call_script_versions")
 }
 
 // ============================================
