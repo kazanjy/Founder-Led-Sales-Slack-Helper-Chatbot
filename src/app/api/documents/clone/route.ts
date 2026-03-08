@@ -185,6 +185,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, versionId: clone.id });
       }
 
+      case "salesDeck": {
+        const source = await prisma.salesDeckVersion.findFirst({
+          where: { id: documentId, userId: user.id },
+        });
+        if (!source) {
+          return NextResponse.json({ error: "Version not found" }, { status: 404 });
+        }
+
+        const clone = await prisma.salesDeckVersion.create({
+          data: {
+            userId: user.id,
+            salesNarrativeVersionId: source.salesNarrativeVersionId,
+            firstCallChecklistVersionId: source.firstCallChecklistVersionId,
+            orgPersona: source.orgPersona,
+            humanPersona: source.humanPersona,
+            specialNotes: source.specialNotes,
+            deckMode: source.deckMode,
+            sourcePdfName: source.sourcePdfName,
+            content: source.content,
+          },
+        });
+
+        return NextResponse.json({ success: true, versionId: clone.id });
+      }
+
       default:
         return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
     }

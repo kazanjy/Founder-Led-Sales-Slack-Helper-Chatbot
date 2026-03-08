@@ -26,6 +26,7 @@ export async function GET() {
       discoveryQuestionsVar,
       firstCallChecklistVar,
       preCallPlanningVar,
+      salesDeckVar,
     ] = await Promise.all([
       // Sales Narrative - check GtmVariable
       prisma.gtmVariable.findFirst({
@@ -51,6 +52,11 @@ export async function GET() {
       // Pre-Call Planning Process - check GtmVariable
       prisma.gtmVariable.findFirst({
         where: { userId: user.id, mergeField: "PRE_CALL_PLANNING" },
+        select: { updatedAt: true, value: true },
+      }),
+      // Sales Deck - check GtmVariable
+      prisma.gtmVariable.findFirst({
+        where: { userId: user.id, mergeField: "SALES_DECK" },
         select: { updatedAt: true, value: true },
       }),
     ]);
@@ -95,6 +101,14 @@ export async function GET() {
         appUrl: "/pre-call-planning",
         isAvailable: !!(preCallPlanningVar?.value),
         lastUpdated: preCallPlanningVar?.updatedAt?.toISOString() || null,
+      },
+      {
+        id: "salesDeck",
+        name: "Sales Deck",
+        description: "Your sales deck outline and speaker scripts",
+        appUrl: "/sales-deck",
+        isAvailable: !!(salesDeckVar?.value),
+        lastUpdated: salesDeckVar?.updatedAt?.toISOString() || null,
       },
     ];
 

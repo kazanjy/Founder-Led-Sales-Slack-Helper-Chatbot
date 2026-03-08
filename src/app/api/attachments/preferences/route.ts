@@ -12,6 +12,7 @@ export interface AttachmentPreferences {
   gtmAssessment: AttachmentPreference;
   discoveryQuestions: AttachmentPreference;
   firstCallChecklist: AttachmentPreference;
+  salesDeck: AttachmentPreference;
 }
 
 const DEFAULT_PREFERENCES: AttachmentPreferences = {
@@ -19,6 +20,7 @@ const DEFAULT_PREFERENCES: AttachmentPreferences = {
   gtmAssessment: { enabled: false, disabledUntil: null },
   discoveryQuestions: { enabled: false, disabledUntil: null },
   firstCallChecklist: { enabled: false, disabledUntil: null },
+  salesDeck: { enabled: false, disabledUntil: null },
 };
 
 // Helper to check if a preference is effectively enabled (respecting disabledUntil timer)
@@ -56,6 +58,7 @@ export async function GET() {
         gtmAssessment: stored.gtmAssessment || DEFAULT_PREFERENCES.gtmAssessment,
         discoveryQuestions: stored.discoveryQuestions || DEFAULT_PREFERENCES.discoveryQuestions,
         firstCallChecklist: stored.firstCallChecklist || DEFAULT_PREFERENCES.firstCallChecklist,
+        salesDeck: stored.salesDeck || DEFAULT_PREFERENCES.salesDeck,
       };
     } else {
       preferences = DEFAULT_PREFERENCES;
@@ -67,6 +70,7 @@ export async function GET() {
       gtmAssessment: isEffectivelyEnabled(preferences.gtmAssessment, DEFAULT_PREFERENCES.gtmAssessment.enabled),
       discoveryQuestions: isEffectivelyEnabled(preferences.discoveryQuestions, DEFAULT_PREFERENCES.discoveryQuestions.enabled),
       firstCallChecklist: isEffectivelyEnabled(preferences.firstCallChecklist, DEFAULT_PREFERENCES.firstCallChecklist.enabled),
+      salesDeck: isEffectivelyEnabled(preferences.salesDeck, DEFAULT_PREFERENCES.salesDeck.enabled),
     };
 
     return NextResponse.json({
@@ -100,7 +104,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist"];
+    const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist", "salesDeck"];
     if (!validAttachments.includes(attachmentId)) {
       return NextResponse.json(
         { error: "Invalid attachment ID" },
@@ -136,6 +140,7 @@ export async function PATCH(request: NextRequest) {
       gtmAssessment: existingPrefs.gtmAssessment || DEFAULT_PREFERENCES.gtmAssessment,
       discoveryQuestions: existingPrefs.discoveryQuestions || DEFAULT_PREFERENCES.discoveryQuestions,
       firstCallChecklist: existingPrefs.firstCallChecklist || DEFAULT_PREFERENCES.firstCallChecklist,
+      salesDeck: existingPrefs.salesDeck || DEFAULT_PREFERENCES.salesDeck,
       [attachmentId]: updatedPref,
     };
 
@@ -153,6 +158,7 @@ export async function PATCH(request: NextRequest) {
       gtmAssessment: isEffectivelyEnabled(updatedPrefs.gtmAssessment, DEFAULT_PREFERENCES.gtmAssessment.enabled),
       discoveryQuestions: isEffectivelyEnabled(updatedPrefs.discoveryQuestions, DEFAULT_PREFERENCES.discoveryQuestions.enabled),
       firstCallChecklist: isEffectivelyEnabled(updatedPrefs.firstCallChecklist, DEFAULT_PREFERENCES.firstCallChecklist.enabled),
+      salesDeck: isEffectivelyEnabled(updatedPrefs.salesDeck, DEFAULT_PREFERENCES.salesDeck.enabled),
     };
 
     return NextResponse.json({

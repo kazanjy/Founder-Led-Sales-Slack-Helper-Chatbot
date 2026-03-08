@@ -16,6 +16,7 @@ const topLevelItems: NavItem[] = [
   { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
   { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
   { href: "/call-scripts", label: "🎯 Call Scripts", statusKey: "coldCallScript" },
+  { href: "/sales-deck", label: "📊 Sales Deck", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
 ];
@@ -52,7 +53,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -63,6 +64,7 @@ export default function SalesNavBar() {
           fetch("/api/linkedin-sequence/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/call-review/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/cold-call-script/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/sales-deck/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -76,6 +78,7 @@ export default function SalesNavBar() {
           linkedInSequence: !!linkedInSeqRes?.hasLinkedInSequence,
           callReview: !!callReviewRes?.hasCallReview,
           coldCallScript: !!coldCallRes?.hasColdCallScript,
+          salesDeck: !!salesDeckRes?.hasSalesDeck,
         });
       } catch {
         // silently fail - indicators just won't show

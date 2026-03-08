@@ -8,11 +8,11 @@ import Papa from "papaparse";
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
 
-type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence";
+type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck";
 
 const VALID_APPLET_TYPES = new Set<string>([
   "discoveryQuestions", "firstCallChecklist", "preCallPlanning",
-  "salesNarrative", "emailSequence", "linkedInSequence",
+  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck",
 ]);
 
 const MERGE_CONFIGS: Partial<Record<AppletType, { mergeField: string; mergeLabel: string }>> = {
@@ -177,6 +177,37 @@ ${inputText}
 Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
 }
 
+function getSalesDeckPrompt(inputText: string): string {
+  return `You are an expert B2B sales presentation coach. The user has provided their existing sales deck / pitch deck document. Your job is to restructure it into a well-organized markdown document with slide outlines and speaker notes, preserving their content as faithfully as possible.
+
+## INPUT (user's existing sales deck):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Restructure it into clear slide-by-slide sections with:
+   - Slide title
+   - Key visual / layout suggestion
+   - Speaker script (what to say for each slide)
+   - Transition to next slide
+3. Organize into these sections if possible:
+   - Title Slide
+   - Problem slides
+   - Solution slides
+   - How It Works
+   - Proof / Social Proof
+   - The Ask / Next Steps
+   - Appendix / FAQ
+4. Preserve the user's original messaging, data points, and examples as much as possible
+5. Use proper markdown formatting (headers, bullet points, bold text)
+
+## OUTPUT:
+
+Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
+}
+
 // POST - Import user's own content
 export async function POST(request: NextRequest) {
   try {
@@ -294,6 +325,9 @@ export async function POST(request: NextRequest) {
         break;
       case "linkedInSequence":
         prompt = getLinkedInSequencePrompt(truncatedInput);
+        break;
+      case "salesDeck":
+        prompt = getSalesDeckPrompt(truncatedInput);
         break;
     }
 
@@ -467,11 +501,47 @@ export async function POST(request: NextRequest) {
         returnContent = version;
         break;
       }
+
+      case "salesDeck": {
+        const cleanContent = cleanMarkdownResponse(aiContent);
+
+        const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+
+        if (!latestNarrative) {
+          return NextResponse.json(
+            { error: "A sales narrative is required before importing a sales deck. Please create a sales narrative first." },
+            { status: 400 },
+          );
+        }
+
+        const version = await prisma.salesDeckVersion.create({
+          data: {
+            userId: user.id,
+            content: cleanContent,
+            salesNarrativeVersionId: latestNarrative.id,
+            orgPersona: "Imported via file upload",
+            humanPersona: "Imported via file upload",
+            deckMode: "existing",
+            sourcePdfName: uploadedFileName || null,
+          },
+          include: {
+            salesNarrativeVersion: { select: { id: true, createdAt: true } },
+          },
+        });
+
+        savedVersion = version;
+        returnContent = version;
+        break;
+      }
     }
 
     // For complex types, returnContent is already the full version object
     // For simple types, wrap it
-    const isFullObject = ["salesNarrative", "emailSequence", "linkedInSequence"].includes(appletType);
+    const isFullObject = ["salesNarrative", "emailSequence", "linkedInSequence", "salesDeck"].includes(appletType);
     const responseVersion = isFullObject
       ? returnContent
       : { id: savedVersion.id, content: returnContent, createdAt: savedVersion.createdAt };

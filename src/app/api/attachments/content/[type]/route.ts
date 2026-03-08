@@ -39,6 +39,11 @@ export async function GET(
         title = "First Call Checklist";
         break;
 
+      case "salesDeck":
+        content = await getSalesDeckContent(user.id);
+        title = "Sales Deck";
+        break;
+
       default:
         return NextResponse.json(
           { error: "Invalid attachment type" },
@@ -262,6 +267,16 @@ async function getDiscoveryQuestionsContent(userId: string): Promise<string | nu
 async function getFirstCallChecklistContent(userId: string): Promise<string | null> {
   const variable = await prisma.gtmVariable.findFirst({
     where: { userId, mergeField: "FIRST_CALL_CHECKLIST" },
+    select: { value: true },
+  });
+
+  return variable?.value || null;
+}
+
+// Fetch Sales Deck content
+async function getSalesDeckContent(userId: string): Promise<string | null> {
+  const variable = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField: "SALES_DECK" },
     select: { value: true },
   });
 
