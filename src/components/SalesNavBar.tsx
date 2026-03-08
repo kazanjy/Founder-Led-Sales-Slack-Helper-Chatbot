@@ -19,6 +19,7 @@ const topLevelItems: NavItem[] = [
   { href: "/sales-deck", label: "📊 Sales Deck", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
+  { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
 ];
 
 const playbookItems: NavItem[] = [
@@ -53,7 +54,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -65,6 +66,7 @@ export default function SalesNavBar() {
           fetch("/api/call-review/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/cold-call-script/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/sales-deck/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/sales-metrics/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -79,6 +81,7 @@ export default function SalesNavBar() {
           callReview: !!callReviewRes?.hasCallReview,
           coldCallScript: !!coldCallRes?.hasColdCallScript,
           salesDeck: !!salesDeckRes?.hasSalesDeck,
+          salesMetrics: !!salesMetricsRes?.hasSalesMetrics,
         });
       } catch {
         // silently fail - indicators just won't show
