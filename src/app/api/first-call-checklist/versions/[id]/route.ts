@@ -72,11 +72,13 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const { content } = await request.json();
+    const body = await request.json();
+    const { content, title } = body;
 
-    if (!content || typeof content !== "string") {
+    // Content is required unless only updating title
+    if (!content && title === undefined) {
       return NextResponse.json(
-        { error: "Content is required" },
+        { error: "Content or title is required" },
         { status: 400 }
       );
     }
@@ -93,14 +95,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
 
+    // Build update data
+    const updateData: { content?: string; title?: string } = {};
+    if (content) updateData.content = content;
+    if (title !== undefined) updateData.title = title;
+
     // Update the version
     const updatedVersion = await prisma.firstCallChecklistVersion.update({
       where: { id },
-      data: { content },
+      data: updateData,
     });
 
-    // Also update the merge variable
-    await prisma.gtmVariable.upsert({
+    // Also update the merge variable (only if content was changed)
+    if (content) await prisma.gtmVariable.upsert({
       where: {
         userId_mergeField: {
           userId: user.id,

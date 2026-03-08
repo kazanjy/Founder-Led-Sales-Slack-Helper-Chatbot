@@ -69,6 +69,7 @@ function SalesNarrativeContent() {
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const [editedNarrative, setEditedNarrative] = useState("");
   const [edited1000w, setEdited1000w] = useState("");
   const [edited100w, setEdited100w] = useState("");
@@ -143,6 +144,7 @@ function SalesNarrativeContent() {
   }, [router, versionId]);
 
   const initEditFields = (v: NarrativeVersion) => {
+    setEditTitle(v.title || "");
     setEditedNarrative(v.narrative);
     setEdited1000w(v.description1000w || "");
     setEdited100w(v.description100w);
@@ -197,6 +199,7 @@ function SalesNarrativeContent() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          title: editTitle,
           narrative: editedNarrative,
           description1000w: edited1000w || null,
           description100w: edited100w,
@@ -328,7 +331,17 @@ function SalesNarrativeContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Sales Narrative"}</h1>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Sales Narrative"
+                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-2 py-1 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                ) : (
+                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "Sales Narrative"}</h1>
+                )}
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                 </p>

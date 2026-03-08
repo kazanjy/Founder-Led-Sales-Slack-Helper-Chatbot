@@ -34,7 +34,17 @@ ${latestNarrative.narrative}
 
 Respond ONLY with valid JSON (no markdown, no code blocks): { "orgPersona": "...", "humanPersona": "..." }`;
 
-    const chatbaseResult = await sendToChatbase(prompt);
+    let chatbaseResult;
+    try {
+      chatbaseResult = await sendToChatbase(prompt);
+    } catch (chatbaseError) {
+      console.error("[prefill-personas] Chatbase API call failed:", chatbaseError);
+      return NextResponse.json(
+        { error: "AI service is temporarily unavailable. You can fill in the personas manually." },
+        { status: 502 }
+      );
+    }
+
     let aiResponse = chatbaseResult.response.trim();
 
     // Strip code blocks if present
@@ -50,22 +60,32 @@ Respond ONLY with valid JSON (no markdown, no code blocks): { "orgPersona": "...
 
     const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("[prefill-personas] No JSON found in AI response:", aiResponse.substring(0, 500));
       return NextResponse.json(
-        { error: "Failed to parse AI response" },
-        { status: 500 }
+        { error: "AI returned an unexpected format. You can fill in the personas manually." },
+        { status: 422 }
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error("[prefill-personas] JSON parse failed:", parseError, "Raw:", jsonMatch[0].substring(0, 500));
+      return NextResponse.json(
+        { error: "AI returned malformed data. You can fill in the personas manually." },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       orgPersona: parsed.orgPersona || "",
       humanPersona: parsed.humanPersona || "",
     });
   } catch (error) {
-    console.error("Error prefilling personas:", error);
+    console.error("[prefill-personas] Unexpected error:", error);
     return NextResponse.json(
-      { error: "Failed to prefill personas" },
+      { error: "Failed to prefill personas. You can fill them in manually." },
       { status: 500 }
     );
   }

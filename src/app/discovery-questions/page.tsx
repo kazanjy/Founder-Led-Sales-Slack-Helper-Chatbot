@@ -73,6 +73,7 @@ function DiscoveryQuestionsContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editContent, setEditContent] = useState<DiscoveryQuestionsContent | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
@@ -354,6 +355,7 @@ function DiscoveryQuestionsContent() {
   const handleStartEditing = () => {
     if (!version) return;
     setEditContent(JSON.parse(JSON.stringify(version.content)));
+    setEditTitle(version.title || "");
     setIsEditing(true);
     // Expand all categories when editing
     if (version.content.categories) {
@@ -364,6 +366,7 @@ function DiscoveryQuestionsContent() {
   const handleCancelEditing = () => {
     setIsEditing(false);
     setEditContent(null);
+    setEditTitle("");
   };
 
   const handleSave = async () => {
@@ -373,7 +376,7 @@ function DiscoveryQuestionsContent() {
       const res = await fetch(`/api/discovery-questions/versions/${version.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: editContent }),
+        body: JSON.stringify({ content: editContent, title: editTitle }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -381,9 +384,10 @@ function DiscoveryQuestionsContent() {
         return;
       }
       const data = await res.json();
-      setVersion({ ...version, content: data.version.content });
+      setVersion({ ...version, content: data.version.content, title: data.version.title });
       setIsEditing(false);
       setEditContent(null);
+      setEditTitle("");
     } catch (error) {
       console.error("Error saving:", error);
       await showAlert({ title: "Error", message: "Failed to save changes. Please try again.", variant: "danger" });
@@ -644,7 +648,17 @@ function DiscoveryQuestionsContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Discovery Questions"}</h1>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Discovery Questions"
+                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-2 py-1 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                ) : (
+                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "Discovery Questions"}</h1>
+                )}
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)} · {getTotalQuestions()} questions
                 </p>

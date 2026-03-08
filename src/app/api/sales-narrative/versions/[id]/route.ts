@@ -109,7 +109,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { narrative, description1000w, description100w, description50w, description25w } = body;
+    const { title, narrative, description1000w, description100w, description50w, description25w } = body;
 
     // Find the version
     const version = await prisma.salesNarrativeVersion.findUnique({
@@ -127,6 +127,7 @@ export async function PATCH(
 
     // Build update object with only provided fields
     const updateData: {
+      title?: string;
       narrative?: string;
       description1000w?: string | null;
       description100w?: string;
@@ -134,6 +135,7 @@ export async function PATCH(
       description25w?: string;
     } = {};
 
+    if (title !== undefined) updateData.title = title;
     if (narrative !== undefined) updateData.narrative = narrative;
     if (description1000w !== undefined) updateData.description1000w = description1000w;
     if (description100w !== undefined) updateData.description100w = description100w;

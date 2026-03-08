@@ -71,6 +71,7 @@ function FirstCallChecklistContent() {
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
   const [editedContent, setEditedContent] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -278,6 +279,7 @@ function FirstCallChecklistContent() {
 
   const handleStartEditing = () => {
     if (version) {
+      setEditTitle(version.title || "");
       setEditedContent(version.content);
     }
     setIsEditing(true);
@@ -287,6 +289,7 @@ function FirstCallChecklistContent() {
     if (version) {
       setEditedContent(version.content);
     }
+    setEditTitle("");
     setIsEditing(false);
   };
 
@@ -298,7 +301,7 @@ function FirstCallChecklistContent() {
       const response = await fetch(`/api/first-call-checklist/versions/${version.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: editedContent }),
+        body: JSON.stringify({ content: editedContent, title: editTitle }),
       });
 
       if (!response.ok) throw new Error("Failed to save");
@@ -306,9 +309,11 @@ function FirstCallChecklistContent() {
       const data = await response.json();
       setVersion({
         ...version,
+        title: data.version.title,
         content: data.version.content,
         updatedAt: data.version.updatedAt,
       });
+      setEditTitle("");
       setIsEditing(false);
     } catch (error) {
       console.error("Error saving:", error);
@@ -518,7 +523,17 @@ function FirstCallChecklistContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{version.title || "First Call Checklist"}</h1>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="First Call Checklist"
+                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-2 py-1 w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                ) : (
+                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "First Call Checklist"}</h1>
+                )}
                 <p className="text-sm text-gray-500">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (

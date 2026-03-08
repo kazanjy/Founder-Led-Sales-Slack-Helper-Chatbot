@@ -90,20 +90,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Validate content structure
-    if (!body.content || !body.content.categories) {
+    // Validate content structure (content is optional if only updating title)
+    if (body.content && !body.content.categories) {
       return NextResponse.json(
         { error: "Invalid content structure" },
         { status: 400 }
       );
     }
 
+    // Build update data
+    const updateData: { content?: string; title?: string } = {};
+    if (body.content) updateData.content = JSON.stringify(body.content);
+    if (body.title !== undefined) updateData.title = body.title;
+
     // Update the version
     const updated = await prisma.discoveryQuestionsVersion.update({
       where: { id },
-      data: {
-        content: JSON.stringify(body.content),
-      },
+      data: updateData,
     });
 
     // Check if this is the latest version and update merge variable
@@ -112,7 +115,7 @@ export async function PATCH(
       orderBy: { createdAt: "desc" },
     });
 
-    if (latest?.id === id) {
+    if (latest?.id === id && body.content) {
       // Update the merge variable
       const formattedContent = formatDiscoveryQuestionsForMerge(body.content);
       await prisma.gtmVariable.upsert({
