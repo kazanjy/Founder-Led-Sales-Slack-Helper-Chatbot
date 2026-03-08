@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
 // Allow up to 120s for Chatbase AI generation
 export const maxDuration = 120;
@@ -56,17 +57,13 @@ export async function POST() {
 
     const narrative = latestChecklist.discoveryQuestionsVersion?.salesNarrativeVersion;
 
-    // Build the prompt for Chatbase
-    // IMPORTANT: Instructions come FIRST so they survive if the message gets truncated.
-    // The First Call Checklist already contains distilled info from the narrative, Q&A, and
-    // discovery questions, so we only include the checklist + narrative (skip raw Q&A and
-    // discovery questions to stay within the 7500-char Chatbase limit).
-    const systemPrompt = `You are an expert B2B sales coach. Generate a Pre-Call Planning Process — the preparation ritual a founder uses BEFORE every sales call. This is NOT the call itself; it's how to PREPARE.
+    // Build instructions (fixed-length) and context (variable-length) separately
+    const instructionPrompt = `You are an expert B2B sales coach. Generate a Pre-Call Planning Process — the preparation ritual a founder uses BEFORE every sales call. This is NOT the call itself; it's how to PREPARE.
 
 ## OUTPUT REQUIREMENTS
 - Return raw markdown (NO code blocks)
 - Be specific to THIS company's value prop, market, and sales motion
-- Reference personas/strategies from the First Call Checklist below
+- Reference personas/strategies from the First Call Checklist provided in context
 - Include fillable templates
 
 ## DOCUMENT STRUCTURE (include all 9 sections):
@@ -89,26 +86,28 @@ export async function POST() {
 
 9. **Post-Call Protocol** — Note-taking template, CRM updates, follow-up email, debrief, next step execution.
 
----
-
-## FIRST CALL CHECKLIST:
-
-${latestChecklist.content}
-
-## SALES NARRATIVE:
-
-${narrative?.narrative ?? "No sales narrative available."}
-
----
-
 Generate the Pre-Call Planning Process now.`;
 
-    console.log(`Sending pre-call planning prompt: ${systemPrompt.length} chars`);
+    const contextSection = `## FIRST CALL CHECKLIST:\n\n${latestChecklist.content}\n\n## SALES NARRATIVE:\n\n${narrative?.narrative ?? "No sales narrative available."}`;
+
+    const fullPrompt = `${instructionPrompt}\n\n---\n\n${contextSection}`;
+
+    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    let finalMessage = fullPrompt;
+
+    if (fullPrompt.length > CHATBASE_MESSAGE_LIMIT) {
+      const contextChunks = splitIntoChunks(contextSection, CHATBASE_MESSAGE_LIMIT);
+      chatbaseHistory = buildChunkedHistory(contextChunks, "Sales Context");
+      finalMessage = instructionPrompt;
+      console.log(`[pre-call-planning/generate] Chunked: ${contextChunks.length} chunks, final message: ${finalMessage.length} chars`);
+    }
+
+    console.log(`Sending pre-call planning prompt: ${finalMessage.length} chars (history: ${chatbaseHistory.length} msgs)`);
 
     // Call Chatbase
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(systemPrompt);
+      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
       aiResponse = chatbaseResult.response;
     } catch (chatbaseError) {
       console.error("Chatbase API error:", chatbaseError);

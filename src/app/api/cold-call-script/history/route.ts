@@ -24,7 +24,11 @@ export async function GET() {
     });
 
     return NextResponse.json({ versions });
-  } catch (error) {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (errMsg.includes("does not exist") || errMsg.includes("P2021") || errMsg.includes("P2010")) {
+      return NextResponse.json({ versions: [] });
+    }
     console.error("Error fetching cold call script history:", error);
     return NextResponse.json(
       { error: "Failed to fetch history" },

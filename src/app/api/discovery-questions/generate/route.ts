@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
 // Allow up to 120s for Chatbase AI generation
 export const maxDuration = 120;
@@ -63,10 +64,8 @@ export async function POST() {
       }
     }
 
-    // Build the prompt for Chatbase
-    // IMPORTANT: Keep output format instructions BEFORE the variable-length content
-    // so they survive if Chatbase truncates the message
-    const systemPrompt = `You are an expert B2B sales coach helping founders create discovery questions for sales calls.
+    // Build instructions (fixed) and context (variable) separately
+    const instructionPrompt = `You are an expert B2B sales coach helping founders create discovery questions for sales calls.
 
 ## OUTPUT FORMAT (CRITICAL — follow this exactly):
 
@@ -95,18 +94,27 @@ Generate discovery questions organized into these 5 categories:
 4. **Decision Process** - Who's involved, budget, evaluation criteria.
 5. **Fit Qualification** - Is this prospect a good fit for the solution?
 
-For each category: 4-6 open-ended questions with follow-up probes. Conversational, not interrogative. Tailored to the specific problem/solution below.
+For each category: 4-6 open-ended questions with follow-up probes. Conversational, not interrogative. Tailored to the specific problem/solution provided in context.`;
 
-## SALES NARRATIVE:
+    const contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}`;
+    const fullPrompt = `${instructionPrompt}\n\n${contextSection}`;
 
-${latestNarrative.narrative}`;
+    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    let finalMessage = fullPrompt;
 
-    console.log(`Sending discovery questions prompt: ${systemPrompt.length} chars`);
+    if (fullPrompt.length > CHATBASE_MESSAGE_LIMIT) {
+      const contextChunks = splitIntoChunks(contextSection, CHATBASE_MESSAGE_LIMIT);
+      chatbaseHistory = buildChunkedHistory(contextChunks, "Sales Narrative");
+      finalMessage = instructionPrompt;
+      console.log(`[discovery-questions/generate] Chunked: ${contextChunks.length} chunks, final message: ${finalMessage.length} chars`);
+    }
+
+    console.log(`Sending discovery questions prompt: ${finalMessage.length} chars (history: ${chatbaseHistory.length} msgs)`);
 
     // Call Chatbase
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(systemPrompt);
+      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
       aiResponse = chatbaseResult.response;
     } catch (chatbaseError) {
       console.error("Chatbase API error:", chatbaseError);

@@ -53,7 +53,17 @@ export async function GET() {
         updatedAt: latestVersion.updatedAt,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    // Handle missing table (migration not yet run)
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (errMsg.includes("does not exist") || errMsg.includes("P2021") || errMsg.includes("P2010")) {
+      console.warn("[cold-call-script/latest] Table not found — migration likely pending");
+      return NextResponse.json({
+        hasColdCallScript: false,
+        version: null,
+        hasSalesNarrative: false,
+      });
+    }
     console.error("Error fetching latest cold call script:", error);
     return NextResponse.json(
       { error: "Failed to fetch cold call script" },

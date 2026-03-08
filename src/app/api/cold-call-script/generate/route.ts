@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { createSequenceConversation } from "@/lib/sequences/sequence-conversation";
+import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
 // Allow up to 120s for Chatbase AI generation
 export const maxDuration = 120;
@@ -54,27 +55,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build the prompt
-    let contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}`;
-    if (checklistContent) {
-      contextSection += `\n\n## FIRST CALL CHECKLIST (for additional context):\n\n${checklistContent}`;
-    }
-
+    // Build the prompt — instructions first so they survive truncation
     const personaSection = `## TARGET PERSONA:
 
 - **Organization type:** ${orgPersona}
 - **Target role:** ${humanPersona}
 ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
 
-    const systemPrompt = resolvedType === "outbound"
+    // Build context section (variable-length content)
+    let contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}`;
+    if (checklistContent) {
+      contextSection += `\n\n## FIRST CALL CHECKLIST (for additional context):\n\n${checklistContent}`;
+    }
+
+    // Instructions go in final message; context goes in history if too long
+    const instructionPrompt = resolvedType === "outbound"
+      ? buildOutboundPrompt(personaSection, "")
+      : buildInboundPrompt(personaSection, "");
+
+    const fullPrompt = resolvedType === "outbound"
       ? buildOutboundPrompt(personaSection, contextSection)
       : buildInboundPrompt(personaSection, contextSection);
 
-    console.log(`Sending cold call script prompt (${resolvedType}): ${systemPrompt.length} chars`);
+    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    let finalMessage = fullPrompt;
+
+    if (fullPrompt.length > CHATBASE_MESSAGE_LIMIT) {
+      // Send context as chunked history, instructions as final message
+      const contextChunks = splitIntoChunks(contextSection, CHATBASE_MESSAGE_LIMIT);
+      chatbaseHistory = buildChunkedHistory(contextChunks, "Sales Context");
+      finalMessage = instructionPrompt;
+      console.log(`[cold-call-script/generate] Chunked: ${contextChunks.length} chunks, final message: ${finalMessage.length} chars`);
+    }
+
+    console.log(`Sending cold call script prompt (${resolvedType}): ${finalMessage.length} chars (history: ${chatbaseHistory.length} msgs)`);
 
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(systemPrompt);
+      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
       aiResponse = chatbaseResult.response;
     } catch (chatbaseError) {
       console.error("Chatbase API error:", chatbaseError);
@@ -237,8 +255,7 @@ ${personaSection}
 
 ## OUTPUT FORMAT:
 Return clean markdown (NO code blocks). Use headers, bold text, and clear structure.
-
-${contextSection}`;
+${contextSection ? `\n${contextSection}` : ""}`;
 }
 
 function buildInboundPrompt(personaSection: string, contextSection: string): string {
@@ -305,6 +322,5 @@ ${personaSection}
 
 ## OUTPUT FORMAT:
 Return clean markdown (NO code blocks). Use headers, bold text, and clear structure.
-
-${contextSection}`;
+${contextSection ? `\n${contextSection}` : ""}`;
 }
