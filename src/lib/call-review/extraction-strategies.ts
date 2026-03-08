@@ -1,24 +1,150 @@
 /**
- * Per-vendor browser-side extraction scripts.
- *
- * Each function returns a JavaScript string that runs in the headless browser
- * page context. The script must return { transcript: string, title?: string }
- * or throw on failure.
+ * Per-vendor extraction strategies for both:
+ *  - Browser-side scripts (Browserless headless browser)
+ *  - Server-side HTML parsing (direct fetch, regex-based)
  */
 
 import type { VendorConfig } from "./vendors";
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Server-side HTML extraction (direct fetch approach)
+// ══════════════════════════════════════════════════════════════════════════════
+
+export interface HtmlExtractionConfig {
+  /** Regex patterns to match the transcript container in raw HTML.
+   *  Each pattern should have a capture group for the container innerHTML. */
+  containerPatterns: RegExp[];
+  /** Regex patterns for elements to strip from the matched container. */
+  stripPatterns: RegExp[];
+}
+
+/**
+ * Get the HTML extraction config for server-side parsing of a vendor's page.
+ */
+export function getHtmlExtractionConfig(vendor: VendorConfig): HtmlExtractionConfig {
+  const custom = HTML_CONFIGS[vendor.id];
+  if (custom) return custom;
+  return buildDefaultHtmlConfig(vendor);
+}
+
+/**
+ * Default HTML extraction config: look for common transcript container
+ * patterns and strip navigation/button elements.
+ */
+function buildDefaultHtmlConfig(vendor: VendorConfig): HtmlExtractionConfig {
+  return {
+    containerPatterns: [
+      // Match elements with "transcript" in a class or data-testid attribute
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script|nav)\b|$)/i,
+      /<section[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/section>/i,
+      /<div[^>]+data-testid="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script|nav)\b|$)/i,
+      // Broader: any element with transcript in an attribute
+      /<[a-z]+[^>]+(?:class|id|data-testid)="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/\1>/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  };
+}
+
+/** Common elements to strip from transcript HTML. */
+const DEFAULT_STRIP_PATTERNS: RegExp[] = [
+  /<button[\s\S]*?<\/button>/gi,
+  /<nav[\s\S]*?<\/nav>/gi,
+  /<header[\s\S]*?<\/header>/gi,
+  /<footer[\s\S]*?<\/footer>/gi,
+  /<script[\s\S]*?<\/script>/gi,
+  /<style[\s\S]*?<\/style>/gi,
+  /<svg[\s\S]*?<\/svg>/gi,
+  /<[^>]+class="[^"]*toolbar[^"]*"[\s\S]*?<\/[^>]+>/gi,
+  /<[^>]+class="[^"]*sidebar[^"]*"[\s\S]*?<\/[^>]+>/gi,
+];
+
+/**
+ * Vendor-specific HTML extraction configs.
+ *
+ * These patterns are tuned to the known server-rendered HTML structure of each
+ * vendor's public share pages. If a vendor changes their HTML, update the
+ * patterns here.
+ */
+const HTML_CONFIGS: Record<string, HtmlExtractionConfig> = {
+  sybill: {
+    containerPatterns: [
+      // Sybill shared conversation pages
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      /<div[^>]+data-testid="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      // Broader fallback: look for conversation/meeting content
+      /<div[^>]+class="[^"]*(?:conversation|meeting|call)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: [
+      ...DEFAULT_STRIP_PATTERNS,
+      /<[^>]+class="[^"]*(?:action|control|menu|dropdown)[^"]*"[\s\S]*?<\/[^>]+>/gi,
+    ],
+  },
+
+  fathom: {
+    containerPatterns: [
+      // Fathom share pages
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      /<div[^>]+data-testid="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      // Fathom may use "recording" containers
+      /<div[^>]+class="[^"]*(?:recording|call-content)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  },
+
+  fireflies: {
+    containerPatterns: [
+      // Fireflies renders transcript as individual sentence elements
+      /<div[^>]+class="[^"]*(?:sentence-list|transcript-body|transcript)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      /<div[^>]+class="[^"]*(?:meeting-transcript|transcript-container)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: [
+      ...DEFAULT_STRIP_PATTERNS,
+      /<[^>]+class="[^"]*sidebar[^"]*"[\s\S]*?<\/[^>]+>/gi,
+    ],
+  },
+
+  otter: {
+    containerPatterns: [
+      /<div[^>]+class="[^"]*(?:otterBody|transcript)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      /<div[^>]+class="[^"]*(?:otter-transcript|note-body)[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  },
+
+  circleback: {
+    containerPatterns: [
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+      /<div[^>]+data-testid="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  },
+
+  grain: {
+    containerPatterns: [
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  },
+
+  tldv: {
+    containerPatterns: [
+      /<div[^>]+class="[^"]*transcript[^"]*"[^>]*>([\s\S]*?)<\/div>\s*(?=<(?:div|section|footer|script)\b|$)/i,
+    ],
+    stripPatterns: DEFAULT_STRIP_PATTERNS,
+  },
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Browser-side extraction scripts (Browserless headless browser)
+// ══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Build a JavaScript function body that the headless browser will execute
  * inside the share page after the waitSelector is visible.
  */
 export function getExtractionScript(vendor: VendorConfig): string {
-  // Vendors with highly unique DOM structures can get custom overrides here.
   const custom = CUSTOM_SCRIPTS[vendor.id];
   if (custom) return custom;
-
-  // Default strategy: remove cleanup elements, then grab textContent from
-  // the transcriptSelector container.
   return buildDefaultScript(vendor);
 }
 
