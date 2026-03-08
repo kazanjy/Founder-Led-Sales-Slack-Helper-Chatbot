@@ -19,9 +19,14 @@ function isPDFFile(file: File): boolean {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 }
 
-// Check if file is supported (image or PDF)
+// Check if file is a CSV
+function isCSVFile(file: File): boolean {
+  return file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+}
+
+// Check if file is supported (image, PDF, or CSV)
 function isSupportedFile(file: File): boolean {
-  return isImageFile(file) || isPDFFile(file);
+  return isImageFile(file) || isPDFFile(file) || isCSVFile(file);
 }
 
 export function FileAttachmentButton({
@@ -37,6 +42,7 @@ export function FileAttachmentButton({
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -56,6 +62,16 @@ export function FileAttachmentButton({
     const filesToAdd = pdfFiles.slice(0, remaining);
     if (filesToAdd.length > 0) onFilesChange(filesToAdd);
     if (pdfInputRef.current) pdfInputRef.current.value = "";
+  };
+
+  const handleCSVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const csvFiles = files.filter(isCSVFile);
+    const remaining = maxFiles - currentCount;
+    const filesToAdd = csvFiles.slice(0, remaining);
+    if (filesToAdd.length > 0) onFilesChange(filesToAdd);
+    if (csvInputRef.current) csvInputRef.current.value = "";
   };
 
   const isMaxReached = currentCount >= maxFiles;
@@ -79,6 +95,15 @@ export function FileAttachmentButton({
         multiple
         className="hidden"
         onChange={handlePDFChange}
+        disabled={isDisabled}
+      />
+      <input
+        ref={csvInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        multiple
+        className="hidden"
+        onChange={handleCSVChange}
         disabled={isDisabled}
       />
       {/* Image upload button */}
@@ -123,6 +148,24 @@ export function FileAttachmentButton({
           <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
         </svg>
       </button>
+      {/* CSV upload button */}
+      <button
+        type="button"
+        onClick={() => csvInputRef.current?.click()}
+        disabled={isDisabled}
+        className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+          isDisabled
+            ? "text-gray-400 opacity-50 cursor-not-allowed"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+        }`}
+        title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach CSV"}
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+          <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#2E7D32"/>
+          <path d="M14 2V8H20L14 2Z" fill="#C8E6C9"/>
+          <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">CSV</text>
+        </svg>
+      </button>
     </>
   );
 }
@@ -144,6 +187,7 @@ export function FilePreviewChips({
       file,
       url: isImageFile(file) ? URL.createObjectURL(file) : null,
       isPDF: isPDFFile(file),
+      isCSV: isCSVFile(file),
     }));
   }, [files]);
 
@@ -165,16 +209,16 @@ export function FilePreviewChips({
           key={`${preview.file.name}-${index}`}
           className="relative group"
         >
-          {preview.isPDF ? (
-            // PDF preview - show icon and filename
+          {preview.isPDF || preview.isCSV ? (
+            // PDF/CSV preview - show icon and filename
             <div
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 ${processing ? "opacity-50" : "cursor-pointer hover:border-gray-300 hover:bg-gray-100"}`}
               onClick={() => !processing && onPreview?.(index)}
             >
               <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
-                <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
-                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={preview.isCSV ? "#2E7D32" : "#E53935"}/>
+                <path d="M14 2V8H20L14 2Z" fill={preview.isCSV ? "#C8E6C9" : "#FFCDD2"}/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{preview.isCSV ? "CSV" : "PDF"}</text>
               </svg>
               <span className="text-sm text-gray-700 max-w-[120px] truncate">{preview.file.name}</span>
               {processing && (
@@ -255,12 +299,13 @@ export function ImageAttachment({
   );
 }
 
-// AttachedFile interface for stored image/PDF data
+// AttachedFile interface for stored image/PDF/CSV data
 export interface AttachedFile {
   name: string;
-  type: "image" | "pdf";
-  dataUrl: string; // base64 data URL for images, first page for PDFs
+  type: "image" | "pdf" | "csv";
+  dataUrl: string; // base64 data URL for images, first page for PDFs, empty for CSVs
   pdfPages?: string[]; // All page data URLs for PDFs
+  csvText?: string; // Parsed text content for CSVs
 }
 
 // Read-only chips showing attached images/PDFs (after sending) - clickable for lightbox
@@ -277,21 +322,22 @@ export function ImageChipsReadOnly({
     <div className="flex flex-wrap gap-2">
       {files.map((file, index) => {
         const isPDF = file.type === "pdf";
+        const isCSV = file.type === "csv";
         return (
           <div
             key={`${file.name}-${index}`}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 ${onPreview ? "cursor-pointer hover:border-gray-300 hover:bg-gray-100" : ""}`}
             onClick={() => onPreview?.(index)}
           >
-            {isPDF ? (
+            {isPDF || isCSV ? (
               <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
-                <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
-                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={isCSV ? "#2E7D32" : "#E53935"}/>
+                <path d="M14 2V8H20L14 2Z" fill={isCSV ? "#C8E6C9" : "#FFCDD2"}/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{isCSV ? "CSV" : "PDF"}</text>
               </svg>
             ) : (
               <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             )}
             <span className="max-w-[150px] truncate">{file.name}</span>
@@ -303,4 +349,4 @@ export function ImageChipsReadOnly({
 }
 
 // Export helper functions
-export { isImageFile, isPDFFile, isSupportedFile };
+export { isImageFile, isPDFFile, isCSVFile, isSupportedFile };

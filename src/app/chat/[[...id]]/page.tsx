@@ -14,7 +14,8 @@ import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
-import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
+import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isCSVFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
+import Papa from "papaparse";
 import { convertPDFToImages } from "@/lib/pdf-to-images";
 import { Lightbox, type LightboxImage } from "@/components/Lightbox";
 import { useConfirmModal } from "@/components/useConfirmModal";
@@ -106,7 +107,7 @@ interface Message {
 // Stored file reference from database (storage paths, not base64)
 interface StoredFileRef {
   name: string;
-  type: "image" | "pdf";
+  type: "image" | "pdf" | "csv";
   storagePath: string;
   pageCount?: number;
 }
@@ -114,7 +115,7 @@ interface StoredFileRef {
 // Loaded file with signed URLs (for display)
 interface LoadedFile {
   name: string;
-  type: "image" | "pdf";
+  type: "image" | "pdf" | "csv";
   url?: string; // For images
   pageUrls?: string[]; // For PDFs
   pageCount?: number;
@@ -127,9 +128,10 @@ function getMessageFiles(
   loadedFiles: LoadedFile[],
   pendingFiles: AttachedFile[] = []
 ): LoadedFile[] {
-  // Match [Image: filename] and [PDF: filename] patterns
+  // Match [Image: filename], [PDF: filename], and [CSV: filename] patterns
   const imagePattern = /\[Image: ([^\]]+)\]/g;
   const pdfPattern = /\[PDF: ([^\]]+)\]/g;
+  const csvPattern = /\[CSV: ([^\]]+)\]/g;
 
   const referencedNames: string[] = [];
 
@@ -138,6 +140,9 @@ function getMessageFiles(
     referencedNames.push(match[1]);
   }
   while ((match = pdfPattern.exec(messageContent)) !== null) {
+    referencedNames.push(match[1]);
+  }
+  while ((match = csvPattern.exec(messageContent)) !== null) {
     referencedNames.push(match[1]);
   }
 
@@ -1422,9 +1427,9 @@ export default function ChatPage() {
   const handleImageDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Check if any of the dragged items are images or PDFs
+    // Check if any of the dragged items are images, PDFs, or CSVs
     const hasSupportedFiles = Array.from(e.dataTransfer.items).some(
-      (item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf")
+      (item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf" || item.type === "text/csv" || (item.type === "" && item.kind === "file"))
     );
     if (hasSupportedFiles) {
       setIsDraggingImage(true);
@@ -1496,13 +1501,43 @@ export default function ChatPage() {
     }
   };
 
-  // Process files (images and PDFs) through vision API and return descriptions
+  // Process files (images, PDFs, and CSVs) through vision API / parsing and return descriptions
   const processFiles = async (files: File[]): Promise<string[]> => {
     const descriptions: string[] = [];
 
     for (const file of files) {
       try {
-        if (isPDFFile(file)) {
+        if (isCSVFile(file)) {
+          // Parse CSV and convert to readable text
+          const csvText = await file.text();
+          const parsed = Papa.parse<Record<string, string>>(csvText, {
+            header: true,
+            skipEmptyLines: true,
+          });
+
+          if (parsed.errors.length > 0 && parsed.data.length === 0) {
+            descriptions.push(`[CSV: ${file.name}] (Error: could not parse CSV)`);
+            continue;
+          }
+
+          // Convert rows to readable text: "Column: Value" format separated by dividers
+          const textContent = parsed.data
+            .map((row) =>
+              Object.entries(row)
+                .filter(([, val]) => val && val.trim())
+                .map(([key, val]) => `${key}: ${val}`)
+                .join("\n"),
+            )
+            .filter((block) => block.trim())
+            .join("\n---\n");
+
+          // Truncate if very large
+          const truncated = textContent.length > 30000
+            ? textContent.substring(0, 30000) + "\n\n(CSV content truncated due to size)"
+            : textContent;
+
+          descriptions.push(`[CSV: ${file.name}] (${parsed.data.length} rows)\n${truncated}`);
+        } else if (isPDFFile(file)) {
           // Convert PDF to images and process each page
           console.log(`[PDF] Converting ${file.name} to images...`);
           const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
@@ -1540,7 +1575,7 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error("Error processing file:", file.name, error);
-        const fileType = isPDFFile(file) ? "PDF" : "Image";
+        const fileType = isCSVFile(file) ? "CSV" : isPDFFile(file) ? "PDF" : "Image";
         descriptions.push(`[${fileType}: ${file.name}] (Error processing)`);
       }
     }
@@ -1778,13 +1813,23 @@ export default function ChatPage() {
     if (imagesToProcess.length > 0) {
       setProcessingImages(true);
       const fileCount = imagesToProcess.length;
-      const fileType = imagesToProcess.some(f => f.type === "application/pdf") ? "files" : "images";
+      const hasNonImage = imagesToProcess.some(f => f.type === "application/pdf" || isCSVFile(f));
+      const fileType = hasNonImage ? "files" : "images";
       setProcessingStatus(`Analyzing ${fileCount} ${fileType}...`);
       try {
         // Convert files to base64 data URLs for storage before processing
         attachedFiles = await Promise.all(
           imagesToProcess.map(async (file): Promise<AttachedFile> => {
-            if (isPDFFile(file)) {
+            if (isCSVFile(file)) {
+              // CSV files: store the parsed text, no base64 image needed
+              const csvText = await file.text();
+              return {
+                name: file.name,
+                type: "csv",
+                dataUrl: "", // No visual preview for CSVs
+                csvText,
+              };
+            } else if (isPDFFile(file)) {
               // Convert PDF pages to images
               const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
               return {
@@ -3586,10 +3631,12 @@ export default function ChatPage() {
                                   className="cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => openLightboxForLoadedFiles(messageFiles, fileIndex)}
                                 >
-                                  {file.type === "pdf" ? (
+                                  {file.type === "pdf" || file.type === "csv" ? (
                                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
-                                      <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/>
+                                      <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                                        <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={file.type === "csv" ? "#2E7D32" : "#E53935"}/>
+                                        <path d="M14 2V8H20L14 2Z" fill={file.type === "csv" ? "#C8E6C9" : "#FFCDD2"}/>
+                                        <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{file.type === "csv" ? "CSV" : "PDF"}</text>
                                       </svg>
                                       <span className="max-w-[120px] truncate">{file.name}</span>
                                     </div>
