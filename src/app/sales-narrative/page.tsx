@@ -60,7 +60,31 @@ function SalesNarrativeContent() {
   const [version, setVersion] = useState<NarrativeVersion | null>(null);
   const [answersByCategory, setAnswersByCategory] = useState<AnswersByCategory | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"qa" | "narrative" | "1000w" | "100w" | "50w" | "25w">("narrative");
+  // Tab state — read initial tab from URL hash (e.g. #1000w)
+  const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w"] as const;
+  type Tab = typeof validTabs[number];
+  const getTabFromHash = (): Tab => {
+    if (typeof window === "undefined") return "narrative";
+    const hash = window.location.hash.replace("#", "");
+    return validTabs.includes(hash as Tab) ? (hash as Tab) : "narrative";
+  };
+  const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
+
+  // Sync hash → tab on popstate (browser back/forward)
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(getTabFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update URL hash when tab changes
+  const switchTab = (tab: Tab) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.hash = tab;
+    window.history.replaceState(null, "", url.toString());
+  };
 
   // Discovery questions banner
   const [showDiscoveryBanner, setShowDiscoveryBanner] = useState(true);
@@ -544,7 +568,7 @@ function SalesNarrativeContent() {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-gray-200">
           <button
-            onClick={() => setActiveTab("qa")}
+            onClick={() => switchTab("qa")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "qa"
                 ? "border-purple-600 text-purple-600"
@@ -554,7 +578,7 @@ function SalesNarrativeContent() {
             Q&A Inputs
           </button>
           <button
-            onClick={() => setActiveTab("narrative")}
+            onClick={() => switchTab("narrative")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "narrative"
                 ? "border-purple-600 text-purple-600"
@@ -565,7 +589,7 @@ function SalesNarrativeContent() {
           </button>
           {current1000w && (
             <button
-              onClick={() => setActiveTab("1000w")}
+              onClick={() => switchTab("1000w")}
               className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "1000w"
                   ? "border-purple-600 text-purple-600"
@@ -576,7 +600,7 @@ function SalesNarrativeContent() {
             </button>
           )}
           <button
-            onClick={() => setActiveTab("100w")}
+            onClick={() => switchTab("100w")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "100w"
                 ? "border-purple-600 text-purple-600"
@@ -586,7 +610,7 @@ function SalesNarrativeContent() {
             100 Words
           </button>
           <button
-            onClick={() => setActiveTab("50w")}
+            onClick={() => switchTab("50w")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "50w"
                 ? "border-purple-600 text-purple-600"
@@ -596,7 +620,7 @@ function SalesNarrativeContent() {
             50 Words
           </button>
           <button
-            onClick={() => setActiveTab("25w")}
+            onClick={() => switchTab("25w")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "25w"
                 ? "border-purple-600 text-purple-600"
