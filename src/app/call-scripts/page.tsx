@@ -10,6 +10,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
@@ -610,6 +611,10 @@ function ColdCallScriptContent() {
                 </>
               ) : (
                 <>
+                  <ChatAboutButton
+                    title="Chat About Call Script"
+                    getContext={() => currentContent}
+                  />
                   <button
                     onClick={handleCopy}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -725,18 +730,6 @@ function ColdCallScriptContent() {
                 View Narrative →
               </Link>
             </div>
-            {version.conversationId && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <Link
-                  href={`/chat/${version.conversationId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
-                >
-                  Chat About This Script →
-                </Link>
-              </div>
-            )}
           </div>
         )}
 
