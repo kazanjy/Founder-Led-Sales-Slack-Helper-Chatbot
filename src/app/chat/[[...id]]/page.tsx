@@ -290,7 +290,10 @@ export default function ChatPage() {
     emailSequence: { hasGenerated: boolean } | null;
     linkedInSequence: { hasGenerated: boolean } | null;
     callReview: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null });
+    coldCallScript: { hasGenerated: boolean } | null;
+    salesDeck: { hasGenerated: boolean } | null;
+    salesMetrics: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -439,6 +442,36 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             callReview: { hasGenerated: !!crData.hasCallReview }
+          }));
+        }
+
+        // Fetch Call Scripts progress
+        const csRes = await fetch("/api/cold-call-script/latest");
+        if (csRes.ok) {
+          const csData = await csRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            coldCallScript: { hasGenerated: !!csData.hasColdCallScript }
+          }));
+        }
+
+        // Fetch Sales Deck progress
+        const sdRes = await fetch("/api/sales-deck/latest");
+        if (sdRes.ok) {
+          const sdData = await sdRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            salesDeck: { hasGenerated: !!sdData.hasSalesDeck }
+          }));
+        }
+
+        // Fetch Sales Metrics progress
+        const smRes = await fetch("/api/sales-metrics/latest");
+        if (smRes.ok) {
+          const smData = await smRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            salesMetrics: { hasGenerated: !!smData.hasSalesMetrics }
           }));
         }
       } catch (error) {
@@ -2567,6 +2600,42 @@ export default function ChatPage() {
               )}
               <span>💼</span>
               <span className="flex-1">LinkedIn Sequence</span>
+            </a>
+            <a
+              href="/call-scripts"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.coldCallScript?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>🎯</span>
+              <span className="flex-1">Call Scripts</span>
+            </a>
+            <a
+              href="/sales-deck"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.salesDeck?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📊</span>
+              <span className="flex-1">Sales Deck</span>
+            </a>
+            <a
+              href="/sales-metrics"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              {appProgress.salesMetrics?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📈</span>
+              <span className="flex-1">Metrics</span>
             </a>
             <a
               href="/files"
