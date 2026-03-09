@@ -152,13 +152,17 @@ Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`
     }
 
     // Validate: only include answers for known question IDs
+    // Filter out placeholder non-answers (e.g. "Answer" left unchanged in the Google Doc)
+    const placeholderAnswers = new Set(["answer", "n/a", "na", "none", "tbd", "todo", "?"]);
     const validIds = new Set(questions.map((q) => q.id));
     const validAnswers: Record<string, string> = {};
     let filledCount = 0;
 
     for (const [id, answer] of Object.entries(answers)) {
       if (validIds.has(id) && typeof answer === "string" && answer.trim()) {
-        validAnswers[id] = answer.trim();
+        const trimmed = answer.trim();
+        if (placeholderAnswers.has(trimmed.toLowerCase())) continue;
+        validAnswers[id] = trimmed;
         filledCount++;
       }
     }
