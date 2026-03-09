@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
 
 // Allow up to 120s for PDF processing + LLM
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Maturity Prefill] Extracted ${formatted.length} chars (OCR: ${usedOCR})`);
 
-    // Cap context
-    const MAX_CONTEXT_CHARS = 60000;
+    // Cap context for the LLM
+    const MAX_CONTEXT_CHARS = 100000;
     let trimmedContext = formatted;
     if (trimmedContext.length > MAX_CONTEXT_CHARS) {
       console.warn(`[Maturity Prefill] Trimming context from ${trimmedContext.length} to ${MAX_CONTEXT_CHARS} chars`);
@@ -75,10 +75,7 @@ export async function POST(request: NextRequest) {
       .map((q) => `- ID: "${q.id}" | Q${q.globalOrder} [${q.category}]: ${q.question}`)
       .join("\n");
 
-    const CHATBASE_LIMIT = 7500;
-    const MAX_HISTORY_CHUNKS = 10;
-
-    const instructionPrompt = `You are helping a founder fill in their GTM Maturity Assessment questionnaire. You have been given a PDF document that is a completed version of this same assessment (exported from Google Docs). Your job is to extract the answers from the PDF and map them to the correct questionnaire fields.
+    const systemPrompt = `You are helping a founder fill in their GTM Maturity Assessment questionnaire. You have been given a PDF document that is a completed version of this same assessment (exported from Google Docs). Your job is to extract the answers from the PDF and map them to the correct questionnaire fields.
 
 ## QUESTIONS TO FILL
 
@@ -93,64 +90,27 @@ ${questionList}
 - If a question from the questionnaire doesn't have a corresponding answer in the PDF, use an empty string
 - The PDF may contain section headers, formatting artifacts, or extra text — ignore those and focus on the Q&A content
 
-CRITICAL: Respond with ONLY a raw JSON object — no markdown, no code fences, no explanation, no text before or after. The response must start with { and end with }.
-
+You MUST respond with ONLY a valid JSON object. No markdown, no code fences, no explanation.
 Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`;
 
-    // Chunk context into Chatbase history if needed
-    const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = `${instructionPrompt}\n\n## PDF CONTENT\n\n${trimmedContext}`;
+    console.log(`[Maturity Prefill] Sending to GPT-5.2: system ${systemPrompt.length} chars, user ${trimmedContext.length} chars`);
 
-    if (finalMessage.length > CHATBASE_LIMIT) {
-      const chunks: string[] = [];
-      let current = "";
-
-      const sections = trimmedContext.split(/(?=--- Page )/);
-      for (const section of sections) {
-        if (current.length + section.length > CHATBASE_LIMIT - 500) {
-          if (current) chunks.push(current.trim());
-          if (section.length > CHATBASE_LIMIT - 500) {
-            const subChunks = splitTextIntoChunks(section, CHATBASE_LIMIT - 500);
-            chunks.push(...subChunks);
-          } else {
-            current = section;
-          }
-        } else {
-          current += section;
-        }
-      }
-      if (current.trim()) chunks.push(current.trim());
-
-      if (chunks.length > MAX_HISTORY_CHUNKS) {
-        console.warn(`[Maturity Prefill] Capping ${chunks.length} chunks to ${MAX_HISTORY_CHUNKS}`);
-        chunks.length = MAX_HISTORY_CHUNKS;
-      }
-
-      for (let i = 0; i < chunks.length; i++) {
-        chatbaseHistory.push({
-          role: "user",
-          content: `[Assessment PDF Content Part ${i + 1} of ${chunks.length}]\n\n${chunks[i]}`,
-        });
-        if (i < chunks.length - 1) {
-          chatbaseHistory.push({
-            role: "assistant",
-            content: `I've received part ${i + 1} of the assessment PDF. Please continue.`,
-          });
-        }
-      }
-
-      finalMessage = instructionPrompt;
-    }
-
-    console.log(`[Maturity Prefill] Sending to Chatbase: ${chatbaseHistory.length} history msgs, final: ${finalMessage.length} chars`);
-
-    // Call Chatbase
+    // Call GPT-5.2 directly — no Chatbase message limits
     let aiResponse: string;
     try {
-      const result = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
-      aiResponse = result.response;
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `## PDF CONTENT\n\n${trimmedContext}` },
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+      });
+
+      aiResponse = completion.choices[0]?.message?.content || "";
     } catch (err) {
-      console.error("[Maturity Prefill] Chatbase error:", err);
+      console.error("[Maturity Prefill] OpenAI error:", err);
       const msg = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json(
         { error: `AI parsing failed: ${msg}` },
@@ -158,41 +118,37 @@ Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`
       );
     }
 
-    // Parse JSON response — strip markdown fences and find balanced JSON
+    // Parse JSON response
     let answers: Record<string, string>;
     try {
-      let cleaned = aiResponse.trim();
-      // Strip markdown code fences (```json ... ``` or ``` ... ```)
-      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
-      cleaned = cleaned.trim();
+      answers = JSON.parse(aiResponse);
+    } catch (err) {
+      // Fallback: try to extract JSON from response
+      try {
+        let cleaned = aiResponse.trim();
+        cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+        const startIdx = cleaned.indexOf("{");
+        if (startIdx === -1) throw new Error("No JSON object found in response");
 
-      // Find the first { and its balanced closing }
-      const startIdx = cleaned.indexOf("{");
-      if (startIdx === -1) throw new Error("No JSON object found in response");
-
-      let depth = 0;
-      let endIdx = -1;
-      for (let i = startIdx; i < cleaned.length; i++) {
-        if (cleaned[i] === "{") depth++;
-        else if (cleaned[i] === "}") {
-          depth--;
-          if (depth === 0) {
-            endIdx = i;
-            break;
+        let depth = 0;
+        let endIdx = -1;
+        for (let i = startIdx; i < cleaned.length; i++) {
+          if (cleaned[i] === "{") depth++;
+          else if (cleaned[i] === "}") {
+            depth--;
+            if (depth === 0) { endIdx = i; break; }
           }
         }
+        if (endIdx === -1) throw new Error("Unbalanced JSON — response may have been truncated");
+        answers = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
+      } catch (fallbackErr) {
+        console.error("[Maturity Prefill] Failed to parse AI response:", fallbackErr);
+        console.error("[Maturity Prefill] Raw response (first 1500 chars):", aiResponse.substring(0, 1500));
+        return NextResponse.json(
+          { error: "Failed to parse AI response. The AI may have returned a malformed response — please try again." },
+          { status: 500 }
+        );
       }
-      if (endIdx === -1) throw new Error("Unbalanced JSON — response may have been truncated");
-
-      const jsonStr = cleaned.substring(startIdx, endIdx + 1);
-      answers = JSON.parse(jsonStr);
-    } catch (err) {
-      console.error("[Maturity Prefill] Failed to parse AI response:", err);
-      console.error("[Maturity Prefill] Raw response (first 1500 chars):", aiResponse.substring(0, 1500));
-      return NextResponse.json(
-        { error: "Failed to parse AI response. The AI may have returned a malformed response — please try again." },
-        { status: 500 }
-      );
     }
 
     // Validate: only include answers for known question IDs
@@ -222,29 +178,4 @@ Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`
       { status: 500 }
     );
   }
-}
-
-function splitTextIntoChunks(text: string, maxLen: number): string[] {
-  const chunks: string[] = [];
-  const paragraphs = text.split(/\n\n+/);
-  let current = "";
-
-  for (const para of paragraphs) {
-    if (current.length + para.length + 2 > maxLen) {
-      if (current) chunks.push(current.trim());
-      if (para.length > maxLen) {
-        for (let i = 0; i < para.length; i += maxLen) {
-          chunks.push(para.substring(i, i + maxLen));
-        }
-        current = "";
-      } else {
-        current = para;
-      }
-    } else {
-      current += (current ? "\n\n" : "") + para;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-
-  return chunks;
 }
