@@ -64,6 +64,9 @@ function BulkAssessmentContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [prefilling, setPrefilling] = useState(false);
+  const [prefillError, setPrefillError] = useState<string | null>(null);
+  const [prefillSuccess, setPrefillSuccess] = useState<string | null>(null);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [grouped, setGrouped] = useState<CategoryGroup[]>([]);
@@ -248,6 +251,64 @@ function BulkAssessmentContent() {
       console.error("Error saving answers:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setPrefillError("Please upload a PDF file.");
+      return;
+    }
+
+    setPrefilling(true);
+    setPrefillError(null);
+    setPrefillSuccess(null);
+
+    try {
+      // Read file as base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch("/api/maturity/prefill-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfBase64: base64, fileName: file.name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPrefillError(data.error || "Failed to parse PDF.");
+        return;
+      }
+
+      // Fill in the answers
+      setAnswers((prev) => {
+        const updated = { ...prev };
+        for (const [questionId, answer] of Object.entries(data.answers as Record<string, string>)) {
+          if (answer) {
+            updated[questionId] = answer;
+          }
+        }
+        return updated;
+      });
+
+      setHasUnsavedChanges(true);
+      setPrefillSuccess(`Filled ${data.filledCount} of ${data.totalQuestions} questions from PDF. Review and edit as needed.`);
+    } catch (error) {
+      console.error("Error parsing PDF:", error);
+      setPrefillError("Failed to process PDF. Please try again.");
+    } finally {
+      setPrefilling(false);
+      // Reset the file input so the same file can be re-uploaded
+      e.target.value = "";
     }
   };
 
@@ -460,6 +521,65 @@ function BulkAssessmentContent() {
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* PDF Upload Card */}
+        <div className="mb-8 bg-white rounded-xl border-2 border-dashed border-purple-200 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Import from PDF</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Have a completed assessment in Google Docs? Export it as PDF and upload it here to auto-fill the fields.
+              </p>
+
+              {prefillError && (
+                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {prefillError}
+                </div>
+              )}
+
+              {prefillSuccess && (
+                <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                  {prefillSuccess}
+                </div>
+              )}
+
+              <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
+                prefilling
+                  ? "bg-purple-100 text-purple-400 cursor-wait"
+                  : "bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg"
+              }`}>
+                {prefilling ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Parsing PDF...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload PDF
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePDFUpload}
+                  disabled={prefilling}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
         {grouped.map((category, categoryIndex) => (
           <div key={category.category} className="mb-12">
             {/* Category Header */}
