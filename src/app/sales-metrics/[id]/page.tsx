@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
+import { ChatAboutButton } from "@/components/ChatAboutButton";
+import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 
 interface AnalysisResult {
   top3Strengths: Array<{ title: string; detail: string }>;
@@ -47,8 +49,6 @@ export default function SalesMetricsDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [assessment, setAssessment] = useState<AssessmentDetail | null>(null);
-  const [copied, setCopied] = useState(false);
-
   useEffect(() => {
     document.title = "Sales Metrics Report - Mikey";
   }, []);
@@ -84,25 +84,6 @@ export default function SalesMetricsDetailPage() {
     }
     loadAssessment();
   }, [id, router]);
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback
-      const input = document.createElement("input");
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   // Build a flat question list for metric table lookups
   const allQuestions = assessment?.categories?.flatMap((c) => c.questions) || [];
@@ -146,58 +127,113 @@ export default function SalesMetricsDetailPage() {
     );
   }
 
+  // Build context for ChatAboutButton
+  const getChatContext = () => {
+    let context = "";
+    if (assessment.analysisReport) {
+      context += assessment.analysisReport + "\n\n";
+    }
+    if (assessment.categories?.length) {
+      context += "## Your Responses\n\n";
+      for (const cat of assessment.categories) {
+        context += `### ${cat.name}\n`;
+        for (const q of cat.questions) {
+          context += `- ${q.question}: ${q.answer}${q.source === "csv" ? " (from CSV)" : ""}\n`;
+        }
+        context += "\n";
+      }
+    }
+    return context;
+  };
+
+  // Build share content
+  const buildShareContent = () => {
+    let content = `# ${assessment.title || "Sales Metrics Analysis"}\n\n`;
+    content += `Date: ${new Date(assessment.completedAt).toLocaleDateString()}\n`;
+    if (assessment.csvFileName) {
+      content += `CSV: ${assessment.csvFileName}\n`;
+    }
+    content += "\n";
+    if (assessment.analysisReport) {
+      content += assessment.analysisReport;
+    }
+    return content;
+  };
+
   return (
     <>
       <SalesNavBar />
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="mb-6">
-            <Link
-              href="/sales-metrics/history"
-              className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block"
-            >
-              &larr; Back to History
-            </Link>
-            <div className="flex items-start justify-between gap-4">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/sales-metrics/history" className="text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-xl font-semibold text-gray-900">
                   {assessment.title || "Sales Metrics Analysis"}
                 </h1>
-                <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                  <span>{new Date(assessment.completedAt).toLocaleDateString()}</span>
+                <p className="text-sm text-gray-500">
+                  {new Date(assessment.completedAt).toLocaleDateString()}
                   {assessment.csvFileName && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                      CSV: {assessment.csvFileName}
-                    </span>
+                    <> &middot; <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">{assessment.csvFileName}</span></>
                   )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={handleShare}
-                  className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  {copied ? "Copied!" : "Share"}
-                </button>
-                {assessment.conversationId && (
-                  <Link
-                    href={`/chat/${assessment.conversationId}`}
-                    target="_blank"
-                    className="px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
-                  >
-                    Chat
-                  </Link>
-                )}
-                <Link
-                  href="/sales-metrics"
-                  className="px-3 py-1.5 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors font-medium"
-                >
-                  New Analysis
-                </Link>
+                </p>
               </div>
             </div>
+
+            <div className="flex items-center gap-2">
+              <ChatAboutButton
+                title={`Chat About Sales Metrics: ${assessment.title || "Analysis"}`}
+                getContext={getChatContext}
+              />
+              <Link
+                href="/sales-metrics/history"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                History
+              </Link>
+              <ShareDocumentButton
+                documentType="salesMetrics"
+                documentId={assessment.id}
+                title={assessment.title || "Sales Metrics Analysis"}
+                content={buildShareContent()}
+              />
+              {assessment.conversationId && (
+                <Link
+                  href={`/chat/${assessment.conversationId}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat
+                </Link>
+              )}
+              <Link
+                href="/sales-metrics"
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Analysis
+              </Link>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-6 py-8">
 
           {/* Metrics Table */}
           {metrics && Object.keys(metrics).length > 0 && (
@@ -304,30 +340,7 @@ export default function SalesMetricsDetailPage() {
             </div>
           )}
 
-          {/* Bottom Actions */}
-          <div className="flex items-center gap-4 pb-8">
-            {assessment.conversationId && (
-              <Link
-                href={`/chat/${assessment.conversationId}`}
-                target="_blank"
-                className="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium text-sm hover:bg-purple-700 transition-colors"
-              >
-                Chat About These Results
-              </Link>
-            )}
-            <button
-              onClick={handleShare}
-              className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
-            >
-              {copied ? "Link Copied!" : "Share Report"}
-            </button>
-            <Link
-              href="/sales-metrics"
-              className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
-            >
-              Run New Analysis
-            </Link>
-          </div>
+          <div className="pb-8"></div>
         </div>
       </div>
     </>
