@@ -86,7 +86,8 @@ export default function SalesMetricsHistoryPage() {
               {assessments.map((a) => (
                 <div
                   key={a.id}
-                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-purple-300 transition-colors"
+                  onClick={() => router.push(`/sales-metrics/${a.id}`)}
+                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-purple-300 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -107,17 +108,16 @@ export default function SalesMetricsHistoryPage() {
                       {a.conversationId && (
                         <Link
                           href={`/chat/${a.conversationId}`}
+                          target="_blank"
+                          onClick={(e) => e.stopPropagation()}
                           className="px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                         >
-                          💬 Chat
+                          Chat
                         </Link>
                       )}
-                      <Link
-                        href={`/sales-metrics/history?id=${a.id}`}
-                        className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        View
-                      </Link>
+                      <span className="px-3 py-1.5 text-sm text-gray-400">
+                        &rarr;
+                      </span>
                     </div>
                   </div>
                 </div>

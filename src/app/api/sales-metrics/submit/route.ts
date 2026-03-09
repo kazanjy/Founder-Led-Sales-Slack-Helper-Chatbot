@@ -145,12 +145,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate assessment title
+    let assessmentTitle = "Sales Metrics Analysis";
+    try {
+      const titleResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales metrics summarizer. Given an analysis of sales metrics, create a one-sentence title (under 80 characters) that summarizes the key finding. Do not use quotes.",
+          },
+          {
+            role: "user",
+            content: `Generate a one-sentence summary title (under 80 chars) for this sales metrics analysis:\n\n${analysisReport.substring(0, 2000)}`,
+          },
+        ],
+        max_completion_tokens: 100,
+        temperature: 0.7,
+      });
+      const titleText = titleResponse.choices[0]?.message?.content?.trim();
+      if (titleText && titleText.length <= 80) {
+        assessmentTitle = titleText;
+      } else if (titleText) {
+        assessmentTitle = titleText.substring(0, 77) + "...";
+      }
+    } catch (titleError) {
+      console.error("Error generating assessment title:", titleError);
+    }
+
     // Create a conversation for follow-up chat
     const conversation = await prisma.conversation.create({
       data: {
         userId: user.id,
         source: "WEB",
-        title: "Sales Metrics Analysis",
+        title: assessmentTitle,
         firstMessagePreview: "Sales metrics analysis and recommendations...",
         messageCount: 1,
       },
@@ -168,10 +196,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send to Chatbase for the initial response with context
+    // Send to Chatbase for the initial response with full context
     let chatbaseConvId: string | undefined;
     try {
-      const contextChunks = splitIntoChunks(analysisReport, CHATBASE_MESSAGE_LIMIT);
+      let fullContext = analysisReport;
+      fullContext += "\n\n## User's Metrics Responses\n\n" + questionsAndAnswers;
+      if (truncatedCsv) {
+        fullContext += "\n\n## Raw CRM Opportunity Data\n\n" + truncatedCsv;
+      }
+      const contextChunks = splitIntoChunks(fullContext, CHATBASE_MESSAGE_LIMIT);
       const chatbaseHistory = buildChunkedHistory(contextChunks, "Sales Metrics Analysis");
 
       const chatbaseResult = await sendToChatbase(
@@ -211,34 +244,6 @@ export async function POST(request: NextRequest) {
         lastMessageAt: new Date(),
       },
     });
-
-    // Generate assessment title
-    let assessmentTitle = "Sales Metrics Analysis";
-    try {
-      const titleResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a sales metrics summarizer. Given an analysis of sales metrics, create a one-sentence title (under 80 characters) that summarizes the key finding. Do not use quotes.",
-          },
-          {
-            role: "user",
-            content: `Generate a one-sentence summary title (under 80 chars) for this sales metrics analysis:\n\n${analysisReport.substring(0, 2000)}`,
-          },
-        ],
-        max_completion_tokens: 100,
-        temperature: 0.7,
-      });
-      const titleText = titleResponse.choices[0]?.message?.content?.trim();
-      if (titleText && titleText.length <= 80) {
-        assessmentTitle = titleText;
-      } else if (titleText) {
-        assessmentTitle = titleText.substring(0, 77) + "...";
-      }
-    } catch (titleError) {
-      console.error("Error generating assessment title:", titleError);
-    }
 
     // Create the assessment record
     const assessment = await prisma.salesMetricsAssessment.create({
