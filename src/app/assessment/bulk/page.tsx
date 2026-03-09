@@ -317,6 +317,7 @@ function BulkAssessmentContent() {
 
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -601,11 +602,24 @@ function BulkAssessmentContent() {
                 </div>
               )}
 
-              <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                prefilling
-                  ? "bg-purple-100 text-purple-400 cursor-wait"
-                  : "bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg"
-              }`}>
+              <input
+                ref={pdfFileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePDFUpload}
+                disabled={prefilling}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => pdfFileInputRef.current?.click()}
+                disabled={prefilling}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  prefilling
+                    ? "bg-purple-100 text-purple-400 cursor-wait"
+                    : "bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg cursor-pointer"
+                }`}
+              >
                 {prefilling ? (
                   <>
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -622,14 +636,7 @@ function BulkAssessmentContent() {
                     Upload PDF
                   </>
                 )}
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handlePDFUpload}
-                  disabled={prefilling}
-                  className="hidden"
-                />
-              </label>
+              </button>
             </div>
           </div>
         </div>

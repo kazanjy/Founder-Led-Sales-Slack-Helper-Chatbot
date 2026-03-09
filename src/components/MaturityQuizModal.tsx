@@ -53,6 +53,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveNextButtonRef = useRef<HTMLButtonElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfMessage, setPdfMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Cycle through loading messages when submitting
   useEffect(() => {
@@ -267,6 +270,73 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
     onClose();
   }, [currentAnswer, currentQuestion, handleSave, onClose, showSubmitScreen]);
 
+  const handlePDFUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    if (file.type !== "application/pdf") {
+      setPdfMessage({ type: "error", text: "Please upload a PDF file." });
+      return;
+    }
+
+    setPdfUploading(true);
+    setPdfMessage(null);
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch("/api/maturity/prefill-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfBase64: base64, fileName: file.name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPdfMessage({ type: "error", text: data.error || "Failed to parse PDF." });
+        return;
+      }
+
+      // Save each extracted answer to the server
+      const answers = data.answers as Record<string, string>;
+      let savedCount = 0;
+      for (const [questionId, answer] of Object.entries(answers)) {
+        if (!answer) continue;
+        try {
+          const saveRes = await fetch(`/api/maturity/answers/${questionId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answer }),
+          });
+          if (saveRes.ok) savedCount++;
+        } catch {
+          // continue saving others
+        }
+      }
+
+      // Refresh questions to pick up new answers
+      const refreshRes = await fetch("/api/maturity/questions");
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setQuestions(refreshData.questions);
+        setGrouped(refreshData.grouped);
+      }
+
+      setPdfMessage({ type: "success", text: `Imported ${savedCount} of ${data.totalQuestions} answers from PDF. Review and edit as needed.` });
+    } catch {
+      setPdfMessage({ type: "error", text: "Failed to process PDF. Please try again." });
+    } finally {
+      setPdfUploading(false);
+    }
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     // If there's unsaved content, save it first
     if (currentAnswer.trim() && currentQuestion && !showSubmitScreen) {
@@ -417,6 +487,16 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
         {/* Content */}
         <div className="flex-1 p-6 overflow-y-auto">
+          {pdfMessage && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              pdfMessage.type === "success"
+                ? "bg-green-50 border border-green-200 text-green-700"
+                : "bg-red-50 border border-red-200 text-red-700"
+            }`}>
+              {pdfMessage.text}
+              <button onClick={() => setPdfMessage(null)} className="ml-2 underline text-xs">dismiss</button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -642,6 +722,38 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                 >
                   Edit all at once →
                 </a>
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePDFUpload}
+                  disabled={pdfUploading}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={pdfUploading || submitting}
+                  className="text-sm text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 flex items-center gap-1"
+                  tabIndex={7}
+                >
+                  {pdfUploading ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Importing PDF...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Import PDF →
+                    </>
+                  )}
+                </button>
               </div>
 
               <button
