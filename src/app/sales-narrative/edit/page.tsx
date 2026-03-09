@@ -337,19 +337,17 @@ function SalesNarrativeEditContent() {
 
       // Merge answers, optionally overwriting existing ones
       const filledIds: string[] = [];
-      setAnswers((prev) => {
-        const updated = { ...prev };
-        for (const [questionId, answer] of Object.entries(prefillAnswers)) {
-          if (answer.trim()) {
-            const existingHasContent = !!updated[questionId]?.trim();
-            if (!existingHasContent || overwriteExisting) {
-              updated[questionId] = answer;
-              filledIds.push(questionId);
-            }
+      const updatedAnswers = { ...answers };
+      for (const [questionId, answer] of Object.entries(prefillAnswers)) {
+        if (answer.trim()) {
+          const existingHasContent = !!updatedAnswers[questionId]?.trim();
+          if (!existingHasContent || overwriteExisting) {
+            updatedAnswers[questionId] = answer;
+            filledIds.push(questionId);
           }
         }
-        return updated;
-      });
+      }
+      setAnswers(updatedAnswers);
 
       setPrefillDone(true);
       setPrefillPanelOpen(false);
