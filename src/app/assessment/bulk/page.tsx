@@ -254,10 +254,7 @@ function BulkAssessmentContent() {
     }
   };
 
-  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processPDFFile = async (file: File) => {
     if (file.type !== "application/pdf") {
       setPrefillError("Please upload a PDF file.");
       return;
@@ -307,9 +304,54 @@ function BulkAssessmentContent() {
       setPrefillError("Failed to process PDF. Please try again.");
     } finally {
       setPrefilling(false);
-      // Reset the file input so the same file can be re-uploaded
-      e.target.value = "";
     }
+  };
+
+  const handlePDFUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processPDFFile(file);
+    // Reset the file input so the same file can be re-uploaded
+    e.target.value = "";
+  };
+
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    if (prefilling) return;
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processPDFFile(file);
   };
 
   const handleSubmit = async () => {
@@ -522,7 +564,17 @@ function BulkAssessmentContent() {
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* PDF Upload Card */}
-        <div className="mb-8 bg-white rounded-xl border-2 border-dashed border-purple-200 p-6">
+        <div
+          className={`mb-8 bg-white rounded-xl border-2 border-dashed p-6 transition-colors ${
+            isDragging
+              ? "border-purple-500 bg-purple-50"
+              : "border-purple-200"
+          }`}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -532,7 +584,9 @@ function BulkAssessmentContent() {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Import from PDF</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Have a completed assessment in Google Docs? Export it as PDF and upload it here to auto-fill the fields.
+                {isDragging
+                  ? "Drop your PDF here..."
+                  : "Have a completed assessment in Google Docs? Export it as PDF and drag it here or click to upload."}
               </p>
 
               {prefillError && (
