@@ -309,14 +309,8 @@ function EmailSequenceContent() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    const d = new Date(dateString);
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()} ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
   };
 
   if (loading) {
@@ -525,10 +519,10 @@ function EmailSequenceContent() {
               </Link>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Email Sequence</h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 leading-tight">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
-                    <> · Edited {formatDate(version.updatedAt)}</>
+                    <><br />Edited {formatDate(version.updatedAt)}</>
                   )}
                 </p>
               </div>
