@@ -461,34 +461,34 @@ function SalesMetricsContent() {
                       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-gray-600">
                         <div>
                           <p className="font-medium text-gray-700 mt-1 mb-0.5">Deal</p>
-                          <p>opportunity_id</p>
-                          <p>account_id</p>
-                          <p>owner_id</p>
-                          <p>opportunity_type</p>
-                          <p>amount</p>
-                          <p>stage</p>
-                          <p>created_at</p>
-                          <p>close_date</p>
-                          <p>actual_close_date</p>
-                          <p>lead_source</p>
+                          <p>Opportunity ID</p>
+                          <p>Account ID</p>
+                          <p>Owner ID</p>
+                          <p>Opportunity Type</p>
+                          <p>Amount</p>
+                          <p>Stage</p>
+                          <p>Created Date</p>
+                          <p>Close Date</p>
+                          <p>Actual Close Date</p>
+                          <p>Lead Source</p>
                         </div>
                         <div>
                           <p className="font-medium text-gray-700 mt-1 mb-0.5">Funnel</p>
-                          <p>first_meeting_date</p>
-                          <p>demo_date</p>
-                          <p>proposal_sent_date</p>
+                          <p>First Meeting Date</p>
+                          <p>Demo Date</p>
+                          <p>Proposal Sent Date</p>
                           <p className="font-medium text-gray-700 mt-2 mb-0.5">Context</p>
-                          <p>company_size</p>
-                          <p>industry</p>
-                          <p>buyer_role</p>
-                          <p>trigger_event</p>
-                          <p>current_solution</p>
-                          <p>competitor</p>
+                          <p>Company Size</p>
+                          <p>Industry</p>
+                          <p>Buyer Role</p>
+                          <p>Trigger Event</p>
+                          <p>Current Solution</p>
+                          <p>Competitor</p>
                         </div>
                       </div>
                       <div className="mt-1 text-gray-600">
                         <p className="font-medium text-gray-700 mt-2 mb-0.5">Outcome</p>
-                        <p>is_won · closed_lost_reason · closed_lost_notes</p>
+                        <p>Won/Lost · Closed Lost Reason · Closed Lost Notes</p>
                       </div>
                       <p className="mt-3 text-gray-500 italic">
                         Works with any CRM export (Salesforce, HubSpot, Pipedrive, Close, etc.).
