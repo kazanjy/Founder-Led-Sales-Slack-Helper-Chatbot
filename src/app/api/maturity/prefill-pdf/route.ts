@@ -93,8 +93,9 @@ ${questionList}
 - If a question from the questionnaire doesn't have a corresponding answer in the PDF, use an empty string
 - The PDF may contain section headers, formatting artifacts, or extra text — ignore those and focus on the Q&A content
 
-Respond with ONLY valid JSON mapping question IDs to answer strings:
-{"questionId1": "answer text...", "questionId2": "answer text...", ...}`;
+CRITICAL: Respond with ONLY a raw JSON object — no markdown, no code fences, no explanation, no text before or after. The response must start with { and end with }.
+
+Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`;
 
     // Chunk context into Chatbase history if needed
     const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -157,17 +158,39 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
       );
     }
 
-    // Parse JSON response
+    // Parse JSON response — strip markdown fences and find balanced JSON
     let answers: Record<string, string>;
     try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found in response");
-      answers = JSON.parse(jsonMatch[0]);
+      let cleaned = aiResponse.trim();
+      // Strip markdown code fences (```json ... ``` or ``` ... ```)
+      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+      cleaned = cleaned.trim();
+
+      // Find the first { and its balanced closing }
+      const startIdx = cleaned.indexOf("{");
+      if (startIdx === -1) throw new Error("No JSON object found in response");
+
+      let depth = 0;
+      let endIdx = -1;
+      for (let i = startIdx; i < cleaned.length; i++) {
+        if (cleaned[i] === "{") depth++;
+        else if (cleaned[i] === "}") {
+          depth--;
+          if (depth === 0) {
+            endIdx = i;
+            break;
+          }
+        }
+      }
+      if (endIdx === -1) throw new Error("Unbalanced JSON — response may have been truncated");
+
+      const jsonStr = cleaned.substring(startIdx, endIdx + 1);
+      answers = JSON.parse(jsonStr);
     } catch (err) {
       console.error("[Maturity Prefill] Failed to parse AI response:", err);
-      console.error("[Maturity Prefill] Raw response:", aiResponse.substring(0, 1000));
+      console.error("[Maturity Prefill] Raw response (first 1500 chars):", aiResponse.substring(0, 1500));
       return NextResponse.json(
-        { error: "Failed to parse AI response. Please try again." },
+        { error: "Failed to parse AI response. The AI may have returned a malformed response — please try again." },
         { status: 500 }
       );
     }
