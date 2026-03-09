@@ -425,6 +425,9 @@ function SalesMetricsContent() {
                     <p className="text-sm text-green-600">
                       {csvRowCount} opportunities analyzed · {prefilledCount} of {totalQuestions} metrics auto-filled
                     </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Fill in any remaining fields below for a more complete picture, or just hit <span className="font-medium text-purple-600">Analyze My Metrics</span> to work with what we have.
+                    </p>
                     <button
                       onClick={() => {
                         setCsvFileName(null);
