@@ -435,7 +435,14 @@ function SalesNarrativeContent() {
                     documentType="salesNarrative"
                     documentId={version.id}
                     title={version.title || "Sales Narrative"}
-                    content={currentNarrative}
+                    content={JSON.stringify({
+                      narrative: currentNarrative,
+                      description1000w: current1000w || "",
+                      description100w: current100w,
+                      description50w: current50w,
+                      description25w: current25w,
+                      answersByCategory: answersByCategory || null,
+                    })}
                   />
                   <button
                     onClick={handleStartEditing}
