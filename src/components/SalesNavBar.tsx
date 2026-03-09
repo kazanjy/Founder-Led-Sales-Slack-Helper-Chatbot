@@ -16,10 +16,10 @@ const topLevelItems: NavItem[] = [
   { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
   { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
   { href: "/call-scripts", label: "🎯 Call Scripts", statusKey: "coldCallScript" },
-  { href: "/sales-deck", label: "📊 Sales Deck", statusKey: "salesDeck" },
+  { href: "/sales-deck", label: "📊 Sales Deck Generation", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
-  { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
+  { href: "/sales-metrics", label: "📈 Sales Metrics Analysis", statusKey: "salesMetrics" },
 ];
 
 const playbookItems: NavItem[] = [

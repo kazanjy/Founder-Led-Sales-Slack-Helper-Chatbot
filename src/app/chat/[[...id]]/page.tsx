@@ -2623,7 +2623,7 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>📊</span>
-              <span className="flex-1">Sales Deck</span>
+              <span className="flex-1">Sales Deck Generation</span>
             </a>
             <a
               href="/sales-metrics"
@@ -2635,7 +2635,7 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>📈</span>
-              <span className="flex-1">Metrics</span>
+              <span className="flex-1">Sales Metrics Analysis</span>
             </a>
             <a
               href="/files"
