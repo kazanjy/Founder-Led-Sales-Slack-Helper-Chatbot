@@ -373,18 +373,18 @@ function EmailSequenceContent() {
                     Organizational Persona
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <textarea
                       value={orgPersona}
                       onChange={(e) => setOrgPersona(e.target.value)}
                       placeholder={prefilling ? "AI is thinking..." : "e.g. Series B SaaS company"}
                       disabled={prefilling}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50"
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
                     />
                     <button
                       onClick={handlePrefill}
                       disabled={prefilling}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors disabled:opacity-50"
+                      className="absolute right-2 top-2 p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors disabled:opacity-50"
                       title="AI Prefill"
                     >
                       {prefilling ? (
@@ -406,13 +406,13 @@ function EmailSequenceContent() {
                     Target Role / Human Persona
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <textarea
                       value={humanPersona}
                       onChange={(e) => setHumanPersona(e.target.value)}
                       placeholder={prefilling ? "AI is thinking..." : "e.g. VP of Sales"}
                       disabled={prefilling}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50"
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
                     />
                   </div>
                 </div>
