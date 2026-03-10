@@ -2554,7 +2554,7 @@ export default function ChatPage() {
         {/* Tools Section - Operational / Frequent */}
         <div className="px-4 pb-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tools</div>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[176px] overflow-y-auto">
             <a
               href="/pre-call-planning/research"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
