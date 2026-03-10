@@ -263,6 +263,7 @@ export default function ChatPage() {
   const voiceConversationModeRef = useRef(false); // Track if we're in voice conversation mode
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [playbookExpanded, setPlaybookExpanded] = useState(false);
+  const [toolsExpanded, setToolsExpanded] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [inputHeight, setInputHeight] = useState(120); // Default input container height
@@ -2553,8 +2554,16 @@ export default function ChatPage() {
 
         {/* Tools Section - Operational / Frequent */}
         <div className="px-4 pb-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tools</div>
-          <div className="space-y-1 max-h-[176px] overflow-y-auto">
+          <button
+            onClick={() => setToolsExpanded(!toolsExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${toolsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {toolsExpanded && <div className="space-y-1 max-h-[176px] overflow-y-auto">
             <a
               href="/pre-call-planning/research"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
@@ -2649,7 +2658,7 @@ export default function ChatPage() {
               <span>📁</span>
               <span className="flex-1">Images & Files</span>
             </a>
-          </div>
+          </div>}
         </div>
 
         {/* Playbook Section - Foundational / Infrequent (collapsible) */}
