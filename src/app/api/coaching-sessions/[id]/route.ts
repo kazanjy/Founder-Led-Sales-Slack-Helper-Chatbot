@@ -1,0 +1,105 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+
+// GET - Fetch a single coaching session
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const session = await prisma.coachingSession.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ session });
+  } catch (error) {
+    console.error("[Coaching Sessions] Get error:", error);
+    return NextResponse.json({ error: "Failed to fetch coaching session" }, { status: 500 });
+  }
+}
+
+// PUT - Update a coaching session
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { title, sessionDate, notes, transcript } = body;
+
+    // Verify ownership
+    const existing = await prisma.coachingSession.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const session = await prisma.coachingSession.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title: title.trim() }),
+        ...(sessionDate !== undefined && { sessionDate: new Date(sessionDate) }),
+        ...(notes !== undefined && { notes: notes.trim() }),
+        ...(transcript !== undefined && { transcript: transcript?.trim() || null }),
+      },
+    });
+
+    return NextResponse.json({ session });
+  } catch (error) {
+    console.error("[Coaching Sessions] Update error:", error);
+    return NextResponse.json({ error: "Failed to update coaching session" }, { status: 500 });
+  }
+}
+
+// DELETE - Delete a coaching session
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    // Verify ownership
+    const existing = await prisma.coachingSession.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    await prisma.coachingSession.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[Coaching Sessions] Delete error:", error);
+    return NextResponse.json({ error: "Failed to delete coaching session" }, { status: 500 });
+  }
+}

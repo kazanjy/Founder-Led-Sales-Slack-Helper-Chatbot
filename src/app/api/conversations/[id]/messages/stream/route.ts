@@ -44,7 +44,7 @@ export async function POST(
   }
 
   // Validate attachments if provided
-  const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist"];
+  const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist", "coachingHistory"];
   const requestedAttachments: string[] = Array.isArray(attachments)
     ? attachments.filter((a: string) => validAttachments.includes(a))
     : [];
@@ -491,6 +491,33 @@ async function fetchAttachmentContent(
 
       if (!variable?.value) return null;
       return { title: "First Call Checklist", text: variable.value };
+    }
+
+    case "coachingHistory": {
+      const sessions = await prisma.coachingSession.findMany({
+        where: { userId },
+        orderBy: { sessionDate: "asc" },
+        select: { title: true, sessionDate: true, notes: true, transcript: true },
+      });
+
+      if (sessions.length === 0) return null;
+
+      let text = "";
+      for (const session of sessions) {
+        const date = session.sessionDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        text += `### Session: ${session.title} — ${date}\n\n`;
+        text += `#### Notes\n${session.notes}\n\n`;
+        if (session.transcript) {
+          text += `#### Call Transcript\n${session.transcript}\n\n`;
+        }
+        text += "---\n\n";
+      }
+
+      return { title: `Coaching History (${sessions.length} sessions)`, text: text.trim() };
     }
 
     default:

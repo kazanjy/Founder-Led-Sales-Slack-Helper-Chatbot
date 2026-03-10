@@ -28,6 +28,7 @@ const playbookItems: NavItem[] = [
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
+  { href: "/coaching-history", label: "🎓 Coaching History", statusKey: "coachingHistory" },
 ];
 
 interface CompletionStatus {

@@ -110,6 +110,7 @@ model User {
   callReviewVersions CallReviewVersion[]
   salesMetricsAnswers SalesMetricsAnswer[]
   salesMetricsAssessments SalesMetricsAssessment[]
+  coachingSessions CoachingSession[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
 
@@ -1091,4 +1092,26 @@ model SalesMetricsAssessment {
 
   @@index([userId, completedAt])
   @@map("sales_metrics_assessments")
+}
+
+// ============================================
+// COACHING HISTORY
+// ============================================
+
+model CoachingSession {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String                // e.g. "Weekly Coaching — Mar 3"
+  sessionDate DateTime              // Date of the coaching session
+  notes       String   @db.Text     // Notes stored as markdown
+  transcript  String?  @db.Text     // Optional pasted call transcript
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, sessionDate(sort: Desc)])
+  @@map("coaching_sessions")
 }

@@ -27,6 +27,7 @@ export async function GET() {
       firstCallChecklistVar,
       preCallPlanningVar,
       salesDeckVar,
+      coachingSessionCount,
     ] = await Promise.all([
       // Sales Narrative - check GtmVariable
       prisma.gtmVariable.findFirst({
@@ -58,6 +59,10 @@ export async function GET() {
       prisma.gtmVariable.findFirst({
         where: { userId: user.id, mergeField: "SALES_DECK" },
         select: { updatedAt: true, value: true },
+      }),
+      // Coaching History - check for any sessions
+      prisma.coachingSession.count({
+        where: { userId: user.id },
       }),
     ]);
 
@@ -109,6 +114,14 @@ export async function GET() {
         appUrl: "/sales-deck",
         isAvailable: !!(salesDeckVar?.value),
         lastUpdated: salesDeckVar?.updatedAt?.toISOString() || null,
+      },
+      {
+        id: "coachingHistory",
+        name: "Coaching History",
+        description: "All coaching session notes and transcripts",
+        appUrl: "/coaching-history",
+        isAvailable: coachingSessionCount > 0,
+        lastUpdated: null,
       },
     ];
 
