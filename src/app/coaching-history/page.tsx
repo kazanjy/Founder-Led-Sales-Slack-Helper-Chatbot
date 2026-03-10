@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
+
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 
 interface CoachingSession {
@@ -376,19 +379,17 @@ export default function CoachingHistoryPage() {
                       />
                     </div>
 
-                    {/* Notes */}
+                    {/* Notes — rich text */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Session Notes
                       </label>
-                      <textarea
+                      <RichTextEditor
                         value={formNotes}
-                        onChange={(e) => setFormNotes(e.target.value)}
+                        onChange={setFormNotes}
+                        height={250}
                         placeholder="Key takeaways, action items, coaching feedback, areas to work on..."
-                        rows={8}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
                       />
-                      <p className="mt-1 text-xs text-gray-400">Markdown supported</p>
                     </div>
 
                     {/* Transcript */}
