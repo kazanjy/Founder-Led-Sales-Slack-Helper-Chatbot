@@ -355,7 +355,7 @@ export default function CoachingHistoryPage() {
                     {/* Title */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Session Title <span className="font-normal text-gray-400">(auto-generated if blank)</span>
+                        Session Title <span className="font-normal text-gray-400">(optional — auto-generated if blank)</span>
                       </label>
                       <input
                         type="text"
@@ -369,7 +369,7 @@ export default function CoachingHistoryPage() {
                     {/* Date */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Session Date
+                        Session Date <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
@@ -382,7 +382,7 @@ export default function CoachingHistoryPage() {
                     {/* Notes — rich text */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Session Notes
+                        Session Notes <span className="text-red-500">*</span>
                       </label>
                       <RichTextEditor
                         value={formNotes}
@@ -420,6 +420,16 @@ export default function CoachingHistoryPage() {
                     >
                       Cancel
                     </button>
+                    <div className="flex items-center gap-3">
+                      {!saving && (!formDate || !formNotes.trim()) && (
+                        <span className="text-xs text-gray-400">
+                          {!formDate && !formNotes.trim()
+                            ? "Date and notes required"
+                            : !formDate
+                              ? "Date required"
+                              : "Notes required"}
+                        </span>
+                      )}
                     <button
                       onClick={handleSave}
                       disabled={saving || !formDate || !formNotes.trim()}
@@ -433,6 +443,7 @@ export default function CoachingHistoryPage() {
                       )}
                       {mode === "edit" ? "Save Changes" : "Create Session"}
                     </button>
+                    </div>
                   </div>
                 </div>
               ) : selectedSession ? (
