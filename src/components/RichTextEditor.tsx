@@ -249,7 +249,15 @@ export default function RichTextEditor({
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
       <Toolbar editor={editor} />
-      <div style={{ height, overflow: "auto" }}>
+      <div
+        style={{ height, overflow: "auto" }}
+        className="cursor-text [&>.tiptap]:min-h-full"
+        onClick={(e) => {
+          if (editor && e.target === e.currentTarget) {
+            editor.chain().focus("end").run();
+          }
+        }}
+      >
         <EditorContent editor={editor} />
       </div>
     </div>
