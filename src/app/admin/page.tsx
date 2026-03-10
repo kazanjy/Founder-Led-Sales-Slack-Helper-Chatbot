@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Stats {
   totalUsers: number;
@@ -16,9 +17,33 @@ interface Stats {
   slackUsers: number;
 }
 
+interface RecentConversation {
+  id: string;
+  title: string | null;
+  firstMessagePreview: string | null;
+  messageCount: number;
+  createdAt: string;
+  lastMessageAt: string;
+  source: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    slackUserName: string | null;
+    avatarUrl: string | null;
+    workspace: {
+      slackTeamName: string;
+    } | null;
+  };
+}
+
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<RecentConversation[]>([]);
+  const [convsLoading, setConvsLoading] = useState(true);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Admin - Dashboard";
@@ -40,6 +65,62 @@ export default function AdminDashboard() {
     }
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    async function fetchConversations() {
+      try {
+        const res = await fetch("/api/admin/recent-conversations");
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(data.conversations);
+        }
+      } catch (error) {
+        console.error("Failed to fetch recent conversations:", error);
+      } finally {
+        setConvsLoading(false);
+      }
+    }
+    fetchConversations();
+  }, []);
+
+  async function handleImpersonateToChat(userId: string, conversationId: string) {
+    if (impersonatingId) return;
+    setImpersonatingId(userId);
+    try {
+      const redirectTo = `/chat/${conversationId}`;
+      const res = await fetch(
+        `/api/admin/users/${userId}/impersonate?redirectTo=${encodeURIComponent(redirectTo)}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        router.push(data.redirectTo);
+      } else {
+        setImpersonatingId(null);
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+      setImpersonatingId(null);
+    }
+  }
+
+  function formatTimeAgo(dateStr: string): string {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  }
+
+  function getUserDisplayName(user: RecentConversation["user"]): string {
+    return user.name || user.slackUserName || user.email || "Unknown";
+  }
 
   if (loading) {
     return <div className="text-gray-500">Loading stats...</div>;
@@ -135,6 +216,80 @@ export default function AdminDashboard() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Recent Conversations */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Conversations</h2>
+          <p className="text-sm text-gray-500 mt-1">Click to impersonate user and enter their chat</p>
+        </div>
+        {convsLoading ? (
+          <div className="p-6 text-gray-500">Loading recent conversations...</div>
+        ) : conversations.length === 0 ? (
+          <div className="p-6 text-gray-500">No conversations yet</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => handleImpersonateToChat(conv.user.id, conv.id)}
+                disabled={impersonatingId !== null}
+                className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+              >
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                    {conv.user.avatarUrl ? (
+                      <img
+                        src={conv.user.avatarUrl}
+                        alt=""
+                        className="w-9 h-9 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                        {getUserDisplayName(conv.user).charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">
+                        {getUserDisplayName(conv.user)}
+                      </span>
+                      {conv.user.workspace?.slackTeamName && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                          {conv.user.workspace.slackTeamName}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
+                        {formatTimeAgo(conv.lastMessageAt)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-700 truncate mt-0.5">
+                      {conv.title || conv.firstMessagePreview || "New conversation"}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {conv.messageCount} message{conv.messageCount !== 1 ? "s" : ""}
+                      {conv.user.email && (
+                        <span className="ml-2">{conv.user.email}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Arrow indicator */}
+                  <div className="flex-shrink-0 text-gray-300 self-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Identity Breakdown */}

@@ -14,6 +14,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { searchParams } = new URL(request.url);
+  const redirectTo = searchParams.get("redirectTo");
   try {
     const admin = await getAdminUser();
 
@@ -75,10 +77,13 @@ export async function POST(
       path: "/",
     });
 
+    // Only allow redirects to internal paths starting with /
+    const safeRedirect = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/chat";
+
     return NextResponse.json({
       success: true,
       message: `Now impersonating ${targetUser.name || targetUser.email || targetUser.slackUserName || "user"}`,
-      redirectTo: "/chat",
+      redirectTo: safeRedirect,
     });
   } catch (error) {
     console.error("Impersonation error:", error);
