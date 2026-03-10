@@ -439,8 +439,8 @@ export default function CoachingHistoryPage() {
                 /* Session Detail View */
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
                   <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-start justify-between">
-                      <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <div className="text-sm text-gray-500 mb-1">
                           {formatDate(selectedSession.sessionDate)}
                         </div>
@@ -448,7 +448,7 @@ export default function CoachingHistoryPage() {
                           {selectedSession.title}
                         </h2>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <ChatAboutButton
                           title={`Coaching: ${selectedSession.title}`}
                           getContext={() => formatSessionsForChat([selectedSession])}
