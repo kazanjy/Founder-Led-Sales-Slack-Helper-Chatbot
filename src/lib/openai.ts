@@ -118,4 +118,46 @@ export async function generateAssessmentTitle(aiRecommendations: string): Promis
   }
 }
 
+/**
+ * Generate a title for a coaching session from its notes/transcript
+ * @param notes - The session notes
+ * @param transcript - Optional call transcript
+ * @returns A short descriptive title for the session
+ */
+export async function generateSessionTitle(notes: string, transcript?: string | null): Promise<string> {
+  try {
+    const content = transcript
+      ? `Notes:\n${notes.substring(0, 1000)}\n\nTranscript:\n${transcript.substring(0, 1000)}`
+      : `Notes:\n${notes.substring(0, 2000)}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a coaching session title generator. Given session notes and optionally a transcript, create a short, descriptive title (under 60 characters) that captures the key topic or focus of the session. Use complete words only. Do not use quotes. Examples: 'Pipeline Review & Deal Strategy', 'Discovery Call Techniques', 'Q1 Quota Planning Session'.",
+        },
+        {
+          role: "user",
+          content: `Generate a short title (under 60 chars, complete words only) for this coaching session:\n\n${content}`,
+        },
+      ],
+      max_completion_tokens: 80,
+      temperature: 0.7,
+    });
+
+    const title = response.choices[0]?.message?.content?.trim() || null;
+
+    if (title && title.length > 60) {
+      return truncateAtWordBoundary(title, 60);
+    }
+
+    return title || "Coaching Session";
+  } catch (error: unknown) {
+    console.error("[OpenAI] Error generating session title:", error);
+    return "Coaching Session";
+  }
+}
+
 export { openai };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { generateSessionTitle } from "@/lib/openai";
 
 // GET - List all coaching sessions for the current user
 export async function GET() {
@@ -42,17 +43,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, sessionDate, notes, transcript } = body;
 
-    if (!title?.trim() || !sessionDate || !notes?.trim()) {
+    if (!sessionDate || !notes?.trim()) {
       return NextResponse.json(
-        { error: "Title, date, and notes are required." },
+        { error: "Date and notes are required." },
         { status: 400 }
       );
     }
 
+    // Auto-generate title from session content if not provided
+    const sessionTitle = title?.trim()
+      ? title.trim()
+      : await generateSessionTitle(notes.trim(), transcript?.trim());
+
     const session = await prisma.coachingSession.create({
       data: {
         userId: user.id,
-        title: title.trim(),
+        title: sessionTitle,
         sessionDate: new Date(sessionDate),
         notes: notes.trim(),
         transcript: transcript?.trim() || null,

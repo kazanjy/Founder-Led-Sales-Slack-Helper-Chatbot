@@ -105,7 +105,7 @@ export default function CoachingHistoryPage() {
   };
 
   const handleSave = async () => {
-    if (!formTitle.trim() || !formDate || !formNotes.trim()) return;
+    if (!formDate || !formNotes.trim()) return;
 
     setSaving(true);
     try {
@@ -355,7 +355,7 @@ export default function CoachingHistoryPage() {
                     {/* Title */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Session Title
+                        Session Title <span className="font-normal text-gray-400">(auto-generated if blank)</span>
                       </label>
                       <input
                         type="text"
@@ -422,7 +422,7 @@ export default function CoachingHistoryPage() {
                     </button>
                     <button
                       onClick={handleSave}
-                      disabled={saving || !formTitle.trim() || !formDate || !formNotes.trim()}
+                      disabled={saving || !formDate || !formNotes.trim()}
                       className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                     >
                       {saving && (
