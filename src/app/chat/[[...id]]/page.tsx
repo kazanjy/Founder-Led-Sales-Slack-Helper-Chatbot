@@ -3288,10 +3288,9 @@ export default function ChatPage() {
                             </div>
                           </div>
                         )}
-                        {/* Attachment chips and image previews inside card at top - only for pending uploads */}
-                        {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                          selectedAttachments.length > 0 || selectedImages.length > 0) && (
-                          <div className="px-4 pt-3 rounded-t-2xl space-y-2">
+                        {/* Attachment chips, image previews, and mode selector row */}
+                        <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl">
+                          <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                               <AttachmentChipsReadOnly
                                 attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
@@ -3310,12 +3309,6 @@ export default function ChatPage() {
                                 processing={processingImages}
                               />
                             ) : null}
-                          </div>
-                        )}
-                        {/* Mode selector + processing status row */}
-                        <div className="flex items-center justify-between px-4 pt-2">
-                          {/* Processing status */}
-                          <div className="flex-1">
                             {processingStatus && (
                               <div className="text-sm text-blue-600 flex items-center gap-2">
                                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -3325,7 +3318,7 @@ export default function ChatPage() {
                           </div>
 
                           {/* Mode selector flags */}
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             {/* Founding Sales Content (RAG) flag */}
                             <div className="relative group">
                               <button
@@ -3933,10 +3926,9 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
-                  {/* Attachment chips and image previews inside card at top - only for pending uploads */}
-                  {(conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ||
-                    selectedAttachments.length > 0 || selectedImages.length > 0) && (
-                    <div className="px-4 pt-3 rounded-t-2xl space-y-2">
+                  {/* Attachment chips, image previews, and mode selector row */}
+                  <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl">
+                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                         <AttachmentChipsReadOnly
                           attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
@@ -3955,12 +3947,6 @@ export default function ChatPage() {
                           processing={processingImages}
                         />
                       ) : null}
-                    </div>
-                  )}
-                  {/* Mode selector + processing status row */}
-                  <div className="flex items-center justify-between px-4 pt-2">
-                    {/* Processing status */}
-                    <div className="flex-1">
                       {processingStatus && (
                         <div className="text-sm text-blue-600 flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -3970,7 +3956,7 @@ export default function ChatPage() {
                     </div>
 
                     {/* Mode selector flags */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {/* Founding Sales Content (RAG) flag */}
                       <div className="relative group">
                         <button
