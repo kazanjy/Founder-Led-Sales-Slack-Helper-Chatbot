@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface Stats {
   totalUsers: number;
@@ -51,7 +50,6 @@ interface ActivityItem {
 }
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<RecentConversation[]>([]);
@@ -126,12 +124,11 @@ export default function AdminDashboard() {
       );
       const data = await res.json();
       if (res.ok && data.redirectTo) {
-        router.push(data.redirectTo);
-      } else {
-        setImpersonatingId(null);
+        window.open(data.redirectTo, "_blank");
       }
     } catch (error) {
       console.error("Failed to impersonate:", error);
+    } finally {
       setImpersonatingId(null);
     }
   }
@@ -146,12 +143,11 @@ export default function AdminDashboard() {
       );
       const data = await res.json();
       if (res.ok && data.redirectTo) {
-        router.push(data.redirectTo);
-      } else {
-        setImpersonatingId(null);
+        window.open(data.redirectTo, "_blank");
       }
     } catch (error) {
       console.error("Failed to impersonate:", error);
+    } finally {
       setImpersonatingId(null);
     }
   }
@@ -289,7 +285,7 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Recent Conversations</h2>
-          <p className="text-sm text-gray-500 mt-1">Click to impersonate user and enter their chat</p>
+          <p className="text-sm text-gray-500 mt-1">Click row to open chat in new tab, or click name for admin profile</p>
         </div>
         {convsLoading ? (
           <div className="p-6 text-gray-500">Loading recent conversations...</div>
@@ -323,9 +319,13 @@ export default function AdminDashboard() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 truncate">
+                      <Link
+                        href={`/admin/users/${conv.user.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
+                      >
                         {getUserDisplayName(conv.user)}
-                      </span>
+                      </Link>
                       {conv.source === "SLACK" && (
                         <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex-shrink-0">
                           Slack
@@ -391,9 +391,13 @@ export default function AdminDashboard() {
                     {item.title || ""}
                   </span>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-900">
+                    <Link
+                      href={`/admin/users/${item.userId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                    >
                       {item.userName || "Unknown"}
-                    </span>
+                    </Link>
                     {item.workspaceName && (
                       <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
                         {item.workspaceName}
