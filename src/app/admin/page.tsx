@@ -172,13 +172,21 @@ export default function AdminDashboard() {
     const date = new Date(dateStr);
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+
+    // Today: relative times
+    if (date.toDateString() === now.toDateString()) {
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    }
+
+    // Prior days: date + time
+    return date.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    }) + ", " + date.toLocaleTimeString("en-US", {
+      hour: "numeric", minute: "2-digit",
+    });
   }
 
   function getUserDisplayName(user: RecentConversation["user"]): string {

@@ -56,6 +56,122 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Fetch user's app activity (all version tables)
+    const [
+      narratives,
+      discoveryQuestions,
+      firstCallChecklists,
+      preCallPlans,
+      preCallResearch,
+      emailSequences,
+      linkedInSequences,
+      coldCallScripts,
+      salesDecks,
+      callReviews,
+      maturityAssessments,
+      salesMetricsAssessments,
+    ] = await Promise.all([
+      prisma.salesNarrativeVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true },
+      }),
+      prisma.discoveryQuestionsVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true },
+      }),
+      prisma.firstCallChecklistVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true },
+      }),
+      prisma.preCallPlanningVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true },
+      }),
+      prisma.preCallResearch.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, companyName: true, contactName: true, createdAt: true },
+      }),
+      prisma.emailSequenceVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, createdAt: true },
+      }),
+      prisma.linkedInSequenceVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, createdAt: true },
+      }),
+      prisma.coldCallScriptVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, createdAt: true },
+      }),
+      prisma.salesDeckVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, createdAt: true },
+      }),
+      prisma.callReviewVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, overallScore: true, maxScore: true, createdAt: true },
+      }),
+      prisma.maturityAssessment.findMany({
+        where: { userId: id }, orderBy: { completedAt: "desc" }, take: 10,
+        select: { id: true, title: true, completedAt: true },
+      }),
+      prisma.salesMetricsAssessment.findMany({
+        where: { userId: id }, orderBy: { completedAt: "desc" }, take: 10,
+        select: { id: true, title: true, completedAt: true },
+      }),
+    ]);
+
+    interface ActivityItem {
+      id: string;
+      type: string;
+      label: string;
+      title: string | null;
+      link: string;
+      createdAt: string;
+    }
+
+    const activityItems: ActivityItem[] = [];
+
+    for (const r of narratives) {
+      activityItems.push({ id: r.id, type: "narrative", label: "Generated Narrative", title: r.title, link: "/sales-narrative", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of discoveryQuestions) {
+      activityItems.push({ id: r.id, type: "discovery", label: "Generated Discovery Questions", title: r.title, link: "/discovery-questions", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of firstCallChecklists) {
+      activityItems.push({ id: r.id, type: "checklist", label: "Generated First Call Checklist", title: r.title, link: "/first-call-checklist", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of preCallPlans) {
+      activityItems.push({ id: r.id, type: "precall-plan", label: "Generated Pre-Call Plan", title: r.title, link: "/pre-call-planning", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of preCallResearch) {
+      activityItems.push({ id: r.id, type: "research", label: "Pre-Call Research", title: r.contactName ? `${r.companyName} — ${r.contactName}` : r.companyName, link: "/pre-call-planning", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of emailSequences) {
+      activityItems.push({ id: r.id, type: "email-sequence", label: "Generated Email Sequence", title: null, link: "/email-sequence", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of linkedInSequences) {
+      activityItems.push({ id: r.id, type: "linkedin-sequence", label: "Generated LinkedIn Sequence", title: null, link: "/linkedin-sequence", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of coldCallScripts) {
+      activityItems.push({ id: r.id, type: "cold-call", label: "Generated Call Script", title: null, link: "/call-scripts", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of salesDecks) {
+      activityItems.push({ id: r.id, type: "sales-deck", label: "Generated Sales Deck", title: null, link: "/sales-deck", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of callReviews) {
+      const score = r.overallScore != null && r.maxScore != null ? ` (${r.overallScore}/${r.maxScore})` : "";
+      activityItems.push({ id: r.id, type: "call-review", label: "Call Review" + score, title: r.title, link: "/call-review", createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of maturityAssessments) {
+      activityItems.push({ id: r.id, type: "maturity", label: "Completed GTM Assessment", title: r.title, link: "/assessment", createdAt: r.completedAt.toISOString() });
+    }
+    for (const r of salesMetricsAssessments) {
+      activityItems.push({ id: r.id, type: "sales-metrics", label: "Completed Sales Metrics Analysis", title: r.title, link: "/sales-metrics", createdAt: r.completedAt.toISOString() });
+    }
+
+    activityItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     // Calculate trial status
     let trialDaysRemaining = null;
     if (user.licenseStatus === "TRIAL" && user.trialStartedAt) {
@@ -119,6 +235,7 @@ export async function GET(
         dismissedDefaultPromptIds: user.dismissedDefaultPromptIds,
         // Recent activity
         conversations: user.conversations,
+        activity: activityItems.slice(0, 20),
         sessions: user.sessions,
         // Timestamps
         createdAt: user.createdAt,

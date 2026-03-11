@@ -52,6 +52,14 @@ interface UserDetail {
     createdAt: string;
     lastMessageAt: string;
   }[];
+  activity: {
+    id: string;
+    type: string;
+    label: string;
+    title: string | null;
+    link: string;
+    createdAt: string;
+  }[];
   sessions: {
     id: string;
     createdAt: string;
@@ -106,6 +114,62 @@ export default function AdminUserDetailPage() {
       setImpersonating(false);
     }
   };
+
+  const handleImpersonateToLink = async (link: string) => {
+    if (impersonating) return;
+    setImpersonating(true);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${params.id}/impersonate?redirectTo=${encodeURIComponent(link)}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        window.open(data.redirectTo, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+    } finally {
+      setImpersonating(false);
+    }
+  };
+
+  const activityTypeColors: Record<string, string> = {
+    "narrative": "bg-blue-100 text-blue-700",
+    "discovery": "bg-indigo-100 text-indigo-700",
+    "checklist": "bg-cyan-100 text-cyan-700",
+    "precall-plan": "bg-teal-100 text-teal-700",
+    "research": "bg-emerald-100 text-emerald-700",
+    "email-sequence": "bg-orange-100 text-orange-700",
+    "linkedin-sequence": "bg-sky-100 text-sky-700",
+    "cold-call": "bg-rose-100 text-rose-700",
+    "sales-deck": "bg-violet-100 text-violet-700",
+    "call-review": "bg-amber-100 text-amber-700",
+    "maturity": "bg-green-100 text-green-700",
+    "sales-metrics": "bg-pink-100 text-pink-700",
+  };
+
+  function formatSmartTime(dateStr: string): string {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    // Today: relative times
+    if (date.toDateString() === now.toDateString()) {
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    }
+
+    // Prior days: date + time
+    return date.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    }) + ", " + date.toLocaleTimeString("en-US", {
+      hour: "numeric", minute: "2-digit",
+    });
+  }
 
   useEffect(() => {
     if (user) {
@@ -536,24 +600,72 @@ export default function AdminUserDetailPage() {
             {user.conversations.length === 0 ? (
               <div className="text-gray-500">No conversations yet</div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {user.conversations.map((conv) => (
-                  <div
+                  <button
                     key={conv.id}
-                    className="p-3 bg-gray-50 rounded-lg"
+                    onClick={() => handleImpersonateToLink(`/chat/${conv.id}`)}
+                    disabled={impersonating}
+                    className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-sm">
+                      <div className="font-medium text-sm truncate flex-1 mr-3">
                         {conv.title || conv.firstMessagePreview?.slice(0, 50) || "Untitled"}
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {conv.source === "WEB" ? "🌐" : "💬"} {conv.messageCount} msgs
-                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {conv.source === "SLACK" && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                            Slack
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-500">
+                          {conv.messageCount} msgs
+                        </span>
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {new Date(conv.lastMessageAt).toLocaleString()}
+                      {formatSmartTime(conv.lastMessageAt)}
                     </div>
-                  </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* App Activity */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              App Activity
+            </h2>
+            {user.activity.length === 0 ? (
+              <div className="text-gray-500">No app activity yet</div>
+            ) : (
+              <div className="space-y-2">
+                {user.activity.map((item) => (
+                  <button
+                    key={`${item.type}-${item.id}`}
+                    onClick={() => handleImpersonateToLink(item.link)}
+                    disabled={impersonating}
+                    className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                        {item.label}
+                      </span>
+                      <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
+                        {item.title || ""}
+                      </span>
+                      <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {formatSmartTime(item.createdAt)}
+                    </div>
+                  </button>
                 ))}
               </div>
             )}
