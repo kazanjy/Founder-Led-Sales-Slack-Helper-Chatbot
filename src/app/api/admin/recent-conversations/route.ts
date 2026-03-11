@@ -11,7 +11,6 @@ export async function GET() {
 
     const conversations = await prisma.conversation.findMany({
       where: {
-        source: "WEB",
         archived: false,
       },
       orderBy: { lastMessageAt: "desc" },

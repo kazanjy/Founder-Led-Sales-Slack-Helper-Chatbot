@@ -259,6 +259,11 @@ export default function AdminDashboard() {
                       <span className="font-medium text-gray-900 truncate">
                         {getUserDisplayName(conv.user)}
                       </span>
+                      {conv.source === "SLACK" && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex-shrink-0">
+                          Slack
+                        </span>
+                      )}
                       {conv.user.workspace?.slackTeamName && (
                         <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
                           {conv.user.workspace.slackTeamName}
