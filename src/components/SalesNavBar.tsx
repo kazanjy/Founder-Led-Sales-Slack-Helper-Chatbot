@@ -15,12 +15,12 @@ const topLevelItems: NavItem[] = [
   { href: "/chat", label: "💬 Chat", statusKey: "chat" },
   { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
   { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
-  { href: "/call-scripts", label: "🎯 Call Scripts", statusKey: "coldCallScript" },
-  { href: "/sales-deck", label: "📊 Sales Deck Generation", statusKey: "salesDeck" },
+  { href: "/call-scripts", label: "🎯 Scripts", statusKey: "coldCallScript" },
+  { href: "/sales-deck", label: "📊 Deck", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
-  { href: "/sales-metrics", label: "📈 Sales Metrics Analysis", statusKey: "salesMetrics" },
-  { href: "/coaching-history", label: "🎓 Coaching History", statusKey: "coachingHistory" },
+  { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
+  { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];
 
 const playbookItems: NavItem[] = [
@@ -126,7 +126,7 @@ export default function SalesNavBar() {
           {/* Chat */}
           <Link
             href="/chat"
-            className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${
+            className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
               isActive("/chat")
                 ? "border-purple-600 text-purple-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -139,7 +139,7 @@ export default function SalesNavBar() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setPlaybookOpen(!playbookOpen)}
-              className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isPlaybookActive
                   ? "border-purple-600 text-purple-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -188,7 +188,7 @@ export default function SalesNavBar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isActive(item.href)
                   ? "border-purple-600 text-purple-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
