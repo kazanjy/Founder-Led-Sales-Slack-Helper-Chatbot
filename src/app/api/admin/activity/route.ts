@@ -117,7 +117,7 @@ export async function GET() {
     for (const r of narratives) {
       items.push({
         id: r.id, type: "narrative", label: "Generated Narrative",
-        title: r.title, link: `/sales-narrative`,
+        title: r.title, link: `/sales-narrative?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -127,7 +127,7 @@ export async function GET() {
     for (const r of discoveryQuestions) {
       items.push({
         id: r.id, type: "discovery", label: "Generated Discovery Questions",
-        title: r.title, link: `/discovery-questions`,
+        title: r.title, link: `/discovery-questions?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -137,7 +137,7 @@ export async function GET() {
     for (const r of firstCallChecklists) {
       items.push({
         id: r.id, type: "checklist", label: "Generated First Call Checklist",
-        title: r.title, link: `/first-call-checklist`,
+        title: r.title, link: `/first-call-checklist?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -147,7 +147,7 @@ export async function GET() {
     for (const r of preCallPlans) {
       items.push({
         id: r.id, type: "precall-plan", label: "Generated Pre-Call Plan",
-        title: r.title, link: `/pre-call-planning`,
+        title: r.title, link: `/pre-call-planning?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -160,7 +160,7 @@ export async function GET() {
         : r.companyName;
       items.push({
         id: r.id, type: "research", label: "Pre-Call Research",
-        title: researchTitle, link: `/pre-call-planning`,
+        title: researchTitle, link: `/pre-call-planning/history?id=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -170,7 +170,7 @@ export async function GET() {
     for (const r of emailSequences) {
       items.push({
         id: r.id, type: "email-sequence", label: "Generated Email Sequence",
-        title: null, link: `/email-sequence`,
+        title: null, link: `/email-sequence?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -180,7 +180,7 @@ export async function GET() {
     for (const r of linkedInSequences) {
       items.push({
         id: r.id, type: "linkedin-sequence", label: "Generated LinkedIn Sequence",
-        title: null, link: `/linkedin-sequence`,
+        title: null, link: `/linkedin-sequence?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -190,7 +190,7 @@ export async function GET() {
     for (const r of coldCallScripts) {
       items.push({
         id: r.id, type: "cold-call", label: "Generated Call Script",
-        title: null, link: `/call-scripts`,
+        title: null, link: `/call-scripts?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -200,7 +200,7 @@ export async function GET() {
     for (const r of salesDecks) {
       items.push({
         id: r.id, type: "sales-deck", label: "Generated Sales Deck",
-        title: null, link: `/sales-deck`,
+        title: null, link: `/sales-deck?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -213,7 +213,7 @@ export async function GET() {
         : "";
       items.push({
         id: r.id, type: "call-review", label: "Call Review" + score,
-        title: r.title, link: `/call-review`,
+        title: r.title, link: `/call-review?version=${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
@@ -223,7 +223,7 @@ export async function GET() {
     for (const r of maturityAssessments) {
       items.push({
         id: r.id, type: "maturity", label: "Completed GTM Assessment",
-        title: r.title, link: `/assessment`,
+        title: r.title, link: `/maturity-history`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.completedAt.toISOString(),
@@ -233,7 +233,7 @@ export async function GET() {
     for (const r of salesMetricsAssessments) {
       items.push({
         id: r.id, type: "sales-metrics", label: "Completed Sales Metrics Analysis",
-        title: r.title, link: `/sales-metrics`,
+        title: r.title, link: `/sales-metrics/${r.id}`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.completedAt.toISOString(),
