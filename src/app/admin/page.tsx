@@ -57,6 +57,8 @@ export default function AdminDashboard() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+  const [feedFilter, setFeedFilter] = useState<string>("all");
+  const [feedSearch, setFeedSearch] = useState("");
 
   useEffect(() => {
     document.title = "Admin - Dashboard";
@@ -289,142 +291,239 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Recent Conversations */}
+      {/* Unified Activity Feed */}
       <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Conversations</h2>
-          <p className="text-sm text-gray-500 mt-1">Click row to open chat in new tab, or click name for admin profile</p>
+          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          <p className="text-sm text-gray-500 mt-1">Click row to open in new tab, or click name for admin profile</p>
         </div>
-        {convsLoading ? (
-          <div className="p-6 text-gray-500">Loading recent conversations...</div>
-        ) : conversations.length === 0 ? (
-          <div className="p-6 text-gray-500">No conversations yet</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => handleImpersonateToChat(conv.user.id, conv.id)}
-                disabled={impersonatingId !== null}
-                className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
-              >
-                <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    {conv.user.avatarUrl ? (
-                      <img
-                        src={conv.user.avatarUrl}
-                        alt=""
-                        className="w-9 h-9 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
-                        {getUserDisplayName(conv.user).charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/admin/users/${conv.user.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
-                      >
-                        {getUserDisplayName(conv.user)}
-                      </Link>
-                      {conv.source === "SLACK" && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex-shrink-0">
-                          Slack
-                        </span>
-                      )}
-                      {conv.user.workspace?.slackTeamName && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
-                          {conv.user.workspace.slackTeamName}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
-                        {formatTimeAgo(conv.lastMessageAt)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-700 truncate mt-0.5">
-                      {conv.title || conv.firstMessagePreview || "New conversation"}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {conv.messageCount} message{conv.messageCount !== 1 ? "s" : ""}
-                      {conv.user.email && (
-                        <span className="ml-2">{conv.user.email}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Arrow indicator */}
-                  <div className="flex-shrink-0 text-gray-300 self-center">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* App Activity Log */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">App Activity</h2>
-          <p className="text-sm text-gray-500 mt-1">Recent generations, reviews, and assessments across all users</p>
-        </div>
-        {activityLoading ? (
+        {convsLoading && activityLoading ? (
           <div className="p-6 text-gray-500">Loading activity...</div>
-        ) : activity.length === 0 ? (
-          <div className="p-6 text-gray-500">No app activity yet</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {activity.map((item) => (
-              <button
-                key={`${item.type}-${item.id}`}
-                onClick={() => handleImpersonateToLink(item.userId, item.link)}
-                disabled={impersonatingId !== null}
-                className="w-full text-left px-6 py-3 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
-                    {item.label}
-                  </span>
-                  <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
-                    {item.title || ""}
-                  </span>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Link
-                      href={`/admin/users/${item.userId}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                    >
-                      {item.userName || "Unknown"}
-                    </Link>
-                    {item.workspaceName && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                        {item.workspaceName}
-                      </span>
-                    )}
-                    <span className="text-xs text-gray-400 ml-1">
-                      {formatTimeAgo(item.createdAt)}
+        ) : (() => {
+          // Build unified feed items
+          type FeedItem = {
+            key: string;
+            filterType: string;
+            sortTime: string;
+            searchText: string;
+            render: React.ReactNode;
+          };
+          const feedItems: FeedItem[] = [];
+
+          // Conversations
+          for (const conv of conversations) {
+            const filterType = conv.source === "SLACK" ? "chat-slack" : "chat-web";
+            const userName = getUserDisplayName(conv.user);
+            feedItems.push({
+              key: `conv-${conv.id}`,
+              filterType,
+              sortTime: conv.lastMessageAt,
+              searchText: `${userName} ${conv.user.email || ""} ${conv.title || ""} ${conv.firstMessagePreview || ""} ${conv.user.workspace?.slackTeamName || ""}`.toLowerCase(),
+              render: (
+                <button
+                  key={`conv-${conv.id}`}
+                  onClick={() => handleImpersonateToChat(conv.user.id, conv.id)}
+                  disabled={impersonatingId !== null}
+                  className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      {conv.user.avatarUrl ? (
+                        <img src={conv.user.avatarUrl} alt="" className="w-9 h-9 rounded-full" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                          {userName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/users/${conv.user.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
+                        >
+                          {userName}
+                        </Link>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700"}`}>
+                          {conv.source === "SLACK" ? "Slack Chat" : "Web Chat"}
+                        </span>
+                        {conv.user.workspace?.slackTeamName && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                            {conv.user.workspace.slackTeamName}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
+                          {formatTimeAgo(conv.lastMessageAt)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 truncate mt-0.5">
+                        {conv.title || conv.firstMessagePreview || "New conversation"}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {conv.messageCount} message{conv.messageCount !== 1 ? "s" : ""}
+                        {conv.user.email && <span className="ml-2">{conv.user.email}</span>}
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-gray-300 self-center">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+              ),
+            });
+          }
+
+          // App activity
+          for (const item of activity) {
+            feedItems.push({
+              key: `act-${item.type}-${item.id}`,
+              filterType: item.type,
+              sortTime: item.createdAt,
+              searchText: `${item.userName || ""} ${item.userEmail || ""} ${item.title || ""} ${item.label} ${item.workspaceName || ""}`.toLowerCase(),
+              render: (
+                <button
+                  key={`act-${item.type}-${item.id}`}
+                  onClick={() => handleImpersonateToLink(item.userId, item.link)}
+                  disabled={impersonatingId !== null}
+                  className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                      {item.label}
                     </span>
+                    <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
+                      {item.title || ""}
+                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Link
+                        href={`/admin/users/${item.userId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                      >
+                        {item.userName || "Unknown"}
+                      </Link>
+                      {item.workspaceName && (
+                        <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                          {item.workspaceName}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400 ml-1">
+                        {formatTimeAgo(item.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex-shrink-0 text-gray-300">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </div>
                   </div>
-                  <div className="flex-shrink-0 text-gray-300">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </div>
+                </button>
+              ),
+            });
+          }
+
+          // Sort by time descending
+          feedItems.sort((a, b) => new Date(b.sortTime).getTime() - new Date(a.sortTime).getTime());
+
+          // Collect present types for filter chips
+          const presentTypes = new Set(feedItems.map((f) => f.filterType));
+
+          const filterOptions: { key: string; label: string }[] = [
+            { key: "all", label: "All" },
+          ];
+          if (presentTypes.has("chat-web") || presentTypes.has("chat-slack")) {
+            filterOptions.push({ key: "chats", label: "Chats" });
+          }
+          if (presentTypes.has("chat-web")) filterOptions.push({ key: "chat-web", label: "Web Chats" });
+          if (presentTypes.has("chat-slack")) filterOptions.push({ key: "chat-slack", label: "Slack Chats" });
+
+          const activityTypeLabels: Record<string, string> = {
+            "narrative": "Narratives",
+            "discovery": "Discovery Qs",
+            "checklist": "Checklists",
+            "precall-plan": "Pre-Call Plans",
+            "research": "Research",
+            "email-sequence": "Email Sequences",
+            "linkedin-sequence": "LinkedIn Sequences",
+            "cold-call": "Call Scripts",
+            "sales-deck": "Sales Decks",
+            "call-review": "Call Reviews",
+            "maturity": "GTM Assessments",
+            "sales-metrics": "Sales Metrics",
+          };
+
+          for (const [key, label] of Object.entries(activityTypeLabels)) {
+            if (presentTypes.has(key)) {
+              filterOptions.push({ key, label });
+            }
+          }
+
+          // Apply type filter
+          const typeFiltered = feedFilter === "all"
+            ? feedItems
+            : feedFilter === "chats"
+              ? feedItems.filter((f) => f.filterType === "chat-web" || f.filterType === "chat-slack")
+              : feedItems.filter((f) => f.filterType === feedFilter);
+
+          // Apply search filter
+          const searchLower = feedSearch.toLowerCase().trim();
+          const filteredItems = searchLower
+            ? typeFiltered.filter((f) => f.searchText.includes(searchLower))
+            : typeFiltered;
+
+          const countForFilter = (key: string) =>
+            key === "all"
+              ? feedItems.length
+              : key === "chats"
+                ? feedItems.filter((f) => f.filterType === "chat-web" || f.filterType === "chat-slack").length
+                : feedItems.filter((f) => f.filterType === key).length;
+
+          return (
+            <div>
+              {/* Search + Filter chips */}
+              <div className="p-4 border-b border-gray-100 space-y-3">
+                <input
+                  type="text"
+                  value={feedSearch}
+                  onChange={(e) => setFeedSearch(e.target.value)}
+                  placeholder="Search by name, email, title, workspace..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400"
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {filterOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setFeedFilter(opt.key)}
+                      className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                        feedFilter === opt.key
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {opt.label}
+                      <span className="ml-1 opacity-70">{countForFilter(opt.key)}</span>
+                    </button>
+                  ))}
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
+              </div>
+
+              {filteredItems.length === 0 ? (
+                <div className="p-6 text-gray-500 text-center">
+                  {feedSearch ? "No results matching your search" : "No activity yet"}
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredItems.map((item) => (
+                    <div key={item.key}>{item.render}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Identity Breakdown */}
