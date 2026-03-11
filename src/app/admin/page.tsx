@@ -45,6 +45,7 @@ interface ActivityItem {
   userId: string;
   userName: string | null;
   userEmail: string | null;
+  userAvatarUrl: string | null;
   workspaceName: string | null;
   createdAt: string;
 }
@@ -378,6 +379,7 @@ export default function AdminDashboard() {
 
           // App activity
           for (const item of activity) {
+            const actUserName = item.userName || "Unknown";
             feedItems.push({
               key: `act-${item.type}-${item.id}`,
               filterType: item.type,
@@ -390,33 +392,49 @@ export default function AdminDashboard() {
                   disabled={impersonatingId !== null}
                   className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
-                      {item.title || ""}
-                    </span>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Link
-                        href={`/admin/users/${item.userId}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                      >
-                        {item.userName || "Unknown"}
-                      </Link>
-                      {item.workspaceName && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                          {item.workspaceName}
-                        </span>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      {item.userAvatarUrl ? (
+                        <img src={item.userAvatarUrl} alt="" className="w-9 h-9 rounded-full" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                          {actUserName.charAt(0).toUpperCase()}
+                        </div>
                       )}
-                      <span className="text-xs text-gray-400 ml-1">
-                        {formatTimeAgo(item.createdAt)}
-                      </span>
                     </div>
-                    <div className="flex-shrink-0 text-gray-300">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/users/${item.userId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
+                        >
+                          {actUserName}
+                        </Link>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                          {item.label}
+                        </span>
+                        {item.workspaceName && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                            {item.workspaceName}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
+                          {formatTimeAgo(item.createdAt)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 truncate mt-0.5">
+                        {item.title || ""}
+                      </div>
+                      {item.userEmail && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {item.userEmail}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 text-gray-300 self-center">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
                   </div>

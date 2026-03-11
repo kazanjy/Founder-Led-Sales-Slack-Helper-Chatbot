@@ -11,6 +11,7 @@ interface ActivityItem {
   userId: string;
   userName: string | null;
   userEmail: string | null;
+  userAvatarUrl: string | null;
   workspaceName: string | null;
   createdAt: string;
 }
@@ -19,6 +20,7 @@ const userSelect = {
   name: true,
   email: true,
   slackUserName: true,
+  avatarUrl: true,
   workspace: { select: { slackTeamName: true } },
 } as const;
 
@@ -117,7 +119,7 @@ export async function GET() {
         id: r.id, type: "narrative", label: "Generated Narrative",
         title: r.title, link: `/sales-narrative`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -127,7 +129,7 @@ export async function GET() {
         id: r.id, type: "discovery", label: "Generated Discovery Questions",
         title: r.title, link: `/discovery-questions`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -137,7 +139,7 @@ export async function GET() {
         id: r.id, type: "checklist", label: "Generated First Call Checklist",
         title: r.title, link: `/first-call-checklist`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -147,7 +149,7 @@ export async function GET() {
         id: r.id, type: "precall-plan", label: "Generated Pre-Call Plan",
         title: r.title, link: `/pre-call-planning`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -160,7 +162,7 @@ export async function GET() {
         id: r.id, type: "research", label: "Pre-Call Research",
         title: researchTitle, link: `/pre-call-planning`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -170,7 +172,7 @@ export async function GET() {
         id: r.id, type: "email-sequence", label: "Generated Email Sequence",
         title: null, link: `/email-sequence`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -180,7 +182,7 @@ export async function GET() {
         id: r.id, type: "linkedin-sequence", label: "Generated LinkedIn Sequence",
         title: null, link: `/linkedin-sequence`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -190,7 +192,7 @@ export async function GET() {
         id: r.id, type: "cold-call", label: "Generated Call Script",
         title: null, link: `/call-scripts`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -200,7 +202,7 @@ export async function GET() {
         id: r.id, type: "sales-deck", label: "Generated Sales Deck",
         title: null, link: `/sales-deck`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -213,7 +215,7 @@ export async function GET() {
         id: r.id, type: "call-review", label: "Call Review" + score,
         title: r.title, link: `/call-review`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.createdAt.toISOString(),
       });
     }
@@ -223,7 +225,7 @@ export async function GET() {
         id: r.id, type: "maturity", label: "Completed GTM Assessment",
         title: r.title, link: `/assessment`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.completedAt.toISOString(),
       });
     }
@@ -233,7 +235,7 @@ export async function GET() {
         id: r.id, type: "sales-metrics", label: "Completed Sales Metrics Analysis",
         title: r.title, link: `/sales-metrics`,
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
-        workspaceName: r.user.workspace?.slackTeamName ?? null,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.completedAt.toISOString(),
       });
     }
