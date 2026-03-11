@@ -20,6 +20,7 @@ export async function GET() {
         sessionDate: true,
         notes: true,
         transcript: true,
+        recordingUrl: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, sessionDate, notes, transcript } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl } = body;
 
     if (!sessionDate || !notes?.trim()) {
       return NextResponse.json(
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
         sessionDate: new Date(sessionDate),
         notes: notes.trim(),
         transcript: transcript?.trim() || null,
+        recordingUrl: recordingUrl?.trim() || null,
       },
     });
 

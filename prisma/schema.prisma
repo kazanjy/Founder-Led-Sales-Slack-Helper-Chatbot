@@ -1104,10 +1104,11 @@ model CoachingSession {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title       String                // e.g. "Weekly Coaching — Mar 3"
-  sessionDate DateTime              // Date of the coaching session
-  notes       String   @db.Text     // Notes stored as markdown
-  transcript  String?  @db.Text     // Optional pasted call transcript
+  title        String                // e.g. "Weekly Coaching — Mar 3"
+  sessionDate  DateTime              // Date of the coaching session
+  notes        String   @db.Text     // Notes stored as markdown
+  transcript   String?  @db.Text     // Optional pasted call transcript
+  recordingUrl String?               // Optional link to meeting recording
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

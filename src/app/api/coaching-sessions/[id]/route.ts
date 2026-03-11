@@ -43,7 +43,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { title, sessionDate, notes, transcript } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl } = body;
 
     // Verify ownership
     const existing = await prisma.coachingSession.findFirst({
@@ -62,6 +62,7 @@ export async function PUT(
         ...(sessionDate !== undefined && { sessionDate: new Date(sessionDate) }),
         ...(notes !== undefined && { notes: notes.trim() }),
         ...(transcript !== undefined && { transcript: transcript?.trim() || null }),
+        ...(recordingUrl !== undefined && { recordingUrl: recordingUrl?.trim() || null }),
       },
     });
 
