@@ -37,12 +37,27 @@ interface RecentConversation {
   };
 }
 
+interface ActivityItem {
+  id: string;
+  type: string;
+  label: string;
+  title: string | null;
+  link: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  workspaceName: string | null;
+  createdAt: string;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<RecentConversation[]>([]);
   const [convsLoading, setConvsLoading] = useState(true);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +98,23 @@ export default function AdminDashboard() {
     fetchConversations();
   }, []);
 
+  useEffect(() => {
+    async function fetchActivity() {
+      try {
+        const res = await fetch("/api/admin/activity");
+        if (res.ok) {
+          const data = await res.json();
+          setActivity(data.activity);
+        }
+      } catch (error) {
+        console.error("Failed to fetch activity:", error);
+      } finally {
+        setActivityLoading(false);
+      }
+    }
+    fetchActivity();
+  }, []);
+
   async function handleImpersonateToChat(userId: string, conversationId: string) {
     if (impersonatingId) return;
     setImpersonatingId(userId);
@@ -103,6 +135,41 @@ export default function AdminDashboard() {
       setImpersonatingId(null);
     }
   }
+
+  async function handleImpersonateToLink(userId: string, link: string) {
+    if (impersonatingId) return;
+    setImpersonatingId(userId);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${userId}/impersonate?redirectTo=${encodeURIComponent(link)}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        router.push(data.redirectTo);
+      } else {
+        setImpersonatingId(null);
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+      setImpersonatingId(null);
+    }
+  }
+
+  const activityTypeColors: Record<string, string> = {
+    "narrative": "bg-blue-100 text-blue-700",
+    "discovery": "bg-indigo-100 text-indigo-700",
+    "checklist": "bg-cyan-100 text-cyan-700",
+    "precall-plan": "bg-teal-100 text-teal-700",
+    "research": "bg-emerald-100 text-emerald-700",
+    "email-sequence": "bg-orange-100 text-orange-700",
+    "linkedin-sequence": "bg-sky-100 text-sky-700",
+    "cold-call": "bg-rose-100 text-rose-700",
+    "sales-deck": "bg-violet-100 text-violet-700",
+    "call-review": "bg-amber-100 text-amber-700",
+    "maturity": "bg-green-100 text-green-700",
+    "sales-metrics": "bg-pink-100 text-pink-700",
+  };
 
   function formatTimeAgo(dateStr: string): string {
     const now = new Date();
@@ -288,6 +355,57 @@ export default function AdminDashboard() {
                   <div className="flex-shrink-0 text-gray-300 self-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* App Activity Log */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">App Activity</h2>
+          <p className="text-sm text-gray-500 mt-1">Recent generations, reviews, and assessments across all users</p>
+        </div>
+        {activityLoading ? (
+          <div className="p-6 text-gray-500">Loading activity...</div>
+        ) : activity.length === 0 ? (
+          <div className="p-6 text-gray-500">No app activity yet</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {activity.map((item) => (
+              <button
+                key={`${item.type}-${item.id}`}
+                onClick={() => handleImpersonateToLink(item.userId, item.link)}
+                disabled={impersonatingId !== null}
+                className="w-full text-left px-6 py-3 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                    {item.label}
+                  </span>
+                  <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
+                    {item.title || ""}
+                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-sm font-medium text-gray-900">
+                      {item.userName || "Unknown"}
+                    </span>
+                    {item.workspaceName && (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                        {item.workspaceName}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 ml-1">
+                      {formatTimeAgo(item.createdAt)}
+                    </span>
+                  </div>
+                  <div className="flex-shrink-0 text-gray-300">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </div>
                 </div>
