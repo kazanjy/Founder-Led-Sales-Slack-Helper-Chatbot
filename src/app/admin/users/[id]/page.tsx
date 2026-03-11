@@ -84,6 +84,7 @@ export default function AdminUserDetailPage() {
   const [newSecondaryEmail, setNewSecondaryEmail] = useState("");
   const [mergeUserId, setMergeUserId] = useState("");
   const [merging, setMerging] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<string>("all");
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   const handleImpersonate = async () => {
@@ -592,83 +593,174 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
 
-          {/* Recent Conversations */}
+          {/* Unified Activity Feed */}
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Recent Conversations ({user.conversationCount} total)
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">
+              Recent Activity
             </h2>
-            {user.conversations.length === 0 ? (
-              <div className="text-gray-500">No conversations yet</div>
-            ) : (
-              <div className="space-y-2">
-                {user.conversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => handleImpersonateToLink(`/chat/${conv.id}`)}
-                    disabled={impersonating}
-                    className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium text-sm truncate flex-1 mr-3">
-                        {conv.title || conv.firstMessagePreview?.slice(0, 50) || "Untitled"}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {conv.source === "SLACK" && (
-                          <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                            Slack
+            <p className="text-sm text-gray-500 mb-4">Click to open in a new tab as this user</p>
+
+            {/* Filter chips */}
+            {(() => {
+              // Build unified feed
+              const feedItems: {
+                key: string;
+                filterType: string;
+                sortTime: string;
+                render: React.ReactNode;
+              }[] = [];
+
+              // Conversations as feed items
+              for (const conv of user.conversations) {
+                const filterType = conv.source === "SLACK" ? "chat-slack" : "chat-web";
+                feedItems.push({
+                  key: `conv-${conv.id}`,
+                  filterType,
+                  sortTime: conv.lastMessageAt,
+                  render: (
+                    <button
+                      key={`conv-${conv.id}`}
+                      onClick={() => handleImpersonateToLink(`/chat/${conv.id}`)}
+                      disabled={impersonating}
+                      className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 truncate flex-1 mr-3">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700"}`}>
+                            {conv.source === "SLACK" ? "Slack Chat" : "Web Chat"}
                           </span>
-                        )}
-                        <span className="text-xs text-gray-500">
-                          {conv.messageCount} msgs
+                          <span className="font-medium text-sm truncate">
+                            {conv.title || conv.firstMessagePreview?.slice(0, 50) || "Untitled"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-gray-500">{conv.messageCount} msgs</span>
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatSmartTime(conv.lastMessageAt)}
+                      </div>
+                    </button>
+                  ),
+                });
+              }
+
+              // App activity as feed items
+              for (const item of user.activity) {
+                feedItems.push({
+                  key: `act-${item.type}-${item.id}`,
+                  filterType: item.type,
+                  sortTime: item.createdAt,
+                  render: (
+                    <button
+                      key={`act-${item.type}-${item.id}`}
+                      onClick={() => handleImpersonateToLink(item.link)}
+                      disabled={impersonating}
+                      className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                          {item.label}
                         </span>
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
+                          {item.title || ""}
+                        </span>
+                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
                       </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {formatSmartTime(conv.lastMessageAt)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatSmartTime(item.createdAt)}
+                      </div>
+                    </button>
+                  ),
+                });
+              }
 
-          {/* App Activity */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              App Activity
-            </h2>
-            {user.activity.length === 0 ? (
-              <div className="text-gray-500">No app activity yet</div>
-            ) : (
-              <div className="space-y-2">
-                {user.activity.map((item) => (
-                  <button
-                    key={`${item.type}-${item.id}`}
-                    onClick={() => handleImpersonateToLink(item.link)}
-                    disabled={impersonating}
-                    className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
-                        {item.label}
-                      </span>
-                      <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
-                        {item.title || ""}
-                      </span>
-                      <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
+              // Sort by time descending
+              feedItems.sort((a, b) => new Date(b.sortTime).getTime() - new Date(a.sortTime).getTime());
+
+              // Collect unique filter types present
+              const presentTypes = new Set(feedItems.map((f) => f.filterType));
+
+              const filterOptions: { key: string; label: string }[] = [
+                { key: "all", label: "All" },
+              ];
+              if (presentTypes.has("chat-web") || presentTypes.has("chat-slack")) {
+                filterOptions.push({ key: "chats", label: "Chats" });
+              }
+              if (presentTypes.has("chat-web")) filterOptions.push({ key: "chat-web", label: "Web Chats" });
+              if (presentTypes.has("chat-slack")) filterOptions.push({ key: "chat-slack", label: "Slack Chats" });
+
+              // Group app actions by type for filters
+              const activityTypeLabels: Record<string, string> = {
+                "narrative": "Narratives",
+                "discovery": "Discovery Qs",
+                "checklist": "Checklists",
+                "precall-plan": "Pre-Call Plans",
+                "research": "Research",
+                "email-sequence": "Email Sequences",
+                "linkedin-sequence": "LinkedIn Sequences",
+                "cold-call": "Call Scripts",
+                "sales-deck": "Sales Decks",
+                "call-review": "Call Reviews",
+                "maturity": "GTM Assessments",
+                "sales-metrics": "Sales Metrics",
+              };
+
+              for (const [key, label] of Object.entries(activityTypeLabels)) {
+                if (presentTypes.has(key)) {
+                  filterOptions.push({ key, label });
+                }
+              }
+
+              // Apply filter
+              const filteredItems = feedFilter === "all"
+                ? feedItems
+                : feedFilter === "chats"
+                  ? feedItems.filter((f) => f.filterType === "chat-web" || f.filterType === "chat-slack")
+                  : feedItems.filter((f) => f.filterType === feedFilter);
+
+              return (
+                <>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {filterOptions.map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setFeedFilter(opt.key)}
+                        className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                          feedFilter === opt.key
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                        <span className="ml-1 opacity-70">
+                          {opt.key === "all"
+                            ? feedItems.length
+                            : opt.key === "chats"
+                              ? feedItems.filter((f) => f.filterType === "chat-web" || f.filterType === "chat-slack").length
+                              : feedItems.filter((f) => f.filterType === opt.key).length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {filteredItems.length === 0 ? (
+                    <div className="text-gray-500 text-sm py-4 text-center">No activity yet</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredItems.map((item) => (
+                        <div key={item.key}>{item.render}</div>
+                      ))}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {formatSmartTime(item.createdAt)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -884,10 +976,10 @@ export default function AdminUserDetailPage() {
                 {user.sessions.map((session) => (
                   <div key={session.id} className="text-sm">
                     <div className="text-gray-600">
-                      {new Date(session.createdAt).toLocaleString()}
+                      {formatSmartTime(session.createdAt)}
                     </div>
                     <div className="text-gray-400 text-xs">
-                      Expires: {new Date(session.expiresAt).toLocaleString()}
+                      Expires: {formatSmartTime(session.expiresAt)}
                     </div>
                   </div>
                 ))}
