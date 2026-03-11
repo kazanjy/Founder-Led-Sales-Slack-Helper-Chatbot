@@ -541,7 +541,15 @@ export default function CoachingHistoryPage() {
                         Notes
                       </h3>
                       <div className="prose max-w-none prose-sm prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2">
-                        <ReactMarkdown>{selectedSession.notes}</ReactMarkdown>
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children, ...props }) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >{selectedSession.notes}</ReactMarkdown>
                       </div>
                     </div>
 
