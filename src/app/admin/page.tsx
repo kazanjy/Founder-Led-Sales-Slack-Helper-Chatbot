@@ -328,21 +328,25 @@ export default function AdminDashboard() {
                   className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
+                    <Link
+                      href={`/admin/users/${conv.user.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0"
+                    >
                       {conv.user.avatarUrl ? (
-                        <img src={conv.user.avatarUrl} alt="" className="w-9 h-9 rounded-full" />
+                        <img src={conv.user.avatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {userName.charAt(0).toUpperCase()}
                         </div>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/admin/users/${conv.user.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
+                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline"
                         >
                           {userName}
                         </Link>
@@ -393,21 +397,25 @@ export default function AdminDashboard() {
                   className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
+                    <Link
+                      href={`/admin/users/${item.userId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0"
+                    >
                       {item.userAvatarUrl ? (
-                        <img src={item.userAvatarUrl} alt="" className="w-9 h-9 rounded-full" />
+                        <img src={item.userAvatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {actUserName.charAt(0).toUpperCase()}
                         </div>
                       )}
-                    </div>
+                    </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/admin/users/${item.userId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-gray-900 truncate hover:text-blue-600 hover:underline"
+                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline"
                         >
                           {actUserName}
                         </Link>
