@@ -172,6 +172,24 @@ export async function GET(
 
     activityItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    // Build completion checklist
+    const completion = {
+      slackConnected: !!user.slackUserId && !!user.workspaceId,
+      narrative: narratives.length > 0,
+      discoveryQuestions: discoveryQuestions.length > 0,
+      firstCallChecklist: firstCallChecklists.length > 0,
+      preCallPlan: preCallPlans.length > 0,
+      researchReport: preCallResearch.length > 0,
+      callReview: callReviews.length > 0,
+      callScript: coldCallScripts.length > 0,
+      salesDeck: salesDecks.length > 0,
+      emailSequence: emailSequences.length > 0,
+      linkedInSequence: linkedInSequences.length > 0,
+      salesMetrics: salesMetricsAssessments.length > 0,
+    };
+    const completionCount = Object.values(completion).filter(Boolean).length;
+    const completionTotal = Object.keys(completion).length;
+
     // Calculate trial status
     let trialDaysRemaining = null;
     if (user.licenseStatus === "TRIAL" && user.trialStartedAt) {
@@ -233,6 +251,10 @@ export async function GET(
         referralCount: user._count.referralsMade,
         // Prompt settings
         dismissedDefaultPromptIds: user.dismissedDefaultPromptIds,
+        // Completion
+        completion,
+        completionCount,
+        completionTotal,
         // Recent activity
         conversations: user.conversations,
         activity: activityItems.slice(0, 20),

@@ -50,6 +50,47 @@ interface ActivityItem {
   createdAt: string;
 }
 
+interface CompletionUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  licenseStatus: string;
+  workspaceName: string | null;
+  createdAt: string;
+  completion: {
+    slackConnected: boolean;
+    narrative: boolean;
+    discoveryQuestions: boolean;
+    firstCallChecklist: boolean;
+    preCallPlan: boolean;
+    researchReport: boolean;
+    callReview: boolean;
+    callScript: boolean;
+    salesDeck: boolean;
+    emailSequence: boolean;
+    linkedInSequence: boolean;
+    salesMetrics: boolean;
+  };
+  completionCount: number;
+  completionTotal: number;
+}
+
+const COMPLETION_KEYS: { key: keyof CompletionUser["completion"]; label: string; short: string }[] = [
+  { key: "slackConnected", label: "Slack Connected", short: "Slack" },
+  { key: "narrative", label: "Narrative", short: "Narr" },
+  { key: "discoveryQuestions", label: "Discovery Questions", short: "Disc" },
+  { key: "firstCallChecklist", label: "First Call Checklist", short: "1st Call" },
+  { key: "preCallPlan", label: "Pre-Call Plan", short: "Plan" },
+  { key: "researchReport", label: "Research Report", short: "Research" },
+  { key: "callReview", label: "Call Review", short: "Review" },
+  { key: "callScript", label: "Call Script", short: "Script" },
+  { key: "salesDeck", label: "Sales Deck", short: "Deck" },
+  { key: "emailSequence", label: "Email Sequence", short: "Email" },
+  { key: "linkedInSequence", label: "LinkedIn Sequence", short: "LI" },
+  { key: "salesMetrics", label: "Sales Metrics", short: "Metrics" },
+];
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +101,10 @@ export default function AdminDashboard() {
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<string>("all");
   const [feedSearch, setFeedSearch] = useState("");
+  const [completionUsers, setCompletionUsers] = useState<CompletionUser[]>([]);
+  const [completionLoading, setCompletionLoading] = useState(true);
+  const [completionFilter, setCompletionFilter] = useState<string>("all");
+  const [completionSearch, setCompletionSearch] = useState("");
 
   useEffect(() => {
     document.title = "Admin - Dashboard";
@@ -115,6 +160,52 @@ export default function AdminDashboard() {
     }
     fetchActivity();
   }, []);
+
+  useEffect(() => {
+    async function fetchCompletion() {
+      try {
+        const res = await fetch("/api/admin/users/completion");
+        if (res.ok) {
+          const data = await res.json();
+          setCompletionUsers(data.users);
+        }
+      } catch (error) {
+        console.error("Failed to fetch completion:", error);
+      } finally {
+        setCompletionLoading(false);
+      }
+    }
+    fetchCompletion();
+  }, []);
+
+  // Filter completion users
+  const filteredCompletionUsers = completionUsers.filter((u) => {
+    // Search filter
+    if (completionSearch) {
+      const q = completionSearch.toLowerCase();
+      const matches =
+        (u.name?.toLowerCase() || "").includes(q) ||
+        (u.email?.toLowerCase() || "").includes(q) ||
+        (u.workspaceName?.toLowerCase() || "").includes(q);
+      if (!matches) return false;
+    }
+    // Completion filter
+    if (completionFilter === "all") return true;
+    if (completionFilter === "complete") return u.completionCount === u.completionTotal;
+    if (completionFilter === "incomplete") return u.completionCount < u.completionTotal;
+    if (completionFilter === "none") return u.completionCount === 0;
+    // Filter by specific key
+    const key = completionFilter as keyof CompletionUser["completion"];
+    if (key in (completionUsers[0]?.completion ?? {})) {
+      return u.completion[key];
+    }
+    // "missing-{key}" filter
+    if (completionFilter.startsWith("missing-")) {
+      const missingKey = completionFilter.replace("missing-", "") as keyof CompletionUser["completion"];
+      return !u.completion[missingKey];
+    }
+    return true;
+  });
 
   async function handleImpersonateToChat(userId: string, conversationId: string) {
     if (impersonatingId) return;
@@ -550,6 +641,144 @@ export default function AdminDashboard() {
             </div>
           );
         })()}
+      </div>
+
+      {/* User Completion Table */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Feature Completion by User</h2>
+          <p className="text-sm text-gray-500">Track which features each user has completed. Click a column header to filter.</p>
+        </div>
+        <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search by name, email, or workspace..."
+            value={completionSearch}
+            onChange={(e) => setCompletionSearch(e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { value: "all", label: "All" },
+              { value: "complete", label: "100%" },
+              { value: "incomplete", label: "Incomplete" },
+              { value: "none", label: "0%" },
+            ].map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setCompletionFilter(f.value)}
+                className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
+                  completionFilter === f.value
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {completionLoading ? (
+          <div className="p-8 text-center text-gray-400">Loading completion data...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[200px]">User</th>
+                  <th className="px-2 py-3 font-medium text-gray-600 text-center min-w-[50px]">Score</th>
+                  {COMPLETION_KEYS.map((ck) => (
+                    <th
+                      key={ck.key}
+                      className="px-2 py-3 font-medium text-gray-500 text-center min-w-[60px] cursor-pointer hover:text-blue-600"
+                      title={`Filter: has ${ck.label}`}
+                      onClick={() =>
+                        setCompletionFilter(
+                          completionFilter === ck.key ? `missing-${ck.key}` :
+                          completionFilter === `missing-${ck.key}` ? "all" :
+                          ck.key
+                        )
+                      }
+                    >
+                      <span className={`text-xs ${
+                        completionFilter === ck.key
+                          ? "text-green-600 underline"
+                          : completionFilter === `missing-${ck.key}`
+                          ? "text-red-600 underline"
+                          : ""
+                      }`}>
+                        {ck.short}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCompletionUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={2 + COMPLETION_KEYS.length} className="px-4 py-8 text-center text-gray-400">
+                      No users match the current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCompletionUsers.map((u) => (
+                    <tr key={u.id} className="border-b border-gray-100 hover:bg-blue-50/50">
+                      <td className="px-4 py-2.5 sticky left-0 bg-white">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="flex items-center gap-2 group"
+                        >
+                          {u.avatarUrl ? (
+                            <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium">
+                              {(u.name || u.email || "?").charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-blue-600 font-medium truncate group-hover:underline text-sm">
+                              {u.name || u.email || "Unknown"}
+                            </div>
+                            {u.name && u.email && (
+                              <div className="text-xs text-gray-400 truncate">{u.email}</div>
+                            )}
+                          </div>
+                        </Link>
+                      </td>
+                      <td className="px-2 py-2.5 text-center">
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                          u.completionCount === u.completionTotal
+                            ? "bg-green-100 text-green-700"
+                            : u.completionCount >= u.completionTotal / 2
+                            ? "bg-yellow-100 text-yellow-700"
+                            : u.completionCount > 0
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {u.completionCount}/{u.completionTotal}
+                        </span>
+                      </td>
+                      {COMPLETION_KEYS.map((ck) => (
+                        <td key={ck.key} className="px-2 py-2.5 text-center">
+                          {u.completion[ck.key] ? (
+                            <span className="text-green-500" title={ck.label}>&#10003;</span>
+                          ) : (
+                            <span className="text-gray-200">&mdash;</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!completionLoading && filteredCompletionUsers.length > 0 && (
+          <div className="px-4 py-3 border-t border-gray-200 text-xs text-gray-400">
+            Showing {filteredCompletionUsers.length} of {completionUsers.length} users
+          </div>
+        )}
       </div>
 
       {/* Identity Breakdown */}

@@ -65,6 +65,22 @@ interface UserDetail {
     createdAt: string;
     expiresAt: string;
   }[];
+  completion: {
+    slackConnected: boolean;
+    narrative: boolean;
+    discoveryQuestions: boolean;
+    firstCallChecklist: boolean;
+    preCallPlan: boolean;
+    researchReport: boolean;
+    callReview: boolean;
+    callScript: boolean;
+    salesDeck: boolean;
+    emailSequence: boolean;
+    linkedInSequence: boolean;
+    salesMetrics: boolean;
+  };
+  completionCount: number;
+  completionTotal: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -913,6 +929,61 @@ export default function AdminUserDetailPage() {
                 <span className="text-gray-500">Bonus Messages</span>
                 <span className="font-medium">{user.bonusMessagesEarned}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Feature Completion */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Completion</h2>
+              <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                user.completionCount === user.completionTotal
+                  ? "bg-green-100 text-green-700"
+                  : user.completionCount >= user.completionTotal / 2
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}>
+                {user.completionCount}/{user.completionTotal}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div
+                className={`h-2 rounded-full transition-all ${
+                  user.completionCount === user.completionTotal
+                    ? "bg-green-500"
+                    : user.completionCount >= user.completionTotal / 2
+                    ? "bg-yellow-500"
+                    : "bg-blue-500"
+                }`}
+                style={{ width: `${(user.completionCount / user.completionTotal) * 100}%` }}
+              />
+            </div>
+            <div className="space-y-2">
+              {([
+                ["slackConnected", "Slack Connected"],
+                ["narrative", "Sales Narrative"],
+                ["discoveryQuestions", "Discovery Questions"],
+                ["firstCallChecklist", "First Call Checklist"],
+                ["preCallPlan", "Pre-Call Plan"],
+                ["researchReport", "Research Report"],
+                ["callReview", "Call Review"],
+                ["callScript", "Call Script"],
+                ["salesDeck", "Sales Deck"],
+                ["emailSequence", "Email Sequence"],
+                ["linkedInSequence", "LinkedIn Sequence"],
+                ["salesMetrics", "Sales Metrics"],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="flex items-center gap-2 text-sm">
+                  {user.completion[key] ? (
+                    <span className="text-green-500 flex-shrink-0">&#10003;</span>
+                  ) : (
+                    <span className="text-gray-300 flex-shrink-0">&#9675;</span>
+                  )}
+                  <span className={user.completion[key] ? "text-gray-900" : "text-gray-400"}>
+                    {label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
