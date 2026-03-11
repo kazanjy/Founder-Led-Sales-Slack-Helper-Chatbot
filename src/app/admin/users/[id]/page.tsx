@@ -78,6 +78,7 @@ interface UserDetail {
     emailSequence: boolean;
     linkedInSequence: boolean;
     salesMetrics: boolean;
+    coaching: boolean;
   };
   completionCount: number;
   completionTotal: number;
@@ -972,6 +973,7 @@ export default function AdminUserDetailPage() {
                 ["emailSequence", "Email Sequence"],
                 ["linkedInSequence", "LinkedIn Sequence"],
                 ["salesMetrics", "Sales Metrics"],
+                ["coaching", "Coaching"],
               ] as const).map(([key, label]) => (
                 <div key={key} className="flex items-center gap-2 text-sm">
                   {user.completion[key] ? (

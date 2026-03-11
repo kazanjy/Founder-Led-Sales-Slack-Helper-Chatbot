@@ -22,7 +22,14 @@ export async function GET() {
         workspaceId: true,
         licenseStatus: true,
         createdAt: true,
+        lastActiveAt: true,
+        updatedAt: true,
         workspace: { select: { slackTeamName: true } },
+        conversations: {
+          orderBy: { lastMessageAt: "desc" },
+          take: 1,
+          select: { lastMessageAt: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -42,6 +49,7 @@ export async function GET() {
       emailSeqUsers,
       linkedInSeqUsers,
       salesMetricsUsers,
+      coachingUsers,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.discoveryQuestionsVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
@@ -54,6 +62,7 @@ export async function GET() {
       prisma.emailSequenceVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.linkedInSequenceVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.salesMetricsAssessment.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
+      prisma.coachingSession.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
     ]);
 
     // Build sets for O(1) lookup
@@ -69,9 +78,10 @@ export async function GET() {
       emailSequence: new Set(emailSeqUsers.map((r) => r.userId)),
       linkedInSequence: new Set(linkedInSeqUsers.map((r) => r.userId)),
       salesMetrics: new Set(salesMetricsUsers.map((r) => r.userId)),
+      coaching: new Set(coachingUsers.map((r) => r.userId)),
     };
 
-    const TOTAL_ITEMS = 12; // 11 asset types + slack connection
+    const TOTAL_ITEMS = 13; // 12 asset types + slack connection
 
     const result = users.map((u) => {
       const completion = {
@@ -87,6 +97,7 @@ export async function GET() {
         emailSequence: has.emailSequence.has(u.id),
         linkedInSequence: has.linkedInSequence.has(u.id),
         salesMetrics: has.salesMetrics.has(u.id),
+        coaching: has.coaching.has(u.id),
       };
       const completionCount = Object.values(completion).filter(Boolean).length;
 
@@ -98,6 +109,7 @@ export async function GET() {
         licenseStatus: u.licenseStatus,
         workspaceName: u.workspace?.slackTeamName ?? null,
         createdAt: u.createdAt,
+        lastActivity: u.lastActiveAt || u.conversations[0]?.lastMessageAt || u.updatedAt,
         completion,
         completionCount,
         completionTotal: TOTAL_ITEMS,

@@ -58,6 +58,7 @@ interface CompletionUser {
   licenseStatus: string;
   workspaceName: string | null;
   createdAt: string;
+  lastActivity: string;
   completion: {
     slackConnected: boolean;
     narrative: boolean;
@@ -71,6 +72,7 @@ interface CompletionUser {
     emailSequence: boolean;
     linkedInSequence: boolean;
     salesMetrics: boolean;
+    coaching: boolean;
   };
   completionCount: number;
   completionTotal: number;
@@ -89,7 +91,10 @@ const COMPLETION_KEYS: { key: keyof CompletionUser["completion"]; label: string;
   { key: "emailSequence", label: "Email Sequence", short: "Email" },
   { key: "linkedInSequence", label: "LinkedIn Sequence", short: "LI" },
   { key: "salesMetrics", label: "Sales Metrics", short: "Metrics" },
+  { key: "coaching", label: "Coaching", short: "Coach" },
 ];
+
+type CompletionSortKey = "name" | "score" | "createdAt" | "lastActivity";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -105,6 +110,9 @@ export default function AdminDashboard() {
   const [completionLoading, setCompletionLoading] = useState(true);
   const [completionFilter, setCompletionFilter] = useState<string>("all");
   const [completionSearch, setCompletionSearch] = useState("");
+  const [completionSort, setCompletionSort] = useState<CompletionSortKey>("createdAt");
+  const [completionSortDir, setCompletionSortDir] = useState<"asc" | "desc">("desc");
+  const [activeTab, setActiveTab] = useState<"overview" | "completion">("overview");
 
   useEffect(() => {
     document.title = "Admin - Dashboard";
@@ -178,34 +186,59 @@ export default function AdminDashboard() {
     fetchCompletion();
   }, []);
 
-  // Filter completion users
-  const filteredCompletionUsers = completionUsers.filter((u) => {
-    // Search filter
-    if (completionSearch) {
-      const q = completionSearch.toLowerCase();
-      const matches =
-        (u.name?.toLowerCase() || "").includes(q) ||
-        (u.email?.toLowerCase() || "").includes(q) ||
-        (u.workspaceName?.toLowerCase() || "").includes(q);
-      if (!matches) return false;
+  // Filter and sort completion users
+  const filteredCompletionUsers = completionUsers
+    .filter((u) => {
+      if (completionSearch) {
+        const q = completionSearch.toLowerCase();
+        const matches =
+          (u.name?.toLowerCase() || "").includes(q) ||
+          (u.email?.toLowerCase() || "").includes(q) ||
+          (u.workspaceName?.toLowerCase() || "").includes(q);
+        if (!matches) return false;
+      }
+      if (completionFilter === "all") return true;
+      if (completionFilter === "complete") return u.completionCount === u.completionTotal;
+      if (completionFilter === "incomplete") return u.completionCount < u.completionTotal;
+      if (completionFilter === "none") return u.completionCount === 0;
+      const key = completionFilter as keyof CompletionUser["completion"];
+      if (key in (completionUsers[0]?.completion ?? {})) return u.completion[key];
+      if (completionFilter.startsWith("missing-")) {
+        const missingKey = completionFilter.replace("missing-", "") as keyof CompletionUser["completion"];
+        return !u.completion[missingKey];
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const dir = completionSortDir === "asc" ? 1 : -1;
+      if (completionSort === "name") {
+        return dir * (a.name || a.email || "").localeCompare(b.name || b.email || "");
+      }
+      if (completionSort === "score") {
+        return dir * (a.completionCount - b.completionCount);
+      }
+      if (completionSort === "createdAt") {
+        return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      }
+      if (completionSort === "lastActivity") {
+        return dir * (new Date(a.lastActivity).getTime() - new Date(b.lastActivity).getTime());
+      }
+      return 0;
+    });
+
+  function toggleCompletionSort(key: CompletionSortKey) {
+    if (completionSort === key) {
+      setCompletionSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setCompletionSort(key);
+      setCompletionSortDir(key === "name" ? "asc" : "desc");
     }
-    // Completion filter
-    if (completionFilter === "all") return true;
-    if (completionFilter === "complete") return u.completionCount === u.completionTotal;
-    if (completionFilter === "incomplete") return u.completionCount < u.completionTotal;
-    if (completionFilter === "none") return u.completionCount === 0;
-    // Filter by specific key
-    const key = completionFilter as keyof CompletionUser["completion"];
-    if (key in (completionUsers[0]?.completion ?? {})) {
-      return u.completion[key];
-    }
-    // "missing-{key}" filter
-    if (completionFilter.startsWith("missing-")) {
-      const missingKey = completionFilter.replace("missing-", "") as keyof CompletionUser["completion"];
-      return !u.completion[missingKey];
-    }
-    return true;
-  });
+  }
+
+  function sortIndicator(key: CompletionSortKey) {
+    if (completionSort !== key) return "";
+    return completionSortDir === "asc" ? " \u25B2" : " \u25BC";
+  }
 
   async function handleImpersonateToChat(userId: string, conversationId: string) {
     if (impersonatingId) return;
@@ -349,8 +382,31 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">Dashboard</h1>
 
+      {/* Tab Bar */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-6">
+          {([
+            { key: "overview" as const, label: "Overview" },
+            { key: "completion" as const, label: "Feature Completion" },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {activeTab === "overview" && (<>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {statCards.map((stat) => (
@@ -643,12 +699,59 @@ export default function AdminDashboard() {
         })()}
       </div>
 
-      {/* User Completion Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Feature Completion by User</h2>
-          <p className="text-sm text-gray-500">Track which features each user has completed. Click a column header to filter.</p>
+      {/* Identity Breakdown */}
+      <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">User Identity Types</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-xl">&#128309;</span>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-gray-900">{stats.googleUsers}</div>
+              <div className="text-sm text-gray-500">Google Users</div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+              <span className="text-xl">&#128156;</span>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-gray-900">{stats.slackUsers}</div>
+              <div className="text-sm text-gray-500">Slack Users</div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/users"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            View All Users
+          </Link>
+          <Link
+            href="/admin/users?status=TRIAL"
+            className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+          >
+            View Trial Users
+          </Link>
+          <Link
+            href="/admin/workspaces"
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            View Workspaces
+          </Link>
+        </div>
+      </div>
+      </>)}
+
+      {activeTab === "completion" && (
+      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
         <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3">
           <input
             type="text"
@@ -685,8 +788,30 @@ export default function AdminDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[200px]">User</th>
-                  <th className="px-2 py-3 font-medium text-gray-600 text-center min-w-[50px]">Score</th>
+                  <th
+                    className="text-left px-4 py-3 font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[200px] cursor-pointer hover:text-blue-600 select-none"
+                    onClick={() => toggleCompletionSort("name")}
+                  >
+                    User{sortIndicator("name")}
+                  </th>
+                  <th
+                    className="px-2 py-3 font-medium text-gray-600 text-center min-w-[50px] cursor-pointer hover:text-blue-600 select-none"
+                    onClick={() => toggleCompletionSort("score")}
+                  >
+                    Score{sortIndicator("score")}
+                  </th>
+                  <th
+                    className="px-3 py-3 font-medium text-gray-600 text-left min-w-[90px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
+                    onClick={() => toggleCompletionSort("createdAt")}
+                  >
+                    Created{sortIndicator("createdAt")}
+                  </th>
+                  <th
+                    className="px-3 py-3 font-medium text-gray-600 text-left min-w-[100px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
+                    onClick={() => toggleCompletionSort("lastActivity")}
+                  >
+                    Last Active{sortIndicator("lastActivity")}
+                  </th>
                   {COMPLETION_KEYS.map((ck) => (
                     <th
                       key={ck.key}
@@ -716,7 +841,7 @@ export default function AdminDashboard() {
               <tbody>
                 {filteredCompletionUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={2 + COMPLETION_KEYS.length} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={4 + COMPLETION_KEYS.length} className="px-4 py-8 text-center text-gray-400">
                       No users match the current filters.
                     </td>
                   </tr>
@@ -758,6 +883,12 @@ export default function AdminDashboard() {
                           {u.completionCount}/{u.completionTotal}
                         </span>
                       </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                        {formatTimeAgo(u.lastActivity)}
+                      </td>
                       {COMPLETION_KEYS.map((ck) => (
                         <td key={ck.key} className="px-2 py-2.5 text-center">
                           {u.completion[ck.key] ? (
@@ -780,56 +911,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
-
-      {/* Identity Breakdown */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">User Identity Types</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-xl">🔵</span>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-gray-900">{stats.googleUsers}</div>
-              <div className="text-sm text-gray-500">Google Users</div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-              <span className="text-xl">💜</span>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-gray-900">{stats.slackUsers}</div>
-              <div className="text-sm text-gray-500">Slack Users</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/users"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            View All Users
-          </Link>
-          <Link
-            href="/admin/users?status=TRIAL"
-            className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
-          >
-            View Trial Users
-          </Link>
-          <Link
-            href="/admin/workspaces"
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-          >
-            View Workspaces
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
+

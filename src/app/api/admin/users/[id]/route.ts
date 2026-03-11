@@ -70,6 +70,7 @@ export async function GET(
       callReviews,
       maturityAssessments,
       salesMetricsAssessments,
+      coachingSessions,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.findMany({
         where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
@@ -118,6 +119,10 @@ export async function GET(
       prisma.salesMetricsAssessment.findMany({
         where: { userId: id }, orderBy: { completedAt: "desc" }, take: 10,
         select: { id: true, title: true, completedAt: true },
+      }),
+      prisma.coachingSession.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true },
       }),
     ]);
 
@@ -169,6 +174,9 @@ export async function GET(
     for (const r of salesMetricsAssessments) {
       activityItems.push({ id: r.id, type: "sales-metrics", label: "Completed Sales Metrics Analysis", title: r.title, link: `/sales-metrics/${r.id}`, createdAt: r.completedAt.toISOString() });
     }
+    for (const r of coachingSessions) {
+      activityItems.push({ id: r.id, type: "coaching", label: "Coaching Session", title: r.title, link: `/coaching`, createdAt: r.createdAt.toISOString() });
+    }
 
     activityItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -186,6 +194,7 @@ export async function GET(
       emailSequence: emailSequences.length > 0,
       linkedInSequence: linkedInSequences.length > 0,
       salesMetrics: salesMetricsAssessments.length > 0,
+      coaching: coachingSessions.length > 0,
     };
     const completionCount = Object.values(completion).filter(Boolean).length;
     const completionTotal = Object.keys(completion).length;
