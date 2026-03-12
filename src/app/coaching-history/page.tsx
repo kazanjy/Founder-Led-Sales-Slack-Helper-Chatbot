@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
@@ -48,9 +49,30 @@ function formatSessionsForChat(sessions: CoachingSession[]): string {
 }
 
 export default function CoachingHistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CoachingHistoryContent />
+    </Suspense>
+  );
+}
+
+function CoachingHistoryContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("session"));
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"view" | "create" | "edit">("view");
 
@@ -62,6 +84,19 @@ export default function CoachingHistoryPage() {
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Sync selectedId with URL query param
+  const selectSession = useCallback((id: string | null) => {
+    setSelectedId(id);
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) {
+      params.set("session", id);
+    } else {
+      params.delete("session");
+    }
+    const qs = params.toString();
+    router.replace(`/coaching-history${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [router, searchParams]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -94,7 +129,7 @@ export default function CoachingHistoryPage() {
 
   const startCreate = () => {
     resetForm();
-    setSelectedId(null);
+    selectSession(null);
     setMode("create");
   };
 
@@ -104,7 +139,7 @@ export default function CoachingHistoryPage() {
     setFormNotes(session.notes);
     setFormTranscript(session.transcript || "");
     setFormRecordingUrl(session.recordingUrl || "");
-    setSelectedId(session.id);
+    selectSession(session.id);
     setMode("edit");
   };
 
@@ -139,7 +174,7 @@ export default function CoachingHistoryPage() {
       if (res.ok) {
         const data = await res.json();
         await loadSessions();
-        setSelectedId(data.session.id);
+        selectSession(data.session.id);
         setMode("view");
       }
     } catch (error) {
@@ -158,7 +193,7 @@ export default function CoachingHistoryPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        setSelectedId(null);
+        selectSession(null);
         setMode("view");
         setCheckedIds((prev) => {
           const next = new Set(prev);
@@ -302,7 +337,7 @@ export default function CoachingHistoryPage() {
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                       }`}
                       onClick={() => {
-                        setSelectedId(session.id);
+                        selectSession(session.id);
                         setMode("view");
                       }}
                     >
@@ -444,7 +479,7 @@ export default function CoachingHistoryPage() {
                       onClick={() => {
                         setMode("view");
                         if (!selectedId && sessions.length > 0) {
-                          setSelectedId(sessions[0].id);
+                          selectSession(sessions[0].id);
                         }
                       }}
                       className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
