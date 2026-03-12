@@ -93,6 +93,7 @@ function SalesNarrativeEditContent() {
   const [prefillSourcePdfNames, setPrefillSourcePdfNames] = useState<string[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
   // Set browser tab title
   useEffect(() => {
@@ -644,6 +645,14 @@ function SalesNarrativeEditContent() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   PDF Files <span className="text-gray-400 font-normal">(sales decks, one-pagers, etc.)</span>
                 </label>
+                <input
+                  ref={pdfFileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
                 <div
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
@@ -656,14 +665,10 @@ function SalesNarrativeEditContent() {
                   } ${prefilling ? "opacity-50 pointer-events-none" : ""}`}
                 >
                   {prefillFiles.length === 0 ? (
-                    <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
-                      <input
-                        type="file"
-                        accept=".pdf,application/pdf"
-                        multiple
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
+                    <div
+                      onClick={() => pdfFileInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center py-6 cursor-pointer"
+                    >
                       <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
@@ -671,7 +676,7 @@ function SalesNarrativeEditContent() {
                         {isDraggingOver ? "Drop PDFs here" : "Click to upload or drag & drop"}
                       </span>
                       <span className="text-xs text-gray-400 mt-1">PDF files only</span>
-                    </label>
+                    </div>
                   ) : (
                     <div className="p-4">
                       <div className="flex flex-wrap gap-2">
@@ -697,19 +702,16 @@ function SalesNarrativeEditContent() {
                           </span>
                         ))}
                       </div>
-                      <label className="inline-flex items-center gap-1.5 mt-3 text-sm text-amber-600 hover:text-amber-700 cursor-pointer">
-                        <input
-                          type="file"
-                          accept=".pdf,application/pdf"
-                          multiple
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
+                      <button
+                        type="button"
+                        onClick={() => pdfFileInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 mt-3 text-sm text-amber-600 hover:text-amber-700 cursor-pointer"
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                         Add more PDFs
-                      </label>
+                      </button>
                     </div>
                   )}
                 </div>
