@@ -80,6 +80,7 @@ function SalesDeckContent() {
   const [existingDeckText, setExistingDeckText] = useState("");
   const [existingDeckFileName, setExistingDeckFileName] = useState("");
   const [parsingPdf, setParsingPdf] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
@@ -458,6 +459,19 @@ function SalesDeckContent() {
                   </p>
                 </div>
 
+                {/* Hidden file input — always rendered so ref is stable */}
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePdfUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+
                 {deckMode === "existing" && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -491,29 +505,34 @@ function SalesDeckContent() {
                         <span className="text-sm text-purple-700">Parsing PDF...</span>
                       </div>
                     ) : (
-                      <button
-                        type="button"
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.name.toLowerCase().endsWith(".pdf")) {
+                            handlePdfUpload(file);
+                          }
+                        }}
                         onClick={() => pdfInputRef.current?.click()}
-                        className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors cursor-pointer text-center"
+                        className={`w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer text-center ${
+                          dragOver
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-gray-300 hover:border-purple-400 hover:bg-purple-50"
+                        }`}
                       >
                         <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <p className="text-sm font-medium text-gray-700">Click to upload your deck PDF</p>
+                        <p className="text-sm font-medium text-gray-700">
+                          {dragOver ? "Drop your PDF here" : "Click or drag & drop your deck PDF"}
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">PDF files up to 50 pages supported</p>
-                      </button>
+                      </div>
                     )}
-                    <input
-                      ref={pdfInputRef}
-                      type="file"
-                      accept=".pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handlePdfUpload(file);
-                        e.target.value = "";
-                      }}
-                    />
                   </div>
                 )}
 
