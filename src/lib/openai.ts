@@ -136,21 +136,21 @@ export async function generateSessionTitle(notes: string, transcript?: string | 
         {
           role: "system",
           content:
-            "You are a coaching session title generator. Given session notes and optionally a transcript, create a short, descriptive title (under 60 characters) that captures the key topic or focus of the session. Use complete words only. Do not use quotes. Examples: 'Pipeline Review & Deal Strategy', 'Discovery Call Techniques', 'Q1 Quota Planning Session'.",
+            "You are a coaching session title generator. Given session notes and optionally a transcript, identify the 4-8 major specific topics discussed and list them as a comma-separated title. Be specific and concrete — use the actual deal names, skills, or strategies discussed rather than generic labels. Do not use quotes. Examples: 'Pipeline Gaps, Acme Deal Strategy, Discovery Frameworks, Q1 Targets', 'Cold Call Openers, Objection Handling, Demo Flow, Pricing Negotiation, Follow-up Cadence', 'Stakeholder Mapping, Champion Building, Technical Eval, Procurement Timeline'.",
         },
         {
           role: "user",
-          content: `Generate a short title (under 60 chars, complete words only) for this coaching session:\n\n${content}`,
+          content: `Identify the 4-8 major specific topics from this coaching session and list them comma-separated:\n\n${content}`,
         },
       ],
-      max_completion_tokens: 80,
-      temperature: 0.7,
+      max_completion_tokens: 120,
+      temperature: 0.5,
     });
 
     const title = response.choices[0]?.message?.content?.trim() || null;
 
-    if (title && title.length > 60) {
-      return truncateAtWordBoundary(title, 60);
+    if (title && title.length > 120) {
+      return truncateAtWordBoundary(title, 120);
     }
 
     return title || "Coaching Session";
