@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { orgPersona, humanPersona, specialNotes, deckMode, includeFirstCallChecklist } = await request.json();
+    const { orgPersona, humanPersona, specialNotes, deckMode, includeFirstCallChecklist, existingDeckContent, existingDeckFileName } = await request.json();
 
     if (!orgPersona || !humanPersona) {
       return NextResponse.json(
@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
     }
 
     const resolvedMode = deckMode === "existing" ? "existing" : "fresh";
+
+    if (resolvedMode === "existing" && !existingDeckContent) {
+      return NextResponse.json(
+        { error: "Please upload your existing deck PDF to use 'Improve Existing' mode." },
+        { status: 400 }
+      );
+    }
 
     // Get the latest sales narrative
     const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
@@ -66,10 +73,14 @@ ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
     if (checklistContent) {
       contextSection += `\n\n## FIRST CALL CHECKLIST (for additional context):\n\n${checklistContent}`;
     }
+    if (existingDeckContent) {
+      contextSection += `\n\n## EXISTING DECK CONTENT${existingDeckFileName ? ` (from "${existingDeckFileName}")` : ""}:\n\n${existingDeckContent}`;
+    }
 
     // Instructions go in final message; context goes in history if too long
-    const instructionPrompt = buildDeckPrompt(personaSection, "", resolvedMode);
-    const fullPrompt = buildDeckPrompt(personaSection, contextSection, resolvedMode);
+    const hasExistingDeck = !!existingDeckContent;
+    const instructionPrompt = buildDeckPrompt(personaSection, "", resolvedMode, hasExistingDeck);
+    const fullPrompt = buildDeckPrompt(personaSection, contextSection, resolvedMode, hasExistingDeck);
 
     let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
     let finalMessage = fullPrompt;
@@ -119,6 +130,7 @@ ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
         specialNotes: specialNotes || null,
         deckMode: resolvedMode,
         content: cleanedResponse,
+        sourcePdfName: existingDeckFileName || null,
       },
     });
 
@@ -169,7 +181,7 @@ ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
         humanPersona,
         specialNotes: specialNotes || null,
         deckMode: resolvedMode,
-        sourcePdfName: null,
+        sourcePdfName: existingDeckFileName || null,
         salesNarrativeVersionId: latestNarrative.id,
         firstCallChecklistVersionId: checklistVersionId,
         conversationId: conversation.id,
@@ -186,16 +198,16 @@ ${specialNotes ? `- **Special notes:** ${specialNotes}` : ""}`;
   }
 }
 
-function buildDeckPrompt(personaSection: string, contextSection: string, mode: string): string {
-  const modeInstruction = mode === "existing"
-    ? `The user already has an existing sales deck and wants to IMPROVE it. Focus on optimizing the structure, messaging, and flow of their current deck rather than creating from scratch.`
-    : `The user needs a BRAND NEW sales deck outline and speaker script created from their sales narrative.`;
+function buildDeckPrompt(personaSection: string, contextSection: string, mode: string, hasExistingDeck: boolean = false): string {
+  if (mode === "existing" && hasExistingDeck) {
+    return buildExistingDeckPrompt(personaSection, contextSection);
+  }
 
   return `You are an expert B2B sales presentation coach helping a founder create a compelling sales deck outline with speaker notes.
 
 ## INSTRUCTIONS:
 
-${modeInstruction}
+The user needs a BRAND NEW sales deck outline and speaker script created from their sales narrative.
 
 Generate a complete sales deck outline targeting the specified persona. For each slide, include:
 - **Slide title**
@@ -253,5 +265,47 @@ ${personaSection}
 
 ## OUTPUT FORMAT:
 Return clean markdown (NO code blocks). Use headers (## for slide titles), bold text, and clear structure. Each slide should be clearly delineated.
+${contextSection ? `\n${contextSection}` : ""}`;
+}
+
+function buildExistingDeckPrompt(personaSection: string, contextSection: string): string {
+  return `You are an expert B2B sales presentation coach. The user has uploaded their existing sales deck and wants you to analyze it and provide a comprehensive improved version.
+
+## INSTRUCTIONS:
+
+Analyze the user's existing deck (provided in the context below) and produce an IMPROVED version. Your output should:
+
+1. **Audit the existing deck** — identify what's strong, what's weak, and what's missing
+2. **Produce an improved deck outline** that keeps the best parts of their existing deck while fixing gaps
+
+For the improved deck, evaluate and address:
+- **Missing slides** — Are any critical sections missing (problem framing, social proof, clear CTA, etc.)?
+- **Slide ordering** — Is the narrative arc logical? Does each slide earn the right to show the next one?
+- **Messaging strength** — Are value props clear and benefit-focused rather than feature-dumping?
+- **Proof points** — Are there enough concrete data points, case studies, or testimonials?
+- **Call to action** — Is the ask clear and compelling?
+- **Speaker script quality** — Would the talking points sound natural and persuasive?
+
+## OUTPUT FORMAT:
+
+Start with a brief **## Deck Audit** section (3-5 bullet points) summarizing the key strengths and gaps you identified in the existing deck.
+
+Then provide the full **improved deck outline**. For each slide, include:
+- **Slide title**
+- **Key visual / layout suggestion**
+- **Speaker script** (conversational, not robotic)
+- **Transition** to the next slide
+- If the slide is **new** (not in the original deck), mark it with: ⭐ *New slide*
+- If the slide is **significantly revised**, mark it with: ✏️ *Revised*
+
+${personaSection}
+
+## TONE:
+- Conversational, founder-to-executive
+- Confident and authoritative, not salesy
+- Story-driven with data to back it up
+- Every slide should earn the right to show the next one
+
+Return clean markdown (NO code blocks). Use headers (## for slide titles), bold text, and clear structure.
 ${contextSection ? `\n${contextSection}` : ""}`;
 }
