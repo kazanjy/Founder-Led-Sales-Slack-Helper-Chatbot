@@ -63,40 +63,57 @@ Here are some of the things people love using me for:
 ❓ *Burning Questions* — Whatever's keeping you up at night about sales, just ask! "How do I build a pipeline from scratch?" "When should I hire my first rep?" "How do I handle the 'we don't have budget' objection?"
 🗓️ *Pre-Call Prep* — Tell me about your upcoming call and I'll help you prepare discovery questions, talking points, and a game plan!
 🤝 *Deal Strategy* — Walk me through a deal and I'll help you figure out the best path forward, including spotting risks!
+📊 *Call Reviews* — Upload a call transcript and I'll score the call across discovery, demo effectiveness, objection handling, and next steps — with specific coaching!
+📈 *Sales Metrics* — Paste your pipeline numbers or upload a CSV and I'll benchmark your performance and spot what to fix!
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🚀 *Built-In Apps & Workflows*
+🚀 *Built-In Apps & Tools*
 
-I come loaded with powerful guided workflows to help you build your GTM engine from scratch:
+I come loaded with powerful tools — each with its own dedicated page at *askmikey.ai*:
 
-📏 *GTM Maturity Assessment* — Measure where you stand and what to focus on next
-🎯 *ICP Refinement* — Tighten your ideal customer profile
-💎 *Sales Narrative / Value Prop* — Craft a compelling, terse value proposition
-🔍 *Discovery Questions* — Generate great discovery questions for your product
-📞 *First Call Checklist* — Structure an effective first sales call
-🎯 *Pre-Call Planning Process* — Build a repeatable preparation ritual for every call
-🔍 *Pre-Call Research* — Research a prospect before your call! Just type \`#research\` or \`#precall\` followed by whatever you know — company name, contact name, title, LinkedIn URL, company website — in any format. I'll parse it, show you what I found, ask for anything missing, and then generate a full research brief with persona matching, a point of view on what they'll care about, and recommended call focus areas. Example: \`#research Acme Corp, Jane Doe CTO, linkedin.com/in/janedoe, acme.com\`
-📧 *Outbound Messaging & Sequences* — Write outreach that actually gets replies
+*📋 Foundation (Build Your Playbook)*
+📏 *GTM Maturity Assessment* — Measure where you stand across key sales dimensions and get prioritized recommendations
+💎 *Sales Narrative* — Craft a compelling value prop and product story
+🔍 *Discovery Questions* — Generate targeted discovery questions for your ICP
+📞 *First Call Checklist* — Structure what to cover on every first call
+🎯 *Pre-Call Planning* — Build a repeatable prep framework for every meeting
+
+*🔬 Research & Prep*
+🔍 *Pre-Call Research* — Research a prospect before your call! Type \`#research\` or \`#precall\` followed by whatever you know — company name, contact name, LinkedIn URL, website — and I'll generate a full research brief with persona matching and recommended call focus areas. Example: \`#research Acme Corp, Jane Doe CTO, acme.com\`
+
+*⚡ Execution Tools*
+📧 *Email Sequences* — Generate multi-step outbound email sequences with subject lines, body copy, and follow-up cadence
+💬 *LinkedIn Sequences* — Create LinkedIn-optimized connection requests and follow-up messages
+📞 *Cold Call Scripts* — Generate call scripts tailored to specific buyer personas
+📊 *Sales Decks* — Generate structured sales presentation outlines, or enhance your existing deck
+
+*📈 Analysis & Coaching*
+🎯 *Call Review* — Upload a call transcript and get a detailed scorecard with scoring, red flags, and improvement areas
+📊 *Sales Metrics Analysis* — Upload CRM data (CSV) or enter your numbers manually and get benchmarked performance analysis
+🗒️ *Coaching History* — Log coaching sessions with notes and transcripts, then chat with me about your progress over time
+
+*🎓 Learning & Practice*
+🧠 *Founder-Led Sales Quiz* — Test your knowledge with a 20-question quiz!
+📖 *Tutoring Sessions* — Get a lesson on a topic and then get quizzed on it
 📚 *Sales Playbook Builder* — Put together your complete sales playbook
 💰 *Comp Plan Design* — Design compensation for your first sales reps
 👥 *Sales Hiring Process* — Get guidance on finding and hiring great reps
 🚀 *Sales Rep Onboarding* — Build an effective onboarding plan
-🧠 *Founder-Led Sales Quiz* — Test your knowledge with a 20-question quiz!
-📖 *Tutoring Sessions* — Get a lesson on a topic and then get quizzed on it
 
-Just ask me to start any of these and I'll walk you through it step by step! 🪜
+Just ask me to start any of these, or visit *askmikey.ai* to use the full web experience! 🪜
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🌐 *Mikey on the Web*
 
-Did you know I also have a *web app*? 🖥️ Head over to *askmikey.ai* to:
+I also have a full *web app* at *askmikey.ai* with extra capabilities! 🖥️
 
-• 💬 Chat with me in a full web interface
-• 🔗 *Share conversations* with your team via a link — great advice shouldn't stay siloed!
+• 💬 Chat with me with full rich formatting, voice input, and file uploads
+• 🔗 *Share anything* — conversations, research briefs, call reviews, and more via a shareable link
 • 📦 Access a *custom prompt library* — save, edit, clone, and organize your favorite workflows
-• ⚙️ *Personalize your context* — set your ICP, value prop, and sales motion so I tailor my advice to YOUR business
+• ⚙️ *Personalize your context* — set your ICP, value prop, and sales motion so I tailor everything to YOUR business
+• 📁 *Files* — all your uploaded images, PDFs, and CSVs in one place
 
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -106,6 +123,7 @@ Did you know I also have a *web app*? 🖥️ Head over to *askmikey.ai* to:
 • 🌊 I'm great for roleplay — try "Can you pretend to be a skeptical CTO and let me practice my pitch?"
 • 🌊 You can ask me to be more specific, shorter, longer, or to try a different angle — I don't mind! I'm here for you 🤗
 • 🌊 Type \`#research\` or \`#precall\` followed by whatever you know about an upcoming call — I'll walk you through gathering the rest and generate a full pre-call brief!
+• 🌊 Upload a call transcript to get a full scorecard, or paste in your CRM numbers for a sales metrics breakdown!
 • 🌊 Type \`#instructions\` anytime to see this message again!
 
 ━━━━━━━━━━━━━━━━━━━━━━
