@@ -1,151 +1,214 @@
-# Coaching History Feature — Implementation Plan
+# Ad Creator Applet — Implementation Plan
 
 ## Overview
-New "Coaching History" page where users create coaching sessions (date, notes, transcript), browse history, and chat with individual sessions, selected subsets, or all sessions combined.
+New applet at `/ad-creator` that generates multi-platform ad copy and creative/visual direction. Single long-form document with anchored headers per platform. Follows the same architecture as LinkedIn Sequence and Email Sequence applets, plus a new "Iterate" feature.
 
 ---
 
-## 1. Database Schema
+## 1. Database: Prisma Schema
 
-Add `CoachingSession` model to `prisma/schema.prisma`:
+**New model: `AdCreatorVersion`** in `prisma/schema.prisma`
 
-```prisma
-model CoachingSession {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+Fields (matching LinkedIn/Email pattern):
+- `id` — cuid
+- `userId` — FK to User
+- `salesNarrativeVersionId` — FK to SalesNarrativeVersion (required context)
+- `firstCallChecklistVersionId` — FK to FirstCallChecklistVersion (optional)
+- `orgPersona` — Text
+- `humanPersona` — Text
+- `specialNotes` — Text? (user notes/guidance)
+- `platforms` — String[] (selected platforms: "linkedin", "facebook-instagram", "google-sem")
+- `content` — Text (generated markdown output)
+- `iteratedFromId` — String? (self-referencing FK — tracks iteration lineage)
+- `iterationNotes` — Text? (the guidance the user gave when iterating)
+- `conversationId` — String? (linked chat thread)
+- `createdAt`, `updatedAt`
+- Index on `[userId, createdAt]`
 
-  title       String                // e.g. "Weekly Coaching — Mar 3"
-  sessionDate DateTime              // Date picker value
-  notes       String   @db.Text     // Notes stored as markdown
-  transcript  String?  @db.Text     // Optional pasted transcript
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([userId, sessionDate(sort: Desc)])
-  @@map("coaching_sessions")
-}
-```
-
-Add relation on `User` model: `coachingSessions CoachingSession[]`
-
-Run `npx prisma db push` to apply.
+Add `adCreatorVersions AdCreatorVersion[]` relation to User model.
 
 ---
 
 ## 2. API Routes
 
-### `src/app/api/coaching-sessions/route.ts`
-- **GET**: List all sessions for current user, ordered by `sessionDate desc`
-- **POST**: Create new session `{ title, sessionDate, notes, transcript }`
+All under `/src/app/api/ad-creator/`:
 
-### `src/app/api/coaching-sessions/[id]/route.ts`
-- **GET**: Fetch single session
-- **PUT**: Update session
-- **DELETE**: Delete session
+### `generate/route.ts` (POST)
+- Accepts: `{ orgPersona, humanPersona, specialNotes?, platforms[], includeFirstCallChecklist }`
+- Fetches latest sales narrative + optional checklist
+- Builds platform-specific AI prompt
+- Saves `AdCreatorVersion` to DB
+- Creates linked chat conversation via `createSequenceConversation`
+- Upserts GTM variable `AD_CREATOR`
+- Returns the new version
 
----
+### `iterate/route.ts` (POST) — **NEW FEATURE**
+- Accepts: `{ versionId, iterationNotes, platforms? }`
+- Fetches the source version (content + personas + narrative)
+- Builds prompt that includes previous output + user's iteration guidance
+- Saves new `AdCreatorVersion` with `iteratedFromId` pointing to source
+- Creates linked chat conversation
+- Returns the new version
 
-## 3. Page: `/coaching-history`
+### `latest/route.ts` (GET)
+- Returns latest version for current user (or null + flags)
 
-### `src/app/coaching-history/page.tsx`
+### `history/route.ts` (GET)
+- Returns all versions ordered by createdAt DESC
 
-**Layout:**
-- SalesNavBar at top
-- Left panel: Session list (date, title, preview) with "New Session" button at top
-- Right panel: Selected session detail OR create/edit form
+### `versions/[id]/route.ts` (GET + PATCH)
+- GET: Fetch specific version by ID
+- PATCH: Update content (edit-in-place)
 
-**Session List:**
-- Cards sorted by date descending
-- Each card: date, title, first ~100 chars of notes
-- Click to view/edit
-- Multi-select checkboxes for "Chat with selected"
-
-**Create/Edit Form:**
-- Title input
-- Date picker (`<input type="date">`)
-- Notes: `<textarea>` for markdown
-- Transcript: Separate `<textarea>` with "Paste transcript" placeholder
-- Save / Cancel buttons
-
-**Action Buttons (when viewing a session):**
-- "Chat About This Session" — ChatAboutButton for single session
-- "Chat About All Sessions" — ChatAboutButton with all sessions concatenated
-- "Chat About Selected" — Appears when checkboxes are checked, concatenates selected sessions
+### `prefill-personas/route.ts` (POST)
+- Reads sales narrative, asks AI for suggested org + audience personas
 
 ---
 
-## 4. Chat Context Formatting
+## 3. Frontend Pages
 
-When sending coaching sessions to chat, format as:
+### `/src/app/ad-creator/page.tsx` — Main Page
 
-```
-## Coaching History
+**Input Form (when no version or regenerating):**
+- Organization Persona textarea (auto-prefilled)
+- Target Audience Persona textarea (auto-prefilled)
+- **Platform multi-select** — checkboxes for: LinkedIn Ads, Facebook/Instagram Ads, Google SEM Ads. All four checked by default.
+- Special Notes textarea
+- Include First Call Checklist toggle
+- "Generate Ad Concepts" button
 
-### Session: [Title] — [Date as MMM D, YYYY]
-#### Notes
-[notes content]
+**Output View (when version exists):**
+- One long markdown document with platform headers rendered as anchor-linked sections
+- Table of contents with jump links to each platform section
+- Action bar: **Copy | Edit | Clone | Share | Chat About | Iterate**
+- Version metadata (created date, platforms, iteration lineage if applicable)
 
-#### Call Transcript
-[transcript content if present]
+**Iterate Overlay (modal):**
+- Shows summary of current version
+- Textarea: "How would you like to iterate?" with placeholder examples ("Make LinkedIn ads more conversational", "Add urgency to Google SEM headlines", "Focus more on ROI messaging")
+- Optional: platform re-select (pre-filled from current version)
+- "Generate New Version" button → calls `/api/ad-creator/iterate`
+- On success: navigates to the new version
+
+**Edit Mode:**
+- RichTextEditor for in-place editing, Save/Cancel buttons
+
+### `/src/app/ad-creator/history/page.tsx` — History Page
+- List of all versions with date, persona summary, platform badges
+- "Edited" badge when updatedAt !== createdAt
+- "Iterated from v#" badge when iteratedFromId is set
+- Click navigates to `/ad-creator?version={id}`
 
 ---
 
-### Session: [Title] — [Date as MMM D, YYYY]
+## 4. Integration Points
+
+### SalesNavBar (`src/components/SalesNavBar.tsx`)
+- Add: `{ href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" }`
+
+### Document Share (`src/app/api/documents/share/route.ts`)
+- Add `"adCreator"` to `validTypes` array
+
+### Document Clone (`src/app/api/documents/clone/route.ts`)
+- Add `"adCreator"` case to switch statement
+
+### SharedDocClient (`src/app/share/doc/[code]/SharedDocClient.tsx`)
+- Add `adCreator: "Ad Creator"` to typeLabels
+
+### Import Route (`src/app/api/import/route.ts`)
+- Add `"adCreator"` to `VALID_APPLET_TYPES` and merge config
+
+### Sequence Conversation (`src/lib/sequences/sequence-conversation.ts`)
+- Add `"ad-creator"` type support
+
+---
+
+## 5. Generated Output Structure
+
+Single markdown document with anchored headers per platform:
+
+```markdown
+# Ad Concepts: [Company] → [Target Audience]
+
+## LinkedIn Ads {#linkedin-ads}
+
+### Concept 1: [Theme Name]
+**Ad Format:** Sponsored Content (Single Image)
+**Headline:** ...
+**Intro Text:** ...
+**Description:** ...
+**CTA:** ...
+**Creative Direction:** [Visual description — imagery, mood, style, color palette]
+
+### Concept 2: [Theme Name]
 ...
+
+---
+
+## Facebook & Instagram Ads {#facebook-instagram-ads}
+
+### Concept 1: [Theme Name]
+**Ad Format:** Feed Ad
+**Primary Text:** ...
+**Headline:** ...
+**Description:** ...
+**CTA:** ...
+**Creative Direction:** ...
+
+### Concept 2: Story Ad Concept
+...
+
+---
+
+## Google SEM Ads {#google-sem-ads}
+
+### Ad Group 1: [Theme/Intent]
+**Headlines:** (up to 15, max 30 chars each)
+1. ...
+**Descriptions:** (up to 4, max 90 chars each)
+1. ...
+**Target Keywords:** ...
 ```
 
-Sessions ordered chronologically (oldest first) so the LLM sees progression.
+Each platform section only appears if that platform was selected. Creative Direction notes describe visual concepts (imagery, mood, style, color palette, composition ideas).
 
 ---
 
-## 5. Chat Integration — Attachment Picker
+## 6. AI Prompt Strategy
 
-Add `coachingHistory` as an attachment type:
+### Generate Prompt
+- Instructions first (survives chunking truncation)
+- Platform-specific format requirements with character limits
+- Creative Direction note required for each concept
+- Tone: authentic, founder-led, not corporate
+- Output: clean markdown with `{#anchor-id}` on platform headers
 
-**`src/app/api/attachments/available/route.ts`:**
-- Add `coachingHistory` check: query `CoachingSession.count()` for user
-- Return availability info with `appUrl: "/coaching-history"`
-
-**`src/components/AttachmentPicker.tsx`:**
-- Add metadata entry for `coachingHistory`
-
-**`src/app/api/conversations/[id]/messages/stream/route.ts`:**
-- Add `"coachingHistory"` to valid attachments
-- In `fetchAttachmentContent()`, query all coaching sessions, format per section 4
-
----
-
-## 6. Navigation
-
-**`src/components/SalesNavBar.tsx`:**
-- Add to playbook items: `{ href: "/coaching-history", label: "🎓 Coaching History", statusKey: "coachingHistory" }`
+### Iterate Prompt
+- Includes previous version's full output
+- User's iteration guidance
+- "Keep what works, improve what was called out"
+- Generates complete new document
 
 ---
 
-## 7. Implementation Order
+## 7. File Checklist
 
-1. Schema + migration
-2. API routes (CRUD)
-3. Frontend page (list + create/edit + detail)
-4. Chat integration (ChatAboutButton + attachment picker + stream route)
-5. Navigation
-6. Type-check + push
+**New files:**
+- [ ] `prisma/migrations/YYYYMMDD_add_ad_creator/migration.sql`
+- [ ] `src/app/ad-creator/page.tsx`
+- [ ] `src/app/ad-creator/history/page.tsx`
+- [ ] `src/app/api/ad-creator/generate/route.ts`
+- [ ] `src/app/api/ad-creator/iterate/route.ts`
+- [ ] `src/app/api/ad-creator/latest/route.ts`
+- [ ] `src/app/api/ad-creator/history/route.ts`
+- [ ] `src/app/api/ad-creator/versions/[id]/route.ts`
+- [ ] `src/app/api/ad-creator/prefill-personas/route.ts`
 
----
-
-## Files
-
-**New (5):**
-1. `src/app/coaching-history/page.tsx`
-2. `src/app/api/coaching-sessions/route.ts`
-3. `src/app/api/coaching-sessions/[id]/route.ts`
-4. (schema changes in existing file)
-
-**Modified (4):**
-5. `prisma/schema.prisma` — Add CoachingSession model + User relation
-6. `src/components/SalesNavBar.tsx` — Add nav item
-7. `src/app/api/attachments/available/route.ts` — Add coachingHistory availability
-8. `src/components/AttachmentPicker.tsx` — Add coachingHistory metadata
-9. `src/app/api/conversations/[id]/messages/stream/route.ts` — Add coachingHistory attachment
+**Existing files to modify:**
+- [ ] `prisma/schema.prisma` — Add AdCreatorVersion model + User relation
+- [ ] `src/components/SalesNavBar.tsx` — Add nav item
+- [ ] `src/app/api/documents/share/route.ts` — Add to validTypes
+- [ ] `src/app/api/documents/clone/route.ts` — Add clone case
+- [ ] `src/app/share/doc/[code]/SharedDocClient.tsx` — Add type label
+- [ ] `src/app/api/import/route.ts` — Add applet type
+- [ ] `src/lib/sequences/sequence-conversation.ts` — Add type label
