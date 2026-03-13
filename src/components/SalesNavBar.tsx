@@ -19,6 +19,7 @@ const topLevelItems: NavItem[] = [
   { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
+  { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];

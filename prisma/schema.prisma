@@ -111,6 +111,7 @@ model User {
   salesMetricsAnswers SalesMetricsAnswer[]
   salesMetricsAssessments SalesMetricsAssessment[]
   coachingSessions CoachingSession[]
+  adCreatorVersions AdCreatorVersion[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
 
@@ -624,6 +625,7 @@ model SalesNarrativeVersion {
   linkedInSequenceVersions LinkedInSequenceVersion[]
   coldCallScriptVersions ColdCallScriptVersion[]
   salesDeckVersions SalesDeckVersion[]
+  adCreatorVersions AdCreatorVersion[]
 
   createdAt   DateTime @default(now())
 
@@ -686,6 +688,7 @@ model FirstCallChecklistVersion {
   linkedInSequenceVersions LinkedInSequenceVersion[]
   coldCallScriptVersions ColdCallScriptVersion[]
   salesDeckVersions SalesDeckVersion[]
+  adCreatorVersions AdCreatorVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1115,4 +1118,49 @@ model CoachingSession {
 
   @@index([userId, sessionDate(sort: Desc)])
   @@map("coaching_sessions")
+}
+
+// ============================================
+// AD CREATOR APP
+// ============================================
+
+model AdCreatorVersion {
+  id                          String   @id @default(cuid())
+
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId     String
+  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona                  String   @db.Text
+  humanPersona                String   @db.Text
+  specialNotes                String?  @db.Text
+
+  // Selected platforms (e.g. ["linkedin", "facebook-instagram", "google-sem"])
+  platforms                   String[]
+
+  // Generated output
+  content                     String   @db.Text
+
+  // Iteration lineage
+  iteratedFromId              String?
+  iteratedFrom                AdCreatorVersion?  @relation("AdCreatorIterations", fields: [iteratedFromId], references: [id], onDelete: SetNull)
+  iterations                  AdCreatorVersion[] @relation("AdCreatorIterations")
+  iterationNotes              String?  @db.Text
+
+  // Linked chat thread
+  conversationId              String?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("ad_creator_versions")
 }

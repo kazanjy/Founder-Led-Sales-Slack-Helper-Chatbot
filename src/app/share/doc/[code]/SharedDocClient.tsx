@@ -32,6 +32,7 @@ const typeLabels: Record<string, string> = {
   preCallPlanning: "Pre-Call Checklist",
   preCallResearch: "Pre-Call Research",
   callReview: "Call Review Scorecard",
+  adCreator: "Ad Creator",
 };
 
 const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w"] as const;

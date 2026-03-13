@@ -8,11 +8,11 @@ import Papa from "papaparse";
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
 
-type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck";
+type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck" | "adCreator";
 
 const VALID_APPLET_TYPES = new Set<string>([
   "discoveryQuestions", "firstCallChecklist", "preCallPlanning",
-  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck",
+  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator",
 ]);
 
 const MERGE_CONFIGS: Partial<Record<AppletType, { mergeField: string; mergeLabel: string }>> = {
@@ -537,11 +537,46 @@ export async function POST(request: NextRequest) {
         returnContent = version;
         break;
       }
+
+      case "adCreator": {
+        const cleanContent = cleanMarkdownResponse(aiContent);
+
+        const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        });
+
+        if (!latestNarrative) {
+          return NextResponse.json(
+            { error: "A sales narrative is required before importing ad concepts. Please create a sales narrative first." },
+            { status: 400 },
+          );
+        }
+
+        const version = await prisma.adCreatorVersion.create({
+          data: {
+            userId: user.id,
+            content: cleanContent,
+            salesNarrativeVersionId: latestNarrative.id,
+            orgPersona: "Imported via file upload",
+            humanPersona: "Imported via file upload",
+            platforms: ["linkedin", "facebook-instagram", "google-sem"],
+          },
+          include: {
+            salesNarrativeVersion: { select: { id: true, createdAt: true } },
+          },
+        });
+
+        savedVersion = version;
+        returnContent = version;
+        break;
+      }
     }
 
     // For complex types, returnContent is already the full version object
     // For simple types, wrap it
-    const isFullObject = ["salesNarrative", "emailSequence", "linkedInSequence", "salesDeck"].includes(appletType);
+    const isFullObject = ["salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator"].includes(appletType);
     const responseVersion = isFullObject
       ? returnContent
       : { id: savedVersion.id, content: returnContent, createdAt: savedVersion.createdAt };
