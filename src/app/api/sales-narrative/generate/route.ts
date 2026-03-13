@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 
-// Allow up to 120s for Chatbase AI generation
+// Allow up to 120s for GPT-5.2 generation
 export const maxDuration = 120;
 
 // POST - Generate sales narrative from questionnaire answers
@@ -81,8 +81,8 @@ export async function POST(request: Request) {
 
     console.log("Sales narrative answers summary length:", answersSummary.length, "characters");
 
-    // Build the prompt for Chatbase
-    const systemPrompt = `You are helping a founder create their sales narrative.
+    // Build the full prompt (GPT-5.2 has large context — no chunking needed)
+    const fullPrompt = `You are helping a founder create their sales narrative.
 
 The product/service name is: ${productName}
 
@@ -183,98 +183,20 @@ ${answersSummary}
 IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code blocks, just raw JSON):
 {"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full ~2000-word sales narrative with question headers...", "description1000w": "The ~1000-word condensed narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
 
-    // Chatbase has an 8000 character limit per message
-    // If the prompt is too long, we need to chunk it
-    const CHATBASE_LIMIT = 7500;
+    console.log(`Sending to GPT-5.2: ${fullPrompt.length} chars`);
 
-    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = systemPrompt;
-
-    if (systemPrompt.length > CHATBASE_LIMIT) {
-      // Split into chunks
-      const chunks: string[] = [];
-      const sections = answersSummary.split(/(?=## )/);
-
-      let currentChunk = "";
-      for (const section of sections) {
-        if (currentChunk.length + section.length > CHATBASE_LIMIT - 1000) {
-          if (currentChunk) {
-            chunks.push(currentChunk.trim());
-          }
-          currentChunk = section;
-        } else {
-          currentChunk += section;
-        }
-      }
-      if (currentChunk.trim()) {
-        chunks.push(currentChunk.trim());
-      }
-
-      // Add chunks as conversation history
-      for (let i = 0; i < chunks.length; i++) {
-        chatbaseHistory.push({
-          role: "user",
-          content: `[Sales Narrative Questionnaire Part ${i + 1} of ${chunks.length}]\n\n${chunks[i]}`,
-        });
-        if (i < chunks.length - 1) {
-          chatbaseHistory.push({
-            role: "assistant",
-            content: `I've received part ${i + 1}. Please continue with the remaining sections.`,
-          });
-        }
-      }
-
-      // Final message includes generation instructions WITH header requirements
-      finalMessage = `Based on all the questionnaire answers I've shared, please generate the following. IMPORTANT: Do NOT mention "Pete Kazanjy" or "Founding Sales" anywhere in the generated text.
-
-1. A SALES NARRATIVE (~2000 WORDS). This MUST contain exactly 8 sections, each starting with a bold header on its own line. The headers are MANDATORY - without them the output is invalid. TARGET: approximately 2000 words total with 2-4 substantial paragraphs per section:
-
-**What's the problem?**
-(2-4 paragraphs of flowing prose)
-
-**Who has the problem?**
-(2-4 paragraphs of flowing prose)
-
-**What's the cost of not solving the problem?**
-(2-4 paragraphs of flowing prose)
-
-**How is this currently solved? Why doesn't that work?**
-(2-4 paragraphs of flowing prose)
-
-**What has changed?**
-(2-4 paragraphs of flowing prose)
-
-**How does it work?**
-(2-4 paragraphs of flowing prose)
-
-**How do you know it's better?**
-(2-4 paragraphs of flowing prose)
-
-**Pricing**
-(2-4 paragraphs of flowing prose)
-
-2. A 1000-WORD CONDENSED NARRATIVE - Same 8-section structure with bold headers, but shorter (1-2 paragraphs per section)
-
-3. A 100-WORD DESCRIPTION - Product marketing summary
-
-4. A 50-WORD DESCRIPTION - Elevator pitch
-
-5. A 25-WORD DESCRIPTION - Tagline
-
-IMPORTANT: Respond ONLY with valid JSON (no markdown):
-{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "...", "description1000w": "...", "description100w": "...", "description50w": "...", "description25w": "..."}`;
-    }
-
-    console.log(`Sending to Chatbase: ${chatbaseHistory.length} history messages, final message: ${finalMessage.length} chars`);
-
-    // Call Chatbase
+    // Call GPT-5.2
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
-      aiResponse = chatbaseResult.response;
-    } catch (chatbaseError) {
-      console.error("Chatbase API error:", chatbaseError);
-      const errorMessage = chatbaseError instanceof Error ? chatbaseError.message : "Unknown error";
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [{ role: "user", content: fullPrompt }],
+        temperature: 0.7,
+      });
+      aiResponse = response.choices[0]?.message?.content || "";
+    } catch (gptError) {
+      console.error("GPT-5.2 API error:", gptError);
+      const errorMessage = gptError instanceof Error ? gptError.message : "Unknown error";
       return NextResponse.json(
         { error: `Failed to generate narrative: ${errorMessage}` },
         { status: 500 }
@@ -305,8 +227,8 @@ IMPORTANT: Respond ONLY with valid JSON (no markdown):
         throw new Error("Missing required fields in response");
       }
     } catch (parseError) {
-      console.error("Failed to parse Chatbase response:", parseError);
-      console.error("Raw response:", aiResponse);
+      console.error("Failed to parse GPT-5.2 response:", parseError);
+      console.error("Raw response:", aiResponse.substring(0, 1000));
       return NextResponse.json(
         { error: "Failed to parse generated content. Please try again." },
         { status: 500 }

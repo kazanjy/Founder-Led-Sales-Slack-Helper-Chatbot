@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
@@ -149,8 +149,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cap total context to prevent oversized Chatbase payloads (413 errors)
-    const MAX_CONTEXT_CHARS = 60000;
+    // Cap total context to stay within reasonable token limits
+    const MAX_CONTEXT_CHARS = 120000;
     let trimmedContext = combinedContext;
     if (trimmedContext.length > MAX_CONTEXT_CHARS) {
       console.warn(`[Prefill] Trimming context from ${trimmedContext.length} to ${MAX_CONTEXT_CHARS} chars`);
@@ -167,11 +167,8 @@ export async function POST(request: NextRequest) {
       })
       .join("\n");
 
-    // Build the prompt
-    const CHATBASE_LIMIT = 7500;
-    const MAX_HISTORY_CHUNKS = 10; // Allow more chunks to pass richer context to the LLM
-
-    const instructionPrompt = `You are helping a founder pre-fill their Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
+    // Build the full prompt (GPT-5.2 has large context — no chunking needed)
+    const fullPrompt = `You are helping a founder pre-fill their Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
 
 ## QUESTIONS TO ANSWER
 
@@ -191,63 +188,25 @@ ${questionList}
 - Do NOT be brief — the founder wants comprehensive draft answers they can edit down, not thin summaries they have to expand
 
 Respond with ONLY valid JSON mapping question IDs to answer strings:
-{"questionId1": "answer text...", "questionId2": "answer text...", ...}`;
+{"questionId1": "answer text...", "questionId2": "answer text...", ...}
 
-    // Chunk the context into Chatbase conversation history if needed
-    const chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = `${instructionPrompt}\n\n## COMPANY CONTEXT\n\n${trimmedContext}`;
+## COMPANY CONTEXT
 
-    if (finalMessage.length > CHATBASE_LIMIT) {
-      const chunks: string[] = [];
-      let current = "";
+${trimmedContext}`;
 
-      const sections = trimmedContext.split(/(?=## )/);
-      for (const section of sections) {
-        if (current.length + section.length > CHATBASE_LIMIT - 500) {
-          if (current) chunks.push(current.trim());
-          if (section.length > CHATBASE_LIMIT - 500) {
-            const subChunks = splitTextIntoChunks(section, CHATBASE_LIMIT - 500);
-            chunks.push(...subChunks);
-          } else {
-            current = section;
-          }
-        } else {
-          current += section;
-        }
-      }
-      if (current.trim()) chunks.push(current.trim());
+    console.log(`[Prefill] Sending to GPT-5.2: ${fullPrompt.length} chars`);
 
-      // Cap the number of chunks to prevent oversized Chatbase payloads
-      if (chunks.length > MAX_HISTORY_CHUNKS) {
-        console.warn(`[Prefill] Capping ${chunks.length} chunks to ${MAX_HISTORY_CHUNKS}`);
-        chunks.length = MAX_HISTORY_CHUNKS;
-      }
-
-      for (let i = 0; i < chunks.length; i++) {
-        chatbaseHistory.push({
-          role: "user",
-          content: `[Company Context Part ${i + 1} of ${chunks.length}]\n\n${chunks[i]}`,
-        });
-        if (i < chunks.length - 1) {
-          chatbaseHistory.push({
-            role: "assistant",
-            content: `I've received part ${i + 1} of the company context. Please continue.`,
-          });
-        }
-      }
-
-      finalMessage = instructionPrompt;
-    }
-
-    console.log(`[Prefill] Sending to Chatbase: ${chatbaseHistory.length} history msgs, final: ${finalMessage.length} chars`);
-
-    // Call Chatbase
+    // Call GPT-5.2
     let aiResponse: string;
     try {
-      const result = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
-      aiResponse = result.response;
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [{ role: "user", content: fullPrompt }],
+        temperature: 0.7,
+      });
+      aiResponse = response.choices[0]?.message?.content || "";
     } catch (err) {
-      console.error("[Prefill] Chatbase error:", err);
+      console.error("[Prefill] GPT-5.2 error:", err);
       const msg = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.json(
         { error: `AI generation failed: ${msg}` },
@@ -299,32 +258,4 @@ Respond with ONLY valid JSON mapping question IDs to answer strings:
       { status: 500 }
     );
   }
-}
-
-/**
- * Split a large text into chunks of roughly maxLen characters at paragraph boundaries.
- */
-function splitTextIntoChunks(text: string, maxLen: number): string[] {
-  const chunks: string[] = [];
-  const paragraphs = text.split(/\n\n+/);
-  let current = "";
-
-  for (const para of paragraphs) {
-    if (current.length + para.length + 2 > maxLen) {
-      if (current) chunks.push(current.trim());
-      if (para.length > maxLen) {
-        for (let i = 0; i < para.length; i += maxLen) {
-          chunks.push(para.substring(i, i + maxLen));
-        }
-        current = "";
-      } else {
-        current = para;
-      }
-    } else {
-      current += (current ? "\n\n" : "") + para;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-
-  return chunks;
 }
