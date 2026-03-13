@@ -91,6 +91,7 @@ function SalesNarrativeEditContent() {
   const [prefillPanelOpen, setPrefillPanelOpen] = useState(true);
   const [prefillSourceUrls, setPrefillSourceUrls] = useState<string[]>([]);
   const [prefillSourcePdfNames, setPrefillSourcePdfNames] = useState<string[]>([]);
+  const [specificUrls, setSpecificUrls] = useState<string[]>([""]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
@@ -297,6 +298,9 @@ function SalesNarrativeEditContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           websiteUrl: prefillUrl.trim() || undefined,
+          specificUrls: specificUrls.filter((u) => u.trim()).length > 0
+            ? specificUrls.filter((u) => u.trim())
+            : undefined,
           pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
         }),
       });
@@ -640,6 +644,56 @@ function SalesNarrativeEditContent() {
                 </p>
               </div>
 
+              {/* Specific Page URLs */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Specific Page URLs <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <div className="space-y-2">
+                  {specificUrls.map((url, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => {
+                          const updated = [...specificUrls];
+                          updated[i] = e.target.value;
+                          // Auto-add a new empty row when the last field gets content
+                          if (i === specificUrls.length - 1 && e.target.value.trim()) {
+                            updated.push("");
+                          }
+                          setSpecificUrls(updated);
+                        }}
+                        placeholder={i === 0 ? "https://yourcompany.com/case-study" : "Paste another URL..."}
+                        disabled={prefilling}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50 text-sm"
+                      />
+                      {specificUrls.length > 1 && (i < specificUrls.length - 1 || url.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = specificUrls.filter((_, idx) => idx !== i);
+                            if (updated.length === 0 || updated[updated.length - 1].trim()) {
+                              updated.push("");
+                            }
+                            setSpecificUrls(updated);
+                          }}
+                          disabled={prefilling}
+                          className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-50 flex-shrink-0"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Paste individual page links to crawl just those pages instead of the full site
+                </p>
+              </div>
+
               {/* PDF Upload Drop Zone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -721,7 +775,7 @@ function SalesNarrativeEditContent() {
               <div className="flex items-center gap-4 pt-2">
                 <button
                   onClick={handlePrefill}
-                  disabled={prefilling || (!prefillUrl.trim() && prefillFiles.length === 0)}
+                  disabled={prefilling || (!prefillUrl.trim() && specificUrls.every((u) => !u.trim()) && prefillFiles.length === 0)}
                   className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-md hover:shadow-lg flex items-center gap-2"
                 >
                   {prefilling ? (

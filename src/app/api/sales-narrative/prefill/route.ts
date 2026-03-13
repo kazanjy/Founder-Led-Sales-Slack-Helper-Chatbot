@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
+import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
 
@@ -11,6 +12,7 @@ export const maxDuration = 120;
 
 interface PrefillRequest {
   websiteUrl?: string;
+  specificUrls?: string[];
   pdfFiles?: { name: string; storagePath?: string; base64Data?: string }[];
 }
 
@@ -23,16 +25,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body: PrefillRequest = await request.json();
-    const { websiteUrl, pdfFiles } = body;
+    const { websiteUrl, specificUrls, pdfFiles } = body;
 
-    if (!websiteUrl?.trim() && (!pdfFiles || pdfFiles.length === 0)) {
+    const hasSpecificUrls = specificUrls && specificUrls.filter((u) => u.trim()).length > 0;
+
+    if (!websiteUrl?.trim() && !hasSpecificUrls && (!pdfFiles || pdfFiles.length === 0)) {
       return NextResponse.json(
-        { error: "Provide a website URL and/or at least one PDF file." },
+        { error: "Provide a website URL, specific page URLs, and/or at least one PDF file." },
         { status: 400 }
       );
     }
 
-    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, PDFs=${pdfFiles?.length || 0}`);
+    console.log(`[Prefill] Starting: websiteUrl=${websiteUrl || "none"}, specificUrls=${hasSpecificUrls ? specificUrls!.length : 0}, PDFs=${pdfFiles?.length || 0}`);
 
     // Load the questions we need to answer
     const questions = await prisma.salesNarrativeQuestion.findMany({
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
     const sourcePdfNames: string[] = [];
     const tasks: Promise<void>[] = [];
 
-    // Website crawling
+    // Website crawling (two-level crawl)
     if (websiteUrl?.trim()) {
       tasks.push(
         crawlWebsiteForContext(websiteUrl.trim())
@@ -66,6 +70,37 @@ export async function POST(request: NextRequest) {
           })
           .catch((err) => {
             console.error("[Prefill] Website crawl failed:", err);
+          })
+      );
+    }
+
+    // Specific page URL fetching (single-page, no crawl)
+    if (hasSpecificUrls) {
+      const cleanUrls = specificUrls!.filter((u) => u.trim()).map((u) => {
+        const trimmed = u.trim();
+        return trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
+      });
+      tasks.push(
+        fetchPages(
+          cleanUrls.map((u) => ({ url: u, purpose: "specific-page" })),
+          5
+        )
+          .then((pages) => {
+            const successPages = pages.filter((p) => p.success && p.textContent);
+            if (successPages.length > 0) {
+              const combined = successPages
+                .map((p) => `### ${p.title || p.url}\n${p.textContent}`)
+                .join("\n\n---\n\n");
+              contextParts.push(`## SPECIFIC PAGE CONTENT\n\n${combined}`);
+              sourceUrls.push(...successPages.map((p) => p.url));
+            }
+            const failedPages = pages.filter((p) => !p.success);
+            if (failedPages.length > 0) {
+              console.warn(`[Prefill] ${failedPages.length} specific URL(s) failed to fetch`);
+            }
+          })
+          .catch((err) => {
+            console.error("[Prefill] Specific URL fetch failed:", err);
           })
       );
     }
