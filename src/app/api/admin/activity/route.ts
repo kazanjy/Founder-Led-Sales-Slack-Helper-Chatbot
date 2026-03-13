@@ -49,6 +49,7 @@ export async function GET() {
       callReviews,
       maturityAssessments,
       salesMetricsAssessments,
+      adCreatorVersions,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.findMany({
         orderBy: { createdAt: "desc" },
@@ -109,6 +110,11 @@ export async function GET() {
         orderBy: { completedAt: "desc" },
         take: 10,
         select: { id: true, title: true, completedAt: true, userId: true, user: { select: userSelect } },
+      }),
+      prisma.adCreatorVersion.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, orgPersona: true, humanPersona: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
     ]);
 
@@ -237,6 +243,16 @@ export async function GET() {
         userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
         userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
         createdAt: r.completedAt.toISOString(),
+      });
+    }
+
+    for (const r of adCreatorVersions) {
+      items.push({
+        id: r.id, type: "ad-creator", label: "Generated Ad Concepts",
+        title: `${r.orgPersona} → ${r.humanPersona}`, link: `/ad-creator?version=${r.id}`,
+        userId: r.userId, userName: userName(r.user), userEmail: r.user.email,
+        userAvatarUrl: r.user.avatarUrl ?? null, workspaceName: r.user.workspace?.slackTeamName ?? null,
+        createdAt: r.createdAt.toISOString(),
       });
     }
 

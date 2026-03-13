@@ -73,6 +73,7 @@ interface CompletionUser {
     linkedInSequence: boolean;
     salesMetrics: boolean;
     coaching: boolean;
+    adCreator: boolean;
   };
   completionCount: number;
   completionTotal: number;
@@ -92,6 +93,7 @@ const COMPLETION_KEYS: { key: keyof CompletionUser["completion"]; label: string;
   { key: "linkedInSequence", label: "LinkedIn Sequence", short: "LI" },
   { key: "salesMetrics", label: "Sales Metrics", short: "Metrics" },
   { key: "coaching", label: "Coaching", short: "Coach" },
+  { key: "adCreator", label: "Ad Creator", short: "Ads" },
 ];
 
 type CompletionSortKey = "name" | "score" | "createdAt" | "lastActivity";
@@ -292,6 +294,7 @@ export default function AdminDashboard() {
     "call-review": "bg-amber-100 text-amber-700",
     "maturity": "bg-green-100 text-green-700",
     "sales-metrics": "bg-pink-100 text-pink-700",
+    "ad-creator": "bg-rose-100 text-rose-700",
   };
 
   function formatTimeAgo(dateStr: string): string {
@@ -626,6 +629,7 @@ export default function AdminDashboard() {
             "call-review": "Call Reviews",
             "maturity": "GTM Assessments",
             "sales-metrics": "Sales Metrics",
+            "ad-creator": "Ad Concepts",
           };
 
           for (const [key, label] of Object.entries(activityTypeLabels)) {

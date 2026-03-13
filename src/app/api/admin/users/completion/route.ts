@@ -50,6 +50,7 @@ export async function GET() {
       linkedInSeqUsers,
       salesMetricsUsers,
       coachingUsers,
+      adCreatorUsers,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.discoveryQuestionsVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
@@ -63,6 +64,7 @@ export async function GET() {
       prisma.linkedInSequenceVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.salesMetricsAssessment.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
       prisma.coachingSession.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
+      prisma.adCreatorVersion.groupBy({ by: ["userId"], where: { userId: { in: userIds } } }),
     ]);
 
     // Build sets for O(1) lookup
@@ -79,9 +81,10 @@ export async function GET() {
       linkedInSequence: new Set(linkedInSeqUsers.map((r) => r.userId)),
       salesMetrics: new Set(salesMetricsUsers.map((r) => r.userId)),
       coaching: new Set(coachingUsers.map((r) => r.userId)),
+      adCreator: new Set(adCreatorUsers.map((r) => r.userId)),
     };
 
-    const TOTAL_ITEMS = 13; // 12 asset types + slack connection
+    const TOTAL_ITEMS = 14; // 13 asset types + slack connection
 
     const result = users.map((u) => {
       const completion = {
@@ -98,6 +101,7 @@ export async function GET() {
         linkedInSequence: has.linkedInSequence.has(u.id),
         salesMetrics: has.salesMetrics.has(u.id),
         coaching: has.coaching.has(u.id),
+        adCreator: has.adCreator.has(u.id),
       };
       const completionCount = Object.values(completion).filter(Boolean).length;
 

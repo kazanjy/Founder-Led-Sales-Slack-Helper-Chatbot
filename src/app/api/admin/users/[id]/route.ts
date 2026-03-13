@@ -71,6 +71,7 @@ export async function GET(
       maturityAssessments,
       salesMetricsAssessments,
       coachingSessions,
+      adCreatorVersions,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.findMany({
         where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
@@ -123,6 +124,10 @@ export async function GET(
       prisma.coachingSession.findMany({
         where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
         select: { id: true, title: true, createdAt: true },
+      }),
+      prisma.adCreatorVersion.findMany({
+        where: { userId: id }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, orgPersona: true, humanPersona: true, createdAt: true },
       }),
     ]);
 
@@ -177,6 +182,9 @@ export async function GET(
     for (const r of coachingSessions) {
       activityItems.push({ id: r.id, type: "coaching", label: "Coaching Session", title: r.title, link: `/coaching`, createdAt: r.createdAt.toISOString() });
     }
+    for (const r of adCreatorVersions) {
+      activityItems.push({ id: r.id, type: "ad-creator", label: "Generated Ad Concepts", title: `${r.orgPersona} → ${r.humanPersona}`, link: `/ad-creator?version=${r.id}`, createdAt: r.createdAt.toISOString() });
+    }
 
     activityItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -195,6 +203,7 @@ export async function GET(
       linkedInSequence: linkedInSequences.length > 0,
       salesMetrics: salesMetricsAssessments.length > 0,
       coaching: coachingSessions.length > 0,
+      adCreator: adCreatorVersions.length > 0,
     };
     const completionCount = Object.values(completion).filter(Boolean).length;
     const completionTotal = Object.keys(completion).length;
@@ -463,6 +472,11 @@ export async function PATCH(
         }),
         // Move first call checklist versions
         prisma.firstCallChecklistVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move ad creator versions
+        prisma.adCreatorVersion.updateMany({
           where: { userId: sourceUser.id },
           data: { userId: id },
         }),
