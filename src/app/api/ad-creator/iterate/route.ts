@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import { createSequenceConversation } from "@/lib/sequences/sequence-conversation";
-import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
-// Allow up to 120s for Chatbase AI generation
+// Allow up to 120s for OpenAI generation
 export const maxDuration = 120;
 
 // POST - Iterate on an existing ad creator version
@@ -55,30 +54,18 @@ Include a **Creative Direction** section for every ad concept describing visual 
 ${sourceVersion.tone ? `\n**Voice/Tone directive:** Write all ad copy in a ${sourceVersion.tone} tone. Let this voice permeate headlines, descriptions, and body copy consistently across all platforms.` : ""}
 Return clean markdown (NO code blocks). Start with a brief # title line.`;
 
-    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = instructionPrompt;
-
-    if (instructionPrompt.length > CHATBASE_MESSAGE_LIMIT) {
-      const contextChunks = splitIntoChunks(sourceVersion.content, CHATBASE_MESSAGE_LIMIT);
-      chatbaseHistory = buildChunkedHistory(contextChunks, "Previous Ad Concepts");
-      finalMessage = `You are an expert B2B performance marketing strategist iterating on ad concepts.
-
-## ITERATION GUIDANCE:
-
-${iterationNotes.trim()}
-
-## INSTRUCTIONS:
-
-Generate a complete new set of ad concepts incorporating the feedback above. Keep what works, improve what was called out. Maintain the same platform sections and format. Use ## headers with {#anchor-id}. Include Creative Direction for every concept.${sourceVersion.tone ? ` Write all ad copy in a ${sourceVersion.tone} tone.` : ""} Return clean markdown (NO code blocks).`;
-      console.log(`[ad-creator/iterate] Chunked: ${contextChunks.length} chunks`);
-    }
+    console.log(`[ad-creator/iterate] Sending to GPT-5.2: ${instructionPrompt.length} chars`);
 
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
-      aiResponse = chatbaseResult.response;
-    } catch (chatbaseError) {
-      console.error("Chatbase API error:", chatbaseError);
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [{ role: "user", content: instructionPrompt }],
+        temperature: 0.7,
+      });
+      aiResponse = response.choices[0]?.message?.content || "";
+    } catch (openaiError) {
+      console.error("OpenAI API error:", openaiError);
       return NextResponse.json(
         { error: "Failed to iterate on ad concepts. Please try again." },
         { status: 500 }

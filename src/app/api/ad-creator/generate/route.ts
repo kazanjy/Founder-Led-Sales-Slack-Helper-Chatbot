@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import { createSequenceConversation } from "@/lib/sequences/sequence-conversation";
-import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
-// Allow up to 120s for Chatbase AI generation
+// Allow up to 120s for OpenAI generation
 export const maxDuration = 120;
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -104,24 +103,18 @@ Return clean markdown (NO code blocks). Use ## headers for each platform section
 
     const fullPrompt = `${instructionPrompt}\n\n${contextSection}`;
 
-    let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
-    let finalMessage = fullPrompt;
-
-    if (fullPrompt.length > CHATBASE_MESSAGE_LIMIT) {
-      const contextChunks = splitIntoChunks(contextSection, CHATBASE_MESSAGE_LIMIT);
-      chatbaseHistory = buildChunkedHistory(contextChunks, "Sales Context");
-      finalMessage = instructionPrompt;
-      console.log(`[ad-creator/generate] Chunked: ${contextChunks.length} chunks, final message: ${finalMessage.length} chars`);
-    }
-
-    console.log(`Sending ad creator prompt: ${finalMessage.length} chars (history: ${chatbaseHistory.length} msgs)`);
+    console.log(`[ad-creator/generate] Sending to GPT-5.2: ${fullPrompt.length} chars`);
 
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
-      aiResponse = chatbaseResult.response;
-    } catch (chatbaseError) {
-      console.error("Chatbase API error:", chatbaseError);
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [{ role: "user", content: fullPrompt }],
+        temperature: 0.7,
+      });
+      aiResponse = response.choices[0]?.message?.content || "";
+    } catch (openaiError) {
+      console.error("OpenAI API error:", openaiError);
       return NextResponse.json(
         { error: "Failed to generate ad concepts. Please try again." },
         { status: 500 }
