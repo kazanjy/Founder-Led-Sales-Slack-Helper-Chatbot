@@ -208,6 +208,28 @@ ${inputText}
 Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
 }
 
+function getAdCreatorPrompt(inputText: string): string {
+  return `You are an expert B2B performance marketing strategist. The user has provided their own ad copy / campaign concepts. Your job is to restructure it into a well-organized markdown document, preserving their content as faithfully as possible.
+
+## INPUT (user's existing ad concepts):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Organize the ads by platform (LinkedIn Ads, Facebook & Instagram Ads, Google SEM Ads) using ## headers
+3. Within each platform, organize individual ad concepts using ### headers
+4. For each ad concept, include the relevant fields (headline, body text, CTA, etc.)
+5. Add a **Creative Direction** section to each concept describing visual/image recommendations if not already present
+6. Preserve the user's original wording, tone, and specific messaging as much as possible
+7. Use proper markdown formatting (headers, bullet points, bold text)
+
+## OUTPUT:
+
+Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
+}
+
 // POST - Import user's own content
 export async function POST(request: NextRequest) {
   try {
@@ -328,6 +350,9 @@ export async function POST(request: NextRequest) {
         break;
       case "salesDeck":
         prompt = getSalesDeckPrompt(truncatedInput);
+        break;
+      case "adCreator":
+        prompt = getAdCreatorPrompt(truncatedInput);
         break;
     }
 
