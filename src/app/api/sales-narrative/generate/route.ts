@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
+import { extractProductName } from "@/lib/extract-product-name";
 
 // Allow up to 120s for GPT-5.2 generation
 export const maxDuration = 120;
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
 
     // Extract product name for use in prompt
     const productQuestion = questions.find((q) => q.category === "Product");
-    const productName = productQuestion ? answerMap.get(productQuestion.id) || "the product" : "the product";
+    const productName = productQuestion ? extractProductName(answerMap.get(productQuestion.id) || "", "the product") : "the product";
 
     for (const category of categoryOrder) {
       const categoryQuestions = questions.filter((q) => q.category === category);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { extractProductName } from "@/lib/extract-product-name";
 import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
 // Allow up to 120s for Chatbase AI generation
@@ -133,7 +134,7 @@ Generate the Pre-Call Planning Process now.`;
     const productAnswer = narrative?.answers?.find(
       (a) => a.question.category === "Product"
     );
-    const productName = productAnswer?.answer || "Sales";
+    const productName = extractProductName(productAnswer?.answer || "", "Sales");
     const planningTitle = `${productName} - Pre-Call Planning`;
 
     // Create the version record

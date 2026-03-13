@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { sendToChatbase } from "@/lib/chatbase/client";
+import { extractProductName } from "@/lib/extract-product-name";
 
 // Allow up to 120s for Chatbase AI generation
 export const maxDuration = 120;
@@ -220,7 +221,7 @@ ${discoveryQuestionsSection}`;
     const productAnswer = narrative?.answers?.find(
       (a) => a.question.category === "Product"
     );
-    const productName = productAnswer?.answer || "Sales";
+    const productName = extractProductName(productAnswer?.answer || "", "Sales");
     const checklistTitle = `${productName} - First Call Checklist`;
 
     // Create the version record
