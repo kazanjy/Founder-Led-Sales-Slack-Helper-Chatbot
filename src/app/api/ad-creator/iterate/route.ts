@@ -52,7 +52,7 @@ Generate a complete new set of ad concepts incorporating the feedback above. Kee
 Maintain the same platform sections and format as the previous version. Use ## headers for each platform section with anchor IDs in the format {#anchor-id}. Use ### for each concept variation.
 
 Include a **Creative Direction** section for every ad concept describing visual concepts, imagery, mood, style, and composition.
-
+${sourceVersion.tone ? `\n**Voice/Tone directive:** Write all ad copy in a ${sourceVersion.tone} tone. Let this voice permeate headlines, descriptions, and body copy consistently across all platforms.` : ""}
 Return clean markdown (NO code blocks). Start with a brief # title line.`;
 
     let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -69,7 +69,7 @@ ${iterationNotes.trim()}
 
 ## INSTRUCTIONS:
 
-Generate a complete new set of ad concepts incorporating the feedback above. Keep what works, improve what was called out. Maintain the same platform sections and format. Use ## headers with {#anchor-id}. Include Creative Direction for every concept. Return clean markdown (NO code blocks).`;
+Generate a complete new set of ad concepts incorporating the feedback above. Keep what works, improve what was called out. Maintain the same platform sections and format. Use ## headers with {#anchor-id}. Include Creative Direction for every concept.${sourceVersion.tone ? ` Write all ad copy in a ${sourceVersion.tone} tone.` : ""} Return clean markdown (NO code blocks).`;
       console.log(`[ad-creator/iterate] Chunked: ${contextChunks.length} chunks`);
     }
 
@@ -106,6 +106,7 @@ Generate a complete new set of ad concepts incorporating the feedback above. Kee
         orgPersona: sourceVersion.orgPersona,
         humanPersona: sourceVersion.humanPersona,
         specialNotes: sourceVersion.specialNotes,
+        tone: sourceVersion.tone,
         platforms: sourceVersion.platforms,
         content: cleanedResponse,
         iteratedFromId: sourceVersion.id,
@@ -158,6 +159,7 @@ Generate a complete new set of ad concepts incorporating the feedback above. Kee
         orgPersona: sourceVersion.orgPersona,
         humanPersona: sourceVersion.humanPersona,
         specialNotes: sourceVersion.specialNotes,
+        tone: sourceVersion.tone,
         platforms: sourceVersion.platforms,
         iteratedFromId: sourceVersion.id,
         iterationNotes: iterationNotes.trim(),

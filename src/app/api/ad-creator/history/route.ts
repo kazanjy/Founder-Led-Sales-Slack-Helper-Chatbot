@@ -18,6 +18,7 @@ export async function GET() {
         orgPersona: true,
         humanPersona: true,
         specialNotes: true,
+        tone: true,
         platforms: true,
         iteratedFromId: true,
         iterationNotes: true,

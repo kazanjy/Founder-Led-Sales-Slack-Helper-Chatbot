@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { orgPersona, humanPersona, specialNotes, platforms, includeFirstCallChecklist } = await request.json();
+    const { orgPersona, humanPersona, specialNotes, tone, platforms, includeFirstCallChecklist } = await request.json();
 
     if (!orgPersona || !humanPersona) {
       return NextResponse.json(
@@ -89,7 +89,7 @@ For EVERY ad concept, include a **Creative Direction** section describing:
 - Color palette or visual tone recommendations
 - Composition ideas (e.g. "split screen showing before/after", "hero shot of dashboard")
 
-The tone should be authentic and founder-led, not corporate or generic.
+The tone should be authentic and founder-led, not corporate or generic.${tone ? `\n\n**Voice/Tone directive:** Write all ad copy in a ${tone} tone. Let this voice permeate headlines, descriptions, and body copy consistently across all platforms.` : ""}
 
 ## TARGET PERSONA:
 
@@ -149,6 +149,7 @@ Return clean markdown (NO code blocks). Use ## headers for each platform section
         orgPersona,
         humanPersona,
         specialNotes: specialNotes || null,
+        tone: tone || null,
         platforms,
         content: cleanedResponse,
       },
@@ -200,6 +201,7 @@ Return clean markdown (NO code blocks). Use ## headers for each platform section
         orgPersona,
         humanPersona,
         specialNotes: specialNotes || null,
+        tone: tone || null,
         platforms,
         salesNarrativeVersionId: latestNarrative.id,
         firstCallChecklistVersionId: checklistVersionId,

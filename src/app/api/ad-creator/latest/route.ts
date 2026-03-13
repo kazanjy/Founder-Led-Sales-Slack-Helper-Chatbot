@@ -44,6 +44,7 @@ export async function GET() {
         orgPersona: latestVersion.orgPersona,
         humanPersona: latestVersion.humanPersona,
         specialNotes: latestVersion.specialNotes,
+        tone: latestVersion.tone,
         platforms: latestVersion.platforms,
         salesNarrativeVersionId: latestVersion.salesNarrativeVersionId,
         salesNarrativeVersion: latestVersion.salesNarrativeVersion,

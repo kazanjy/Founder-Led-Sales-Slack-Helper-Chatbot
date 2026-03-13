@@ -226,6 +226,7 @@ export async function POST(request: NextRequest) {
             orgPersona: source.orgPersona,
             humanPersona: source.humanPersona,
             specialNotes: source.specialNotes,
+            tone: source.tone,
             platforms: source.platforms,
             content: source.content,
           },

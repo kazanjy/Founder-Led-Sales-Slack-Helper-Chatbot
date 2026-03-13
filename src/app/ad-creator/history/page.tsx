@@ -10,6 +10,7 @@ interface VersionSummary {
   orgPersona: string;
   humanPersona: string;
   specialNotes?: string | null;
+  tone?: string | null;
   platforms: string[];
   iteratedFromId?: string | null;
   iterationNotes?: string | null;
@@ -170,6 +171,11 @@ export default function AdCreatorHistoryPage() {
                         </span>
                       ))}
                     </div>
+                    {version.tone && (
+                      <p className="text-xs text-indigo-500 mb-1">
+                        <span className="font-medium text-indigo-600">Tone:</span> {version.tone.charAt(0).toUpperCase() + version.tone.slice(1)}
+                      </p>
+                    )}
                     {version.specialNotes && (
                       <p className="text-xs text-gray-500 mb-1 line-clamp-1">
                         <span className="font-medium text-gray-600">Notes:</span> {version.specialNotes}

@@ -41,6 +41,7 @@ export async function GET(
         orgPersona: version.orgPersona,
         humanPersona: version.humanPersona,
         specialNotes: version.specialNotes,
+        tone: version.tone,
         platforms: version.platforms,
         salesNarrativeVersionId: version.salesNarrativeVersionId,
         salesNarrativeVersion: version.salesNarrativeVersion,

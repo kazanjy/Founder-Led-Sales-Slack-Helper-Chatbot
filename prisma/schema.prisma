@@ -1143,6 +1143,9 @@ model AdCreatorVersion {
   humanPersona                String   @db.Text
   specialNotes                String?  @db.Text
 
+  // Voice/tone for ad copy (e.g. "professional", "conversational", "bold", or custom)
+  tone                        String?
+
   // Selected platforms (e.g. ["linkedin", "facebook-instagram", "google-sem"])
   platforms                   String[]
 

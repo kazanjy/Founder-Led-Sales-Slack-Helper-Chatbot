@@ -25,12 +25,23 @@ const ALL_PLATFORMS = [
   { id: "google-sem", label: "Google SEM Ads" },
 ];
 
+const TONE_PRESETS = [
+  { id: "professional", label: "Professional", description: "Clean, credible, straightforward" },
+  { id: "conversational", label: "Conversational", description: "Friendly, approachable, human" },
+  { id: "bold", label: "Bold / Provocative", description: "Challenges the status quo" },
+  { id: "witty", label: "Witty", description: "Clever wordplay, light humor" },
+  { id: "urgent", label: "Urgent", description: "Scarcity-driven, action-oriented" },
+  { id: "empathetic", label: "Empathetic", description: "Pain-aware, understanding, supportive" },
+  { id: "other", label: "Other", description: "Enter your own tone" },
+];
+
 interface AdCreatorVersion {
   id: string;
   content: string;
   orgPersona: string;
   humanPersona: string;
   specialNotes?: string | null;
+  tone?: string | null;
   platforms: string[];
   salesNarrativeVersionId: string;
   salesNarrativeVersion?: {
@@ -81,6 +92,8 @@ function AdCreatorContent() {
   const [orgPersona, setOrgPersona] = useState("");
   const [humanPersona, setHumanPersona] = useState("");
   const [specialNotes, setSpecialNotes] = useState("");
+  const [selectedTone, setSelectedTone] = useState("professional");
+  const [customTone, setCustomTone] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(ALL_PLATFORMS.map(p => p.id));
   const [includeChecklist, setIncludeChecklist] = useState(false);
 
@@ -208,6 +221,7 @@ function AdCreatorContent() {
           orgPersona: orgPersona.trim(),
           humanPersona: humanPersona.trim(),
           specialNotes: specialNotes.trim() || undefined,
+          tone: selectedTone === "other" ? customTone.trim() || undefined : selectedTone,
           platforms: selectedPlatforms,
           includeFirstCallChecklist: includeChecklist,
         }),
@@ -244,6 +258,15 @@ function AdCreatorContent() {
       setOrgPersona(version.orgPersona);
       setHumanPersona(version.humanPersona);
       setSpecialNotes(version.specialNotes || "");
+      const versionTone = version.tone || "professional";
+      const isPreset = TONE_PRESETS.some(t => t.id !== "other" && t.id === versionTone);
+      if (isPreset) {
+        setSelectedTone(versionTone);
+        setCustomTone("");
+      } else {
+        setSelectedTone("other");
+        setCustomTone(versionTone);
+      }
       setSelectedPlatforms(version.platforms || ALL_PLATFORMS.map(p => p.id));
       setIncludeChecklist(!!version.firstCallChecklistVersionId);
     }
@@ -517,6 +540,38 @@ function AdCreatorContent() {
                       </label>
                     ))}
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Voice / Tone
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {TONE_PRESETS.map(tone => (
+                      <button
+                        key={tone.id}
+                        type="button"
+                        onClick={() => setSelectedTone(tone.id)}
+                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          selectedTone === tone.id
+                            ? "bg-purple-50 border-purple-300 text-purple-700"
+                            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                        title={tone.description}
+                      >
+                        {tone.label}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTone === "other" && (
+                    <input
+                      type="text"
+                      value={customTone}
+                      onChange={(e) => setCustomTone(e.target.value)}
+                      placeholder="e.g. Snarky and irreverent, Warm and storytelling-driven..."
+                      className="mt-2 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -815,6 +870,11 @@ function AdCreatorContent() {
                 </span>
               ))}
             </div>
+            {version.tone && (
+              <div className="px-4 py-3 bg-indigo-50 text-indigo-800 text-sm rounded-xl border border-indigo-100">
+                <span className="font-semibold text-indigo-600">Tone:</span> {version.tone.charAt(0).toUpperCase() + version.tone.slice(1)}
+              </div>
+            )}
             {version.specialNotes && (
               <div className="px-4 py-3 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
                 <span className="font-semibold text-gray-500">Notes:</span> {version.specialNotes}
