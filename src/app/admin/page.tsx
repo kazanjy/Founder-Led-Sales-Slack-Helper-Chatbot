@@ -508,9 +508,6 @@ export default function AdminDashboard() {
                             {conv.user.workspace.slackTeamName}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
-                          {formatTimeAgo(conv.lastMessageAt)}
-                        </span>
                       </div>
                       <div className="text-sm text-gray-700 truncate mt-0.5">
                         {conv.title || conv.firstMessagePreview || "New conversation"}
@@ -520,10 +517,10 @@ export default function AdminDashboard() {
                         {conv.user.email && <span className="ml-2">{conv.user.email}</span>}
                       </div>
                     </div>
-                    <div className="flex-shrink-0 text-gray-300 self-center">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                    <div className="flex-shrink-0 self-center text-right ml-3">
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {formatTimeAgo(conv.lastMessageAt)}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -577,9 +574,6 @@ export default function AdminDashboard() {
                             {item.workspaceName}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400 flex-shrink-0 ml-auto">
-                          {formatTimeAgo(item.createdAt)}
-                        </span>
                       </div>
                       <div className="text-sm text-gray-700 truncate mt-0.5">
                         {item.title || ""}
@@ -590,10 +584,10 @@ export default function AdminDashboard() {
                         </div>
                       )}
                     </div>
-                    <div className="flex-shrink-0 text-gray-300 self-center">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                    <div className="flex-shrink-0 self-center text-right ml-3">
+                      <span className="text-xs text-gray-400 whitespace-nowrap">
+                        {formatTimeAgo(item.createdAt)}
+                      </span>
                     </div>
                   </div>
                 </button>

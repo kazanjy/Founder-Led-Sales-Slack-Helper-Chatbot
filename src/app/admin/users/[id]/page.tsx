@@ -678,17 +678,21 @@ export default function AdminUserDetailPage() {
                       disabled={impersonating}
                       className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
-                          {item.label}
-                        </span>
-                        <span className="text-sm text-gray-700 truncate flex-1 min-w-0">
-                          {item.title || ""}
-                        </span>
-                        <span className="text-xs text-gray-500 flex-shrink-0">{formatSmartTime(item.createdAt)}</span>
-                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 truncate flex-1 mr-3">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                            {item.label}
+                          </span>
+                          <span className="text-sm text-gray-700 truncate">
+                            {item.title || ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-gray-500">{formatSmartTime(item.createdAt)}</span>
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
                       </div>
                     </button>
                   ),
