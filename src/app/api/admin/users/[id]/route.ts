@@ -475,6 +475,61 @@ export async function PATCH(
           where: { userId: sourceUser.id },
           data: { userId: id },
         }),
+        // Move pre-call planning versions
+        prisma.preCallPlanningVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move pre-call research
+        prisma.preCallResearch.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move pending research requests
+        prisma.pendingResearchRequest.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move email sequence versions
+        prisma.emailSequenceVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move LinkedIn sequence versions
+        prisma.linkedInSequenceVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move cold call script versions
+        prisma.coldCallScriptVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales deck versions
+        prisma.salesDeckVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move call review versions
+        prisma.callReviewVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales metrics answers
+        prisma.salesMetricsAnswer.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales metrics assessments
+        prisma.salesMetricsAssessment.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching sessions
+        prisma.coachingSession.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
         // Move ad creator versions
         prisma.adCreatorVersion.updateMany({
           where: { userId: sourceUser.id },
@@ -489,6 +544,40 @@ export async function PATCH(
         prisma.savedPrompt.updateMany({
           where: { userId: sourceUser.id },
           data: { userId: id },
+        }),
+        // Move user files
+        prisma.userFile.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move chat shares (sent by source user)
+        prisma.chatShare.updateMany({
+          where: { sharedByUserId: sourceUser.id },
+          data: { sharedByUserId: id },
+        }),
+        // Reassign chat shares received by source user
+        prisma.chatShare.updateMany({
+          where: { sharedToUserId: sourceUser.id },
+          data: { sharedToUserId: id },
+        }),
+        // Move shared documents
+        prisma.sharedDocument.updateMany({
+          where: { createdByUserId: sourceUser.id },
+          data: { createdByUserId: id },
+        }),
+        // Move referrals (as referrer)
+        prisma.referral.updateMany({
+          where: { referrerUserId: sourceUser.id },
+          data: { referrerUserId: id },
+        }),
+        // Move referrals (as referred)
+        prisma.referral.updateMany({
+          where: { referredUserId: sourceUser.id },
+          data: { referredUserId: id },
+        }),
+        // Delete attachment preferences for source (unique constraint on userId)
+        prisma.userAttachmentPreference.deleteMany({
+          where: { userId: sourceUser.id },
         }),
         // Delete sessions for source user
         prisma.session.deleteMany({
