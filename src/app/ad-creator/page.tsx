@@ -480,7 +480,7 @@ function AdCreatorContent() {
                       placeholder={prefilling ? "AI is thinking..." : "e.g. Series B SaaS company"}
                       disabled={prefilling}
                       rows={3}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-y"
                     />
                     <button
                       onClick={handlePrefill}
@@ -512,7 +512,7 @@ function AdCreatorContent() {
                     placeholder={prefilling ? "AI is thinking..." : "e.g. VP of Sales"}
                     disabled={prefilling}
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-y"
                   />
                 </div>
 
@@ -583,7 +583,7 @@ function AdCreatorContent() {
                     onChange={(e) => setSpecialNotes(e.target.value)}
                     placeholder="e.g. Focus on ROI messaging, we have a free trial offer..."
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                   />
                 </div>
 
