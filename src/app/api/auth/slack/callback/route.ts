@@ -108,8 +108,57 @@ export async function GET(request: NextRequest) {
     });
     console.log("[Slack Auth] Step 4 done, workspace:", workspace?.id || "NOT FOUND");
 
+    // If workspace not found, try to match by email — the user may have been
+    // created via a shared channel in a different workspace.
     if (!workspace) {
-      // User's workspace hasn't installed Mikey yet
+      const slackEmail = identityData.user?.email;
+      if (slackEmail) {
+        console.log("[Slack Auth] Workspace not found, trying email fallback:", slackEmail);
+        const emailUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { slackEmail },
+              { email: slackEmail },
+            ],
+          },
+        });
+
+        if (emailUser) {
+          console.log("[Slack Auth] Email fallback matched user:", emailUser.id);
+
+          // If already logged in, just redirect
+          if (loggedInUser && loggedInUser.id === emailUser.id) {
+            return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/chat`);
+          }
+
+          // Create session for the matched user
+          const sessionToken = randomBytes(32).toString("hex");
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+          await prisma.session.create({
+            data: {
+              userId: emailUser.id,
+              token: sessionToken,
+              expiresAt,
+            },
+          });
+
+          const cookieStore = await cookies();
+          cookieStore.set("session", sessionToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            expires: expiresAt,
+            path: "/",
+          });
+
+          console.log("[Slack Auth] Email fallback login successful for user:", emailUser.id);
+          return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/chat`);
+        }
+      }
+
+      // No workspace and no email match — truly not found
+      console.log("[Slack Auth] No workspace and no email match for team", slackTeamId);
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_APP_URL}/?error=workspace_not_found`
       );
