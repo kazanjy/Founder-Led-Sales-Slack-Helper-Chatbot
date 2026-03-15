@@ -298,25 +298,42 @@ export default function AdminDashboard() {
   };
 
   function formatTimeAgo(dateStr: string): string {
+    const tz = "America/Los_Angeles";
     const now = new Date();
     const date = new Date(dateStr);
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
+    // Get dates in Pacific time for day comparison
+    const nowPT = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+    const datePT = new Date(date.toLocaleString("en-US", { timeZone: tz }));
+
+    const todayPT = new Date(nowPT.getFullYear(), nowPT.getMonth(), nowPT.getDate());
+    const dateDayPT = new Date(datePT.getFullYear(), datePT.getMonth(), datePT.getDate());
+    const yesterdayPT = new Date(todayPT);
+    yesterdayPT.setDate(yesterdayPT.getDate() - 1);
+
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric", minute: "2-digit", timeZone: tz,
+    });
+
     // Today: relative times
-    if (date.toDateString() === now.toDateString()) {
+    if (dateDayPT.getTime() === todayPT.getTime()) {
       if (diffMins < 1) return "just now";
       if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
       const diffHours = Math.floor(diffMins / 60);
       return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
     }
 
+    // Yesterday: "Yesterday, 11:37 PM"
+    if (dateDayPT.getTime() === yesterdayPT.getTime()) {
+      return `Yesterday, ${timeStr}`;
+    }
+
     // Prior days: date + time
     return date.toLocaleDateString("en-US", {
-      month: "short", day: "numeric", year: "numeric",
-    }) + ", " + date.toLocaleTimeString("en-US", {
-      hour: "numeric", minute: "2-digit",
-    });
+      month: "short", day: "numeric", year: "numeric", timeZone: tz,
+    }) + ", " + timeStr;
   }
 
   function getUserDisplayName(user: RecentConversation["user"]): string {
