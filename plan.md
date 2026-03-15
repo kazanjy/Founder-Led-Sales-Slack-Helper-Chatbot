@@ -1,214 +1,318 @@
-# Ad Creator Applet — Implementation Plan
+# Objection Library Applet — Implementation Plan
 
 ## Overview
-New applet at `/ad-creator` that generates multi-platform ad copy and creative/visual direction. Single long-form document with anchored headers per platform. Follows the same architecture as LinkedIn Sequence and Email Sequence applets, plus a new "Iterate" feature.
+
+New applet at `/objection-library` that helps founders build, manage, and practice a library of objection handles organized by category and persona. Follows the same architecture as existing applets (Email Sequence, Ad Creator, etc.) with Chatbase API for generation and a new per-entry CRUD pattern.
+
+The library is **per-persona** — the same objection text aimed at different personas gets separate entries with tailored handles. Bootstrap generates 8-10 product/ROI-focused objections from the user's sales narrative.
 
 ---
 
-## 1. Database: Prisma Schema
+## 1. Objection Categories (9 total)
 
-**New model: `AdCreatorVersion`** in `prisma/schema.prisma`
+| # | Category Key | Display Name | Description |
+|---|---|---|---|
+| 1 | `need` | Need & Problem Recognition | "Do I actually have this problem?" |
+| 2 | `priority` | Priority & Urgency | "Is this worth solving now vs. other things?" |
+| 3 | `roi` | ROI & Value Justification | "Can I justify the spend with concrete returns?" |
+| 4 | `product` | Product Fit & Capabilities | "Does this product solve my problem well enough?" |
+| 5 | `competition` | Competition & Alternatives | "Is this the best option, including build-vs-buy?" |
+| 6 | `adoption` | Adoption & Implementation | "Will my team actually use this? Can we make the switch?" |
+| 7 | `budget` | Price & Budget | "Can I afford this / is it priced fairly?" |
+| 8 | `trust` | Trust & Vendor Risk | "Can I trust this company to deliver and survive?" |
+| 9 | `authority` | Authority & Process | "Can I actually get this approved internally?" |
 
-Fields (matching LinkedIn/Email pattern):
-- `id` — cuid
-- `userId` — FK to User
-- `salesNarrativeVersionId` — FK to SalesNarrativeVersion (required context)
-- `firstCallChecklistVersionId` — FK to FirstCallChecklistVersion (optional)
-- `orgPersona` — Text
-- `humanPersona` — Text
-- `specialNotes` — Text? (user notes/guidance)
-- `platforms` — String[] (selected platforms: "linkedin", "facebook-instagram", "google-sem")
-- `content` — Text (generated markdown output)
-- `iteratedFromId` — String? (self-referencing FK — tracks iteration lineage)
-- `iterationNotes` — Text? (the guidance the user gave when iterating)
-- `conversationId` — String? (linked chat thread)
-- `createdAt`, `updatedAt`
-- Index on `[userId, createdAt]`
-
-Add `adCreatorVersions AdCreatorVersion[]` relation to User model.
+These are stored as an enum in the schema and as a constant lookup in the frontend.
 
 ---
 
-## 2. API Routes
+## 2. Database: Prisma Schema
 
-All under `/src/app/api/ad-creator/`:
+### New model: `ObjectionEntry`
 
-### `generate/route.ts` (POST)
-- Accepts: `{ orgPersona, humanPersona, specialNotes?, platforms[], includeFirstCallChecklist }`
-- Fetches latest sales narrative + optional checklist
-- Builds platform-specific AI prompt
-- Saves `AdCreatorVersion` to DB
-- Creates linked chat conversation via `createSequenceConversation`
-- Upserts GTM variable `AD_CREATOR`
-- Returns the new version
+```
+model ObjectionEntry {
+  id              String   @id @default(cuid())
 
-### `iterate/route.ts` (POST) — **NEW FEATURE**
-- Accepts: `{ versionId, iterationNotes, platforms? }`
-- Fetches the source version (content + personas + narrative)
-- Builds prompt that includes previous output + user's iteration guidance
-- Saves new `AdCreatorVersion` with `iteratedFromId` pointing to source
-- Creates linked chat conversation
-- Returns the new version
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-### `latest/route.ts` (GET)
-- Returns latest version for current user (or null + flags)
+  // What the prospect says
+  objection       String   @db.Text
 
-### `history/route.ts` (GET)
-- Returns all versions ordered by createdAt DESC
+  // Category (enum)
+  category        ObjectionCategory
 
-### `versions/[id]/route.ts` (GET + PATCH)
-- GET: Fetch specific version by ID
-- PATCH: Update content (edit-in-place)
+  // Target persona this handle is tailored for
+  orgPersona      String   @db.Text
+  humanPersona    String   @db.Text
 
-### `prefill-personas/route.ts` (POST)
-- Reads sales narrative, asks AI for suggested org + audience personas
+  // The handle (how to respond)
+  handle          String   @db.Text
 
----
+  // Optional notes, context, or examples
+  notes           String?  @db.Text
 
-## 3. Frontend Pages
+  // Where it came from
+  source          String   @default("bootstrap")  // "bootstrap" | "manual" | "call-review" | "chat"
 
-### `/src/app/ad-creator/page.tsx` — Main Page
+  // Linked chat thread for iteration
+  conversationId  String?
 
-**Input Form (when no version or regenerating):**
-- Organization Persona textarea (auto-prefilled)
-- Target Audience Persona textarea (auto-prefilled)
-- **Platform multi-select** — checkboxes for: LinkedIn Ads, Facebook/Instagram Ads, Google SEM Ads. All four checked by default.
-- Special Notes textarea
-- Include First Call Checklist toggle
-- "Generate Ad Concepts" button
+  // Sort within category
+  sortOrder       Int      @default(0)
 
-**Output View (when version exists):**
-- One long markdown document with platform headers rendered as anchor-linked sections
-- Table of contents with jump links to each platform section
-- Action bar: **Copy | Edit | Clone | Share | Chat About | Iterate**
-- Version metadata (created date, platforms, iteration lineage if applicable)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-**Iterate Overlay (modal):**
-- Shows summary of current version
-- Textarea: "How would you like to iterate?" with placeholder examples ("Make LinkedIn ads more conversational", "Add urgency to Google SEM headlines", "Focus more on ROI messaging")
-- Optional: platform re-select (pre-filled from current version)
-- "Generate New Version" button → calls `/api/ad-creator/iterate`
-- On success: navigates to the new version
+  @@index([userId, category])
+  @@index([userId, createdAt])
+  @@map("objection_entries")
+}
 
-**Edit Mode:**
-- RichTextEditor for in-place editing, Save/Cancel buttons
-
-### `/src/app/ad-creator/history/page.tsx` — History Page
-- List of all versions with date, persona summary, platform badges
-- "Edited" badge when updatedAt !== createdAt
-- "Iterated from v#" badge when iteratedFromId is set
-- Click navigates to `/ad-creator?version={id}`
-
----
-
-## 4. Integration Points
-
-### SalesNavBar (`src/components/SalesNavBar.tsx`)
-- Add: `{ href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" }`
-
-### Document Share (`src/app/api/documents/share/route.ts`)
-- Add `"adCreator"` to `validTypes` array
-
-### Document Clone (`src/app/api/documents/clone/route.ts`)
-- Add `"adCreator"` case to switch statement
-
-### SharedDocClient (`src/app/share/doc/[code]/SharedDocClient.tsx`)
-- Add `adCreator: "Ad Creator"` to typeLabels
-
-### Import Route (`src/app/api/import/route.ts`)
-- Add `"adCreator"` to `VALID_APPLET_TYPES` and merge config
-
-### Sequence Conversation (`src/lib/sequences/sequence-conversation.ts`)
-- Add `"ad-creator"` type support
-
----
-
-## 5. Generated Output Structure
-
-Single markdown document with anchored headers per platform:
-
-```markdown
-# Ad Concepts: [Company] → [Target Audience]
-
-## LinkedIn Ads {#linkedin-ads}
-
-### Concept 1: [Theme Name]
-**Ad Format:** Sponsored Content (Single Image)
-**Headline:** ...
-**Intro Text:** ...
-**Description:** ...
-**CTA:** ...
-**Creative Direction:** [Visual description — imagery, mood, style, color palette]
-
-### Concept 2: [Theme Name]
-...
-
----
-
-## Facebook & Instagram Ads {#facebook-instagram-ads}
-
-### Concept 1: [Theme Name]
-**Ad Format:** Feed Ad
-**Primary Text:** ...
-**Headline:** ...
-**Description:** ...
-**CTA:** ...
-**Creative Direction:** ...
-
-### Concept 2: Story Ad Concept
-...
-
----
-
-## Google SEM Ads {#google-sem-ads}
-
-### Ad Group 1: [Theme/Intent]
-**Headlines:** (up to 15, max 30 chars each)
-1. ...
-**Descriptions:** (up to 4, max 90 chars each)
-1. ...
-**Target Keywords:** ...
+enum ObjectionCategory {
+  NEED
+  PRIORITY
+  ROI
+  PRODUCT
+  COMPETITION
+  ADOPTION
+  BUDGET
+  TRUST
+  AUTHORITY
+}
 ```
 
-Each platform section only appears if that platform was selected. Creative Direction notes describe visual concepts (imagery, mood, style, color palette, composition ideas).
+### New model: `ObjectionBootstrap`
+
+Tracks each bootstrap generation run (like SalesNarrativeVersion tracks narrative versions).
+
+```
+model ObjectionBootstrap {
+  id                      String   @id @default(cuid())
+
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Persona configuration
+  orgPersona              String   @db.Text
+  humanPersona            String   @db.Text
+
+  // How many entries were generated
+  entryCount              Int
+
+  createdAt               DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("objection_bootstraps")
+}
+```
+
+### User model additions
+
+```
+objectionEntries          ObjectionEntry[]
+objectionBootstraps       ObjectionBootstrap[]
+```
+
+### SalesNarrativeVersion addition
+
+```
+objectionBootstraps       ObjectionBootstrap[]
+```
 
 ---
 
-## 6. AI Prompt Strategy
+## 3. API Routes
 
-### Generate Prompt
-- Instructions first (survives chunking truncation)
-- Platform-specific format requirements with character limits
-- Creative Direction note required for each concept
-- Tone: authentic, founder-led, not corporate
-- Output: clean markdown with `{#anchor-id}` on platform headers
+All under `/src/app/api/objection-library/`:
 
-### Iterate Prompt
-- Includes previous version's full output
-- User's iteration guidance
-- "Keep what works, improve what was called out"
-- Generates complete new document
+### `bootstrap/route.ts` (POST)
+**Bootstrap generation — creates 8-10 objection entries from sales narrative.**
+
+- Accepts: `{ orgPersona, humanPersona }`
+- Fetches latest `SalesNarrativeVersion`
+- Builds prompt asking for 8-10 objections focused on **product, ROI, adoption, competition, and trust** categories
+- Sends to Chatbase API (with chunking if context is large)
+- Parses structured JSON response → creates `ObjectionEntry` rows in bulk
+- Creates `ObjectionBootstrap` record
+- Returns the new entries
+
+**AI prompt instructs:**
+- Generate 8-10 common objections a founder selling this product would hear
+- Each objection must include: `objection`, `category`, `handle` (the response)
+- Focus on product fit, ROI/value, adoption, competition, and trust categories
+- Handles should be specific to the product (not generic sales advice)
+- Return as JSON array
+
+### `entries/route.ts` (GET + POST)
+- **GET**: List all entries for current user, with optional `?category=` and `?persona=` filters
+- **POST**: Create a new manual entry — `{ objection, category, handle, orgPersona, humanPersona, notes? }`
+
+### `entries/[id]/route.ts` (GET + PATCH + DELETE)
+- **GET**: Single entry by ID
+- **PATCH**: Update objection, handle, category, notes, sortOrder
+- **DELETE**: Remove entry
+
+### `match/route.ts` (POST)
+**Hybrid search — find the best matching objection handle for a given prospect objection.**
+
+- Accepts: `{ objection, orgPersona?, humanPersona? }`
+- **Step 1 — Text match**: Case-insensitive substring/keyword search across stored objections for the user
+- **Step 2 — Semantic match** (if no confident text hit): Send the prospect's objection + all stored objections to Chatbase/OpenAI, ask it to identify the closest match(es) and return the handle
+- Returns: Top 1-3 matching entries with confidence indicator
+
+### `iterate/route.ts` (POST)
+**Improve an existing handle via Chatbase chat.**
+
+- Accepts: `{ entryId, feedback }`
+- Fetches the entry + sales narrative
+- Builds prompt with current handle + user feedback
+- Gets improved handle from Chatbase
+- Updates the entry in-place (or creates new version — TBD)
+- Returns updated entry
+
+### `latest/route.ts` (GET)
+- Returns summary: total entries, entries by category, last bootstrap date, has entries flag
 
 ---
 
-## 7. File Checklist
+## 4. Frontend Pages
+
+### `/src/app/objection-library/page.tsx` — Main Page
+
+**Empty state (no entries):**
+- Explanation of what the objection library is
+- "Bootstrap Your Library" CTA button
+- Bootstrap modal: persona inputs (auto-prefilled from latest narrative) + "Generate" button
+
+**Library view (entries exist):**
+- **Category filter tabs** across the top (All, Need, Priority, ROI, Product, Competition, Adoption, Budget, Trust, Authority) with count badges
+- **Persona filter** dropdown (shows unique org+human combos from existing entries)
+- **Search bar** — filters entries by text match on objection or handle
+- **Entry cards** — each shows:
+  - Category badge (colored)
+  - Objection text (bold)
+  - Handle text (the response)
+  - Persona tag
+  - Source badge (bootstrap / manual / call-review)
+  - Actions: Edit | Chat About | Delete
+- **Add Objection** button (manual entry form)
+- **Re-Bootstrap** button (generates more, doesn't delete existing)
+
+**Entry edit modal:**
+- Objection textarea
+- Category dropdown
+- Handle textarea (rich text)
+- Persona fields
+- Notes textarea
+- Save / Cancel
+
+### `/src/app/objection-library/history/page.tsx` — Bootstrap History
+- List of bootstrap runs with date, persona, entry count
+- Click shows which entries were created in that run
+
+---
+
+## 5. Integration Points
+
+### SalesNavBar (`src/components/SalesNavBar.tsx`)
+- Add: `{ href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" }`
+
+### Document Share (`src/app/api/documents/share/route.ts`)
+- Add `"objectionLibrary"` to `validTypes` array
+- Share exports the full library as a formatted markdown document
+
+### Document Clone (`src/app/api/documents/clone/route.ts`)
+- Add `"objectionLibrary"` case — clones all entries for the user
+
+### SharedDocClient
+- Add `objectionLibrary: "Objection Library"` to typeLabels
+
+### Import Route (`src/app/api/import/route.ts`)
+- Add `"objectionLibrary"` to `VALID_APPLET_TYPES`
+
+### Sequence Conversation (`src/lib/sequences/sequence-conversation.ts`)
+- Add `"objection-library"` type support for the "Chat About" linked conversations
+
+### Attachments (`src/app/api/attachments/`)
+- Add objection library as an optional attachment type that can be included in chat context (so the chatbot knows the user's objection handles)
+
+---
+
+## 6. Bootstrap AI Prompt Strategy
+
+### Prompt Structure (sent to Chatbase)
+
+**Instructions block** (first, survives truncation):
+```
+You are an expert B2B sales coach helping a founder build their objection handling library.
+
+## INSTRUCTIONS:
+Generate 8-10 common objections that prospects would raise when evaluating this product. Focus on objections related to:
+- Product fit & capabilities (does it solve the problem?)
+- ROI & value justification (can they justify the spend?)
+- Adoption & implementation (will the team use it?)
+- Competition & alternatives (including build-vs-buy)
+- Trust & vendor risk (are you too early-stage?)
+
+For each objection, provide:
+1. The objection (what the prospect actually says)
+2. The category (one of: NEED, PRIORITY, ROI, PRODUCT, COMPETITION, ADOPTION, BUDGET, TRUST, AUTHORITY)
+3. A specific, tactical handle (how to respond — use concrete details from the sales narrative, not generic advice)
+
+## TARGET PERSONA:
+- Organization type: {orgPersona}
+- Target role: {humanPersona}
+
+## OUTPUT FORMAT:
+Return a JSON array. Each element: { "objection": "...", "category": "...", "handle": "..." }
+Do NOT wrap in code blocks. Return only the JSON array.
+```
+
+**Context block** (chunked if needed):
+```
+## SALES NARRATIVE:
+{narrative content}
+```
+
+---
+
+## 7. Hybrid Match Algorithm
+
+### `/api/objection-library/match` flow:
+
+1. **Normalize** input objection (lowercase, trim)
+2. **Text search**: Query entries where `objection` contains significant keywords from the input (skip stop words). Score by keyword overlap.
+3. **If top text match score > threshold** (e.g., 60% keyword overlap): return it directly
+4. **Else — Semantic match**: Build prompt with the input objection + all stored objections (as numbered list), ask LLM: "Which of these objections is the prospect expressing? Return the number(s) of the closest match(es), or 'none' if no match."
+5. **Return** top 1-3 matches with handles, or "no match found" with suggestion to add a new entry
+
+---
+
+## 8. File Checklist
 
 **New files:**
-- [ ] `prisma/migrations/YYYYMMDD_add_ad_creator/migration.sql`
-- [ ] `src/app/ad-creator/page.tsx`
-- [ ] `src/app/ad-creator/history/page.tsx`
-- [ ] `src/app/api/ad-creator/generate/route.ts`
-- [ ] `src/app/api/ad-creator/iterate/route.ts`
-- [ ] `src/app/api/ad-creator/latest/route.ts`
-- [ ] `src/app/api/ad-creator/history/route.ts`
-- [ ] `src/app/api/ad-creator/versions/[id]/route.ts`
-- [ ] `src/app/api/ad-creator/prefill-personas/route.ts`
+- [ ] `prisma/migrations/YYYYMMDD_add_objection_library/migration.sql`
+- [ ] `src/app/objection-library/page.tsx`
+- [ ] `src/app/objection-library/history/page.tsx`
+- [ ] `src/app/api/objection-library/bootstrap/route.ts`
+- [ ] `src/app/api/objection-library/entries/route.ts`
+- [ ] `src/app/api/objection-library/entries/[id]/route.ts`
+- [ ] `src/app/api/objection-library/match/route.ts`
+- [ ] `src/app/api/objection-library/iterate/route.ts`
+- [ ] `src/app/api/objection-library/latest/route.ts`
+- [ ] `src/lib/objection-library/categories.ts` (category constants, colors, labels)
 
 **Existing files to modify:**
-- [ ] `prisma/schema.prisma` — Add AdCreatorVersion model + User relation
+- [ ] `prisma/schema.prisma` — Add ObjectionEntry, ObjectionBootstrap models + enums + User relations
 - [ ] `src/components/SalesNavBar.tsx` — Add nav item
 - [ ] `src/app/api/documents/share/route.ts` — Add to validTypes
 - [ ] `src/app/api/documents/clone/route.ts` — Add clone case
 - [ ] `src/app/share/doc/[code]/SharedDocClient.tsx` — Add type label
 - [ ] `src/app/api/import/route.ts` — Add applet type
-- [ ] `src/lib/sequences/sequence-conversation.ts` — Add type label
+- [ ] `src/lib/sequences/sequence-conversation.ts` — Add type support
