@@ -260,22 +260,22 @@ export default function AdminUserDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
           <Link
             href="/admin/users"
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 text-sm self-start"
           >
             &larr; Back to Users
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
             {displayName || displayEmail || "Unknown User"}
           </h1>
         </div>
         <button
           onClick={handleImpersonate}
           disabled={impersonating}
-          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2"
+          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2 self-start sm:self-auto text-sm sm:text-base flex-shrink-0"
         >
           {impersonating ? (
             <>
@@ -315,20 +315,20 @@ export default function AdminUserDetailPage() {
           {/* Profile Card */}
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile</h2>
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
               {user.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
                   alt=""
-                  className="w-16 h-16 rounded-full"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xl sm:text-2xl">
                   {(displayName || displayEmail || "?")[0].toUpperCase()}
                 </div>
               )}
-              <div className="flex-1">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-500">Name</label>
                     {editingName ? (
@@ -417,7 +417,7 @@ export default function AdminUserDetailPage() {
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">User ID</label>
-                    <div className="font-mono text-sm text-gray-600">{user.id}</div>
+                    <div className="font-mono text-xs sm:text-sm text-gray-600 break-all">{user.id}</div>
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Created</label>
@@ -433,13 +433,13 @@ export default function AdminUserDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Identity Providers</h2>
             <div className="space-y-4">
               {/* Google */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl">🔵</span>
                   <div>
                     <div className="font-medium">Google</div>
                     {user.googleId ? (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 break-all">
                         Connected: {user.email}
                       </div>
                     ) : (
@@ -468,13 +468,13 @@ export default function AdminUserDetailPage() {
               </div>
 
               {/* Slack */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl">💜</span>
                   <div>
                     <div className="font-medium">Slack</div>
                     {user.slackUserId ? (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 break-all">
                         Connected: {user.slackUserName} ({user.slackEmail})
                       </div>
                     ) : (
@@ -538,7 +538,7 @@ export default function AdminUserDetailPage() {
               <div className="text-gray-400 text-sm mb-4">No secondary emails configured</div>
             )}
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="email"
                 value={newSecondaryEmail}
@@ -568,7 +568,7 @@ export default function AdminUserDetailPage() {
               Merge another user&apos;s data into this account. All conversations, messages, and app data will be moved here. The source account will be deleted.
             </p>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={mergeUserId}
@@ -890,7 +890,7 @@ export default function AdminUserDetailPage() {
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Team ID</label>
-                  <div className="font-mono text-sm">{user.workspace.slackTeamId}</div>
+                  <div className="font-mono text-xs sm:text-sm break-all">{user.workspace.slackTeamId}</div>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Installed</label>
@@ -996,7 +996,7 @@ export default function AdminUserDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Referral</h2>
             <div>
               <label className="text-sm text-gray-500">Referral Code</label>
-              <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
+              <div className="font-mono text-xs sm:text-sm bg-gray-100 p-2 rounded mt-1 break-all">
                 {user.referralCode}
               </div>
             </div>

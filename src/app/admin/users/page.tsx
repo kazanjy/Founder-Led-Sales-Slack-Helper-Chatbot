@@ -266,102 +266,104 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           {pagination && (
             <span className="text-sm text-gray-500">
-              {pagination.total.toLocaleString()} total users
+              ({pagination.total.toLocaleString()})
             </span>
           )}
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create User
-          </button>
         </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center gap-2 self-start sm:self-auto"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create User
+        </button>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 border border-gray-200 mb-6">
-        <div className="flex flex-wrap gap-4">
+        <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4">
           {/* Search */}
-          <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
+          <form onSubmit={handleSearch} className="w-full sm:flex-1 sm:min-w-[200px]">
             <div className="flex">
               <input
                 type="text"
                 placeholder="Search by email or name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 text-sm"
               >
                 Search
               </button>
             </div>
           </form>
 
-          {/* Status filter */}
-          <select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value); updateUrl({ status: e.target.value }); }}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="TRIAL">Trial</option>
-            <option value="ACTIVE">Active</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="SUSPENDED">Suspended</option>
-          </select>
-
-          {/* Identity filter */}
-          <select
-            value={identityType}
-            onChange={(e) => { setIdentityType(e.target.value); updateUrl({ identityType: e.target.value }); }}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Identity Types</option>
-            <option value="google">Google Only</option>
-            <option value="slack">Slack Only</option>
-            <option value="both">Both Connected</option>
-          </select>
-
-          {/* Workspace filter */}
-          {workspaces.length > 0 && (
+          <div className="flex flex-wrap gap-2 sm:gap-4">
+            {/* Status filter */}
             <select
-              value={workspaceId}
-              onChange={(e) => { setWorkspaceId(e.target.value); updateUrl({ workspaceId: e.target.value }); }}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); updateUrl({ status: e.target.value }); }}
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
-              <option value="">All Workspaces</option>
-              {workspaces.map((ws) => (
-                <option key={ws.id} value={ws.id}>{ws.name}</option>
-              ))}
+              <option value="">All Statuses</option>
+              <option value="TRIAL">Trial</option>
+              <option value="ACTIVE">Active</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="SUSPENDED">Suspended</option>
             </select>
-          )}
 
-          {/* Clear filters */}
-          {hasFilters && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setStatus("");
-                setIdentityType("");
-                setWorkspaceId("");
-                router.push("/admin/users");
-              }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-900"
+            {/* Identity filter */}
+            <select
+              value={identityType}
+              onChange={(e) => { setIdentityType(e.target.value); updateUrl({ identityType: e.target.value }); }}
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
-              Clear filters
-            </button>
-          )}
+              <option value="">All Identity</option>
+              <option value="google">Google Only</option>
+              <option value="slack">Slack Only</option>
+              <option value="both">Both Connected</option>
+            </select>
+
+            {/* Workspace filter */}
+            {workspaces.length > 0 && (
+              <select
+                value={workspaceId}
+                onChange={(e) => { setWorkspaceId(e.target.value); updateUrl({ workspaceId: e.target.value }); }}
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              >
+                <option value="">All Workspaces</option>
+                {workspaces.map((ws) => (
+                  <option key={ws.id} value={ws.id}>{ws.name}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Clear filters */}
+            {hasFilters && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setStatus("");
+                  setIdentityType("");
+                  setWorkspaceId("");
+                  router.push("/admin/users");
+                }}
+                className="px-3 py-2 text-gray-600 hover:text-gray-900 text-sm"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -372,7 +374,48 @@ export default function AdminUsersPage() {
         ) : users.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No users found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile card list */}
+          <div className="sm:hidden divide-y divide-gray-200">
+            {users.map((user) => (
+              <Link
+                key={user.id}
+                href={`/admin/users/${user.id}`}
+                className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
+              >
+                <div className="flex items-center gap-3">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium flex-shrink-0">
+                      {(user.name || user.email || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">
+                        {user.name || "No name"}
+                      </span>
+                      {getLicenseStatusBadge(user.licenseStatus)}
+                      {getIdentityIcons(user)}
+                    </div>
+                    <div className="text-sm text-gray-500 truncate">{user.email || "No email"}</div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+                      <span>{user.messageCount} msgs</span>
+                      <span>{formatRelativeTime(user.lastActivity)}</span>
+                      {user.workspace?.name && <span className="truncate">{user.workspace.name}</span>}
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -509,15 +552,14 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-              {pagination.total}
+          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="text-xs sm:text-sm text-gray-500">
+              {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </div>
             <div className="flex space-x-2">
               <button

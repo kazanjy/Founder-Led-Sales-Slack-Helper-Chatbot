@@ -422,20 +422,20 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">{stat.icon}</span>
                 </div>
-                <div className={`text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
+                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
                   {stat.value.toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-500 mt-1">{stat.label}</div>
               </Link>
             ) : (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">{stat.icon}</span>
                 </div>
-                <div className={`text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
+                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
                   {stat.value.toLocaleString()}
                 </div>
-                <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-500 mt-1">{stat.label}</div>
               </>
             )}
           </div>
@@ -444,9 +444,9 @@ export default function AdminDashboard() {
 
       {/* Unified Activity Feed */}
       <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
-        <div className="p-6 border-b border-gray-200">
+        <div className="px-4 py-4 sm:p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-          <p className="text-sm text-gray-500 mt-1">Click row to open in new tab, or click name for admin profile</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Click row to open in new tab, or click name for admin profile</p>
         </div>
         {convsLoading && activityLoading ? (
           <div className="p-6 text-gray-500">Loading activity...</div>
@@ -475,36 +475,36 @@ export default function AdminDashboard() {
                   key={`conv-${conv.id}`}
                   onClick={() => handleImpersonateToChat(conv.user.id, conv.id)}
                   disabled={impersonatingId !== null}
-                  className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  className="w-full text-left px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2 sm:gap-3">
                     <Link
                       href={`/admin/users/${conv.user.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="flex-shrink-0"
                     >
                       {conv.user.avatarUrl ? (
-                        <img src={conv.user.avatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
+                        <img src={conv.user.avatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {userName.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <Link
                           href={`/admin/users/${conv.user.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline"
+                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline text-sm sm:text-base"
                         >
                           {userName}
                         </Link>
                         <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700"}`}>
-                          {conv.source === "SLACK" ? "Slack Chat" : "Web Chat"}
+                          {conv.source === "SLACK" ? "Slack" : "Web"}
                         </span>
                         {conv.user.workspace?.slackTeamName && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
                             {conv.user.workspace.slackTeamName}
                           </span>
                         )}
@@ -513,11 +513,12 @@ export default function AdminDashboard() {
                         {conv.title || conv.firstMessagePreview || "New conversation"}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        {conv.messageCount} message{conv.messageCount !== 1 ? "s" : ""}
-                        {conv.user.email && <span className="ml-2">{conv.user.email}</span>}
+                        {conv.messageCount} msg{conv.messageCount !== 1 ? "s" : ""}
+                        <span className="sm:hidden ml-1.5">{formatTimeAgo(conv.lastMessageAt)}</span>
+                        {conv.user.email && <span className="ml-2 hidden sm:inline">{conv.user.email}</span>}
                       </div>
                     </div>
-                    <div className="flex-shrink-0 self-center text-right ml-3">
+                    <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:block">
                       <span className="text-xs text-gray-400 whitespace-nowrap">
                         {formatTimeAgo(conv.lastMessageAt)}
                       </span>
@@ -541,28 +542,28 @@ export default function AdminDashboard() {
                   key={`act-${item.type}-${item.id}`}
                   onClick={() => handleImpersonateToLink(item.userId, item.link)}
                   disabled={impersonatingId !== null}
-                  className="w-full text-left px-6 py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  className="w-full text-left px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-wait"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2 sm:gap-3">
                     <Link
                       href={`/admin/users/${item.userId}`}
                       onClick={(e) => e.stopPropagation()}
                       className="flex-shrink-0"
                     >
                       {item.userAvatarUrl ? (
-                        <img src={item.userAvatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
+                        <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {actUserName.charAt(0).toUpperCase()}
                         </div>
                       )}
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <Link
                           href={`/admin/users/${item.userId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline"
+                          className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline text-sm sm:text-base"
                         >
                           {actUserName}
                         </Link>
@@ -570,7 +571,7 @@ export default function AdminDashboard() {
                           {item.label}
                         </span>
                         {item.workspaceName && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0">
+                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
                             {item.workspaceName}
                           </span>
                         )}
@@ -578,13 +579,12 @@ export default function AdminDashboard() {
                       <div className="text-sm text-gray-700 truncate mt-0.5">
                         {item.title || ""}
                       </div>
-                      {item.userEmail && (
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {item.userEmail}
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        <span className="sm:hidden">{formatTimeAgo(item.createdAt)}</span>
+                        {item.userEmail && <span className="hidden sm:inline">{item.userEmail}</span>}
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 self-center text-right ml-3">
+                    <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:block">
                       <span className="text-xs text-gray-400 whitespace-nowrap">
                         {formatTimeAgo(item.createdAt)}
                       </span>
@@ -756,7 +756,7 @@ export default function AdminDashboard() {
             placeholder="Search by name, email, or workspace..."
             value={completionSearch}
             onChange={(e) => setCompletionSearch(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="flex flex-wrap gap-1.5">
             {[

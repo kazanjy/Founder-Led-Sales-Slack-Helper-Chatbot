@@ -85,11 +85,11 @@ export default function AdminLayout({
                 ))}
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">{user.email}</span>
+            <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
+              <span className="text-sm text-gray-500 hidden sm:inline truncate max-w-[150px]">{user.email}</span>
               <Link
                 href="/chat"
-                className="text-sm text-blue-600 hover:text-blue-800"
+                className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
               >
                 Back to App
               </Link>
