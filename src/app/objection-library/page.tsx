@@ -190,17 +190,40 @@ function ObjectionLibraryContent() {
     }
   };
 
-  const handleAddEntry = () => {
+  const handleAddEntry = async () => {
     setEditingEntry(null);
+    // Resolve personas: top-level state → most recent entry → prefill from narrative
+    let resolvedOrg = orgPersona || "";
+    let resolvedHuman = humanPersona || "";
+    if (!resolvedOrg && !resolvedHuman && entries.length > 0) {
+      resolvedOrg = entries[0].orgPersona || "";
+      resolvedHuman = entries[0].humanPersona || "";
+    }
     setEntryForm({
       objection: "",
       category: "PRODUCT",
       handle: "",
-      orgPersona: orgPersona || "",
-      humanPersona: humanPersona || "",
+      orgPersona: resolvedOrg,
+      humanPersona: resolvedHuman,
       notes: "",
     });
     setShowEntryModal(true);
+    // If still empty, try to prefill from sales narrative
+    if (!resolvedOrg && !resolvedHuman && hasSalesNarrative) {
+      try {
+        const res = await fetch("/api/cold-call-script/prefill-personas", { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          setEntryForm((prev) => ({
+            ...prev,
+            orgPersona: prev.orgPersona || data.orgPersona || "",
+            humanPersona: prev.humanPersona || data.humanPersona || "",
+          }));
+        }
+      } catch {
+        // silently fail
+      }
+    }
   };
 
   const handleEditEntry = (entry: ObjectionEntry) => {
@@ -248,6 +271,10 @@ function ObjectionLibraryContent() {
     const q = lookupQuery.trim();
     if (!q) return;
 
+    // Resolve personas: top-level state → most recent entry
+    const resolvedOrg = orgPersona || (entries.length > 0 ? entries[0].orgPersona : "") || "";
+    const resolvedHuman = humanPersona || (entries.length > 0 ? entries[0].humanPersona : "") || "";
+
     setGeneratingNew(true);
     try {
       const res = await fetch("/api/objection-library/generate-handle", {
@@ -255,8 +282,8 @@ function ObjectionLibraryContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           objection: q,
-          orgPersona: orgPersona || "",
-          humanPersona: humanPersona || "",
+          orgPersona: resolvedOrg,
+          humanPersona: resolvedHuman,
         }),
       });
       if (!res.ok) throw new Error("Failed to generate");
@@ -267,8 +294,8 @@ function ObjectionLibraryContent() {
         objection: q,
         category: data.category || "PRODUCT",
         handle: data.handle || "",
-        orgPersona: orgPersona || "",
-        humanPersona: humanPersona || "",
+        orgPersona: resolvedOrg,
+        humanPersona: resolvedHuman,
         notes: "",
       });
       setShowEntryModal(true);
