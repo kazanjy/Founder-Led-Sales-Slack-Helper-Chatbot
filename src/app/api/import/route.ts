@@ -8,11 +8,11 @@ import Papa from "papaparse";
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
 
-type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck" | "adCreator";
+type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck" | "adCreator" | "objectionLibrary";
 
 const VALID_APPLET_TYPES = new Set<string>([
   "discoveryQuestions", "firstCallChecklist", "preCallPlanning",
-  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator",
+  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator", "objectionLibrary",
 ]);
 
 const MERGE_CONFIGS: Partial<Record<AppletType, { mergeField: string; mergeLabel: string }>> = {
@@ -230,6 +230,42 @@ ${inputText}
 Return ONLY the markdown content (no code blocks wrapping it). Start with a level-1 heading.`;
 }
 
+function getObjectionLibraryPrompt(inputText: string): string {
+  return `You are an expert B2B sales coach. The user has provided their own objection handling document. Your job is to parse it into a structured JSON format.
+
+## INPUT (user's existing objection handles):
+
+${inputText}
+
+## INSTRUCTIONS:
+
+1. Read through the user's content carefully
+2. Extract each objection and its recommended response
+3. Categorize each into one of these categories:
+   - NEED (problem recognition)
+   - PRIORITY (urgency)
+   - ROI (value justification)
+   - PRODUCT (product fit)
+   - COMPETITION (alternatives/build-vs-buy)
+   - ADOPTION (implementation/team usage)
+   - BUDGET (price/affordability)
+   - TRUST (vendor risk)
+   - AUTHORITY (internal approval)
+4. Preserve the user's original wording as much as possible
+
+## OUTPUT FORMAT (respond with ONLY valid JSON, no markdown):
+
+{
+  "entries": [
+    {
+      "objection": "What the prospect says",
+      "category": "PRODUCT",
+      "handle": "How to respond"
+    }
+  ]
+}`;
+}
+
 // POST - Import user's own content
 export async function POST(request: NextRequest) {
   try {
@@ -353,6 +389,10 @@ export async function POST(request: NextRequest) {
         break;
       case "adCreator":
         prompt = getAdCreatorPrompt(truncatedInput);
+        break;
+      case "objectionLibrary":
+        prompt = getObjectionLibraryPrompt(truncatedInput);
+        isJsonOutput = true;
         break;
     }
 
@@ -595,6 +635,43 @@ export async function POST(request: NextRequest) {
 
         savedVersion = version;
         returnContent = version;
+        break;
+      }
+
+      case "objectionLibrary": {
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.entries || !Array.isArray(parsed.entries)) throw new Error("Invalid response structure");
+
+        const validCategories = new Set([
+          "NEED", "PRIORITY", "ROI", "PRODUCT", "COMPETITION",
+          "ADOPTION", "BUDGET", "TRUST", "AUTHORITY",
+        ]);
+        const validEntries = parsed.entries.filter(
+          (e: { objection?: string; category?: string; handle?: string }) =>
+            e.objection && e.category && e.handle && validCategories.has(e.category.toUpperCase())
+        );
+
+        const created = await Promise.all(
+          validEntries.map((e: { objection: string; category: string; handle: string }, i: number) =>
+            prisma.objectionEntry.create({
+              data: {
+                userId: user.id,
+                objection: e.objection,
+                category: e.category.toUpperCase() as never,
+                handle: e.handle,
+                orgPersona: "Imported via file upload",
+                humanPersona: "Imported via file upload",
+                source: "manual",
+                sortOrder: i,
+              },
+            })
+          )
+        );
+
+        savedVersion = { id: created[0]?.id || "imported", createdAt: new Date() };
+        returnContent = { entries: created, count: created.length };
         break;
       }
     }

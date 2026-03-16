@@ -112,6 +112,8 @@ model User {
   salesMetricsAssessments SalesMetricsAssessment[]
   coachingSessions CoachingSession[]
   adCreatorVersions AdCreatorVersion[]
+  objectionEntries ObjectionEntry[]
+  objectionBootstraps ObjectionBootstrap[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
 
@@ -619,6 +621,7 @@ model SalesNarrativeVersion {
 
   // Discovery questions generated from this narrative
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
+  objectionBootstraps ObjectionBootstrap[]
 
   // Sequences generated from this narrative
   emailSequenceVersions EmailSequenceVersion[]
@@ -1166,4 +1169,82 @@ model AdCreatorVersion {
 
   @@index([userId, createdAt])
   @@map("ad_creator_versions")
+}
+
+// ============================================
+// OBJECTION LIBRARY APP
+// ============================================
+
+enum ObjectionCategory {
+  NEED
+  PRIORITY
+  ROI
+  PRODUCT
+  COMPETITION
+  ADOPTION
+  BUDGET
+  TRUST
+  AUTHORITY
+}
+
+model ObjectionEntry {
+  id              String   @id @default(cuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What the prospect says
+  objection       String   @db.Text
+
+  // Category (enum)
+  category        ObjectionCategory
+
+  // Target persona this handle is tailored for
+  orgPersona      String   @db.Text
+  humanPersona    String   @db.Text
+
+  // The handle (how to respond)
+  handle          String   @db.Text
+
+  // Optional notes, context, or examples
+  notes           String?  @db.Text
+
+  // Where it came from
+  source          String   @default("bootstrap")  // "bootstrap" | "manual" | "call-review" | "chat"
+
+  // Linked chat thread for iteration
+  conversationId  String?
+
+  // Sort within category
+  sortOrder       Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, category])
+  @@index([userId, createdAt])
+  @@map("objection_entries")
+}
+
+model ObjectionBootstrap {
+  id                      String   @id @default(cuid())
+
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Persona configuration
+  orgPersona              String   @db.Text
+  humanPersona            String   @db.Text
+
+  // How many entries were generated
+  entryCount              Int
+
+  createdAt               DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("objection_bootstraps")
 }

@@ -20,6 +20,7 @@ const topLevelItems: NavItem[] = [
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
   { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
+  { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];
@@ -56,7 +57,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -69,6 +70,7 @@ export default function SalesNavBar() {
           fetch("/api/cold-call-script/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/sales-deck/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/sales-metrics/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/objection-library/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -84,6 +86,7 @@ export default function SalesNavBar() {
           coldCallScript: !!coldCallRes?.hasColdCallScript,
           salesDeck: !!salesDeckRes?.hasSalesDeck,
           salesMetrics: !!salesMetricsRes?.hasSalesMetrics,
+          objectionLibrary: !!objectionLibraryRes?.hasObjectionLibrary,
         });
       } catch {
         // silently fail - indicators just won't show

@@ -235,6 +235,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, versionId: clone.id });
       }
 
+      case "objectionLibrary": {
+        // Clone all objection entries for the user
+        const sourceEntries = await prisma.objectionEntry.findMany({
+          where: { userId: user.id },
+        });
+        if (sourceEntries.length === 0) {
+          return NextResponse.json({ error: "No objection entries found" }, { status: 404 });
+        }
+
+        await prisma.objectionEntry.createMany({
+          data: sourceEntries.map((e) => ({
+            userId: user.id,
+            objection: e.objection,
+            category: e.category,
+            orgPersona: e.orgPersona,
+            humanPersona: e.humanPersona,
+            handle: e.handle,
+            notes: e.notes,
+            source: e.source,
+            sortOrder: e.sortOrder,
+          })),
+        });
+
+        return NextResponse.json({ success: true });
+      }
+
       default:
         return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
     }
