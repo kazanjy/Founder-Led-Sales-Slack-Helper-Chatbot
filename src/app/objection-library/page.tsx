@@ -69,6 +69,7 @@ function ObjectionLibraryContent() {
     notes: "",
   });
   const [savingEntry, setSavingEntry] = useState(false);
+  const [generatingHandle, setGeneratingHandle] = useState(false);
 
   // Iterate modal state
   const [showIterateModal, setShowIterateModal] = useState(false);
@@ -206,6 +207,46 @@ function ObjectionLibraryContent() {
       notes: entry.notes || "",
     });
     setShowEntryModal(true);
+  };
+
+  const handleGenerateHandle = async () => {
+    if (!entryForm.objection.trim()) {
+      await showAlert({
+        title: "Missing Objection",
+        message: "Please enter the objection text first.",
+        variant: "danger",
+      });
+      return;
+    }
+
+    setGeneratingHandle(true);
+    try {
+      const res = await fetch("/api/objection-library/generate-handle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objection: entryForm.objection,
+          orgPersona: entryForm.orgPersona,
+          humanPersona: entryForm.humanPersona,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to generate");
+      const data = await res.json();
+      setEntryForm((prev) => ({
+        ...prev,
+        handle: data.handle || prev.handle,
+        category: data.category || prev.category,
+      }));
+    } catch (error) {
+      console.error("Error generating handle:", error);
+      await showAlert({
+        title: "Generation Failed",
+        message: "Failed to generate handle. Please try again or write one manually.",
+        variant: "danger",
+      });
+    } finally {
+      setGeneratingHandle(false);
+    }
   };
 
   const handleSaveEntry = async () => {
@@ -836,7 +877,34 @@ function ObjectionLibraryContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Handle (Response) *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Handle (Response) *</label>
+                {!editingEntry && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateHandle}
+                    disabled={generatingHandle || !entryForm.objection.trim()}
+                    className="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generatingHandle ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                        </svg>
+                        Generate with AI
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               <textarea
                 value={entryForm.handle}
                 onChange={(e) => setEntryForm({ ...entryForm, handle: e.target.value })}
