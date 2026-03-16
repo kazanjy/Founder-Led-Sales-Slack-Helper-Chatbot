@@ -1137,7 +1137,7 @@ function ObjectionLibraryContent() {
                 onChange={(e) => setEntryForm({ ...entryForm, handle: e.target.value })}
                 placeholder="How to respond to this objection..."
                 rows={4}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
               />
             </div>
 
