@@ -325,7 +325,7 @@ function CallReviewContent() {
                       value={transcript}
                       onChange={(e) => setTranscript(e.target.value)}
                       placeholder="Paste your full call transcript here..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono resize-y"
                       disabled={analyzing}
                     />
                     <p className="mt-1 text-xs text-gray-400">

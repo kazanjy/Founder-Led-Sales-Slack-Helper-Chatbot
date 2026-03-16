@@ -250,7 +250,7 @@ export default function RichTextEditor({
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
       <Toolbar editor={editor} />
       <div
-        style={{ height, overflow: "auto" }}
+        style={{ minHeight: height, overflow: "auto", resize: "vertical" }}
         className="cursor-text [&>.tiptap]:min-h-full"
         onClick={(e) => {
           if (editor && e.target === e.currentTarget) {
