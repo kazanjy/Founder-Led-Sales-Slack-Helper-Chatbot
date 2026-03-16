@@ -71,6 +71,13 @@ function ObjectionLibraryContent() {
   const [savingEntry, setSavingEntry] = useState(false);
   const [generatingHandle, setGeneratingHandle] = useState(false);
 
+  // Lookup state (primary UX)
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResults, setLookupResults] = useState<{ entry: ObjectionEntry; confidence: number; method: string }[] | null>(null);
+  const [lookupNoMatch, setLookupNoMatch] = useState(false);
+  const [generatingNew, setGeneratingNew] = useState(false);
+
   // Iterate modal state
   const [showIterateModal, setShowIterateModal] = useState(false);
   const [iterateEntry, setIterateEntry] = useState<ObjectionEntry | null>(null);
@@ -207,6 +214,80 @@ function ObjectionLibraryContent() {
       notes: entry.notes || "",
     });
     setShowEntryModal(true);
+  };
+
+  const handleLookup = async () => {
+    const q = lookupQuery.trim();
+    if (!q) return;
+
+    setLookupLoading(true);
+    setLookupResults(null);
+    setLookupNoMatch(false);
+    try {
+      const res = await fetch("/api/objection-library/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objection: q }),
+      });
+      if (!res.ok) throw new Error("Match failed");
+      const data = await res.json();
+      if (data.matches && data.matches.length > 0) {
+        setLookupResults(data.matches);
+      } else {
+        setLookupNoMatch(true);
+      }
+    } catch (error) {
+      console.error("Error looking up objection:", error);
+      setLookupNoMatch(true);
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const handleGenerateNew = async () => {
+    const q = lookupQuery.trim();
+    if (!q) return;
+
+    setGeneratingNew(true);
+    try {
+      const res = await fetch("/api/objection-library/generate-handle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objection: q,
+          orgPersona: orgPersona || "",
+          humanPersona: humanPersona || "",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to generate");
+      const data = await res.json();
+      // Pre-fill the entry modal with everything
+      setEditingEntry(null);
+      setEntryForm({
+        objection: q,
+        category: data.category || "PRODUCT",
+        handle: data.handle || "",
+        orgPersona: orgPersona || "",
+        humanPersona: humanPersona || "",
+        notes: "",
+      });
+      setShowEntryModal(true);
+    } catch (error) {
+      console.error("Error generating handle:", error);
+      await showAlert({
+        title: "Generation Failed",
+        message: "Failed to generate handle. Please try again.",
+        variant: "danger",
+      });
+    } finally {
+      setGeneratingNew(false);
+    }
+  };
+
+  const clearLookup = () => {
+    setLookupQuery("");
+    setLookupResults(null);
+    setLookupNoMatch(false);
   };
 
   const handleGenerateHandle = async () => {
@@ -643,6 +724,152 @@ function ObjectionLibraryContent() {
                 Re-Bootstrap
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Objection lookup — primary UX */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          <div className="max-w-2xl mx-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              What objection are you hearing?
+            </label>
+            <div className="relative">
+              <textarea
+                value={lookupQuery}
+                onChange={(e) => {
+                  setLookupQuery(e.target.value);
+                  if (lookupResults || lookupNoMatch) {
+                    setLookupResults(null);
+                    setLookupNoMatch(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleLookup();
+                  }
+                }}
+                placeholder="Type the objection you're hearing and press Enter..."
+                rows={2}
+                disabled={lookupLoading || generatingNew}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none pr-24 text-[15px]"
+              />
+              <div className="absolute right-2 bottom-2 flex items-center gap-1">
+                {lookupQuery.trim() && (
+                  <button
+                    onClick={clearLookup}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded-md transition-colors"
+                    title="Clear"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  onClick={handleLookup}
+                  disabled={!lookupQuery.trim() || lookupLoading}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  {lookupLoading ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Find Handle
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Lookup results */}
+            {lookupResults && lookupResults.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm font-medium text-gray-700">
+                  Found {lookupResults.length} matching handle{lookupResults.length !== 1 ? "s" : ""}:
+                </p>
+                {lookupResults.map((match, i) => {
+                  const catInfo = getCategoryInfo(match.entry.category);
+                  return (
+                    <div key={match.entry.id} className={`p-4 rounded-lg border-2 ${i === 0 ? "border-purple-200 bg-purple-50/50" : "border-gray-200 bg-white"}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${catInfo.color} ${catInfo.textColor} ${catInfo.borderColor} border`}>
+                          {catInfo.label}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {match.confidence}% match ({match.method})
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-800 mb-1">
+                        &ldquo;{match.entry.objection}&rdquo;
+                      </p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {match.entry.handle}
+                      </p>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={handleGenerateNew}
+                  disabled={generatingNew}
+                  className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mt-1"
+                >
+                  {generatingNew ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating...
+                    </>
+                  ) : (
+                    "Not quite right? Generate a new handle instead"
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* No match — offer to generate */}
+            {lookupNoMatch && (
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800 mb-3">
+                  No existing handles match this objection. Would you like to generate one?
+                </p>
+                <button
+                  onClick={handleGenerateNew}
+                  disabled={generatingNew}
+                  className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {generatingNew ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating handle...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                      </svg>
+                      Generate Handle with AI
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
