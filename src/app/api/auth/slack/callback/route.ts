@@ -222,6 +222,13 @@ export async function GET(request: NextRequest) {
           slackEmail: identityData.user?.email || existingSlackUser.slackEmail,
         },
       });
+
+      // Lazy migration: assign account if solo user
+      const existingEmail = identityData.user?.email || existingSlackUser.slackEmail || existingSlackUser.email;
+      if (!user.accountId && existingEmail) {
+        user = await findOrCreateAccountForUser(user.id, existingEmail, identityData.user?.name || user.name);
+        console.log(`[Slack Auth] Lazy-migrated solo user ${user.id} to account ${user.accountId}`);
+      }
     } else {
       // Create new user with trial status
       user = await prisma.user.create({

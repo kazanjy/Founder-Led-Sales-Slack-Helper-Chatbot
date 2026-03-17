@@ -39,11 +39,22 @@ interface Account {
   users: AccountUser[];
 }
 
+interface MigrationStats {
+  total: number;
+  migratable: number;
+  noEmail: number;
+}
+
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+
+  // Solo user migration state
+  const [migrationStats, setMigrationStats] = useState<MigrationStats | null>(null);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{ migrated: number; skipped: number; errors: number } | null>(null);
 
   // Claim form state
   const [claimFormAccount, setClaimFormAccount] = useState<string | null>(null);
@@ -70,9 +81,41 @@ export default function AdminAccountsPage() {
     }
   }, [search]);
 
+  const fetchMigrationStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/accounts/migrate-solo-users");
+      if (res.ok) {
+        const data = await res.json();
+        setMigrationStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch migration stats:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchAccounts();
-  }, [fetchAccounts]);
+    fetchMigrationStats();
+  }, [fetchAccounts, fetchMigrationStats]);
+
+  const handleBulkMigrate = async () => {
+    if (!confirm(`This will migrate ${migrationStats?.migratable || 0} solo users to accounts. Continue?`)) return;
+    setMigrating(true);
+    setMigrationResult(null);
+    try {
+      const res = await fetch("/api/admin/accounts/migrate-solo-users", { method: "POST" });
+      if (res.ok) {
+        const result = await res.json();
+        setMigrationResult(result);
+        fetchAccounts();
+        fetchMigrationStats();
+      }
+    } catch (error) {
+      console.error("Bulk migration failed:", error);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const handleClaimChannel = async (accountId: string) => {
     if (!claimChannelId || !claimWorkspaceId || !claimUserId) {
@@ -160,6 +203,38 @@ export default function AdminAccountsPage() {
           className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
         />
       </div>
+
+      {/* Solo user migration banner */}
+      {migrationStats && migrationStats.total > 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-amber-800">
+                {migrationStats.total} solo user{migrationStats.total !== 1 ? "s" : ""} without an account
+              </h3>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {migrationStats.migratable} can be auto-assigned by email domain
+                {migrationStats.noEmail > 0 && (
+                  <span> &middot; {migrationStats.noEmail} have no email (will be skipped)</span>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={handleBulkMigrate}
+              disabled={migrating || migrationStats.migratable === 0}
+              className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
+            >
+              {migrating ? "Migrating..." : "Migrate All"}
+            </button>
+          </div>
+          {migrationResult && (
+            <div className="mt-2 text-xs text-amber-800 bg-amber-100 rounded px-3 py-2">
+              Done: {migrationResult.migrated} migrated, {migrationResult.skipped} skipped (no email)
+              {migrationResult.errors > 0 && <span className="text-red-700">, {migrationResult.errors} errors</span>}
+            </div>
+          )}
+        </div>
+      )}
 
       {accounts.length === 0 ? (
         <div className="text-center py-12 text-gray-500">

@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       user = await findOrCreateAccountForUser(user.id, userInfo.email, userInfo.name);
     } else {
       // Update existing user with Google info if not already set
-      await prisma.user.update({
+      user = await prisma.user.update({
         where: { id: user.id },
         data: {
           googleId: user.googleId || userInfo.id,
@@ -131,6 +131,12 @@ export async function GET(request: NextRequest) {
         },
       });
       console.log(`[Google Auth] Existing user logged in: ${userInfo.email}`);
+
+      // Lazy migration: assign account if solo user
+      if (!user.accountId) {
+        user = await findOrCreateAccountForUser(user.id, userInfo.email, userInfo.name);
+        console.log(`[Google Auth] Lazy-migrated solo user ${user.id} to account ${user.accountId}`);
+      }
     }
 
     // Create session
