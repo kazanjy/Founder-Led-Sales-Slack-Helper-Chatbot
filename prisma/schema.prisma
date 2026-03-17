@@ -7,6 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Account for multi-user shared GTM context
+model Account {
+  id          String   @id @default(cuid())
+  name        String   // Company/team name (e.g., "Acme Corp")
+
+  // Email domain used for auto-grouping (e.g., "acme.com")
+  emailDomain String?  @unique
+
+  users       User[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("accounts")
+}
+
+enum AccountRole {
+  OWNER    // Created the account, can manage members + billing
+  ADMIN    // Can invite/remove members, edit all artifacts
+  MEMBER   // Can create artifacts, view all account artifacts
+}
+
 // Slack workspace that has installed Mikey
 model Workspace {
   id                 String    @id @default(cuid())
@@ -56,6 +78,11 @@ model User {
   secondaryEmails String[]  @default([])  // Additional emails that can be used for auth lookup
   name            String?
   avatarUrl       String?
+
+  // Account membership (null for legacy solo users)
+  accountId       String?
+  account         Account?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountRole     AccountRole @default(MEMBER)
 
   // Workspace (optional - null for web-only users)
   workspaceId     String?
