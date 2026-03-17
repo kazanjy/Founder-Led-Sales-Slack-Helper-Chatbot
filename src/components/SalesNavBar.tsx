@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
@@ -41,8 +41,29 @@ export default function SalesNavBar() {
   const pathname = usePathname();
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
+
+  // Close mobile menu on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    }
+    if (mobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [mobileMenuOpen]);
+
+  // Close mobile menu on route change
+  const closeMenus = useCallback(() => {
+    setMobileMenuOpen(false);
+    setPlaybookOpen(false);
+  }, []);
 
   useEffect(() => {
     async function fetchStatus() {
@@ -125,8 +146,95 @@ export default function SalesNavBar() {
       <ImpersonationBanner userName={impersonating.userName} />
     )}
     <nav className={`bg-white border-b border-gray-200 ${impersonating.active ? "mt-10" : ""}`}>
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center gap-1 -mb-px flex-wrap">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        {/* Mobile: hamburger + current page indicator */}
+        <div className="flex items-center md:hidden py-2 gap-2">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+          <span className="text-sm font-medium text-purple-600">
+            {(() => {
+              const activeItem = [...topLevelItems, ...playbookItems].find(item => isActive(item.href));
+              return activeItem?.label || "💬 Chat";
+            })()}
+          </span>
+        </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div ref={mobileMenuRef} className="md:hidden absolute left-0 right-0 top-auto bg-white border-b border-gray-200 shadow-lg z-50 max-h-[70vh] overflow-y-auto">
+            <div className="py-2">
+              <Link
+                href="/chat"
+                onClick={closeMenus}
+                className={`block px-4 py-3 text-sm font-medium transition-colors ${
+                  isActive("/chat") ? "bg-purple-50 text-purple-600" : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                💬 Chat
+              </Link>
+              {/* Playbook section */}
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  📒 Playbook
+                  {playbookCompletedCount > 0 && (
+                    <span className="text-green-600 font-medium">{playbookCompletedCount}/{playbookItems.length}</span>
+                  )}
+                </div>
+                {playbookItems.map((item) => {
+                  const href = item.statusKey === "assessment" && status[item.statusKey]
+                    ? "/maturity-history"
+                    : item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={href}
+                      onClick={closeMenus}
+                      className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
+                        isActive(item.href) ? "bg-purple-50 text-purple-700" : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex-1">{item.label}</span>
+                      {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+              {/* Tools section */}
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
+                {topLevelItems.slice(1).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
+                      isActive(item.href) ? "bg-purple-50 text-purple-700" : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop: horizontal tabs (hidden on mobile) */}
+        <div className="hidden md:flex items-center gap-1 -mb-px flex-wrap">
           {/* Chat */}
           <Link
             href="/chat"
