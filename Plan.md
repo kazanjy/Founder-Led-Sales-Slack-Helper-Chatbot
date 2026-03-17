@@ -1157,9 +1157,8 @@ model Account {
   id          String   @id @default(cuid())
   name        String   // Company/team name (e.g., "Acme Corp")
 
-  // Optional link to Slack workspace (for auto-grouping Slack users)
-  workspaceId String?  @unique
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  // Email domain used for auto-grouping (e.g., "acme.com")
+  emailDomain String?  @unique
 
   users       User[]
 
@@ -1265,11 +1264,16 @@ When building the context brief for a chat message, resolve attachments and merg
 ### SalesNavBar (status indicators)
 Nav status checks ("has sales narrative?") should reflect account-level status, not just the current user. If anyone on the account has a narrative, show it as complete.
 
+### New: Auto-Grouping by Email Domain
+When a user signs up or logs in, extract the domain from their email (e.g., `jane@acme.com` → `acme.com`). If an Account already exists for that domain, auto-link the user to it. If not, create a new Account with that domain. First user on a domain becomes OWNER.
+
+**Excluded domains:** Common free email providers (`gmail.com`, `yahoo.com`, `hotmail.com`, `outlook.com`, `icloud.com`, `aol.com`, `protonmail.com`, etc.) are excluded from auto-grouping — users with these domains stay solo unless manually invited to an account.
+
 ### New: Account Management UI
-- **Create account:** Settings page or onboarding flow. Enter company name.
-- **Invite members:** By email. Invited user gets linked to the account on login/signup.
-- **Auto-group from Slack:** When a Slack workspace is connected, auto-create an Account and link all workspace users to it.
+- **Account settings:** Company name, member list, roles.
+- **Invite members:** By email (for edge cases where someone uses a different domain).
 - **Member list:** Show who's on the account + their roles.
+- **Leave account:** User can detach themselves from an account.
 
 ### New: Account API Routes
 - `POST /api/account` — Create account
@@ -1287,10 +1291,11 @@ Nav status checks ("has sales narrative?") should reflect account-level status, 
 4. Build the `getLatestForAccount` helper
 5. No behavior change yet — null accountId means queries fall back to userId-only
 
-### Phase 2: Account creation + auto-grouping
-1. Build account creation UI
-2. Auto-create accounts for existing Slack workspaces (one Account per Workspace, link all workspace users)
-3. Build invite flow for web-only users
+### Phase 2: Account creation + auto-grouping by email domain
+1. Build email domain extraction + auto-grouping logic (on signup/login)
+2. Maintain excluded domains list (gmail.com, yahoo.com, etc.)
+3. Backfill: group existing users by email domain into accounts
+4. Build manual invite flow for edge cases (different domain teammates)
 
 ### Phase 3: Roll out account-scoped queries
 1. Update artifact query routes to use `getLatestForAccount`
