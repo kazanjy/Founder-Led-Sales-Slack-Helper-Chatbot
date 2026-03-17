@@ -1102,3 +1102,230 @@ When a user sends an image via Slack:
 - GPT-4o Vision: ~$0.01-0.03 per image (depending on size/detail)
 - Storage (if implemented): ~$0.02/GB/month (S3/Supabase)
 - Consider rate limiting or usage caps per user
+
+---
+
+# Account Model — Multi-User Shared Context
+
+## Problem
+
+Today every GTM artifact (sales narrative, discovery questions, objection library, etc.) is scoped to a single `userId`. When multiple people at the same company use Mikey, each starts from scratch — there's no way to share the sales narrative one person built with their teammates. We need a shared boundary so that multiple users see and build on the same GTM context.
+
+## Design Principles
+
+1. **Account is the shared boundary.** Multiple Users belong to one Account. GTM artifacts are accessible at the Account level.
+2. **Artifacts stay owned by the user who created them.** `userId` stays on every artifact. But when the system needs "the sales narrative," it queries for the most recent one from **any user on the same account**.
+3. **Only GTM artifacts are shared.** The structured/generated content that defines the company's sales approach is account-scoped. User-authored items stay private per-user.
+4. **Backwards compatible.** Users without an `accountId` (legacy solo users) continue to work exactly as before — queries fall back to `userId`-only scoping.
+
+## What's Shared vs. Private
+
+### Shared at Account Level (GTM Artifacts)
+These are the structured, generated artifacts that define the company's GTM strategy. Anyone on the account can see the latest version from any team member:
+- Sales Narrative & Messaging (SalesNarrativeVersion)
+- GTM Maturity Assessment (MaturityAssessment)
+- Discovery Questions (DiscoveryQuestionsVersion)
+- First Call Checklist (FirstCallChecklistVersion)
+- Email Sequence (EmailSequenceVersion)
+- LinkedIn Sequence (LinkedInSequenceVersion)
+- Cold Call Script (ColdCallScriptVersion)
+- Sales Deck (SalesDeckVersion)
+- Objection Library (ObjectionEntry)
+- Ad Creator (AdCreatorVersion)
+- GtmVariables (merge fields)
+
+### Private per-User (NOT shared)
+These are user-authored, user-specific items. They stay scoped to the individual:
+- **Chat conversations** — private coaching sessions
+- **Call Reviews** — individual's recorded call analysis
+- **Pre-Call Research** — user's specific prospect research
+- **Pre-Call Planning** — user's specific call prep
+- **Coaching Sessions** — individual coaching interactions
+- **Sales Metrics** — individual's pipeline/activity data
+- **User Files** — uploaded documents
+- **Saved Prompts** — personal prompt shortcuts
+
+### Context Injection into Chat
+When a user chats with Mikey, the context injection (attachments, merge variables) pulls from **account-scoped** GTM artifacts — so User B's chat benefits from the sales narrative User A built. But the chat conversation itself is private to User B.
+
+## Data Model
+
+### New: `Account` model
+
+```prisma
+model Account {
+  id          String   @id @default(cuid())
+  name        String   // Company/team name (e.g., "Acme Corp")
+
+  // Optional link to Slack workspace (for auto-grouping Slack users)
+  workspaceId String?  @unique
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  users       User[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("accounts")
+}
+```
+
+### Modified: `User` model
+
+```prisma
+model User {
+  // ... existing fields ...
+
+  // Account membership (null for legacy solo users)
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  // Role within the account
+  accountRole AccountRole @default(MEMBER)
+
+  // ... rest of existing fields ...
+}
+
+enum AccountRole {
+  OWNER    // Created the account, can manage members + billing
+  ADMIN    // Can invite/remove members, edit all artifacts
+  MEMBER   // Can create artifacts, view all account artifacts
+}
+```
+
+### No changes to artifact models
+
+`SalesNarrativeVersion`, `DiscoveryQuestionsVersion`, `GtmVariable`, `ObjectionEntry`, etc. all keep their existing `userId` FK. No new columns needed on artifact tables.
+
+## Query Pattern: "Latest for my Account"
+
+The key change is how we resolve "give me the latest sales narrative." Today:
+
+```typescript
+// Current: per-user only
+const latest = await prisma.salesNarrativeVersion.findFirst({
+  where: { userId: currentUser.id },
+  orderBy: { createdAt: 'desc' },
+});
+```
+
+New pattern:
+
+```typescript
+// New: account-scoped with user fallback
+async function getLatestForAccount<T>(
+  model: PrismaModel,
+  userId: string,
+  accountId: string | null,
+  orderBy = { createdAt: 'desc' as const }
+): Promise<T | null> {
+  if (accountId) {
+    // Find latest from ANY user on this account
+    const accountUserIds = await prisma.user.findMany({
+      where: { accountId },
+      select: { id: true },
+    });
+    return model.findFirst({
+      where: { userId: { in: accountUserIds.map(u => u.id) } },
+      orderBy,
+    });
+  }
+  // Fallback: solo user, query by userId only
+  return model.findFirst({ where: { userId }, orderBy });
+}
+```
+
+This helper gets used everywhere we currently do `findFirst({ where: { userId } })` for artifacts.
+
+### Optimization: Cache account user IDs
+
+Since account membership changes rarely, cache the `accountUserIds` array per-request (or in a short TTL cache) to avoid N+1 queries.
+
+## What Changes per Layer
+
+### API Routes (artifact queries)
+Every route that fetches "latest" or "list" of artifacts needs to use the account-scoped query:
+- `/api/sales-narrative/latest`
+- `/api/discovery-questions/latest`
+- `/api/first-call-checklist/latest`
+- `/api/email-sequence/latest`
+- `/api/linkedin-sequence/latest`
+- `/api/cold-call-script/latest`
+- `/api/objection-library/entries`
+- `/api/attachments/content` (context injection into chat)
+- All "history" endpoints — show all versions from anyone on the account
+- `GtmVariable` lookups (merge fields) — resolve from account, not just user
+
+### API Routes (writes stay per-user)
+Create/update operations still use `userId` — the person who generates a new narrative owns it. No change needed.
+
+### Chat Context Injection
+When building the context brief for a chat message, resolve attachments and merge variables through the account. If User A built the sales narrative and User B asks Mikey a question with the Sales Narrative attachment, User B gets User A's narrative.
+
+### SalesNavBar (status indicators)
+Nav status checks ("has sales narrative?") should reflect account-level status, not just the current user. If anyone on the account has a narrative, show it as complete.
+
+### New: Account Management UI
+- **Create account:** Settings page or onboarding flow. Enter company name.
+- **Invite members:** By email. Invited user gets linked to the account on login/signup.
+- **Auto-group from Slack:** When a Slack workspace is connected, auto-create an Account and link all workspace users to it.
+- **Member list:** Show who's on the account + their roles.
+
+### New: Account API Routes
+- `POST /api/account` — Create account
+- `GET /api/account` — Get current user's account + members
+- `POST /api/account/invite` — Invite by email
+- `PATCH /api/account/members/[id]` — Change role
+- `DELETE /api/account/members/[id]` — Remove member
+
+## Migration Strategy
+
+### Phase 1: Schema + backward compat
+1. Add `Account` model to Prisma schema
+2. Add `accountId` + `accountRole` to User (nullable)
+3. Run migration — all existing users have `accountId = null` (solo mode)
+4. Build the `getLatestForAccount` helper
+5. No behavior change yet — null accountId means queries fall back to userId-only
+
+### Phase 2: Account creation + auto-grouping
+1. Build account creation UI
+2. Auto-create accounts for existing Slack workspaces (one Account per Workspace, link all workspace users)
+3. Build invite flow for web-only users
+
+### Phase 3: Roll out account-scoped queries
+1. Update artifact query routes to use `getLatestForAccount`
+2. Update chat context injection
+3. Update SalesNavBar status checks
+4. Update merge variable resolution
+
+### Phase 4: Account management UI
+1. Settings page: account name, member list, roles
+2. Invite by email
+3. Transfer ownership
+
+## Edge Cases
+
+- **Solo user (no account):** Everything works exactly as today. `accountId` is null, all queries use `userId`.
+- **User switches accounts:** Artifacts they created stay owned by them. If they leave, the account loses access to those artifacts (or: transfer ownership on leave — TBD).
+- **Conflicting edits:** Two users edit the sales narrative simultaneously. Since each "edit" creates a new version, the latest version wins. No merge conflicts — just version history. UI could show "Updated by [name] 5 min ago."
+- **Role permissions:** For Phase 1, all members can read + write all artifacts. Role-based restrictions (e.g., only OWNER/ADMIN can edit narrative) can come later.
+
+## Files to Create
+| File | Purpose |
+|------|---------|
+| `prisma/migrations/YYYYMMDD_add_account_model/migration.sql` | DB migration |
+| `src/lib/account/get-latest-for-account.ts` | Shared account-scoped query helper |
+| `src/app/api/account/route.ts` | Create + get account |
+| `src/app/api/account/invite/route.ts` | Invite member by email |
+| `src/app/api/account/members/[id]/route.ts` | Manage member roles |
+| `src/app/settings/account/page.tsx` | Account management UI |
+
+## Files to Modify
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Add Account model, accountId + accountRole on User |
+| Every `/api/*/latest/route.ts` | Use `getLatestForAccount` instead of userId-only query |
+| Every `/api/*/history/route.ts` | Query by account user IDs |
+| `src/lib/attachments/` | Resolve attachment content through account |
+| `src/components/SalesNavBar.tsx` | Status checks use account scope |
+| `src/app/api/chat/route.ts` (or equivalent) | Context injection resolves through account |
