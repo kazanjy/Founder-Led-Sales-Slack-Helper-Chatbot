@@ -15,7 +15,8 @@ model Account {
   // Email domain used for auto-grouping (e.g., "acme.com")
   emailDomain String?  @unique
 
-  users       User[]
+  users          User[]
+  channelClaims  ChannelClaim[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -54,6 +55,7 @@ model Workspace {
 
   users              User[]
   conversations      Conversation[]
+  channelClaims      ChannelClaim[]
 
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -143,6 +145,7 @@ model User {
   objectionBootstraps ObjectionBootstrap[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
+  channelClaims   ChannelClaim[]
 
   // Track update-in-progress state for maturity assessment
   maturityUpdateInProgress Boolean  @default(false)
@@ -492,6 +495,35 @@ model Session {
   createdAt       DateTime  @default(now())
 
   @@map("sessions")
+}
+
+// Channel claim: 1:1 mapping from a Slack channel to an account + user
+// An account/user can claim multiple channels, but each channel has exactly one owner.
+model ChannelClaim {
+  id              String    @id @default(cuid())
+
+  // The Slack channel being claimed (unique — one claim per channel)
+  slackChannelId  String    @unique
+  slackChannelName String?  // Display name (e.g., "#sales-team"), cached for convenience
+
+  // Which workspace this channel belongs to
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Which account owns this channel
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Which user claimed it (the channel owner)
+  claimedByUserId String
+  claimedBy       User      @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([accountId])
+  @@index([workspaceId])
+  @@map("channel_claims")
 }
 
 // Global settings (single row)
