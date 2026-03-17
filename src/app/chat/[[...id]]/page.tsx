@@ -3179,6 +3179,29 @@ export default function ChatPage() {
                   <span className="hidden sm:inline">Copy</span>
                 </button>
                 <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/chat/${selectedConversation}/clone`, { method: "POST" });
+                      const data = await res.json();
+                      if (data.success && data.conversationId) {
+                        showToast("Chat cloned! Redirecting...", "bottom");
+                        router.push(`/chat/${data.conversationId}`);
+                      } else {
+                        showToast("Failed to clone chat", "bottom");
+                      }
+                    } catch {
+                      showToast("Failed to clone chat", "bottom");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span className="hidden sm:inline">Clone</span>
+                </button>
+                <button
                   onClick={handleShare}
                   disabled={sharing}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
