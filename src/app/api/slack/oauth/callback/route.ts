@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { findOrCreateAccountForUser } from "@/lib/accounts";
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID!;
 const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET!;
@@ -147,15 +148,34 @@ export async function GET(request: NextRequest) {
       user = existingSlackUser;
     } else {
       // Not logged in, new Slack user - create user record
+      // Fetch installer's profile from Slack to get their email
+      let installerEmail: string | null = null;
+      let installerName: string | null = null;
+      try {
+        const slackClient = getSlackClient(botToken);
+        const profileResult = await slackClient.users.info({ user: installedByUserId });
+        installerEmail = profileResult.user?.profile?.email || null;
+        installerName = profileResult.user?.real_name || profileResult.user?.name || null;
+      } catch (profileErr) {
+        console.error("[Slack Install] Could not fetch installer profile:", profileErr);
+      }
+
       user = await prisma.user.create({
         data: {
           slackUserId: installedByUserId,
           workspaceId: workspace.id,
+          slackEmail: installerEmail,
+          slackUserName: installerName,
           trialStartedAt: new Date(),
           licenseStatus: "TRIAL",
         },
       });
       console.log(`[Slack Install] Created new user for installer: ${user.id}`);
+
+      // Auto-create or join an Account (if we have an email)
+      if (installerEmail) {
+        user = await findOrCreateAccountForUser(user.id, installerEmail, installerName);
+      }
     }
 
     // Create session for the user (new session even if they had one)

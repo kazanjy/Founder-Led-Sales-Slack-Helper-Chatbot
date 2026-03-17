@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { findOrCreateAccountForUser } from "@/lib/accounts";
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -115,6 +116,9 @@ export async function GET(request: NextRequest) {
       });
       isNewUser = true;
       console.log(`[Google Auth] Created new user: ${userInfo.email}`);
+
+      // Auto-create or join an Account
+      user = await findOrCreateAccountForUser(user.id, userInfo.email, userInfo.name);
     } else {
       // Update existing user with Google info if not already set
       await prisma.user.update({

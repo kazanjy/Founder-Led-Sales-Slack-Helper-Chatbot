@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
+import { findOrCreateAccountForUser } from "@/lib/accounts";
 
 /**
  * Helper to get current logged-in user from session cookie
@@ -234,6 +235,12 @@ export async function GET(request: NextRequest) {
         },
       });
       isNewUser = true;
+
+      // Auto-create or join an Account (if we have an email)
+      const slackEmail = identityData.user?.email;
+      if (slackEmail) {
+        user = await findOrCreateAccountForUser(user.id, slackEmail, identityData.user?.name);
+      }
     }
 
     console.log("[Slack Auth] Step 7: Creating session for user", user.id, "isNew:", isNewUser);
