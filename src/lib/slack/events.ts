@@ -1070,6 +1070,21 @@ async function processMessage(
 ) {
   const client = getSlackClient(workspace.botToken);
 
+  // Check if this channel is claimed by an account
+  // If so, use the channel owner's context (sales narrative, etc.) and attribute the conversation to them
+  const channelClaim = await prisma.channelClaim.findUnique({
+    where: { slackChannelId: channel },
+    select: { claimedByUserId: true, accountId: true },
+  });
+
+  // The context user is the channel owner (if claimed) — used for loading sales narrative
+  // The conversation owner is also the channel owner — so activity appears under their account
+  const contextUserId = channelClaim?.claimedByUserId || user.id;
+
+  if (channelClaim) {
+    console.log(`[Slack] Channel ${channel} is claimed by account ${channelClaim.accountId}, using context from user ${channelClaim.claimedByUserId}`);
+  }
+
   // Get or create conversation
   let conversation = await prisma.conversation.findUnique({
     where: {
@@ -1087,7 +1102,7 @@ async function processMessage(
     conversation = await prisma.conversation.create({
       data: {
         workspaceId: workspace.id,
-        userId: user.id,
+        userId: contextUserId,
         slackChannelId: channel,
         slackThreadTs: threadTs,
         firstMessagePreview: text.substring(0, 100),
@@ -1180,11 +1195,11 @@ async function processMessage(
       salesNarrativeOptedOut = true;
       console.log(`[Slack] User opted out of Sales Narrative context with #noattachments`);
     } else {
-      const salesNarrative = await getSalesNarrativeForContext(user.id);
+      const salesNarrative = await getSalesNarrativeForContext(contextUserId);
       if (salesNarrative) {
         messageWithContext = `${messageWithContext}\n\n${salesNarrative}`;
         salesNarrativeIncluded = true;
-        console.log(`[Slack] Appended Sales Narrative context for user ${user.id}`);
+        console.log(`[Slack] Appended Sales Narrative context for user ${contextUserId}${channelClaim ? " (channel owner)" : ""}`);
       }
     }
   }
@@ -1294,7 +1309,10 @@ async function processMessage(
 
     // Add Sales Narrative context notice if it was included or opted out
     if (salesNarrativeIncluded) {
-      slackResponse = `_📋 Your Sales Narrative was provided to Mikey for context._\n\n${slackResponse}`;
+      const narrativeNotice = channelClaim
+        ? `_📋 The channel owner's Sales Narrative was provided to Mikey for context._`
+        : `_📋 Your Sales Narrative was provided to Mikey for context._`;
+      slackResponse = `${narrativeNotice}\n\n${slackResponse}`;
     } else if (salesNarrativeOptedOut) {
       slackResponse = `_Per #noattachments command, your Sales Narrative was not provided to Mikey as context._\n\n${slackResponse}`;
     }

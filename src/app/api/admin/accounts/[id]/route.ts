@@ -51,11 +51,12 @@ export async function GET(
             avatarUrl: true,
             accountRole: true,
             licenseStatus: true,
-            conversationCount: true,
-            messageCount: true,
             workspaceId: true,
             workspace: {
               select: { id: true, slackTeamName: true },
+            },
+            _count: {
+              select: { conversations: true, messages: true },
             },
             createdAt: true,
           },

@@ -13,8 +13,7 @@ interface AccountUser {
   avatarUrl: string | null;
   accountRole: string;
   licenseStatus: string;
-  conversationCount: number;
-  messageCount: number;
+  _count: { conversations: number; messages: number };
   workspaceId: string | null;
   workspace: { id: string; slackTeamName: string } | null;
   createdAt: string;
@@ -475,8 +474,8 @@ export default function AdminAccountDetailPage() {
                       }`}>
                         {user.licenseStatus}
                       </span>
-                      <span className="ml-2">{user.conversationCount} convos</span>
-                      <span className="ml-1">{user.messageCount} msgs</span>
+                      <span className="ml-2">{user._count.conversations} convos</span>
+                      <span className="ml-1">{user._count.messages} msgs</span>
                     </div>
                   </div>
                   <button
