@@ -917,9 +917,9 @@ export default function ChatPage() {
   };
 
   // Show toast notification
-  const showToast = (message: string, position: "left" | "right" | "bottom" = "right") => {
+  const showToast = (message: string, position: "left" | "right" | "bottom" = "right", duration = 3000) => {
     setToast({ message, position });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), duration);
   };
 
   // Copy conversation as rich text (preserves formatting when pasted)
@@ -1263,19 +1263,20 @@ export default function ChatPage() {
         setConversations(prev =>
           prev.map(c => c.id === selectedConversation ? { ...c, mode: newMode } : c)
         );
-        setToast({
-          message: newMode === "DIRECT"
+        showToast(
+          newMode === "DIRECT"
             ? "Switched to Direct LLM — full context, no RAG"
             : "Switched to Founding Sales Content — RAG active",
-          position: "bottom",
-        });
+          "bottom",
+          5000
+        );
       }
     } catch (error) {
       console.error("Error switching mode:", error);
     } finally {
       setSwitchingMode(false);
     }
-  }, [conversationMode, selectedConversation, switchingMode, sending, setToast, setConversations]);
+  }, [conversationMode, selectedConversation, switchingMode, sending, showToast, setConversations]);
 
   // Save sidebar state to localStorage when it changes
   const toggleSidebar = useCallback(() => {
