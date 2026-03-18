@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { generateSessionTitle } from "@/lib/openai";
 
-// GET - List all coaching sessions for the current user
+// GET - List all coaching sessions visible to the current user (account-wide)
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -11,8 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // If user belongs to an account, show all sessions from account members
+    let whereClause: { userId: string } | { user: { accountId: string } };
+    if (user.accountId) {
+      whereClause = { user: { accountId: user.accountId } };
+    } else {
+      whereClause = { userId: user.id };
+    }
+
     const sessions = await prisma.coachingSession.findMany({
-      where: { userId: user.id },
+      where: whereClause,
       orderBy: { sessionDate: "desc" },
       select: {
         id: true,
@@ -23,6 +31,14 @@ export async function GET() {
         recordingUrl: true,
         createdAt: true,
         updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            slackUserName: true,
+          },
+        },
       },
     });
 

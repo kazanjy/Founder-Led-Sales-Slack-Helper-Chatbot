@@ -7,6 +7,7 @@ export interface AuthUser {
   slackUserName: string | null;
   slackEmail: string | null;
   workspaceId: string | null;
+  accountId: string | null;
   licenseStatus: string;
   trialStartedAt: Date | null;
   // Google OAuth fields
@@ -56,6 +57,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     slackUserName: session.user.slackUserName,
     slackEmail: session.user.slackEmail,
     workspaceId: session.user.workspaceId,
+    accountId: session.user.accountId ?? null,
     licenseStatus: session.user.licenseStatus,
     trialStartedAt: session.user.trialStartedAt,
     googleId: session.user.googleId,

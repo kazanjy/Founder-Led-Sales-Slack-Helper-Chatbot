@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
+// Helper to build a where clause scoped to the user's account (or just the user)
+function accountScope(user: { id: string; accountId: string | null }, id: string) {
+  if (user.accountId) {
+    return { id, user: { accountId: user.accountId } };
+  }
+  return { id, userId: user.id };
+}
+
 // GET - Fetch a single coaching session
 export async function GET(
   request: NextRequest,
@@ -16,7 +24,10 @@ export async function GET(
     const { id } = await params;
 
     const session = await prisma.coachingSession.findFirst({
-      where: { id, userId: user.id },
+      where: accountScope(user, id),
+      include: {
+        user: { select: { name: true, email: true, slackUserName: true } },
+      },
     });
 
     if (!session) {
@@ -45,9 +56,9 @@ export async function PUT(
     const body = await request.json();
     const { title, sessionDate, notes, transcript, recordingUrl } = body;
 
-    // Verify ownership
+    // Verify access (account-scoped)
     const existing = await prisma.coachingSession.findFirst({
-      where: { id, userId: user.id },
+      where: accountScope(user, id),
       select: { id: true },
     });
 
@@ -86,9 +97,9 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify ownership
+    // Verify access (account-scoped)
     const existing = await prisma.coachingSession.findFirst({
-      where: { id, userId: user.id },
+      where: accountScope(user, id),
       select: { id: true },
     });
 

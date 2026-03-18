@@ -18,6 +18,12 @@ interface CoachingSession {
   recordingUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  userId: string;
+  user?: {
+    name: string | null;
+    email: string | null;
+    slackUserName: string | null;
+  };
 }
 
 function formatDate(dateStr: string): string {
@@ -27,6 +33,10 @@ function formatDate(dateStr: string): string {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+function sessionUserName(session: CoachingSession): string | null {
+  return session.user?.name || session.user?.slackUserName || session.user?.email || null;
 }
 
 function formatSessionForChat(session: CoachingSession): string {
@@ -356,6 +366,9 @@ function CoachingHistoryContent() {
                         <div className="flex-1 min-w-0">
                           <div className="text-xs text-gray-500 mb-0.5">
                             {formatDate(session.sessionDate)}
+                            {sessionUserName(session) && (
+                              <span className="ml-1.5 text-gray-400">· {sessionUserName(session)}</span>
+                            )}
                           </div>
                           <div className="font-medium text-gray-900 text-sm truncate">
                             {session.title}
@@ -534,6 +547,9 @@ function CoachingHistoryContent() {
                       <div className="min-w-0">
                         <div className="text-sm text-gray-500 mb-1">
                           {formatDate(selectedSession.sessionDate)}
+                          {sessionUserName(selectedSession) && (
+                            <span className="ml-1.5 text-gray-400">· {sessionUserName(selectedSession)}</span>
+                          )}
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900">
                           {selectedSession.title}
