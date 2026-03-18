@@ -120,7 +120,7 @@ export default function AdminUserDetailPage() {
   const handleImpersonate = async () => {
     const confirmed = await showConfirm({
       title: "Login as User",
-      message: `Are you sure you want to log in as ${user?.name || user?.email || "this user"}? You will be redirected to the chat page as this user.`,
+      message: `Are you sure you want to log in as ${user?.name || user?.email || "this user"}? A new tab will open with the chat page as this user.`,
       variant: "warning",
       confirmLabel: "Login as User",
     });
@@ -134,7 +134,8 @@ export default function AdminUserDetailPage() {
       const data = await res.json();
 
       if (res.ok && data.redirectTo) {
-        router.push(data.redirectTo);
+        window.open(data.redirectTo, "_blank");
+        setImpersonating(false);
       } else {
         setMessage({ type: "error", text: data.error || "Failed to impersonate user" });
         setImpersonating(false);

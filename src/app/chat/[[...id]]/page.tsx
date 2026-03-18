@@ -2497,7 +2497,7 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <SalesNavBar />
-      <div className={`flex-1 flex bg-white overflow-hidden`}>
+      <div className={`flex-1 flex bg-white dark:bg-gray-950 overflow-hidden`}>
       {/* Mobile sidebar backdrop */}
       {isMobile && mobileSidebarOpen && (
         <div
@@ -2507,7 +2507,7 @@ export default function ChatPage() {
       )}
       {/* Sidebar - fixed height, doesn't scroll with chat */}
       <div
-        className={`bg-gray-100 border-r border-gray-200 flex flex-col h-full flex-shrink-0 overflow-hidden relative ${!isResizingSidebar ? "transition-all duration-300" : ""} ${
+        className={`bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full flex-shrink-0 overflow-hidden relative ${!isResizingSidebar ? "transition-all duration-300" : ""} ${
           isMobile ? "fixed inset-y-0 left-0 z-50" : ""
         }`}
         style={{
@@ -2612,7 +2612,7 @@ export default function ChatPage() {
           {toolsExpanded && <div className="space-y-1 max-h-[176px] overflow-y-auto">
             <a
               href="/pre-call-planning/research"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <span className="w-5 h-5 rounded-full border-2 border-blue-400 flex items-center justify-center">
                 <span className="w-2 h-2 rounded-full bg-blue-400"></span>
@@ -2622,7 +2622,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/call-review"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.callReview?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2634,7 +2634,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/email-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.emailSequence?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2646,7 +2646,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/linkedin-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.linkedInSequence?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2658,7 +2658,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/call-scripts"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.coldCallScript?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2670,7 +2670,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/sales-deck"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.salesDeck?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2682,7 +2682,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/sales-metrics"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               {appProgress.salesMetrics?.hasGenerated ? (
                 <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2694,7 +2694,7 @@ export default function ChatPage() {
             </a>
             <a
               href="/files"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
                 <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2736,7 +2736,7 @@ export default function ChatPage() {
             <div className="space-y-1">
               <a
                 href="/assessment/bulk"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 {appProgress.gtmAssessment?.hasSubmitted ? (
                   <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2760,7 +2760,7 @@ export default function ChatPage() {
               </a>
               <a
                 href="/sales-narrative"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 {appProgress.salesNarrative?.hasGenerated ? (
                   <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2784,7 +2784,7 @@ export default function ChatPage() {
               </a>
               <a
                 href="/discovery-questions"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 {appProgress.discoveryQuestions?.hasGenerated ? (
                   <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2799,7 +2799,7 @@ export default function ChatPage() {
               </a>
               <a
                 href="/first-call-checklist"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 {appProgress.firstCallChecklist?.hasGenerated ? (
                   <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2814,7 +2814,7 @@ export default function ChatPage() {
               </a>
               <a
                 href="/pre-call-planning"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 {appProgress.preCallPlanning?.hasGenerated ? (
                   <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
@@ -2841,10 +2841,10 @@ export default function ChatPage() {
             conversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`relative group border-b border-gray-200 ${
+                className={`relative group border-b border-gray-200 dark:border-gray-700 ${
                   archivingId === conv.id ? "opacity-50" : ""
                 } ${
-                  selectedConversation === conv.id ? "bg-white" : "hover:bg-gray-200"
+                  selectedConversation === conv.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
                 } ${openMenuId === conv.id ? "z-50" : ""}`}
               >
                 <a
@@ -2882,7 +2882,7 @@ export default function ChatPage() {
                       </>
                     )}
                   </div>
-                  <p className="text-[15px] text-gray-900 truncate pr-8 flex items-center gap-1.5">
+                  <p className="text-[15px] text-gray-900 dark:text-gray-100 truncate pr-8 flex items-center gap-1.5">
                     {conv.mode === "DIRECT" && (
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 flex-shrink-0">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -2921,14 +2921,14 @@ export default function ChatPage() {
                   {openMenuId === conv.id && (
                     <div
                       ref={menuRef}
-                      className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                      className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
                     >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRenameConversation(conv.id, conv.title);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -2966,7 +2966,7 @@ export default function ChatPage() {
                           setShareModalConversationId(conv.id);
                           setOpenMenuId(null);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -2991,7 +2991,7 @@ export default function ChatPage() {
                             showToast("Failed to clone chat", "bottom");
                           }
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -3004,7 +3004,7 @@ export default function ChatPage() {
                           e.stopPropagation();
                           handleArchiveConversation(conv.id);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="21 8 21 21 3 21 3 8"></polyline>
@@ -3110,7 +3110,7 @@ export default function ChatPage() {
       {/* Main Chat Area - scrolls independently */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Top header with Upgrade and Copy/Share buttons */}
-        <div className="border-b border-gray-200 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center bg-white">
+        <div className="border-b border-gray-200 dark:border-gray-700 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center bg-white dark:bg-gray-900">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* Expand sidebar button (shown when collapsed or on mobile) */}
             {(sidebarCollapsed || isMobile) && (
@@ -3272,7 +3272,7 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 dark:text-gray-100">
           {loadingMessages ? (
             <div className="h-full flex items-center justify-center">
               <div className="flex items-center gap-2 text-gray-500">
@@ -3293,10 +3293,10 @@ export default function ChatPage() {
                     alt="Mikey"
                     className="w-20 h-20 md:w-32 md:h-32 rounded-3xl mx-auto mb-3 md:mb-4"
                   />
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                     {user?.name ? `Hey, ${user.name.split(' ')[0]}!` : 'Welcome to Mikey'}
                   </h2>
-                  <p className="text-gray-500 mb-6">
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">
                     What can I help you with today?
                   </p>
                 </div>
@@ -3351,7 +3351,7 @@ export default function ChatPage() {
                       />
                     ) : (
                       <div
-                        className={`relative border rounded-2xl bg-white shadow-sm transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
+                        className={`relative border rounded-2xl bg-white dark:bg-gray-800 shadow-sm transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200 dark:border-gray-700"}`}
                         onDrop={handleImageDrop}
                         onDragOver={handleImageDragOver}
                         onDragLeave={handleImageDragLeave}
@@ -3457,7 +3457,7 @@ export default function ChatPage() {
                           }}
                           onPaste={handlePaste}
                           placeholder="Ask Mikey anything about founder-led sales..."
-                          className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
+                          className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                           rows={2}
                           style={{ height: 'auto' }}
                           onInput={(e) => {
@@ -3468,7 +3468,7 @@ export default function ChatPage() {
                         />
 
                         {/* Bottom toolbar */}
-                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 rounded-b-2xl">
+                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 rounded-b-2xl dark:bg-gray-800">
                           {/* Left side - action buttons */}
                           <div className="flex items-center gap-1">
                             {/* GTM Variables Dropdown */}
@@ -3489,7 +3489,7 @@ export default function ChatPage() {
                                     className="fixed inset-0 z-40"
                                     onClick={() => setShowVariablesDropdown(false)}
                                   />
-                                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 max-h-80 overflow-y-auto">
                                     <div className="p-2 border-b border-gray-100">
                                       <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
                                     </div>
@@ -3590,7 +3590,7 @@ export default function ChatPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                     <a
                       href={appProgress.gtmAssessment?.hasSubmitted ? "/maturity-history" : "/assessment/bulk"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">📊</span>
@@ -3609,7 +3609,7 @@ export default function ChatPage() {
                     </a>
                     <a
                       href={appProgress.salesNarrative?.hasGenerated ? "/sales-narrative/history" : "/sales-narrative"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">📝</span>
@@ -3628,7 +3628,7 @@ export default function ChatPage() {
                     </a>
                     <a
                       href={appProgress.discoveryQuestions?.hasGenerated ? "/discovery-questions/history" : "/discovery-questions"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">🔍</span>
@@ -3645,7 +3645,7 @@ export default function ChatPage() {
                     </a>
                     <a
                       href={appProgress.firstCallChecklist?.hasGenerated ? "/first-call-checklist/history" : "/first-call-checklist"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">📋</span>
@@ -3662,7 +3662,7 @@ export default function ChatPage() {
                     </a>
                     <a
                       href={appProgress.preCallPlanning?.hasGenerated ? "/pre-call-planning/history" : "/pre-call-planning"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">🎯</span>
@@ -3679,7 +3679,7 @@ export default function ChatPage() {
                     </a>
                     <a
                       href="/pre-call-planning/research"
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all text-center group"
+                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-300 hover:shadow-md transition-all text-center group"
                     >
                       <div className="relative">
                         <span className="text-3xl">🔍</span>
@@ -3765,7 +3765,7 @@ export default function ChatPage() {
                 <div key={msg.id}>
                   {msg.role === "USER" ? (
                     <div className="flex justify-end">
-                      <div className="border border-gray-200 rounded-lg p-3 md:p-4 bg-gray-50 max-w-[90%] md:max-w-[70%]">
+                      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 max-w-[90%] md:max-w-[70%]">
                         {/* Show attached images/PDFs for this specific message */}
                         {(() => {
                           const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
@@ -3807,7 +3807,7 @@ export default function ChatPage() {
                     </div>
                   ) : (
                     <div>
-                      <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
+                      <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                       {/* Copy/Share buttons for this response */}
@@ -3859,7 +3859,7 @@ export default function ChatPage() {
                       className="w-8 h-8 rounded-lg flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="prose prose-sm max-w-none text-gray-700">
+                      <div className="prose dark:prose-invert prose-sm max-w-none text-gray-700 dark:text-gray-300">
                         <ReactMarkdown>{streamingMessage}</ReactMarkdown>
                         <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-0.5" />
                       </div>
@@ -3884,7 +3884,7 @@ export default function ChatPage() {
 
         {/* Input - only show at bottom when there are messages */}
         {messages.length > 0 && (
-        <div className="border-t border-gray-200 bg-white relative flex flex-col shrink-0 overflow-visible" style={{
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 relative flex flex-col shrink-0 overflow-visible" style={{
           minHeight: 100 +
             ((selectedAttachments.length > 0 || conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length) ? 48 : 0) +
             ((selectedImages.length > 0 || conversations.find(c => c.id === selectedConversation)?.imagesIncluded?.length) ? 110 : 0) +
@@ -3942,7 +3942,7 @@ export default function ChatPage() {
               )}
               {isViewingSharedChat ? (
                 /* Read-only state for shared chats */
-                <div className="border rounded-2xl bg-gray-50 shadow-sm w-full p-4 text-center">
+                <div className="border rounded-2xl bg-gray-50 dark:bg-gray-800 dark:border-gray-700 shadow-sm w-full p-4 text-center">
                   <div className="text-gray-500 mb-2">
                     This is a read-only shared chat from{" "}
                     <span className="font-medium text-gray-700">
@@ -3989,7 +3989,7 @@ export default function ChatPage() {
                 />
               ) : (
                 <div
-                  className={`relative border rounded-2xl bg-white shadow-sm w-full transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
+                  className={`relative border rounded-2xl bg-white dark:bg-gray-800 shadow-sm w-full transition-colors ${isDraggingImage ? "border-blue-400 bg-blue-50" : "border-gray-200 dark:border-gray-700"}`}
                   onDrop={handleImageDrop}
                   onDragOver={handleImageDragOver}
                   onDragLeave={handleImageDragLeave}
@@ -4096,7 +4096,7 @@ export default function ChatPage() {
                     }}
                     onPaste={handlePaste}
                     placeholder="Ask Mikey anything about founder-led sales..."
-                    className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl"
+                    className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[60px] max-h-[200px] text-[16px] rounded-t-2xl dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                     rows={2}
                     style={{ height: 'auto' }}
                     onInput={(e) => {
@@ -4107,7 +4107,7 @@ export default function ChatPage() {
                   />
 
                   {/* Bottom toolbar */}
-                  <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 rounded-b-2xl">
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 rounded-b-2xl dark:bg-gray-800">
                     {/* Left side - action buttons */}
                     <div className="flex items-center gap-1">
                       {/* GTM Variables Dropdown */}
@@ -4128,7 +4128,7 @@ export default function ChatPage() {
                               className="fixed inset-0 z-40"
                               onClick={() => setShowVariablesDropdown(false)}
                             />
-                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 max-h-80 overflow-y-auto">
                               <div className="p-2 border-b border-gray-100">
                                 <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
                               </div>
@@ -4252,7 +4252,7 @@ export default function ChatPage() {
             }
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 dark:text-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
             {/* Search Input */}
             <div className="flex items-center px-5 py-4 border-b border-gray-100">
               <input
@@ -4265,7 +4265,7 @@ export default function ChatPage() {
                 }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Search conversations..."
-                className="flex-1 text-lg text-gray-900 placeholder-gray-400 outline-none"
+                className="flex-1 text-lg text-gray-900 dark:text-white placeholder-gray-400 outline-none bg-transparent"
               />
               <button
                 onClick={() => {
@@ -4359,7 +4359,7 @@ export default function ChatPage() {
       {/* Edit Prompt Modal */}
       {editingPrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
                 {isAddingPrompt ? "Add New Prompt" : "Edit Prompt"}
@@ -4494,7 +4494,7 @@ export default function ChatPage() {
       {/* Rename Conversation Modal */}
       {renamingConversation && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">
                 Rename Conversation
@@ -4573,7 +4573,7 @@ export default function ChatPage() {
           tabIndex={-1}
           ref={(el) => el?.focus()}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
@@ -4668,7 +4668,7 @@ export default function ChatPage() {
       {/* Add to Slack Modal for Google-only users */}
       {showSlackModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+          <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-[#4A154B] rounded-2xl flex items-center justify-center">

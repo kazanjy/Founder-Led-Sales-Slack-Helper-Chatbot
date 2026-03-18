@@ -145,7 +145,7 @@ export default function SalesNavBar() {
     {impersonating.active && (
       <ImpersonationBanner userName={impersonating.userName} />
     )}
-    <nav className={`bg-white border-b border-gray-200 ${impersonating.active ? "mt-10" : ""}`}>
+    <nav className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ${impersonating.active ? "mt-10" : ""}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         {/* Mobile: hamburger + current page indicator */}
         <div className="flex items-center md:hidden py-2 gap-2">
@@ -174,7 +174,7 @@ export default function SalesNavBar() {
 
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
-          <div ref={mobileMenuRef} className="md:hidden absolute left-0 right-0 top-auto bg-white border-b border-gray-200 shadow-lg z-50 max-h-[70vh] overflow-y-auto">
+          <div ref={mobileMenuRef} className="md:hidden absolute left-0 right-0 top-auto bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg z-50 max-h-[70vh] overflow-y-auto">
             <div className="py-2">
               <Link
                 href="/chat"
@@ -241,7 +241,7 @@ export default function SalesNavBar() {
             className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
               isActive("/chat")
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
             }`}
           >
             💬 Chat
@@ -254,7 +254,7 @@ export default function SalesNavBar() {
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isPlaybookActive
                   ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
               }`}
             >
               📒 Playbook
@@ -267,7 +267,7 @@ export default function SalesNavBar() {
             </button>
 
             {playbookOpen && (
-              <div className="absolute top-full left-0 mt-px bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
                 {playbookItems.map((item) => {
                   // When assessment is completed, link to history page instead of the form
                   const href = item.statusKey === "assessment" && status[item.statusKey]
@@ -303,7 +303,7 @@ export default function SalesNavBar() {
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isActive(item.href)
                   ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
               }`}
             >
               {item.label}

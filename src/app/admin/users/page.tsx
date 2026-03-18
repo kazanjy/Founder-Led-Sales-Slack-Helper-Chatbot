@@ -188,7 +188,7 @@ export default function AdminUsersPage() {
     e.preventDefault();
     const confirmed = await showConfirm({
       title: "Login as User",
-      message: `Are you sure you want to log in as ${userName}? You will be redirected to the chat page as this user.`,
+      message: `Are you sure you want to log in as ${userName}? A new tab will open with the chat page as this user.`,
       variant: "warning",
       confirmLabel: "Login as User",
     });
@@ -200,7 +200,8 @@ export default function AdminUsersPage() {
       });
       const data = await res.json();
       if (res.ok && data.redirectTo) {
-        router.push(data.redirectTo);
+        window.open(data.redirectTo, "_blank");
+        setImpersonatingId(null);
       } else {
         await showAlert({
           title: "Error",
