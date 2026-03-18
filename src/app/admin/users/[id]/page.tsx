@@ -115,6 +115,10 @@ export default function AdminUserDetailPage() {
   const [accountSearchResults, setAccountSearchResults] = useState<{ id: string; name: string; emailDomain: string | null }[]>([]);
   const [accountSearching, setAccountSearching] = useState(false);
   const [assignRole, setAssignRole] = useState("MEMBER");
+  const [assigningWorkspace, setAssigningWorkspace] = useState(false);
+  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
+  const [workspaceSearchResults, setWorkspaceSearchResults] = useState<{ id: string; slackTeamName: string; slackTeamId: string }[]>([]);
+  const [workspaceSearching, setWorkspaceSearching] = useState(false);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   const handleImpersonate = async () => {
@@ -1074,9 +1078,9 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Workspace */}
-          {user.workspace && (
-            <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Workspace</h2>
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Workspace</h2>
+            {user.workspace ? (
               <div className="space-y-2">
                 <div>
                   <label className="text-sm text-gray-500">Name</label>
@@ -1098,9 +1102,105 @@ export default function AdminUserDetailPage() {
                     View Workspace &rarr;
                   </Link>
                 </div>
+                <button
+                  onClick={() => {
+                    if (confirm("Remove this user from their workspace?")) {
+                      updateUser({ workspaceId: null });
+                    }
+                  }}
+                  disabled={saving}
+                  className="text-red-500 hover:text-red-700 text-xs mt-2"
+                >
+                  Remove from workspace
+                </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">No workspace assigned</p>
+                {!assigningWorkspace ? (
+                  <button
+                    onClick={() => setAssigningWorkspace(true)}
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Assign to Workspace
+                  </button>
+                ) : (
+                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Search workspaces
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Type workspace name..."
+                        value={workspaceSearchQuery}
+                        onChange={async (e) => {
+                          setWorkspaceSearchQuery(e.target.value);
+                          if (e.target.value.length < 2) {
+                            setWorkspaceSearchResults([]);
+                            return;
+                          }
+                          setWorkspaceSearching(true);
+                          try {
+                            const res = await fetch(`/api/admin/workspaces?search=${encodeURIComponent(e.target.value)}`);
+                            if (res.ok) {
+                              const data = await res.json();
+                              setWorkspaceSearchResults(data.workspaces || []);
+                            }
+                          } catch { /* ignore */ }
+                          finally { setWorkspaceSearching(false); }
+                        }}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    {workspaceSearching && (
+                      <div className="text-xs text-gray-500">Searching...</div>
+                    )}
+                    {workspaceSearchResults.length > 0 && (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {workspaceSearchResults.map((ws) => (
+                          <div
+                            key={ws.id}
+                            className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-100 text-sm"
+                          >
+                            <span className="truncate">
+                              {ws.slackTeamName}
+                              <span className="text-gray-400 text-xs ml-1">{ws.slackTeamId}</span>
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await updateUser({ workspaceId: ws.id });
+                                setAssigningWorkspace(false);
+                                setWorkspaceSearchQuery("");
+                                setWorkspaceSearchResults([]);
+                              }}
+                              disabled={saving}
+                              className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2 shrink-0 disabled:opacity-50"
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {workspaceSearchQuery.length >= 2 && !workspaceSearching && workspaceSearchResults.length === 0 && (
+                      <div className="text-xs text-gray-400 italic">No workspaces found</div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setAssigningWorkspace(false);
+                        setWorkspaceSearchQuery("");
+                        setWorkspaceSearchResults([]);
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Stats */}
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">

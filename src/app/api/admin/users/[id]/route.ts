@@ -401,6 +401,19 @@ export async function PATCH(
       updateData.accountRole = body.accountRole;
     }
 
+    // Assign to workspace (or remove from workspace with null)
+    if (body.workspaceId !== undefined) {
+      if (body.workspaceId === null) {
+        updateData.workspaceId = null;
+      } else {
+        const ws = await prisma.workspace.findUnique({ where: { id: body.workspaceId } });
+        if (!ws) {
+          return NextResponse.json({ error: "Workspace not found" }, { status: 400 });
+        }
+        updateData.workspaceId = body.workspaceId;
+      }
+    }
+
     // Reset dismissed default prompts
     if (body.resetDefaultPrompts === true) {
       updateData.dismissedDefaultPromptIds = [];
