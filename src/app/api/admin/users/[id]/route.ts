@@ -17,6 +17,7 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
+        account: true,
         workspace: true,
         license: true,
         // Note: dismissedDefaultPromptIds is included by default (scalar field)
@@ -234,6 +235,17 @@ export async function GET(
         licenseStatus: user.licenseStatus,
         trialStartedAt: user.trialStartedAt,
         trialDaysRemaining,
+        // Account
+        accountId: user.accountId,
+        accountRole: user.accountRole,
+        account: user.account
+          ? {
+              id: user.account.id,
+              name: user.account.name,
+              emailDomain: user.account.emailDomain,
+              createdAt: user.account.createdAt,
+            }
+          : null,
         // Workspace
         workspaceId: user.workspaceId,
         workspace: user.workspace

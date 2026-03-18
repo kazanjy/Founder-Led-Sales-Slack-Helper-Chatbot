@@ -18,6 +18,14 @@ interface UserDetail {
   licenseStatus: string;
   trialStartedAt: string | null;
   trialDaysRemaining: number | null;
+  accountId: string | null;
+  accountRole: string;
+  account: {
+    id: string;
+    name: string;
+    emailDomain: string | null;
+    createdAt: string;
+  } | null;
   workspaceId: string | null;
   workspace: {
     id: string;
@@ -894,6 +902,39 @@ export default function AdminUserDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Account */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+            {user.account ? (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm text-gray-500">Name</label>
+                  <div className="font-medium">{user.account.name}</div>
+                </div>
+                {user.account.emailDomain && (
+                  <div>
+                    <label className="text-sm text-gray-500">Email Domain</label>
+                    <div className="font-mono text-xs sm:text-sm">{user.account.emailDomain}</div>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm text-gray-500">Role</label>
+                  <div className="capitalize">{user.accountRole.toLowerCase()}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Created</label>
+                  <div>{new Date(user.account.createdAt).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Account ID</label>
+                  <div className="font-mono text-xs sm:text-sm break-all text-gray-600">{user.account.id}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No account assigned</p>
+            )}
           </div>
 
           {/* Workspace */}
