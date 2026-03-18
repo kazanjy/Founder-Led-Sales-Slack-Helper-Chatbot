@@ -800,51 +800,65 @@ export default function AdminAccountDetailPage() {
                 filteredActivity.map((item) => {
                   const actUserName = item.userName || "Unknown";
                   return (
-                    <button
+                    <div
                       key={`${item.type}-${item.id}`}
-                      onClick={() => handleImpersonateToLink(item.userId, item.link)}
-                      disabled={impersonating}
-                      className="w-full text-left px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                      className="flex items-start gap-2 sm:gap-3 px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors"
                     >
-                      <div className="flex items-start gap-2 sm:gap-3">
-                        <div className="flex-shrink-0">
-                          {item.userAvatarUrl ? (
-                            <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full" />
-                          ) : (
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
-                              {actUserName.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="font-medium text-blue-600 truncate text-sm sm:text-base">
-                              {actUserName}
-                            </span>
-                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
-                              {item.label}
-                            </span>
+                      {/* Avatar + Name: link to admin user profile */}
+                      <Link
+                        href={`/admin/users/${item.userId}`}
+                        className="flex-shrink-0 hover:opacity-80"
+                        title="View admin profile"
+                      >
+                        {item.userAvatarUrl ? (
+                          <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full" />
+                        ) : (
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                            {actUserName.charAt(0).toUpperCase()}
                           </div>
-                          {item.title && (
-                            <div className="text-sm text-gray-700 truncate mt-0.5">
-                              {item.title}
+                        )}
+                      </Link>
+                      {/* Rest of row: impersonate and open asset */}
+                      <button
+                        onClick={() => handleImpersonateToLink(item.userId, item.link)}
+                        disabled={impersonating}
+                        className="flex-1 min-w-0 text-left cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                      >
+                        <div className="flex items-start gap-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <Link
+                                href={`/admin/users/${item.userId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-medium text-blue-600 hover:underline truncate text-sm sm:text-base"
+                              >
+                                {actUserName}
+                              </Link>
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                                {item.label}
+                              </span>
                             </div>
-                          )}
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            <span className="sm:hidden">{formatTimeAgo(item.createdAt)}</span>
-                            {item.userEmail && <span className="hidden sm:inline">{item.userEmail}</span>}
+                            {item.title && (
+                              <div className="text-sm text-gray-700 truncate mt-0.5">
+                                {item.title}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              <span className="sm:hidden">{formatTimeAgo(item.createdAt)}</span>
+                              {item.userEmail && <span className="hidden sm:inline">{item.userEmail}</span>}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:flex items-center gap-2">
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {formatTimeAgo(item.createdAt)}
+                            </span>
+                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:flex items-center gap-2">
-                          <span className="text-xs text-gray-400 whitespace-nowrap">
-                            {formatTimeAgo(item.createdAt)}
-                          </span>
-                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </div>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   );
                 })
               )}
