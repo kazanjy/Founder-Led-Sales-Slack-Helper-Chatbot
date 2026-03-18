@@ -139,6 +139,35 @@ export default function AdminAccountDetailPage() {
   const [addUserRole, setAddUserRole] = useState("MEMBER");
   const [addUserError, setAddUserError] = useState("");
 
+  // Edit account name state
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editNameSaving, setEditNameSaving] = useState(false);
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === account?.name) {
+      setEditingName(false);
+      return;
+    }
+    setEditNameSaving(true);
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setEditingName(false);
+        fetchAccount();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEditNameSaving(false);
+    }
+  };
+
   const fetchAccount = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/accounts/${params.id}`);
@@ -406,7 +435,43 @@ export default function AdminAccountDetailPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-gray-500">Name</label>
-                <div className="font-medium">{account.name}</div>
+                {editingName ? (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName();
+                        if (e.key === "Escape") setEditingName(false);
+                      }}
+                      autoFocus
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm font-medium"
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={editNameSaving}
+                      className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingName(false)}
+                      className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="font-medium cursor-pointer hover:text-blue-600 group/name"
+                    onClick={() => { setEditName(account.name); setEditingName(true); }}
+                    title="Click to edit"
+                  >
+                    {account.name}
+                    <span className="text-gray-300 group-hover/name:text-blue-400 ml-1 text-xs">&#9998;</span>
+                  </div>
+                )}
               </div>
               {account.emailDomain && (
                 <div>

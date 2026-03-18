@@ -279,6 +279,19 @@ export async function PATCH(
       return NextResponse.json({ success: true });
     }
 
+    // Update account name
+    if (typeof body.name === "string") {
+      const name = body.name.trim();
+      if (!name) {
+        return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
+      }
+      await prisma.account.update({
+        where: { id },
+        data: { name },
+      });
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: "No valid action provided" }, { status: 400 });
   } catch (error) {
     console.error("Admin account update error:", error);
