@@ -37,6 +37,8 @@ interface DiscoveryQuestionsVersion {
     createdAt: string;
   };
   createdAt: string;
+  userId: string;
+  user?: { name: string | null; email: string | null; slackUserName: string | null; };
 }
 
 export default function DiscoveryQuestionsPage() {
@@ -77,6 +79,7 @@ function DiscoveryQuestionsContent() {
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const autoGenerateRef = useRef(searchParams.get("auto") === "true");
@@ -113,6 +116,10 @@ function DiscoveryQuestionsContent() {
         }
 
         const data = await response.json();
+
+        if (data.currentUserId) {
+          setCurrentUserId(data.currentUserId);
+        }
 
         if (versionId) {
           setVersion(data.version);
@@ -726,6 +733,7 @@ function DiscoveryQuestionsContent() {
                       ).join("\n\n")}`
                     ).join("\n\n")}
                   />
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -735,6 +743,7 @@ function DiscoveryQuestionsContent() {
                     </svg>
                     Edit
                   </button>
+                  )}
                   <button
                     onClick={handleCopyAll}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -764,6 +773,7 @@ function DiscoveryQuestionsContent() {
                     </svg>
                     History
                   </Link>
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleClone}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -773,6 +783,7 @@ function DiscoveryQuestionsContent() {
                     </svg>
                     Clone
                   </button>
+                  )}
                   <NewButtonDropdown
                     onRegenerate={handleGenerate}
                     onUploadPDF={handleImportPDF}

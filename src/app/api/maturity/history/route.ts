@@ -15,11 +15,13 @@ export async function GET(request: NextRequest) {
 
     // If specific assessment ID requested, return that assessment with answers
     if (assessmentId) {
+      // Account-wide read access
+      const accountWhere = user.accountId
+        ? { id: assessmentId, user: { accountId: user.accountId } }
+        : { id: assessmentId, userId: user.id };
+
       const assessment = await prisma.maturityAssessment.findFirst({
-        where: {
-          id: assessmentId,
-          userId: user.id,
-        },
+        where: accountWhere,
         include: {
           conversation: {
             select: {
@@ -94,8 +96,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Otherwise, return list of all assessments (without answers for efficiency)
+    const assessmentWhere = user.accountId
+      ? { user: { accountId: user.accountId } }
+      : { userId: user.id };
+
     const assessments = await prisma.maturityAssessment.findMany({
-      where: { userId: user.id },
+      where: assessmentWhere,
       orderBy: { completedAt: "desc" },
       include: {
         conversation: {
@@ -103,6 +109,9 @@ export async function GET(request: NextRequest) {
             id: true,
             title: true,
           },
+        },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
         },
         _count: {
           select: {
@@ -142,17 +151,20 @@ export async function GET(request: NextRequest) {
       conversationId: string | null;
       answerCount: number;
       status: "completed" | "in_progress";
+      userId?: string;
+      user?: { name: string | null; email: string | null; slackUserName: string | null };
     }[] = [];
 
-    // Add in-progress if there are unsaved answers
+    // Add in-progress if there are unsaved answers (only for current user)
     if (inProgressQuestions.length > 0) {
       result.push({
         id: "in-progress",
         title: "Assessment in Progress",
         completedAt: mostRecentAnswer?.createdAt || null,
         conversationId: null,
-        answerCount: inProgressQuestions.length, // Count unique questions, not total answer rows
+        answerCount: inProgressQuestions.length,
         status: "in_progress",
+        userId: user.id,
       });
     }
 
@@ -165,12 +177,15 @@ export async function GET(request: NextRequest) {
         conversationId: a.conversation?.id || null,
         answerCount: a._count.answers,
         status: "completed",
+        userId: a.userId,
+        user: a.user,
       });
     });
 
     return NextResponse.json({
       assessments: result,
       totalQuestions,
+      currentUserId: user.id,
     });
   } catch (error) {
     console.error("Error fetching assessment history:", error);

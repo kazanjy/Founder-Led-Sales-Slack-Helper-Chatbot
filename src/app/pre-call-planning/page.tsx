@@ -37,6 +37,8 @@ interface PreCallPlanningVersion {
       };
     };
   };
+  userId: string;
+  user?: { name: string | null; email: string | null; slackUserName: string | null; };
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +68,7 @@ function PreCallPlanningContent() {
 
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [version, setVersion] = useState<PreCallPlanningVersion | null>(null);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
   const [hasPreCallResearch, setHasPreCallResearch] = useState(false);
@@ -115,6 +118,10 @@ function PreCallPlanningContent() {
         }
 
         const data = await response.json();
+
+        if (data.currentUserId) {
+          setCurrentUserId(data.currentUserId);
+        }
 
         if (versionId) {
           setVersion(data.version);
@@ -597,6 +604,7 @@ function PreCallPlanningContent() {
                     title={version.title || "Pre-Call Planning"}
                     content={currentContent}
                   />
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -606,6 +614,7 @@ function PreCallPlanningContent() {
                     </svg>
                     Edit
                   </button>
+                  )}
                   <Link
                     href="/pre-call-planning/history"
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -615,6 +624,7 @@ function PreCallPlanningContent() {
                     </svg>
                     History
                   </Link>
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleClone}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -624,6 +634,7 @@ function PreCallPlanningContent() {
                     </svg>
                     Clone
                   </button>
+                  )}
                   <NewButtonDropdown
                     onRegenerate={handleGenerate}
                     onUploadPDF={handleImportPDF}

@@ -10,8 +10,12 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const whereClause = user.accountId
+      ? { user: { accountId: user.accountId } }
+      : { userId: user.id };
+
     const versions = await prisma.discoveryQuestionsVersion.findMany({
-      where: { userId: user.id },
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
         salesNarrativeVersion: {
@@ -19,6 +23,9 @@ export async function GET() {
             id: true,
             createdAt: true,
           },
+        },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
         },
       },
     });
@@ -47,11 +54,14 @@ export async function GET() {
         salesNarrativeVersionId: v.salesNarrativeVersionId,
         salesNarrativeCreatedAt: v.salesNarrativeVersion?.createdAt ?? null,
         createdAt: v.createdAt,
+        userId: v.userId,
+        user: v.user,
       };
     });
 
     return NextResponse.json({
       versions: formattedVersions,
+      currentUserId: user.id,
     });
   } catch (error) {
     console.error("Error fetching discovery questions versions:", error);

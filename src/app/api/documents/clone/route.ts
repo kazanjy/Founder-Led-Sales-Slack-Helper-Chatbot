@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
+// Helper: build a where clause that allows account-wide access
+function cloneWhere(user: { id: string; accountId: string | null }, documentId: string) {
+  if (user.accountId) {
+    return { id: documentId, user: { accountId: user.accountId } };
+  }
+  return { id: documentId, userId: user.id };
+}
+
 // POST - Clone (duplicate) the latest version of a sales document
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +27,7 @@ export async function POST(request: NextRequest) {
     switch (documentType) {
       case "salesNarrative": {
         const source = await prisma.salesNarrativeVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
           include: { answers: true },
         });
         if (!source) {
@@ -57,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       case "discoveryQuestions": {
         const source = await prisma.discoveryQuestionsVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -77,7 +85,7 @@ export async function POST(request: NextRequest) {
 
       case "firstCallChecklist": {
         const source = await prisma.firstCallChecklistVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -97,7 +105,7 @@ export async function POST(request: NextRequest) {
 
       case "preCallPlanning": {
         const source = await prisma.preCallPlanningVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -117,7 +125,7 @@ export async function POST(request: NextRequest) {
 
       case "emailSequence": {
         const source = await prisma.emailSequenceVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -140,7 +148,7 @@ export async function POST(request: NextRequest) {
 
       case "linkedInSequence": {
         const source = await prisma.linkedInSequenceVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -163,7 +171,7 @@ export async function POST(request: NextRequest) {
 
       case "coldCallScript": {
         const source = await prisma.coldCallScriptVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -187,7 +195,7 @@ export async function POST(request: NextRequest) {
 
       case "salesDeck": {
         const source = await prisma.salesDeckVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -212,7 +220,7 @@ export async function POST(request: NextRequest) {
 
       case "adCreator": {
         const source = await prisma.adCreatorVersion.findFirst({
-          where: { id: documentId, userId: user.id },
+          where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });

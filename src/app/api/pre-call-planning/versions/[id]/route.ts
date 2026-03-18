@@ -15,11 +15,13 @@ export async function GET(
 
     const { id } = await params;
 
+    // Account-wide read access
+    const accountWhere = user.accountId
+      ? { id, user: { accountId: user.accountId } }
+      : { id, userId: user.id };
+
     const version = await prisma.preCallPlanningVersion.findFirst({
-      where: {
-        id,
-        userId: user.id,
-      },
+      where: accountWhere,
       include: {
         firstCallChecklistVersion: {
           select: {

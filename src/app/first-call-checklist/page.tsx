@@ -35,6 +35,8 @@ interface FirstCallChecklistVersion {
   };
   createdAt: string;
   updatedAt: string;
+  userId: string;
+  user?: { name: string | null; email: string | null; slackUserName: string | null; };
 }
 
 export default function FirstCallChecklistPage() {
@@ -67,6 +69,7 @@ function FirstCallChecklistContent() {
   const [hasPreCallPlanning, setHasPreCallPlanning] = useState(false);
   const [showPreCallBanner, setShowPreCallBanner] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -112,6 +115,10 @@ function FirstCallChecklistContent() {
         }
 
         const data = await response.json();
+
+        if (data.currentUserId) {
+          setCurrentUserId(data.currentUserId);
+        }
 
         if (versionId) {
           setVersion(data.version);
@@ -609,6 +616,7 @@ function FirstCallChecklistContent() {
                     title={version.title || "First Call Checklist"}
                     content={currentContent}
                   />
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleStartEditing}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -618,6 +626,7 @@ function FirstCallChecklistContent() {
                     </svg>
                     Edit
                   </button>
+                  )}
                   <Link
                     href="/first-call-checklist/history"
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -627,6 +636,7 @@ function FirstCallChecklistContent() {
                     </svg>
                     History
                   </Link>
+                  {version?.userId === currentUserId && (
                   <button
                     onClick={handleClone}
                     className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
@@ -636,6 +646,7 @@ function FirstCallChecklistContent() {
                     </svg>
                     Clone
                   </button>
+                  )}
                   <NewButtonDropdown
                     onRegenerate={handleGenerate}
                     onUploadPDF={handleImportPDF}

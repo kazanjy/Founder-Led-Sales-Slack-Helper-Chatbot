@@ -42,9 +42,18 @@ export async function GET(
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
 
-    // Verify ownership
+    // Allow account-wide read access
     if (version.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!user.accountId) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
+      const versionOwner = await prisma.user.findUnique({
+        where: { id: version.userId },
+        select: { accountId: true },
+      });
+      if (versionOwner?.accountId !== user.accountId) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
     }
 
     // Group answers by category

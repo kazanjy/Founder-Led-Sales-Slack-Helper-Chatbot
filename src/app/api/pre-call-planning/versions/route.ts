@@ -10,14 +10,22 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const whereClause = user.accountId
+      ? { user: { accountId: user.accountId } }
+      : { userId: user.id };
+
     const versions = await prisma.preCallPlanningVersion.findMany({
-      where: { userId: user.id },
+      where: whereClause,
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
         title: true,
         createdAt: true,
         updatedAt: true,
+        userId: true,
+        user: {
+          select: { name: true, email: true, slackUserName: true },
+        },
         firstCallChecklistVersion: {
           select: {
             id: true,
@@ -27,7 +35,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ versions });
+    return NextResponse.json({ versions, currentUserId: user.id });
   } catch (error) {
     console.error("Error fetching pre-call planning versions:", error);
     return NextResponse.json(
