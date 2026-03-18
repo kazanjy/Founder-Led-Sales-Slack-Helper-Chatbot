@@ -110,6 +110,11 @@ export default function AdminUserDetailPage() {
   const [mergeUserId, setMergeUserId] = useState("");
   const [merging, setMerging] = useState(false);
   const [feedFilter, setFeedFilter] = useState<string>("all");
+  const [assigningAccount, setAssigningAccount] = useState(false);
+  const [accountSearchQuery, setAccountSearchQuery] = useState("");
+  const [accountSearchResults, setAccountSearchResults] = useState<{ id: string; name: string; emailDomain: string | null }[]>([]);
+  const [accountSearching, setAccountSearching] = useState(false);
+  const [assignRole, setAssignRole] = useState("MEMBER");
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   const handleImpersonate = async () => {
@@ -911,7 +916,11 @@ export default function AdminUserDetailPage() {
               <div className="space-y-2">
                 <div>
                   <label className="text-sm text-gray-500">Name</label>
-                  <div className="font-medium">{user.account.name}</div>
+                  <div className="font-medium">
+                    <Link href={`/admin/accounts/${user.account.id}`} className="text-blue-600 hover:underline">
+                      {user.account.name}
+                    </Link>
+                  </div>
                 </div>
                 {user.account.emailDomain && (
                   <div>
@@ -921,7 +930,24 @@ export default function AdminUserDetailPage() {
                 )}
                 <div>
                   <label className="text-sm text-gray-500">Role</label>
-                  <div className="capitalize">{user.accountRole.toLowerCase()}</div>
+                  <div>
+                    <select
+                      value={user.accountRole}
+                      onChange={(e) => updateUser({ accountRole: e.target.value })}
+                      disabled={saving}
+                      className={`text-sm font-medium px-2 py-1 rounded border-0 cursor-pointer ${
+                        user.accountRole === "OWNER"
+                          ? "bg-purple-100 text-purple-700"
+                          : user.accountRole === "ADMIN"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      <option value="OWNER">Owner</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="MEMBER">Member</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Created</label>
@@ -931,9 +957,118 @@ export default function AdminUserDetailPage() {
                   <label className="text-sm text-gray-500">Account ID</label>
                   <div className="font-mono text-xs sm:text-sm break-all text-gray-600">{user.account.id}</div>
                 </div>
+                <button
+                  onClick={() => {
+                    if (confirm("Remove this user from their account?")) {
+                      updateUser({ accountId: null });
+                    }
+                  }}
+                  disabled={saving}
+                  className="text-red-500 hover:text-red-700 text-xs mt-2"
+                >
+                  Remove from account
+                </button>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No account assigned</p>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">No account assigned</p>
+                {!assigningAccount ? (
+                  <button
+                    onClick={() => setAssigningAccount(true)}
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Assign to Account
+                  </button>
+                ) : (
+                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Search accounts
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Type account name..."
+                        value={accountSearchQuery}
+                        onChange={async (e) => {
+                          setAccountSearchQuery(e.target.value);
+                          if (e.target.value.length < 2) {
+                            setAccountSearchResults([]);
+                            return;
+                          }
+                          setAccountSearching(true);
+                          try {
+                            const res = await fetch(`/api/admin/accounts?search=${encodeURIComponent(e.target.value)}`);
+                            if (res.ok) {
+                              const data = await res.json();
+                              setAccountSearchResults(data.accounts || []);
+                            }
+                          } catch { /* ignore */ }
+                          finally { setAccountSearching(false); }
+                        }}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                      <select
+                        value={assignRole}
+                        onChange={(e) => setAssignRole(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="MEMBER">Member</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="OWNER">Owner</option>
+                      </select>
+                    </div>
+                    {accountSearching && (
+                      <div className="text-xs text-gray-500">Searching...</div>
+                    )}
+                    {accountSearchResults.length > 0 && (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {accountSearchResults.map((acct) => (
+                          <div
+                            key={acct.id}
+                            className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-100 text-sm"
+                          >
+                            <span className="truncate">
+                              {acct.name}
+                              {acct.emailDomain && (
+                                <span className="text-gray-400 text-xs ml-1">@{acct.emailDomain}</span>
+                              )}
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await updateUser({ accountId: acct.id, accountRole: assignRole });
+                                setAssigningAccount(false);
+                                setAccountSearchQuery("");
+                                setAccountSearchResults([]);
+                                setAssignRole("MEMBER");
+                              }}
+                              disabled={saving}
+                              className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2 shrink-0 disabled:opacity-50"
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {accountSearchQuery.length >= 2 && !accountSearching && accountSearchResults.length === 0 && (
+                      <div className="text-xs text-gray-400 italic">No accounts found</div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setAssigningAccount(false);
+                        setAccountSearchQuery("");
+                        setAccountSearchResults([]);
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

@@ -258,7 +258,13 @@ export default function AdminAccountsPage() {
               >
                 <div className="min-w-0">
                   <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {account.name}
+                    <Link
+                      href={`/admin/accounts/${account.id}`}
+                      className="hover:text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {account.name}
+                    </Link>
                   </h3>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
                     {account.emailDomain && (

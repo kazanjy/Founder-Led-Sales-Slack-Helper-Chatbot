@@ -382,6 +382,25 @@ export async function PATCH(
       updateData.email = body.email || null;
     }
 
+    // Assign to account (or remove from account with null)
+    if (body.accountId !== undefined) {
+      if (body.accountId === null) {
+        updateData.accountId = null;
+        updateData.accountRole = "MEMBER";
+      } else {
+        const acct = await prisma.account.findUnique({ where: { id: body.accountId } });
+        if (!acct) {
+          return NextResponse.json({ error: "Account not found" }, { status: 400 });
+        }
+        updateData.accountId = body.accountId;
+      }
+    }
+
+    // Update account role
+    if (body.accountRole && ["OWNER", "ADMIN", "MEMBER"].includes(body.accountRole)) {
+      updateData.accountRole = body.accountRole;
+    }
+
     // Reset dismissed default prompts
     if (body.resetDefaultPrompts === true) {
       updateData.dismissedDefaultPromptIds = [];
