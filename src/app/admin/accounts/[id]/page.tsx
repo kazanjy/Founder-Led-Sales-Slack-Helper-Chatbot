@@ -119,6 +119,7 @@ export default function AdminAccountDetailPage() {
   const [loading, setLoading] = useState(true);
   const [feedFilter, setFeedFilter] = useState<string>("all");
   const [feedSearch, setFeedSearch] = useState("");
+  const [impersonating, setImpersonating] = useState(false);
 
   // Add user form state
   const [showAddUser, setShowAddUser] = useState(false);
@@ -221,6 +222,25 @@ export default function AdminAccountDetailPage() {
       }
     } catch (error) {
       console.error("Failed to update role:", error);
+    }
+  };
+
+  const handleImpersonateToLink = async (userId: string, link: string) => {
+    if (impersonating) return;
+    setImpersonating(true);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${userId}/impersonate?redirectTo=${encodeURIComponent(link)}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        window.open(data.redirectTo, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+    } finally {
+      setImpersonating(false);
     }
   };
 
@@ -572,31 +592,27 @@ export default function AdminAccountDetailPage() {
                 filteredActivity.map((item) => {
                   const actUserName = item.userName || "Unknown";
                   return (
-                    <div
+                    <button
                       key={`${item.type}-${item.id}`}
-                      className="px-4 py-3 sm:px-6 sm:py-4 hover:bg-gray-50 transition-colors"
+                      onClick={() => handleImpersonateToLink(item.userId, item.link)}
+                      disabled={impersonating}
+                      className="w-full text-left px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
                     >
                       <div className="flex items-start gap-2 sm:gap-3">
-                        <Link
-                          href={`/admin/users/${item.userId}`}
-                          className="flex-shrink-0"
-                        >
+                        <div className="flex-shrink-0">
                           {item.userAvatarUrl ? (
-                            <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
+                            <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full" />
                           ) : (
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
                               {actUserName.charAt(0).toUpperCase()}
                             </div>
                           )}
-                        </Link>
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <Link
-                              href={`/admin/users/${item.userId}`}
-                              className="font-medium text-blue-600 truncate hover:text-blue-800 hover:underline text-sm sm:text-base"
-                            >
+                            <span className="font-medium text-blue-600 truncate text-sm sm:text-base">
                               {actUserName}
-                            </Link>
+                            </span>
                             <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
                               {item.label}
                             </span>
@@ -611,13 +627,16 @@ export default function AdminAccountDetailPage() {
                             {item.userEmail && <span className="hidden sm:inline">{item.userEmail}</span>}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:block">
+                        <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:flex items-center gap-2">
                           <span className="text-xs text-gray-400 whitespace-nowrap">
                             {formatTimeAgo(item.createdAt)}
                           </span>
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })
               )}
