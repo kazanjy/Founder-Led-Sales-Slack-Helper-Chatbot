@@ -42,7 +42,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ sessions });
+    return NextResponse.json({ sessions, currentUserId: user.id });
   } catch (error) {
     console.error("[Coaching Sessions] List error:", error);
     return NextResponse.json({ error: "Failed to fetch coaching sessions" }, { status: 500 });

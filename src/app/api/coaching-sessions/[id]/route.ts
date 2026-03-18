@@ -56,14 +56,14 @@ export async function PUT(
     const body = await request.json();
     const { title, sessionDate, notes, transcript, recordingUrl } = body;
 
-    // Verify access (account-scoped)
+    // Only the creator can update
     const existing = await prisma.coachingSession.findFirst({
-      where: accountScope(user, id),
+      where: { id, userId: user.id },
       select: { id: true },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      return NextResponse.json({ error: "Only the session creator can edit" }, { status: 403 });
     }
 
     const session = await prisma.coachingSession.update({
@@ -97,14 +97,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify access (account-scoped)
+    // Only the creator can delete
     const existing = await prisma.coachingSession.findFirst({
-      where: accountScope(user, id),
+      where: { id, userId: user.id },
       select: { id: true },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+      return NextResponse.json({ error: "Only the session creator can delete" }, { status: 403 });
     }
 
     await prisma.coachingSession.delete({ where: { id } });

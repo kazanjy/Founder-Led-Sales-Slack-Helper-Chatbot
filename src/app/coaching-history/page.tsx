@@ -82,6 +82,7 @@ function CoachingHistoryContent() {
   const searchParams = useSearchParams();
 
   const [sessions, setSessions] = useState<CoachingSession[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("session"));
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -115,6 +116,7 @@ function CoachingHistoryContent() {
       if (res.ok) {
         const data = await res.json();
         setSessions(data.sessions);
+        if (data.currentUserId) setCurrentUserId(data.currentUserId);
       }
     } catch (error) {
       console.error("Failed to load coaching sessions:", error);
@@ -561,19 +563,23 @@ function CoachingHistoryContent() {
                           getContext={() => formatSessionsForChat([selectedSession])}
                           label="Chat About This"
                         />
-                        <button
-                          onClick={() => startEdit(selectedSession)}
-                          className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={handleDelete}
-                          disabled={deleting}
-                          className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          {deleting ? "Deleting..." : "Delete"}
-                        </button>
+                        {selectedSession.userId === currentUserId && (
+                          <>
+                            <button
+                              onClick={() => startEdit(selectedSession)}
+                              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={handleDelete}
+                              disabled={deleting}
+                              className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {deleting ? "Deleting..." : "Delete"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
