@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
             email: true,
             slackUserName: true,
             accountRole: true,
+            workspace: {
+              select: { id: true, slackTeamName: true },
+            },
           },
           orderBy: { accountRole: "asc" },
         },
