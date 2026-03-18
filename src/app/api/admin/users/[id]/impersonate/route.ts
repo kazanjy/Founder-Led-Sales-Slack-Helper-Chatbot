@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/admin";
 import { randomBytes } from "crypto";
+import { findOrCreateAccountForUser } from "@/lib/accounts";
 
 /**
  * POST /api/admin/users/[id]/impersonate
@@ -51,6 +52,15 @@ export async function POST(
         { error: "User not found" },
         { status: 404 }
       );
+    }
+
+    // Auto-create account for solo users
+    if (!targetUser.accountId) {
+      const email = targetUser.email || targetUser.slackEmail;
+      if (email) {
+        await findOrCreateAccountForUser(targetUser.id, email, targetUser.name || targetUser.slackUserName);
+        console.log(`[Impersonate] Created account for solo user ${targetUser.id}`);
+      }
     }
 
     // Generate a new session token for impersonation
