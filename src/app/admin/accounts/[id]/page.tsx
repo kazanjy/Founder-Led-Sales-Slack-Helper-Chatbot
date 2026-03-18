@@ -436,7 +436,7 @@ export default function AdminAccountDetailPage() {
               <div>
                 <label className="text-sm text-gray-500">Name</label>
                 {editingName ? (
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5">
                     <input
                       type="text"
                       value={editName}
@@ -446,30 +446,31 @@ export default function AdminAccountDetailPage() {
                         if (e.key === "Escape") setEditingName(false);
                       }}
                       autoFocus
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm font-medium"
+                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={handleSaveName}
                       disabled={editNameSaving}
-                      className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                     >
-                      Save
+                      {editNameSaving ? "Saving..." : "Save"}
                     </button>
                     <button
                       onClick={() => setEditingName(false)}
-                      className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700"
+                      className="text-xs px-3 py-1.5 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
-                  <div
-                    className="font-medium cursor-pointer hover:text-blue-600 group/name"
-                    onClick={() => { setEditName(account.name); setEditingName(true); }}
-                    title="Click to edit"
-                  >
-                    {account.name}
-                    <span className="text-gray-300 group-hover/name:text-blue-400 ml-1 text-xs">&#9998;</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{account.name}</span>
+                    <button
+                      onClick={() => { setEditName(account.name); setEditingName(true); }}
+                      className="text-xs px-2 py-0.5 text-blue-600 border border-blue-300 rounded hover:bg-blue-50"
+                    >
+                      Edit
+                    </button>
                   </div>
                 )}
               </div>
