@@ -71,6 +71,10 @@ const activityTypeColors: Record<string, string> = {
   "maturity": "bg-green-100 text-green-700",
   "sales-metrics": "bg-pink-100 text-pink-700",
   "ad-creator": "bg-rose-100 text-rose-700",
+  "slack-chat": "bg-purple-100 text-purple-700",
+  "web-chat": "bg-gray-100 text-gray-700",
+  "chat": "bg-gray-100 text-gray-700",
+  "coaching": "bg-yellow-100 text-yellow-700",
 };
 
 function formatTimeAgo(dateStr: string): string {
@@ -243,10 +247,12 @@ export default function AdminAccountDetailPage() {
 
   // Build activity feed filter options
   const activityTypeLabels: Record<string, string> = {
+    "slack-chat": "Slack Chats",
+    "web-chat": "Web Chats",
+    "coaching": "Coaching",
     "narrative": "Narratives",
     "discovery": "Discovery Qs",
     "checklist": "Checklists",
-    "precall-plan": "Pre-Call Plans",
     "research": "Research",
     "email-sequence": "Email Sequences",
     "linkedin-sequence": "LinkedIn Sequences",

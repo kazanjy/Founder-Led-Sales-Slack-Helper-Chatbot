@@ -97,6 +97,8 @@ export async function GET(
       maturityAssessments,
       salesMetricsAssessments,
       adCreatorVersions,
+      conversations,
+      coachingSessions,
     ] = await Promise.all([
       prisma.salesNarrativeVersion.findMany({
         where: { userId: { in: userIds } }, orderBy: { createdAt: "desc" }, take: 10,
@@ -150,6 +152,14 @@ export async function GET(
         where: { userId: { in: userIds } }, orderBy: { createdAt: "desc" }, take: 10,
         select: { id: true, orgPersona: true, humanPersona: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
+      prisma.conversation.findMany({
+        where: { userId: { in: userIds } }, orderBy: { lastMessageAt: "desc" }, take: 15,
+        select: { id: true, firstMessagePreview: true, source: true, messageCount: true, createdAt: true, lastMessageAt: true, userId: true, user: { select: userSelect } },
+      }),
+      prisma.coachingSession.findMany({
+        where: { userId: { in: userIds } }, orderBy: { createdAt: "desc" }, take: 10,
+        select: { id: true, title: true, createdAt: true, userId: true, user: { select: userSelect } },
+      }),
     ]);
 
     const items: ActivityItem[] = [];
@@ -194,6 +204,14 @@ export async function GET(
     }
     for (const r of adCreatorVersions) {
       items.push({ id: r.id, type: "ad-creator", label: "Generated Ad Concepts", title: `${r.orgPersona} → ${r.humanPersona}`, link: `/ad-creator?version=${r.id}`, userId: r.userId, userName: displayName(r.user), userEmail: r.user.email, userAvatarUrl: r.user.avatarUrl ?? null, createdAt: r.createdAt.toISOString() });
+    }
+    for (const r of conversations) {
+      const sourceLabel = r.source === "SLACK" ? "Slack Chat" : r.source === "WEB" ? "Web Chat" : "Chat";
+      const chatType = r.source === "SLACK" ? "slack-chat" : r.source === "WEB" ? "web-chat" : "chat";
+      items.push({ id: r.id, type: chatType, label: sourceLabel, title: r.firstMessagePreview, link: `/chat/${r.id}`, userId: r.userId, userName: displayName(r.user), userEmail: r.user.email, userAvatarUrl: r.user.avatarUrl ?? null, createdAt: (r.lastMessageAt || r.createdAt).toISOString() });
+    }
+    for (const r of coachingSessions) {
+      items.push({ id: r.id, type: "coaching", label: "Coaching Session", title: r.title, link: `/coaching`, userId: r.userId, userName: displayName(r.user), userEmail: r.user.email, userAvatarUrl: r.user.avatarUrl ?? null, createdAt: r.createdAt.toISOString() });
     }
 
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
