@@ -121,6 +121,16 @@ export default function AdminAccountDetailPage() {
   const [feedSearch, setFeedSearch] = useState("");
   const [impersonating, setImpersonating] = useState(false);
 
+  // Channel claim form state
+  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [claimWorkspaceId, setClaimWorkspaceId] = useState("");
+  const [claimChannels, setClaimChannels] = useState<{ id: string; name: string }[]>([]);
+  const [claimChannelsLoading, setClaimChannelsLoading] = useState(false);
+  const [claimSelectedChannel, setClaimSelectedChannel] = useState("");
+  const [claimOwnerId, setClaimOwnerId] = useState("");
+  const [claimError, setClaimError] = useState("");
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+
   // Add user form state
   const [showAddUser, setShowAddUser] = useState(false);
   const [addUserSearch, setAddUserSearch] = useState("");
@@ -241,6 +251,77 @@ export default function AdminAccountDetailPage() {
       console.error("Failed to impersonate:", error);
     } finally {
       setImpersonating(false);
+    }
+  };
+
+  const loadChannelsForWorkspace = async (workspaceId: string) => {
+    setClaimChannelsLoading(true);
+    setClaimChannels([]);
+    setClaimSelectedChannel("");
+    try {
+      const res = await fetch(`/api/admin/workspaces/${workspaceId}/channels`);
+      if (res.ok) {
+        const data = await res.json();
+        // Filter out channels already claimed
+        const claimedIds = new Set(account?.channelClaims.map((c) => c.slackChannelId) || []);
+        setClaimChannels((data.channels || []).filter((ch: { id: string }) => !claimedIds.has(ch.id)));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setClaimChannelsLoading(false);
+    }
+  };
+
+  const handleCreateClaim = async () => {
+    if (!claimSelectedChannel || !claimWorkspaceId || !claimOwnerId) {
+      setClaimError("Please select a workspace, channel, and owner.");
+      return;
+    }
+    setClaimError("");
+    setClaimSubmitting(true);
+    try {
+      const selectedCh = claimChannels.find((ch) => ch.id === claimSelectedChannel);
+      const res = await fetch(`/api/admin/accounts/${params.id}/channel-claims`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slackChannelId: claimSelectedChannel,
+          slackChannelName: selectedCh ? `#${selectedCh.name}` : null,
+          workspaceId: claimWorkspaceId,
+          claimedByUserId: claimOwnerId,
+        }),
+      });
+      if (res.ok) {
+        setShowClaimForm(false);
+        setClaimWorkspaceId("");
+        setClaimChannels([]);
+        setClaimSelectedChannel("");
+        setClaimOwnerId("");
+        fetchAccount();
+      } else {
+        const data = await res.json();
+        setClaimError(data.error || "Failed to create claim");
+      }
+    } catch {
+      setClaimError("Network error");
+    } finally {
+      setClaimSubmitting(false);
+    }
+  };
+
+  const handleDeleteClaim = async (claimId: string) => {
+    if (!confirm("Remove this channel claim?")) return;
+    try {
+      const res = await fetch(
+        `/api/admin/accounts/${params.id}/channel-claims?claimId=${claimId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        fetchAccount();
+      }
+    } catch (error) {
+      console.error("Failed to delete claim:", error);
     }
   };
 
@@ -517,23 +598,150 @@ export default function AdminAccountDetailPage() {
           </div>
 
           {/* Channel Claims */}
-          {account.channelClaims.length > 0 && (
-            <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
                 Claimed Channels ({account.channelClaims.length})
               </h2>
+              <button
+                onClick={() => {
+                  setShowClaimForm(!showClaimForm);
+                  setClaimError("");
+                  setClaimWorkspaceId("");
+                  setClaimChannels([]);
+                  setClaimSelectedChannel("");
+                  setClaimOwnerId("");
+                }}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                + Claim Channel
+              </button>
+            </div>
+
+            {/* Claim channel form */}
+            {showClaimForm && (
+              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 space-y-3">
+                {/* Workspace selector */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Workspace</label>
+                  <select
+                    value={claimWorkspaceId}
+                    onChange={(e) => {
+                      setClaimWorkspaceId(e.target.value);
+                      if (e.target.value) {
+                        loadChannelsForWorkspace(e.target.value);
+                      } else {
+                        setClaimChannels([]);
+                        setClaimSelectedChannel("");
+                      }
+                    }}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                  >
+                    <option value="">Select workspace...</option>
+                    {(() => {
+                      // Deduplicate workspaces from account users
+                      const seen = new Set<string>();
+                      return account.users
+                        .filter((u) => {
+                          if (!u.workspaceId || !u.workspace || seen.has(u.workspaceId)) return false;
+                          seen.add(u.workspaceId);
+                          return true;
+                        })
+                        .map((u) => (
+                          <option key={u.workspace!.id} value={u.workspace!.id}>
+                            {u.workspace!.slackTeamName}
+                          </option>
+                        ));
+                    })()}
+                  </select>
+                </div>
+
+                {/* Channel selector */}
+                {claimWorkspaceId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Channel</label>
+                    {claimChannelsLoading ? (
+                      <div className="text-xs text-gray-500">Loading channels...</div>
+                    ) : (
+                      <select
+                        value={claimSelectedChannel}
+                        onChange={(e) => setClaimSelectedChannel(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="">Select channel...</option>
+                        {claimChannels.map((ch) => (
+                          <option key={ch.id} value={ch.id}>
+                            #{ch.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {!claimChannelsLoading && claimChannels.length === 0 && claimWorkspaceId && (
+                      <div className="text-xs text-gray-400 mt-1 italic">No unclaimed channels found</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Owner selector */}
+                {claimWorkspaceId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Channel Owner</label>
+                    <select
+                      value={claimOwnerId}
+                      onChange={(e) => setClaimOwnerId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                    >
+                      <option value="">Select owner...</option>
+                      {account.users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name || u.email || u.slackUserName || u.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {claimError && (
+                  <div className="text-red-600 text-xs">{claimError}</div>
+                )}
+
+                {claimWorkspaceId && (
+                  <button
+                    onClick={handleCreateClaim}
+                    disabled={claimSubmitting || !claimSelectedChannel || !claimOwnerId}
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {claimSubmitting ? "Claiming..." : "Claim Channel"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Existing claims */}
+            {account.channelClaims.length === 0 && !showClaimForm ? (
+              <div className="text-sm text-gray-400 italic">No channels claimed</div>
+            ) : (
               <div className="space-y-2">
                 {account.channelClaims.map((claim) => (
-                  <div key={claim.id} className="bg-gray-50 rounded-md px-3 py-2 border border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-gray-900">
-                        {claim.slackChannelName || claim.slackChannelId}
-                      </span>
-                      {claim.slackChannelName && (
-                        <span className="text-xs text-gray-400 font-mono">
-                          {claim.slackChannelId}
+                  <div key={claim.id} className="bg-gray-50 rounded-md px-3 py-2 border border-gray-100 group">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-gray-900">
+                          {claim.slackChannelName || claim.slackChannelId}
                         </span>
-                      )}
+                        {claim.slackChannelName && (
+                          <span className="text-xs text-gray-400 font-mono">
+                            {claim.slackChannelId}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteClaim(claim.id)}
+                        className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove claim"
+                      >
+                        Remove
+                      </button>
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
                       Owned by{" "}
@@ -546,8 +754,8 @@ export default function AdminAccountDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Right column: Activity Feed */}
