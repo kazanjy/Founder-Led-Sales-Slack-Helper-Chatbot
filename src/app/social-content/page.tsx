@@ -644,7 +644,7 @@ function SocialContentContent() {
                     onChange={(e) => setNewExample(e.target.value)}
                     placeholder="Paste an example post you love..."
                     rows={3}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-sm"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y text-sm"
                   />
                   <button
                     type="button"
