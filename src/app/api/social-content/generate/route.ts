@@ -158,6 +158,27 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
     }
     cleanedResponse = cleanedResponse.trim();
 
+    // Generate a short AI title for this batch
+    let title = `${platformLabel} ${count > 1 ? "Posts" : "Post"} – ${tone}`;
+    try {
+      const titleResponse = await openai.chat.completions.create({
+        model: "gpt-4.1-nano",
+        messages: [
+          {
+            role: "user",
+            content: `Generate a short, catchy title (max 8 words) summarizing these social media posts. Return ONLY the title, no quotes or punctuation around it.\n\n${cleanedResponse.slice(0, 1000)}`,
+          },
+        ],
+        temperature: 0.7,
+      });
+      const generatedTitle = titleResponse.choices[0]?.message?.content?.trim();
+      if (generatedTitle && generatedTitle.length <= 80) {
+        title = generatedTitle;
+      }
+    } catch (titleError) {
+      console.error("Failed to generate title, using fallback:", titleError);
+    }
+
     // Save to DB
     const version = await prisma.socialContentVersion.create({
       data: {
@@ -170,6 +191,7 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
         topicSource,
         topicInput: topicInput || null,
         goldStandardExamples: examples.length > 0 ? JSON.stringify(examples) : null,
+        title,
         content: cleanedResponse,
       },
     });
@@ -216,6 +238,7 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
       success: true,
       version: {
         id: version.id,
+        title,
         content: cleanedResponse,
         platform,
         tone,

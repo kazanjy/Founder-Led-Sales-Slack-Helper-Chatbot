@@ -1270,6 +1270,9 @@ model SocialContentVersion {
   // Gold standard examples used (stored as JSON array of strings)
   goldStandardExamples        String?  @db.Text
 
+  // AI-generated title summarizing this content batch
+  title                       String?
+
   // Generated output
   content                     String   @db.Text
 

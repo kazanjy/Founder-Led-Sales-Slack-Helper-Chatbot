@@ -30,6 +30,7 @@ export async function GET(
     return NextResponse.json({
       version: {
         id: version.id,
+        title: version.title,
         content: version.content,
         platform: version.platform,
         tone: version.tone,

@@ -21,6 +21,7 @@ const RichTextEditor = dynamic(
 
 interface SocialContentVersion {
   id: string;
+  title?: string | null;
   content: string;
   platform: string;
   tone: string;
@@ -745,7 +746,7 @@ function SocialContentContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Social Content</h1>
+                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Social Content"}</h1>
                 <p className="text-sm text-gray-500 leading-tight">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (

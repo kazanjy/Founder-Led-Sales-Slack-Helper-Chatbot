@@ -39,6 +39,7 @@ export async function GET() {
       hasSocialContent: true,
       version: {
         id: latestVersion.id,
+        title: latestVersion.title,
         content: latestVersion.content,
         platform: latestVersion.platform,
         tone: latestVersion.tone,

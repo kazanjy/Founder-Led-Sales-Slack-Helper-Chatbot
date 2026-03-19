@@ -7,10 +7,12 @@ import SalesNavBar from "@/components/SalesNavBar";
 
 interface VersionSummary {
   id: string;
+  title: string | null;
   platform: string;
   tone: string;
   postCount: number;
   topicSource: string;
+  topicInput: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -129,7 +131,7 @@ export default function SocialContentHistoryPage() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-lg font-semibold text-gray-900">
-                        Version {versions.length - index}
+                        {version.title || `Version ${versions.length - index}`}
                       </span>
                       {index === 0 && (
                         <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
@@ -156,6 +158,11 @@ export default function SocialContentHistoryPage() {
                         {version.topicSource === "narrative" ? "From Narrative" : version.topicSource === "content" ? "Repurposed" : "Custom Topic"}
                       </span>
                     </div>
+                    {version.topicInput && (
+                      <p className="text-sm text-gray-600 mb-1 line-clamp-1">
+                        {version.topicInput}
+                      </p>
+                    )}
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span>Created {formatDate(version.createdAt)}</span>
                       {version.updatedAt !== version.createdAt && (

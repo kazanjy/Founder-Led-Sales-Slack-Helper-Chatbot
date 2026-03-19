@@ -14,10 +14,12 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        title: true,
         platform: true,
         tone: true,
         postCount: true,
         topicSource: true,
+        topicInput: true,
         createdAt: true,
         updatedAt: true,
       },
