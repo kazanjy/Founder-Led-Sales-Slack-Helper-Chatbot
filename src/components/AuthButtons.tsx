@@ -73,7 +73,7 @@ export function AuthButtons({ variant = "signup", className = "" }: AuthButtonsP
       <a
         href="/api/auth/google"
         onClick={handleGoogleClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-semibold py-3 px-6 rounded-lg transition-colors"
+        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
       >
         <GoogleIcon />
         {actionText} with Google
@@ -82,7 +82,7 @@ export function AuthButtons({ variant = "signup", className = "" }: AuthButtonsP
       <a
         href="/api/auth/slack"
         onClick={handleSlackClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-semibold py-3 px-6 rounded-lg transition-colors"
+        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
       >
         <SlackIcon />
         {actionText} with Slack
@@ -115,7 +115,7 @@ export function AuthButtonsCTA({ variant = "signup" }: { variant?: "signup" | "s
       <a
         href="/api/auth/google"
         onClick={handleGoogleClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 transition-colors"
+        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
       >
         <GoogleIcon />
         {actionText} with Google

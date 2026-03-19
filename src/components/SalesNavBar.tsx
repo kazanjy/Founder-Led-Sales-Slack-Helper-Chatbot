@@ -151,7 +151,7 @@ export default function SalesNavBar() {
         <div className="flex items-center md:hidden py-2 gap-2">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? (
@@ -164,7 +164,7 @@ export default function SalesNavBar() {
               </svg>
             )}
           </button>
-          <span className="text-sm font-medium text-purple-600">
+          <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
             {(() => {
               const activeItem = [...topLevelItems, ...playbookItems].find(item => isActive(item.href));
               return activeItem?.label || "💬 Chat";
@@ -180,13 +180,13 @@ export default function SalesNavBar() {
                 href="/chat"
                 onClick={closeMenus}
                 className={`block px-4 py-3 text-sm font-medium transition-colors ${
-                  isActive("/chat") ? "bg-purple-50 text-purple-600" : "text-gray-700 hover:bg-gray-50"
+                  isActive("/chat") ? "bg-purple-50 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 }`}
               >
                 💬 Chat
               </Link>
               {/* Playbook section */}
-              <div className="border-t border-gray-100 mt-1 pt-1">
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   📒 Playbook
                   {playbookCompletedCount > 0 && (
@@ -203,7 +203,7 @@ export default function SalesNavBar() {
                       href={href}
                       onClick={closeMenus}
                       className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
-                        isActive(item.href) ? "bg-purple-50 text-purple-700" : "text-gray-700 hover:bg-gray-50"
+                        isActive(item.href) ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                       }`}
                     >
                       <span className="flex-1">{item.label}</span>
@@ -213,7 +213,7 @@ export default function SalesNavBar() {
                 })}
               </div>
               {/* Tools section */}
-              <div className="border-t border-gray-100 mt-1 pt-1">
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
                 {topLevelItems.slice(1).map((item) => (
                   <Link
@@ -221,7 +221,7 @@ export default function SalesNavBar() {
                     href={item.href}
                     onClick={closeMenus}
                     className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
-                      isActive(item.href) ? "bg-purple-50 text-purple-700" : "text-gray-700 hover:bg-gray-50"
+                      isActive(item.href) ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
@@ -280,8 +280,8 @@ export default function SalesNavBar() {
                       onClick={() => setPlaybookOpen(false)}
                       className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                         isActive(item.href)
-                          ? "bg-purple-50 text-purple-700"
-                          : "text-gray-700 hover:bg-gray-50"
+                          ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                          : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                       }`}
                     >
                       <span className="flex-1">{item.label}</span>
