@@ -83,6 +83,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, versionId: clone.id });
       }
 
+      case "icp": {
+        const source = await prisma.iCPVersion.findFirst({
+          where: cloneWhere(user, documentId),
+        });
+        if (!source) {
+          return NextResponse.json({ error: "Version not found" }, { status: 404 });
+        }
+
+        const clone = await prisma.iCPVersion.create({
+          data: {
+            userId: user.id,
+            salesNarrativeVersionId: source.salesNarrativeVersionId,
+            title: source.title,
+            content: source.content,
+          },
+        });
+
+        return NextResponse.json({ success: true, versionId: clone.id });
+      }
+
       case "firstCallChecklist": {
         const source = await prisma.firstCallChecklistVersion.findFirst({
           where: cloneWhere(user, documentId),

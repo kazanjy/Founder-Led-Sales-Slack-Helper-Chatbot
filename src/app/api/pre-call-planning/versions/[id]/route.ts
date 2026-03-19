@@ -41,6 +41,9 @@ export async function GET(
             },
           },
         },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
+        },
       },
     });
 
@@ -49,6 +52,7 @@ export async function GET(
     }
 
     return NextResponse.json({
+      currentUserId: user.id,
       version: {
         id: version.id,
         title: version.title,
@@ -57,6 +61,8 @@ export async function GET(
         firstCallChecklistVersion: version.firstCallChecklistVersion,
         createdAt: version.createdAt,
         updatedAt: version.updatedAt,
+        userId: version.userId,
+        user: version.user,
       },
     });
   } catch (error) {

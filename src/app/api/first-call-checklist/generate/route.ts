@@ -72,6 +72,29 @@ export async function POST() {
       );
     }
 
+    // Get the latest ICP if available
+    const latestICP = await prisma.iCPVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let icpSection = "";
+    if (latestICP) {
+      try {
+        const icpContent = JSON.parse(latestICP.content);
+        for (const segment of icpContent.segments || []) {
+          icpSection += `### ${segment.name}\n`;
+          icpSection += `${segment.description}\n`;
+          icpSection += `Firmographic: ${segment.firmographic?.industry || ""} | ${segment.firmographic?.companySize || ""} | ${segment.firmographic?.revenue || ""}\n`;
+          icpSection += `Timing Triggers: ${(segment.timingTriggers || []).join("; ")}\n`;
+          icpSection += `Pain Points: ${(segment.painPoints || []).join("; ")}\n`;
+          icpSection += `Buying Personas: ${(segment.buyingPersonas || []).map((p: { title: string; role: string }) => `${p.title} (${p.role})`).join(", ")}\n\n`;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
     const narrative = latestDiscoveryQuestions.salesNarrativeVersion;
 
     // Format discovery questions concisely (just the primary questions)
@@ -183,7 +206,7 @@ ${narrative?.narrative ?? "No sales narrative available."}
 
 ## DISCOVERY QUESTIONS:
 
-${discoveryQuestionsSection}`;
+${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${icpSection}` : ""}`;
 
     console.log(`Sending first call checklist prompt: ${mainPrompt.length} chars (+ ${example1.length} + ${example2.length} chars in history)`);
 

@@ -89,9 +89,9 @@ function SalesNarrativeContent() {
     window.history.replaceState(null, "", url.toString());
   };
 
-  // Discovery questions banner
-  const [showDiscoveryBanner, setShowDiscoveryBanner] = useState(true);
-  const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
+  // ICP banner
+  const [showICPBanner, setShowICPBanner] = useState(true);
+  const [hasICP, setHasICP] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -152,13 +152,13 @@ function SalesNarrativeContent() {
             return;
           }
         }
-        // Check if discovery questions already exist
+        // Check if ICP already exists
         try {
-          const dqRes = await fetch("/api/discovery-questions/latest");
-          if (dqRes.ok) {
-            const dqData = await dqRes.json();
-            if (dqData.hasDiscoveryQuestions) {
-              setHasDiscoveryQuestions(true);
+          const icpRes = await fetch("/api/icp/latest");
+          if (icpRes.ok) {
+            const icpData = await icpRes.json();
+            if (icpData.hasICP) {
+              setHasICP(true);
             }
           }
         } catch {
@@ -497,8 +497,8 @@ function SalesNarrativeContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Dismissable Discovery Questions Banner */}
-        {showDiscoveryBanner && !isEditing && !hasDiscoveryQuestions && (
+        {/* Dismissable ICP Banner */}
+        {showICPBanner && !isEditing && !hasICP && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -508,13 +508,13 @@ function SalesNarrativeContent() {
               </div>
               <p className="font-medium">
                 Congrats on finishing your Sales Narrative! Now let&apos;s use this to{" "}
-                <Link href="/discovery-questions?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
-                  create your discovery questions
+                <Link href="/icp?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                  define your Ideal Customer Profile
                 </Link>.
               </p>
             </div>
             <button
-              onClick={() => setShowDiscoveryBanner(false)}
+              onClick={() => setShowICPBanner(false)}
               className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
               aria-label="Dismiss"
             >
@@ -1010,25 +1010,27 @@ function SalesNarrativeContent() {
 
         </div>{/* end main content */}
 
-        {/* Right sidebar: Discovery Questions ad widget */}
-        {!isEditing && !hasDiscoveryQuestions && (
+        {/* Right sidebar: ICP ad widget */}
+        {!isEditing && !hasICP && (
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-8">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+                    <circle cx="12" cy="12" r="5" strokeWidth={2} />
+                    <circle cx="12" cy="12" r="1" strokeWidth={2} />
                   </svg>
                 </div>
-                <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                <h3 className="font-bold text-lg mb-2">Ideal Customer Profile</h3>
                 <p className="text-purple-100 text-sm mb-4">
-                  Turn your sales narrative into powerful discovery questions that uncover buyer pain points.
+                  Define your ideal customer segments and the key personas in each organization.
                 </p>
                 <Link
-                  href="/discovery-questions?auto=true"
+                  href="/icp?auto=true"
                   className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                 >
-                  Create Questions
+                  Define ICP
                 </Link>
               </div>
 

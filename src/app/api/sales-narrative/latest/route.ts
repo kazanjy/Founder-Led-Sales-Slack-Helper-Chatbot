@@ -31,11 +31,15 @@ export async function GET() {
             },
           },
         },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
+        },
       },
     });
 
     if (!latestVersion) {
       return NextResponse.json({
+        currentUserId: user.id,
         hasNarrative: false,
         version: null,
         answersByCategory: null,
@@ -68,6 +72,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      currentUserId: user.id,
       hasNarrative: true,
       version: {
         id: latestVersion.id,
@@ -80,6 +85,8 @@ export async function GET() {
         sourceUrls: latestVersion.sourceUrls,
         sourcePdfNames: latestVersion.sourcePdfNames,
         createdAt: latestVersion.createdAt,
+        userId: latestVersion.userId,
+        user: latestVersion.user,
       },
       answersByCategory,
     });

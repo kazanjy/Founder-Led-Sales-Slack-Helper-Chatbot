@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
-// GET - Get a specific discovery questions version
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -15,7 +14,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const version = await prisma.discoveryQuestionsVersion.findUnique({
+    const version = await prisma.iCPVersion.findUnique({
       where: { id },
       include: {
         salesNarrativeVersion: {
@@ -49,12 +48,11 @@ export async function GET(
       }
     }
 
-    // Parse the stored JSON content
     let content;
     try {
       content = JSON.parse(version.content);
     } catch {
-      content = { categories: [] };
+      content = { segments: [] };
     }
 
     return NextResponse.json({
@@ -71,7 +69,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching discovery questions version:", error);
+    console.error("Error fetching ICP version:", error);
     return NextResponse.json(
       { error: "Failed to fetch version" },
       { status: 500 }
@@ -79,7 +77,6 @@ export async function GET(
   }
 }
 
-// PATCH - Update a discovery questions version
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -93,8 +90,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // Verify ownership
-    const existing = await prisma.discoveryQuestionsVersion.findUnique({
+    const existing = await prisma.iCPVersion.findUnique({
       where: { id },
     });
 
@@ -106,39 +102,35 @@ export async function PATCH(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Validate content structure (content is optional if only updating title)
-    if (body.content && !body.content.categories) {
+    if (body.content && !body.content.segments) {
       return NextResponse.json(
         { error: "Invalid content structure" },
         { status: 400 }
       );
     }
 
-    // Build update data
     const updateData: { content?: string; title?: string } = {};
     if (body.content) updateData.content = JSON.stringify(body.content);
     if (body.title !== undefined) updateData.title = body.title;
 
-    // Update the version
-    const updated = await prisma.discoveryQuestionsVersion.update({
+    const updated = await prisma.iCPVersion.update({
       where: { id },
       data: updateData,
     });
 
     // Check if this is the latest version and update merge variable
-    const latest = await prisma.discoveryQuestionsVersion.findFirst({
+    const latest = await prisma.iCPVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     });
 
     if (latest?.id === id && body.content) {
-      // Update the merge variable
-      const formattedContent = formatDiscoveryQuestionsForMerge(body.content);
+      const formattedContent = formatICPForMerge(body.content);
       await prisma.gtmVariable.upsert({
         where: {
           userId_mergeField: {
             userId: user.id,
-            mergeField: "DISCOVERY_QUESTIONS",
+            mergeField: "ICP",
           },
         },
         update: {
@@ -146,8 +138,8 @@ export async function PATCH(
         },
         create: {
           userId: user.id,
-          mergeField: "DISCOVERY_QUESTIONS",
-          name: "Discovery Questions",
+          mergeField: "ICP",
+          name: "Ideal Customer Profile",
           value: formattedContent,
           isDefault: false,
         },
@@ -164,7 +156,7 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error("Error updating discovery questions version:", error);
+    console.error("Error updating ICP version:", error);
     return NextResponse.json(
       { error: "Failed to update version" },
       { status: 500 }
@@ -172,33 +164,49 @@ export async function PATCH(
   }
 }
 
-// Format discovery questions for merge variable
-function formatDiscoveryQuestionsForMerge(data: {
-  categories: Array<{
+function formatICPForMerge(data: {
+  segments: Array<{
     name: string;
     description: string;
-    questions: Array<{
-      primary: string;
-      followUps: string[];
+    firmographic: {
+      companySize: string;
+      industry: string;
+      revenue: string;
+      geography: string;
+      stage: string;
+    };
+    technographic: {
+      currentTools: string[];
+      techMaturity: string;
+      integrationNeeds: string;
+    };
+    timingTriggers: string[];
+    painPoints: string[];
+    buyingPersonas: Array<{
+      title: string;
+      role: string;
+      motivation: string;
+      painPoints: string[];
+      objections: string[];
+      emotionalDriver: string;
     }>;
   }>;
 }): string {
   let output = "";
 
-  for (const category of data.categories) {
-    output += `## ${category.name}\n\n`;
+  for (const segment of data.segments) {
+    output += `## ${segment.name}\n\n`;
+    output += `${segment.description}\n\n`;
+    output += `**Firmographic:** ${segment.firmographic.industry} | ${segment.firmographic.companySize} | ${segment.firmographic.revenue} | ${segment.firmographic.stage}\n`;
+    output += `**Technographic:** ${segment.technographic.techMaturity} | Tools: ${segment.technographic.currentTools.join(", ")}\n`;
+    output += `**Timing Triggers:** ${segment.timingTriggers.join("; ")}\n`;
+    output += `**Pain Points:** ${segment.painPoints.join("; ")}\n\n`;
+    output += `### Buying Personas\n\n`;
 
-    for (let i = 0; i < category.questions.length; i++) {
-      const q = category.questions[i];
-      output += `${i + 1}. ${q.primary}\n`;
-
-      if (q.followUps && q.followUps.length > 0) {
-        for (const followUp of q.followUps) {
-          output += `   - ${followUp}\n`;
-        }
-      }
-      output += "\n";
+    for (const persona of segment.buyingPersonas) {
+      output += `- **${persona.title}** (${persona.role}): ${persona.motivation}\n`;
     }
+    output += "\n";
   }
 
   return output.trim();

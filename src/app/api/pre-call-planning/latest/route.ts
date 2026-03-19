@@ -32,6 +32,9 @@ export async function GET() {
             },
           },
         },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
+        },
       },
     });
 
@@ -43,6 +46,7 @@ export async function GET() {
       });
 
       return NextResponse.json({
+        currentUserId: user.id,
         hasPreCallPlanning: false,
         version: null,
         hasFirstCallChecklist: !!hasFirstCallChecklist,
@@ -50,6 +54,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      currentUserId: user.id,
       hasPreCallPlanning: true,
       version: {
         id: latestVersion.id,
@@ -59,6 +64,8 @@ export async function GET() {
         firstCallChecklistVersion: latestVersion.firstCallChecklistVersion,
         createdAt: latestVersion.createdAt,
         updatedAt: latestVersion.updatedAt,
+        userId: latestVersion.userId,
+        user: latestVersion.user,
       },
     });
   } catch (error) {

@@ -26,6 +26,9 @@ export async function GET() {
             },
           },
         },
+        user: {
+          select: { name: true, email: true, slackUserName: true },
+        },
       },
     });
 
@@ -37,6 +40,7 @@ export async function GET() {
       });
 
       return NextResponse.json({
+        currentUserId: user.id,
         hasFirstCallChecklist: false,
         version: null,
         hasDiscoveryQuestions: !!hasDiscoveryQuestions,
@@ -44,6 +48,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      currentUserId: user.id,
       hasFirstCallChecklist: true,
       version: {
         id: latestVersion.id,
@@ -53,6 +58,8 @@ export async function GET() {
         discoveryQuestionsVersion: latestVersion.discoveryQuestionsVersion,
         createdAt: latestVersion.createdAt,
         updatedAt: latestVersion.updatedAt,
+        userId: latestVersion.userId,
+        user: latestVersion.user,
       },
     });
   } catch (error) {

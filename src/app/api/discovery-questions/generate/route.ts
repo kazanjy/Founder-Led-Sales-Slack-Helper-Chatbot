@@ -41,6 +41,30 @@ export async function POST() {
       },
     });
 
+    // Get the latest ICP if available
+    const latestICP = await prisma.iCPVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let icpSection = "";
+    if (latestICP) {
+      try {
+        const icpContent = JSON.parse(latestICP.content);
+        // Format ICP into a readable section
+        for (const segment of icpContent.segments || []) {
+          icpSection += `### ${segment.name}\n`;
+          icpSection += `${segment.description}\n`;
+          icpSection += `Firmographic: ${segment.firmographic?.industry || ""} | ${segment.firmographic?.companySize || ""} | ${segment.firmographic?.revenue || ""}\n`;
+          icpSection += `Timing Triggers: ${(segment.timingTriggers || []).join("; ")}\n`;
+          icpSection += `Pain Points: ${(segment.painPoints || []).join("; ")}\n`;
+          icpSection += `Buying Personas: ${(segment.buyingPersonas || []).map((p: { title: string; role: string }) => `${p.title} (${p.role})`).join(", ")}\n\n`;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
     if (!latestNarrative) {
       return NextResponse.json(
         { error: "No sales narrative found. Please create a sales narrative first." },
@@ -97,7 +121,7 @@ Generate discovery questions organized into these 5 categories:
 
 For each category: 4-6 open-ended questions with follow-up probes. Conversational, not interrogative. Tailored to the specific problem/solution provided in context.`;
 
-    const contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}`;
+    const contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${icpSection}` : ""}`;
     const fullPrompt = `${instructionPrompt}\n\n${contextSection}`;
 
     let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];

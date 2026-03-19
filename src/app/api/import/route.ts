@@ -8,17 +8,18 @@ import Papa from "papaparse";
 // Allow up to 120s for AI synthesis
 export const maxDuration = 120;
 
-type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck" | "adCreator" | "objectionLibrary";
+type AppletType = "discoveryQuestions" | "firstCallChecklist" | "preCallPlanning" | "salesNarrative" | "emailSequence" | "linkedInSequence" | "salesDeck" | "adCreator" | "objectionLibrary" | "icp";
 
 const VALID_APPLET_TYPES = new Set<string>([
   "discoveryQuestions", "firstCallChecklist", "preCallPlanning",
-  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator", "objectionLibrary",
+  "salesNarrative", "emailSequence", "linkedInSequence", "salesDeck", "adCreator", "objectionLibrary", "icp",
 ]);
 
 const MERGE_CONFIGS: Partial<Record<AppletType, { mergeField: string; mergeLabel: string }>> = {
   discoveryQuestions: { mergeField: "DISCOVERY_QUESTIONS", mergeLabel: "Discovery Questions" },
   firstCallChecklist: { mergeField: "FIRST_CALL_CHECKLIST", mergeLabel: "First Call Checklist" },
   preCallPlanning: { mergeField: "PRE_CALL_PLANNING", mergeLabel: "Pre-Call Planning" },
+  icp: { mergeField: "ICP", mergeLabel: "Ideal Customer Profile" },
 };
 
 function getDiscoveryQuestionsPrompt(inputText: string): string {
@@ -266,6 +267,52 @@ ${inputText}
 }`;
 }
 
+function getICPPrompt(inputText: string): string {
+  return `You are an expert B2B sales strategist. The user has provided their own Ideal Customer Profile document. Your job is to parse and restructure it into a specific JSON format, preserving the user's original content as faithfully as possible.
+
+## OUTPUT FORMAT (CRITICAL — follow this exactly):
+
+Respond with valid JSON in this exact format (no markdown code blocks, no extra text):
+{
+  "segments": [
+    {
+      "name": "Segment Name",
+      "description": "Description of this organization type",
+      "firmographic": {
+        "companySize": "Employee count range",
+        "industry": "Target industries",
+        "revenue": "Revenue range",
+        "geography": "Target regions",
+        "stage": "Company stage"
+      },
+      "technographic": {
+        "currentTools": ["Tool 1", "Tool 2"],
+        "techMaturity": "Technology adoption level",
+        "integrationNeeds": "Integration requirements"
+      },
+      "timingTriggers": ["Trigger 1", "Trigger 2"],
+      "painPoints": ["Pain point 1", "Pain point 2"],
+      "buyingPersonas": [
+        {
+          "title": "Job Title",
+          "role": "Champion / Decision Maker / Influencer / End User",
+          "motivation": "What drives this person",
+          "painPoints": ["Their specific pains"],
+          "objections": ["Common objections"],
+          "emotionalDriver": "Underlying emotional need"
+        }
+      ]
+    }
+  ]
+}
+
+## USER'S EXISTING ICP CONTENT:
+
+${inputText}
+
+Parse the above content into the JSON format. If some fields aren't covered in the original content, make reasonable inferences based on what's provided. Ensure each organizational segment has its associated buying personas.`;
+}
+
 // POST - Import user's own content
 export async function POST(request: NextRequest) {
   try {
@@ -392,6 +439,10 @@ export async function POST(request: NextRequest) {
         break;
       case "objectionLibrary":
         prompt = getObjectionLibraryPrompt(truncatedInput);
+        isJsonOutput = true;
+        break;
+      case "icp":
+        prompt = getICPPrompt(truncatedInput);
         isJsonOutput = true;
         break;
     }
@@ -674,6 +725,25 @@ export async function POST(request: NextRequest) {
         returnContent = { entries: created, count: created.length };
         break;
       }
+
+      case "icp": {
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.segments || !Array.isArray(parsed.segments)) throw new Error("Invalid response structure");
+
+        const icpImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - Ideal Customer Profile` : "Imported Ideal Customer Profile";
+        const version = await prisma.iCPVersion.create({
+          data: { userId: user.id, title: icpImportTitle, content: JSON.stringify(parsed) },
+        });
+
+        const mergeContent = formatICPForMerge(parsed);
+        const mc = MERGE_CONFIGS[appletType]!;
+        await upsertMergeVariable(user.id, mc.mergeField, mc.mergeLabel, mergeContent);
+        savedVersion = version;
+        returnContent = parsed;
+        break;
+      }
     }
 
     // For complex types, returnContent is already the full version object
@@ -727,6 +797,24 @@ function formatDiscoveryQuestionsForMerge(data: {
       }
       output += "\n";
     }
+  }
+  return output.trim();
+}
+
+function formatICPForMerge(data: { segments: Array<{ name: string; description: string; firmographic: { companySize: string; industry: string; revenue: string; geography: string; stage: string }; technographic: { currentTools: string[]; techMaturity: string; integrationNeeds: string }; timingTriggers: string[]; painPoints: string[]; buyingPersonas: Array<{ title: string; role: string; motivation: string; painPoints: string[]; objections: string[]; emotionalDriver: string }> }> }): string {
+  let output = "";
+  for (const segment of data.segments) {
+    output += `## ${segment.name}\n\n`;
+    output += `${segment.description}\n\n`;
+    output += `**Firmographic:** ${segment.firmographic.industry} | ${segment.firmographic.companySize} | ${segment.firmographic.revenue} | ${segment.firmographic.stage}\n`;
+    output += `**Technographic:** ${segment.technographic.techMaturity} | Tools: ${segment.technographic.currentTools.join(", ")}\n`;
+    output += `**Timing Triggers:** ${segment.timingTriggers.join("; ")}\n`;
+    output += `**Pain Points:** ${segment.painPoints.join("; ")}\n\n`;
+    output += `### Buying Personas\n\n`;
+    for (const persona of segment.buyingPersonas) {
+      output += `- **${persona.title}** (${persona.role}): ${persona.motivation}\n`;
+    }
+    output += "\n";
   }
   return output.trim();
 }

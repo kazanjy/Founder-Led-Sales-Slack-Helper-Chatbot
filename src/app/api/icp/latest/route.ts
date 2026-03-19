@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
-// GET - Get the latest discovery questions version
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -10,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const latestVersion = await prisma.discoveryQuestionsVersion.findFirst({
+    const latestVersion = await prisma.iCPVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
@@ -21,38 +20,32 @@ export async function GET() {
             createdAt: true,
           },
         },
-        user: {
-          select: { name: true, email: true, slackUserName: true },
-        },
       },
     });
 
     if (!latestVersion) {
-      // Check if user has a sales narrative to generate from
       const hasNarrative = await prisma.salesNarrativeVersion.findFirst({
         where: { userId: user.id },
         select: { id: true },
       });
 
       return NextResponse.json({
-        currentUserId: user.id,
-        hasDiscoveryQuestions: false,
+        hasICP: false,
         version: null,
         hasSalesNarrative: !!hasNarrative,
       });
     }
 
-    // Parse the stored JSON content
     let content;
     try {
       content = JSON.parse(latestVersion.content);
     } catch {
-      content = { categories: [] };
+      content = { segments: [] };
     }
 
     return NextResponse.json({
+      hasICP: true,
       currentUserId: user.id,
-      hasDiscoveryQuestions: true,
       version: {
         id: latestVersion.id,
         title: latestVersion.title,
@@ -61,13 +54,12 @@ export async function GET() {
         salesNarrative: latestVersion.salesNarrativeVersion,
         createdAt: latestVersion.createdAt,
         userId: latestVersion.userId,
-        user: latestVersion.user,
       },
     });
   } catch (error) {
-    console.error("Error fetching latest discovery questions:", error);
+    console.error("Error fetching latest ICP:", error);
     return NextResponse.json(
-      { error: "Failed to fetch discovery questions" },
+      { error: "Failed to fetch ICP" },
       { status: 500 }
     );
   }
