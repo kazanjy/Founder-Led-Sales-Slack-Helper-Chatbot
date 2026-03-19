@@ -43,10 +43,12 @@ export async function GET(
     }
 
     return NextResponse.json({
+      currentUserId: user.id,
       version: {
         id: version.id,
         title: version.title,
         content: version.content,
+        userId: version.userId,
         discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
         discoveryQuestionsVersion: version.discoveryQuestionsVersion,
         createdAt: version.createdAt,

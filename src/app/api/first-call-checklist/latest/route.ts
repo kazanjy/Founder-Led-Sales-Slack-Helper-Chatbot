@@ -45,10 +45,12 @@ export async function GET() {
 
     return NextResponse.json({
       hasFirstCallChecklist: true,
+      currentUserId: user.id,
       version: {
         id: latestVersion.id,
         title: latestVersion.title,
         content: latestVersion.content,
+        userId: latestVersion.userId,
         discoveryQuestionsVersionId: latestVersion.discoveryQuestionsVersionId,
         discoveryQuestionsVersion: latestVersion.discoveryQuestionsVersion,
         createdAt: latestVersion.createdAt,
