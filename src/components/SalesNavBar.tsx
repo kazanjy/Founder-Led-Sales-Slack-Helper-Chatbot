@@ -11,20 +11,27 @@ interface NavItem {
   statusKey: string;
 }
 
-const topLevelItems: NavItem[] = [
-  { href: "/chat", label: "💬 Chat", statusKey: "chat" },
-  { href: "/pre-call-planning/research", label: "🔬 Research", statusKey: "preCallResearch" },
-  { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
-  { href: "/call-scripts", label: "🎯 Call Scripts", statusKey: "coldCallScript" },
-  { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
-  { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
-  { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
-  { href: "/social-content", label: "📱 Social", statusKey: "socialContent" },
+const contentItems: NavItem[] = [
+  { href: "/email-sequence", label: "📧 Email Sequences", statusKey: "emailSequence" },
+  { href: "/linkedin-sequence", label: "💼 LinkedIn Outbound", statusKey: "linkedInSequence" },
+  { href: "/social-content", label: "📱 Social Posts", statusKey: "socialContent" },
   { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
+];
+
+const callExecutionItems: NavItem[] = [
+  { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
+  { href: "/call-review", label: "📞 Call Review", statusKey: "callReview" },
+  { href: "/call-scripts", label: "🎯 Cold Call Scripts", statusKey: "coldCallScript" },
+];
+
+const standaloneItems: NavItem[] = [
+  { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
   { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];
+
+const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems];
 
 const playbookItems: NavItem[] = [
   { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
@@ -42,8 +49,12 @@ export default function SalesNavBar() {
   const pathname = usePathname();
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
+  const [callExecOpen, setCallExecOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const contentDropdownRef = useRef<HTMLDivElement>(null);
+  const callExecDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
 
@@ -64,6 +75,8 @@ export default function SalesNavBar() {
   const closeMenus = useCallback(() => {
     setMobileMenuOpen(false);
     setPlaybookOpen(false);
+    setContentOpen(false);
+    setCallExecOpen(false);
   }, []);
 
   useEffect(() => {
@@ -119,18 +132,24 @@ export default function SalesNavBar() {
     fetchStatus();
   }, []);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setPlaybookOpen(false);
       }
+      if (contentDropdownRef.current && !contentDropdownRef.current.contains(e.target as Node)) {
+        setContentOpen(false);
+      }
+      if (callExecDropdownRef.current && !callExecDropdownRef.current.contains(e.target as Node)) {
+        setCallExecOpen(false);
+      }
     }
-    if (playbookOpen) {
+    if (playbookOpen || contentOpen || callExecOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [playbookOpen]);
+  }, [playbookOpen, contentOpen, callExecOpen]);
 
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
@@ -142,6 +161,8 @@ export default function SalesNavBar() {
 
   const isPlaybookActive = playbookItems.some((item) => isActive(item.href));
   const playbookCompletedCount = playbookItems.filter((item) => status[item.statusKey]).length;
+  const isContentActive = contentItems.some((item) => isActive(item.href));
+  const isCallExecActive = callExecutionItems.some((item) => isActive(item.href));
 
   return (
     <>
@@ -169,7 +190,7 @@ export default function SalesNavBar() {
           </button>
           <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
             {(() => {
-              const activeItem = [...topLevelItems, ...playbookItems].find(item => isActive(item.href));
+              const activeItem = [...allNavItems, ...playbookItems, { href: "/chat", label: "💬 Chat", statusKey: "chat" }].find(item => isActive(item.href));
               return activeItem?.label || "💬 Chat";
             })()}
           </span>
@@ -215,10 +236,44 @@ export default function SalesNavBar() {
                   );
                 })}
               </div>
-              {/* Tools section */}
+              {/* Content section */}
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">✏️ Content</div>
+                {contentItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
+                      isActive(item.href) ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
+                ))}
+              </div>
+              {/* Call Execution section */}
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">📞 Call Execution</div>
+                {callExecutionItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
+                      isActive(item.href) ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
+                ))}
+              </div>
+              {/* Other tools */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
-                {topLevelItems.slice(1).map((item) => (
+                {standaloneItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -253,7 +308,7 @@ export default function SalesNavBar() {
           {/* Playbook dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setPlaybookOpen(!playbookOpen)}
+              onClick={() => { setPlaybookOpen(!playbookOpen); setContentOpen(false); setCallExecOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isPlaybookActive
                   ? "border-purple-600 text-purple-600"
@@ -298,8 +353,86 @@ export default function SalesNavBar() {
             )}
           </div>
 
-          {/* Operational top-level items (skip Chat, already rendered) */}
-          {topLevelItems.slice(1).map((item) => (
+          {/* Content dropdown */}
+          <div className="relative" ref={contentDropdownRef}>
+            <button
+              onClick={() => { setContentOpen(!contentOpen); setCallExecOpen(false); setPlaybookOpen(false); }}
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isContentActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+              }`}
+            >
+              ✏️ Content
+              <svg className={`w-3.5 h-3.5 transition-transform ${contentOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {contentOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+                {contentItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setContentOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && (
+                      <span className="text-green-500 text-xs">✔️</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Call Execution dropdown */}
+          <div className="relative" ref={callExecDropdownRef}>
+            <button
+              onClick={() => { setCallExecOpen(!callExecOpen); setContentOpen(false); setPlaybookOpen(false); }}
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isCallExecActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+              }`}
+            >
+              📞 Call Execution
+              <svg className={`w-3.5 h-3.5 transition-transform ${callExecOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {callExecOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+                {callExecutionItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setCallExecOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && (
+                      <span className="text-green-500 text-xs">✔️</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Standalone items */}
+          {standaloneItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

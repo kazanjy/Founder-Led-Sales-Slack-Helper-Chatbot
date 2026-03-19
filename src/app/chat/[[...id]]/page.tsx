@@ -296,7 +296,10 @@ export default function ChatPage() {
     coldCallScript: { hasGenerated: boolean } | null;
     salesDeck: { hasGenerated: boolean } | null;
     salesMetrics: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null });
+    socialContent: { hasGenerated: boolean } | null;
+    adCreator: { hasGenerated: boolean } | null;
+    objectionLibrary: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null, socialContent: null, adCreator: null, objectionLibrary: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -475,6 +478,36 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             salesMetrics: { hasGenerated: !!smData.hasSalesMetrics }
+          }));
+        }
+
+        // Fetch Social Content progress
+        const scRes = await fetch("/api/social-content/latest");
+        if (scRes.ok) {
+          const scData = await scRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            socialContent: { hasGenerated: !!scData.hasSocialContent }
+          }));
+        }
+
+        // Fetch Ad Creator progress
+        const acRes = await fetch("/api/ad-creator/latest");
+        if (acRes.ok) {
+          const acData = await acRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            adCreator: { hasGenerated: !!acData.hasAdCreator }
+          }));
+        }
+
+        // Fetch Objection Library progress
+        const olRes = await fetch("/api/objection-library/latest");
+        if (olRes.ok) {
+          const olData = await olRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            objectionLibrary: { hasGenerated: !!olData.hasObjectionLibrary }
           }));
         }
       } catch (error) {
@@ -2599,18 +2632,65 @@ export default function ChatPage() {
           </button>
         </div>
 
-        {/* Tools Section - Operational / Frequent */}
+        {/* Content Section */}
         <div className="px-4 pb-2">
-          <button
-            onClick={() => setToolsExpanded(!toolsExpanded)}
-            className="flex items-center justify-between w-full mb-2"
-          >
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
-            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${toolsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {toolsExpanded && <div className="space-y-1 max-h-[176px] overflow-y-auto">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">✏️ Content</div>
+          <div className="space-y-1">
+            <a
+              href="/email-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.emailSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📧</span>
+              <span className="flex-1">Email Sequences</span>
+            </a>
+            <a
+              href="/linkedin-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.linkedInSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>💼</span>
+              <span className="flex-1">LinkedIn Outbound</span>
+            </a>
+            <a
+              href="/social-content"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.socialContent?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📱</span>
+              <span className="flex-1">Social Posts</span>
+            </a>
+            <a
+              href="/ad-creator"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.adCreator?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📣</span>
+              <span className="flex-1">Ads</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Call Execution Section */}
+        <div className="px-4 pb-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">📞 Call Execution</div>
+          <div className="space-y-1">
             <a
               href="/pre-call-planning/research"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -2634,30 +2714,6 @@ export default function ChatPage() {
               <span className="flex-1">Call Review</span>
             </a>
             <a
-              href="/email-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.emailSequence?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>📧</span>
-              <span className="flex-1">Email Sequence</span>
-            </a>
-            <a
-              href="/linkedin-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.linkedInSequence?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>💼</span>
-              <span className="flex-1">LinkedIn Sequence</span>
-            </a>
-            <a
               href="/call-scripts"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
@@ -2667,8 +2723,23 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>🎯</span>
-              <span className="flex-1">Call Scripts</span>
+              <span className="flex-1">Cold Call Scripts</span>
             </a>
+          </div>
+        </div>
+
+        {/* Tools Section - Other */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setToolsExpanded(!toolsExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${toolsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {toolsExpanded && <div className="space-y-1">
             <a
               href="/sales-deck"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -2679,7 +2750,19 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>📊</span>
-              <span className="flex-1">Sales Deck Generation</span>
+              <span className="flex-1">Sales Decks</span>
+            </a>
+            <a
+              href="/objection-library"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.objectionLibrary?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>🛡️</span>
+              <span className="flex-1">Objections</span>
             </a>
             <a
               href="/sales-metrics"
@@ -2691,7 +2774,15 @@ export default function ChatPage() {
                 <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
               )}
               <span>📈</span>
-              <span className="flex-1">Sales Metrics Analysis</span>
+              <span className="flex-1">Metrics</span>
+            </a>
+            <a
+              href="/coaching-history"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              <span>🎓</span>
+              <span className="flex-1">Coaching</span>
             </a>
             <a
               href="/files"
