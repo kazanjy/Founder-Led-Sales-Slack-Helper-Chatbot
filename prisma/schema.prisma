@@ -670,6 +670,7 @@ model SalesNarrativeVersion {
   description100w String   @db.Text  // 100-word product description
   description50w  String   @db.Text  // 50-word elevator pitch
   description25w  String   @db.Text  // 25-word tagline
+  improvementAreas String?  @db.Text  // JSON array of structured improvement suggestions
 
   // Sources used to create this narrative (from prefill)
   sourceUrls      String[]  @default([])  // URLs crawled from website

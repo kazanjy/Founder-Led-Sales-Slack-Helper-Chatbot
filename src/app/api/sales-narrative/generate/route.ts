@@ -175,6 +175,26 @@ Generate:
 
 5. **25-WORD DESCRIPTION** - A tagline or one-liner that captures the essence. No headers needed.
 
+6. **IMPROVEMENT AREAS** - Analyze the generated narrative critically by comparing it against the depth and specificity of the TalentBin and Salesforce examples above. Identify areas where the narrative could be strengthened with additional information from the founder.
+
+For each improvement area, provide:
+- "category": One of "Quantitative Proof", "Qualitative Proof", "Cost of Problem", "Solution Superiority", "Competitive Differentiation", "Customer Evidence", "Pricing Justification", "Market Context"
+- "title": A short title for this gap (e.g. "Missing ROI metrics")
+- "description": What specific information is missing and why it weakens the narrative
+- "suggestion": A concrete suggestion for what the founder could add (e.g. "Add specific percentage improvements your customers have seen, like '30% reduction in time-to-hire'")
+- "exampleFromReference": A brief quote or reference from the TalentBin or Salesforce example showing what good looks like for this area (e.g. "TalentBin cites '5x the number of results compared to LinkedIn Recruiter' and '3x-5x better response rates'")
+- "priority": "high", "medium", or "low" based on how much this gap weakens the narrative
+
+Focus especially on:
+- Missing quantitative proof points (specific numbers, percentages, dollar amounts)
+- Missing qualitative proof points (customer testimonials, awards, analyst recognition)
+- Weak or missing cost-of-problem quantification (what does inaction cost in dollars?)
+- Insufficient competitive comparison (how specifically is this better than alternatives?)
+- Missing customer evidence (case studies, number of customers, success stories)
+- Pricing justification gaps (why is the price a good deal compared to alternatives or cost of problem?)
+
+Return 3-8 improvement areas, ordered by priority (high first). Be specific and actionable. Do NOT include areas that are already well-covered in the narrative.
+
 ## QUESTIONNAIRE ANSWERS:
 
 ${answersSummary}
@@ -182,7 +202,7 @@ ${answersSummary}
 ---
 
 IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code blocks, just raw JSON):
-{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full ~2000-word sales narrative with question headers...", "description1000w": "The ~1000-word condensed narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline..."}`;
+{"narrativeTitle": "ProductName - Category - Sales Narrative", "narrative": "The full ~2000-word sales narrative with question headers...", "description1000w": "The ~1000-word condensed narrative with question headers...", "description100w": "The 100-word description...", "description50w": "The 50-word description...", "description25w": "The 25-word tagline...", "improvementAreas": [{"category": "Quantitative Proof", "title": "Missing ROI metrics", "description": "The narrative lacks specific...", "suggestion": "Add specific percentage...", "exampleFromReference": "TalentBin cites...", "priority": "high"}]}`;
 
     console.log(`Sending to GPT-5.2: ${fullPrompt.length} chars`);
 
@@ -212,6 +232,14 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       description100w: string;
       description50w: string;
       description25w: string;
+      improvementAreas?: Array<{
+        category: string;
+        title: string;
+        description: string;
+        suggestion: string;
+        exampleFromReference: string;
+        priority: string;
+      }>;
     };
 
     try {
@@ -249,6 +277,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
         description100w: parsedResponse.description100w,
         description50w: parsedResponse.description50w,
         description25w: parsedResponse.description25w,
+        improvementAreas: parsedResponse.improvementAreas ? JSON.stringify(parsedResponse.improvementAreas) : null,
         sourceUrls,
         sourcePdfNames,
       },
@@ -306,6 +335,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
         description100w: version.description100w,
         description50w: version.description50w,
         description25w: version.description25w,
+        improvementAreas: version.improvementAreas,
         createdAt: version.createdAt,
       },
       summary: {

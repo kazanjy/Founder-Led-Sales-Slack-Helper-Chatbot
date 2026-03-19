@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
             description100w: source.description100w,
             description50w: source.description50w,
             description25w: source.description25w,
+            improvementAreas: source.improvementAreas,
             sourceUrls: source.sourceUrls,
             sourcePdfNames: source.sourcePdfNames,
           },

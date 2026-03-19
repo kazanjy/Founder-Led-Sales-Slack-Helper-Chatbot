@@ -11,6 +11,15 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 
+interface ImprovementArea {
+  category: string;
+  title: string;
+  description: string;
+  suggestion: string;
+  exampleFromReference: string;
+  priority: "high" | "medium" | "low";
+}
+
 interface NarrativeVersion {
   id: string;
   title: string;
@@ -19,6 +28,7 @@ interface NarrativeVersion {
   description100w: string;
   description50w: string;
   description25w: string;
+  improvementAreas: string | null;
   sourceUrls: string[];
   sourcePdfNames: string[];
   createdAt: string;
@@ -61,7 +71,7 @@ function SalesNarrativeContent() {
   const [answersByCategory, setAnswersByCategory] = useState<AnswersByCategory | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   // Tab state — read initial tab from URL hash (e.g. #1000w)
-  const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w"] as const;
+  const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w", "improvements"] as const;
   type Tab = typeof validTabs[number];
   const getTabFromHash = (): Tab => {
     if (typeof window === "undefined") return "narrative";
@@ -636,6 +646,18 @@ function SalesNarrativeContent() {
           >
             25 Words
           </button>
+          {version.improvementAreas && (
+            <button
+              onClick={() => switchTab("improvements")}
+              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === "improvements"
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Improvement Areas
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -927,6 +949,109 @@ function SalesNarrativeContent() {
             </div>
           </div>
         )}
+
+        {activeTab === "improvements" && version.improvementAreas && (() => {
+          let areas: ImprovementArea[] = [];
+          try {
+            areas = JSON.parse(version.improvementAreas);
+          } catch {
+            return <p className="text-gray-500">Could not load improvement areas.</p>;
+          }
+
+          const priorityConfig: Record<string, { bg: string; border: string; text: string; badge: string; badgeText: string }> = {
+            high: { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", badge: "bg-red-100", badgeText: "text-red-700" },
+            medium: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800", badge: "bg-amber-100", badgeText: "text-amber-700" },
+            low: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", badge: "bg-blue-100", badgeText: "text-blue-700" },
+          };
+
+          const categoryIcons: Record<string, string> = {
+            "Quantitative Proof": "📊",
+            "Qualitative Proof": "💬",
+            "Cost of Problem": "💰",
+            "Solution Superiority": "🏆",
+            "Competitive Differentiation": "⚔️",
+            "Customer Evidence": "👥",
+            "Pricing Justification": "🏷️",
+            "Market Context": "🌍",
+          };
+
+          return (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="font-semibold text-gray-900">Improvement Areas</h2>
+                  <p className="text-sm text-gray-500">
+                    Gaps identified by comparing your narrative against best-in-class examples. Address these to strengthen your sales story.
+                  </p>
+                </div>
+                <div className="p-6 space-y-4">
+                  {areas.map((area, index) => {
+                    const priority = priorityConfig[area.priority] || priorityConfig.medium;
+                    const icon = categoryIcons[area.category] || "📋";
+
+                    return (
+                      <div key={index} className={`rounded-lg border ${priority.border} ${priority.bg} p-5`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{icon}</span>
+                            <h3 className={`font-semibold ${priority.text}`}>{area.title}</h3>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priority.badge} ${priority.badgeText}`}>
+                              {area.priority}
+                            </span>
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              {area.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 mb-1">What&apos;s missing</p>
+                            <p className="text-sm text-gray-600">{area.description}</p>
+                          </div>
+
+                          <div className="bg-white/70 rounded-md p-3 border border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 mb-1">Suggestion</p>
+                            <p className="text-sm text-gray-600">{area.suggestion}</p>
+                          </div>
+
+                          {area.exampleFromReference && (
+                            <div className="bg-white/70 rounded-md p-3 border border-gray-100">
+                              <p className="text-sm font-medium text-gray-700 mb-1">Example from reference narrative</p>
+                              <p className="text-sm text-gray-500 italic">&ldquo;{area.exampleFromReference}&rdquo;</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-100 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Ready to improve?</p>
+                    <p className="text-sm text-gray-600">
+                      Update your{" "}
+                      <Link href="/sales-narrative/edit" className="text-purple-600 hover:text-purple-800 underline underline-offset-2">
+                        questionnaire answers
+                      </Link>{" "}
+                      with the suggested information, then regenerate your narrative.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Quick Access Cards - only show when not editing */}
         {!isEditing && (
