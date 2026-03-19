@@ -265,6 +265,8 @@ export default function ChatPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [playbookExpanded, setPlaybookExpanded] = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(true);
+  const [callExecExpanded, setCallExecExpanded] = useState(true);
   const [toolsExpanded, setToolsExpanded] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -2634,8 +2636,16 @@ export default function ChatPage() {
 
         {/* Content Section */}
         <div className="px-4 pb-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">✏️ Content</div>
-          <div className="space-y-1">
+          <button
+            onClick={() => setContentExpanded(!contentExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">✏️ Content</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${contentExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {contentExpanded && <div className="space-y-1">
             <a
               href="/email-sequence"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -2684,13 +2694,21 @@ export default function ChatPage() {
               <span>📣</span>
               <span className="flex-1">Ads</span>
             </a>
-          </div>
+          </div>}
         </div>
 
         {/* Call Execution Section */}
         <div className="px-4 pb-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">📞 Call Execution</div>
-          <div className="space-y-1">
+          <button
+            onClick={() => setCallExecExpanded(!callExecExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">📞 Call Execution</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${callExecExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {callExecExpanded && <div className="space-y-1">
             <a
               href="/pre-call-planning/research"
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -2725,7 +2743,7 @@ export default function ChatPage() {
               <span>🎯</span>
               <span className="flex-1">Cold Call Scripts</span>
             </a>
-          </div>
+          </div>}
         </div>
 
         {/* Tools Section - Other */}
