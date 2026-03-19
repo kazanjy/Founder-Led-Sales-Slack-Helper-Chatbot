@@ -814,6 +814,11 @@ function SocialContentContent() {
             <div className="px-4 py-2 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
               <span className="font-semibold text-gray-500">Source:</span> {version.topicSource === "narrative" ? "Sales Narrative" : version.topicSource === "content" ? "Repurposed Content" : "Custom Topic"}
             </div>
+            {version.topicInput && (
+              <div className="px-4 py-2 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
+                <span className="font-semibold text-gray-500">Topic:</span> {version.topicInput}
+              </div>
+            )}
           </div>
         )}
 
