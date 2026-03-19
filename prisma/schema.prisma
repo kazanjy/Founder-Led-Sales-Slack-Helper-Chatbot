@@ -141,6 +141,8 @@ model User {
   salesMetricsAssessments SalesMetricsAssessment[]
   coachingSessions CoachingSession[]
   adCreatorVersions AdCreatorVersion[]
+  socialContentVersions SocialContentVersion[]
+  socialContentExamples SocialContentExample[]
   objectionEntries ObjectionEntry[]
   objectionBootstraps ObjectionBootstrap[]
   attachmentPreference UserAttachmentPreference?
@@ -688,6 +690,7 @@ model SalesNarrativeVersion {
   coldCallScriptVersions ColdCallScriptVersion[]
   salesDeckVersions SalesDeckVersion[]
   adCreatorVersions AdCreatorVersion[]
+  socialContentVersions SocialContentVersion[]
 
   createdAt   DateTime @default(now())
 
@@ -751,6 +754,7 @@ model FirstCallChecklistVersion {
   coldCallScriptVersions ColdCallScriptVersion[]
   salesDeckVersions SalesDeckVersion[]
   adCreatorVersions AdCreatorVersion[]
+  socialContentVersions SocialContentVersion[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1228,6 +1232,77 @@ model AdCreatorVersion {
 
   @@index([userId, createdAt])
   @@map("ad_creator_versions")
+}
+
+// ============================================
+// SOCIAL CONTENT GENERATOR APP
+// ============================================
+
+model SocialContentVersion {
+  id                          String   @id @default(cuid())
+
+  userId                      String
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId     String
+  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Platform: "linkedin" or "twitter"
+  platform                    String
+
+  // Tone: "thought-leadership", "shitposting", or custom string
+  tone                        String
+
+  // Number of posts requested
+  postCount                   Int      @default(5)
+
+  // Topic source: "narrative" (auto from sales narrative), "custom" (user-entered topic), "content" (repurpose pasted content)
+  topicSource                 String
+
+  // If topicSource is "custom" or "content", store the user input
+  topicInput                  String?  @db.Text
+
+  // Gold standard examples used (stored as JSON array of strings)
+  goldStandardExamples        String?  @db.Text
+
+  // Generated output
+  content                     String   @db.Text
+
+  // Linked chat thread
+  conversationId              String?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("social_content_versions")
+}
+
+// Saved gold standard examples for social content
+model SocialContentExample {
+  id        String   @id @default(cuid())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Platform this example is for
+  platform  String
+
+  // The example post content
+  content   String   @db.Text
+
+  // Optional label/name for the example
+  label     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, platform])
+  @@map("social_content_examples")
 }
 
 // ============================================

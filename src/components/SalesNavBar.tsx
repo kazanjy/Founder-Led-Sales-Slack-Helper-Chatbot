@@ -19,6 +19,7 @@ const topLevelItems: NavItem[] = [
   { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
   { href: "/email-sequence", label: "📧 Email", statusKey: "emailSequence" },
   { href: "/linkedin-sequence", label: "💼 LinkedIn", statusKey: "linkedInSequence" },
+  { href: "/social-content", label: "📱 Social", statusKey: "socialContent" },
   { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
   { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
@@ -78,7 +79,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes, socialContentRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -92,6 +93,7 @@ export default function SalesNavBar() {
           fetch("/api/sales-deck/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/sales-metrics/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/objection-library/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/social-content/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -108,6 +110,7 @@ export default function SalesNavBar() {
           salesDeck: !!salesDeckRes?.hasSalesDeck,
           salesMetrics: !!salesMetricsRes?.hasSalesMetrics,
           objectionLibrary: !!objectionLibraryRes?.hasObjectionLibrary,
+          socialContent: !!socialContentRes?.hasSocialContent,
         });
       } catch {
         // silently fail - indicators just won't show
