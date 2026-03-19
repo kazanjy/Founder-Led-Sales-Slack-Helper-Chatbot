@@ -126,7 +126,12 @@ function SocialContentContent() {
         }
 
         const response = await fetch(url);
-        if (!response.ok) return;
+        if (!response.ok) {
+          // API may fail if table doesn't exist yet — check for sales narrative directly
+          const narrativeRes = await fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null);
+          setHasSalesNarrative(!!narrativeRes?.hasNarrative);
+          return;
+        }
 
         const data = await response.json();
 
