@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
       .join("\n\n");
 
-    const prompt = `You are an expert B2B sales operations specialist who configures prospecting tools.
+    const prompt = `You are an expert B2B sales operations specialist who configures prospecting tools. Your philosophy: NARROW beats BROAD. A smaller, highly-targeted list always outperforms a large unfocused one.
 
 Given the Ideal Customer Profile below, generate specific search filter settings for these platforms:
 
@@ -48,14 +48,17 @@ Given the Ideal Customer Profile below, generate specific search filter settings
 
 2. **Apollo.io** — Include these filters: Person Titles, Seniority, Department, # Employees, Industry & Sub-Industry, Technologies, Keywords. Use Apollo's actual filter categories.
 
-## CRITICAL INSTRUCTIONS:
-- Use ACTUAL filter names and values that exist on each platform
-- For Job Titles, provide specific titles (not generic ones) drawn from the Key Personas section
-- For Company Headcount, translate the company size from the ICP into the platform's predefined ranges (e.g., "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001-10000")
-- For Industries, use the platform's standard industry taxonomy
-- Boolean searches should use proper syntax: AND, OR, NOT, parentheses, quotes
-- Include platform-specific tips for getting better results
-- Keep filter values practical and directly usable — users will copy-paste these into search UIs
+## CRITICAL INSTRUCTIONS — TIGHT TARGETING:
+- **Be as narrow and specific as possible.** It is far better to return a small, laser-focused list than a broad one. When in doubt, leave a filter value OUT.
+- For Job Titles, use ONLY the exact titles from the Key Personas section. Do NOT add generic alternatives, synonyms, or "related" titles. 3-5 titles max per platform.
+- For Seniority, pick ONLY the one or two levels that match the ICP — do not include a range.
+- For Company Headcount, use the SINGLE tightest range that matches the ICP (e.g., "51-200" not "51-200, 201-500, 501-1000").
+- For Industries, pick ONLY the 1-3 industries that are the dead-center fit. Do NOT pad with adjacent or tangentially related industries.
+- For Geography, be as specific as the ICP allows (city/metro > state > country).
+- Boolean searches should be tight: combine title AND industry AND company-size signals. Use NOT clauses to exclude noise (e.g., NOT "intern" NOT "student").
+- Use ACTUAL filter names and values that exist on each platform.
+- Include platform-specific tips for narrowing results further.
+- Keep filter values practical and directly usable — users will copy-paste these into search UIs.
 
 ## OUTPUT FORMAT (CRITICAL):
 Respond ONLY with a valid JSON array — no markdown, no code blocks, no explanation:
