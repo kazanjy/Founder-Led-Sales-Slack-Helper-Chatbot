@@ -100,6 +100,21 @@ function SocialContentContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
+
+  // More Like This overlay
+  const [showMoreLikeThis, setShowMoreLikeThis] = useState(false);
+  const [moreLikeThisCount, setMoreLikeThisCount] = useState(5);
+
+  // Iterate overlay
+  const [showIterate, setShowIterate] = useState(false);
+  const [iteratePlatform, setIteratePlatform] = useState<"linkedin" | "twitter">("linkedin");
+  const [iterateTone, setIterateTone] = useState("thought-leadership");
+  const [iterateCustomTone, setIterateCustomTone] = useState("");
+  const [iteratePostCount, setIteratePostCount] = useState(5);
+  const [iterateTopicSource, setIterateTopicSource] = useState<"narrative" | "custom" | "content">("narrative");
+  const [iterateTopicInput, setIterateTopicInput] = useState("");
+  const [iterateIncludeChecklist, setIterateIncludeChecklist] = useState(false);
+
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
@@ -292,6 +307,134 @@ function SocialContentContent() {
       setIncludeChecklist(!!version.firstCallChecklistVersionId);
     }
     setShowForm(true);
+  };
+
+  // "More Like This" — generate more posts with the same config
+  const handleMoreLikeThis = async () => {
+    if (!version) return;
+    setShowMoreLikeThis(false);
+    setGenerating(true);
+    try {
+      const response = await fetch("/api/social-content/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: version.platform,
+          tone: version.tone,
+          postCount: moreLikeThisCount,
+          topicSource: version.topicSource,
+          topicInput: version.topicInput || undefined,
+          goldStandardExamples: version.goldStandardExamples?.length > 0 ? version.goldStandardExamples : undefined,
+          includeFirstCallChecklist: !!version.firstCallChecklistVersionId,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({ title: "Error", message: data.error || "Failed to generate", variant: "danger" });
+        return;
+      }
+      const data = await response.json();
+      setVersion(data.version);
+      setEditedContent(data.version?.content || "");
+      router.push(`/social-content?version=${data.version.id}`);
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to generate. Please try again.", variant: "danger" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // "Iterate" — open overlay with existing config for editing, then regenerate
+  const handleOpenIterate = () => {
+    if (!version) return;
+    setIteratePlatform(version.platform as "linkedin" | "twitter");
+    if (["thought-leadership", "shitposting"].includes(version.tone)) {
+      setIterateTone(version.tone);
+      setIterateCustomTone("");
+    } else {
+      setIterateTone("other");
+      setIterateCustomTone(version.tone);
+    }
+    setIteratePostCount(version.postCount);
+    setIterateTopicSource(version.topicSource as "narrative" | "custom" | "content");
+    setIterateTopicInput(version.topicInput || "");
+    setIterateIncludeChecklist(!!version.firstCallChecklistVersionId);
+    setShowIterate(true);
+  };
+
+  const handleIterateGenerate = async () => {
+    const effectiveTone = iterateTone === "other" ? iterateCustomTone.trim() : iterateTone;
+    if (!effectiveTone) {
+      await showAlert({ title: "Missing Tone", message: "Please specify a tone.", variant: "danger" });
+      return;
+    }
+    if ((iterateTopicSource === "custom" || iterateTopicSource === "content") && !iterateTopicInput.trim()) {
+      await showAlert({ title: "Missing Input", message: "Please provide a topic or content.", variant: "danger" });
+      return;
+    }
+    setShowIterate(false);
+    setGenerating(true);
+    try {
+      const response = await fetch("/api/social-content/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: iteratePlatform,
+          tone: effectiveTone,
+          postCount: iteratePostCount,
+          topicSource: iterateTopicSource,
+          topicInput: iterateTopicInput.trim() || undefined,
+          goldStandardExamples: version?.goldStandardExamples?.length ? version.goldStandardExamples : undefined,
+          includeFirstCallChecklist: iterateIncludeChecklist,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({ title: "Error", message: data.error || "Failed to generate", variant: "danger" });
+        return;
+      }
+      const data = await response.json();
+      setVersion(data.version);
+      setEditedContent(data.version?.content || "");
+      router.push(`/social-content?version=${data.version.id}`);
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to generate. Please try again.", variant: "danger" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // CSV Download — parse markdown posts into rows
+  const handleCSVDownload = () => {
+    if (!version) return;
+    const content = version.content;
+    // Split on "Post N" or "## Post N" headings
+    const posts: string[] = [];
+    const sections = content.split(/(?:^|\n)(?:#{1,3}\s*)?(?:\*\*)?Post\s+\d+(?:\*\*)?(?:\s*[-:]*)?\s*\n/i);
+    for (const section of sections) {
+      const trimmed = section.trim();
+      if (trimmed) posts.push(trimmed);
+    }
+    if (posts.length === 0) {
+      posts.push(content);
+    }
+
+    const platformLabel = version.platform === "linkedin" ? "LinkedIn" : "Twitter/X";
+    const csvRows = [["Post #", "Platform", "Tone", "Content"]];
+    posts.forEach((post, i) => {
+      // Escape quotes for CSV
+      const escaped = post.replace(/"/g, '""');
+      csvRows.push([(i + 1).toString(), platformLabel, version.tone, escaped]);
+    });
+
+    const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `social-posts-${platformLabel.toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleCopy = async () => {
@@ -786,6 +929,18 @@ function SocialContentContent() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     Edit
                   </button>
+                  <button onClick={() => { setMoreLikeThisCount(5); setShowMoreLikeThis(true); }} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                    More Like This
+                  </button>
+                  <button onClick={handleOpenIterate} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    Iterate
+                  </button>
+                  <button onClick={handleCSVDownload} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    CSV
+                  </button>
                   <Link href="/social-content/history" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     History
@@ -834,6 +989,131 @@ function SocialContentContent() {
           </div>
         </div>
       </div>
+      {/* More Like This Overlay */}
+      {showMoreLikeThis && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowMoreLikeThis(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">More Like This</h3>
+            <p className="text-sm text-gray-500 mb-6">Generate more posts using the same settings.</p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">How many posts?</label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={1}
+                  max={15}
+                  value={moreLikeThisCount}
+                  onChange={e => setMoreLikeThisCount(Number(e.target.value))}
+                  className="flex-1 accent-purple-600"
+                />
+                <span className="text-lg font-semibold text-purple-600 w-8 text-center">{moreLikeThisCount}</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowMoreLikeThis(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleMoreLikeThis} className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">Generate</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Iterate Overlay */}
+      {showIterate && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIterate(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Iterate on This Post</h3>
+            <p className="text-sm text-gray-500 mb-6">Adjust settings and generate a new version.</p>
+
+            {/* Platform */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+              <div className="flex gap-2">
+                <button onClick={() => setIteratePlatform("linkedin")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "linkedin" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>LinkedIn</button>
+                <button onClick={() => setIteratePlatform("twitter")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "twitter" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Twitter/X</button>
+              </div>
+            </div>
+
+            {/* Tone */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => { setIterateTone("thought-leadership"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "thought-leadership" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Thought Leadership</button>
+                <button onClick={() => { setIterateTone("shitposting"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "shitposting" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Shitposting</button>
+                <button onClick={() => setIterateTone("other")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "other" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Other</button>
+              </div>
+              {iterateTone === "other" && (
+                <input
+                  type="text"
+                  value={iterateCustomTone}
+                  onChange={e => setIterateCustomTone(e.target.value)}
+                  placeholder="e.g., witty, provocative, casual"
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              )}
+            </div>
+
+            {/* Number of Posts */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Number of Posts</label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={1}
+                  max={15}
+                  value={iteratePostCount}
+                  onChange={e => setIteratePostCount(Number(e.target.value))}
+                  className="flex-1 accent-purple-600"
+                />
+                <span className="text-lg font-semibold text-purple-600 w-8 text-center">{iteratePostCount}</span>
+              </div>
+            </div>
+
+            {/* Topic Source */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Topic Source</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={iterateTopicSource === "narrative"} onChange={() => setIterateTopicSource("narrative")} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">From Sales Narrative</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={iterateTopicSource === "custom"} onChange={() => setIterateTopicSource("custom")} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">Custom Topic</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={iterateTopicSource === "content"} onChange={() => setIterateTopicSource("content")} className="accent-purple-600" />
+                  <span className="text-sm text-gray-700">Repurpose Content</span>
+                </label>
+              </div>
+              {(iterateTopicSource === "custom" || iterateTopicSource === "content") && (
+                <textarea
+                  value={iterateTopicInput}
+                  onChange={e => setIterateTopicInput(e.target.value)}
+                  placeholder={iterateTopicSource === "custom" ? "Enter your topic..." : "Paste content to repurpose..."}
+                  rows={3}
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              )}
+            </div>
+
+            {/* Include First Call Checklist */}
+            {hasFirstCallChecklist && (
+              <div className="mb-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={iterateIncludeChecklist} onChange={e => setIterateIncludeChecklist(e.target.checked)} className="accent-purple-600 w-4 h-4" />
+                  <span className="text-sm text-gray-700">Include First Call Checklist context</span>
+                </label>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+              <button onClick={() => setShowIterate(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={handleIterateGenerate} className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">Generate</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {ConfirmModalElement}
     </div>
   );
