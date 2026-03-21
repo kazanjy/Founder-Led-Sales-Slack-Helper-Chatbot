@@ -250,10 +250,9 @@ export async function GET(
     const activeDays7 = activeDays.filter(d => d >= daysAgo(7)).length;
     const activeDays30 = activeDays.filter(d => d >= daysAgo(30)).length;
 
-    // DAU/WAU and DAU/MAU (rolling window ratios)
-    const isActiveToday = activeDaySet.has(todayStr) ? 1 : 0;
-    const dauWau = activeDays7 > 0 ? Math.round((isActiveToday / (activeDays7 / 7)) * 100) / 100 : 0;
-    const dauMau = activeDays30 > 0 ? Math.round((isActiveToday / (activeDays30 / 30)) * 100) / 100 : 0;
+    // DAU/WAU and DAU/MAU (fraction of days active in window)
+    const dauWau = Math.round((activeDays7 / 7) * 100) / 100;
+    const dauMau = Math.round((activeDays30 / 30) * 100) / 100;
 
     // Days since last active
     const lastActiveDay = activeDays.length > 0 ? activeDays[activeDays.length - 1] : todayStr;
