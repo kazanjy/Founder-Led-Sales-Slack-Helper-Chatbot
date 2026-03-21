@@ -209,6 +209,106 @@ export async function GET(
     const completionCount = Object.values(completion).filter(Boolean).length;
     const completionTotal = Object.keys(completion).length;
 
+    // ── User Health Stats ──
+    // Collect all activity dates (conversations, messages, app actions)
+    const allConversations = await prisma.conversation.findMany({
+      where: { userId: id },
+      select: { createdAt: true, lastMessageAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const allMessages = await prisma.message.findMany({
+      where: { userId: id },
+      select: { createdAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Build a set of unique active days (YYYY-MM-DD)
+    const activeDaySet = new Set<string>();
+    for (const c of allConversations) {
+      activeDaySet.add(c.createdAt.toISOString().slice(0, 10));
+      activeDaySet.add(c.lastMessageAt.toISOString().slice(0, 10));
+    }
+    for (const m of allMessages) {
+      activeDaySet.add(m.createdAt.toISOString().slice(0, 10));
+    }
+    for (const a of activityItems) {
+      activeDaySet.add(a.createdAt.slice(0, 10));
+    }
+    // Include user creation date
+    activeDaySet.add(user.createdAt.toISOString().slice(0, 10));
+
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+    const activeDays = Array.from(activeDaySet).sort();
+
+    // Active days in last 7 / 30
+    const daysAgo = (n: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - n);
+      return d.toISOString().slice(0, 10);
+    };
+    const activeDays7 = activeDays.filter(d => d >= daysAgo(7)).length;
+    const activeDays30 = activeDays.filter(d => d >= daysAgo(30)).length;
+
+    // DAU/WAU and DAU/MAU (rolling window ratios)
+    const isActiveToday = activeDaySet.has(todayStr) ? 1 : 0;
+    const dauWau = activeDays7 > 0 ? Math.round((isActiveToday / (activeDays7 / 7)) * 100) / 100 : 0;
+    const dauMau = activeDays30 > 0 ? Math.round((isActiveToday / (activeDays30 / 30)) * 100) / 100 : 0;
+
+    // Days since last active
+    const lastActiveDay = activeDays.length > 0 ? activeDays[activeDays.length - 1] : todayStr;
+    const daysSinceLastActive = Math.floor(
+      (now.getTime() - new Date(lastActiveDay + "T23:59:59Z").getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    // Median session gap (days between consecutive active days)
+    let medianSessionGap: number | null = null;
+    if (activeDays.length >= 2) {
+      const gaps: number[] = [];
+      for (let i = 1; i < activeDays.length; i++) {
+        const diff = Math.floor(
+          (new Date(activeDays[i]).getTime() - new Date(activeDays[i - 1]).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diff > 0) gaps.push(diff);
+      }
+      if (gaps.length > 0) {
+        gaps.sort((a, b) => a - b);
+        const mid = Math.floor(gaps.length / 2);
+        medianSessionGap = gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
+      }
+    }
+
+    // Core actions per session (total app actions / unique active days)
+    const totalCoreActions = activityItems.length;
+    const coreActionsPerSession = activeDays.length > 0
+      ? Math.round((totalCoreActions / activeDays.length) * 10) / 10
+      : 0;
+
+    // Current streak (consecutive days ending today or yesterday)
+    let currentStreak = 0;
+    {
+      const d = new Date(now);
+      // If not active today, check if active yesterday to allow for timezone slack
+      if (!activeDaySet.has(d.toISOString().slice(0, 10))) {
+        d.setDate(d.getDate() - 1);
+      }
+      while (activeDaySet.has(d.toISOString().slice(0, 10))) {
+        currentStreak++;
+        d.setDate(d.getDate() - 1);
+      }
+    }
+
+    const health = {
+      activeDays7,
+      activeDays30,
+      dauWau,
+      dauMau,
+      daysSinceLastActive: Math.max(0, daysSinceLastActive),
+      medianSessionGap,
+      coreActionsPerSession,
+      currentStreak,
+    };
+
     // Calculate trial status
     let trialDaysRemaining = null;
     if (user.licenseStatus === "TRIAL" && user.trialStartedAt) {
@@ -289,6 +389,8 @@ export async function GET(
         conversations: user.conversations,
         activity: activityItems.slice(0, 20),
         sessions: user.sessions,
+        // Health
+        health,
         // Timestamps
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,

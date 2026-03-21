@@ -73,6 +73,16 @@ interface UserDetail {
     createdAt: string;
     expiresAt: string;
   }[];
+  health: {
+    activeDays7: number;
+    activeDays30: number;
+    dauWau: number;
+    dauMau: number;
+    daysSinceLastActive: number;
+    medianSessionGap: number | null;
+    coreActionsPerSession: number;
+    currentStreak: number;
+  };
   completion: {
     slackConnected: boolean;
     narrative: boolean;
@@ -1200,6 +1210,53 @@ export default function AdminUserDetailPage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* User Health */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Health</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Active Days (7d / 30d)</span>
+                <span className="font-medium">{user.health.activeDays7} / {user.health.activeDays30}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">DAU / WAU</span>
+                <span className="font-medium">{user.health.dauWau}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">DAU / MAU</span>
+                <span className="font-medium">{user.health.dauMau}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Days Since Last Active</span>
+                <span className={`font-medium ${
+                  user.health.daysSinceLastActive === 0
+                    ? "text-green-600"
+                    : user.health.daysSinceLastActive <= 3
+                    ? "text-yellow-600"
+                    : "text-red-600"
+                }`}>
+                  {user.health.daysSinceLastActive === 0 ? "Today" : `${user.health.daysSinceLastActive}d ago`}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Median Session Gap</span>
+                <span className="font-medium">
+                  {user.health.medianSessionGap !== null ? `${user.health.medianSessionGap}d` : "-"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Core Actions / Session</span>
+                <span className="font-medium">{user.health.coreActionsPerSession}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Current Streak</span>
+                <span className={`font-medium ${user.health.currentStreak >= 3 ? "text-green-600" : ""}`}>
+                  {user.health.currentStreak}d
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
