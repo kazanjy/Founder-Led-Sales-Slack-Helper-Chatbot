@@ -191,6 +191,10 @@ function IcpContent() {
       if (data.version?.content?.sections) {
         setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
       }
+      // Auto-generate search criteria in the background
+      if (data.version?.id) {
+        generateSearchCriteriaInBackground(data.version.id);
+      }
     } catch (error) {
       console.error("Error generating:", error);
       await showAlert({ title: "Error", message: "Failed to generate ICP. Please try again.", variant: "danger" });
@@ -281,6 +285,10 @@ function IcpContent() {
       const data = await response.json();
       setVersion(data.version);
       setShowImport(false);
+      // Auto-generate search criteria in the background
+      if (data.version?.id) {
+        generateSearchCriteriaInBackground(data.version.id);
+      }
       setImportText("");
       if (data.version?.content?.sections) {
         setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
@@ -290,6 +298,23 @@ function IcpContent() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const generateSearchCriteriaInBackground = (versionId: string) => {
+    setGeneratingCriteria(true);
+    fetch("/api/icp/generate-search-criteria", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ versionId }),
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.searchCriteria) {
+          setVersion(prev => prev ? { ...prev, content: { ...prev.content, searchCriteria: data.searchCriteria } } : prev);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setGeneratingCriteria(false));
   };
 
   const handleGenerateSearchCriteria = async () => {
@@ -759,24 +784,35 @@ function IcpContent() {
       {activeTab === "search-criteria" && (
         <div className="max-w-5xl mx-auto px-6 py-8">
           {!version.content.searchCriteria ? (
-            /* Empty state — no criteria generated yet */
+            /* Empty state — criteria not yet generated */
             <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 250px)" }}>
               <div className="max-w-md w-full text-center">
-                <div className="text-5xl mb-4">🔍</div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Search Criteria</h2>
-                <p className="text-gray-600 mb-6">
-                  Translate your ICP into ready-to-use search filters for LinkedIn Sales Navigator, Apollo.io, and Google X-Ray searches.
-                </p>
-                <button
-                  onClick={handleGenerateSearchCriteria}
-                  disabled={generatingCriteria}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:bg-purple-400 transition-colors font-medium flex items-center justify-center gap-2 mx-auto"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Generate Search Criteria
-                </button>
+                {generatingCriteria ? (
+                  <>
+                    <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-gray-600">Generating search criteria from your ICP...</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-5xl mb-4">🔍</div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Search Criteria</h2>
+                    <p className="text-gray-600 mb-6">
+                      Translate your ICP into ready-to-use search filters for LinkedIn Sales Navigator and Apollo.io.
+                    </p>
+                    <button
+                      onClick={handleGenerateSearchCriteria}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2 mx-auto"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Generate Search Criteria
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -786,7 +822,6 @@ function IcpContent() {
                 const platformColors: Record<string, { bg: string; border: string; text: string; accent: string }> = {
                   "LinkedIn Sales Navigator": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", accent: "bg-blue-600" },
                   "Apollo.io": { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-800", accent: "bg-violet-600" },
-                  "Google X-Ray Search": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800", accent: "bg-emerald-600" },
                 };
                 const pColors = platformColors[platform.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-800", accent: "bg-gray-600" };
 

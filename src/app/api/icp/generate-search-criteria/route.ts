@@ -48,8 +48,6 @@ Given the Ideal Customer Profile below, generate specific search filter settings
 
 2. **Apollo.io** — Include these filters: Person Titles, Seniority, Department, # Employees, Industry & Sub-Industry, Technologies, Keywords. Use Apollo's actual filter categories.
 
-3. **Google X-Ray Search** — Provide 2-3 ready-to-paste Google x-ray search strings (site:linkedin.com/in) that find these personas. Put these in the "booleanSearch" field, one per line.
-
 ## CRITICAL INSTRUCTIONS:
 - Use ACTUAL filter names and values that exist on each platform
 - For Job Titles, provide specific titles (not generic ones) drawn from the Key Personas section
