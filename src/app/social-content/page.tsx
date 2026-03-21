@@ -131,7 +131,7 @@ function SocialContentContent() {
   const [iterateTopicInput, setIterateTopicInput] = useState("");
   const [iterateIncludeChecklist, setIterateIncludeChecklist] = useState(false);
 
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
     document.title = "Social Content - Mikey";
@@ -451,6 +451,28 @@ function SocialContentContent() {
     link.download = `social-posts-${platformLabel.toLowerCase()}-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = async () => {
+    if (!version) return;
+    const confirmed = await showConfirm({
+      title: "Delete This Post?",
+      message: "This will permanently delete this social content. This action cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/social-content/versions/${version.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        await showAlert({ title: "Error", message: "Failed to delete", variant: "danger" });
+        return;
+      }
+      router.push("/social-content");
+      router.refresh();
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to delete", variant: "danger" });
+    }
   };
 
   const handleCopy = async () => {
@@ -974,6 +996,11 @@ function SocialContentContent() {
                         <button onClick={() => { setOverflowOpen(false); handleCSVDownload(); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
                           <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                           Download CSV
+                        </button>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <button onClick={() => { setOverflowOpen(false); handleDelete(); }} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3">
+                          <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          Delete
                         </button>
                       </div>
                     )}
