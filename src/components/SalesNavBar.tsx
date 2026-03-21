@@ -36,6 +36,7 @@ const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...stand
 const playbookItems: NavItem[] = [
   { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
   { href: "/sales-narrative", label: "📖 Sales Narrative", statusKey: "salesNarrative" },
+  { href: "/icp", label: "👤 Ideal Customer Profile", statusKey: "icp" },
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
@@ -92,7 +93,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes, socialContentRes] = await Promise.all([
+        const [narrativeRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes, socialContentRes, icpRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/first-call-checklist/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -107,10 +108,12 @@ export default function SalesNavBar() {
           fetch("/api/sales-metrics/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/objection-library/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/social-content/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/icp/latest").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
           salesNarrative: !!narrativeRes?.hasNarrative,
+          icp: !!icpRes?.hasIcp,
           discoveryQuestions: !!discoveryRes?.hasDiscoveryQuestions,
           firstCallChecklist: !!checklistRes?.hasFirstCallChecklist,
           preCallPlanning: !!planningRes?.hasPreCallPlanning,

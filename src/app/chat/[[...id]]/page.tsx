@@ -289,6 +289,7 @@ export default function ChatPage() {
   const [appProgress, setAppProgress] = useState<{
     gtmAssessment: { answered: number; total: number; hasSubmitted: boolean } | null;
     salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
+    icp: { hasGenerated: boolean } | null;
     discoveryQuestions: { hasGenerated: boolean } | null;
     firstCallChecklist: { hasGenerated: boolean } | null;
     preCallPlanning: { hasGenerated: boolean } | null;
@@ -301,7 +302,7 @@ export default function ChatPage() {
     socialContent: { hasGenerated: boolean } | null;
     adCreator: { hasGenerated: boolean } | null;
     objectionLibrary: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null, socialContent: null, adCreator: null, objectionLibrary: null });
+  }>({ gtmAssessment: null, salesNarrative: null, icp: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null, socialContent: null, adCreator: null, objectionLibrary: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -510,6 +511,16 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             objectionLibrary: { hasGenerated: !!olData.hasObjectionLibrary }
+          }));
+        }
+
+        // Fetch ICP progress
+        const icpRes = await fetch("/api/icp/latest");
+        if (icpRes.ok) {
+          const icpData = await icpRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            icp: { hasGenerated: !!icpData.hasIcp }
           }));
         }
       } catch (error) {
@@ -2829,12 +2840,13 @@ export default function ChatPage() {
                 const completed = [
                   appProgress.gtmAssessment?.hasSubmitted,
                   appProgress.salesNarrative?.hasGenerated,
+                  appProgress.icp?.hasGenerated,
                   appProgress.discoveryQuestions?.hasGenerated,
                   appProgress.firstCallChecklist?.hasGenerated,
                   appProgress.preCallPlanning?.hasGenerated,
                 ].filter(Boolean).length;
                 return completed > 0 ? (
-                  <span className="text-green-600 font-medium">{completed}/5</span>
+                  <span className="text-green-600 font-medium">{completed}/6</span>
                 ) : null;
               })()}
             </div>
@@ -2889,6 +2901,21 @@ export default function ChatPage() {
                   </span>
                 )}
                 {!appProgress.salesNarrative?.hasGenerated && (!appProgress.salesNarrative || appProgress.salesNarrative.answered === 0) && (
+                  <span className="text-xs text-purple-600 font-medium">Start →</span>
+                )}
+              </a>
+              <a
+                href="/icp"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                {appProgress.icp?.hasGenerated ? (
+                  <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+                ) : (
+                  <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+                )}
+                <span>👤</span>
+                <span className="flex-1">Ideal Customer Profile</span>
+                {!appProgress.icp?.hasGenerated && (
                   <span className="text-xs text-purple-600 font-medium">Start →</span>
                 )}
               </a>

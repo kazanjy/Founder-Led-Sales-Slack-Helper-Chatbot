@@ -145,6 +145,7 @@ model User {
   socialContentExamples SocialContentExample[]
   objectionEntries ObjectionEntry[]
   objectionBootstraps ObjectionBootstrap[]
+  icpVersions IcpVersion[]
   attachmentPreference UserAttachmentPreference?
   uploadedFiles   UserFile[]
   channelClaims   ChannelClaim[]
@@ -691,6 +692,7 @@ model SalesNarrativeVersion {
   salesDeckVersions SalesDeckVersion[]
   adCreatorVersions AdCreatorVersion[]
   socialContentVersions SocialContentVersion[]
+  icpVersions IcpVersion[]
 
   createdAt   DateTime @default(now())
 
@@ -1384,4 +1386,29 @@ model ObjectionBootstrap {
 
   @@index([userId, createdAt])
   @@map("objection_bootstraps")
+}
+
+// ============================================
+// IDEAL CUSTOMER PROFILE (ICP) APP
+// ============================================
+
+model IcpVersion {
+  id          String   @id @default(cuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative version used as input (null for imported content)
+  salesNarrativeVersionId String?
+  salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output
+  title       String   @default("Ideal Customer Profile")
+  content     String   @db.Text  // JSON stringified IcpContent
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("icp_versions")
 }
