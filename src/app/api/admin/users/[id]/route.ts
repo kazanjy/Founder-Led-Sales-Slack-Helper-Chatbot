@@ -234,8 +234,7 @@ export async function GET(
     for (const a of activityItems) {
       activeDaySet.add(a.createdAt.slice(0, 10));
     }
-    // Include user creation date
-    activeDaySet.add(user.createdAt.toISOString().slice(0, 10));
+
 
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
@@ -257,7 +256,7 @@ export async function GET(
     // Days since last active
     const lastActiveDay = activeDays.length > 0 ? activeDays[activeDays.length - 1] : todayStr;
     const daysSinceLastActive = Math.floor(
-      (now.getTime() - new Date(lastActiveDay + "T23:59:59Z").getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - new Date(lastActiveDay + "T00:00:00Z").getTime()) / (1000 * 60 * 60 * 24)
     );
 
     // Median session gap (days between consecutive active days)
@@ -277,10 +276,10 @@ export async function GET(
       }
     }
 
-    // Core actions per session (total app actions / unique active days)
-    const totalCoreActions = activityItems.length;
-    const coreActionsPerSession = activeDays.length > 0
-      ? Math.round((totalCoreActions / activeDays.length) * 10) / 10
+    // Core actions per active day (last 30 days)
+    const recentCoreActions = activityItems.filter(a => a.createdAt.slice(0, 10) >= daysAgo(30)).length;
+    const coreActionsPerSession = activeDays30 > 0
+      ? Math.round((recentCoreActions / activeDays30) * 10) / 10
       : 0;
 
     // Current streak (consecutive days ending today or yesterday)

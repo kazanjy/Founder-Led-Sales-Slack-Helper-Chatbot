@@ -508,7 +508,7 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Actions / Session</div>
+                <div className="text-xs text-gray-500 mb-1">Actions / Active Day</div>
                 <div className="text-lg font-semibold">{user.health.coreActionsPerSession}</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg sm:col-span-2">
