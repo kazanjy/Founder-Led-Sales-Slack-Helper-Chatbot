@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicAnswer } from "@/lib/public-answers/generate";
 
+// Chatbase calls can take 10-30s
+export const maxDuration = 120;
+
 /**
  * POST /api/public/ask — Submit a question from the Ask Mikey page
  * No auth required — fully public.
