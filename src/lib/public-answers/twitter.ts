@@ -241,7 +241,7 @@ export async function getTweet(tweetId: string): Promise<{
  */
 export async function getThreadContext(
   tweet: Tweet,
-  maxDepth = 5
+  maxDepth = 20
 ): Promise<{ contextText: string; imageUrls: string[] }> {
   const chain: string[] = [];
   const imageUrls: string[] = [];
