@@ -473,6 +473,30 @@ For each new mention:
 
 **Recommendation**: Start with a Next.js API route triggered by Vercel Cron (or equivalent). Move to a queue if volume grows.
 
+### 3f. Threaded Conversations on Public Answer Pages (Future)
+
+When Mikey replies to a tweet, the original asker (or other users) may continue the conversation on Twitter. These follow-up replies should be captured and appended to the same public answer page, turning it into a threaded discussion rather than a single Q&A.
+
+**Same-user follow-ups (the original asker replies to Mikey's reply):**
+- These should definitely be appended to the existing `/answers/[slug]` page
+- Mikey generates a follow-up response and appends it to the same answer
+- The public page shows the full back-and-forth as a conversation thread
+- On Twitter, Mikey replies in the same thread (maintaining the Twitter conversation)
+- The `PublicAnswer` model may need a related `PublicAnswerReply` model (or a JSON array of exchanges) to store multi-turn conversations
+
+**Third-party interjections (a different user replies to Mikey's reply):**
+- TBD — needs a design decision:
+  - **Option A**: Treat as a new question → new answer page (cleaner, avoids noise)
+  - **Option B**: Append to the same page as a community thread (more engaging, but moderation burden)
+  - **Option C**: Ignore unless they also @mention Mikey directly (safest default)
+- Leaning toward Option A or C initially to keep pages focused
+
+**Implementation considerations:**
+- The polling worker needs to distinguish "reply to Mikey's reply by original asker" vs "new mention by a different user"
+- Use `conversation_id` + `in_reply_to_user_id` to detect whether a reply is part of an existing Mikey conversation
+- The answer page UI needs a thread/conversation view (alternating question/answer blocks) instead of a single answer block
+- SEO: the H1 stays as the original question; follow-up exchanges are supplementary content
+
 ---
 
 ## 4. Answer Generation Pipeline (Shared)
