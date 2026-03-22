@@ -446,7 +446,7 @@ For each new mention:
 
 1. **Filter/moderate**: Skip obvious spam, non-questions, or inappropriate content
 2. **Extract images**: Run vision extraction on any images in the mention or thread
-3. **Generate answer**: Send question + thread context (including extracted image content) through the Mikey answer pipeline
+3. **Generate answer**: Send question + thread context (including extracted image content) through the Chatbase API via `sendToChatbase()` (see §4 for full call pattern)
 3. **Generate preview**: Truncate/summarize the answer to fit in a tweet (~200 chars to leave room for the link)
 4. **Generate slug**: From the question text
 5. **Store**: Create `PublicAnswer` record with `source: "twitter"`
@@ -491,10 +491,31 @@ generatePublicAnswer(input: {
 }
 ```
 
-- Uses the same Chatbase/LLM pipeline as existing Mikey chat
+### Chatbase Integration (required)
+
+All answer generation **must** go through the existing Chatbase API client at `src/lib/chatbase/client.ts` — the same route every other Mikey feature uses. This keeps Public Mikey's knowledge, tone, and behavior consistent with the rest of the product.
+
+**Call pattern:**
+
+1. Build the prompt (question + thread context + any vision-extracted image content)
+2. If the combined content exceeds the 7,500-char buffer, use the chunking utilities from `src/lib/chatbase/chunking.ts`:
+   - `needsChunking(content)` to check
+   - `splitIntoChunks(content)` to split on markdown headers / line boundaries
+   - `buildChunkedHistory(chunks, "Thread context")` to create a multi-message history with assistant acknowledgments between parts
+3. Call `sendToChatbase(prompt, undefined, chatbaseHistory)` — non-streaming is fine since there's no live user waiting (Twitter replies and Ask Mikey submissions are async)
+4. Parse the response text as the full answer
+5. Generate the preview (second `sendToChatbase` call with a short summarization prompt, or truncate the first sentence to ≤280 chars)
+6. Generate the slug from the question text
+
+**Why not a separate LLM call?** Chatbase already has Mikey's training data, system prompt, and founder-led sales knowledge baked in. Calling a raw OpenAI/Anthropic endpoint would bypass all of that and produce generic answers. The whole point is that Public Mikey sounds like Mikey.
+
+**No `conversationId` needed** — each public answer is a one-shot generation, not a multi-turn conversation. Pass `undefined` for the conversation ID.
+
+### Content notes
+
 - Prompt includes general founder-led sales knowledge (not user-specific sales narratives — this is public)
 - For Twitter sources: includes vision-extracted content from any images in the thread
-- Preview generation: either first sentence of the answer or a separate summarization call
+- Preview generation: either a second summarization call via `sendToChatbase` or first-sentence truncation
 
 ---
 
