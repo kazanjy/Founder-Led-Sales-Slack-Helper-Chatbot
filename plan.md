@@ -360,6 +360,7 @@ model PublicAnswer {
 
   // Twitter-specific metadata (null for ask-mikey)
   twitterTweetId  String?  @unique
+  twitterTweetUrl String?            // Full tweet URL for oEmbed rendering
   twitterHandle   String?
   twitterThreadContext String? @db.Text
 
@@ -403,7 +404,8 @@ Generate from question text: `"How do I price my first SaaS deal?"` → `how-do-
 
 ### `/answers/[slug]` — Public Answer Page
 
-- **H1**: The question text (matches search intent for SEO)
+- **Embedded tweet** (Twitter-sourced only): Use Twitter's oEmbed API (`https://publish.twitter.com/oembed?url=...`) to render the original tweet card at the top of the page. This shows the real question in its original social context with the asker's avatar, handle, and engagement. Load the Twitter widget JS (`widgets.js`) to render it client-side. Falls back to a styled quote block if the tweet is deleted or unavailable.
+- **H1**: The question text (matches search intent for SEO — also serves as the heading for Ask Mikey-sourced questions that don't have a tweet embed)
 - **Source attribution**: "Asked on Twitter by @handle" or "Asked on Ask Mikey"
 - **Full answer**: Rich formatted Mikey response
 - **Related questions**: Links to other answer pages (internal linking for SEO)
