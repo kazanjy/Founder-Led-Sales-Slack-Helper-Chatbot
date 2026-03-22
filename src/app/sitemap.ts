@@ -17,17 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [
-    {
-      url: `${BASE_URL}/ask`,
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/answers`,
-      changeFrequency: "daily",
-      priority: 0.8,
-    },
-    ...answerEntries,
-  ];
+  // NOTE: /ask and /answers index are excluded from sitemap until public launch.
+  // Only individual answer pages are indexed for now.
+  return answerEntries;
 }

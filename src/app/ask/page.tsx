@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function AskMikeyPage() {
   const [question, setQuestion] = useState("");
@@ -46,16 +45,10 @@ export default function AskMikeyPage() {
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link href="/answers" className="text-lg font-bold text-gray-900">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+          <span className="text-lg font-bold text-gray-900">
             Ask Mikey
-          </Link>
-          <Link
-            href="/answers"
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Browse Answers
-          </Link>
+          </span>
         </div>
       </header>
 

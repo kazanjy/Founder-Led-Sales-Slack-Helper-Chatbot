@@ -96,15 +96,9 @@ export default async function PublicAnswerPage({ params }: PageProps) {
 
       <header className="border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link href="/answers" className="text-lg font-bold text-gray-900">
+          <span className="text-lg font-bold text-gray-900">
             Ask Mikey
-          </Link>
-          <Link
-            href="/ask"
-            className="text-sm font-medium text-blue-600 hover:text-blue-800"
-          >
-            Ask a Question
-          </Link>
+          </span>
         </div>
       </header>
 
@@ -199,16 +193,7 @@ export default async function PublicAnswerPage({ params }: PageProps) {
           </section>
         )}
 
-        {/* CTA */}
-        <div className="mt-12 text-center py-8 bg-gray-50 rounded-lg">
-          <p className="text-gray-600 mb-3">Have a sales question?</p>
-          <Link
-            href="/ask"
-            className="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Ask Mikey
-          </Link>
-        </div>
+        {/* CTA — hidden until public launch */}
       </main>
     </div>
   );

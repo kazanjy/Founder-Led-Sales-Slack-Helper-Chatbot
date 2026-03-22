@@ -7,8 +7,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/answers", "/answers/", "/ask"],
-        disallow: ["/api/", "/admin/", "/chat/"],
+        // Allow individual answer pages; hide /ask and /answers index until public launch
+        allow: ["/answers/"],
+        disallow: ["/api/", "/admin/", "/chat/", "/ask"],
       },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,

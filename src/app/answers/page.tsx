@@ -58,16 +58,10 @@ export default function AnswersIndexPage() {
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link href="/answers" className="text-lg font-bold text-gray-900">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+          <span className="text-lg font-bold text-gray-900">
             Ask Mikey
-          </Link>
-          <Link
-            href="/ask"
-            className="text-sm font-medium text-blue-600 hover:text-blue-800"
-          >
-            Ask a Question
-          </Link>
+          </span>
         </div>
       </header>
 
@@ -103,15 +97,9 @@ export default function AnswersIndexPage() {
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : answers.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">
+            <p className="text-gray-500">
               {search ? "No answers match your search." : "No answers yet."}
             </p>
-            <Link
-              href="/ask"
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Be the first to ask Mikey a question!
-            </Link>
           </div>
         ) : (
           <div className="space-y-4">
