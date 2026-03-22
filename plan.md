@@ -742,3 +742,22 @@ Add to **Phase 4** (after core public answer pages exist):
 22. Build `/admin/public-mikey` page with stats cards + answer tables
 23. Build `/admin/public-mikey/[id]` detail page with edit/moderation
 24. Add moderation queue for draft answers
+
+---
+
+## 11. Wired-Off Features (Re-enable at Public Launch)
+
+The following features have been built but are currently disabled to keep the public pages undiscoverable until launch. When ready to go live, reverse these changes:
+
+### Cross-Page Navigation Links
+
+1. **`/answers/[slug]` header** — Restore `<Link href="/answers">` on the "Ask Mikey" title and add back the "Ask a Question" `<Link href="/ask">` in the header
+2. **`/answers/[slug]` bottom CTA** — Restore the "Have a sales question? Ask Mikey" CTA block linking to `/ask`
+3. **`/answers` header** — Restore `<Link href="/answers">` on the "Ask Mikey" title and add back the "Ask a Question" `<Link href="/ask">` in the header
+4. **`/answers` empty state** — Restore the "Be the first to ask Mikey a question!" `<Link href="/ask">` in the empty-state block
+5. **`/ask` header** — Restore `<Link href="/answers">` on the "Ask Mikey" title and add back the "Browse Answers" `<Link href="/answers">` in the header (also re-add the `import Link from "next/link"` import)
+
+### SEO & Crawlability
+
+6. **`sitemap.ts`** — Add back the `/ask` and `/answers` index entries to the sitemap return array
+7. **`robots.ts`** — Add `/ask` and `/answers` back to the `allow` list
