@@ -316,3 +316,293 @@ Do NOT wrap in code blocks. Return only the JSON array.
 - [ ] `src/app/share/doc/[code]/SharedDocClient.tsx` — Add type label
 - [ ] `src/app/api/import/route.ts` — Add applet type
 - [ ] `src/lib/sequences/sequence-conversation.ts` — Add type support
+
+---
+---
+
+# Public Mikey — Twitter Integration & Ask Mikey
+
+## Overview
+
+Two public intake channels that let anyone ask Mikey a question and get a persistent, crawlable answer page. This creates an organic SEO flywheel: each answered question becomes a long-tail keyword page that drives traffic, which drives more questions.
+
+### Channels
+
+1. **Twitter/X** — A `@AskMikey` (TBD) handle that listens for mentions, answers with a preview + link
+2. **Ask Mikey (Web)** — A public page at `/ask` where anyone can submit a question directly
+
+Both channels feed into the same answer pipeline and produce the same public answer pages.
+
+---
+
+## 1. Data Model
+
+### New model: `PublicAnswer`
+
+```
+model PublicAnswer {
+  id              String   @id @default(cuid())
+
+  // The question asked
+  question        String   @db.Text
+
+  // SEO-friendly slug derived from question text
+  slug            String   @unique
+
+  // The full answer from Mikey
+  answer          String   @db.Text
+
+  // Short preview (used in tweet replies, meta descriptions)
+  preview         String   @db.VarChar(280)
+
+  // Where the question came from
+  source          String   // "twitter" | "ask-mikey"
+
+  // Twitter-specific metadata (null for ask-mikey)
+  twitterTweetId  String?  @unique
+  twitterHandle   String?
+  twitterThreadContext String? @db.Text
+
+  // Tracking
+  viewCount       Int      @default(0)
+
+  // Status: draft → published (allows moderation before posting)
+  status          String   @default("published") // "draft" | "published" | "hidden"
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+  @@index([source, createdAt])
+  @@index([status, createdAt])
+  @@map("public_answers")
+}
+```
+
+### Slug Strategy
+
+Generate from question text: `"How do I price my first SaaS deal?"` → `how-do-i-price-my-first-saas-deal`
+
+- Lowercase, strip punctuation, replace spaces with hyphens
+- Truncate to ~80 chars at a word boundary
+- Append short random suffix if collision (e.g., `-a3f`)
+
+---
+
+## 2. Public Pages
+
+### `/ask` — Ask Mikey Page
+
+- Simple, clean public page (no auth required)
+- Text input for the question
+- Optional: category/topic selector
+- "Ask Mikey" submit button
+- Clear messaging: "This is a public Q&A — your question and Mikey's answer will be visible to everyone"
+- After submission: redirect to the answer page
+- Below the form: grid/list of recent popular questions (internal linking for SEO)
+
+### `/answers/[slug]` — Public Answer Page
+
+- **H1**: The question text (matches search intent for SEO)
+- **Source attribution**: "Asked on Twitter by @handle" or "Asked on Ask Mikey"
+- **Full answer**: Rich formatted Mikey response
+- **Related questions**: Links to other answer pages (internal linking for SEO)
+- **CTA**: "Have a question? Ask Mikey" → links back to `/ask`
+- **Meta tags**: Open Graph, Twitter cards, structured data (FAQ schema for Google rich results)
+- **No auth required** — fully public and crawlable
+
+### `/answers` — Answer Index / Browse Page
+
+- Paginated list of all published answers
+- Search/filter by keyword
+- Category grouping (if categories are added)
+- Acts as a sitemap-like page for crawlers
+
+---
+
+## 3. Twitter Integration
+
+### 3a. Ingestion — Polling for Mentions
+
+- **Worker/cron job** that polls Twitter API v2 for mentions every 60 seconds
+- Endpoint: `GET /2/users/:id/mentions` with `since_id` tracking
+- For each new mention:
+  - Extract tweet text as the question
+  - Walk up the reply chain (`conversation_id` + `in_reply_to`) to gather thread context
+  - Store the raw tweet data
+
+### 3b. Image/Vision Extraction
+
+- When processing a mention or its thread context, check each tweet for attached media (images, screenshots)
+- Use the same vision extraction pipeline already in the app to extract text/content from images
+- Extracted image content gets appended to the thread context before answer generation
+- This handles cases like: "What do you think of this sales email?" + attached screenshot
+
+### 3c. Processing Pipeline
+
+For each new mention:
+
+1. **Filter/moderate**: Skip obvious spam, non-questions, or inappropriate content
+2. **Extract images**: Run vision extraction on any images in the mention or thread
+3. **Generate answer**: Send question + thread context (including extracted image content) through the Mikey answer pipeline
+3. **Generate preview**: Truncate/summarize the answer to fit in a tweet (~200 chars to leave room for the link)
+4. **Generate slug**: From the question text
+5. **Store**: Create `PublicAnswer` record with `source: "twitter"`
+6. **Reply**: Post tweet reply: `"{preview}… {link to /answers/[slug]}"`
+7. **Track**: Store the reply tweet ID to avoid double-posting
+
+### 3d. Twitter API Requirements
+
+- **API tier**: Basic ($100/mo) or Pro — need read + write access
+- **Endpoints needed**:
+  - `GET /2/users/:id/mentions` — poll for mentions
+  - `POST /2/tweets` — post replies
+  - `GET /2/tweets/:id` — fetch thread context
+- **Rate limits**: Basic tier allows 1,500 tweets posted/mo, 10,000 tweet reads/mo
+- **Auth**: OAuth 2.0 with PKCE or OAuth 1.0a for user-context actions
+
+### 3e. Worker Architecture Options
+
+| Option | Pros | Cons |
+|---|---|---|
+| **Next.js cron route** (e.g., Vercel Cron) | No extra infra, stays in the app | 60s min interval on Vercel, cold starts |
+| **External worker** (e.g., separate Node service) | Full control, can do streaming | Separate deployment to manage |
+| **Queue-based** (e.g., BullMQ + Redis) | Reliable, retryable, rate-limit friendly | More infra complexity |
+
+**Recommendation**: Start with a Next.js API route triggered by Vercel Cron (or equivalent). Move to a queue if volume grows.
+
+---
+
+## 4. Answer Generation Pipeline (Shared)
+
+This is the core service both Twitter and Ask Mikey call:
+
+```
+generatePublicAnswer(input: {
+  question: string
+  context?: string        // thread context for Twitter
+  source: "twitter" | "ask-mikey"
+}) → {
+  answer: string          // full rich answer
+  preview: string         // ≤280 char summary
+  slug: string            // SEO slug
+}
+```
+
+- Uses the same Chatbase/LLM pipeline as existing Mikey chat
+- Prompt includes general founder-led sales knowledge (not user-specific sales narratives — this is public)
+- For Twitter sources: includes vision-extracted content from any images in the thread
+- Preview generation: either first sentence of the answer or a separate summarization call
+
+---
+
+## 5. SEO Strategy
+
+### On-Page SEO
+
+- **H1** = question text (natural language, matches long-tail queries)
+- **Meta title** = `"{question}" — Ask Mikey`
+- **Meta description** = preview text
+- **Canonical URL** = `/answers/[slug]`
+- **FAQ structured data** (JSON-LD) for Google rich results
+- **Open Graph + Twitter Card** meta tags for social sharing
+
+### Crawlability
+
+- `/answers` index page links to all answer pages
+- `sitemap.xml` includes all published answer pages (auto-generated)
+- Internal linking: each answer page links to related questions
+- No auth walls — everything public
+
+### Content Growth
+
+- Each Twitter mention = 1 new indexed page
+- Each Ask Mikey submission = 1 new indexed page
+- Related questions feature encourages browsing (lowers bounce rate)
+- Over time: a library of hundreds of founder-led sales Q&A pages
+
+---
+
+## 6. Moderation & Safety
+
+- **Pre-publish filter**: Run question through a moderation check before generating an answer
+- **Spam detection**: Ignore mentions from accounts with low follower counts, new accounts, or repeated identical questions
+- **Duplicate detection**: Check slug similarity / question text similarity before creating a new answer — link to existing answer if one exists
+- **Hide/flag**: Admin ability to mark answers as `hidden` if they're low quality or inappropriate
+- **Rate limiting**: Cap the number of answers generated per hour to control costs
+
+---
+
+## 7. API Routes
+
+### Public routes (no auth):
+
+- `GET /api/public/answers` — List published answers (paginated, filterable)
+- `GET /api/public/answers/[slug]` — Single answer by slug
+- `POST /api/public/ask` — Submit a question from Ask Mikey page
+
+### Internal/admin routes (auth required):
+
+- `POST /api/twitter/poll` — Triggered by cron to poll for new mentions
+- `PATCH /api/admin/answers/[id]` — Edit/hide/publish an answer
+- `GET /api/admin/answers` — List all answers with status filters
+- `DELETE /api/admin/answers/[id]` — Remove an answer
+
+### Webhook route (optional):
+
+- `POST /api/twitter/webhook` — If upgrading to Account Activity API for real-time mentions
+
+---
+
+## 8. File Checklist
+
+**New files:**
+- [ ] `prisma/migrations/YYYYMMDD_add_public_answers/migration.sql`
+- [ ] `src/app/ask/page.tsx` — Public Ask Mikey page
+- [ ] `src/app/answers/page.tsx` — Public answer index/browse page
+- [ ] `src/app/answers/[slug]/page.tsx` — Individual public answer page
+- [ ] `src/app/api/public/answers/route.ts` — List answers API
+- [ ] `src/app/api/public/answers/[slug]/route.ts` — Single answer API
+- [ ] `src/app/api/public/ask/route.ts` — Submit question API
+- [ ] `src/app/api/twitter/poll/route.ts` — Twitter mention polling worker
+- [ ] `src/app/api/admin/answers/route.ts` — Admin answer management
+- [ ] `src/app/api/admin/answers/[id]/route.ts` — Admin single answer management
+- [ ] `src/lib/public-answers/generate.ts` — Shared answer generation pipeline
+- [ ] `src/lib/public-answers/slugify.ts` — Slug generation utility
+- [ ] `src/lib/public-answers/twitter.ts` — Twitter API client wrapper
+- [ ] `src/lib/public-answers/moderation.ts` — Moderation/spam filtering
+
+**Existing files to modify:**
+- [ ] `prisma/schema.prisma` — Add PublicAnswer model
+- [ ] `next.config.js` — Add any public route rewrites if needed
+- [ ] `src/app/layout.tsx` or equivalent — Ensure public pages have proper meta/layout
+
+---
+
+## 9. Implementation Order
+
+### Phase 1: Public Answer Pages (foundation)
+1. Add `PublicAnswer` model to Prisma schema + migrate
+2. Build `/answers/[slug]` page with SEO meta tags
+3. Build `/answers` index page
+4. Add sitemap generation for answer pages
+
+### Phase 2: Ask Mikey (web intake)
+5. Build shared answer generation pipeline (`src/lib/public-answers/generate.ts`)
+6. Build `/ask` page with public question form
+7. Build `POST /api/public/ask` endpoint
+8. Wire up: question → generate → store → redirect to answer page
+
+### Phase 3: Twitter Integration
+9. Set up Twitter API credentials + client wrapper
+10. Build polling worker (`/api/twitter/poll`)
+11. Build thread context extraction
+12. Wire up: mention → generate → store → reply with link
+13. Set up cron trigger for polling
+
+### Phase 4: Polish & SEO
+14. Add related questions feature (internal linking)
+15. Add FAQ structured data (JSON-LD)
+16. Add Open Graph + Twitter Card meta tags
+17. Admin moderation UI for managing answers
+18. Duplicate question detection
