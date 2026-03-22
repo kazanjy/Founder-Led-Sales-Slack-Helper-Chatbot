@@ -170,6 +170,7 @@ export default function AdminLayout({
     { href: "/admin/users", label: "Users", icon: "👥" },
     { href: "/admin/workspaces", label: "Workspaces", icon: "🏢" },
     { href: "/admin/billing", label: "Billing", icon: "💳" },
+    { href: "/admin/public-mikey", label: "Public Mikey", icon: "🌐" },
   ];
 
   const hasResults = searchResults && (searchResults.users.length > 0 || searchResults.accounts.length > 0);

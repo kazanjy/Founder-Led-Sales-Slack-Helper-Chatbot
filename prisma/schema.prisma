@@ -1412,3 +1412,46 @@ model IcpVersion {
   @@index([userId, createdAt])
   @@map("icp_versions")
 }
+
+// ============================================
+// PUBLIC MIKEY — Public Q&A Answers
+// ============================================
+
+model PublicAnswer {
+  id              String   @id @default(cuid())
+
+  // The question asked
+  question        String   @db.Text
+
+  // SEO-friendly slug derived from question text
+  slug            String   @unique
+
+  // The full answer from Mikey
+  answer          String   @db.Text
+
+  // Short preview (used in tweet replies, meta descriptions)
+  preview         String   @db.VarChar(280)
+
+  // Where the question came from
+  source          String   // "twitter" | "ask-mikey"
+
+  // Twitter-specific metadata (null for ask-mikey)
+  twitterTweetId  String?  @unique
+  twitterTweetUrl String?
+  twitterHandle   String?
+  twitterThreadContext String? @db.Text
+
+  // Tracking
+  viewCount       Int      @default(0)
+
+  // Status: draft → published (allows moderation before posting)
+  status          String   @default("published") // "draft" | "published" | "hidden"
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([slug])
+  @@index([source, createdAt])
+  @@index([status, createdAt])
+  @@map("public_answers")
+}
