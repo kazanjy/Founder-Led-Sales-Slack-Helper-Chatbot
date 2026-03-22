@@ -547,6 +547,10 @@ model GlobalSettings {
   // Referral bonus
   referralBonusMessages Int @default(10)
 
+  // Twitter polling state
+  twitterSinceId      String?   // Last processed mention ID for polling
+  twitterLastPollAt   DateTime? // When we last polled for mentions
+
   updatedAt       DateTime  @updatedAt
 
   @@map("global_settings")
