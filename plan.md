@@ -608,3 +608,116 @@ generatePublicAnswer(input: {
 16. Add Open Graph + Twitter Card meta tags
 17. Admin moderation UI for managing answers
 18. Duplicate question detection
+
+---
+
+## 10. Admin Dashboard — Public Mikey Section
+
+Extend the existing admin dashboard (`/admin`) with a new **Public Mikey** tab that gives visibility into public usage across both Twitter and Ask Mikey channels.
+
+### Navigation
+
+Add a new tab to the admin layout navigation:
+- `{ href: "/admin/public-mikey", label: "🌐 Public Mikey" }`
+
+### Admin Page: `/src/app/admin/public-mikey/page.tsx`
+
+**Overview Stats Cards:**
+
+| Stat | Description |
+|---|---|
+| Total Answers | Count of all `PublicAnswer` records |
+| Published | Count where `status = "published"` |
+| Hidden / Draft | Count where `status = "hidden"` or `"draft"` |
+| Twitter Answers | Count where `source = "twitter"` |
+| Ask Mikey Answers | Count where `source = "ask-mikey"` |
+| Total Views | Sum of `viewCount` across all answers |
+| Answers (7d) | Count created in the last 7 days |
+| Avg Views / Answer | Mean `viewCount` across published answers |
+
+**Source Breakdown Chart:**
+- Simple bar or pie showing Twitter vs Ask Mikey volume over time (weekly buckets)
+
+**Top Answers Table:**
+- Top 20 answers sorted by `viewCount` descending
+- Columns: Question (truncated), Source, Views, Status, Created Date
+- Click to expand full answer or link to public page
+
+**Recent Answers Feed:**
+- 20 most recent `PublicAnswer` records
+- Columns: Question (truncated), Source, Status, Views, Created Date
+- Source badge: 🐦 Twitter | 🌐 Ask Mikey
+- Status badge: colored (published = green, draft = yellow, hidden = red)
+- Actions: View public page | Edit | Hide | Delete
+
+**Twitter Activity Section:**
+- Last poll timestamp (from most recent `PublicAnswer` with `source = "twitter"`)
+- Recent Twitter replies: list of recent Twitter-sourced answers showing `@handle`, question snippet, reply status
+- Failed/skipped mentions (if tracking is added): count of filtered spam or errors
+
+**Moderation Queue:**
+- List of answers with `status = "draft"` awaiting review
+- Quick actions: Publish | Edit | Delete
+- Bulk publish option for multiple drafts
+
+### Admin Detail Page: `/src/app/admin/public-mikey/[id]/page.tsx`
+
+- Full question text
+- Full answer text (rendered markdown)
+- Source metadata (Twitter handle, tweet URL, thread context — or "Ask Mikey")
+- View count
+- Status with toggle (draft ↔ published ↔ hidden)
+- Created / updated timestamps
+- Edit answer text inline
+- Link to public answer page (`/answers/[slug]`)
+- Delete with confirmation
+
+### API Routes
+
+#### `GET /api/admin/public-mikey/stats`
+Returns aggregated stats for the overview cards:
+- Total, published, hidden, draft counts
+- Source breakdown (twitter vs ask-mikey)
+- Total and average view counts
+- 7-day and 30-day creation counts
+
+#### `GET /api/admin/public-mikey/answers`
+Paginated list of all `PublicAnswer` records for the admin table:
+- Query params: `?page=`, `?sort=`, `?status=`, `?source=`, `?search=`
+- Search matches against question text
+- Sort by: `createdAt`, `viewCount`, `status`
+- Returns: question, slug, source, status, viewCount, twitterHandle, createdAt
+
+#### `GET /api/admin/public-mikey/answers/[id]`
+Full detail for a single answer (all fields).
+
+#### `PATCH /api/admin/public-mikey/answers/[id]`
+Update answer fields:
+- `answer` (text), `preview`, `status`, `slug`
+- Used for moderation (publish/hide) and content edits
+
+#### `DELETE /api/admin/public-mikey/answers/[id]`
+Remove an answer. Soft-delete (set `status = "hidden"`) or hard-delete based on query param.
+
+### File Checklist
+
+**New files:**
+- [ ] `src/app/admin/public-mikey/page.tsx` — Public Mikey admin dashboard
+- [ ] `src/app/admin/public-mikey/[id]/page.tsx` — Single answer admin detail
+- [ ] `src/app/api/admin/public-mikey/stats/route.ts` — Aggregated stats endpoint
+- [ ] `src/app/api/admin/public-mikey/answers/route.ts` — Paginated answer list
+- [ ] `src/app/api/admin/public-mikey/answers/[id]/route.ts` — Single answer CRUD
+
+**Existing files to modify:**
+- [ ] `src/app/admin/layout.tsx` — Add "Public Mikey" tab to navigation
+
+### Implementation Order
+
+Add to **Phase 4** (after core public answer pages exist):
+
+19. Add Public Mikey tab to admin layout navigation
+20. Build `/api/admin/public-mikey/stats` endpoint
+21. Build `/api/admin/public-mikey/answers` list endpoint + CRUD
+22. Build `/admin/public-mikey` page with stats cards + answer tables
+23. Build `/admin/public-mikey/[id]` detail page with edit/moderation
+24. Add moderation queue for draft answers
