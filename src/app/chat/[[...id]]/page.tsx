@@ -265,9 +265,9 @@ export default function ChatPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [playbookExpanded, setPlaybookExpanded] = useState(false);
-  const [contentExpanded, setContentExpanded] = useState(true);
-  const [callExecExpanded, setCallExecExpanded] = useState(true);
-  const [toolsExpanded, setToolsExpanded] = useState(true);
+  const [contentExpanded, setContentExpanded] = useState(false);
+  const [callExecExpanded, setCallExecExpanded] = useState(false);
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [inputHeight, setInputHeight] = useState(120); // Default input container height
