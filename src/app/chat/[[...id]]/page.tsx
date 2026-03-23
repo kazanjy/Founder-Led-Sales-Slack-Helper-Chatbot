@@ -1909,6 +1909,10 @@ export default function ChatPage() {
 
     const userMessage = messageText.trim();
     setInputMessage("");
+    // Reset textarea height after clearing content
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto';
+    }
     setSelectedAttachments([]); // Clear attachments after sending
     // Don't clear images yet - keep them visible during processing
     setSending(true);
