@@ -140,6 +140,15 @@ function SalesNarrativeEditContent() {
           return;
         }
 
+        // Pre-fill website URL from email domain
+        if (authData.user.email) {
+          const domain = authData.user.email.split("@")[1]?.toLowerCase();
+          const genericDomains = ["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "me.com", "aol.com", "protonmail.com", "proton.me", "mail.com", "zoho.com", "yandex.com", "gmx.com"];
+          if (domain && !genericDomains.includes(domain)) {
+            setPrefillUrl(`https://${domain}`);
+          }
+        }
+
         // Load questions
         const response = await fetch("/api/sales-narrative/questions");
         if (!response.ok) throw new Error("Failed to load questions");
