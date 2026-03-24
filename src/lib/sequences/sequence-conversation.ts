@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 interface CreateSequenceConversationParams {
   userId: string;
-  sequenceType: "email" | "linkedin" | "cold-call" | "sales-deck" | "ad-creator" | "objection-library";
+  sequenceType: "email" | "linkedin" | "cold-call" | "sales-deck" | "ad-creator" | "objection-library" | "social-content";
   orgPersona: string;
   humanPersona: string;
   specialNotes?: string | null;
@@ -25,7 +25,7 @@ export async function createSequenceConversation(params: CreateSequenceConversat
     reportUrl,
   } = params;
 
-  const typeLabel = sequenceType === "email" ? "Email Sequence" : sequenceType === "linkedin" ? "LinkedIn Sequence" : sequenceType === "sales-deck" ? "Sales Deck" : sequenceType === "ad-creator" ? "Ad Creator" : sequenceType === "objection-library" ? "Objection Library" : "Cold Call Script";
+  const typeLabel = sequenceType === "email" ? "Email Sequence" : sequenceType === "linkedin" ? "LinkedIn Sequence" : sequenceType === "sales-deck" ? "Sales Deck" : sequenceType === "ad-creator" ? "Ad Creator" : sequenceType === "objection-library" ? "Objection Library" : sequenceType === "social-content" ? "Social Content" : "Cold Call Script";
 
   // Build the structured user message
   const inputLines = [`Generate a ${typeLabel.toLowerCase()} for:`];

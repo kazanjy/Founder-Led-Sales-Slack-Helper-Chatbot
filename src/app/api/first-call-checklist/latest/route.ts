@@ -54,11 +54,11 @@ export async function GET() {
         id: latestVersion.id,
         title: latestVersion.title,
         content: latestVersion.content,
+        userId: latestVersion.userId,
         discoveryQuestionsVersionId: latestVersion.discoveryQuestionsVersionId,
         discoveryQuestionsVersion: latestVersion.discoveryQuestionsVersion,
         createdAt: latestVersion.createdAt,
         updatedAt: latestVersion.updatedAt,
-        userId: latestVersion.userId,
         user: latestVersion.user,
       },
     });

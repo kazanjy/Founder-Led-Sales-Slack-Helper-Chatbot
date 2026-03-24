@@ -23,6 +23,7 @@ export async function GET() {
     const [
       salesNarrativeVar,
       gtmAssessment,
+      icpVar,
       discoveryQuestionsVar,
       firstCallChecklistVar,
       preCallPlanningVar,
@@ -39,6 +40,11 @@ export async function GET() {
         where: { userId: user.id },
         orderBy: { completedAt: "desc" },
         select: { completedAt: true },
+      }),
+      // ICP - check GtmVariable
+      prisma.gtmVariable.findFirst({
+        where: { userId: user.id, mergeField: "ICP" },
+        select: { updatedAt: true, value: true },
       }),
       // Discovery Questions - check GtmVariable
       prisma.gtmVariable.findFirst({
@@ -82,6 +88,14 @@ export async function GET() {
         appUrl: "/assessment/bulk",
         isAvailable: !!gtmAssessment,
         lastUpdated: gtmAssessment?.completedAt?.toISOString() || null,
+      },
+      {
+        id: "icp",
+        name: "Ideal Customer Profile",
+        description: "Your ideal customer characteristics, personas, and qualification criteria",
+        appUrl: "/icp",
+        isAvailable: !!(icpVar?.value),
+        lastUpdated: icpVar?.updatedAt?.toISOString() || null,
       },
       {
         id: "discoveryQuestions",

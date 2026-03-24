@@ -29,19 +29,19 @@ export function TruncatedUserMessage({ content, maxLines = 20 }: TruncatedUserMe
       <div className={showTruncated ? "relative" : undefined}>
         <p
           ref={contentRef}
-          className={`whitespace-pre-wrap text-gray-900 text-[17px]${showTruncated ? " overflow-hidden" : ""}`}
+          className={`whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-[17px]${showTruncated ? " overflow-hidden" : ""}`}
           style={showTruncated ? { maxHeight: `${maxHeight}px` } : undefined}
         >
           {content}
         </p>
         {showTruncated && (
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 dark:from-gray-800 to-transparent pointer-events-none" />
         )}
       </div>
       {showTruncated && (
         <button
           onClick={() => setIsExpanded(true)}
-          className="mt-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="mt-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
         >
           Show more
         </button>
@@ -49,7 +49,7 @@ export function TruncatedUserMessage({ content, maxLines = 20 }: TruncatedUserMe
       {isTruncatable && isExpanded && (
         <button
           onClick={() => setIsExpanded(false)}
-          className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+          className="mt-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
         >
           Show less
         </button>

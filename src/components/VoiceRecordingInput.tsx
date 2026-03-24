@@ -275,10 +275,10 @@ export function VoiceRecordingInput({
 
   // Determine colors based on state
   const getBgColor = () => {
-    if (isSpeaking) return "bg-green-50 border-green-200";
-    if (isCommitting) return "bg-orange-50 border-orange-200";
-    if (isSentActive) return "bg-blue-50 border-blue-200";
-    return "bg-purple-50 border-purple-200";
+    if (isSpeaking) return "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800";
+    if (isCommitting) return "bg-orange-50 border-orange-200 dark:bg-orange-950 dark:border-orange-800";
+    if (isSentActive) return "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800";
+    return "bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800";
   };
 
   const getIconBgColor = () => {
@@ -286,7 +286,7 @@ export function VoiceRecordingInput({
     if (isCommitting) return "bg-orange-500 text-white";
     if (isSentActive) return "bg-blue-600 text-white";
     if (state === "recording") return "bg-purple-600 text-white";
-    return "bg-purple-100 text-purple-600";
+    return "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300";
   };
 
   const getPulseColor = () => {
@@ -396,13 +396,13 @@ export function VoiceRecordingInput({
       {/* Status text */}
       <div className="flex-1">
         {isSpeaking && (
-          <p className="text-green-700 font-medium">
+          <p className="text-green-700 dark:text-green-300 font-medium">
             Mikey is speaking...
           </p>
         )}
         {state === "recording" && !isCommitting && !isSpeaking && (
           <div className="flex items-center gap-2">
-            <p className="text-purple-700 font-medium">
+            <p className="text-purple-700 dark:text-purple-300 font-medium">
               Listening...
             </p>
             {/* Audio level bars */}
@@ -422,15 +422,15 @@ export function VoiceRecordingInput({
           </div>
         )}
         {isCommitting && (
-          <p className="text-orange-600 font-medium">
+          <p className="text-orange-600 dark:text-orange-400 font-medium">
             Preparing to send...
           </p>
         )}
         {isProcessingActive && (
-          <p className="text-purple-600 font-medium">Processing...</p>
+          <p className="text-purple-600 dark:text-purple-400 font-medium">Processing...</p>
         )}
         {isSentActive && (
-          <p className="text-blue-600 font-medium">Sent! Waiting for response...</p>
+          <p className="text-blue-600 dark:text-blue-400 font-medium">Sent! Waiting for response...</p>
         )}
       </div>
 
@@ -461,7 +461,7 @@ export function VoiceRecordingInput({
         <button
           type="button"
           onClick={handleCancel}
-          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
           title="Close"
         >
           <svg

@@ -72,6 +72,7 @@ function DiscoveryQuestionsContent() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showChecklistBanner, setShowChecklistBanner] = useState(true);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
+  const [generatingChecklist, setGeneratingChecklist] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editContent, setEditContent] = useState<DiscoveryQuestionsContent | null>(null);
@@ -81,7 +82,8 @@ function DiscoveryQuestionsContent() {
   const [importText, setImportText] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const [deleting, setDeleting] = useState(false);
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
   const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
   useEffect(() => {
@@ -182,6 +184,57 @@ function DiscoveryQuestionsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, hasSalesNarrative]);
 
+  // Detect background DQ generation triggered from ICP page
+  useEffect(() => {
+    if (loading || version || generating) return;
+    const startedAt = localStorage.getItem("dqGeneratingStarted");
+    if (!startedAt) return;
+    // Only honor if started within the last 3 minutes
+    if (Date.now() - parseInt(startedAt) > 180000) {
+      localStorage.removeItem("dqGeneratingStarted");
+      return;
+    }
+    // Show generating state and poll for completion
+    setGenerating(true);
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise(r => setTimeout(r, 3000));
+        if (cancelled) break;
+        try {
+          const res = await fetch("/api/discovery-questions/latest");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasDiscoveryQuestions && data.version) {
+              setVersion(data.version);
+              if (data.version?.content?.categories) {
+                setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
+              }
+              setGenerating(false);
+              localStorage.removeItem("dqGeneratingStarted");
+              return;
+            }
+          }
+        } catch {
+          // Keep polling
+        }
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, generating]);
+
+  const handleCreateChecklist = async () => {
+    setGeneratingChecklist(true);
+    // Fire the generate API call in the background
+    fetch("/api/first-call-checklist/generate", { method: "POST" }).catch(() => {});
+    // Set a localStorage flag so the checklist page can detect background generation
+    localStorage.setItem("fccGeneratingStarted", Date.now().toString());
+    // Navigate to the checklist page
+    router.push("/first-call-checklist");
+  };
+
   const handleClone = async () => {
     if (!version) return;
     try {
@@ -195,6 +248,46 @@ function DiscoveryQuestionsContent() {
       }
     } catch (error) {
       console.error("Error cloning:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!version) return;
+    const confirmed = await showConfirm({
+      title: "Delete Discovery Questions",
+      message: "Are you sure you want to delete these Discovery Questions? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/discovery-questions/versions/${version.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasRemaining) {
+          window.location.href = "/discovery-questions";
+        } else {
+          router.push("/discovery-questions");
+        }
+      } else {
+        setDeleting(false);
+        await showAlert({
+          title: "Error",
+          message: "Failed to delete discovery questions. Please try again.",
+          variant: "danger",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting:", error);
+      setDeleting(false);
+      await showAlert({
+        title: "Error",
+        message: "Failed to delete discovery questions. Please try again.",
+        variant: "danger",
+      });
     }
   };
 
@@ -784,6 +877,25 @@ function DiscoveryQuestionsContent() {
                     Clone
                   </button>
                   )}
+                  {version?.userId === currentUserId && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-4 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {deleting ? (
+                      <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    )}
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                  )}
                   <NewButtonDropdown
                     onRegenerate={handleGenerate}
                     onUploadPDF={handleImportPDF}
@@ -810,9 +922,9 @@ function DiscoveryQuestionsContent() {
               </div>
               <p className="font-medium">
                 Congrats on finishing your Discovery Questions! Now let&apos;s use this to{" "}
-                <Link href="/first-call-checklist?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                <button onClick={handleCreateChecklist} disabled={generatingChecklist} className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                   create your first call checklist
-                </Link>.
+                </button>.
               </p>
             </div>
             <button
@@ -1011,12 +1123,13 @@ function DiscoveryQuestionsContent() {
               <p className="text-purple-100 text-sm mb-4">
                 Turn your discovery questions into a structured checklist for your first sales calls.
               </p>
-              <Link
-                href="/first-call-checklist?auto=true"
-                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+              <button
+                onClick={handleCreateChecklist}
+                disabled={generatingChecklist}
+                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm disabled:opacity-50"
               >
-                Create Checklist
-              </Link>
+                {generatingChecklist ? "Creating..." : "Create Checklist"}
+              </button>
             </div>
 
             <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">

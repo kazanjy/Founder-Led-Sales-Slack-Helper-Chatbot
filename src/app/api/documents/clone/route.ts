@@ -84,14 +84,14 @@ export async function POST(request: NextRequest) {
       }
 
       case "icp": {
-        const source = await prisma.iCPVersion.findFirst({
+        const source = await prisma.icpVersion.findFirst({
           where: cloneWhere(user, documentId),
         });
         if (!source) {
           return NextResponse.json({ error: "Version not found" }, { status: 404 });
         }
 
-        const clone = await prisma.iCPVersion.create({
+        const clone = await prisma.icpVersion.create({
           data: {
             userId: user.id,
             salesNarrativeVersionId: source.salesNarrativeVersionId,

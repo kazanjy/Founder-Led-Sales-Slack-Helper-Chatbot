@@ -76,6 +76,7 @@ export async function GET() {
       hasNarrative: true,
       version: {
         id: latestVersion.id,
+        userId: latestVersion.userId,
         title: latestVersion.title,
         narrative: latestVersion.narrative,
         description1000w: latestVersion.description1000w,
@@ -85,7 +86,6 @@ export async function GET() {
         sourceUrls: latestVersion.sourceUrls,
         sourcePdfNames: latestVersion.sourcePdfNames,
         createdAt: latestVersion.createdAt,
-        userId: latestVersion.userId,
         user: latestVersion.user,
       },
       answersByCategory,

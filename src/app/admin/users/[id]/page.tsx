@@ -73,6 +73,16 @@ interface UserDetail {
     createdAt: string;
     expiresAt: string;
   }[];
+  health: {
+    activeDays7: number;
+    activeDays30: number;
+    dauWau: number;
+    dauMau: number;
+    daysSinceLastActive: number;
+    medianSessionGap: number | null;
+    coreActionsPerSession: number;
+    currentStreak: number;
+  };
   completion: {
     slackConnected: boolean;
     narrative: boolean;
@@ -458,6 +468,53 @@ export default function AdminUserDetailPage() {
                     <label className="text-sm text-gray-500">Created</label>
                     <div>{new Date(user.createdAt).toLocaleString()}</div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* User Health */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Health</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Active Days (7d / 30d)</div>
+                <div className="text-lg font-semibold">{user.health.activeDays7} / {user.health.activeDays30}</div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">DAU / WAU</div>
+                <div className="text-lg font-semibold">{user.health.dauWau}</div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">DAU / MAU</div>
+                <div className="text-lg font-semibold">{user.health.dauMau}</div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Last Active</div>
+                <div className={`text-lg font-semibold ${
+                  user.health.daysSinceLastActive === 0
+                    ? "text-green-600"
+                    : user.health.daysSinceLastActive <= 3
+                    ? "text-yellow-600"
+                    : "text-red-600"
+                }`}>
+                  {user.health.daysSinceLastActive === 0 ? "Today" : `${user.health.daysSinceLastActive}d ago`}
+                </div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Median Session Gap</div>
+                <div className="text-lg font-semibold">
+                  {user.health.medianSessionGap !== null ? `${user.health.medianSessionGap}d` : "-"}
+                </div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Actions / Active Day</div>
+                <div className="text-lg font-semibold">{user.health.coreActionsPerSession}</div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg sm:col-span-2">
+                <div className="text-xs text-gray-500 mb-1">Current Streak</div>
+                <div className={`text-lg font-semibold ${user.health.currentStreak >= 3 ? "text-green-600" : ""}`}>
+                  {user.health.currentStreak}d
                 </div>
               </div>
             </div>

@@ -65,7 +65,7 @@ export default function StickyCtaBar() {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-3 px-6 z-50 transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 py-3 px-6 z-50 transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
@@ -82,7 +82,7 @@ export default function StickyCtaBar() {
           Take Free Assessment
         </a>
 
-        <span className="text-gray-300">|</span>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
 
         {/* Secondary CTAs - Sign up */}
         <a
@@ -97,7 +97,7 @@ export default function StickyCtaBar() {
         <a
           href="/api/auth/google"
           onClick={handleGoogleClick}
-          className="relative inline-flex items-center justify-center gap-2 bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+          className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
         >
           <GoogleIcon />
           Sign Up

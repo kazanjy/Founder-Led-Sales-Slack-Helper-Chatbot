@@ -20,6 +20,28 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+/* Ensure all form inputs respect dark mode text color */
+input,
+textarea,
+select {
+  color: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  input,
+  textarea,
+  select {
+    background-color: #1f2937; /* gray-800 */
+    border-color: #4b5563; /* gray-600 */
+    color: #ededed;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af; /* gray-400 */
+  }
+}
+
 /* GTM Assessment Widget Animations */
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
