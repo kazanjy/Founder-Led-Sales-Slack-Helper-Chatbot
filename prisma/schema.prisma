@@ -9,158 +9,157 @@ datasource db {
 
 // Account for multi-user shared GTM context
 model Account {
-  id          String   @id @default(cuid())
-  name        String   // Company/team name (e.g., "Acme Corp")
+  id   String @id @default(cuid())
+  name String // Company/team name (e.g., "Acme Corp")
 
   // Email domain used for auto-grouping (e.g., "acme.com")
-  emailDomain String?  @unique
+  emailDomain String? @unique
 
-  users          User[]
-  channelClaims  ChannelClaim[]
+  users         User[]
+  channelClaims ChannelClaim[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("accounts")
 }
 
 enum AccountRole {
-  OWNER    // Created the account, can manage members + billing
-  ADMIN    // Can invite/remove members, edit all artifacts
-  MEMBER   // Can create artifacts, view all account artifacts
+  OWNER // Created the account, can manage members + billing
+  ADMIN // Can invite/remove members, edit all artifacts
+  MEMBER // Can create artifacts, view all account artifacts
 }
 
 // Slack workspace that has installed Mikey
 model Workspace {
-  id                 String    @id @default(cuid())
-  slackTeamId        String    @unique
-  slackTeamName      String
-  installedAt        DateTime  @default(now())
-  installedByUserId  String?
+  id                String   @id @default(cuid())
+  slackTeamId       String   @unique
+  slackTeamName     String
+  installedAt       DateTime @default(now())
+  installedByUserId String?
 
   // Bot token for this workspace (from OAuth)
-  botToken           String
-  botUserId          String?   // The bot's user ID in this workspace
+  botToken  String
+  botUserId String? // The bot's user ID in this workspace
 
   // Trial config (null = use global defaults)
-  trialDays          Int?
-  trialMessages      Int?
+  trialDays     Int?
+  trialMessages Int?
 
   // Rate limiting (null = use global default of 1000)
-  dailyMessageLimit  Int?
+  dailyMessageLimit Int?
 
   // Workspace-level license
   workspaceLicenseId String?
-  workspaceLicense   License?  @relation("WorkspaceLicense", fields: [workspaceLicenseId], references: [id])
+  workspaceLicense   License? @relation("WorkspaceLicense", fields: [workspaceLicenseId], references: [id])
 
-  users              User[]
-  conversations      Conversation[]
-  channelClaims      ChannelClaim[]
+  users         User[]
+  conversations Conversation[]
+  channelClaims ChannelClaim[]
 
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("workspaces")
 }
 
 // A user within a workspace
 model User {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Slack identity (optional - null for web-only users)
-  slackUserId     String?
-  slackUserName   String?
-  slackEmail      String?
+  slackUserId   String?
+  slackUserName String?
+  slackEmail    String?
 
   // Google identity (optional - null for Slack-only users)
-  googleId        String?   @unique
+  googleId String? @unique
 
   // Email - primary identifier for web-only users
-  email           String?   @unique
-  secondaryEmails String[]  @default([])  // Additional emails that can be used for auth lookup
+  email           String?  @unique
+  secondaryEmails String[] @default([]) // Additional emails that can be used for auth lookup
   name            String?
   avatarUrl       String?
 
   // Account membership (null for legacy solo users)
-  accountId       String?
-  account         Account?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  accountRole     AccountRole @default(MEMBER)
+  accountId   String?
+  account     Account?    @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountRole AccountRole @default(MEMBER)
 
   // Workspace (optional - null for web-only users)
-  workspaceId     String?
-  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Trial tracking
-  trialStartedAt        DateTime?
+  trialStartedAt         DateTime?
   trialMessagesRemaining Int       @default(0)
 
   // License status
-  licenseStatus   LicenseStatus @default(TRIAL)
-  licenseId       String?
-  license         License?  @relation(fields: [licenseId], references: [id])
+  licenseStatus LicenseStatus @default(TRIAL)
+  licenseId     String?
+  license       License?      @relation(fields: [licenseId], references: [id])
 
   // Rate limiting
-  messagesToday       Int       @default(0)
-  messageCountResetAt DateTime  @default(now())
+  messagesToday       Int      @default(0)
+  messageCountResetAt DateTime @default(now())
 
   // Referral
-  referralCode        String    @unique @default(cuid())
+  referralCode        String  @unique @default(cuid())
   referredByUserId    String?
-  referredBy          User?     @relation("Referrals", fields: [referredByUserId], references: [id])
-  referrals           User[]    @relation("Referrals")
-  bonusMessagesEarned Int       @default(0)
+  referredBy          User?   @relation("Referrals", fields: [referredByUserId], references: [id])
+  referrals           User[]  @relation("Referrals")
+  bonusMessagesEarned Int     @default(0)
 
   // Relations
-  conversations   Conversation[]
-  messages        Message[]
-  referralsMade   Referral[]    @relation("Referrer")
-  referralsReceived Referral[]  @relation("Referred")
-  sharedConversations SharedConversation[]
-  sharedDocuments     SharedDocument[]
-  chatSharesSent      ChatShare[]  @relation("ChatSharesSent")
-  chatSharesReceived  ChatShare[]  @relation("ChatSharesReceived")
-  sessions        Session[]
-  savedPrompts              SavedPrompt[]
-  dismissedDefaultPromptIds String[]       @default([])  // Track deleted default prompts so they don't reappear
-  gtmVariables    GtmVariable[]
-  maturityAnswers MaturityAnswer[]
-  maturityAssessments MaturityAssessment[]
-  salesNarrativeAnswers SalesNarrativeAnswer[]
-  salesNarrativeVersions SalesNarrativeVersion[]
+  conversations              Conversation[]
+  messages                   Message[]
+  referralsMade              Referral[]                  @relation("Referrer")
+  referralsReceived          Referral[]                  @relation("Referred")
+  sharedConversations        SharedConversation[]
+  sharedDocuments            SharedDocument[]
+  chatSharesSent             ChatShare[]                 @relation("ChatSharesSent")
+  chatSharesReceived         ChatShare[]                 @relation("ChatSharesReceived")
+  sessions                   Session[]
+  savedPrompts               SavedPrompt[]
+  dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
+  gtmVariables               GtmVariable[]
+  maturityAnswers            MaturityAnswer[]
+  maturityAssessments        MaturityAssessment[]
+  salesNarrativeAnswers      SalesNarrativeAnswer[]
+  salesNarrativeVersions     SalesNarrativeVersion[]
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
-  icpVersions ICPVersion[]
   firstCallChecklistVersions FirstCallChecklistVersion[]
-  preCallPlanningVersions PreCallPlanningVersion[]
-  preCallResearch PreCallResearch[]
-  pendingResearchRequests PendingResearchRequest[]
-  emailSequenceVersions EmailSequenceVersion[]
-  linkedInSequenceVersions LinkedInSequenceVersion[]
-  coldCallScriptVersions ColdCallScriptVersion[]
-  salesDeckVersions SalesDeckVersion[]
-  callReviewVersions CallReviewVersion[]
-  salesMetricsAnswers SalesMetricsAnswer[]
-  salesMetricsAssessments SalesMetricsAssessment[]
-  coachingSessions CoachingSession[]
-  adCreatorVersions AdCreatorVersion[]
-  socialContentVersions SocialContentVersion[]
-  socialContentExamples SocialContentExample[]
-  objectionEntries ObjectionEntry[]
-  objectionBootstraps ObjectionBootstrap[]
-  icpVersions IcpVersion[]
-  attachmentPreference UserAttachmentPreference?
-  uploadedFiles   UserFile[]
-  channelClaims   ChannelClaim[]
+  preCallPlanningVersions    PreCallPlanningVersion[]
+  preCallResearch            PreCallResearch[]
+  pendingResearchRequests    PendingResearchRequest[]
+  emailSequenceVersions      EmailSequenceVersion[]
+  linkedInSequenceVersions   LinkedInSequenceVersion[]
+  coldCallScriptVersions     ColdCallScriptVersion[]
+  salesDeckVersions          SalesDeckVersion[]
+  callReviewVersions         CallReviewVersion[]
+  salesMetricsAnswers        SalesMetricsAnswer[]
+  salesMetricsAssessments    SalesMetricsAssessment[]
+  coachingSessions           CoachingSession[]
+  adCreatorVersions          AdCreatorVersion[]
+  socialContentVersions      SocialContentVersion[]
+  socialContentExamples      SocialContentExample[]
+  objectionEntries           ObjectionEntry[]
+  objectionBootstraps        ObjectionBootstrap[]
+  icpVersions                IcpVersion[]
+  attachmentPreference       UserAttachmentPreference?
+  uploadedFiles              UserFile[]
+  channelClaims              ChannelClaim[]
 
   // Track update-in-progress state for maturity assessment
-  maturityUpdateInProgress Boolean  @default(false)
-  maturityUpdateIndex      Int?     // Current question index in update mode (0-based)
+  maturityUpdateInProgress Boolean   @default(false)
+  maturityUpdateIndex      Int? // Current question index in update mode (0-based)
   maturityUpdateStartedAt  DateTime?
 
   // Activity tracking
-  lastActiveAt    DateTime?
+  lastActiveAt DateTime?
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Slack users identified by slackUserId + workspaceId combo
   // Web-only users identified by email or googleId (see @unique above)
@@ -177,12 +176,12 @@ enum LicenseStatus {
 
 // License for individual or workspace bundle
 model License {
-  id        String      @id @default(cuid())
-  type      LicenseType
+  id   String      @id @default(cuid())
+  type LicenseType
 
   // For individual license
-  userId    String?
-  users     User[]
+  userId String?
+  users  User[]
 
   // For workspace bundle
   workspaceId String?
@@ -195,19 +194,19 @@ model License {
   priceAdditionalSeatCents Int?
 
   // Billing
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
 
   // Manual override
-  manuallyGranted    Boolean   @default(false)
-  grantedByAdminId   String?
-  notes              String?
+  manuallyGranted  Boolean @default(false)
+  grantedByAdminId String?
+  notes            String?
 
-  status      LicenseStatusType @default(ACTIVE)
-  expiresAt   DateTime?
+  status    LicenseStatusType @default(ACTIVE)
+  expiresAt DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("licenses")
 }
@@ -226,54 +225,54 @@ enum LicenseStatusType {
 
 // Saved prompts for quick access
 model SavedPrompt {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  emoji           String    @default("💡")
-  title           String
-  prompt          String
+  emoji  String @default("💡")
+  title  String
+  prompt String
 
   // Track if this was originally a default prompt
-  defaultPromptId String?   // e.g. "default-1" to track resets
+  defaultPromptId String? // e.g. "default-1" to track resets
 
   // Order for drag-and-drop
-  sortOrder       Int       @default(0)
+  sortOrder Int @default(0)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("saved_prompts")
 }
 
 // GTM Variables for merge fields in prompts
 model GtmVariable {
-  id                String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name              String    // Display name (e.g., "Ideal Customer Profile")
-  mergeField        String    // The merge field syntax (e.g., "ICP" for {{ICP}})
-  description       String?   // Help text describing what this variable is for
-  value             String?   // The actual value the user has entered
+  name        String // Display name (e.g., "Ideal Customer Profile")
+  mergeField  String // The merge field syntax (e.g., "ICP" for {{ICP}})
+  description String? // Help text describing what this variable is for
+  value       String? // The actual value the user has entered
 
   // Track if this is a default variable
-  isDefault         Boolean   @default(false)
-  defaultVariableId String?   // e.g., "default-icp" to identify default variables
+  isDefault         Boolean @default(false)
+  defaultVariableId String? // e.g., "default-icp" to identify default variables
 
   // AI Assist prompt for helping users fill this variable
-  aiAssistPrompt    String?
+  aiAssistPrompt String?
 
   // Order for display
-  sortOrder         Int       @default(0)
+  sortOrder Int @default(0)
 
   // History of changes
-  history           GtmVariableHistory[]
+  history GtmVariableHistory[]
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, mergeField])
   @@map("gtm_variables")
@@ -281,64 +280,64 @@ model GtmVariable {
 
 // History of changes to GTM variables
 model GtmVariableHistory {
-  id              String      @id @default(cuid())
+  id String @id @default(cuid())
 
-  variableId      String
-  variable        GtmVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+  variableId String
+  variable   GtmVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
 
-  previousValue   String      // The value before the change
-  changedAt       DateTime    @default(now())
+  previousValue String // The value before the change
+  changedAt     DateTime @default(now())
 
   @@map("gtm_variable_history")
 }
 
 // A conversation thread (Slack thread or web chat)
 model Conversation {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  workspaceId     String?   // Null for web-only conversations
-  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String? // Null for web-only conversations
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Source of the conversation
-  source          ConversationSource @default(SLACK)
+  source ConversationSource @default(SLACK)
 
   // Chat mode: CHATBASE (default RAG) or DIRECT (OpenAI GPT)
-  mode            ConversationMode   @default(CHATBASE)
+  mode ConversationMode @default(CHATBASE)
 
   // Slack reference (null for web conversations)
-  slackChannelId  String?
-  slackThreadTs   String?   // Thread timestamp = unique thread ID
+  slackChannelId String?
+  slackThreadTs  String? // Thread timestamp = unique thread ID
 
   // Title for web conversations (auto-generated or user-set)
-  title           String?
+  title String?
 
   // For Chatbase context
   chatbaseConversationId String?
 
   // Preview
   firstMessagePreview String?
-  messageCount        Int       @default(0)
+  messageCount        Int     @default(0)
 
   // Archived conversations (hidden from list but not deleted)
-  archived            Boolean   @default(false)
+  archived Boolean @default(false)
 
-  messages        Message[]
-  sharedLinks     SharedConversation[]
-  chatShares      ChatShare[]
-  maturityAssessments MaturityAssessment[]
+  messages                Message[]
+  sharedLinks             SharedConversation[]
+  chatShares              ChatShare[]
+  maturityAssessments     MaturityAssessment[]
   salesMetricsAssessments SalesMetricsAssessment[]
 
   // Track which attachments were included in first message
-  attachmentsIncluded Json?  // e.g., ["salesNarrative", "gtmAssessment"]
+  attachmentsIncluded Json? // e.g., ["salesNarrative", "gtmAssessment"]
 
   // Track uploaded images/PDFs for this conversation
-  imagesIncluded  Json?  @map("images_included") // [{name, type, storagePath, pageCount?}]
+  imagesIncluded Json? @map("images_included") // [{name, type, storagePath, pageCount?}]
 
-  createdAt       DateTime  @default(now())
-  lastMessageAt   DateTime  @default(now())
+  createdAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
 
   @@unique([workspaceId, slackChannelId, slackThreadTs])
   @@map("conversations")
@@ -350,27 +349,27 @@ enum ConversationSource {
 }
 
 enum ConversationMode {
-  CHATBASE  // Default: RAG via Chatbase knowledge base
-  DIRECT    // Direct OpenAI GPT calls, no RAG
+  CHATBASE // Default: RAG via Chatbase knowledge base
+  DIRECT // Direct OpenAI GPT calls, no RAG
 }
 
 // Individual message in a conversation
 model Message {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  userId          String?
-  user            User?     @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
-  role            MessageRole
-  content         String
+  role    MessageRole
+  content String
 
   // Slack reference
-  slackMessageTs  String?
+  slackMessageTs String?
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@map("messages")
 }
@@ -382,19 +381,19 @@ enum MessageRole {
 
 // Referral tracking
 model Referral {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  referrerUserId  String
-  referrer        User      @relation("Referrer", fields: [referrerUserId], references: [id])
+  referrerUserId String
+  referrer       User   @relation("Referrer", fields: [referrerUserId], references: [id])
 
-  referredUserId  String
-  referred        User      @relation("Referred", fields: [referredUserId], references: [id])
+  referredUserId String
+  referred       User   @relation("Referred", fields: [referredUserId], references: [id])
 
-  bonusAwarded    Int       @default(0)
-  status          ReferralStatus @default(PENDING)
+  bonusAwarded Int            @default(0)
+  status       ReferralStatus @default(PENDING)
 
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
   @@unique([referrerUserId, referredUserId])
   @@map("referrals")
@@ -407,46 +406,46 @@ enum ReferralStatus {
 
 // Shared conversation link
 model SharedConversation {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   createdByUserId String
-  createdBy       User      @relation(fields: [createdByUserId], references: [id])
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  shareCode       String    @unique
+  shareCode String @unique
 
   // Optional protection
-  passwordHash    String?
-  expiresAt       DateTime?
+  passwordHash String?
+  expiresAt    DateTime?
 
-  viewCount       Int       @default(0)
+  viewCount Int @default(0)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@map("shared_conversations")
 }
 
 // Cross-account chat sharing (share to specific email)
 model ChatShare {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   // Who shared it
-  sharedByUserId  String
-  sharedByUser    User      @relation("ChatSharesSent", fields: [sharedByUserId], references: [id], onDelete: Cascade)
+  sharedByUserId String
+  sharedByUser   User   @relation("ChatSharesSent", fields: [sharedByUserId], references: [id], onDelete: Cascade)
 
   // Target recipient (by email - may not have account yet)
-  sharedToEmail   String
+  sharedToEmail String
 
   // Resolved when recipient has an account (for efficient queries)
-  sharedToUserId  String?
-  sharedToUser    User?     @relation("ChatSharesReceived", fields: [sharedToUserId], references: [id], onDelete: SetNull)
+  sharedToUserId String?
+  sharedToUser   User?   @relation("ChatSharesReceived", fields: [sharedToUserId], references: [id], onDelete: SetNull)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   // Can only share same chat to same email once
   @@unique([conversationId, sharedToEmail])
@@ -458,25 +457,25 @@ model ChatShare {
 
 // Shared sales document link (public read-only)
 model SharedDocument {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Which type of document: salesNarrative, discoveryQuestions, firstCallChecklist, preCallPlanning, preCallResearch
-  documentType    String
+  documentType String
   // The version/record ID being shared
-  documentId      String
+  documentId   String
 
   createdByUserId String
-  createdBy       User      @relation(fields: [createdByUserId], references: [id])
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  shareCode       String    @unique
+  shareCode String @unique
 
   // Snapshot of the document content at share time
-  title           String
-  content         String   @db.Text
+  title   String
+  content String @db.Text
 
-  viewCount       Int       @default(0)
+  viewCount Int @default(0)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([documentType, documentId])
   @@map("shared_documents")
@@ -484,19 +483,19 @@ model SharedDocument {
 
 // Web session for authenticated users
 model Session {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Session token (stored in cookie)
-  token           String    @unique
+  token String @unique
 
   // Impersonation: if set, this session is an admin impersonating another user
   impersonatingAdminId String?
 
-  expiresAt       DateTime
-  createdAt       DateTime  @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@map("sessions")
 }
@@ -504,26 +503,26 @@ model Session {
 // Channel claim: 1:1 mapping from a Slack channel to an account + user
 // An account/user can claim multiple channels, but each channel has exactly one owner.
 model ChannelClaim {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // The Slack channel being claimed (unique — one claim per channel)
-  slackChannelId  String    @unique
-  slackChannelName String?  // Display name (e.g., "#sales-team"), cached for convenience
+  slackChannelId   String  @unique
+  slackChannelName String? // Display name (e.g., "#sales-team"), cached for convenience
 
   // Which workspace this channel belongs to
-  workspaceId     String
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Which account owns this channel
-  accountId       String
-  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   // Which user claimed it (the channel owner)
   claimedByUserId String
-  claimedBy       User      @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
+  claimedBy       User   @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([accountId])
   @@index([workspaceId])
@@ -532,15 +531,15 @@ model ChannelClaim {
 
 // Global settings (single row)
 model GlobalSettings {
-  id              String    @id @default("global")
+  id String @id @default("global")
 
   // Default pricing (in cents)
-  defaultPriceFirstSeatCents      Int @default(9900)   // $99
-  defaultPriceAdditionalSeatCents Int @default(3900)   // $39
+  defaultPriceFirstSeatCents      Int @default(9900) // $99
+  defaultPriceAdditionalSeatCents Int @default(3900) // $39
 
   // Default trial
-  defaultTrialDays      Int @default(14)
-  defaultTrialMessages  Int @default(50)
+  defaultTrialDays     Int @default(14)
+  defaultTrialMessages Int @default(50)
 
   // Default rate limit
   defaultDailyMessageLimit Int @default(1000)
@@ -548,43 +547,43 @@ model GlobalSettings {
   // Referral bonus
   referralBonusMessages Int @default(10)
 
-  updatedAt       DateTime  @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@map("global_settings")
 }
 
 // GTM Maturity Assessment Questions
 model MaturityQuestion {
-  id          String   @id @default(cuid())
-  category    String   // e.g., "Revenue Basics", "Value Prop", "ICP"
-  globalOrder Int      @unique // Overall question number (1-56)
-  question    String   @db.Text
-  enabled     Boolean  @default(true) // Soft delete - disabled questions are hidden but answers preserved
+  id          String  @id @default(cuid())
+  category    String // e.g., "Revenue Basics", "Value Prop", "ICP"
+  globalOrder Int     @unique // Overall question number (1-56)
+  question    String  @db.Text
+  enabled     Boolean @default(true) // Soft delete - disabled questions are hidden but answers preserved
 
-  answers     MaturityAnswer[]
+  answers MaturityAnswer[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@map("maturity_questions")
 }
 
 // User's answers to maturity assessment questions (with history)
 model MaturityAnswer {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  questionId  String
-  question    MaturityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  question   MaturityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   // Link to specific assessment (for history tracking)
   assessmentId String?
   assessment   MaturityAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
-  answer      String   @db.Text
+  answer String @db.Text
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, questionId])
   @@index([assessmentId])
@@ -593,22 +592,22 @@ model MaturityAnswer {
 
 // Tracks completed maturity assessments
 model MaturityAssessment {
-  id              String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // AI-generated title summarizing the assessment
-  title           String?
+  title String?
 
   // Links to the conversation with AI recommendations
-  conversationId  String?
-  conversation    Conversation? @relation(fields: [conversationId], references: [id])
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
 
   // Snapshot of all answers at time of completion
-  answers         MaturityAnswer[]
+  answers MaturityAnswer[]
 
-  completedAt     DateTime @default(now())
+  completedAt DateTime @default(now())
 
   @@map("maturity_assessments")
 }
@@ -619,38 +618,38 @@ model MaturityAssessment {
 
 // Sales Narrative Questions (seeded)
 model SalesNarrativeQuestion {
-  id          String   @id @default(cuid())
-  category    String   // e.g., "Problem", "Solution", "Proof", "Business"
-  globalOrder Int      @unique // Question number (1-8)
-  question    String   @db.Text
-  helpText    String?  @db.Text // Optional guidance for answering
-  enabled     Boolean  @default(true)
+  id          String  @id @default(cuid())
+  category    String // e.g., "Problem", "Solution", "Proof", "Business"
+  globalOrder Int     @unique // Question number (1-8)
+  question    String  @db.Text
+  helpText    String? @db.Text // Optional guidance for answering
+  enabled     Boolean @default(true)
 
-  answers     SalesNarrativeAnswer[]
+  answers SalesNarrativeAnswer[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("sales_narrative_questions")
 }
 
 // User's answers to sales narrative questions (append-only for history)
 model SalesNarrativeAnswer {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  questionId  String
-  question    SalesNarrativeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  question   SalesNarrativeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   // Link to specific version (snapshot when narrative generated)
-  versionId   String?
-  version     SalesNarrativeVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  versionId String?
+  version   SalesNarrativeVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
 
-  answer      String   @db.Text
+  answer String @db.Text
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, questionId])
   @@index([versionId])
@@ -659,44 +658,43 @@ model SalesNarrativeAnswer {
 
 // Generated sales narrative versions
 model SalesNarrativeVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Snapshot of answers at generation time
-  answers     SalesNarrativeAnswer[]
+  answers SalesNarrativeAnswer[]
 
   // Generated outputs
-  title           String   @default("Sales Narrative")  // Descriptive title e.g. "ProductName - Category - Sales Narrative"
-  narrative       String   @db.Text  // Full sales narrative prose (~2000 words, used for context attachment)
-  description1000w String? @db.Text  // 1000-word condensed narrative
-  description100w String   @db.Text  // 100-word product description
-  description50w  String   @db.Text  // 50-word elevator pitch
-  description25w  String   @db.Text  // 25-word tagline
+  title            String  @default("Sales Narrative") // Descriptive title e.g. "ProductName - Category - Sales Narrative"
+  narrative        String  @db.Text // Full sales narrative prose (~2000 words, used for context attachment)
+  description1000w String? @db.Text // 1000-word condensed narrative
+  description100w  String  @db.Text // 100-word product description
+  description50w   String  @db.Text // 50-word elevator pitch
+  description25w   String  @db.Text // 25-word tagline
 
   // Sources used to create this narrative (from prefill)
-  sourceUrls      String[]  @default([])  // URLs crawled from website
-  sourcePdfNames  String[]  @default([])  // Names of uploaded PDF files
+  sourceUrls     String[] @default([]) // URLs crawled from website
+  sourcePdfNames String[] @default([]) // Names of uploaded PDF files
 
   // Optional: conversation for follow-up chat about the narrative
-  conversationId  String?
+  conversationId String?
 
   // Discovery questions generated from this narrative
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
-  icpVersions ICPVersion[]
-  objectionBootstraps ObjectionBootstrap[]
+  objectionBootstraps        ObjectionBootstrap[]
 
   // Sequences generated from this narrative
-  emailSequenceVersions EmailSequenceVersion[]
+  emailSequenceVersions    EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
-  coldCallScriptVersions ColdCallScriptVersion[]
-  salesDeckVersions SalesDeckVersion[]
-  adCreatorVersions AdCreatorVersion[]
-  socialContentVersions SocialContentVersion[]
-  icpVersions IcpVersion[]
+  coldCallScriptVersions   ColdCallScriptVersion[]
+  salesDeckVersions        SalesDeckVersion[]
+  adCreatorVersions        AdCreatorVersion[]
+  socialContentVersions    SocialContentVersion[]
+  icpVersions              IcpVersion[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("sales_narrative_versions")
@@ -708,52 +706,26 @@ model SalesNarrativeVersion {
 
 // Generated discovery questions versions
 model DiscoveryQuestionsVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative version used as input (null for imported content)
   salesNarrativeVersionId String?
   salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title       String   @default("Discovery Questions")  // Descriptive title e.g. "ProductName - Discovery Questions"
-  content     String   @db.Text
+  title   String @default("Discovery Questions") // Descriptive title e.g. "ProductName - Discovery Questions"
+  content String @db.Text
 
   // First call checklists generated from these discovery questions
   firstCallChecklistVersions FirstCallChecklistVersion[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("discovery_questions_versions")
-}
-
-// ============================================
-// IDEAL CUSTOMER PROFILE APP
-// ============================================
-
-// Generated ICP versions
-model ICPVersion {
-  id          String   @id @default(cuid())
-
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // The sales narrative version used as input (null for imported content)
-  salesNarrativeVersionId String?
-  salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id])
-
-  // Generated output - JSON with org personas + human personas
-  title       String   @default("Ideal Customer Profile")
-  content     String   @db.Text
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([userId, createdAt])
-  @@map("icp_versions")
 }
 
 // ============================================
@@ -762,32 +734,32 @@ model ICPVersion {
 
 // Generated first call checklist versions
 model FirstCallChecklistVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The discovery questions version used as input (null for imported content)
   discoveryQuestionsVersionId String?
   discoveryQuestionsVersion   DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title       String   @default("First Call Checklist")  // Descriptive title e.g. "ProductName - First Call Checklist"
-  content     String   @db.Text
+  title   String @default("First Call Checklist") // Descriptive title e.g. "ProductName - First Call Checklist"
+  content String @db.Text
 
   // Pre-call planning versions generated from this checklist
   preCallPlanningVersions PreCallPlanningVersion[]
 
   // Sequences that optionally used this checklist as context
-  emailSequenceVersions EmailSequenceVersion[]
+  emailSequenceVersions    EmailSequenceVersion[]
   linkedInSequenceVersions LinkedInSequenceVersion[]
-  coldCallScriptVersions ColdCallScriptVersion[]
-  salesDeckVersions SalesDeckVersion[]
-  adCreatorVersions AdCreatorVersion[]
-  socialContentVersions SocialContentVersion[]
+  coldCallScriptVersions   ColdCallScriptVersion[]
+  salesDeckVersions        SalesDeckVersion[]
+  adCreatorVersions        AdCreatorVersion[]
+  socialContentVersions    SocialContentVersion[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("first_call_checklist_versions")
@@ -799,21 +771,21 @@ model FirstCallChecklistVersion {
 
 // Generated pre-call planning process versions
 model PreCallPlanningVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The first call checklist version used as input (null for imported content)
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title       String   @default("Pre-Call Planning")  // Descriptive title e.g. "ProductName - Pre-Call Planning"
-  content     String   @db.Text
+  title   String @default("Pre-Call Planning") // Descriptive title e.g. "ProductName - Pre-Call Planning"
+  content String @db.Text
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("pre_call_planning_versions")
@@ -825,30 +797,30 @@ model PreCallPlanningVersion {
 
 // Pre-call research briefs generated from web search
 model PreCallResearch {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Research input
   companyName   String
   contactName   String?
   contactTitle  String?
-  freeformInput String?  @db.Text
+  freeformInput String? @db.Text
 
   // Generated research brief (markdown)
-  content     String   @db.Text
+  content String @db.Text
 
   // Full search context prompt sent to the LLM for synthesis
-  searchContext String?  @db.Text
+  searchContext String? @db.Text
 
   // Sources used (JSON array of {title, url})
-  sources     Json     @default("[]")
+  sources Json @default("[]")
 
   // Source of the request
-  source      String   @default("web")  // "web" | "slack"
+  source String @default("web") // "web" | "slack"
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([userId, companyName])
@@ -858,10 +830,10 @@ model PreCallResearch {
 // Tracks multi-turn research intake via Slack
 // Stores extracted fields while waiting for the user to confirm or provide missing info
 model PendingResearchRequest {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Slack thread coordinates so we can match follow-up replies
   slackChannel  String
@@ -873,13 +845,13 @@ model PendingResearchRequest {
   contactName     String?
   contactTitle    String?
   contactLinkedIn String?
-  urls            Json      @default("[]")  // string[]
+  urls            Json    @default("[]") // string[]
 
   // Status: gathering → ready → completed / expired
-  status        String   @default("gathering")  // "gathering" | "completed" | "expired"
+  status String @default("gathering") // "gathering" | "completed" | "expired"
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([slackChannel, slackThreadTs])
   @@index([userId, status])
@@ -888,9 +860,9 @@ model PendingResearchRequest {
 
 // User preferences for prompt attachments
 model UserAttachmentPreference {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // JSON structure for flexibility:
   // {
@@ -899,7 +871,7 @@ model UserAttachmentPreference {
   //   "discoveryQuestions": { "enabled": false, "disabledUntil": null },
   //   "firstCallChecklist": { "enabled": false, "disabledUntil": null }
   // }
-  preferences Json    @default("{}")
+  preferences Json @default("{}")
 
   updatedAt DateTime @updatedAt
 
@@ -908,17 +880,17 @@ model UserAttachmentPreference {
 
 // Standalone uploaded files (not tied to a specific conversation)
 model UserFile {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name        String                    // Original filename
-  type        String                    // "image" | "pdf"
-  storagePath String   @map("storage_path")  // Supabase storage path
-  pageCount   Int?     @map("page_count")    // For multi-page PDFs
-  source      String   @default("upload")    // "narrative-prefill", "upload", etc.
+  name        String // Original filename
+  type        String // "image" | "pdf"
+  storagePath String @map("storage_path") // Supabase storage path
+  pageCount   Int?   @map("page_count") // For multi-page PDFs
+  source      String @default("upload") // "narrative-prefill", "upload", etc.
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("user_files")
@@ -929,32 +901,32 @@ model UserFile {
 // ============================================
 
 model EmailSequenceVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Persona configuration
-  orgPersona                  String   @db.Text
-  humanPersona                String   @db.Text
-  specialNotes                String?  @db.Text
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("email_sequence_versions")
@@ -965,32 +937,32 @@ model EmailSequenceVersion {
 // ============================================
 
 model LinkedInSequenceVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Persona configuration
-  orgPersona                  String   @db.Text
-  humanPersona                String   @db.Text
-  specialNotes                String?  @db.Text
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("linkedin_sequence_versions")
@@ -1001,35 +973,35 @@ model LinkedInSequenceVersion {
 // ============================================
 
 model ColdCallScriptVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Persona configuration
-  orgPersona                  String   @db.Text
-  humanPersona                String   @db.Text
-  specialNotes                String?  @db.Text
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
 
   // Script type: "outbound" (cold call) or "inbound" (lead response)
-  scriptType                  String   @default("outbound")
+  scriptType String @default("outbound")
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("cold_call_script_versions")
@@ -1040,38 +1012,38 @@ model ColdCallScriptVersion {
 // ============================================
 
 model SalesDeckVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Persona configuration
-  orgPersona                  String   @db.Text
-  humanPersona                String   @db.Text
-  specialNotes                String?  @db.Text
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
 
   // Deck mode: "fresh" (generated from narrative) or "existing" (from uploaded PDF)
-  deckMode                    String   @default("fresh")
+  deckMode String @default("fresh")
 
   // Original PDF filename if uploaded
-  sourcePdfName               String?
+  sourcePdfName String?
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("sales_deck_versions")
@@ -1082,24 +1054,24 @@ model SalesDeckVersion {
 // ============================================
 
 model CallReviewVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Call metadata
-  callType    String   @default("discovery") // "discovery" for now, extensible later
-  title       String?  @db.Text
+  callType String  @default("discovery") // "discovery" for now, extensible later
+  title    String? @db.Text
 
   // The raw transcript
-  transcript  String   @db.Text
+  transcript String @db.Text
 
   // Source tracking (if transcript was extracted from a share link)
-  sourceUrl    String?  @db.Text
+  sourceUrl    String? @db.Text
   sourceVendor String?
 
   // AI-generated scores (JSON)
-  scores      String   @db.Text
+  scores String @db.Text
 
   // Overall score out of max
   overallScore Int?
@@ -1112,8 +1084,8 @@ model CallReviewVersion {
   // Linked chat thread
   conversationId String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("call_review_versions")
@@ -1125,38 +1097,38 @@ model CallReviewVersion {
 
 // Sales Metrics Questions (seeded)
 model SalesMetricsQuestion {
-  id          String   @id @default(cuid())
-  category    String   // "Pipeline Activity", "Conversion Rates", "Deal Metrics", "Revenue Retention", "Lead Generation"
-  globalOrder Int      @unique
-  question    String   @db.Text
-  helpText    String?  @db.Text
-  enabled     Boolean  @default(true)
+  id          String  @id @default(cuid())
+  category    String // "Pipeline Activity", "Conversion Rates", "Deal Metrics", "Revenue Retention", "Lead Generation"
+  globalOrder Int     @unique
+  question    String  @db.Text
+  helpText    String? @db.Text
+  enabled     Boolean @default(true)
 
-  answers     SalesMetricsAnswer[]
+  answers SalesMetricsAnswer[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@map("sales_metrics_questions")
 }
 
 // User's answers to sales metrics questions (with history)
 model SalesMetricsAnswer {
-  id           String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  questionId   String
-  question     SalesMetricsQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  question   SalesMetricsQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   // Link to specific assessment (for history tracking)
   assessmentId String?
   assessment   SalesMetricsAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
-  answer       String   @db.Text
-  source       String   @default("manual") // "manual" | "csv"
+  answer String @db.Text
+  source String @default("manual") // "manual" | "csv"
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, questionId])
   @@index([assessmentId])
@@ -1165,29 +1137,29 @@ model SalesMetricsAnswer {
 
 // Completed sales metrics assessments
 model SalesMetricsAssessment {
-  id               String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title            String?
-  conversationId   String?
-  conversation     Conversation? @relation(fields: [conversationId], references: [id])
+  title          String?
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
 
   // Raw CSV stored for chat context
-  csvData          String?  @db.Text
-  csvFileName      String?
+  csvData     String? @db.Text
+  csvFileName String?
 
   // All computed fields from analysis
   calculatedMetrics String? @db.Text
 
   // Full analysis markdown report
-  analysisReport   String?  @db.Text
+  analysisReport String? @db.Text
 
   // Snapshot of answers at time of completion
-  answers          SalesMetricsAnswer[]
+  answers SalesMetricsAnswer[]
 
-  completedAt      DateTime @default(now())
+  completedAt DateTime @default(now())
 
   @@index([userId, completedAt])
   @@map("sales_metrics_assessments")
@@ -1198,19 +1170,19 @@ model SalesMetricsAssessment {
 // ============================================
 
 model CoachingSession {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title        String                // e.g. "Weekly Coaching — Mar 3"
-  sessionDate  DateTime              // Date of the coaching session
-  notes        String   @db.Text     // Notes stored as markdown
-  transcript   String?  @db.Text     // Optional pasted call transcript
-  recordingUrl String?               // Optional link to meeting recording
+  title        String // e.g. "Weekly Coaching — Mar 3"
+  sessionDate  DateTime // Date of the coaching session
+  notes        String   @db.Text // Notes stored as markdown
+  transcript   String?  @db.Text // Optional pasted call transcript
+  recordingUrl String? // Optional link to meeting recording
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, sessionDate(sort: Desc)])
   @@map("coaching_sessions")
@@ -1221,44 +1193,44 @@ model CoachingSession {
 // ============================================
 
 model AdCreatorVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Persona configuration
-  orgPersona                  String   @db.Text
-  humanPersona                String   @db.Text
-  specialNotes                String?  @db.Text
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
 
   // Voice/tone for ad copy (e.g. "professional", "conversational", "bold", or custom)
-  tone                        String?
+  tone String?
 
   // Selected platforms (e.g. ["linkedin", "facebook-instagram", "google-sem"])
-  platforms                   String[]
+  platforms String[]
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Iteration lineage
-  iteratedFromId              String?
-  iteratedFrom                AdCreatorVersion?  @relation("AdCreatorIterations", fields: [iteratedFromId], references: [id], onDelete: SetNull)
-  iterations                  AdCreatorVersion[] @relation("AdCreatorIterations")
-  iterationNotes              String?  @db.Text
+  iteratedFromId String?
+  iteratedFrom   AdCreatorVersion?  @relation("AdCreatorIterations", fields: [iteratedFromId], references: [id], onDelete: SetNull)
+  iterations     AdCreatorVersion[] @relation("AdCreatorIterations")
+  iterationNotes String?            @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("ad_creator_versions")
@@ -1269,48 +1241,48 @@ model AdCreatorVersion {
 // ============================================
 
 model SocialContentVersion {
-  id                          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                      String
-  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as primary input
-  salesNarrativeVersionId     String
-  salesNarrativeVersion       SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Optional first call checklist for additional context
   firstCallChecklistVersionId String?
   firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
 
   // Platform: "linkedin" or "twitter"
-  platform                    String
+  platform String
 
   // Tone: "thought-leadership", "shitposting", or custom string
-  tone                        String
+  tone String
 
   // Number of posts requested
-  postCount                   Int      @default(5)
+  postCount Int @default(5)
 
   // Topic source: "narrative" (auto from sales narrative), "custom" (user-entered topic), "content" (repurpose pasted content)
-  topicSource                 String
+  topicSource String
 
   // If topicSource is "custom" or "content", store the user input
-  topicInput                  String?  @db.Text
+  topicInput String? @db.Text
 
   // Gold standard examples used (stored as JSON array of strings)
-  goldStandardExamples        String?  @db.Text
+  goldStandardExamples String? @db.Text
 
   // AI-generated title summarizing this content batch
-  title                       String?
+  title String?
 
   // Generated output
-  content                     String   @db.Text
+  content String @db.Text
 
   // Linked chat thread
-  conversationId              String?
+  conversationId String?
 
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("social_content_versions")
@@ -1318,19 +1290,19 @@ model SocialContentVersion {
 
 // Saved gold standard examples for social content
 model SocialContentExample {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Platform this example is for
-  platform  String
+  platform String
 
   // The example post content
-  content   String   @db.Text
+  content String @db.Text
 
   // Optional label/name for the example
-  label     String?
+  label String?
 
   createdAt DateTime @default(now())
 
@@ -1355,38 +1327,38 @@ enum ObjectionCategory {
 }
 
 model ObjectionEntry {
-  id              String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // What the prospect says
-  objection       String   @db.Text
+  objection String @db.Text
 
   // Category (enum)
-  category        ObjectionCategory
+  category ObjectionCategory
 
   // Target persona this handle is tailored for
-  orgPersona      String   @db.Text
-  humanPersona    String   @db.Text
+  orgPersona   String @db.Text
+  humanPersona String @db.Text
 
   // The handle (how to respond)
-  handle          String   @db.Text
+  handle String @db.Text
 
   // Optional notes, context, or examples
-  notes           String?  @db.Text
+  notes String? @db.Text
 
   // Where it came from
-  source          String   @default("bootstrap")  // "bootstrap" | "manual" | "call-review" | "chat"
+  source String @default("bootstrap") // "bootstrap" | "manual" | "call-review" | "chat"
 
   // Linked chat thread for iteration
-  conversationId  String?
+  conversationId String?
 
   // Sort within category
-  sortOrder       Int      @default(0)
+  sortOrder Int @default(0)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, category])
   @@index([userId, createdAt])
@@ -1394,23 +1366,23 @@ model ObjectionEntry {
 }
 
 model ObjectionBootstrap {
-  id                      String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId                  String
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative used as input
   salesNarrativeVersionId String
   salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Persona configuration
-  orgPersona              String   @db.Text
-  humanPersona            String   @db.Text
+  orgPersona   String @db.Text
+  humanPersona String @db.Text
 
   // How many entries were generated
-  entryCount              Int
+  entryCount Int
 
-  createdAt               DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("objection_bootstraps")
@@ -1421,21 +1393,21 @@ model ObjectionBootstrap {
 // ============================================
 
 model IcpVersion {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // The sales narrative version used as input (null for imported content)
   salesNarrativeVersionId String?
   salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title       String   @default("Ideal Customer Profile")
-  content     String   @db.Text  // JSON stringified IcpContent
+  title   String @default("Ideal Customer Profile")
+  content String @db.Text // JSON stringified IcpContent
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@map("icp_versions")
