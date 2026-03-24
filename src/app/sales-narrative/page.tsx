@@ -592,7 +592,7 @@ function SalesNarrativeContent() {
                 {icpGenerating ? (
                   <>
                     Generating your{" "}
-                    <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                    <Link href="/icp" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                       Ideal Customer Profile
                     </Link>{" "}
                     from your Sales Narrative...
@@ -600,7 +600,7 @@ function SalesNarrativeContent() {
                 ) : icpDone ? (
                   <>
                     Your{" "}
-                    <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                    <Link href="/icp" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                       Ideal Customer Profile
                     </Link>{" "}
                     is ready! Done!
@@ -608,14 +608,14 @@ function SalesNarrativeContent() {
                 ) : !hasIcp ? (
                   <>
                     Congrats on finishing your Sales Narrative! Now let&apos;s{" "}
-                    <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                    <Link href="/icp" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                       define your Ideal Customer Profile
                     </Link>.
                   </>
                 ) : (
                   <>
                     Congrats on finishing your Sales Narrative! Now let&apos;s use this to{" "}
-                    <Link href="/discovery-questions?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                    <Link href="/discovery-questions?auto=true" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                       create your discovery questions
                     </Link>.
                   </>
@@ -1148,6 +1148,7 @@ function SalesNarrativeContent() {
                     </p>
                     <Link
                       href="/icp"
+                      target="_blank"
                       className="block w-full text-center px-4 py-2.5 bg-white/20 text-white rounded-lg font-semibold text-sm cursor-pointer hover:bg-white/30 transition-colors"
                     >
                       <span className="flex items-center justify-center gap-2">
@@ -1167,6 +1168,7 @@ function SalesNarrativeContent() {
                     </p>
                     <Link
                       href="/icp"
+                      target="_blank"
                       className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Done! View ICP
@@ -1180,6 +1182,7 @@ function SalesNarrativeContent() {
                     </p>
                     <Link
                       href="/icp"
+                      target="_blank"
                       className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Create ICP
@@ -1193,6 +1196,7 @@ function SalesNarrativeContent() {
                     </p>
                     <Link
                       href="/discovery-questions?auto=true"
+                      target="_blank"
                       className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Create Questions
