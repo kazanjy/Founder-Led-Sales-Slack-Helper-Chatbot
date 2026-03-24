@@ -4866,6 +4866,7 @@ export default function ChatPage() {
       <GetStartedModal
         isOpen={showGetStartedModal}
         onClose={() => setShowGetStartedModal(false)}
+        userEmail={user?.email}
       />
 
       {/* Profile Completion Modal */}
