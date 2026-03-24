@@ -216,3 +216,80 @@ export async function PATCH(
     );
   }
 }
+
+// DELETE - Delete a specific sales narrative version
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const version = await prisma.salesNarrativeVersion.findUnique({
+      where: { id },
+    });
+
+    if (!version) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+
+    if (version.userId !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    // Delete associated answer snapshots first, then the version
+    await prisma.salesNarrativeAnswer.deleteMany({
+      where: { versionId: id },
+    });
+
+    await prisma.salesNarrativeVersion.delete({
+      where: { id },
+    });
+
+    // If this was the latest version, update merge variables from the new latest (or clear them)
+    const newLatest = await prisma.salesNarrativeVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const mergeFields = [
+      { mergeField: "SALES_NARRATIVE", name: "Sales Narrative", value: newLatest?.narrative || "" },
+      { mergeField: "VALUE_PROP_1000W", name: "Value Proposition (1000 words)", value: newLatest?.description1000w || "" },
+      { mergeField: "VALUE_PROP_100W", name: "Value Proposition (100 words)", value: newLatest?.description100w || "" },
+      { mergeField: "VALUE_PROP_50W", name: "Value Proposition (50 words)", value: newLatest?.description50w || "" },
+      { mergeField: "VALUE_PROP_25W", name: "Value Proposition (25 words)", value: newLatest?.description25w || "" },
+    ];
+
+    for (const mv of mergeFields) {
+      await prisma.gtmVariable.upsert({
+        where: {
+          userId_mergeField: {
+            userId: user.id,
+            mergeField: mv.mergeField,
+          },
+        },
+        update: { value: mv.value },
+        create: {
+          userId: user.id,
+          mergeField: mv.mergeField,
+          name: mv.name,
+          value: mv.value,
+          isDefault: false,
+        },
+      });
+    }
+
+    return NextResponse.json({ success: true, hasRemaining: !!newLatest });
+  } catch (error) {
+    console.error("Error deleting sales narrative version:", error);
+    return NextResponse.json(
+      { error: "Failed to delete version" },
+      { status: 500 }
+    );
+  }
+}
