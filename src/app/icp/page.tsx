@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
@@ -93,6 +93,13 @@ function IcpContent() {
   // UI state
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
+  // Discovery Questions next-step state
+  const [showDqBanner, setShowDqBanner] = useState(true);
+  const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
+  const [dqGenerating, setDqGenerating] = useState(false);
+  const [dqDone, setDqDone] = useState(false);
+  const dqGenerationTriggered = useRef(false);
+
   // Import state
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -149,11 +156,30 @@ function IcpContent() {
         if (versionId) {
           setVersion(data.version);
           setHasSalesNarrative(true);
+          // Expand all sections by default
+          if (data.version?.content?.sections) {
+            setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
+          }
         } else {
           setHasSalesNarrative(data.hasSalesNarrative !== false);
           if (data.hasIcp) {
             setVersion(data.version);
+            // Expand all sections by default
+            if (data.version?.content?.sections) {
+              setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
+            }
           }
+        }
+
+        // Check if discovery questions exist
+        try {
+          const dqRes = await fetch("/api/discovery-questions/latest");
+          if (dqRes.ok) {
+            const dqData = await dqRes.json();
+            if (dqData.hasDiscoveryQuestions) setHasDiscoveryQuestions(true);
+          }
+        } catch {
+          // Ignore
         }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -216,6 +242,29 @@ function IcpContent() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, generating]);
+
+  // Auto-trigger Discovery Questions generation when ICP exists but DQ doesn't
+  useEffect(() => {
+    if (loading || !version || hasDiscoveryQuestions || dqGenerating || dqDone || dqGenerationTriggered.current) return;
+    dqGenerationTriggered.current = true;
+    setDqGenerating(true);
+    // Signal to Discovery Questions page that generation is in progress
+    localStorage.setItem("dqGeneratingStarted", Date.now().toString());
+    fetch("/api/discovery-questions/generate", { method: "POST" })
+      .then(async (res) => {
+        if (res.ok) {
+          setDqDone(true);
+          setHasDiscoveryQuestions(true);
+          localStorage.removeItem("dqGeneratingStarted");
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem("dqGeneratingStarted");
+      })
+      .finally(() => {
+        setDqGenerating(false);
+      });
+  }, [loading, version, hasDiscoveryQuestions, dqGenerating, dqDone]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -727,7 +776,65 @@ function IcpContent() {
 
       {/* Profile Tab Content */}
       {activeTab === "profile" && (
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {/* Dismissable Next Step Banner - Discovery Questions generation status */}
+          {showDqBanner && !isEditing && (dqGenerating || dqDone || !hasDiscoveryQuestions) && (
+            <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  {dqGenerating ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <p className="font-medium">
+                  {dqGenerating ? (
+                    <>
+                      Generating your{" "}
+                      <Link href="/discovery-questions" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        Discovery Questions
+                      </Link>{" "}
+                      from your ICP...
+                    </>
+                  ) : dqDone ? (
+                    <>
+                      Your{" "}
+                      <Link href="/discovery-questions" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        Discovery Questions
+                      </Link>{" "}
+                      are ready! Done!
+                    </>
+                  ) : (
+                    <>
+                      Congrats on finishing your ICP! Now let&apos;s{" "}
+                      <Link href="/discovery-questions?auto=true" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        create your discovery questions
+                      </Link>.
+                    </>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDqBanner(false)}
+                className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
+                aria-label="Dismiss"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className="flex gap-8">
+          {/* Left: Main content */}
+          <div className="flex-1 min-w-0">
           <div className="space-y-4">
             {contentToRender.sections.map((section, sectionIndex) => {
               const colors = sectionColors[section.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700" };
@@ -818,6 +925,79 @@ function IcpContent() {
               </button>
             </div>
           )}
+          </div>
+
+          {/* Right sidebar: Next step CTA widget - Discovery Questions status */}
+          {!isEditing && (dqGenerating || dqDone || !hasDiscoveryQuestions) && (
+            <div className="hidden lg:block w-64 flex-shrink-0">
+              <div className="sticky top-8">
+                <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                    {dqGenerating ? (
+                      <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  {dqGenerating ? (
+                    <>
+                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <p className="text-purple-100 text-sm mb-4">
+                        Generating your Discovery Questions from your ICP...
+                      </p>
+                      <Link
+                        href="/discovery-questions"
+                        target="_blank"
+                        className="block w-full text-center px-4 py-2.5 bg-white/20 text-white rounded-lg font-semibold text-sm cursor-pointer hover:bg-white/30 transition-colors"
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Generating...
+                        </span>
+                      </Link>
+                    </>
+                  ) : dqDone ? (
+                    <>
+                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <p className="text-purple-100 text-sm mb-4">
+                        Your Discovery Questions have been generated from your ICP!
+                      </p>
+                      <Link
+                        href="/discovery-questions"
+                        target="_blank"
+                        className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      >
+                        Done! View Questions
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <p className="text-purple-100 text-sm mb-4">
+                        Turn your ICP into powerful discovery questions that uncover buyer pain points.
+                      </p>
+                      <Link
+                        href="/discovery-questions?auto=true"
+                        target="_blank"
+                        className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      >
+                        Create Questions
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
         </div>
       )}
 

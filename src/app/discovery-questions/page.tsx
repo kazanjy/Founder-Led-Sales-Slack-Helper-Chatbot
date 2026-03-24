@@ -182,6 +182,47 @@ function DiscoveryQuestionsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, hasSalesNarrative]);
 
+  // Detect background DQ generation triggered from ICP page
+  useEffect(() => {
+    if (loading || version || generating) return;
+    const startedAt = localStorage.getItem("dqGeneratingStarted");
+    if (!startedAt) return;
+    // Only honor if started within the last 3 minutes
+    if (Date.now() - parseInt(startedAt) > 180000) {
+      localStorage.removeItem("dqGeneratingStarted");
+      return;
+    }
+    // Show generating state and poll for completion
+    setGenerating(true);
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise(r => setTimeout(r, 3000));
+        if (cancelled) break;
+        try {
+          const res = await fetch("/api/discovery-questions/latest");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasDiscoveryQuestions && data.version) {
+              setVersion(data.version);
+              if (data.version?.content?.categories) {
+                setExpandedCategories(new Set(data.version.content.categories.map((c: Category) => c.name)));
+              }
+              setGenerating(false);
+              localStorage.removeItem("dqGeneratingStarted");
+              return;
+            }
+          }
+        } catch {
+          // Keep polling
+        }
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, generating]);
+
   const handleClone = async () => {
     if (!version) return;
     try {
