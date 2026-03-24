@@ -72,6 +72,7 @@ function DiscoveryQuestionsContent() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showChecklistBanner, setShowChecklistBanner] = useState(true);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
+  const [generatingChecklist, setGeneratingChecklist] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editContent, setEditContent] = useState<DiscoveryQuestionsContent | null>(null);
@@ -223,6 +224,16 @@ function DiscoveryQuestionsContent() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, generating]);
+
+  const handleCreateChecklist = async () => {
+    setGeneratingChecklist(true);
+    // Fire the generate API call in the background
+    fetch("/api/first-call-checklist/generate", { method: "POST" }).catch(() => {});
+    // Set a localStorage flag so the checklist page can detect background generation
+    localStorage.setItem("fccGeneratingStarted", Date.now().toString());
+    // Navigate to the checklist page
+    router.push("/first-call-checklist");
+  };
 
   const handleClone = async () => {
     if (!version) return;
@@ -911,9 +922,9 @@ function DiscoveryQuestionsContent() {
               </div>
               <p className="font-medium">
                 Congrats on finishing your Discovery Questions! Now let&apos;s use this to{" "}
-                <Link href="/first-call-checklist?auto=true" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                <button onClick={handleCreateChecklist} disabled={generatingChecklist} className="underline underline-offset-2 hover:text-purple-100 font-semibold">
                   create your first call checklist
-                </Link>.
+                </button>.
               </p>
             </div>
             <button
@@ -1112,12 +1123,13 @@ function DiscoveryQuestionsContent() {
               <p className="text-purple-100 text-sm mb-4">
                 Turn your discovery questions into a structured checklist for your first sales calls.
               </p>
-              <Link
-                href="/first-call-checklist?auto=true"
-                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+              <button
+                onClick={handleCreateChecklist}
+                disabled={generatingChecklist}
+                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm disabled:opacity-50"
               >
-                Create Checklist
-              </Link>
+                {generatingChecklist ? "Creating..." : "Create Checklist"}
+              </button>
             </div>
 
             <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">

@@ -173,6 +173,47 @@ function FirstCallChecklistContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, hasDiscoveryQuestions]);
 
+  // Detect background generation triggered from Discovery Questions page
+  useEffect(() => {
+    if (loading || version || generating) return;
+    const startedAt = localStorage.getItem("fccGeneratingStarted");
+    if (!startedAt) return;
+    // Only honor if started within the last 3 minutes
+    if (Date.now() - parseInt(startedAt) > 180000) {
+      localStorage.removeItem("fccGeneratingStarted");
+      return;
+    }
+    // Show generating state and poll for completion
+    setGenerating(true);
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise(r => setTimeout(r, 3000));
+        if (cancelled) break;
+        try {
+          const res = await fetch("/api/first-call-checklist/latest");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasFirstCallChecklist && data.version) {
+              setVersion(data.version);
+              setGenerating(false);
+              localStorage.removeItem("fccGeneratingStarted");
+              if (data.version?.id) {
+                window.history.replaceState({}, "", `/first-call-checklist?version=${data.version.id}`);
+              }
+              return;
+            }
+          }
+        } catch {
+          // Keep polling
+        }
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, generating]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {
