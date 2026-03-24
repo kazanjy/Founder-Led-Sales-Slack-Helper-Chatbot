@@ -242,9 +242,12 @@ function SalesNarrativeContent() {
 
   const handleDelete = async () => {
     if (!version) return;
-    const confirmed = await showConfirm(
-      "Are you sure you want to delete this Sales Narrative? This cannot be undone."
-    );
+    const confirmed = await showConfirm({
+      title: "Delete Sales Narrative",
+      message: "Are you sure you want to delete this Sales Narrative? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
     if (!confirmed) return;
     try {
       const res = await fetch(`/api/sales-narrative/versions/${version.id}`, {
