@@ -263,7 +263,7 @@ function SalesNarrativeContent() {
           router.push("/sales-narrative/edit");
         }
       } else {
-        await showAlert("Failed to delete this narrative. Please try again.");
+        await showAlert({ title: "Error", message: "Failed to delete this narrative. Please try again.", variant: "danger" });
       }
     } catch (error) {
       console.error("Error deleting narrative:", error);
