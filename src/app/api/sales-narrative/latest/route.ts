@@ -69,8 +69,10 @@ export async function GET() {
 
     return NextResponse.json({
       hasNarrative: true,
+      currentUserId: user.id,
       version: {
         id: latestVersion.id,
+        userId: latestVersion.userId,
         title: latestVersion.title,
         narrative: latestVersion.narrative,
         description1000w: latestVersion.description1000w,
