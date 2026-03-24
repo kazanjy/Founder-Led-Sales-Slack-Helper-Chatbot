@@ -267,7 +267,7 @@ function SalesNarrativeContent() {
       }
     } catch (error) {
       console.error("Error deleting narrative:", error);
-      await showAlert("Failed to delete this narrative. Please try again.");
+      await showAlert({ title: "Error", message: "Failed to delete this narrative. Please try again.", variant: "danger" });
     }
   };
 
