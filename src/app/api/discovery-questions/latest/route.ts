@@ -48,8 +48,10 @@ export async function GET() {
 
     return NextResponse.json({
       hasDiscoveryQuestions: true,
+      currentUserId: user.id,
       version: {
         id: latestVersion.id,
+        userId: latestVersion.userId,
         title: latestVersion.title,
         content,
         salesNarrativeVersionId: latestVersion.salesNarrativeVersionId,

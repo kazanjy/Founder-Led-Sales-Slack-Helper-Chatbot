@@ -87,7 +87,8 @@ function SalesDeckContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editedContent, setEditedContent] = useState("");
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const [deleting, setDeleting] = useState(false);
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
@@ -300,6 +301,35 @@ function SalesDeckContent() {
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!version) return;
+    const confirmed = await showConfirm({
+      title: "Delete Sales Deck",
+      message: "Are you sure you want to delete this Sales Deck? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/sales-deck/versions/${version.id}`, { method: "DELETE" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasRemaining) {
+          window.location.href = "/sales-deck";
+        } else {
+          router.push("/sales-deck");
+        }
+      } else {
+        setDeleting(false);
+        await showAlert({ title: "Error", message: "Failed to delete. Please try again.", variant: "danger" });
+      }
+    } catch {
+      setDeleting(false);
+      await showAlert({ title: "Error", message: "Failed to delete. Please try again.", variant: "danger" });
     }
   };
 
@@ -787,6 +817,23 @@ function SalesDeckContent() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     Clone
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-4 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {deleting ? (
+                      <svg className="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    )}
+                    {deleting ? "Deleting..." : "Delete"}
                   </button>
                   <NewButtonDropdown
                     onRegenerate={handleRegenerate}

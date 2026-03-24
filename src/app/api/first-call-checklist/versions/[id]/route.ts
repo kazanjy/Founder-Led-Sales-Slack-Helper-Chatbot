@@ -148,3 +148,52 @@ export async function PATCH(
     );
   }
 }
+
+// DELETE - Delete a specific version
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const version = await prisma.firstCallChecklistVersion.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!version) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+
+    await prisma.firstCallChecklistVersion.delete({ where: { id } });
+
+    const newLatest = await prisma.firstCallChecklistVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    await prisma.gtmVariable.upsert({
+      where: {
+        userId_mergeField: { userId: user.id, mergeField: "FIRST_CALL_CHECKLIST" },
+      },
+      update: { value: newLatest?.content || "" },
+      create: {
+        userId: user.id,
+        mergeField: "FIRST_CALL_CHECKLIST",
+        name: "First Call Checklist",
+        value: newLatest?.content || "",
+        isDefault: false,
+      },
+    });
+
+    return NextResponse.json({ success: true, hasRemaining: !!newLatest });
+  } catch (error) {
+    console.error("Error deleting version:", error);
+    return NextResponse.json({ error: "Failed to delete version" }, { status: 500 });
+  }
+}
