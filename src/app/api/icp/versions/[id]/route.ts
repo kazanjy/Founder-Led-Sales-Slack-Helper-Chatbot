@@ -166,6 +166,78 @@ export async function PATCH(
   }
 }
 
+// DELETE - Delete a specific ICP version
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const version = await prisma.icpVersion.findUnique({
+      where: { id },
+    });
+
+    if (!version) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+
+    if (version.userId !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    await prisma.icpVersion.delete({
+      where: { id },
+    });
+
+    // If this was the latest version, update merge variable from the new latest (or clear it)
+    const newLatest = await prisma.icpVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let icpValue = "";
+    if (newLatest) {
+      try {
+        const parsed = JSON.parse(newLatest.content);
+        icpValue = formatIcpForMerge(parsed);
+      } catch {
+        icpValue = "";
+      }
+    }
+
+    await prisma.gtmVariable.upsert({
+      where: {
+        userId_mergeField: {
+          userId: user.id,
+          mergeField: "ICP",
+        },
+      },
+      update: { value: icpValue },
+      create: {
+        userId: user.id,
+        mergeField: "ICP",
+        name: "Ideal Customer Profile",
+        value: icpValue,
+        isDefault: false,
+      },
+    });
+
+    return NextResponse.json({ success: true, hasRemaining: !!newLatest });
+  } catch (error) {
+    console.error("Error deleting ICP version:", error);
+    return NextResponse.json(
+      { error: "Failed to delete version" },
+      { status: 500 }
+    );
+  }
+}
+
 function formatIcpForMerge(data: {
   sections: Array<{
     name: string;

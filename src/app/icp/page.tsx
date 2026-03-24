@@ -110,7 +110,8 @@ function IcpContent() {
   const [generatingCriteria, setGeneratingCriteria] = useState(false);
   const [copiedFilter, setCopiedFilter] = useState<string | null>(null);
 
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Ideal Customer Profile - Mikey";
@@ -152,6 +153,10 @@ function IcpContent() {
         }
 
         const data = await response.json();
+
+        if (data.currentUserId) {
+          setCurrentUserId(data.currentUserId);
+        }
 
         if (versionId) {
           setVersion(data.version);
@@ -295,6 +300,35 @@ function IcpContent() {
 
   const handleRegenerate = () => {
     handleGenerate();
+  };
+
+  const handleDelete = async () => {
+    if (!version) return;
+    const confirmed = await showConfirm({
+      title: "Delete Ideal Customer Profile",
+      message: "Are you sure you want to delete this ICP? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/icp/versions/${version.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasRemaining) {
+          window.location.href = "/icp";
+        } else {
+          router.push("/icp");
+        }
+      } else {
+        await showAlert({ title: "Error", message: "Failed to delete this ICP. Please try again.", variant: "danger" });
+      }
+    } catch (error) {
+      console.error("Error deleting ICP:", error);
+      await showAlert({ title: "Error", message: "Failed to delete this ICP. Please try again.", variant: "danger" });
+    }
   };
 
   const handleCopyAll = async () => {
@@ -729,6 +763,17 @@ function IcpContent() {
                         Edit
                       </button>
                     </>
+                  )}
+                  {version?.userId === currentUserId && (
+                    <button
+                      onClick={handleDelete}
+                      className="px-4 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
+                    </button>
                   )}
                   {activeTab === "search-criteria" && version.content.searchCriteria && (
                     <button onClick={handleGenerateSearchCriteria} disabled={generatingCriteria} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">

@@ -42,6 +42,7 @@ export async function GET() {
 
     return NextResponse.json({
       hasIcp: true,
+      currentUserId: user.id,
       version: {
         id: latestVersion.id,
         title: latestVersion.title,
