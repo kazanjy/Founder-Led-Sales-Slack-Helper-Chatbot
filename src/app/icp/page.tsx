@@ -176,6 +176,47 @@ function IcpContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, hasSalesNarrative]);
 
+  // Detect background ICP generation triggered from Sales Narrative page
+  useEffect(() => {
+    if (loading || version || generating) return;
+    const startedAt = localStorage.getItem("icpGeneratingStarted");
+    if (!startedAt) return;
+    // Only honor if started within the last 3 minutes
+    if (Date.now() - parseInt(startedAt) > 180000) {
+      localStorage.removeItem("icpGeneratingStarted");
+      return;
+    }
+    // Show generating state and poll for completion
+    setGenerating(true);
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise(r => setTimeout(r, 3000));
+        if (cancelled) break;
+        try {
+          const res = await fetch("/api/icp/latest");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasIcp && data.version) {
+              setVersion(data.version);
+              if (data.version?.content?.sections) {
+                setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
+              }
+              setGenerating(false);
+              localStorage.removeItem("icpGeneratingStarted");
+              return;
+            }
+          }
+        } catch {
+          // Keep polling
+        }
+      }
+    };
+    poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, version, generating]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {

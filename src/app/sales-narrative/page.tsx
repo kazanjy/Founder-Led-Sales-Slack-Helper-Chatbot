@@ -89,10 +89,13 @@ function SalesNarrativeContent() {
     window.history.replaceState(null, "", url.toString());
   };
 
-  // Discovery questions banner
+  // Next step banner
   const [showDiscoveryBanner, setShowDiscoveryBanner] = useState(true);
   const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
   const [hasIcp, setHasIcp] = useState(false);
+  const [icpGenerating, setIcpGenerating] = useState(false);
+  const [icpDone, setIcpDone] = useState(false);
+  const icpGenerationTriggered = useRef(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -179,6 +182,30 @@ function SalesNarrativeContent() {
 
     loadData();
   }, [router, versionId]);
+
+  // Auto-trigger ICP generation when narrative exists but ICP doesn't
+  useEffect(() => {
+    if (loading || !version || hasIcp || icpGenerating || icpDone || icpGenerationTriggered.current) return;
+    icpGenerationTriggered.current = true;
+    setIcpGenerating(true);
+    // Signal to ICP page that generation is in progress
+    localStorage.setItem("icpGeneratingStarted", Date.now().toString());
+    fetch("/api/icp/generate", { method: "POST" })
+      .then(async (res) => {
+        if (res.ok) {
+          setIcpDone(true);
+          setHasIcp(true);
+          localStorage.removeItem("icpGeneratingStarted");
+        }
+      })
+      .catch(() => {
+        // Silently fail — user can still trigger manually
+        localStorage.removeItem("icpGeneratingStarted");
+      })
+      .finally(() => {
+        setIcpGenerating(false);
+      });
+  }, [loading, version, hasIcp, icpGenerating, icpDone]);
 
   const initEditFields = (v: NarrativeVersion) => {
     setEditTitle(v.title || "");
@@ -542,17 +569,40 @@ function SalesNarrativeContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Dismissable Next Step Banner - ICP first, then Discovery Questions */}
-        {showDiscoveryBanner && !isEditing && (!hasIcp || !hasDiscoveryQuestions) && (
+        {/* Dismissable Next Step Banner - ICP generation status or Discovery Questions */}
+        {showDiscoveryBanner && !isEditing && (icpGenerating || icpDone || !hasIcp || !hasDiscoveryQuestions) && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                {icpGenerating ? (
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </div>
               <p className="font-medium">
-                {!hasIcp ? (
+                {icpGenerating ? (
+                  <>
+                    Generating your{" "}
+                    <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                      Ideal Customer Profile
+                    </Link>{" "}
+                    from your Sales Narrative...
+                  </>
+                ) : icpDone ? (
+                  <>
+                    Your{" "}
+                    <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                      Ideal Customer Profile
+                    </Link>{" "}
+                    is ready! Done!
+                  </>
+                ) : !hasIcp ? (
                   <>
                     Congrats on finishing your Sales Narrative! Now let&apos;s{" "}
                     <Link href="/icp" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
@@ -1066,21 +1116,60 @@ function SalesNarrativeContent() {
 
         </div>{/* end main content */}
 
-        {/* Right sidebar: Next step CTA widget - ICP first, then Discovery Questions */}
-        {!isEditing && (!hasIcp || !hasDiscoveryQuestions) && (
+        {/* Right sidebar: Next step CTA widget - ICP status or Discovery Questions */}
+        {!isEditing && (icpGenerating || icpDone || !hasIcp || !hasDiscoveryQuestions) && (
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-8">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    {!hasIcp ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    )}
-                  </svg>
+                  {icpGenerating ? (
+                    <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {!hasIcp ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      )}
+                    </svg>
+                  )}
                 </div>
-                {!hasIcp ? (
+                {icpGenerating ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">Ideal Customer Profile</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Generating your ICP from your Sales Narrative...
+                    </p>
+                    <Link
+                      href="/icp"
+                      className="block w-full text-center px-4 py-2.5 bg-white/20 text-white rounded-lg font-semibold text-sm cursor-pointer hover:bg-white/30 transition-colors"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating...
+                      </span>
+                    </Link>
+                  </>
+                ) : icpDone ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">Ideal Customer Profile</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Your ICP has been generated from your Sales Narrative!
+                    </p>
+                    <Link
+                      href="/icp"
+                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                    >
+                      Done! View ICP
+                    </Link>
+                  </>
+                ) : !hasIcp ? (
                   <>
                     <h3 className="font-bold text-lg mb-2">Ideal Customer Profile</h3>
                     <p className="text-purple-100 text-sm mb-4">
