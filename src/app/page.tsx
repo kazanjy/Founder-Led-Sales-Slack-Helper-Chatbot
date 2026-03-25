@@ -169,7 +169,7 @@ export default async function Home({ searchParams }: HomeProps) {
             {/* Connection line (desktop only) */}
             <div className="hidden lg:block absolute top-10 left-[8%] right-[8%] h-0.5 bg-gradient-to-r from-purple-200 via-blue-200 to-green-200" />
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">
               {/* Step 1 */}
               <div className="text-center relative">
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-purple-50 rounded-2xl flex items-center justify-center border border-purple-200 relative z-10">
@@ -203,7 +203,18 @@ export default async function Home({ searchParams }: HomeProps) {
                 <p className="text-xs text-gray-500">Define your ICP with search criteria</p>
               </div>
 
-              {/* Step 4 */}
+              {/* Step 4 - Sales Deck */}
+              <div className="text-center relative">
+                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-rose-50 rounded-2xl flex items-center justify-center border border-orange-200 relative z-10">
+                  <svg className="w-9 h-9 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1 text-sm">Sales Deck</h3>
+                <p className="text-xs text-gray-500">Build a tailored pitch presentation</p>
+              </div>
+
+              {/* Step 5 */}
               <div className="text-center relative">
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-100 to-green-50 rounded-2xl flex items-center justify-center border border-green-200 relative z-10">
                   <svg className="w-9 h-9 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,10 +225,10 @@ export default async function Home({ searchParams }: HomeProps) {
                 <p className="text-xs text-gray-500">Craft questions that uncover real pain</p>
               </div>
 
-              {/* Step 5 */}
+              {/* Step 6 */}
               <div className="text-center relative">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-orange-50 rounded-2xl flex items-center justify-center border border-orange-200 relative z-10">
-                  <svg className="w-9 h-9 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-amber-100 to-amber-50 rounded-2xl flex items-center justify-center border border-amber-200 relative z-10">
+                  <svg className="w-9 h-9 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
                 </div>
@@ -225,7 +236,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 <p className="text-xs text-gray-500">Know exactly what to cover on every call</p>
               </div>
 
-              {/* Step 6 */}
+              {/* Step 7 */}
               <div className="text-center relative">
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-teal-100 to-teal-50 rounded-2xl flex items-center justify-center border border-teal-200 relative z-10">
                   <svg className="w-9 h-9 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
