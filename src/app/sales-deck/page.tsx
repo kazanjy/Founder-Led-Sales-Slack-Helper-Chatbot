@@ -34,6 +34,14 @@ interface SalesDeckVersion {
   };
   firstCallChecklistVersionId?: string | null;
   conversationId?: string | null;
+  // Gamma-specific fields
+  gammaUrl?: string | null;
+  gammaPdfUrl?: string | null;
+  gammaPptxUrl?: string | null;
+  prospectUrl?: string | null;
+  contextUrls?: string[];
+  contextPdfNames?: string[];
+  brandAnalysis?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,7 +82,7 @@ function SalesDeckContent() {
   const [orgPersona, setOrgPersona] = useState("");
   const [humanPersona, setHumanPersona] = useState("");
   const [specialNotes, setSpecialNotes] = useState("");
-  const [deckMode, setDeckMode] = useState<"fresh" | "existing">("fresh");
+  const [deckMode, setDeckMode] = useState<"fresh" | "existing" | "gamma">("fresh");
   const [includeChecklist, setIncludeChecklist] = useState(false);
   const [existingDeckFile, setExistingDeckFile] = useState<File | null>(null);
   const [existingDeckText, setExistingDeckText] = useState("");
@@ -82,6 +90,18 @@ function SalesDeckContent() {
   const [parsingPdf, setParsingPdf] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  // Gamma-specific state
+  const [prospectUrl, setProspectUrl] = useState("");
+  const [contextUrls, setContextUrls] = useState<string[]>([""]);
+  const [contextPdfFiles, setContextPdfFiles] = useState<File[]>([]);
+  const [contextPdfTexts, setContextPdfTexts] = useState<Array<{ fileName: string; text: string }>>([]);
+  const [parsingContextPdf, setParsingContextPdf] = useState(false);
+  const [analyzingBrand, setAnalyzingBrand] = useState(false);
+  const [brandAnalysis, setBrandAnalysis] = useState("");
+  const [brandScreenshot, setBrandScreenshot] = useState("");
+  const [gammaDragOver, setGammaDragOver] = useState(false);
+  const gammaFileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -198,7 +218,121 @@ function SalesDeckContent() {
     if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
+  // --- Gamma handlers ---
+
+  const handleContextPdfUpload = async (files: File[]) => {
+    setParsingContextPdf(true);
+    const newTexts: Array<{ fileName: string; text: string }> = [];
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/sales-deck/parse-pdf", { method: "POST", body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          newTexts.push({ fileName: data.fileName, text: data.text });
+        }
+      }
+      setContextPdfFiles((prev) => [...prev, ...files]);
+      setContextPdfTexts((prev) => [...prev, ...newTexts]);
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to parse one or more PDFs.", variant: "danger" });
+    } finally {
+      setParsingContextPdf(false);
+    }
+  };
+
+  const handleRemoveContextPdf = (index: number) => {
+    setContextPdfFiles((prev) => prev.filter((_, i) => i !== index));
+    setContextPdfTexts((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAnalyzeBrand = async () => {
+    const url = prospectUrl.trim();
+    if (!url) {
+      await showAlert({ title: "Missing URL", message: "Enter a prospect website URL first.", variant: "danger" });
+      return;
+    }
+    setAnalyzingBrand(true);
+    try {
+      const res = await fetch("/api/sales-deck/analyze-brand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.startsWith("http") ? url : `https://${url}` }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        await showAlert({ title: "Error", message: data.error || "Brand analysis failed", variant: "danger" });
+        return;
+      }
+      const data = await res.json();
+      setBrandAnalysis(data.brandAnalysis);
+      setBrandScreenshot(data.screenshotDataUrl);
+    } catch {
+      await showAlert({ title: "Error", message: "Brand analysis failed. Please try again.", variant: "danger" });
+    } finally {
+      setAnalyzingBrand(false);
+    }
+  };
+
+  const handleGenerateGamma = async () => {
+    if (!orgPersona.trim() || !humanPersona.trim()) {
+      await showAlert({
+        title: "Missing Fields",
+        message: "Please fill in both the organization persona and target role.",
+        variant: "danger",
+      });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const filteredUrls = contextUrls.filter((u) => u.trim());
+      const response = await fetch("/api/sales-deck/generate-gamma", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgPersona: orgPersona.trim(),
+          humanPersona: humanPersona.trim(),
+          specialNotes: specialNotes.trim() || undefined,
+          prospectUrl: prospectUrl.trim() || undefined,
+          contextUrls: filteredUrls,
+          brandAnalysis: brandAnalysis || undefined,
+          contextPdfTexts,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        await showAlert({
+          title: "Error",
+          message: data.error || "Failed to generate Gamma presentation",
+          variant: "danger",
+        });
+        return;
+      }
+
+      const data = await response.json();
+      setVersion(data.version);
+      setEditedContent(data.version?.content || "");
+      setShowForm(false);
+    } catch (error) {
+      console.error("Error generating Gamma deck:", error);
+      await showAlert({
+        title: "Error",
+        message: "Failed to generate Gamma presentation. Please try again.",
+        variant: "danger",
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleGenerate = async () => {
+    if (deckMode === "gamma") {
+      return handleGenerateGamma();
+    }
+
     if (!orgPersona.trim() || !humanPersona.trim()) {
       await showAlert({
         title: "Missing Fields",
@@ -264,8 +398,13 @@ function SalesDeckContent() {
       setOrgPersona(version.orgPersona);
       setHumanPersona(version.humanPersona);
       setSpecialNotes(version.specialNotes || "");
-      setDeckMode(version.deckMode as "fresh" | "existing");
+      setDeckMode(version.deckMode as "fresh" | "existing" | "gamma");
       setIncludeChecklist(!!version.firstCallChecklistVersionId);
+      // Restore gamma-specific fields
+      if (version.deckMode === "gamma") {
+        setProspectUrl(version.prospectUrl || "");
+        setBrandAnalysis(version.brandAnalysis || "");
+      }
     }
     setShowForm(true);
   };
@@ -366,7 +505,7 @@ function SalesDeckContent() {
   };
 
   const deckModeLabel = (mode: string) =>
-    mode === "existing" ? "Existing Deck Improvement" : "Fresh Deck";
+    mode === "gamma" ? "Gamma Presentation" : mode === "existing" ? "Existing Deck Improvement" : "Fresh Deck";
 
   if (loading) {
     return (
@@ -451,11 +590,24 @@ function SalesDeckContent() {
                     >
                       Improve Existing
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeckMode("gamma")}
+                      className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors border-l border-gray-300 ${
+                        deckMode === "gamma"
+                          ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Gamma Deck
+                    </button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
                     {deckMode === "fresh"
                       ? "Create a brand new deck outline with speaker notes from your sales narrative"
-                      : "Upload your existing deck PDF and get AI-powered improvement suggestions"}
+                      : deckMode === "existing"
+                      ? "Upload your existing deck PDF and get AI-powered improvement suggestions"
+                      : "Generate a polished Gamma presentation with brand-matched styling"}
                   </p>
                 </div>
 
@@ -534,6 +686,187 @@ function SalesDeckContent() {
                       </div>
                     )}
                   </div>
+                )}
+
+                {/* Gamma-specific fields */}
+                {deckMode === "gamma" && (
+                  <>
+                    {/* Hidden file input for gamma PDFs */}
+                    <input
+                      ref={gammaFileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) handleContextPdfUpload(Array.from(files));
+                        e.target.value = "";
+                      }}
+                    />
+
+                    {/* Prospect URL + Brand Analysis */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Prospect Website URL <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        We&apos;ll analyze their brand to match your deck&apos;s look & feel
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={prospectUrl}
+                          onChange={(e) => setProspectUrl(e.target.value)}
+                          placeholder="e.g. acmecorp.com"
+                          disabled={analyzingBrand}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAnalyzeBrand}
+                          disabled={analyzingBrand || !prospectUrl.trim()}
+                          className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 text-sm font-medium whitespace-nowrap flex items-center gap-2"
+                        >
+                          {analyzingBrand ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Analyzing...
+                            </>
+                          ) : (
+                            "Analyze Brand"
+                          )}
+                        </button>
+                      </div>
+                      {brandAnalysis && (
+                        <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <svg className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-indigo-800">Brand analysis complete</p>
+                              <p className="text-xs text-indigo-600 mt-0.5 line-clamp-2">{brandAnalysis.slice(0, 150)}...</p>
+                            </div>
+                            <button
+                              onClick={() => { setBrandAnalysis(""); setBrandScreenshot(""); }}
+                              className="p-1 text-indigo-400 hover:text-red-500 rounded transition-colors"
+                              title="Clear analysis"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Context URLs */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Context Page URLs <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Paste links to product pages, case studies, or competitor sites for extra context
+                      </p>
+                      <div className="space-y-2">
+                        {contextUrls.map((url, i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={url}
+                              onChange={(e) => {
+                                const updated = [...contextUrls];
+                                updated[i] = e.target.value;
+                                // Auto-add new row when typing in last field
+                                if (i === contextUrls.length - 1 && e.target.value.trim()) {
+                                  updated.push("");
+                                }
+                                setContextUrls(updated);
+                              }}
+                              placeholder="https://..."
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                            {contextUrls.length > 1 && (
+                              <button
+                                onClick={() => setContextUrls(contextUrls.filter((_, idx) => idx !== i))}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Context PDFs */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Context PDFs <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Upload sales decks, one-pagers, or case study PDFs for additional context
+                      </p>
+                      {contextPdfFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {contextPdfFiles.map((file, i) => (
+                            <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-full text-sm">
+                              <span className="text-purple-800 truncate max-w-[200px]">{file.name}</span>
+                              <button
+                                onClick={() => handleRemoveContextPdf(i)}
+                                className="p-0.5 text-purple-400 hover:text-red-500 rounded-full transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {parsingContextPdf ? (
+                        <div className="flex items-center gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                          <svg className="animate-spin h-5 w-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span className="text-sm text-purple-700">Parsing PDFs...</span>
+                        </div>
+                      ) : (
+                        <div
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setGammaDragOver(true); }}
+                          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setGammaDragOver(false); }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setGammaDragOver(false);
+                            const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+                            if (files.length > 0) handleContextPdfUpload(files);
+                          }}
+                          onClick={() => gammaFileInputRef.current?.click()}
+                          className={`w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer text-center ${
+                            gammaDragOver
+                              ? "border-purple-500 bg-purple-50"
+                              : "border-gray-300 hover:border-purple-400 hover:bg-purple-50"
+                          }`}
+                        >
+                          <svg className="w-6 h-6 text-gray-400 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                          <p className="text-sm font-medium text-gray-700">
+                            {gammaDragOver ? "Drop PDFs here" : "Click or drag & drop PDFs"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <div>
@@ -621,7 +954,7 @@ function SalesDeckContent() {
                   )}
                   <button
                     onClick={handleGenerate}
-                    disabled={generating || prefilling || parsingPdf || (deckMode === "existing" && !existingDeckText)}
+                    disabled={generating || prefilling || parsingPdf || parsingContextPdf || analyzingBrand || (deckMode === "existing" && !existingDeckText)}
                     className="flex-1 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {generating ? (
@@ -637,7 +970,7 @@ function SalesDeckContent() {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Generate Sales Deck
+                        {deckMode === "gamma" ? "Generate Gamma Deck" : "Generate Sales Deck"}
                       </>
                     )}
                   </button>
@@ -659,10 +992,18 @@ function SalesDeckContent() {
       <SalesNavBar />
       <GeneratingOverlay
         visible={generating}
-        title="Generating Sales Deck"
-        subtitle="Crafting a compelling presentation that wins deals"
-        emojis={["📊", "🎯", "🎤"]}
-        messages={[
+        title={version?.deckMode === "gamma" || deckMode === "gamma" ? "Generating Gamma Presentation" : "Generating Sales Deck"}
+        subtitle={version?.deckMode === "gamma" || deckMode === "gamma" ? "Building a polished, brand-matched presentation" : "Crafting a compelling presentation that wins deals"}
+        emojis={version?.deckMode === "gamma" || deckMode === "gamma" ? ["🎨", "📊", "🚀"] : ["📊", "🎯", "🎤"]}
+        messages={version?.deckMode === "gamma" || deckMode === "gamma" ? [
+          "Analyzing your sales narrative",
+          "Scraping context from provided URLs",
+          "Processing PDF documents",
+          "Pre-processing content with AI",
+          "Generating slides via Gamma",
+          "Exporting to PDF and PPTX",
+          "Almost there...",
+        ] : [
           "Analyzing your sales narrative",
           "Structuring the problem slides",
           "Crafting the solution story",
@@ -814,7 +1155,7 @@ function SalesDeckContent() {
                 <span className="font-semibold text-blue-600">Human Persona:</span> {version.humanPersona}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="px-3 py-2 bg-orange-50 text-orange-800 text-sm rounded-lg border border-orange-100">
                 <span className="font-semibold text-orange-600">Mode:</span> {deckModeLabel(version.deckMode)}
               </div>
@@ -823,7 +1164,56 @@ function SalesDeckContent() {
                   <span className="font-semibold text-gray-500">Source:</span> {version.sourcePdfName}
                 </div>
               )}
+              {version.prospectUrl && (
+                <div className="px-3 py-2 bg-indigo-50 text-indigo-800 text-sm rounded-lg border border-indigo-100">
+                  <span className="font-semibold text-indigo-600">Prospect:</span> {version.prospectUrl}
+                </div>
+              )}
             </div>
+            {/* Gamma action links */}
+            {version.deckMode === "gamma" && (version.gammaUrl || version.gammaPdfUrl || version.gammaPptxUrl) && (
+              <div className="flex items-center gap-3 flex-wrap">
+                {version.gammaUrl && (
+                  <a
+                    href={version.gammaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-medium shadow-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Open in Gamma
+                  </a>
+                )}
+                {version.gammaPdfUrl && (
+                  <a
+                    href={version.gammaPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download PDF
+                  </a>
+                )}
+                {version.gammaPptxUrl && (
+                  <a
+                    href={version.gammaPptxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    <svg className="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download PPTX
+                  </a>
+                )}
+              </div>
+            )}
             {version.specialNotes && (
               <div className="px-4 py-3 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
                 <span className="font-semibold text-gray-500">Notes:</span> {version.specialNotes}
