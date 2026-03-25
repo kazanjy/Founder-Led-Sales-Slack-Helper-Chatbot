@@ -2,10 +2,10 @@
  * Gamma API client for generating AI-powered presentations.
  * Generates branded sales decks from structured content.
  *
- * API docs: https://gamma.app/docs/api
+ * API docs: https://developers.gamma.app
  */
 
-const GAMMA_API_BASE = "https://api.gamma.app/v1";
+const GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
 
 export interface GammaGenerateOptions {
   /** The structured slide content / outline */
@@ -13,7 +13,7 @@ export interface GammaGenerateOptions {
   /** Presentation title */
   title: string;
   /** Output format */
-  format?: "presentation" | "document" | "webpage";
+  format?: "presentation" | "document" | "social";
   /** Number of cards/slides to generate */
   numCards?: number;
   /** Tone/style description (brand aesthetics go here) */
@@ -24,7 +24,7 @@ export interface GammaGenerateOptions {
 
 export interface GammaGenerateResult {
   /** Gamma generation job ID */
-  jobId: string;
+  generationId: string;
   /** Status of the generation */
   status: "pending" | "processing" | "completed" | "failed";
 }
@@ -34,26 +34,30 @@ export interface GammaJobResult {
   status: "pending" | "processing" | "completed" | "failed";
   /** Live Gamma URL (for viewing/editing) */
   gammaUrl?: string;
+  /** Export download URL (if exportAs was specified) */
+  exportUrl?: string;
   /** Error message if failed */
   error?: string;
 }
 
-export interface GammaExportResult {
-  /** Download URL for the exported file */
-  downloadUrl: string;
-  /** Format of the export */
-  format: "pdf" | "pptx";
-}
-
-/**
- * Start a Gamma presentation generation job.
- */
-export async function generatePresentation(options: GammaGenerateOptions): Promise<GammaGenerateResult> {
+function getApiKey(): string {
   const apiKey = process.env.GAMMA_API_KEY;
   if (!apiKey) {
     console.error("[Gamma] GAMMA_API_KEY is not set in environment variables");
     throw new Error("GAMMA_API_KEY is not configured");
   }
+  return apiKey;
+}
+
+/**
+ * Start a Gamma presentation generation job.
+ * @param exportAs - Optional: request an export (pdf/pptx) alongside generation
+ */
+export async function generatePresentation(
+  options: GammaGenerateOptions,
+  exportAs?: "pdf" | "pptx"
+): Promise<GammaGenerateResult> {
+  const apiKey = getApiKey();
 
   const {
     inputText,
@@ -61,26 +65,29 @@ export async function generatePresentation(options: GammaGenerateOptions): Promi
     format = "presentation",
     numCards,
     tone,
-    theme = "professional",
   } = options;
 
-  console.log(`[Gamma] Starting generation: "${title}" (format=${format}, numCards=${numCards || "auto"}, theme=${theme}, inputLength=${inputText.length} chars, toneLength=${tone?.length || 0} chars)`);
+  console.log(`[Gamma] Starting generation: "${title}" (format=${format}, numCards=${numCards || "auto"}, exportAs=${exportAs || "none"}, inputLength=${inputText.length} chars, toneLength=${tone?.length || 0} chars)`);
+
+  const requestBody: Record<string, unknown> = {
+    inputText,
+    title,
+    format,
+    textMode: "generate",
+  };
+
+  if (numCards) requestBody.numCards = numCards;
+  if (tone) requestBody.textOptions = { tone };
+  if (exportAs) requestBody.exportAs = exportAs;
 
   const startTime = Date.now();
-  const response = await fetch(`${GAMMA_API_BASE}/generate`, {
+  const response = await fetch(`${GAMMA_API_BASE}/generations`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "X-API-KEY": apiKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      input_text: inputText,
-      title,
-      format,
-      num_cards: numCards,
-      tone,
-      theme,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -90,67 +97,66 @@ export async function generatePresentation(options: GammaGenerateOptions): Promi
   }
 
   const data = await response.json();
-  const jobId = data.job_id || data.id;
-  console.log(`[Gamma] Job created: ${jobId} (status=${data.status || "pending"}, elapsed=${Date.now() - startTime}ms)`);
+  const generationId = data.generationId || data.id;
+  console.log(`[Gamma] Job created: ${generationId} (status=${data.status || "pending"}, elapsed=${Date.now() - startTime}ms)`);
 
   return {
-    jobId,
+    generationId,
     status: data.status || "pending",
   };
 }
 
 /**
  * Poll a Gamma generation job until it completes or fails.
- * @param jobId - The job ID from generatePresentation
+ * @param generationId - The generation ID from generatePresentation
  * @param maxWaitMs - Maximum time to wait (default 120s)
  * @param pollIntervalMs - Time between polls (default 3s)
  */
 export async function pollGenerationJob(
-  jobId: string,
+  generationId: string,
   maxWaitMs: number = 120000,
   pollIntervalMs: number = 3000
 ): Promise<GammaJobResult> {
-  const apiKey = process.env.GAMMA_API_KEY;
-  if (!apiKey) {
-    throw new Error("GAMMA_API_KEY is not configured");
-  }
+  const apiKey = getApiKey();
 
   const startTime = Date.now();
   let pollCount = 0;
 
-  console.log(`[Gamma] Polling job ${jobId} (maxWait=${maxWaitMs / 1000}s, interval=${pollIntervalMs / 1000}s)`);
+  console.log(`[Gamma] Polling job ${generationId} (maxWait=${maxWaitMs / 1000}s, interval=${pollIntervalMs / 1000}s)`);
 
   while (Date.now() - startTime < maxWaitMs) {
     pollCount++;
-    const response = await fetch(`${GAMMA_API_BASE}/generate/${jobId}`, {
+    const response = await fetch(`${GAMMA_API_BASE}/generations/${generationId}`, {
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        "X-API-KEY": apiKey,
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
-      console.error(`[Gamma] Poll #${pollCount} for job ${jobId} failed: status=${response.status}, elapsed=${Date.now() - startTime}ms, body=${errorText.substring(0, 500)}`);
+      console.error(`[Gamma] Poll #${pollCount} for job ${generationId} failed: status=${response.status}, elapsed=${Date.now() - startTime}ms, body=${errorText.substring(0, 500)}`);
       throw new Error(`Gamma poll error ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
     const status = data.status;
 
-    console.log(`[Gamma] Poll #${pollCount} job ${jobId}: status=${status}, elapsed=${Date.now() - startTime}ms`);
+    console.log(`[Gamma] Poll #${pollCount} job ${generationId}: status=${status}, elapsed=${Date.now() - startTime}ms`);
 
     if (status === "completed") {
-      const gammaUrl = data.url || data.gamma_url;
-      console.log(`[Gamma] Job ${jobId} completed after ${pollCount} polls (${Date.now() - startTime}ms). URL: ${gammaUrl}`);
+      const gammaUrl = data.gammaUrl || data.url;
+      const exportUrl = data.exportUrl;
+      console.log(`[Gamma] Job ${generationId} completed after ${pollCount} polls (${Date.now() - startTime}ms). gammaUrl=${gammaUrl}, exportUrl=${exportUrl || "none"}`);
       return {
         status: "completed",
         gammaUrl,
+        exportUrl,
       };
     }
 
     if (status === "failed") {
       const error = data.error || "Generation failed";
-      console.error(`[Gamma] Job ${jobId} FAILED after ${pollCount} polls (${Date.now() - startTime}ms). Error: ${error}`);
+      console.error(`[Gamma] Job ${generationId} FAILED after ${pollCount} polls (${Date.now() - startTime}ms). Error: ${error}`);
       return {
         status: "failed",
         error,
@@ -161,59 +167,28 @@ export async function pollGenerationJob(
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  console.error(`[Gamma] Job ${jobId} TIMED OUT after ${pollCount} polls (${Date.now() - startTime}ms)`);
+  console.error(`[Gamma] Job ${generationId} TIMED OUT after ${pollCount} polls (${Date.now() - startTime}ms)`);
   throw new Error(`Gamma generation timed out after ${maxWaitMs / 1000}s`);
 }
 
 /**
- * Export a Gamma presentation to PDF or PPTX.
+ * Run a single generation+poll cycle, optionally requesting an export format.
  */
-export async function exportPresentation(
-  gammaUrl: string,
-  format: "pdf" | "pptx"
-): Promise<GammaExportResult> {
-  const apiKey = process.env.GAMMA_API_KEY;
-  if (!apiKey) {
-    throw new Error("GAMMA_API_KEY is not configured");
-  }
-
-  // Extract the Gamma document ID from the URL
-  const docId = extractGammaDocId(gammaUrl);
-
-  console.log(`[Gamma] Exporting doc ${docId} as ${format} (from URL: ${gammaUrl})`);
-
-  const startTime = Date.now();
-  const response = await fetch(`${GAMMA_API_BASE}/export`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      document_id: docId,
-      format,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    console.error(`[Gamma] Export ${format} failed for doc ${docId}: status=${response.status}, elapsed=${Date.now() - startTime}ms, body=${errorText.substring(0, 500)}`);
-    throw new Error(`Gamma export error ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const downloadUrl = data.download_url || data.url;
-
-  console.log(`[Gamma] Export ${format} complete for doc ${docId}: elapsed=${Date.now() - startTime}ms, downloadUrl=${downloadUrl}`);
-
-  return {
-    downloadUrl,
-    format,
-  };
+async function generateAndPoll(
+  options: GammaGenerateOptions,
+  exportAs?: "pdf" | "pptx"
+): Promise<GammaJobResult> {
+  const { generationId } = await generatePresentation(options, exportAs);
+  return pollGenerationJob(generationId);
 }
 
 /**
  * Full pipeline: generate a presentation and export to both PDF and PPTX.
+ *
+ * The Gamma API bundles export into the generation request (via exportAs),
+ * so we run two parallel generation calls — one for each export format.
+ * Both produce the same presentation content; we use the gammaUrl from
+ * whichever finishes first.
  */
 export async function generateAndExport(options: GammaGenerateOptions): Promise<{
   gammaUrl: string;
@@ -223,45 +198,43 @@ export async function generateAndExport(options: GammaGenerateOptions): Promise<
   const pipelineStart = Date.now();
   console.log(`[Gamma] === Pipeline start: "${options.title}" ===`);
 
-  // 1. Start generation
-  const { jobId } = await generatePresentation(options);
-
-  // 2. Poll until complete
-  const result = await pollGenerationJob(jobId);
-  if (result.status === "failed" || !result.gammaUrl) {
-    console.error(`[Gamma] === Pipeline FAILED at generation step: ${result.error || "No URL returned"} (elapsed=${Date.now() - pipelineStart}ms) ===`);
-    throw new Error(`Gamma generation failed: ${result.error || "No URL returned"}`);
-  }
-
-  console.log(`[Gamma] Generation succeeded, starting PDF + PPTX export (elapsed=${Date.now() - pipelineStart}ms)`);
-
-  // 3. Export to both formats in parallel
-  const [pdfExport, pptxExport] = await Promise.all([
-    exportPresentation(result.gammaUrl, "pdf"),
-    exportPresentation(result.gammaUrl, "pptx"),
+  // Run both export formats in parallel
+  const [pdfResult, pptxResult] = await Promise.all([
+    generateAndPoll(options, "pdf"),
+    generateAndPoll(options, "pptx"),
   ]);
 
-  console.log(`[Gamma] === Pipeline COMPLETE: gammaUrl=${result.gammaUrl}, pdfUrl=${pdfExport.downloadUrl}, pptxUrl=${pptxExport.downloadUrl}, totalElapsed=${Date.now() - pipelineStart}ms ===`);
+  // Check for failures
+  if (pdfResult.status === "failed") {
+    console.error(`[Gamma] === Pipeline FAILED (PDF generation): ${pdfResult.error} (elapsed=${Date.now() - pipelineStart}ms) ===`);
+    throw new Error(`Gamma PDF generation failed: ${pdfResult.error}`);
+  }
+  if (pptxResult.status === "failed") {
+    console.error(`[Gamma] === Pipeline FAILED (PPTX generation): ${pptxResult.error} (elapsed=${Date.now() - pipelineStart}ms) ===`);
+    throw new Error(`Gamma PPTX generation failed: ${pptxResult.error}`);
+  }
+
+  const gammaUrl = pdfResult.gammaUrl || pptxResult.gammaUrl;
+  if (!gammaUrl) {
+    console.error(`[Gamma] === Pipeline FAILED: no gammaUrl returned (elapsed=${Date.now() - pipelineStart}ms) ===`);
+    throw new Error("Gamma generation failed: No presentation URL returned");
+  }
+
+  const pdfUrl = pdfResult.exportUrl || "";
+  const pptxUrl = pptxResult.exportUrl || "";
+
+  if (!pdfUrl) {
+    console.warn(`[Gamma] PDF exportUrl missing from completed generation`);
+  }
+  if (!pptxUrl) {
+    console.warn(`[Gamma] PPTX exportUrl missing from completed generation`);
+  }
+
+  console.log(`[Gamma] === Pipeline COMPLETE: gammaUrl=${gammaUrl}, pdfUrl=${pdfUrl}, pptxUrl=${pptxUrl}, totalElapsed=${Date.now() - pipelineStart}ms ===`);
 
   return {
-    gammaUrl: result.gammaUrl,
-    pdfUrl: pdfExport.downloadUrl,
-    pptxUrl: pptxExport.downloadUrl,
+    gammaUrl,
+    pdfUrl,
+    pptxUrl,
   };
-}
-
-/**
- * Extract a Gamma document ID from a Gamma URL.
- * e.g., "https://gamma.app/docs/abc123" -> "abc123"
- */
-function extractGammaDocId(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const parts = parsed.pathname.split("/").filter(Boolean);
-    // Gamma URLs are typically /docs/{id} or /embed/{id}
-    return parts[parts.length - 1] || url;
-  } catch {
-    // If not a valid URL, assume it's already a doc ID
-    return url;
-  }
 }
