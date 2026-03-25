@@ -13,6 +13,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import { SidebarAdCards } from "@/components/SidebarAdCards";
 
 const RichTextEditor = dynamic(
   () => import("@/components/RichTextEditor"),
@@ -1272,7 +1273,9 @@ function SalesDeckContent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="flex gap-8">
+      <div className="flex-1 min-w-0">
         {/* Persona badges */}
         {!isEditing && (
           <div className="flex flex-col gap-3 mb-6">
@@ -1433,6 +1436,13 @@ function SalesDeckContent() {
           </div>
         </div>
 
+      </div>{/* end main content */}
+      <div className="hidden lg:block w-64 flex-shrink-0">
+        <div className="sticky top-8">
+          <SidebarAdCards currentPage="salesDeck" />
+        </div>
+      </div>
+      </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}
     </div>
