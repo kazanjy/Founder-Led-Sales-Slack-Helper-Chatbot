@@ -483,11 +483,11 @@ export default function AdminUserDetailPage() {
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">DAU / WAU</div>
-                <div className="text-lg font-semibold">{user.health.dauWau}</div>
+                <div className="text-lg font-semibold">{Math.round(user.health.dauWau * 100)}%</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">DAU / MAU</div>
-                <div className="text-lg font-semibold">{user.health.dauMau}</div>
+                <div className="text-lg font-semibold">{Math.round(user.health.dauMau * 100)}%</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Last Active</div>
