@@ -246,6 +246,13 @@ function SocialContentContent() {
   };
 
   const handleDeleteSavedExample = async (id: string) => {
+    const confirmed = await showConfirm({
+      title: "Delete Saved Example",
+      message: "Are you sure you want to delete this saved example? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/social-content/examples?id=${id}`, { method: "DELETE" });
       if (res.ok) {

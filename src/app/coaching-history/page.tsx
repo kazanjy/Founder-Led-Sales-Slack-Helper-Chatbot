@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
+import { useConfirmModal } from "@/components/useConfirmModal";
 
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -96,6 +97,7 @@ function CoachingHistoryContent() {
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Sync selectedId with URL query param
   const selectSession = useCallback((id: string | null) => {
@@ -199,6 +201,13 @@ function CoachingHistoryContent() {
 
   const handleDelete = async () => {
     if (!selectedId) return;
+    const confirmed = await showConfirm({
+      title: "Delete Session",
+      message: "Are you sure you want to delete this coaching session? This cannot be undone.",
+      variant: "danger",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
 
     setDeleting(true);
     try {
@@ -651,6 +660,7 @@ function CoachingHistoryContent() {
           </div>
         )}
       </div>
+      {ConfirmModalElement}
     </div>
   );
 }
