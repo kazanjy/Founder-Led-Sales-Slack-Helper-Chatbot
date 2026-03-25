@@ -63,15 +63,34 @@ export async function GET() {
       },
     });
   } catch (error: unknown) {
-    // Handle missing table (migration not yet run)
+    // Handle missing table or column (migration not yet run)
     const errMsg = error instanceof Error ? error.message : String(error);
-    if (errMsg.includes("does not exist") || errMsg.includes("P2021") || errMsg.includes("P2010")) {
-      console.warn("[sales-deck/latest] Table not found — migration likely pending");
-      return NextResponse.json({
-        hasSalesDeck: false,
-        version: null,
-        hasSalesNarrative: false,
-      });
+    if (
+      errMsg.includes("does not exist") ||
+      errMsg.includes("Unknown field") ||
+      errMsg.includes("P2021") ||
+      errMsg.includes("P2010") ||
+      errMsg.includes("P2022")
+    ) {
+      console.warn("[sales-deck/latest] Table/column not found — migration likely pending:", errMsg.slice(0, 200));
+      // Still try to check for sales narrative so the gate doesn't block unnecessarily
+      try {
+        const hasNarrative = await prisma.salesNarrativeVersion.findFirst({
+          where: { userId: (await getCurrentUser())?.id || "" },
+          select: { id: true },
+        });
+        return NextResponse.json({
+          hasSalesDeck: false,
+          version: null,
+          hasSalesNarrative: !!hasNarrative,
+        });
+      } catch {
+        return NextResponse.json({
+          hasSalesDeck: false,
+          version: null,
+          hasSalesNarrative: false,
+        });
+      }
     }
     console.error("Error fetching latest sales deck:", error);
     return NextResponse.json(
