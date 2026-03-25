@@ -338,7 +338,7 @@ function IcpContent() {
   const handleCopyAll = async () => {
     if (!version) return;
     let markdown = `# ${version.title}\n\n`;
-    for (const section of version.content.sections) {
+    for (const section of version.content.sections || []) {
       markdown += `## ${section.name}\n`;
       if (section.description) markdown += `*${section.description}*\n\n`;
       for (const item of section.items) {
@@ -740,7 +740,7 @@ function IcpContent() {
                     <>
                       <ChatAboutButton title="Chat About ICP" getContext={() => {
                         let md = `# ${version.title}\n\n`;
-                        for (const section of version.content.sections) {
+                        for (const section of version.content.sections || []) {
                           md += `## ${section.name}\n`;
                           for (const item of section.items) md += `- ${item}\n`;
                           md += "\n";
@@ -760,7 +760,7 @@ function IcpContent() {
                         title={version.title}
                         content={(() => {
                           let md = "";
-                          for (const section of version.content.sections) {
+                          for (const section of version.content.sections || []) {
                             md += `## ${section.name}\n`;
                             for (const item of section.items) md += `- ${item}\n`;
                             md += "\n";
@@ -979,19 +979,19 @@ function IcpContent() {
           </div>
 
           {/* Expand/collapse all */}
-          {!isEditing && version.content.sections.length > 0 && (
+          {!isEditing && (version.content.sections || []).length > 0 && (
             <div className="mt-4 text-center">
               <button
                 onClick={() => {
-                  if (expandedSections.size === version.content.sections.length) {
+                  if (expandedSections.size === (version.content.sections || []).length) {
                     setExpandedSections(new Set());
                   } else {
-                    setExpandedSections(new Set(version.content.sections.map(s => s.name)));
+                    setExpandedSections(new Set((version.content.sections || []).map(s => s.name)));
                   }
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
-                {expandedSections.size === version.content.sections.length ? "Collapse All" : "Expand All"}
+                {expandedSections.size === (version.content.sections || []).length ? "Collapse All" : "Expand All"}
               </button>
             </div>
           )}

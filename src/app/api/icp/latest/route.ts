@@ -35,7 +35,11 @@ export async function GET() {
 
     let parsedContent;
     try {
-      parsedContent = JSON.parse(latestVersion.content);
+      const raw = JSON.parse(latestVersion.content);
+      parsedContent = {
+        sections: Array.isArray(raw?.sections) ? raw.sections : [],
+        searchCriteria: Array.isArray(raw?.searchCriteria) ? raw.searchCriteria : undefined,
+      };
     } catch {
       parsedContent = { sections: [] };
     }

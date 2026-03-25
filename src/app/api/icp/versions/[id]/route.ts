@@ -45,7 +45,11 @@ export async function GET(
 
     let parsedContent;
     try {
-      parsedContent = JSON.parse(version.content);
+      const raw = JSON.parse(version.content);
+      parsedContent = {
+        sections: Array.isArray(raw?.sections) ? raw.sections : [],
+        searchCriteria: Array.isArray(raw?.searchCriteria) ? raw.searchCriteria : undefined,
+      };
     } catch {
       parsedContent = { sections: [] };
     }
@@ -143,7 +147,11 @@ export async function PATCH(
 
     let parsedContent;
     try {
-      parsedContent = JSON.parse(updated.content);
+      const raw = JSON.parse(updated.content);
+      parsedContent = {
+        sections: Array.isArray(raw?.sections) ? raw.sections : [],
+        searchCriteria: Array.isArray(raw?.searchCriteria) ? raw.searchCriteria : undefined,
+      };
     } catch {
       parsedContent = { sections: [] };
     }
