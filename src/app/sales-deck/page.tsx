@@ -124,6 +124,14 @@ function SalesDeckContent() {
           return;
         }
 
+        // Pre-populate prospect URL from user's email domain
+        if (authData.user.email && !prospectUrl) {
+          const domain = authData.user.email.split("@")[1];
+          if (domain && !["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "mail.com", "zoho.com"].includes(domain.toLowerCase())) {
+            setProspectUrl(domain);
+          }
+        }
+
         // Check for first call checklist availability
         fetch("/api/first-call-checklist/latest")
           .then(r => r.ok ? r.json() : null)
@@ -250,7 +258,7 @@ function SalesDeckContent() {
   const handleAnalyzeBrand = async () => {
     const url = prospectUrl.trim();
     if (!url) {
-      await showAlert({ title: "Missing URL", message: "Enter a prospect website URL first.", variant: "danger" });
+      await showAlert({ title: "Missing URL", message: "Enter your website URL first.", variant: "danger" });
       return;
     }
     setAnalyzingBrand(true);
@@ -705,20 +713,20 @@ function SalesDeckContent() {
                       }}
                     />
 
-                    {/* Prospect URL + Brand Analysis */}
+                    {/* Your Website URL + Brand Analysis */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Prospect Website URL <span className="text-gray-400">(optional)</span>
+                        Your Website URL <span className="text-gray-400">(optional)</span>
                       </label>
                       <p className="text-xs text-gray-500 mb-2">
-                        We&apos;ll analyze their brand to match your deck&apos;s look & feel
+                        We&apos;ll analyze your brand to match your deck&apos;s look & feel
                       </p>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={prospectUrl}
                           onChange={(e) => setProspectUrl(e.target.value)}
-                          placeholder="e.g. acmecorp.com"
+                          placeholder="e.g. yourcompany.com"
                           disabled={analyzingBrand}
                           className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50"
                         />
@@ -1166,7 +1174,7 @@ function SalesDeckContent() {
               )}
               {version.prospectUrl && (
                 <div className="px-3 py-2 bg-indigo-50 text-indigo-800 text-sm rounded-lg border border-indigo-100">
-                  <span className="font-semibold text-indigo-600">Prospect:</span> {version.prospectUrl}
+                  <span className="font-semibold text-indigo-600">Website:</span> {version.prospectUrl}
                 </div>
               )}
             </div>
