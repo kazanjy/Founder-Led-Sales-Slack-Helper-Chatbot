@@ -114,12 +114,12 @@ export async function generatePresentation(
 /**
  * Poll a Gamma generation job until it completes or fails.
  * @param generationId - The generation ID from generatePresentation
- * @param maxWaitMs - Maximum time to wait (default 120s)
+ * @param maxWaitMs - Maximum time to wait (default 270s)
  * @param pollIntervalMs - Time between polls (default 3s)
  */
 export async function pollGenerationJob(
   generationId: string,
-  maxWaitMs: number = 120000,
+  maxWaitMs: number = 270000,
   pollIntervalMs: number = 3000
 ): Promise<GammaJobResult> {
   const apiKey = getApiKey();
