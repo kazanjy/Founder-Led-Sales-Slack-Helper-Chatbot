@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the version has gammaInputContent and is a gamma deck
     if (!version.gammaInputContent) {
+      console.warn(`[retry-gamma] Version ${versionId} has no gammaInputContent`);
       return NextResponse.json(
         { error: "This version does not have pre-processed Gamma content to retry." },
         { status: 400 }
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (version.deckMode !== "gamma") {
+      console.warn(`[retry-gamma] Version ${versionId} is mode="${version.deckMode}", not gamma`);
       return NextResponse.json(
         { error: "This version is not a Gamma deck." },
         { status: 400 }
@@ -73,6 +75,12 @@ export async function POST(request: NextRequest) {
 
     // Generate presentation via Gamma + export to PDF/PPTX
     const deckTitle = `Sales Deck: ${version.orgPersona}`;
+    const tone = version.brandAnalysis
+      ? extractToneFromBrandAnalysis(version.brandAnalysis)
+      : "Professional, confident, and data-driven. Clean modern aesthetic with clear visual hierarchy.";
+
+    console.log(`[retry-gamma] Starting Gamma pipeline for version ${versionId}: title="${deckTitle}", inputLength=${version.gammaInputContent.length}, hasBrandAnalysis=${!!version.brandAnalysis}, existingGammaUrl=${version.gammaUrl || "none"}`);
+
     let gammaResult;
     try {
       gammaResult = await generateAndExport({
@@ -80,13 +88,12 @@ export async function POST(request: NextRequest) {
         title: deckTitle,
         format: "presentation",
         numCards: 14,
-        tone: version.brandAnalysis
-          ? extractToneFromBrandAnalysis(version.brandAnalysis)
-          : "Professional, confident, and data-driven. Clean modern aesthetic with clear visual hierarchy.",
+        tone,
         theme: "professional",
       });
     } catch (gammaError) {
-      console.error("[retry-gamma] Gamma API error:", gammaError);
+      console.error(`[retry-gamma] Gamma pipeline FAILED for version ${versionId}:`, gammaError instanceof Error ? gammaError.message : gammaError);
+      console.error("[retry-gamma] Full error:", gammaError);
       return NextResponse.json(
         { error: "Failed to generate Gamma presentation. Please try again." },
         { status: 502 }
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log(`[retry-gamma] Complete! Version: ${version.id}, Gamma: ${gammaResult.gammaUrl}`);
+    console.log(`[retry-gamma] SUCCESS for version ${versionId}: gammaUrl=${gammaResult.gammaUrl}, pdfUrl=${gammaResult.pdfUrl}, pptxUrl=${gammaResult.pptxUrl}`);
 
     return NextResponse.json({
       success: true,

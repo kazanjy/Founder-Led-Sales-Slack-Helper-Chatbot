@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       contextPdfTexts = [] as Array<{ fileName: string; text: string }>,
     } = body;
 
+    console.log(`[generate-gamma] Request from user ${user.id}: orgPersona="${orgPersona?.substring(0, 60)}...", humanPersona="${humanPersona?.substring(0, 60)}...", prospectUrl=${prospectUrl || "none"}, contextUrls=${contextUrls.length}, contextPdfs=${contextPdfTexts.length}, hasBrandAnalysis=${!!brandAnalysis}, hasSpecialNotes=${!!specialNotes}`);
+
     if (!orgPersona || !humanPersona) {
       return NextResponse.json(
         { error: "Organization persona and target role are required" },
@@ -127,21 +129,25 @@ export async function POST(request: NextRequest) {
 
     // 6. Generate presentation via Gamma + export to PDF/PPTX
     const deckTitle = `Sales Deck: ${orgPersona}`;
+    const tone = brandAnalysis
+      ? extractToneFromBrandAnalysis(brandAnalysis)
+      : "Professional, confident, and data-driven. Clean modern aesthetic with clear visual hierarchy.";
+    console.log(`[generate-gamma] Starting Gamma pipeline: title="${deckTitle}", tone="${tone.substring(0, 80)}...", inputLength=${structuredSlideContent.length}`);
     let gammaResult;
     try {
       gammaResult = await generateAndExport({
         inputText: structuredSlideContent,
         title: deckTitle,
         format: "presentation",
-        numCards: 14, // Target 10-15, use 14 as default
-        tone: brandAnalysis
-          ? extractToneFromBrandAnalysis(brandAnalysis)
-          : "Professional, confident, and data-driven. Clean modern aesthetic with clear visual hierarchy.",
+        numCards: 14,
+        tone,
         theme: "professional",
       });
+      console.log(`[generate-gamma] Gamma pipeline succeeded: gammaUrl=${gammaResult.gammaUrl}, pdfUrl=${gammaResult.pdfUrl}, pptxUrl=${gammaResult.pptxUrl}`);
     } catch (gammaError) {
-      console.error("[generate-gamma] Gamma API error:", gammaError);
-      // Still save the pre-processed content even if Gamma fails
+      console.error("[generate-gamma] Gamma pipeline FAILED:", gammaError instanceof Error ? gammaError.message : gammaError);
+      console.error("[generate-gamma] Full Gamma error:", gammaError);
+      console.log("[generate-gamma] Saving version with outline only (no Gamma presentation)");
       const version = await saveDeckVersion({
         userId: user.id,
         narrativeId: latestNarrative.id,
@@ -166,6 +172,7 @@ export async function POST(request: NextRequest) {
         data: { conversationId: conversation.id },
       });
 
+      console.log(`[generate-gamma] Saved outline-only version ${version.id} (gammaFailed=true)`);
       return NextResponse.json({
         success: true,
         gammaFailed: true,
