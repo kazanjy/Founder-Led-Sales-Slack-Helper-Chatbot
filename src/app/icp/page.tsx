@@ -95,12 +95,12 @@ function IcpContent() {
   // UI state
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
-  // Discovery Questions next-step state
-  const [showDqBanner, setShowDqBanner] = useState(true);
-  const [hasDiscoveryQuestions, setHasDiscoveryQuestions] = useState(false);
-  const [dqGenerating, setDqGenerating] = useState(false);
-  const [dqDone, setDqDone] = useState(false);
-  const dqGenerationTriggered = useRef(false);
+  // First Call Checklist next-step state
+  const [showFccBanner, setShowFccBanner] = useState(true);
+  const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
+  const [fccGenerating, setFccGenerating] = useState(false);
+  const [fccDone, setFccDone] = useState(false);
+  const fccGenerationTriggered = useRef(false);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -178,12 +178,12 @@ function IcpContent() {
           }
         }
 
-        // Check if discovery questions exist
+        // Check if first call checklist exists
         try {
-          const dqRes = await fetch("/api/discovery-questions/latest");
-          if (dqRes.ok) {
-            const dqData = await dqRes.json();
-            if (dqData.hasDiscoveryQuestions) setHasDiscoveryQuestions(true);
+          const fccRes = await fetch("/api/first-call-checklist/latest");
+          if (fccRes.ok) {
+            const fccData = await fccRes.json();
+            if (fccData.hasFirstCallChecklist) setHasFirstCallChecklist(true);
           }
         } catch {
           // Ignore
@@ -209,7 +209,7 @@ function IcpContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, hasSalesNarrative]);
 
-  // Detect background ICP generation triggered from Sales Narrative page
+  // Detect background ICP generation triggered from Discovery Questions page
   useEffect(() => {
     if (loading || version || generating) return;
     const startedAt = localStorage.getItem("icpGeneratingStarted");
@@ -250,28 +250,28 @@ function IcpContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, generating]);
 
-  // Auto-trigger Discovery Questions generation when ICP exists but DQ doesn't
+  // Auto-trigger First Call Checklist generation when ICP exists but FCC doesn't
   useEffect(() => {
-    if (loading || !version || hasDiscoveryQuestions || dqGenerating || dqDone || dqGenerationTriggered.current) return;
-    dqGenerationTriggered.current = true;
-    setDqGenerating(true);
-    // Signal to Discovery Questions page that generation is in progress
-    localStorage.setItem("dqGeneratingStarted", Date.now().toString());
-    fetch("/api/discovery-questions/generate", { method: "POST" })
+    if (loading || !version || hasFirstCallChecklist || fccGenerating || fccDone || fccGenerationTriggered.current) return;
+    fccGenerationTriggered.current = true;
+    setFccGenerating(true);
+    // Signal to First Call Checklist page that generation is in progress
+    localStorage.setItem("fccGeneratingStarted", Date.now().toString());
+    fetch("/api/first-call-checklist/generate", { method: "POST" })
       .then(async (res) => {
         if (res.ok) {
-          setDqDone(true);
-          setHasDiscoveryQuestions(true);
-          localStorage.removeItem("dqGeneratingStarted");
+          setFccDone(true);
+          setHasFirstCallChecklist(true);
+          localStorage.removeItem("fccGeneratingStarted");
         }
       })
       .catch(() => {
-        localStorage.removeItem("dqGeneratingStarted");
+        localStorage.removeItem("fccGeneratingStarted");
       })
       .finally(() => {
-        setDqGenerating(false);
+        setFccGenerating(false);
       });
-  }, [loading, version, hasDiscoveryQuestions, dqGenerating, dqDone]);
+  }, [loading, version, hasFirstCallChecklist, fccGenerating, fccDone]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -841,12 +841,12 @@ function IcpContent() {
       {/* Profile Tab Content */}
       {activeTab === "profile" && (
         <div className="max-w-7xl mx-auto px-6 py-8">
-          {/* Dismissable Next Step Banner - Discovery Questions generation status */}
-          {showDqBanner && !isEditing && (
+          {/* Dismissable Next Step Banner - First Call Checklist generation status */}
+          {showFccBanner && !isEditing && (fccGenerating || fccDone || !hasFirstCallChecklist) && (
             <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
               <div className="flex items-center gap-3">
                 <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  {dqGenerating ? (
+                  {fccGenerating ? (
                     <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -858,41 +858,34 @@ function IcpContent() {
                   )}
                 </div>
                 <p className="font-medium">
-                  {dqGenerating ? (
+                  {fccGenerating ? (
                     <>
                       Generating your{" "}
-                      <Link href="/discovery-questions" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
-                        Discovery Questions
+                      <Link href="/first-call-checklist" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        First Call Checklist
                       </Link>{" "}
                       from your ICP...
                     </>
-                  ) : dqDone ? (
+                  ) : fccDone ? (
                     <>
                       Your{" "}
-                      <Link href="/discovery-questions" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
-                        Discovery Questions
+                      <Link href="/first-call-checklist" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        First Call Checklist
                       </Link>{" "}
-                      are ready! Done!
-                    </>
-                  ) : hasDiscoveryQuestions ? (
-                    <>
-                      Your ICP is ready! Now let&apos;s use this to{" "}
-                      <Link href="/discovery-questions" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
-                        create your discovery questions
-                      </Link>.
+                      is ready! Done!
                     </>
                   ) : (
                     <>
                       Congrats on finishing your ICP! Now let&apos;s{" "}
-                      <Link href="/discovery-questions?auto=true" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
-                        create your discovery questions
+                      <Link href="/first-call-checklist" target="_blank" className="underline underline-offset-2 hover:text-purple-100 font-semibold">
+                        create your First Call Checklist
                       </Link>.
                     </>
                   )}
                 </p>
               </div>
               <button
-                onClick={() => setShowDqBanner(false)}
+                onClick={() => setShowFccBanner(false)}
                 className="flex-shrink-0 ml-4 p-1 hover:bg-white/20 rounded-full transition-colors"
                 aria-label="Dismiss"
               >
@@ -998,31 +991,31 @@ function IcpContent() {
           )}
           </div>
 
-          {/* Right sidebar: Next step CTA widget - Discovery Questions status */}
+          {/* Right sidebar: Next step CTA widget - First Call Checklist status */}
           {!isEditing && (
             <div className="hidden lg:block w-64 flex-shrink-0">
               <div className="sticky top-8">
                 <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                    {dqGenerating ? (
+                    {fccGenerating ? (
                       <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
                     ) : (
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                       </svg>
                     )}
                   </div>
-                  {dqGenerating ? (
+                  {fccGenerating ? (
                     <>
-                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
                       <p className="text-purple-100 text-sm mb-4">
-                        Generating your Discovery Questions from your ICP...
+                        Generating your First Call Checklist from your ICP...
                       </p>
                       <Link
-                        href="/discovery-questions"
+                        href="/first-call-checklist"
                         target="_blank"
                         className="block w-full text-center px-4 py-2.5 bg-white/20 text-white rounded-lg font-semibold text-sm cursor-pointer hover:bg-white/30 transition-colors"
                       >
@@ -1035,46 +1028,46 @@ function IcpContent() {
                         </span>
                       </Link>
                     </>
-                  ) : dqDone ? (
+                  ) : fccDone ? (
                     <>
-                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
                       <p className="text-purple-100 text-sm mb-4">
-                        Your Discovery Questions have been generated from your ICP!
+                        Your First Call Checklist has been generated from your ICP!
                       </p>
                       <Link
-                        href="/discovery-questions"
+                        href="/first-call-checklist"
                         target="_blank"
                         className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
-                        Done! View Questions
+                        Done! View Checklist
                       </Link>
                     </>
-                  ) : hasDiscoveryQuestions ? (
+                  ) : hasFirstCallChecklist ? (
                     <>
-                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
                       <p className="text-purple-100 text-sm mb-4">
-                        Turn your ICP into powerful discovery questions that uncover buyer pain points.
+                        Your structured checklist for first sales calls is ready.
                       </p>
                       <Link
-                        href="/discovery-questions"
+                        href="/first-call-checklist"
                         target="_blank"
                         className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
-                        View Questions
+                        View Checklist
                       </Link>
                     </>
                   ) : (
                     <>
-                      <h3 className="font-bold text-lg mb-2">Discovery Questions</h3>
+                      <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
                       <p className="text-purple-100 text-sm mb-4">
-                        Turn your ICP into powerful discovery questions that uncover buyer pain points.
+                        Turn your ICP into a structured checklist for your first sales calls.
                       </p>
                       <Link
-                        href="/discovery-questions?auto=true"
+                        href="/first-call-checklist"
                         target="_blank"
                         className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
-                        Create Questions
+                        Create Checklist
                       </Link>
                     </>
                   )}
