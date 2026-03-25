@@ -82,7 +82,7 @@ function SalesDeckContent() {
   const [orgPersona, setOrgPersona] = useState("");
   const [humanPersona, setHumanPersona] = useState("");
   const [specialNotes, setSpecialNotes] = useState("");
-  const [deckMode, setDeckMode] = useState<"fresh" | "existing" | "gamma">("fresh");
+  const [deckMode, setDeckMode] = useState<"fresh" | "existing" | "gamma">("gamma");
   const [includeChecklist, setIncludeChecklist] = useState(false);
   const [existingDeckFile, setExistingDeckFile] = useState<File | null>(null);
   const [existingDeckText, setExistingDeckText] = useState("");
@@ -570,8 +570,19 @@ function SalesDeckContent() {
                   <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                     <button
                       type="button"
-                      onClick={() => setDeckMode("fresh")}
+                      onClick={() => setDeckMode("gamma")}
                       className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                        deckMode === "gamma"
+                          ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Gamma Deck
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeckMode("fresh")}
+                      className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors border-l border-gray-300 ${
                         deckMode === "fresh"
                           ? "bg-purple-600 text-white"
                           : "bg-white text-gray-700 hover:bg-gray-50"
@@ -590,24 +601,13 @@ function SalesDeckContent() {
                     >
                       Improve Existing
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeckMode("gamma")}
-                      className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors border-l border-gray-300 ${
-                        deckMode === "gamma"
-                          ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                          : "bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      Gamma Deck
-                    </button>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    {deckMode === "fresh"
+                    {deckMode === "gamma"
+                      ? "Generate a polished Gamma presentation with brand-matched styling"
+                      : deckMode === "fresh"
                       ? "Create a brand new deck outline with speaker notes from your sales narrative"
-                      : deckMode === "existing"
-                      ? "Upload your existing deck PDF and get AI-powered improvement suggestions"
-                      : "Generate a polished Gamma presentation with brand-matched styling"}
+                      : "Upload your existing deck PDF and get AI-powered improvement suggestions"}
                   </p>
                 </div>
 
