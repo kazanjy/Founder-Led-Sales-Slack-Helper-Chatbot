@@ -562,7 +562,7 @@ function SalesDeckContent() {
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
-          <div className="w-full max-w-lg px-6">
+          <div className="w-full max-w-3xl px-6">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
                 {version ? "Regenerate" : "Generate"} Sales Deck
@@ -888,7 +888,7 @@ function SalesDeckContent() {
                       placeholder={prefilling ? "AI is thinking..." : "e.g. Series B SaaS company"}
                       disabled={prefilling}
                       rows={3}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-y"
                     />
                     <button
                       onClick={handlePrefill}
@@ -921,7 +921,7 @@ function SalesDeckContent() {
                       placeholder={prefilling ? "AI is thinking..." : "e.g. VP of Sales"}
                       disabled={prefilling}
                       rows={3}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-y"
                     />
                   </div>
                 </div>
@@ -935,7 +935,7 @@ function SalesDeckContent() {
                     onChange={(e) => setSpecialNotes(e.target.value)}
                     placeholder="e.g. Focus on ROI metrics, include competitive positioning against Salesforce..."
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                   />
                 </div>
 
