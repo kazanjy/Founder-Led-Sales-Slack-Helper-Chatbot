@@ -61,12 +61,12 @@ export async function GET(
       currentUserId: user.id,
       version: {
         id: version.id,
+        userId: version.userId,
         title: version.title,
         content,
         salesNarrativeVersionId: version.salesNarrativeVersionId,
         salesNarrative: version.salesNarrativeVersion,
         createdAt: version.createdAt,
-        userId: version.userId,
         user: version.user,
       },
     });
@@ -167,6 +167,73 @@ export async function PATCH(
     console.error("Error updating discovery questions version:", error);
     return NextResponse.json(
       { error: "Failed to update version" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a specific discovery questions version
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const version = await prisma.discoveryQuestionsVersion.findUnique({
+      where: { id },
+    });
+
+    if (!version) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+
+    if (version.userId !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    // Delete the version (cascading deletes will handle related records)
+    await prisma.discoveryQuestionsVersion.delete({
+      where: { id },
+    });
+
+    // If this was the latest version, update merge variables from the new latest (or clear them)
+    const newLatest = await prisma.discoveryQuestionsVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const mergeValue = newLatest
+      ? formatDiscoveryQuestionsForMerge(JSON.parse(newLatest.content))
+      : "";
+
+    await prisma.gtmVariable.upsert({
+      where: {
+        userId_mergeField: {
+          userId: user.id,
+          mergeField: "DISCOVERY_QUESTIONS",
+        },
+      },
+      update: { value: mergeValue },
+      create: {
+        userId: user.id,
+        mergeField: "DISCOVERY_QUESTIONS",
+        name: "Discovery Questions",
+        value: mergeValue,
+        isDefault: false,
+      },
+    });
+
+    return NextResponse.json({ success: true, hasRemaining: !!newLatest });
+  } catch (error) {
+    console.error("Error deleting discovery questions version:", error);
+    return NextResponse.json(
+      { error: "Failed to delete version" },
       { status: 500 }
     );
   }

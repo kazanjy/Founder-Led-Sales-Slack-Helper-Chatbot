@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -14,18 +14,14 @@ export async function GET(
 
     const { id } = await params;
 
-    const version = await prisma.iCPVersion.findUnique({
+    const version = await prisma.icpVersion.findUnique({
       where: { id },
       include: {
         salesNarrativeVersion: {
-          select: {
-            id: true,
-            narrative: true,
-            createdAt: true,
-          },
+          select: { id: true, narrative: true, createdAt: true },
         },
         user: {
-          select: { name: true, email: true, slackUserName: true },
+          select: { id: true },
         },
       },
     });
@@ -34,25 +30,24 @@ export async function GET(
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
 
-    // Allow account-wide read access
+    // Check access — same account
     if (version.userId !== user.id) {
-      if (!user.accountId) {
-        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-      }
-      const versionOwner = await prisma.user.findUnique({
-        where: { id: version.userId },
-        select: { accountId: true },
+      const sameAccount = await prisma.user.findFirst({
+        where: {
+          id: version.userId,
+          accountId: user.accountId || undefined,
+        },
       });
-      if (versionOwner?.accountId !== user.accountId) {
+      if (!sameAccount) {
         return NextResponse.json({ error: "Not authorized" }, { status: 403 });
       }
     }
 
-    let content;
+    let parsedContent;
     try {
-      content = JSON.parse(version.content);
+      parsedContent = JSON.parse(version.content);
     } catch {
-      content = { segments: [] };
+      parsedContent = { sections: [] };
     }
 
     return NextResponse.json({
@@ -60,18 +55,18 @@ export async function GET(
       version: {
         id: version.id,
         title: version.title,
-        content,
+        content: parsedContent,
         salesNarrativeVersionId: version.salesNarrativeVersionId,
         salesNarrative: version.salesNarrativeVersion,
         createdAt: version.createdAt,
+        updatedAt: version.updatedAt,
         userId: version.userId,
-        user: version.user,
       },
     });
   } catch (error) {
     console.error("Error fetching ICP version:", error);
     return NextResponse.json(
-      { error: "Failed to fetch version" },
+      { error: "Failed to fetch ICP version" },
       { status: 500 }
     );
   }
@@ -89,61 +84,68 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
+    const { content, title } = body;
 
-    const existing = await prisma.iCPVersion.findUnique({
+    const version = await prisma.icpVersion.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!version) {
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
 
-    if (existing.userId !== user.id) {
+    if (version.userId !== user.id) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    if (body.content && !body.content.segments) {
-      return NextResponse.json(
-        { error: "Invalid content structure" },
-        { status: 400 }
-      );
+    // Validate content structure
+    if (content && (!content.sections || !Array.isArray(content.sections))) {
+      return NextResponse.json({ error: "Invalid content structure" }, { status: 400 });
     }
 
     const updateData: { content?: string; title?: string } = {};
-    if (body.content) updateData.content = JSON.stringify(body.content);
-    if (body.title !== undefined) updateData.title = body.title;
+    if (content) updateData.content = JSON.stringify(content);
+    if (title) updateData.title = title;
 
-    const updated = await prisma.iCPVersion.update({
+    const updated = await prisma.icpVersion.update({
       where: { id },
       data: updateData,
     });
 
-    // Check if this is the latest version and update merge variable
-    const latest = await prisma.iCPVersion.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-    });
+    // If this is the latest version and content was updated, sync merge variable
+    if (content) {
+      const latestVersion = await prisma.icpVersion.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
 
-    if (latest?.id === id && body.content) {
-      const formattedContent = formatICPForMerge(body.content);
-      await prisma.gtmVariable.upsert({
-        where: {
-          userId_mergeField: {
+      if (latestVersion?.id === id) {
+        const formattedContent = formatIcpForMerge(content);
+        await prisma.gtmVariable.upsert({
+          where: {
+            userId_mergeField: {
+              userId: user.id,
+              mergeField: "ICP",
+            },
+          },
+          update: { value: formattedContent },
+          create: {
             userId: user.id,
             mergeField: "ICP",
+            name: "Ideal Customer Profile",
+            value: formattedContent,
+            isDefault: false,
           },
-        },
-        update: {
-          value: formattedContent,
-        },
-        create: {
-          userId: user.id,
-          mergeField: "ICP",
-          name: "Ideal Customer Profile",
-          value: formattedContent,
-          isDefault: false,
-        },
-      });
+        });
+      }
+    }
+
+    let parsedContent;
+    try {
+      parsedContent = JSON.parse(updated.content);
+    } catch {
+      parsedContent = { sections: [] };
     }
 
     return NextResponse.json({
@@ -151,63 +153,110 @@ export async function PATCH(
       version: {
         id: updated.id,
         title: updated.title,
-        content: body.content,
+        content: parsedContent,
         createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
       },
     });
   } catch (error) {
     console.error("Error updating ICP version:", error);
     return NextResponse.json(
-      { error: "Failed to update version" },
+      { error: "Failed to update ICP version" },
       { status: 500 }
     );
   }
 }
 
-function formatICPForMerge(data: {
-  segments: Array<{
+// DELETE - Delete a specific ICP version
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const version = await prisma.icpVersion.findUnique({
+      where: { id },
+    });
+
+    if (!version) {
+      return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    }
+
+    if (version.userId !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    await prisma.icpVersion.delete({
+      where: { id },
+    });
+
+    // If this was the latest version, update merge variable from the new latest (or clear it)
+    const newLatest = await prisma.icpVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    let icpValue = "";
+    if (newLatest) {
+      try {
+        const parsed = JSON.parse(newLatest.content);
+        icpValue = formatIcpForMerge(parsed);
+      } catch {
+        icpValue = "";
+      }
+    }
+
+    await prisma.gtmVariable.upsert({
+      where: {
+        userId_mergeField: {
+          userId: user.id,
+          mergeField: "ICP",
+        },
+      },
+      update: { value: icpValue },
+      create: {
+        userId: user.id,
+        mergeField: "ICP",
+        name: "Ideal Customer Profile",
+        value: icpValue,
+        isDefault: false,
+      },
+    });
+
+    return NextResponse.json({ success: true, hasRemaining: !!newLatest });
+  } catch (error) {
+    console.error("Error deleting ICP version:", error);
+    return NextResponse.json(
+      { error: "Failed to delete version" },
+      { status: 500 }
+    );
+  }
+}
+
+function formatIcpForMerge(data: {
+  sections: Array<{
     name: string;
     description: string;
-    firmographic: {
-      companySize: string;
-      industry: string;
-      revenue: string;
-      geography: string;
-      stage: string;
-    };
-    technographic: {
-      currentTools: string[];
-      techMaturity: string;
-      integrationNeeds: string;
-    };
-    timingTriggers: string[];
-    painPoints: string[];
-    buyingPersonas: Array<{
-      title: string;
-      role: string;
-      motivation: string;
-      painPoints: string[];
-      objections: string[];
-      emotionalDriver: string;
-    }>;
+    items: string[];
   }>;
 }): string {
   let output = "";
-
-  for (const segment of data.segments) {
-    output += `## ${segment.name}\n\n`;
-    output += `${segment.description}\n\n`;
-    output += `**Firmographic:** ${segment.firmographic.industry} | ${segment.firmographic.companySize} | ${segment.firmographic.revenue} | ${segment.firmographic.stage}\n`;
-    output += `**Technographic:** ${segment.technographic.techMaturity} | Tools: ${segment.technographic.currentTools.join(", ")}\n`;
-    output += `**Timing Triggers:** ${segment.timingTriggers.join("; ")}\n`;
-    output += `**Pain Points:** ${segment.painPoints.join("; ")}\n\n`;
-    output += `### Buying Personas\n\n`;
-
-    for (const persona of segment.buyingPersonas) {
-      output += `- **${persona.title}** (${persona.role}): ${persona.motivation}\n`;
+  for (const section of data.sections) {
+    output += `## ${section.name}\n`;
+    if (section.description) {
+      output += `${section.description}\n`;
+    }
+    output += "\n";
+    for (const item of section.items) {
+      output += `- ${item}\n`;
     }
     output += "\n";
   }
-
   return output.trim();
 }

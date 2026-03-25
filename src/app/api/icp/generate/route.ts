@@ -5,8 +5,10 @@ import { sendToChatbase } from "@/lib/chatbase/client";
 import { extractProductName } from "@/lib/extract-product-name";
 import { CHATBASE_MESSAGE_LIMIT, splitIntoChunks, buildChunkedHistory } from "@/lib/chatbase/chunking";
 
+// Allow up to 120s for AI generation
 export const maxDuration = 120;
 
+// POST - Generate ICP from the latest sales narrative
 export async function POST() {
   try {
     const user = await getCurrentUser();
@@ -14,6 +16,7 @@ export async function POST() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Get the latest sales narrative version with its answers
     const latestNarrative = await prisma.salesNarrativeVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -45,63 +48,57 @@ export async function POST() {
       );
     }
 
+    // Build the Q&A inputs section
+    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
+    let qaInputsSection = "";
+
+    for (const category of categoryOrder) {
+      const categoryAnswers = latestNarrative.answers.filter(
+        (a) => a.question.category === category
+      );
+      if (categoryAnswers.length === 0) continue;
+
+      qaInputsSection += `### ${category}\n\n`;
+      for (const answer of categoryAnswers) {
+        qaInputsSection += `**Q${answer.question.globalOrder}: ${answer.question.question}**\n`;
+        qaInputsSection += `${answer.answer || "_Not answered_"}\n\n`;
+      }
+    }
+
     const instructionPrompt = `You are an expert B2B sales strategist helping founders define their Ideal Customer Profile (ICP).
 
 ## OUTPUT FORMAT (CRITICAL — follow this exactly):
 
 Respond with valid JSON in this exact format (no markdown code blocks, no extra text):
 {
-  "segments": [
+  "sections": [
     {
-      "name": "Segment Name (e.g. 'Growth-Stage SaaS Companies')",
-      "description": "2-3 sentence description of this organization type and why they're ideal",
-      "firmographic": {
-        "companySize": "Employee count range",
-        "industry": "Target industries/verticals",
-        "revenue": "Revenue or ARR range",
-        "geography": "Target regions",
-        "stage": "Company stage (startup, growth, enterprise, etc.)"
-      },
-      "technographic": {
-        "currentTools": ["Tools/platforms they likely use"],
-        "techMaturity": "Their technology adoption level",
-        "integrationNeeds": "What integrations matter to them"
-      },
-      "timingTriggers": ["Events or changes that create buying urgency"],
-      "painPoints": ["Organization-level pain points"],
-      "buyingPersonas": [
-        {
-          "title": "Job Title",
-          "role": "Champion, Decision Maker, Influencer, or End User",
-          "motivation": "What drives this person professionally",
-          "painPoints": ["Their specific pain points related to the problem"],
-          "objections": ["Common objections this persona raises"],
-          "emotionalDriver": "The underlying emotional need"
-        }
-      ]
+      "name": "Section Name",
+      "description": "Brief description of this section's purpose",
+      "items": ["Item 1", "Item 2", "Item 3"]
     }
   ]
 }
 
 ## INSTRUCTIONS:
 
-Generate an Ideal Customer Profile with 3-5 organizational segments. For each segment:
+Based on the sales narrative context below, generate a comprehensive Ideal Customer Profile organized into these sections:
 
-1. **Organizational Profile** — Define the type of company with specific firmographic criteria (size, industry, revenue, geography, stage) and technographic indicators (tools, maturity, integration needs). Include timing triggers that create buying urgency.
+1. **Company Characteristics** - Size (employees, revenue), industry/vertical, company stage, geography, tech stack indicators. Be specific with ranges and examples.
 
-2. **Buying Personas** — For EACH org segment, specify 3-5 human personas who participate in the purchasing decision. These personas should be SPECIFIC to that segment (titles and roles often differ by company size/type). Include:
-   - Their job title (specific to this segment size/type)
-   - Their role in the buying process
-   - What motivates them
-   - Their specific pain points
-   - Common objections they raise
-   - Their emotional driver
+2. **Key Personas** - The specific titles/roles you sell to. For each, include their typical responsibilities and why they care about this problem. Format each item as "Title — why they care".
 
-3. **Timing Triggers** — What events, changes, or circumstances create urgency? Think about: leadership changes, funding rounds, failed implementations, regulatory changes, growth milestones, etc.
+3. **Pain Points & Challenges** - The specific problems these ideal customers face that your solution addresses. Be concrete and tie to business outcomes.
 
-Make everything specific to the product/solution described. Avoid generic advice. Each segment should feel distinct and actionable for a sales team.`;
+4. **Buying Signals & Triggers** - Observable events or situations that indicate a company is ready to buy. Include hiring patterns, tech changes, funding events, organizational changes.
 
-    const contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}`;
+5. **Qualification Criteria** - Must-have and nice-to-have attributes. What makes a prospect a GREAT fit vs. just an OK fit. Be specific about deal-breakers and green flags.
+
+6. **Red Flags & Disqualifiers** - Signs that a prospect is NOT a good fit. Common time-wasters and patterns to avoid.
+
+Generate 4-8 specific, actionable items per section. Draw directly from the sales narrative context — don't be generic. Reference the actual product, market, and customers described.`;
+
+    const contextSection = `## SALES NARRATIVE:\n\n${latestNarrative.narrative}\n\n## RAW Q&A INPUTS:\n\n${qaInputsSection}`;
     const fullPrompt = `${instructionPrompt}\n\n${contextSection}`;
 
     let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
@@ -113,8 +110,7 @@ Make everything specific to the product/solution described. Avoid generic advice
       finalMessage = instructionPrompt;
     }
 
-    console.log(`Sending ICP prompt: ${finalMessage.length} chars (history: ${chatbaseHistory.length} msgs)`);
-
+    // Call Chatbase
     let aiResponse = "";
     try {
       const chatbaseResult = await sendToChatbase(finalMessage, undefined, chatbaseHistory);
@@ -127,32 +123,12 @@ Make everything specific to the product/solution described. Avoid generic advice
       );
     }
 
+    // Parse the JSON response
     let parsedResponse: {
-      segments: Array<{
+      sections: Array<{
         name: string;
         description: string;
-        firmographic: {
-          companySize: string;
-          industry: string;
-          revenue: string;
-          geography: string;
-          stage: string;
-        };
-        technographic: {
-          currentTools: string[];
-          techMaturity: string;
-          integrationNeeds: string;
-        };
-        timingTriggers: string[];
-        painPoints: string[];
-        buyingPersonas: Array<{
-          title: string;
-          role: string;
-          motivation: string;
-          painPoints: string[];
-          objections: string[];
-          emotionalDriver: string;
-        }>;
+        items: string[];
       }>;
     };
 
@@ -163,7 +139,7 @@ Make everything specific to the product/solution described. Avoid generic advice
       }
       parsedResponse = JSON.parse(jsonMatch[0]);
 
-      if (!parsedResponse.segments || !Array.isArray(parsedResponse.segments)) {
+      if (!parsedResponse.sections || !Array.isArray(parsedResponse.sections)) {
         throw new Error("Invalid response structure");
       }
     } catch (parseError) {
@@ -175,13 +151,15 @@ Make everything specific to the product/solution described. Avoid generic advice
       );
     }
 
+    // Build a descriptive title
     const productAnswer = latestNarrative.answers.find(
       (a) => a.question.category === "Product"
     );
     const productName = extractProductName(productAnswer?.answer || "", "Sales");
     const icpTitle = `${productName} - Ideal Customer Profile`;
 
-    const version = await prisma.iCPVersion.create({
+    // Create the version record
+    const version = await prisma.icpVersion.create({
       data: {
         userId: user.id,
         salesNarrativeVersionId: latestNarrative.id,
@@ -190,8 +168,8 @@ Make everything specific to the product/solution described. Avoid generic advice
       },
     });
 
-    // Update merge variable with the ICP
-    const formattedContent = formatICPForMerge(parsedResponse);
+    // Update merge variable
+    const formattedContent = formatIcpForMerge(parsedResponse);
     await prisma.gtmVariable.upsert({
       where: {
         userId_mergeField: {
@@ -230,50 +208,25 @@ Make everything specific to the product/solution described. Avoid generic advice
   }
 }
 
-function formatICPForMerge(data: {
-  segments: Array<{
+// Format ICP for merge variable
+function formatIcpForMerge(data: {
+  sections: Array<{
     name: string;
     description: string;
-    firmographic: {
-      companySize: string;
-      industry: string;
-      revenue: string;
-      geography: string;
-      stage: string;
-    };
-    technographic: {
-      currentTools: string[];
-      techMaturity: string;
-      integrationNeeds: string;
-    };
-    timingTriggers: string[];
-    painPoints: string[];
-    buyingPersonas: Array<{
-      title: string;
-      role: string;
-      motivation: string;
-      painPoints: string[];
-      objections: string[];
-      emotionalDriver: string;
-    }>;
+    items: string[];
   }>;
 }): string {
   let output = "";
-
-  for (const segment of data.segments) {
-    output += `## ${segment.name}\n\n`;
-    output += `${segment.description}\n\n`;
-    output += `**Firmographic:** ${segment.firmographic.industry} | ${segment.firmographic.companySize} | ${segment.firmographic.revenue} | ${segment.firmographic.stage}\n`;
-    output += `**Technographic:** ${segment.technographic.techMaturity} | Tools: ${segment.technographic.currentTools.join(", ")}\n`;
-    output += `**Timing Triggers:** ${segment.timingTriggers.join("; ")}\n`;
-    output += `**Pain Points:** ${segment.painPoints.join("; ")}\n\n`;
-    output += `### Buying Personas\n\n`;
-
-    for (const persona of segment.buyingPersonas) {
-      output += `- **${persona.title}** (${persona.role}): ${persona.motivation}\n`;
+  for (const section of data.sections) {
+    output += `## ${section.name}\n`;
+    if (section.description) {
+      output += `${section.description}\n`;
+    }
+    output += "\n";
+    for (const item of section.items) {
+      output += `- ${item}\n`;
     }
     output += "\n";
   }
-
   return output.trim();
 }

@@ -265,7 +265,9 @@ export default function ChatPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [playbookExpanded, setPlaybookExpanded] = useState(false);
-  const [toolsExpanded, setToolsExpanded] = useState(true);
+  const [contentExpanded, setContentExpanded] = useState(false);
+  const [callExecExpanded, setCallExecExpanded] = useState(false);
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(320); // Default 320px (w-80)
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [inputHeight, setInputHeight] = useState(120); // Default input container height
@@ -287,6 +289,7 @@ export default function ChatPage() {
   const [appProgress, setAppProgress] = useState<{
     gtmAssessment: { answered: number; total: number; hasSubmitted: boolean } | null;
     salesNarrative: { answered: number; total: number; hasGenerated: boolean } | null;
+    icp: { hasGenerated: boolean } | null;
     discoveryQuestions: { hasGenerated: boolean } | null;
     firstCallChecklist: { hasGenerated: boolean } | null;
     preCallPlanning: { hasGenerated: boolean } | null;
@@ -296,7 +299,10 @@ export default function ChatPage() {
     coldCallScript: { hasGenerated: boolean } | null;
     salesDeck: { hasGenerated: boolean } | null;
     salesMetrics: { hasGenerated: boolean } | null;
-  }>({ gtmAssessment: null, salesNarrative: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null });
+    socialContent: { hasGenerated: boolean } | null;
+    adCreator: { hasGenerated: boolean } | null;
+    objectionLibrary: { hasGenerated: boolean } | null;
+  }>({ gtmAssessment: null, salesNarrative: null, icp: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null, socialContent: null, adCreator: null, objectionLibrary: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -475,6 +481,46 @@ export default function ChatPage() {
           setAppProgress(prev => ({
             ...prev,
             salesMetrics: { hasGenerated: !!smData.hasSalesMetrics }
+          }));
+        }
+
+        // Fetch Social Content progress
+        const scRes = await fetch("/api/social-content/latest");
+        if (scRes.ok) {
+          const scData = await scRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            socialContent: { hasGenerated: !!scData.hasSocialContent }
+          }));
+        }
+
+        // Fetch Ad Creator progress
+        const acRes = await fetch("/api/ad-creator/latest");
+        if (acRes.ok) {
+          const acData = await acRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            adCreator: { hasGenerated: !!acData.hasAdCreator }
+          }));
+        }
+
+        // Fetch Objection Library progress
+        const olRes = await fetch("/api/objection-library/latest");
+        if (olRes.ok) {
+          const olData = await olRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            objectionLibrary: { hasGenerated: !!olData.hasObjectionLibrary }
+          }));
+        }
+
+        // Fetch ICP progress
+        const icpRes = await fetch("/api/icp/latest");
+        if (icpRes.ok) {
+          const icpData = await icpRes.json();
+          setAppProgress(prev => ({
+            ...prev,
+            icp: { hasGenerated: !!icpData.hasIcp }
           }));
         }
       } catch (error) {
@@ -1863,6 +1909,10 @@ export default function ChatPage() {
 
     const userMessage = messageText.trim();
     setInputMessage("");
+    // Reset textarea height after clearing content
+    if (chatInputRef.current) {
+      chatInputRef.current.style.height = 'auto';
+    }
     setSelectedAttachments([]); // Clear attachments after sending
     // Don't clear images yet - keep them visible during processing
     setSending(true);
@@ -2531,7 +2581,7 @@ export default function ChatPage() {
           </div>
         )}
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
           <button
             onClick={handleNewChat}
             disabled={creatingChat}
@@ -2545,7 +2595,7 @@ export default function ChatPage() {
             />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-gray-900">Mikey</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Mikey</h1>
             <p className="text-sm text-gray-500 truncate">{user?.workspaceName}</p>
           </div>
           {/* Collapse sidebar button */}
@@ -2557,7 +2607,7 @@ export default function ChatPage() {
                 toggleSidebar();
               }
             }}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:text-gray-300 dark:hover:bg-gray-700 rounded-lg transition-colors"
             title="Close sidebar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2588,7 +2638,7 @@ export default function ChatPage() {
           {/* Search Button */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-full py-2 px-4 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
@@ -2597,115 +2647,6 @@ export default function ChatPage() {
             Search
             <span className="text-xs text-gray-400 ml-auto">⌘K</span>
           </button>
-        </div>
-
-        {/* Tools Section - Operational / Frequent */}
-        <div className="px-4 pb-2">
-          <button
-            onClick={() => setToolsExpanded(!toolsExpanded)}
-            className="flex items-center justify-between w-full mb-2"
-          >
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tools</div>
-            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${toolsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {toolsExpanded && <div className="space-y-1 max-h-[176px] overflow-y-auto">
-            <a
-              href="/pre-call-planning/research"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <span className="w-5 h-5 rounded-full border-2 border-blue-400 flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              </span>
-              <span>🔬</span>
-              <span className="flex-1">Pre-Call Research</span>
-            </a>
-            <a
-              href="/call-review"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.callReview?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>📞</span>
-              <span className="flex-1">Call Review</span>
-            </a>
-            <a
-              href="/email-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.emailSequence?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>📧</span>
-              <span className="flex-1">Email Sequence</span>
-            </a>
-            <a
-              href="/linkedin-sequence"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.linkedInSequence?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>💼</span>
-              <span className="flex-1">LinkedIn Sequence</span>
-            </a>
-            <a
-              href="/call-scripts"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.coldCallScript?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>🎯</span>
-              <span className="flex-1">Call Scripts</span>
-            </a>
-            <a
-              href="/sales-deck"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.salesDeck?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>📊</span>
-              <span className="flex-1">Sales Deck Generation</span>
-            </a>
-            <a
-              href="/sales-metrics"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              {appProgress.salesMetrics?.hasGenerated ? (
-                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
-              ) : (
-                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
-              )}
-              <span>📈</span>
-              <span className="flex-1">Sales Metrics Analysis</span>
-            </a>
-            <a
-              href="/files"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
-                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </span>
-              <span>📁</span>
-              <span className="flex-1">Images & Files</span>
-            </a>
-          </div>}
         </div>
 
         {/* Playbook Section - Foundational / Infrequent (collapsible) */}
@@ -2720,12 +2661,13 @@ export default function ChatPage() {
                 const completed = [
                   appProgress.gtmAssessment?.hasSubmitted,
                   appProgress.salesNarrative?.hasGenerated,
+                  appProgress.icp?.hasGenerated,
                   appProgress.discoveryQuestions?.hasGenerated,
                   appProgress.firstCallChecklist?.hasGenerated,
                   appProgress.preCallPlanning?.hasGenerated,
                 ].filter(Boolean).length;
                 return completed > 0 ? (
-                  <span className="text-green-600 font-medium">{completed}/5</span>
+                  <span className="text-green-600 font-medium">{completed}/6</span>
                 ) : null;
               })()}
             </div>
@@ -2784,6 +2726,21 @@ export default function ChatPage() {
                 )}
               </a>
               <a
+                href="/icp"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                {appProgress.icp?.hasGenerated ? (
+                  <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+                ) : (
+                  <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+                )}
+                <span>👤</span>
+                <span className="flex-1">Ideal Customer Profile</span>
+                {!appProgress.icp?.hasGenerated && (
+                  <span className="text-xs text-purple-600 font-medium">Start →</span>
+                )}
+              </a>
+              <a
                 href="/discovery-questions"
                 className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
@@ -2830,6 +2787,189 @@ export default function ChatPage() {
               </a>
             </div>
           )}
+        </div>
+
+        {/* Content Section */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setContentExpanded(!contentExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">✏️ Content</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${contentExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {contentExpanded && <div className="space-y-1">
+            <a
+              href="/email-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.emailSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📧</span>
+              <span className="flex-1">Email Sequences</span>
+            </a>
+            <a
+              href="/linkedin-sequence"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.linkedInSequence?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>💼</span>
+              <span className="flex-1">LinkedIn Outbound</span>
+            </a>
+            <a
+              href="/social-content"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.socialContent?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📱</span>
+              <span className="flex-1">Social Posts</span>
+            </a>
+            <a
+              href="/ad-creator"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.adCreator?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📣</span>
+              <span className="flex-1">Ads</span>
+            </a>
+          </div>}
+        </div>
+
+        {/* Call Execution Section */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setCallExecExpanded(!callExecExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">📞 Call Execution</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${callExecExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {callExecExpanded && <div className="space-y-1">
+            <a
+              href="/pre-call-planning/research"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full border-2 border-blue-400 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              </span>
+              <span>🔬</span>
+              <span className="flex-1">Pre-Call Research</span>
+            </a>
+            <a
+              href="/call-review"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.callReview?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📞</span>
+              <span className="flex-1">Call Review</span>
+            </a>
+            <a
+              href="/call-scripts"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.coldCallScript?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>🎯</span>
+              <span className="flex-1">Cold Call Scripts</span>
+            </a>
+          </div>}
+        </div>
+
+        {/* Tools Section - Other */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setToolsExpanded(!toolsExpanded)}
+            className="flex items-center justify-between w-full mb-2"
+          >
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">🛠 Tools</div>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${toolsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {toolsExpanded && <div className="space-y-1">
+            <a
+              href="/sales-deck"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.salesDeck?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📊</span>
+              <span className="flex-1">Sales Decks</span>
+            </a>
+            <a
+              href="/objection-library"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.objectionLibrary?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>🛡️</span>
+              <span className="flex-1">Objections</span>
+            </a>
+            <a
+              href="/sales-metrics"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              {appProgress.salesMetrics?.hasGenerated ? (
+                <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">✓</span>
+              ) : (
+                <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              )}
+              <span>📈</span>
+              <span className="flex-1">Metrics</span>
+            </a>
+            <a
+              href="/coaching-history"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full border-2 border-gray-300"></span>
+              <span>🎓</span>
+              <span className="flex-1">Coaching</span>
+            </a>
+            <a
+              href="/files"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </span>
+              <span>📁</span>
+              <span className="flex-1">Images & Files</span>
+            </a>
+          </div>}
         </div>
 
         {/* Conversations List - this part scrolls independently */}
@@ -2943,7 +3083,7 @@ export default function ChatPage() {
                           handleShareConversation(conv.id);
                         }}
                         disabled={sharingId === conv.id}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
                       >
                         {sharingId === conv.id ? (
                           <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -3037,8 +3177,8 @@ export default function ChatPage() {
 
           {/* Shared with me section */}
           {sharedWithMeChats.length > 0 && (
-            <div className="mt-4 border-t border-gray-300 pt-2">
-              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <div className="mt-4 border-t border-gray-300 dark:border-gray-600 pt-2">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Shared with me
               </div>
               {sharedWithMeChats.map((chat) => (
@@ -3050,8 +3190,8 @@ export default function ChatPage() {
                     e.preventDefault();
                     selectConversation(chat.id);
                   }}
-                  className={`block p-4 border-b border-gray-200 transition-colors ${
-                    selectedConversation === chat.id ? "bg-white" : "hover:bg-gray-200"
+                  className={`block p-4 border-b border-gray-200 dark:border-gray-700 transition-colors ${
+                    selectedConversation === chat.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -3059,7 +3199,7 @@ export default function ChatPage() {
                       From {chat.sharedBy.name || chat.sharedBy.email?.split("@")[0] || "someone"}
                     </span>
                   </div>
-                  <p className="text-[15px] text-gray-900 truncate">
+                  <p className="text-[15px] text-gray-900 dark:text-gray-100 truncate">
                     {chat.title || chat.firstMessagePreview || "Untitled Chat"}
                   </p>
                 </a>
@@ -4726,6 +4866,7 @@ export default function ChatPage() {
       <GetStartedModal
         isOpen={showGetStartedModal}
         onClose={() => setShowGetStartedModal(false)}
+        userEmail={user?.email}
       />
 
       {/* Profile Completion Modal */}

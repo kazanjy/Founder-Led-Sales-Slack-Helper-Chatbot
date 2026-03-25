@@ -39,8 +39,8 @@ function ToolbarButton({
       title={title}
       className={`p-1.5 rounded text-sm transition-colors ${
         isActive
-          ? "bg-purple-100 text-purple-700"
-          : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+          : "text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
       }`}
     >
       {children}
@@ -52,7 +52,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   if (!editor) return null;
 
   return (
-    <div className="border-b border-gray-200 px-3 py-2 flex flex-wrap items-center gap-0.5 bg-gray-50 rounded-t-lg">
+    <div className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 flex flex-wrap items-center gap-0.5 bg-gray-50 dark:bg-gray-800 rounded-t-lg">
       {/* Text formatting */}
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -83,7 +83,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <span className="font-mono text-xs">&lt;/&gt;</span>
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-gray-300 mx-1" />
+      <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
 
       {/* Headings */}
       <ToolbarButton
@@ -108,7 +108,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         H3
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-gray-300 mx-1" />
+      <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
 
       {/* Lists */}
       <ToolbarButton
@@ -139,7 +139,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </svg>
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-gray-300 mx-1" />
+      <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
 
       {/* Block elements */}
       <ToolbarButton
@@ -167,7 +167,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <span className="text-xs">—</span>
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-gray-300 mx-1" />
+      <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 mx-1" />
 
       {/* Undo/Redo */}
       <ToolbarButton
@@ -234,7 +234,7 @@ export default function RichTextEditor({
     onUpdate: handleUpdate,
     editorProps: {
       attributes: {
-        class: "prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 focus:outline-none px-4 py-3",
+        class: "prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 focus:outline-none px-4 py-3",
       },
     },
   });
@@ -247,7 +247,7 @@ export default function RichTextEditor({
   }, [editor, value]);
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900">
       <Toolbar editor={editor} />
       <div
         style={{ minHeight: height, overflow: "auto", resize: "vertical" }}

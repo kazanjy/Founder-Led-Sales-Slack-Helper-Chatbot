@@ -29,6 +29,11 @@ export async function GET(
         title = "GTM Assessment (Q&A)";
         break;
 
+      case "icp":
+        content = await getIcpContent(user.id);
+        title = "Ideal Customer Profile";
+        break;
+
       case "discoveryQuestions":
         content = await getDiscoveryQuestionsContent(user.id);
         title = "Discovery Questions";
@@ -267,6 +272,16 @@ async function getDiscoveryQuestionsContent(userId: string): Promise<string | nu
 async function getFirstCallChecklistContent(userId: string): Promise<string | null> {
   const variable = await prisma.gtmVariable.findFirst({
     where: { userId, mergeField: "FIRST_CALL_CHECKLIST" },
+    select: { value: true },
+  });
+
+  return variable?.value || null;
+}
+
+// Fetch ICP content
+async function getIcpContent(userId: string): Promise<string | null> {
+  const variable = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField: "ICP" },
     select: { value: true },
   });
 

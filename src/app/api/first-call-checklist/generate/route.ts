@@ -73,7 +73,7 @@ export async function POST() {
     }
 
     // Get the latest ICP if available
-    const latestICP = await prisma.iCPVersion.findFirst({
+    const latestICP = await prisma.icpVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     });

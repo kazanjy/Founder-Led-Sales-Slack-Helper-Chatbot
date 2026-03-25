@@ -55,12 +55,12 @@ export async function GET() {
       hasDiscoveryQuestions: true,
       version: {
         id: latestVersion.id,
+        userId: latestVersion.userId,
         title: latestVersion.title,
         content,
         salesNarrativeVersionId: latestVersion.salesNarrativeVersionId,
         salesNarrative: latestVersion.salesNarrativeVersion,
         createdAt: latestVersion.createdAt,
-        userId: latestVersion.userId,
         user: latestVersion.user,
       },
     });

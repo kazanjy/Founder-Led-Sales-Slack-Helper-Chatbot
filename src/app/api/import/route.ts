@@ -733,7 +733,7 @@ export async function POST(request: NextRequest) {
         if (!parsed.segments || !Array.isArray(parsed.segments)) throw new Error("Invalid response structure");
 
         const icpImportTitle = uploadedFileName ? `${uploadedFileName.replace(/\.(pdf|csv)$/i, "")} - Ideal Customer Profile` : "Imported Ideal Customer Profile";
-        const version = await prisma.iCPVersion.create({
+        const version = await prisma.icpVersion.create({
           data: { userId: user.id, title: icpImportTitle, content: JSON.stringify(parsed) },
         });
 

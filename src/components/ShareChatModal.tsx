@@ -197,13 +197,13 @@ export function ShareChatModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4"
+        className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Share Chat</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Share Chat</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-500"
@@ -224,7 +224,7 @@ export function ShareChatModal({
         <div className="px-6 py-4">
           {/* Email input with typeahead */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Share with email
             </label>
             <div className="flex gap-2">
@@ -241,23 +241,23 @@ export function ShareChatModal({
                   onFocus={() => setShowSuggestions(true)}
                   onKeyDown={handleKeyDown}
                   placeholder="colleague@company.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
 
                 {/* Suggestions dropdown */}
                 {showSuggestions && filteredSuggestions.length > 0 && (
                   <div
                     ref={suggestionsRef}
-                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto"
+                    className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto"
                   >
-                    <div className="px-3 py-1.5 text-xs text-gray-500 border-b border-gray-100">
+                    <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                       Recent
                     </div>
                     {filteredSuggestions.map((recipient) => (
                       <button
                         key={recipient.email}
                         onClick={() => handleSelectRecipient(recipient)}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
                       >
                         {recipient.avatarUrl ? (
                           <img
@@ -266,13 +266,13 @@ export function ShareChatModal({
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-300 text-sm">
                             {recipient.name?.[0] || recipient.email[0].toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           {recipient.name && (
-                            <div className="text-sm font-medium text-gray-900 truncate">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                               {recipient.name}
                             </div>
                           )}
@@ -310,14 +310,14 @@ export function ShareChatModal({
             <div className="mt-4 text-center text-gray-500">Loading...</div>
           ) : shares.length > 0 ? (
             <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Shared with
               </h3>
               <div className="space-y-2">
                 {shares.map((share) => (
                   <div
                     key={share.id}
-                    className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-md"
+                    className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-800 rounded-md"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {share.recipientAvatar ? (
@@ -368,7 +368,7 @@ export function ShareChatModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-gray-50 rounded-b-lg border-t border-gray-200">
+        <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800 rounded-b-lg border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500">
             Shared chats are read-only. Recipients can clone them to continue the conversation.
           </p>

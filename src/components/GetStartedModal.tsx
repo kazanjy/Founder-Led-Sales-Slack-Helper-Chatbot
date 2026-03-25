@@ -6,11 +6,22 @@ import { useRouter } from "next/navigation";
 interface GetStartedModalProps {
   isOpen: boolean;
   onClose: () => void;
+  userEmail?: string | null;
 }
 
-export default function GetStartedModal({ isOpen, onClose }: GetStartedModalProps) {
+function getDomainFromEmail(email: string | null | undefined): string {
+  if (!email) return "";
+  const domain = email.split("@")[1];
+  if (!domain) return "";
+  // Skip common personal email providers
+  const personal = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "me.com", "live.com", "msn.com", "mail.com", "zoho.com", "yandex.com"];
+  if (personal.includes(domain.toLowerCase())) return "";
+  return `https://${domain}`;
+}
+
+export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStartedModalProps) {
   const router = useRouter();
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState(() => getDomainFromEmail(userEmail));
 
   if (!isOpen) return null;
 

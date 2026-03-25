@@ -9,52 +9,51 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const latestVersion = await prisma.iCPVersion.findFirst({
+    const latestVersion = await prisma.icpVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
         salesNarrativeVersion: {
-          select: {
-            id: true,
-            narrative: true,
-            createdAt: true,
-          },
+          select: { id: true, narrative: true, createdAt: true },
         },
       },
     });
 
     if (!latestVersion) {
+      // Check if user has a sales narrative for enablement
       const hasNarrative = await prisma.salesNarrativeVersion.findFirst({
         where: { userId: user.id },
         select: { id: true },
       });
 
       return NextResponse.json({
-        hasICP: false,
+        hasIcp: false,
         version: null,
         hasSalesNarrative: !!hasNarrative,
       });
     }
 
-    let content;
+    let parsedContent;
     try {
-      content = JSON.parse(latestVersion.content);
+      parsedContent = JSON.parse(latestVersion.content);
     } catch {
-      content = { segments: [] };
+      parsedContent = { sections: [] };
     }
 
     return NextResponse.json({
-      hasICP: true,
+      hasIcp: true,
       currentUserId: user.id,
       version: {
         id: latestVersion.id,
         title: latestVersion.title,
-        content,
+        content: parsedContent,
         salesNarrativeVersionId: latestVersion.salesNarrativeVersionId,
         salesNarrative: latestVersion.salesNarrativeVersion,
         createdAt: latestVersion.createdAt,
+        updatedAt: latestVersion.updatedAt,
         userId: latestVersion.userId,
       },
+      hasSalesNarrative: true,
     });
   } catch (error) {
     console.error("Error fetching latest ICP:", error);

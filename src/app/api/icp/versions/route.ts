@@ -13,7 +13,7 @@ export async function GET() {
       ? { user: { accountId: user.accountId } }
       : { userId: user.id };
 
-    const versions = await prisma.iCPVersion.findMany({
+    const versions = await prisma.icpVersion.findMany({
       where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
@@ -29,7 +29,7 @@ export async function GET() {
       },
     });
 
-    const formattedVersions = versions.map((v) => {
+    const formattedVersions = versions.map((v: typeof versions[number]) => {
       let content;
       let segmentCount = 0;
 
