@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 
 interface ContentStatus {
@@ -23,7 +23,7 @@ interface AdCard {
   descColor: string;
   ctaColor: string;
   ctaHover: string;
-  icon: JSX.Element;
+  icon: ReactNode;
 }
 
 const AD_CARDS: AdCard[] = [
