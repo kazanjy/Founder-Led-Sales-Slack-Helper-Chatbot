@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         viewportHeight: 900,
         fullPage: false,
         deviceScaleFactor: 1,
-        delay: 2000,
+        delay: 2,
         blockCookieBanners: true,
         blockAds: true,
       });
