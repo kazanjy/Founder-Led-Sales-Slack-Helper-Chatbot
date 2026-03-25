@@ -71,7 +71,6 @@ export async function generatePresentation(
 
   const requestBody: Record<string, unknown> = {
     inputText,
-    title,
     format,
     textMode: "generate",
   };
