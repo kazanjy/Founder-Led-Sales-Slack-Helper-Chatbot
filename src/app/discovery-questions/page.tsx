@@ -10,6 +10,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import { SidebarAdCards } from "@/components/SidebarAdCards";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -73,6 +74,8 @@ function DiscoveryQuestionsContent() {
   const [showChecklistBanner, setShowChecklistBanner] = useState(true);
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
   const [generatingChecklist, setGeneratingChecklist] = useState(false);
+  const [fccDone, setFccDone] = useState(false);
+  const fccGenerationTriggered = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editContent, setEditContent] = useState<DiscoveryQuestionsContent | null>(null);
@@ -224,6 +227,28 @@ function DiscoveryQuestionsContent() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, version, generating]);
+
+  // Auto-trigger First Call Checklist generation when DQ exists but FCC doesn't
+  useEffect(() => {
+    if (loading || !version || hasFirstCallChecklist || generatingChecklist || fccDone || fccGenerationTriggered.current) return;
+    fccGenerationTriggered.current = true;
+    setGeneratingChecklist(true);
+    localStorage.setItem("fccGeneratingStarted", Date.now().toString());
+    fetch("/api/first-call-checklist/generate", { method: "POST" })
+      .then(async (res) => {
+        if (res.ok) {
+          setFccDone(true);
+          setHasFirstCallChecklist(true);
+          localStorage.removeItem("fccGeneratingStarted");
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem("fccGeneratingStarted");
+      })
+      .finally(() => {
+        setGeneratingChecklist(false);
+      });
+  }, [loading, version, hasFirstCallChecklist, generatingChecklist, fccDone]);
 
   const handleCreateChecklist = async () => {
     setGeneratingChecklist(true);
@@ -1110,62 +1135,91 @@ function DiscoveryQuestionsContent() {
 
         </div>{/* end main content */}
 
-        {/* Right sidebar: First Call Checklist ad widget */}
-        {!hasFirstCallChecklist && <div className="hidden lg:block w-64 flex-shrink-0">
-          <div className="sticky top-8">
-            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
+        {/* Right sidebar: First Call Checklist status + ad widgets */}
+        {!isEditing && (
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                  {generatingChecklist ? (
+                    <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  )}
+                </div>
+                {generatingChecklist ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Generating your First Call Checklist from your Discovery Questions...
+                    </p>
+                    <Link
+                      href="/first-call-checklist"
+                      target="_blank"
+                      className="block w-full text-center px-4 py-2.5 bg-white/20 text-white rounded-lg font-semibold text-sm cursor-pointer hover:bg-white/30 transition-colors"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating...
+                      </span>
+                    </Link>
+                  </>
+                ) : fccDone ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Your First Call Checklist has been generated!
+                    </p>
+                    <Link
+                      href="/first-call-checklist"
+                      target="_blank"
+                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                    >
+                      Done! View Checklist
+                    </Link>
+                  </>
+                ) : hasFirstCallChecklist ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Your structured checklist for first sales calls is ready.
+                    </p>
+                    <Link
+                      href="/first-call-checklist"
+                      target="_blank"
+                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                    >
+                      View Checklist
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
+                    <p className="text-purple-100 text-sm mb-4">
+                      Turn your discovery questions into a structured checklist for your first sales calls.
+                    </p>
+                    <button
+                      onClick={handleCreateChecklist}
+                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                    >
+                      Create Checklist
+                    </button>
+                  </>
+                )}
               </div>
-              <h3 className="font-bold text-lg mb-2">First Call Checklist</h3>
-              <p className="text-purple-100 text-sm mb-4">
-                Turn your discovery questions into a structured checklist for your first sales calls.
-              </p>
-              <button
-                onClick={handleCreateChecklist}
-                disabled={generatingChecklist}
-                className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm disabled:opacity-50"
-              >
-                {generatingChecklist ? "Creating..." : "Create Checklist"}
-              </button>
-            </div>
 
-            <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-              <h4 className="font-medium text-gray-900 text-sm mb-3">More GTM Tools</h4>
-              <div className="space-y-2">
-                <Link
-                  href="/chat"
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  Chat About It
-                </Link>
-                <Link
-                  href="/sales-narrative"
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Sales Narrative
-                </Link>
-                <Link
-                  href="/assessment/bulk"
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                  GTM Assessment
-                </Link>
-              </div>
+              <SidebarAdCards />
             </div>
           </div>
-        </div>}
+        )}
         </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}

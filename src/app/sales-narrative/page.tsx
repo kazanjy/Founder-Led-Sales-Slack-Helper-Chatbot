@@ -10,6 +10,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import { SidebarAdCards } from "@/components/SidebarAdCards";
 
 interface NarrativeVersion {
   id: string;
@@ -1132,9 +1133,10 @@ function SalesNarrativeContent() {
         </div>{/* end main content */}
 
         {/* Right sidebar: Next step CTA widget - ICP status or Discovery Questions */}
-        {!isEditing && (icpGenerating || icpDone || !hasIcp || !hasDiscoveryQuestions) && (
+        {!isEditing && (
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-8">
+              {(icpGenerating || icpDone || !hasIcp || !hasDiscoveryQuestions) && (
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                   {icpGenerating ? (
@@ -1216,30 +1218,9 @@ function SalesNarrativeContent() {
                   </>
                 )}
               </div>
+              )}
 
-              <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-                <h4 className="font-medium text-gray-900 text-sm mb-3">More GTM Tools</h4>
-                <div className="space-y-2">
-                  <Link
-                    href="/chat"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Chat About It
-                  </Link>
-                  <Link
-                    href="/assessment/bulk"
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors py-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    GTM Assessment
-                  </Link>
-                </div>
-              </div>
+              <SidebarAdCards />
             </div>
           </div>
         )}

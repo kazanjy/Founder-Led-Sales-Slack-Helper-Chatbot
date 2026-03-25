@@ -10,6 +10,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import { SidebarAdCards } from "@/components/SidebarAdCards";
 
 interface IcpSection {
   name: string;
@@ -1078,6 +1079,8 @@ function IcpContent() {
                     </>
                   )}
                 </div>
+
+                <SidebarAdCards />
               </div>
             </div>
           )}
