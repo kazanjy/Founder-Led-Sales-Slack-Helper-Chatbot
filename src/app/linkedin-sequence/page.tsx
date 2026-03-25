@@ -388,12 +388,38 @@ function LinkedInSequenceContent() {
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
-          <div className="w-full max-w-lg px-6">
+          <div className="w-full max-w-3xl px-6">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-                💼 {version ? "Regenerate" : "Generate"} LinkedIn Sequence
+                {version ? "Regenerate" : "Generate"} LinkedIn Sequence
               </h1>
               <p className="text-gray-500 mb-6">Configure the target persona for your LinkedIn outreach.</p>
+
+              {/* Sales Narrative Info Banner */}
+              {hasSalesNarrative && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl flex-shrink-0">📖</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-amber-900">Your Sales Narrative will power this sequence</h3>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        Mikey will use your completed Sales Narrative — including product details, positioning, competitive advantages, and customer stories — to generate a tailored LinkedIn outreach sequence.
+                      </p>
+                      <a
+                        href="/sales-narrative"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2"
+                      >
+                        View your Sales Narrative
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>
