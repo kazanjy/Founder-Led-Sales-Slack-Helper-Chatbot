@@ -73,6 +73,12 @@ export async function generatePresentation(
     inputText,
     format,
     textMode: "generate",
+    cardOptions: {
+      dimensions: "16x9",
+    },
+    sharingOptions: {
+      externalAccess: "view",
+    },
   };
 
   if (numCards) requestBody.numCards = numCards;
