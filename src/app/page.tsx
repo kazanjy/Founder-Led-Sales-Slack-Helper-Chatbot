@@ -161,7 +161,7 @@ export default async function Home({ searchParams }: HomeProps) {
             Build Your Complete Sales Playbook
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Mikey walks you through a guided workflow to create every artifact you need for founder-led sales &mdash; personalized to your product, market, and stage.
+            Mikey walks you through a guided workflow to create every artifact you need for founder-led sales &mdash; personalized to your product, market, and stage. Each step is <strong>auto-generated</strong> from the last, so your entire playbook builds itself. Then edit, refine, and evolve any piece as you learn.
           </p>
 
           {/* Playbook Workflow Steps */}
