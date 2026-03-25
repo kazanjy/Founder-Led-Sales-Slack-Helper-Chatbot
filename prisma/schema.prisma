@@ -1052,17 +1052,41 @@ model SalesDeckVersion {
   humanPersona                String   @db.Text
   specialNotes                String?  @db.Text
 
-  // Deck mode: "fresh" (generated from narrative) or "existing" (from uploaded PDF)
+  // Deck mode: "fresh" (generated from narrative) or "existing" (from uploaded PDF) or "gamma" (Gamma presentation)
   deckMode                    String   @default("fresh")
 
   // Original PDF filename if uploaded
   sourcePdfName               String?
 
-  // Generated output
+  // Generated output (markdown outline for fresh/existing, structured JSON for gamma)
   content                     String   @db.Text
 
   // Linked chat thread
   conversationId              String?
+
+  // --- Gamma presentation fields ---
+
+  // Context URLs provided by user (prospect website, product pages, etc.)
+  contextUrls                 String[] @default([])
+
+  // Context PDF filenames uploaded by user
+  contextPdfNames             String[] @default([])
+
+  // Prospect homepage URL (inferred from email or provided)
+  prospectUrl                 String?
+
+  // Brand analysis from OpenAI 4o vision (JSON description of colors, typography, style)
+  brandAnalysis               String?  @db.Text
+
+  // Gamma live URL (for viewing/editing the generated deck)
+  gammaUrl                    String?
+
+  // Gamma export URLs
+  gammaPdfUrl                 String?
+  gammaPptxUrl                String?
+
+  // Structured slide content sent to Gamma (the pre-processed output)
+  gammaInputContent           String?  @db.Text
 
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
