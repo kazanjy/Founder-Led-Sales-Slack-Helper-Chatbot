@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
+import { getCachedCrawl } from "@/app/api/sales-narrative/precrawl/route";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -58,20 +59,29 @@ export async function POST(request: NextRequest) {
     const sourcePdfNames: string[] = [];
     const tasks: Promise<void>[] = [];
 
-    // Website crawling (two-level crawl)
+    // Website crawling (check precrawl cache first, then fall back to full crawl)
     if (websiteUrl?.trim()) {
-      tasks.push(
-        crawlWebsiteForContext(websiteUrl.trim())
-          .then((result) => {
-            if (result.text) {
-              contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
-              sourceUrls.push(...result.urls);
-            }
-          })
-          .catch((err) => {
-            console.error("[Prefill] Website crawl failed:", err);
-          })
-      );
+      const cached = getCachedCrawl(user.id, websiteUrl.trim());
+      if (cached) {
+        console.log("[Prefill] Using precrawl cache hit — skipping crawl");
+        if (cached.text) {
+          contextParts.push(`## WEBSITE CONTENT\n\n${cached.text}`);
+          sourceUrls.push(...cached.urls);
+        }
+      } else {
+        tasks.push(
+          crawlWebsiteForContext(websiteUrl.trim())
+            .then((result) => {
+              if (result.text) {
+                contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
+                sourceUrls.push(...result.urls);
+              }
+            })
+            .catch((err) => {
+              console.error("[Prefill] Website crawl failed:", err);
+            })
+        );
+      }
     }
 
     // Specific page URL fetching (single-page, no crawl)

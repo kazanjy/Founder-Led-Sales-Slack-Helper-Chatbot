@@ -95,11 +95,26 @@ function SalesNarrativeEditContent() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
+  const precrawlFiredRef = useRef<string | null>(null);
 
   // Set browser tab title
   useEffect(() => {
     document.title = "Edit Sales Narrative - Mikey";
   }, []);
+
+  // Fire background precrawl as soon as a website URL is populated
+  useEffect(() => {
+    const url = prefillUrl.trim();
+    if (!url || prefilling || precrawlFiredRef.current === url) return;
+    // Only fire for URLs that look like a domain (not partial typing)
+    try { new URL(url.startsWith("http") ? url : `https://${url}`); } catch { return; }
+    precrawlFiredRef.current = url;
+    fetch("/api/sales-narrative/precrawl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ websiteUrl: url }),
+    }).catch(() => {}); // fire-and-forget
+  }, [prefillUrl, prefilling]);
 
 
   // Cycle through pre-fill loading messages
