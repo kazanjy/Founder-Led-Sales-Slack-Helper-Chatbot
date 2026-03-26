@@ -229,7 +229,7 @@ function SalesNarrativeEditContent() {
     // If we have precrawl results from GetStartedModal, show sources immediately
     if (precrawlResultRef.current?.urls?.length) {
       setPrefillSourceUrls(precrawlResultRef.current.urls);
-      setPrefillPanelOpen(false); // collapse the panel — crawl is done
+      // Keep panel open so user sees the spinner while Q&A generates
     }
 
     setShouldAutoTriggerPrefill(true);
