@@ -432,15 +432,14 @@ function SalesNarrativeEditContent() {
                 filledCount++;
                 // Auto-save in background
                 savePromises.push(handleSaveAnswer(questionId, answer));
+              } else if (currentEvent === "complete") {
+                // All answers streamed
               } else if (currentEvent === "error") {
                 throw new Error(data.message || "Prefill failed");
               }
             } catch (e) {
-              if (e instanceof Error && e.message !== "Prefill failed") {
-                // JSON parse error — ignore
-              } else {
-                throw e;
-              }
+              // Re-throw intentional errors, ignore JSON parse errors
+              if (e instanceof Error && e.message) throw e;
             }
             currentEvent = "";
           }
@@ -454,12 +453,6 @@ function SalesNarrativeEditContent() {
       setPrefillPanelOpen(false);
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
-
-      await showAlert({
-        title: "Pre-Fill Complete",
-        message: `Updated ${filledCount} of ${questions.length} questions from your materials. Review and edit the answers below!`,
-        variant: "info",
-      });
     } catch (error) {
       console.error("Pre-fill error:", error);
       await showAlert({
@@ -474,11 +467,11 @@ function SalesNarrativeEditContent() {
 
   // Auto-trigger prefill when URL was set from query param
   useEffect(() => {
-    if (shouldAutoTriggerPrefill && !prefilling) {
+    if (shouldAutoTriggerPrefill && !prefilling && prefillUrl.trim()) {
       setShouldAutoTriggerPrefill(false);
       handlePrefill();
     }
-  }, [shouldAutoTriggerPrefill, prefilling]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldAutoTriggerPrefill, prefilling, prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addPdfFiles = (files: File[]) => {
     const pdfs = files.filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
