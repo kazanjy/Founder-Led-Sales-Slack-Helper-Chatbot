@@ -7,13 +7,13 @@ import { AuthButtons, AuthButtonsCTA } from "@/components/AuthButtons";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
 
 export const metadata: Metadata = {
-  title: "Mikey - The Founder-Led Sales Coach and Early Stage GTM Assessment",
+  title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
   description:
-    "Get personalized GTM recommendations and ongoing sales coaching based on Pete Kazanjy's Founding Sales methodology. From finding your first customers to scaling your sales team.",
+    "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Each step auto-generates from the last. Based on Pete Kazanjy's Founding Sales methodology.",
   openGraph: {
-    title: "Mikey - The Founder-Led Sales Coach and Early Stage GTM Assessment",
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
     description:
-      "Get personalized GTM recommendations and ongoing sales coaching based on Pete Kazanjy's Founding Sales methodology.",
+      "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Based on Pete Kazanjy's Founding Sales methodology.",
     type: "website",
     url: appUrl,
     siteName: "Mikey",
@@ -23,15 +23,15 @@ export const metadata: Metadata = {
         width: 512,
         height: 512,
         type: "image/png",
-        alt: "Mikey - The Founder-Led Sales Coach",
+        alt: "Mikey - AI-Powered Founder-Led Sales Platform",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Mikey - The Founder-Led Sales Coach and Early Stage GTM Assessment",
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
     description:
-      "Get personalized GTM recommendations and ongoing sales coaching based on Pete Kazanjy's Founding Sales methodology.",
+      "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Based on Pete Kazanjy's Founding Sales methodology.",
     images: [`${appUrl}/mikey-avatar.png`],
   },
 };
