@@ -329,6 +329,10 @@ function SalesNarrativeEditContent() {
     if (!prefillUrl.trim() && specificUrls.every((u) => !u.trim()) && prefillFiles.length === 0) return;
 
     setPrefilling(true);
+    // Clear all existing answers so streamed ones fill in fresh
+    const emptyAnswers: Record<string, string> = {};
+    questions.forEach((q) => { emptyAnswers[q.id] = ""; });
+    setAnswers(emptyAnswers);
     let filledCount = 0;
     try {
       // Step 1: Upload PDFs directly to Supabase via signed URLs
