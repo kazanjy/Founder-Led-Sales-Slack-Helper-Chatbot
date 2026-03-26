@@ -92,6 +92,7 @@ function SalesNarrativeEditContent() {
 
   // Smart Pre-Fill state
   const [prefillUrl, setPrefillUrl] = useState("");
+  const prefillUrlRef = useRef("");
   const [prefillFiles, setPrefillFiles] = useState<File[]>([]);
   const [prefilling, setPrefilling] = useState(false);
   const [prefillMessageIndex, setPrefillMessageIndex] = useState(0);
@@ -106,6 +107,9 @@ function SalesNarrativeEditContent() {
   const precrawlFiredRef = useRef<string | null>(null);
   const precrawlResultRef = useRef<{ text: string; urls: string[] } | null>(null);
   const [precrawlStatus, setPrecrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
+
+  // Keep prefillUrl ref in sync so handlePrefill always has latest value
+  useEffect(() => { prefillUrlRef.current = prefillUrl; }, [prefillUrl]);
 
   // Set browser tab title
   useEffect(() => {
@@ -326,7 +330,9 @@ function SalesNarrativeEditContent() {
   };
 
   const handlePrefill = async () => {
-    if (!prefillUrl.trim() && specificUrls.every((u) => !u.trim()) && prefillFiles.length === 0) return;
+    // Use ref to get latest URL value (avoids stale closure from auto-trigger)
+    const url = prefillUrlRef.current.trim();
+    if (!url && specificUrls.every((u) => !u.trim()) && prefillFiles.length === 0) return;
 
     setPrefilling(true);
     // Clear all existing answers so streamed ones fill in fresh
@@ -373,13 +379,13 @@ function SalesNarrativeEditContent() {
 
       // Step 2: Stream prefill — answers arrive one-by-one via SSE
       const prefillBody: Record<string, unknown> = {
-        websiteUrl: prefillUrl.trim() || undefined,
+        websiteUrl: url || undefined,
         specificUrls: specificUrls.filter((u) => u.trim()).length > 0
           ? specificUrls.filter((u) => u.trim())
           : undefined,
         pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
       };
-      if (precrawlResultRef.current && prefillUrl.trim()) {
+      if (precrawlResultRef.current && url) {
         prefillBody.cachedCrawl = precrawlResultRef.current;
       }
 
