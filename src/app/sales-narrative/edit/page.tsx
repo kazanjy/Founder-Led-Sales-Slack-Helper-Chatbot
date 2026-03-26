@@ -105,6 +105,7 @@ function SalesNarrativeEditContent() {
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
   const precrawlFiredRef = useRef<string | null>(null);
   const precrawlResultRef = useRef<{ text: string; urls: string[] } | null>(null);
+  const [precrawlStatus, setPrecrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
 
   // Set browser tab title
   useEffect(() => {
@@ -115,6 +116,7 @@ function SalesNarrativeEditContent() {
       if (stored) {
         precrawlResultRef.current = JSON.parse(stored);
         sessionStorage.removeItem("precrawlResult");
+        setPrecrawlStatus("ready");
       }
     } catch { /* ignore */ }
   }, []);
@@ -132,6 +134,7 @@ function SalesNarrativeEditContent() {
     try { new URL(url.startsWith("http") ? url : `https://${url}`); } catch { return; }
     precrawlFiredRef.current = url;
     precrawlResultRef.current = null;
+    setPrecrawlStatus("crawling");
     fetch("/api/sales-narrative/precrawl", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -141,10 +144,23 @@ function SalesNarrativeEditContent() {
       .then((data) => {
         if (data?.crawlText && precrawlFiredRef.current === url) {
           precrawlResultRef.current = { text: data.crawlText, urls: data.crawlUrls || [] };
+          setPrecrawlStatus("ready");
+        } else {
+          setPrecrawlStatus("idle");
         }
       })
-      .catch(() => {});
+      .catch(() => { setPrecrawlStatus("idle"); });
   }, [prefillUrl, prefilling]);
+
+  // Reset precrawl status when URL changes
+  useEffect(() => {
+    const url = prefillUrl.trim();
+    if (precrawlFiredRef.current && precrawlFiredRef.current !== url) {
+      setPrecrawlStatus("idle");
+      precrawlFiredRef.current = null;
+      precrawlResultRef.current = null;
+    }
+  }, [prefillUrl]);
 
 
   // Cycle through pre-fill loading messages
@@ -684,9 +700,30 @@ function SalesNarrativeEditContent() {
                   disabled={prefilling}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  We&apos;ll crawl your site for product, solution, customer, and pricing pages
-                </p>
+                <div className="flex items-center gap-2 mt-1 min-h-[18px]">
+                  {precrawlStatus === "crawling" && (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-amber-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <p className="text-xs text-amber-600 font-medium">Crawling your site...</p>
+                    </>
+                  )}
+                  {precrawlStatus === "ready" && (
+                    <>
+                      <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <p className="text-xs text-green-600 font-medium">Site crawled &mdash; ready to analyze</p>
+                    </>
+                  )}
+                  {precrawlStatus === "idle" && (
+                    <p className="text-xs text-gray-400">
+                      We&apos;ll crawl your site for product, solution, customer, and pricing pages
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Specific Page URLs */}
