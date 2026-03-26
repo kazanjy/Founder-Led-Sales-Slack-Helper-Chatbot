@@ -96,24 +96,46 @@ function SalesNarrativeEditContent() {
   const dragCounterRef = useRef(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
   const precrawlFiredRef = useRef<string | null>(null);
+  const precrawlResultRef = useRef<{ text: string; urls: string[] } | null>(null);
 
   // Set browser tab title
   useEffect(() => {
     document.title = "Edit Sales Narrative - Mikey";
+    // Check if the GetStartedModal already precrawled
+    try {
+      const stored = sessionStorage.getItem("precrawlResult");
+      if (stored) {
+        precrawlResultRef.current = JSON.parse(stored);
+        sessionStorage.removeItem("precrawlResult");
+      }
+    } catch { /* ignore */ }
   }, []);
 
   // Fire background precrawl as soon as a website URL is populated
   useEffect(() => {
     const url = prefillUrl.trim();
     if (!url || prefilling || precrawlFiredRef.current === url) return;
+    // Skip if we already have results (e.g. from GetStartedModal via sessionStorage)
+    if (precrawlResultRef.current) {
+      precrawlFiredRef.current = url;
+      return;
+    }
     // Only fire for URLs that look like a domain (not partial typing)
     try { new URL(url.startsWith("http") ? url : `https://${url}`); } catch { return; }
     precrawlFiredRef.current = url;
+    precrawlResultRef.current = null;
     fetch("/api/sales-narrative/precrawl", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ websiteUrl: url }),
-    }).catch(() => {}); // fire-and-forget
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.crawlText && precrawlFiredRef.current === url) {
+          precrawlResultRef.current = { text: data.crawlText, urls: data.crawlUrls || [] };
+        }
+      })
+      .catch(() => {});
   }, [prefillUrl, prefilling]);
 
 
@@ -313,17 +335,22 @@ function SalesNarrativeEditContent() {
         uploadedPdfs = fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
       }
 
-      // Step 2: Call prefill with website URL and storage paths (tiny request)
+      // Step 2: Call prefill with website URL and storage paths
+      // If precrawl already finished, pass the cached content to skip re-crawling
+      const prefillBody: Record<string, unknown> = {
+        websiteUrl: prefillUrl.trim() || undefined,
+        specificUrls: specificUrls.filter((u) => u.trim()).length > 0
+          ? specificUrls.filter((u) => u.trim())
+          : undefined,
+        pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
+      };
+      if (precrawlResultRef.current && prefillUrl.trim()) {
+        prefillBody.cachedCrawl = precrawlResultRef.current;
+      }
       const response = await fetch("/api/sales-narrative/prefill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          websiteUrl: prefillUrl.trim() || undefined,
-          specificUrls: specificUrls.filter((u) => u.trim()).length > 0
-            ? specificUrls.filter((u) => u.trim())
-            : undefined,
-          pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
-        }),
+        body: JSON.stringify(prefillBody),
       });
 
       if (!response.ok) {

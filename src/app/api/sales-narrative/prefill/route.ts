@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
-import { getCachedCrawl } from "@/lib/narrative-prefill/crawl-cache";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -15,6 +14,7 @@ interface PrefillRequest {
   websiteUrl?: string;
   specificUrls?: string[];
   pdfFiles?: { name: string; storagePath?: string; base64Data?: string }[];
+  cachedCrawl?: { text: string; urls: string[] };
 }
 
 // POST - Pre-fill sales narrative Q&A from website URL and/or uploaded PDFs
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: PrefillRequest = await request.json();
-    const { websiteUrl, specificUrls, pdfFiles } = body;
+    const { websiteUrl, specificUrls, pdfFiles, cachedCrawl } = body;
 
     const hasSpecificUrls = specificUrls && specificUrls.filter((u) => u.trim()).length > 0;
 
@@ -59,29 +59,24 @@ export async function POST(request: NextRequest) {
     const sourcePdfNames: string[] = [];
     const tasks: Promise<void>[] = [];
 
-    // Website crawling (check precrawl cache first, then fall back to full crawl)
-    if (websiteUrl?.trim()) {
-      const cached = getCachedCrawl(user.id, websiteUrl.trim());
-      if (cached) {
-        console.log("[Prefill] Using precrawl cache hit — skipping crawl");
-        if (cached.text) {
-          contextParts.push(`## WEBSITE CONTENT\n\n${cached.text}`);
-          sourceUrls.push(...cached.urls);
-        }
-      } else {
-        tasks.push(
-          crawlWebsiteForContext(websiteUrl.trim())
-            .then((result) => {
-              if (result.text) {
-                contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
-                sourceUrls.push(...result.urls);
-              }
-            })
-            .catch((err) => {
-              console.error("[Prefill] Website crawl failed:", err);
-            })
-        );
-      }
+    // Website content: use client-provided precrawl data if available, otherwise crawl
+    if (cachedCrawl?.text) {
+      console.log(`[Prefill] Using precrawl data from client (${cachedCrawl.text.length} chars, ${cachedCrawl.urls.length} URLs) — skipping crawl`);
+      contextParts.push(`## WEBSITE CONTENT\n\n${cachedCrawl.text}`);
+      sourceUrls.push(...cachedCrawl.urls);
+    } else if (websiteUrl?.trim()) {
+      tasks.push(
+        crawlWebsiteForContext(websiteUrl.trim())
+          .then((result) => {
+            if (result.text) {
+              contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
+              sourceUrls.push(...result.urls);
+            }
+          })
+          .catch((err) => {
+            console.error("[Prefill] Website crawl failed:", err);
+          })
+      );
     }
 
     // Specific page URL fetching (single-page, no crawl)

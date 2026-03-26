@@ -48,9 +48,20 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ websiteUrl: url }),
     })
-      .then((res) => {
-        if (res.ok) setCrawlStatus("ready");
-        else setCrawlStatus("idle");
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.crawlText) {
+          // Store precrawl result so the edit page can use it
+          try {
+            sessionStorage.setItem("precrawlResult", JSON.stringify({
+              text: data.crawlText,
+              urls: data.crawlUrls || [],
+            }));
+          } catch { /* storage full — will just recrawl */ }
+          setCrawlStatus("ready");
+        } else {
+          setCrawlStatus("idle");
+        }
       })
       .catch(() => setCrawlStatus("idle"));
   }, [isOpen, websiteUrl]);
