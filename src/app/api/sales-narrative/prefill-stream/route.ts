@@ -154,7 +154,7 @@ Q${q.globalOrder} [${q.category}]: ${q.question}${help}
 
 ${trimmedContext}
 
-Respond with ONLY the answer text. No JSON, no quotes, no preamble.`;
+Respond with ONLY the answer text. No JSON, no quotes, no preamble, no markdown formatting (no ** or # or bullets).`;
 
             try {
               const response = await openai.chat.completions.create({
