@@ -32,8 +32,11 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
 
   console.log(`[Crawler] Starting two-level crawl of ${baseUrl.origin}`);
 
-  // 1. Fetch the homepage HTML (raw — we need links before stripping)
-  const homepageHtml = await fetchRawHtml(baseUrl.href);
+  // 1. Fetch homepage HTML + sitemap in parallel
+  const [homepageHtml, sitemapUrls] = await Promise.all([
+    fetchRawHtml(baseUrl.href),
+    fetchSitemapUrls(baseUrl),
+  ]);
   if (!homepageHtml) {
     console.warn("[Crawler] Could not fetch homepage, returning empty context");
     return { text: "", urls: [] };
@@ -42,8 +45,7 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
   // 2. Extract all same-domain links from the homepage
   const links = extractLinks(homepageHtml, baseUrl);
 
-  // 3. Try to find sitemap and add those URLs too
-  const sitemapUrls = await fetchSitemapUrls(baseUrl);
+  // 3. Combine homepage links + sitemap URLs
   const allLinks = deduplicateUrls([...links, ...sitemapUrls]);
 
   console.log(`[Crawler] Found ${allLinks.length} unique same-domain links (${links.length} from page, ${sitemapUrls.length} from sitemap)`);
@@ -58,11 +60,11 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
   const level1ContentFetches = level1Urls.map((u) => fetchPage(u, "Sub-page"));
   const level1HtmlFetches = level1Urls.map((u) => fetchRawHtml(u));
 
-  const [homepageResult, ...level1Results] = await Promise.all([
-    homepageFetch,
-    ...level1ContentFetches,
+  const [contentResults, level1HtmlResults] = await Promise.all([
+    Promise.all([homepageFetch, ...level1ContentFetches]),
+    Promise.all(level1HtmlFetches),
   ]);
-  const level1HtmlResults = await Promise.all(level1HtmlFetches);
+  const [homepageResult, ...level1Results] = contentResults;
 
   // Collect level-1 results
   const sections: string[] = [];

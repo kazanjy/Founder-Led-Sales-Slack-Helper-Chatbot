@@ -254,7 +254,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       },
     });
 
-    // Create snapshot of all answers linked to this version
+    // Create answer snapshots and update merge variables in parallel
     const answerSnapshots = questions.map((q) => ({
       userId: user.id,
       questionId: q.id,
@@ -262,11 +262,6 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       answer: answerMap.get(q.id) || "",
     }));
 
-    await prisma.salesNarrativeAnswer.createMany({
-      data: answerSnapshots,
-    });
-
-    // Update merge variables with the latest narrative outputs
     const mergeVariables = [
       { mergeField: "SALES_NARRATIVE", name: "Sales Narrative", value: parsedResponse.narrative },
       { mergeField: "VALUE_PROP_1000W", name: "Value Proposition (1000 words)", value: parsedResponse.description1000w || "" },
@@ -275,26 +270,27 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format (no markdown code b
       { mergeField: "VALUE_PROP_25W", name: "Value Proposition (25 words)", value: parsedResponse.description25w },
     ];
 
-    for (const mv of mergeVariables) {
-      await prisma.gtmVariable.upsert({
-        where: {
-          userId_mergeField: {
+    await Promise.all([
+      prisma.salesNarrativeAnswer.createMany({ data: answerSnapshots }),
+      ...mergeVariables.map((mv) =>
+        prisma.gtmVariable.upsert({
+          where: {
+            userId_mergeField: {
+              userId: user.id,
+              mergeField: mv.mergeField,
+            },
+          },
+          update: { value: mv.value },
+          create: {
             userId: user.id,
             mergeField: mv.mergeField,
+            name: mv.name,
+            value: mv.value,
+            isDefault: false,
           },
-        },
-        update: {
-          value: mv.value,
-        },
-        create: {
-          userId: user.id,
-          mergeField: mv.mergeField,
-          name: mv.name,
-          value: mv.value,
-          isDefault: false,
-        },
-      });
-    }
+        })
+      ),
+    ]);
 
     return NextResponse.json({
       success: true,

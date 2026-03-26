@@ -283,20 +283,17 @@ function SalesNarrativeEditContent() {
           files: Array<{ name: string; storagePath: string; signedUrl: string; token: string }>;
         };
 
-        for (let i = 0; i < fileEntries.length; i++) {
-          const entry = fileEntries[i];
+        await Promise.all(fileEntries.map(async (entry, i) => {
           const file = prefillFiles.find((f) => f.name === entry.name) || prefillFiles[i];
-
           const putRes = await fetch(entry.signedUrl, {
             method: "PUT",
             headers: { "Content-Type": file.type || "application/octet-stream" },
             body: file,
           });
-
           if (!putRes.ok) {
             throw new Error(`Failed to upload ${entry.name} (${putRes.status})`);
           }
-        }
+        }));
 
         uploadedPdfs = fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
       }
@@ -367,13 +364,12 @@ function SalesNarrativeEditContent() {
       setPrefillPanelOpen(false);
       setHasUnsavedChanges(true);
 
-      // Auto-save the pre-filled answers (only the ones we actually filled)
-      for (const questionId of filledIds) {
-        const answer = prefillAnswers[questionId];
-        if (answer?.trim()) {
-          handleSaveAnswer(questionId, answer);
-        }
-      }
+      // Auto-save the pre-filled answers in parallel
+      await Promise.all(
+        filledIds
+          .filter((qId) => prefillAnswers[qId]?.trim())
+          .map((qId) => handleSaveAnswer(qId, prefillAnswers[qId]))
+      );
 
       await showAlert({
         title: "Pre-Fill Complete",

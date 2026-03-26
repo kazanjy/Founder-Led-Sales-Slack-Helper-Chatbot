@@ -156,7 +156,7 @@ function extractTextFromHtml(html: string): { title?: string; textContent: strin
  */
 export async function fetchPages(
   fetches: { url: string; purpose: string }[],
-  maxConcurrent: number = 5
+  maxConcurrent: number = 10
 ): Promise<FetchedPage[]> {
   const results: FetchedPage[] = [];
 
