@@ -1,0 +1,273 @@
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { openai } from "@/lib/openai";
+import { extractProductName } from "@/lib/extract-product-name";
+
+export const maxDuration = 180;
+
+export async function POST(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401 });
+    }
+
+    let sourceUrls: string[] = [];
+    let sourcePdfNames: string[] = [];
+    try {
+      const body = await request.json();
+      sourceUrls = body.sourceUrls || [];
+      sourcePdfNames = body.sourcePdfNames || [];
+    } catch {
+      // optional
+    }
+
+    const questions = await prisma.salesNarrativeQuestion.findMany({
+      where: { enabled: true },
+      orderBy: { globalOrder: "asc" },
+    });
+
+    const latestAnswers = await prisma.$queryRaw<
+      Array<{ questionId: string; answer: string; createdAt: Date }>
+    >`
+      SELECT DISTINCT ON ("questionId") "questionId", "answer", "createdAt"
+      FROM "sales_narrative_answers"
+      WHERE "userId" = ${user.id}
+      ORDER BY "questionId", "createdAt" DESC
+    `;
+
+    const answerMap = new Map<string, string>(
+      latestAnswers.map((a) => [a.questionId, a.answer])
+    );
+
+    if (latestAnswers.length === 0) {
+      return new Response(JSON.stringify({ error: "No answers found" }), { status: 400 });
+    }
+
+    // Build answers summary
+    const categoryOrder = ["Product", "Problem", "Solution", "Proof", "Business"];
+    let answersSummary = "";
+    const productQuestion = questions.find((q) => q.category === "Product");
+    const productName = productQuestion
+      ? extractProductName(answerMap.get(productQuestion.id) || "", "the product")
+      : "the product";
+
+    for (const category of categoryOrder) {
+      const categoryQuestions = questions.filter((q) => q.category === category);
+      if (categoryQuestions.length === 0) continue;
+      answersSummary += `## ${category}\n\n`;
+      for (const q of categoryQuestions) {
+        const answer = answerMap.get(q.id);
+        answersSummary += `**Q${q.globalOrder}: ${q.question}**\n`;
+        answersSummary += answer ? `${answer}\n\n` : `_Not answered_\n\n`;
+      }
+    }
+
+    const sharedPreamble = `You are helping a founder create their sales narrative.
+The product/service name is: ${productName}
+IMPORTANT: Do NOT mention "Pete Kazanjy" or "Founding Sales" anywhere in the generated text.
+
+## QUESTIONNAIRE ANSWERS:
+
+${answersSummary}`;
+
+    const narrativePrompt = `${sharedPreamble}
+
+---
+
+Write a compelling sales narrative (~2000 words) as flowing prose with exactly 8 sections. Each section MUST start with its bold header on its own line:
+
+**What's the problem?**
+(2-4 paragraphs)
+
+**Who has the problem?**
+(2-4 paragraphs)
+
+**What's the cost of not solving the problem?**
+(2-4 paragraphs)
+
+**How is this currently solved? Why doesn't that work?**
+(2-4 paragraphs)
+
+**What has changed?**
+(2-4 paragraphs)
+
+**How does it work?**
+(2-4 paragraphs)
+
+**How do you know it's better?**
+(2-4 paragraphs)
+
+**Pricing**
+(2-4 paragraphs)
+
+Use an engaging, conversational tone with urgency. Include specific numbers and metrics. Write approximately 2000 words total.
+
+Output ONLY the narrative text (with bold headers). No JSON, no code blocks.`;
+
+    const condensedPrompt = `${sharedPreamble}
+
+---
+
+Write a condensed ~1000-word version of a sales narrative with the same 8 bold section headers:
+**What's the problem?**, **Who has the problem?**, **What's the cost of not solving the problem?**, **How is this currently solved? Why doesn't that work?**, **What has changed?**, **How does it work?**, **How do you know it's better?**, **Pricing**
+
+Each section should be 1-2 paragraphs. Engaging tone, specific metrics.
+
+Output ONLY the narrative text (with bold headers). No JSON, no code blocks.`;
+
+    const descriptionsPrompt = `${sharedPreamble}
+
+---
+
+Generate three product descriptions. Be specific about problem, solution, differentiation.
+
+Respond ONLY with valid JSON (no markdown code blocks):
+{"description100w": "A ~100-word product marketing summary...", "description50w": "A ~50-word elevator pitch...", "description25w": "A ~25-word tagline..."}`;
+
+    const titlePrompt = `Given a product called "${productName}", generate a short descriptive title in the format: "[Product Name] - [Category/Market] - Sales Narrative". Respond with ONLY the title text, nothing else.`;
+
+    // Set up SSE stream
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        function send(event: string, data: unknown) {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        }
+
+        try {
+          // Fire all LLM calls in parallel
+          // Narrative streams; others are awaited for complete results
+          const narrativeStream = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [{ role: "user", content: narrativePrompt }],
+            temperature: 0.7,
+            stream: true,
+          });
+
+          const condensedPromise = openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [{ role: "user", content: condensedPrompt }],
+            temperature: 0.7,
+          });
+
+          const descriptionsPromise = openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [{ role: "user", content: descriptionsPrompt }],
+            temperature: 0.7,
+          });
+
+          const titlePromise = openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [{ role: "user", content: titlePrompt }],
+            temperature: 0.5,
+          });
+
+          // Stream the narrative tokens
+          let fullNarrative = "";
+          for await (const chunk of narrativeStream) {
+            const token = chunk.choices[0]?.delta?.content;
+            if (token) {
+              fullNarrative += token;
+              send("narrative_token", { token });
+            }
+          }
+          send("narrative_done", { narrative: fullNarrative });
+
+          // Await the other calls (they've been running in parallel)
+          const [condensedRes, descriptionsRes, titleRes] = await Promise.all([
+            condensedPromise,
+            descriptionsPromise,
+            titlePromise,
+          ]);
+
+          const description1000w = condensedRes.choices[0]?.message?.content || "";
+          send("condensed_done", { description1000w });
+
+          let description100w = "";
+          let description50w = "";
+          let description25w = "";
+          try {
+            const descRaw = descriptionsRes.choices[0]?.message?.content || "";
+            const descJson = descRaw.match(/\{[\s\S]*\}/);
+            if (descJson) {
+              const parsed = JSON.parse(descJson[0]);
+              description100w = parsed.description100w || "";
+              description50w = parsed.description50w || "";
+              description25w = parsed.description25w || "";
+            }
+          } catch {
+            console.error("[generate-stream] Failed to parse descriptions");
+          }
+          send("descriptions_done", { description100w, description50w, description25w });
+
+          const narrativeTitle = (titleRes.choices[0]?.message?.content || "").trim()
+            || `${productName} - Sales Narrative`;
+
+          // Save to database
+          const version = await prisma.salesNarrativeVersion.create({
+            data: {
+              userId: user.id,
+              title: narrativeTitle,
+              narrative: fullNarrative,
+              description1000w: description1000w || null,
+              description100w,
+              description50w,
+              description25w,
+              sourceUrls,
+              sourcePdfNames,
+            },
+          });
+
+          // Save answer snapshots and merge variables in parallel
+          const answerSnapshots = questions.map((q) => ({
+            userId: user.id,
+            questionId: q.id,
+            versionId: version.id,
+            answer: answerMap.get(q.id) || "",
+          }));
+
+          const mergeVariables = [
+            { mergeField: "SALES_NARRATIVE", name: "Sales Narrative", value: fullNarrative },
+            { mergeField: "VALUE_PROP_1000W", name: "Value Proposition (1000 words)", value: description1000w },
+            { mergeField: "VALUE_PROP_100W", name: "Value Proposition (100 words)", value: description100w },
+            { mergeField: "VALUE_PROP_50W", name: "Value Proposition (50 words)", value: description50w },
+            { mergeField: "VALUE_PROP_25W", name: "Value Proposition (25 words)", value: description25w },
+          ];
+
+          await Promise.all([
+            prisma.salesNarrativeAnswer.createMany({ data: answerSnapshots }),
+            ...mergeVariables.map((mv) =>
+              prisma.gtmVariable.upsert({
+                where: { userId_mergeField: { userId: user.id, mergeField: mv.mergeField } },
+                update: { value: mv.value },
+                create: { userId: user.id, mergeField: mv.mergeField, name: mv.name, value: mv.value, isDefault: false },
+              })
+            ),
+          ]);
+
+          send("complete", {
+            versionId: version.id,
+            title: narrativeTitle,
+          });
+        } catch (error) {
+          console.error("[generate-stream] Error:", error);
+          send("error", { message: error instanceof Error ? error.message : "Generation failed" });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    console.error("[generate-stream] Setup error:", error);
+    return new Response(JSON.stringify({ error: "Failed to start generation" }), { status: 500 });
+  }
+}

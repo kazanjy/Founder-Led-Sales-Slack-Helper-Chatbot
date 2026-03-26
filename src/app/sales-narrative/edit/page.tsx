@@ -499,36 +499,18 @@ function SalesNarrativeEditContent() {
   const handleGenerate = async () => {
     // Save all answers first
     await handleSaveAll();
+    setHasUnsavedChanges(false);
 
-    setGenerating(true);
+    // Store source info for the view page to use when streaming
     try {
-      const response = await fetch("/api/sales-narrative/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceUrls: prefillSourceUrls,
-          sourcePdfNames: prefillSourcePdfNames,
-        }),
-      });
+      sessionStorage.setItem("narrativeGenerateParams", JSON.stringify({
+        sourceUrls: prefillSourceUrls,
+        sourcePdfNames: prefillSourcePdfNames,
+      }));
+    } catch { /* ignore */ }
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to generate narrative");
-      }
-
-      const data = await response.json();
-      setHasUnsavedChanges(false);
-      // Navigate to the main page which will show the new version
-      router.push(`/sales-narrative?version=${data.version.id}`);
-    } catch (error) {
-      console.error("Error generating narrative:", error);
-      await showAlert({
-        title: "Error",
-        message: error instanceof Error ? error.message : "Failed to generate narrative. Please try again.",
-        variant: "danger",
-      });
-      setGenerating(false);
-    }
+    // Navigate to view page which will start streaming generation
+    router.push("/sales-narrative?generating=true");
   };
 
   // Calculate progress

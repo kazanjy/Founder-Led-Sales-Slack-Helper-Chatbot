@@ -11,6 +11,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
+import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 
 interface NarrativeVersion {
   id: string;
@@ -54,16 +55,36 @@ export default function SalesNarrativePage() {
   );
 }
 
+const GENERATE_MESSAGES = [
+  "Crafting your story",
+  "Distilling your value prop",
+  "Synthesizing your narrative",
+  "Building your pitch",
+  "Refining the message",
+];
+
 function SalesNarrativeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const versionId = searchParams.get("version");
+  const isGenerating = searchParams.get("generating") === "true";
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [version, setVersion] = useState<NarrativeVersion | null>(null);
   const [answersByCategory, setAnswersByCategory] = useState<AnswersByCategory | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Streaming generation state
+  const [streamingNarrative, setStreamingNarrative] = useState("");
+  const [streaming1000w, setStreaming1000w] = useState("");
+  const [streaming100w, setStreaming100w] = useState("");
+  const [streaming50w, setStreaming50w] = useState("");
+  const [streaming25w, setStreaming25w] = useState("");
+  const [showOverlay, setShowOverlay] = useState(isGenerating);
+  const [streamingComplete, setStreamingComplete] = useState(false);
+  const streamStartedRef = useRef(false);
+
   // Tab state — read initial tab from URL hash (e.g. #1000w)
   const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w"] as const;
   type Tab = typeof validTabs[number];
@@ -72,7 +93,7 @@ function SalesNarrativeContent() {
     const hash = window.location.hash.replace("#", "");
     return validTabs.includes(hash as Tab) ? (hash as Tab) : "narrative";
   };
-  const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
+  const [activeTab, setActiveTab] = useState<Tab>(isGenerating ? "narrative" : getTabFromHash);
 
   // Sync hash → tab on popstate (browser back/forward)
   useEffect(() => {
@@ -174,8 +195,103 @@ function SalesNarrativeContent() {
       }
     }
 
-    loadData();
-  }, [router, versionId]);
+    if (!isGenerating) {
+      loadData();
+    } else {
+      // When generating, skip loading — we'll stream content directly
+      setLoading(false);
+    }
+  }, [router, versionId, isGenerating]);
+
+  // Streaming generation effect
+  useEffect(() => {
+    if (!isGenerating || streamStartedRef.current) return;
+    streamStartedRef.current = true;
+
+    let params = { sourceUrls: [] as string[], sourcePdfNames: [] as string[] };
+    try {
+      const stored = sessionStorage.getItem("narrativeGenerateParams");
+      if (stored) {
+        params = JSON.parse(stored);
+        sessionStorage.removeItem("narrativeGenerateParams");
+      }
+    } catch { /* ignore */ }
+
+    const startStream = async () => {
+      try {
+        const response = await fetch("/api/sales-narrative/generate-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        });
+
+        if (!response.ok || !response.body) {
+          console.error("Stream failed:", response.status);
+          router.push("/sales-narrative/edit");
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // Parse SSE events from buffer
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7);
+            } else if (line.startsWith("data: ") && currentEvent) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (currentEvent === "narrative_token") {
+                  // Hide overlay on first token
+                  setShowOverlay(false);
+                  setStreamingNarrative((prev) => prev + data.token);
+                } else if (currentEvent === "condensed_done") {
+                  setStreaming1000w(data.description1000w || "");
+                } else if (currentEvent === "descriptions_done") {
+                  setStreaming100w(data.description100w || "");
+                  setStreaming50w(data.description50w || "");
+                  setStreaming25w(data.description25w || "");
+                } else if (currentEvent === "complete") {
+                  setStreamingComplete(true);
+                  // Update URL to point to the saved version
+                  window.history.replaceState({}, "", `/sales-narrative?version=${data.versionId}`);
+                  // Reload the version from DB to get full data
+                  const res = await fetch(`/api/sales-narrative/versions/${data.versionId}`);
+                  if (res.ok) {
+                    const vData = await res.json();
+                    setVersion(vData.version);
+                    setAnswersByCategory(vData.answersByCategory || null);
+                    setCurrentUserId(vData.currentUserId);
+                  }
+                } else if (currentEvent === "error") {
+                  console.error("Stream error:", data.message);
+                  router.push("/sales-narrative/edit");
+                  return;
+                }
+              } catch { /* ignore parse errors */ }
+              currentEvent = "";
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Stream error:", error);
+        router.push("/sales-narrative/edit");
+      }
+    };
+
+    startStream();
+  }, [isGenerating, router]);
 
   // Auto-trigger Discovery Questions generation when narrative exists but DQ doesn't
   useEffect(() => {
@@ -372,7 +488,11 @@ function SalesNarrativeContent() {
     );
   }
 
-  if (!version) {
+  // Show streaming UI when generating (even without a version yet)
+  const isStreamingMode = isGenerating && !streamingComplete;
+  const hasStreamingContent = streamingNarrative.length > 0;
+
+  if (!version && !isGenerating) {
     return (
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
@@ -398,18 +518,25 @@ function SalesNarrativeContent() {
     );
   }
 
-  // Get current content (edited or original)
-  const currentNarrative = isEditing ? editedNarrative : version.narrative;
-  const current1000w = isEditing ? edited1000w : (version.description1000w || "");
-  const current100w = isEditing ? edited100w : version.description100w;
-  const current50w = isEditing ? edited50w : version.description50w;
-  const current25w = isEditing ? edited25w : version.description25w;
+  // Get current content (streaming → edited → version)
+  const currentNarrative = isStreamingMode ? streamingNarrative : (isEditing ? editedNarrative : (version?.narrative || ""));
+  const current1000w = isStreamingMode ? streaming1000w : (isEditing ? edited1000w : (version?.description1000w || ""));
+  const current100w = isStreamingMode ? streaming100w : (isEditing ? edited100w : (version?.description100w || ""));
+  const current50w = isStreamingMode ? streaming50w : (isEditing ? edited50w : (version?.description50w || ""));
+  const current25w = isStreamingMode ? streaming25w : (isEditing ? edited25w : (version?.description25w || ""));
 
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      <GeneratingOverlay
+        visible={showOverlay}
+        title="Generating Your Sales Narrative"
+        subtitle="Creating your narrative, value propositions, and tagline"
+        emojis={["✍️", "📝", "✨"]}
+        messages={GENERATE_MESSAGES}
+      />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      {!showOverlay && <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -423,7 +550,18 @@ function SalesNarrativeContent() {
                 Back
               </Link>
               <div className="flex-1 min-w-0">
-                {isEditing ? (
+                {isStreamingMode && !version ? (
+                  <>
+                    <h1 className="text-xl font-semibold text-gray-900">Sales Narrative</h1>
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                      <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating...
+                    </p>
+                  </>
+                ) : isEditing ? (
                   <textarea
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
@@ -433,17 +571,25 @@ function SalesNarrativeContent() {
                     style={{ minHeight: "2.5rem" }}
                   />
                 ) : (
-                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "Sales Narrative"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900">{version?.title || "Sales Narrative"}</h1>
                 )}
                 <p className="text-sm text-gray-500">
-                  Generated {formatDate(version.createdAt)}
+                  {version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
                   {version?.user && <span className="text-sm text-gray-400 ml-2">by {version.user.name || version.user.slackUserName || version.user.email}</span>}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              {isEditing ? (
+              {isStreamingMode ? (
+                <span className="text-sm text-purple-600 font-medium flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Generating...
+                </span>
+              ) : isEditing ? (
                 <>
                   <button
                     onClick={handleCancelEditing}
@@ -500,7 +646,7 @@ function SalesNarrativeContent() {
                       return context;
                     }}
                   />
-                  <ShareDocumentButton
+                  {version && <ShareDocumentButton
                     documentType="salesNarrative"
                     documentId={version.id}
                     title={version.title || "Sales Narrative"}
@@ -512,7 +658,7 @@ function SalesNarrativeContent() {
                       description25w: current25w,
                       answersByCategory: answersByCategory || null,
                     })}
-                  />
+                  />}
                   {version?.userId === currentUserId && (
                     <button
                       onClick={handleStartEditing}
@@ -573,12 +719,12 @@ function SalesNarrativeContent() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      {!showOverlay && <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Dismissable Next Step Banner - Discovery Questions generation status */}
-        {showDiscoveryBanner && !isEditing && (dqGenerating || dqDone || !hasDiscoveryQuestions) && (
+        {!isStreamingMode && showDiscoveryBanner && !isEditing && (dqGenerating || dqDone || !hasDiscoveryQuestions) && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -1192,7 +1338,7 @@ function SalesNarrativeContent() {
           </div>
         )}
         </div>{/* end flex row */}
-      </div>
+      </div>}
       {ConfirmModalElement}
     </div>
   );
