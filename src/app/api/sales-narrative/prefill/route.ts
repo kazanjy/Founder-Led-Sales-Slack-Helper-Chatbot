@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
-import { getCachedCrawl } from "@/app/api/sales-narrative/precrawl/route";
+import { getCachedCrawl } from "@/lib/narrative-prefill/crawl-cache";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
