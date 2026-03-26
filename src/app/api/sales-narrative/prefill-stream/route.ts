@@ -121,35 +121,6 @@ export async function POST(request: NextRequest) {
       ? combinedContext.substring(0, MAX_CONTEXT_CHARS) + "\n\n[Content truncated...]"
       : combinedContext;
 
-    // Use the same proven JSON prompt as the regular prefill endpoint
-    const questionList = questions
-      .map((q) => {
-        const help = q.helpText ? ` (${q.helpText})` : "";
-        return `- ID: "${q.id}" | Q${q.globalOrder} [${q.category}]: ${q.question}${help}`;
-      })
-      .join("\n");
-
-    const fullPrompt = `You are helping a founder pre-fill their Sales Narrative questionnaire. Based on the company context provided, answer each question as thoroughly and completely as you can. Use ALL the relevant information from the context — do not summarize or leave out details.
-
-## QUESTIONS TO ANSWER
-
-${questionList}
-
-## INSTRUCTIONS
-
-- Write RICH, DETAILED answers — aim for 3-8 sentences per question. More detail is always better.
-- Pull in EVERY relevant detail from the context: specific product names, feature names, metrics, customer names, use cases, integrations, ROI figures, quotes, and competitive differentiators
-- Write in first person as if the founder is answering ("We solve...", "Our customers...", "Our product...")
-- If you truly can't find information for a question, provide your best inference or leave it as an empty string
-- Do NOT be brief — the founder wants comprehensive draft answers they can edit down, not thin summaries they have to expand
-
-Respond with ONLY valid JSON mapping question IDs to answer strings:
-{"questionId1": "answer text...", "questionId2": "answer text...", ...}
-
-## COMPANY CONTEXT
-
-${trimmedContext}`;
-
     // Set up SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -162,34 +133,47 @@ ${trimmedContext}`;
           // Send source info immediately
           send("sources", { sourceUrls, sourcePdfNames });
 
-          console.log(`[PrefillStream] Calling GPT-5.2 with ${fullPrompt.length} chars`);
+          console.log(`[PrefillStream] Firing ${questions.length} parallel LLM calls`);
 
-          // Call the LLM (non-streaming) with the proven JSON format
-          const response = await openai.chat.completions.create({
-            model: "gpt-5.2",
-            messages: [{ role: "user", content: fullPrompt }],
-            temperature: 0.7,
+          // Fire one LLM call per question — all in parallel
+          const promises = questions.map(async (q) => {
+            const help = q.helpText ? `\nHint: ${q.helpText}` : "";
+            const prompt = `You are helping a founder pre-fill their Sales Narrative questionnaire. Based on the company context below, answer this ONE question as thoroughly and completely as you can.
+
+## QUESTION
+Q${q.globalOrder} [${q.category}]: ${q.question}${help}
+
+## INSTRUCTIONS
+- Write a RICH, DETAILED answer — aim for 3-8 sentences
+- Pull in EVERY relevant detail: product names, features, metrics, customer names, use cases, competitive differentiators
+- Write in first person as if the founder is answering ("We solve...", "Our customers...", "Our product...")
+- If you truly can't find information, provide your best inference based on context
+- Do NOT be brief — provide a comprehensive draft the founder can edit down
+
+## COMPANY CONTEXT
+
+${trimmedContext}
+
+Respond with ONLY the answer text. No JSON, no quotes, no preamble.`;
+
+            try {
+              const response = await openai.chat.completions.create({
+                model: "gpt-5.2",
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.7,
+              });
+
+              const answer = (response.choices[0]?.message?.content || "").trim();
+              if (answer) {
+                send("answer", { questionId: q.id, answer });
+                console.log(`[PrefillStream] Q${q.globalOrder} done (${answer.length} chars)`);
+              }
+            } catch (err) {
+              console.error(`[PrefillStream] Q${q.globalOrder} failed:`, err);
+            }
           });
 
-          const aiResponse = response.choices[0]?.message?.content || "";
-
-          // Parse the JSON response
-          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            send("error", { message: "Failed to parse AI response" });
-            return;
-          }
-
-          const answers: Record<string, string> = JSON.parse(jsonMatch[0]);
-          const validIds = new Set(questions.map((q) => q.id));
-
-          // Send each answer as a separate SSE event
-          for (const [id, answer] of Object.entries(answers)) {
-            if (validIds.has(id) && typeof answer === "string" && answer.trim()) {
-              send("answer", { questionId: id, answer: answer.trim() });
-            }
-          }
-
+          await Promise.all(promises);
           send("complete", { totalQuestions: questions.length });
         } catch (error) {
           console.error("[PrefillStream] Error:", error);
