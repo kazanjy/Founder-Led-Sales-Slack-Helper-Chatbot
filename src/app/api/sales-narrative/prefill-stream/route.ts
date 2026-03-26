@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
               if (!pdf.storagePath) return;
               const buffer = await downloadFile(pdf.storagePath);
               if (!buffer) return;
-              const text = await extractTextFromPDFWithOCR(buffer);
+              const { result: text } = await extractTextFromPDFWithOCR(buffer, pdf.name, 30);
               if (text?.trim()) {
                 const formatted = formatPDFForAIWithOCR(text, pdf.name);
                 contextParts.push(`## PDF: ${pdf.name}\n\n${formatted}`);
