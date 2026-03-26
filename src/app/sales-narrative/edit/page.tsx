@@ -45,6 +45,14 @@ const PREFILL_MESSAGES = [
   "Drafting your answers",
 ];
 
+const PREFILL_MESSAGES_CACHED = [
+  "Analyzing your product",
+  "Identifying your value prop",
+  "Understanding your customers",
+  "Drafting your answers",
+  "Filling in your questionnaire",
+];
+
 export default function SalesNarrativeEditPage() {
   return (
     <Suspense fallback={
@@ -140,6 +148,7 @@ function SalesNarrativeEditContent() {
 
 
   // Cycle through pre-fill loading messages
+  const activePrefillMessages = precrawlResultRef.current ? PREFILL_MESSAGES_CACHED : PREFILL_MESSAGES;
   useEffect(() => {
     if (!prefilling) {
       setPrefillMessageIndex(0);
@@ -147,7 +156,7 @@ function SalesNarrativeEditContent() {
     }
 
     const interval = setInterval(() => {
-      setPrefillMessageIndex((prev) => (prev + 1) % PREFILL_MESSAGES.length);
+      setPrefillMessageIndex((prev) => (prev + 1) % activePrefillMessages.length);
     }, 2500);
 
     return () => clearInterval(interval);
@@ -216,6 +225,13 @@ function SalesNarrativeEditContent() {
     hasAutoTriggered.current = true;
     setPrefillUrl(prefillUrlFromParam);
     window.history.replaceState({}, "", "/sales-narrative/edit");
+
+    // If we have precrawl results from GetStartedModal, show sources immediately
+    if (precrawlResultRef.current?.urls?.length) {
+      setPrefillSourceUrls(precrawlResultRef.current.urls);
+      setPrefillPanelOpen(false); // collapse the panel — crawl is done
+    }
+
     setShouldAutoTriggerPrefill(true);
   }, [loading, prefillUrlFromParam]);
 
@@ -831,7 +847,7 @@ function SalesNarrativeEditContent() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {PREFILL_MESSAGES[prefillMessageIndex]}...
+                      {activePrefillMessages[prefillMessageIndex]}...
                     </>
                   ) : (
                     <>
@@ -845,7 +861,7 @@ function SalesNarrativeEditContent() {
 
                 {prefilling && (
                   <p className="text-sm text-gray-500 animate-pulse">
-                    This may take 30-60 seconds...
+                    {precrawlResultRef.current ? "This may take 10-15 seconds..." : "This may take 30-60 seconds..."}
                   </p>
                 )}
               </div>
