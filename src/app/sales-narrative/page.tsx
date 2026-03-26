@@ -492,7 +492,7 @@ function SalesNarrativeContent() {
   const isStreamingMode = isGenerating && !streamingComplete;
   const hasStreamingContent = streamingNarrative.length > 0;
 
-  if (!version && !isGenerating) {
+  if (!version && !isGenerating && !hasStreamingContent) {
     return (
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
