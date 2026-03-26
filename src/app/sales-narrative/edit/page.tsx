@@ -1016,7 +1016,7 @@ function SalesNarrativeEditContent() {
                             value={answers[question.id] || ""}
                             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                             placeholder="Enter your answer..."
-                            className="w-full min-h-[120px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                            className="w-full min-h-[240px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
                           />
                           {hasAnswer && (
                             <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
