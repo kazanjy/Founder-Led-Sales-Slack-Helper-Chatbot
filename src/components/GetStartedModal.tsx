@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface GetStartedModalProps {
@@ -19,9 +19,50 @@ function getDomainFromEmail(email: string | null | undefined): string {
   return `https://${domain}`;
 }
 
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url.startsWith("http") ? url : `https://${url}`);
+    return url.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStartedModalProps) {
   const router = useRouter();
   const [websiteUrl, setWebsiteUrl] = useState(() => getDomainFromEmail(userEmail));
+  const [crawlStatus, setCrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
+  const precrawlFiredRef = useRef<string | null>(null);
+
+  // Fire precrawl as soon as a valid URL is present
+  useEffect(() => {
+    if (!isOpen) return;
+    const url = websiteUrl.trim();
+    if (!url || !isValidUrl(url) || precrawlFiredRef.current === url) return;
+
+    precrawlFiredRef.current = url;
+    setCrawlStatus("crawling");
+
+    fetch("/api/sales-narrative/precrawl", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ websiteUrl: url }),
+    })
+      .then((res) => {
+        if (res.ok) setCrawlStatus("ready");
+        else setCrawlStatus("idle");
+      })
+      .catch(() => setCrawlStatus("idle"));
+  }, [isOpen, websiteUrl]);
+
+  // Reset crawl status when URL changes to something different
+  useEffect(() => {
+    const url = websiteUrl.trim();
+    if (precrawlFiredRef.current && precrawlFiredRef.current !== url) {
+      setCrawlStatus("idle");
+      precrawlFiredRef.current = null;
+    }
+  }, [websiteUrl]);
 
   if (!isOpen) return null;
 
@@ -78,9 +119,30 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
               }}
               autoFocus
             />
-            <p className="text-xs text-gray-400 mt-2">
-              Mikey will crawl your site and auto-fill your sales narrative questionnaire. You can also upload PDFs or answer manually.
-            </p>
+            <div className="flex items-center gap-2 mt-2 min-h-[20px]">
+              {crawlStatus === "crawling" && (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <p className="text-xs text-purple-500 font-medium">Crawling your site...</p>
+                </>
+              )}
+              {crawlStatus === "ready" && (
+                <>
+                  <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <p className="text-xs text-green-600 font-medium">Ready! Your site has been crawled.</p>
+                </>
+              )}
+              {crawlStatus === "idle" && (
+                <p className="text-xs text-gray-400">
+                  Mikey will crawl your site and auto-fill your sales narrative questionnaire. You can also upload PDFs or answer manually.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
@@ -88,10 +150,29 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
               onClick={handleGetStarted}
               className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold text-lg shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              {websiteUrl.trim() ? "Build My Sales Narrative" : "Get Started"}
+              {crawlStatus === "crawling" ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Crawling your site...
+                </>
+              ) : crawlStatus === "ready" ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Ready! Build My Sales Narrative
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  {websiteUrl.trim() ? "Build My Sales Narrative" : "Get Started"}
+                </>
+              )}
             </button>
             <button
               onClick={handleSkip}
