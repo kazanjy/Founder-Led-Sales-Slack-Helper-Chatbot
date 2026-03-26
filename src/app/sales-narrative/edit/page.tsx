@@ -326,12 +326,12 @@ function SalesNarrativeEditContent() {
   };
 
   const handlePrefill = async () => {
-    if (!prefillUrl.trim() && prefillFiles.length === 0) return;
+    if (!prefillUrl.trim() && specificUrls.every((u) => !u.trim()) && prefillFiles.length === 0) return;
 
     setPrefilling(true);
+    let filledCount = 0;
     try {
       // Step 1: Upload PDFs directly to Supabase via signed URLs
-      // (bypasses Vercel's 4.5 MB serverless function body limit entirely)
       let uploadedPdfs: { name: string; storagePath: string }[] = [];
       if (prefillFiles.length > 0) {
         const urlRes = await fetch("/api/files/upload-url", {
@@ -367,8 +367,7 @@ function SalesNarrativeEditContent() {
         uploadedPdfs = fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
       }
 
-      // Step 2: Call prefill with website URL and storage paths
-      // If precrawl already finished, pass the cached content to skip re-crawling
+      // Step 2: Stream prefill — answers arrive one-by-one via SSE
       const prefillBody: Record<string, unknown> = {
         websiteUrl: prefillUrl.trim() || undefined,
         specificUrls: specificUrls.filter((u) => u.trim()).length > 0
@@ -379,13 +378,14 @@ function SalesNarrativeEditContent() {
       if (precrawlResultRef.current && prefillUrl.trim()) {
         prefillBody.cachedCrawl = precrawlResultRef.current;
       }
-      const response = await fetch("/api/sales-narrative/prefill", {
+
+      const response = await fetch("/api/sales-narrative/prefill-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefillBody),
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         let errorMsg = "Pre-fill failed";
         try {
           const data = await response.json();
@@ -396,58 +396,64 @@ function SalesNarrativeEditContent() {
         throw new Error(errorMsg);
       }
 
-      const data = await response.json();
-      const prefillAnswers: Record<string, string> = data.answers;
+      // Parse SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const savePromises: Promise<unknown>[] = [];
 
-      // Track sources used in prefill
-      if (data.sourceUrls?.length) setPrefillSourceUrls(data.sourceUrls);
-      if (data.sourcePdfNames?.length) setPrefillSourcePdfNames(data.sourcePdfNames);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
 
-      // Check if any existing fields already have content
-      let overwriteExisting = false;
-      const hasExistingAnswers = Object.entries(prefillAnswers).some(
-        ([questionId, answer]) => answer.trim() && answers[questionId]?.trim()
-      );
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-      if (hasExistingAnswers) {
-        overwriteExisting = await showConfirm({
-          title: "Overwrite Existing Answers?",
-          message:
-            "Some questions already have answers. Do you want to overwrite them with the new pre-filled answers, or only fill in the empty fields?",
-          variant: "warning",
-          confirmLabel: "Overwrite All",
-          cancelLabel: "Only Fill Empty",
-        });
-      }
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
 
-      // Merge answers, optionally overwriting existing ones
-      const filledIds: string[] = [];
-      const updatedAnswers = { ...answers };
-      for (const [questionId, answer] of Object.entries(prefillAnswers)) {
-        if (answer.trim()) {
-          const existingHasContent = !!updatedAnswers[questionId]?.trim();
-          if (!existingHasContent || overwriteExisting) {
-            updatedAnswers[questionId] = answer;
-            filledIds.push(questionId);
+              if (currentEvent === "sources") {
+                if (data.sourceUrls?.length) setPrefillSourceUrls(data.sourceUrls);
+                if (data.sourcePdfNames?.length) setPrefillSourcePdfNames(data.sourcePdfNames);
+              } else if (currentEvent === "answer") {
+                // Stream each answer into the form as it arrives
+                const { questionId, answer } = data;
+                setAnswers((prev) => ({ ...prev, [questionId]: answer }));
+                filledCount++;
+                // Auto-save in background
+                savePromises.push(handleSaveAnswer(questionId, answer));
+              } else if (currentEvent === "error") {
+                throw new Error(data.message || "Prefill failed");
+              }
+            } catch (e) {
+              if (e instanceof Error && e.message !== "Prefill failed") {
+                // JSON parse error — ignore
+              } else {
+                throw e;
+              }
+            }
+            currentEvent = "";
           }
         }
       }
-      setAnswers(updatedAnswers);
+
+      // Wait for all saves to complete
+      await Promise.all(savePromises);
 
       setPrefillDone(true);
       setPrefillPanelOpen(false);
-      setHasUnsavedChanges(true);
-
-      // Auto-save the pre-filled answers in parallel
-      await Promise.all(
-        filledIds
-          .filter((qId) => prefillAnswers[qId]?.trim())
-          .map((qId) => handleSaveAnswer(qId, prefillAnswers[qId]))
-      );
+      setHasUnsavedChanges(false);
+      setLastSaved(new Date());
 
       await showAlert({
         title: "Pre-Fill Complete",
-        message: `Updated ${filledIds.length} of ${data.totalQuestions} questions from your materials. Review and edit the answers below!`,
+        message: `Updated ${filledCount} of ${questions.length} questions from your materials. Review and edit the answers below!`,
         variant: "info",
       });
     } catch (error) {
