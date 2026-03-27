@@ -29,6 +29,7 @@ const standaloneItems: NavItem[] = [
   { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
+  { href: "/hiring-profile", label: "👥 Hiring", statusKey: "hiringProfile" },
 ];
 
 const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems];
