@@ -13,9 +13,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+
 export const metadata: Metadata = {
-  title: "Mikey - Founder-Led Sales Bot",
-  description: "Your AI-powered founder-led sales assistant for Slack",
+  title: {
+    default: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    template: "%s - Mikey",
+  },
+  description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+  openGraph: {
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+    type: "website",
+    url: appUrl,
+    siteName: "Mikey",
+    images: [
+      {
+        url: `${appUrl}/mikey-avatar.png`,
+        width: 512,
+        height: 512,
+        type: "image/png",
+        alt: "Mikey",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+    images: [`${appUrl}/mikey-avatar.png`],
+  },
 };
 
 export default function RootLayout({
