@@ -1394,6 +1394,34 @@ function SalesDeckContent() {
           </div>
         )}
 
+        {/* Fresh Deck → Gamma upsell banner */}
+        {!isEditing && version.deckMode === "fresh" && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-5 flex items-center justify-between text-white">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Turn this into a real presentation</h3>
+                <p className="text-purple-100 text-sm mt-0.5">
+                  Generate polished, brand-matched slides from this outline using Gamma. Just add your website URL and click generate.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setDeckMode("gamma");
+              }}
+              className="flex-shrink-0 ml-4 px-5 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm shadow-sm"
+            >
+              Generate Gamma Deck
+            </button>
+          </div>
+        )}
+
         {!isEditing && (
           <div className="mb-6 bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
