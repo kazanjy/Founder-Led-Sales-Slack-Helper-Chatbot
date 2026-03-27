@@ -62,7 +62,6 @@ function HiringProfileContent() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Iterate state
-  const [showIterate, setShowIterate] = useState(false);
   const [iterateFeedback, setIterateFeedback] = useState("");
   const [iterating, setIterating] = useState(false);
 
@@ -210,7 +209,6 @@ function HiringProfileContent() {
   const handleIterate = async () => {
     if (!version || !iterateFeedback.trim()) return;
     setIterating(true);
-    setShowIterate(false);
     try {
       const response = await fetch("/api/hiring-profile/iterate", {
         method: "POST",
@@ -418,21 +416,6 @@ function HiringProfileContent() {
                 </div>
               </div>
 
-              {/* Iterate button */}
-              {version && (
-                <div className="mt-6 flex justify-center">
-                  <button
-                    onClick={() => setShowIterate(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Iterate
-                  </button>
-                </div>
-              )}
-
               {/* Iteration History */}
               {version?.iterationHistory && version.iterationHistory.length > 0 && (
                 <div className="mt-8">
@@ -469,46 +452,55 @@ function HiringProfileContent() {
 
             {/* Right: Sidebar */}
             <div className="hidden lg:block w-72 shrink-0">
-              <SidebarAdCards />
+              <div className="sticky top-8 space-y-4">
+                <SidebarAdCards />
+
+                {/* Iterate panel — sticky, follows the user */}
+                {version && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Iterate
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Describe what to change and we&apos;ll revise the profile.
+                    </p>
+                    <textarea
+                      value={iterateFeedback}
+                      onChange={(e) => setIterateFeedback(e.target.value)}
+                      placeholder="e.g., Put more emphasis on outbound prospecting skills, adjust the comp range to $120-150K OTE..."
+                      rows={5}
+                      disabled={iterating}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                    />
+                    <button
+                      onClick={handleIterate}
+                      disabled={iterating || !iterateFeedback.trim()}
+                      className="mt-3 w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {iterating ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Iterating...
+                        </>
+                      ) : (
+                        "Apply Changes"
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Iterate Modal */}
-      {showIterate && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIterate(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Iterate on Hiring Profile</h3>
-            <p className="text-sm text-gray-500 mb-4">Describe what you would like to change or improve.</p>
-
-            <textarea
-              value={iterateFeedback}
-              onChange={e => setIterateFeedback(e.target.value)}
-              placeholder="e.g., Put more emphasis on outbound prospecting skills, add a section about technical aptitude requirements..."
-              rows={5}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-              autoFocus
-            />
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-4">
-              <button
-                onClick={() => setShowIterate(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleIterate}
-                disabled={!iterateFeedback.trim()}
-                className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Iterate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Iterate Modal removed — iterate is now inline in sidebar */}
 
       {ConfirmModalElement}
     </div>
