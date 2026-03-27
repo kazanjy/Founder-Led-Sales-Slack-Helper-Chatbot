@@ -146,6 +146,8 @@ model User {
   objectionEntries           ObjectionEntry[]
   objectionBootstraps        ObjectionBootstrap[]
   icpVersions                IcpVersion[]
+  hiringProfileQuestionAnswers HiringProfileAnswer[]
+  hiringProfileVersions        HiringProfileVersion[]
   attachmentPreference       UserAttachmentPreference?
   uploadedFiles              UserFile[]
   channelClaims              ChannelClaim[]
@@ -1435,4 +1437,72 @@ model IcpVersion {
 
   @@index([userId, createdAt])
   @@map("icp_versions")
+}
+
+// ============================================
+// AE HIRING PROFILE APP
+// ============================================
+
+// Questions for the "Current State of Sales" questionnaire
+model HiringProfileQuestion {
+  id          String  @id @default(cuid())
+  category    String // e.g., "Company Stage & Context", "Sales Motion", "Pipeline Generation"
+  globalOrder Int     @unique // Overall question number (1-N)
+  question    String  @db.Text
+  helpText    String? @db.Text // Optional guidance / hint
+  enabled     Boolean @default(true)
+
+  answers HiringProfileAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("hiring_profile_questions")
+}
+
+// User's answers to hiring profile questions (append-only for history)
+model HiringProfileAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   HiringProfileQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific version (snapshot when profile generated)
+  versionId String?
+  version   HiringProfileVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("hiring_profile_answers")
+}
+
+// Generated AE Hiring Profile versions
+model HiringProfileVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Snapshot of answers at generation time
+  answers HiringProfileAnswer[]
+
+  // Generated outputs
+  title   String @default("AE Hiring Profile")
+  content String @db.Text // Full profile report (markdown)
+
+  // Iteration history — user feedback that was applied
+  iterationHistory String[] @default([]) // Array of user feedback strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("hiring_profile_versions")
 }
