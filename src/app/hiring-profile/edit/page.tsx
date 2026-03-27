@@ -74,7 +74,7 @@ function HiringProfileEditContent() {
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
+  const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Pre-fill state
   const [prefilling, setPrefilling] = useState(false);
@@ -210,6 +210,19 @@ function HiringProfileEditContent() {
   };
 
   const handlePrefill = async () => {
+    // Check if there are existing answers
+    const hasExisting = Object.values(answers).some((a) => a.trim());
+    if (hasExisting) {
+      const confirmed = await showConfirm({
+        title: "Overwrite Existing Answers?",
+        message: "Pre-filling will replace all current answers with new ones generated from your Sales Narrative and GTM Assessment. Continue?",
+        variant: "warning",
+        confirmLabel: "Overwrite & Pre-Fill",
+        cancelLabel: "Cancel",
+      });
+      if (!confirmed) return;
+    }
+
     setPrefilling(true);
     // Clear all existing answers so streamed ones fill in fresh
     const emptyAnswers: Record<string, string> = {};
@@ -258,8 +271,12 @@ function HiringProfileEditContent() {
 
               if (currentEvent === "answer") {
                 const { questionId, answer } = data;
-                setAnswers((prev) => ({ ...prev, [questionId]: answer }));
-                savePromises.push(handleSaveAnswer(questionId, answer));
+                // Skip empty or quote-only answers
+                const cleaned = (answer || "").replace(/^["'""'']+|["'""'']+$/g, "").trim();
+                if (cleaned) {
+                  setAnswers((prev) => ({ ...prev, [questionId]: cleaned }));
+                  savePromises.push(handleSaveAnswer(questionId, cleaned));
+                }
               } else if (currentEvent === "complete") {
                 // All answers streamed
               } else if (currentEvent === "error") {
