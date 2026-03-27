@@ -130,7 +130,9 @@ export async function POST(request: NextRequest) {
           // Fire one LLM call per question — all in parallel
           const promises = questions.map(async (q) => {
             const help = q.helpText ? `\nHint: ${q.helpText}` : "";
-            const prompt = `Based on this founder's existing Sales Narrative answers and GTM Assessment answers, answer the following question about their current state of sales. If the existing data doesn't contain enough information to answer confidently, respond with an empty string.
+            const prompt = `You are helping a founder pre-fill a questionnaire about their current state of sales, so we can build an AE hiring profile. Based on their existing Sales Narrative answers and GTM Assessment answers below, answer this question.
+
+Be aggressive about inferring answers — even if the data doesn't explicitly state the answer, make reasonable inferences from what's available. For example, if the Sales Narrative describes selling to "VP Engineering at mid-market SaaS companies", you can infer the primary buyer title and function. Only leave the answer empty if there is truly NO relevant information at all.
 
 ## QUESTION
 Q${q.globalOrder} [${q.category}]: ${q.question}${help}
@@ -139,7 +141,7 @@ Q${q.globalOrder} [${q.category}]: ${q.question}${help}
 
 ${trimmedContext}
 
-Respond with ONLY the answer text. No JSON, no quotes, no preamble, no markdown formatting (no ** or # or bullets).`;
+Respond with ONLY the answer text in plain prose. No JSON, no quotes, no preamble, no markdown formatting (no ** or # or bullets). Write in first person as the founder ("We...", "Our..."). If you truly have zero relevant information, respond with just an empty line.`;
 
             try {
               const response = await openai.chat.completions.create({
