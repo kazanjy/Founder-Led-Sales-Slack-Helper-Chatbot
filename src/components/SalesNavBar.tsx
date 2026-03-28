@@ -29,10 +29,13 @@ const standaloneItems: NavItem[] = [
   { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
-  { href: "/hiring-profile", label: "👥 Hiring", statusKey: "hiringProfile" },
 ];
 
-const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems];
+const hiringItems: NavItem[] = [
+  { href: "/hiring-profile", label: "👤 AE Profile", statusKey: "hiringProfile" },
+];
+
+const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...hiringItems];
 
 const playbookItems: NavItem[] = [
   { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
@@ -53,10 +56,12 @@ export default function SalesNavBar() {
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [callExecOpen, setCallExecOpen] = useState(false);
+  const [hiringOpen, setHiringOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contentDropdownRef = useRef<HTMLDivElement>(null);
   const callExecDropdownRef = useRef<HTMLDivElement>(null);
+  const hiringDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
 
@@ -148,8 +153,11 @@ export default function SalesNavBar() {
       if (callExecDropdownRef.current && !callExecDropdownRef.current.contains(e.target as Node)) {
         setCallExecOpen(false);
       }
+      if (hiringDropdownRef.current && !hiringDropdownRef.current.contains(e.target as Node)) {
+        setHiringOpen(false);
+      }
     }
-    if (playbookOpen || contentOpen || callExecOpen) {
+    if (playbookOpen || contentOpen || callExecOpen || hiringOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
@@ -167,6 +175,7 @@ export default function SalesNavBar() {
   const playbookCompletedCount = playbookItems.filter((item) => status[item.statusKey]).length;
   const isContentActive = contentItems.some((item) => isActive(item.href));
   const isCallExecActive = callExecutionItems.some((item) => isActive(item.href));
+  const isHiringActive = hiringItems.some((item) => isActive(item.href));
 
   return (
     <>
@@ -312,7 +321,7 @@ export default function SalesNavBar() {
           {/* Playbook dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => { setPlaybookOpen(!playbookOpen); setContentOpen(false); setCallExecOpen(false); }}
+              onClick={() => { setPlaybookOpen(!playbookOpen); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isPlaybookActive
                   ? "border-purple-600 text-purple-600"
@@ -360,7 +369,7 @@ export default function SalesNavBar() {
           {/* Content dropdown */}
           <div className="relative" ref={contentDropdownRef}>
             <button
-              onClick={() => { setContentOpen(!contentOpen); setCallExecOpen(false); setPlaybookOpen(false); }}
+              onClick={() => { setContentOpen(!contentOpen); setCallExecOpen(false); setPlaybookOpen(false); setHiringOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isContentActive
                   ? "border-purple-600 text-purple-600"
@@ -399,7 +408,7 @@ export default function SalesNavBar() {
           {/* Call Execution dropdown */}
           <div className="relative" ref={callExecDropdownRef}>
             <button
-              onClick={() => { setCallExecOpen(!callExecOpen); setContentOpen(false); setPlaybookOpen(false); }}
+              onClick={() => { setCallExecOpen(!callExecOpen); setContentOpen(false); setPlaybookOpen(false); setHiringOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isCallExecActive
                   ? "border-purple-600 text-purple-600"
@@ -452,6 +461,45 @@ export default function SalesNavBar() {
               )}
             </Link>
           ))}
+
+          {/* Hiring dropdown */}
+          <div className="relative" ref={hiringDropdownRef}>
+            <button
+              onClick={() => { setHiringOpen(!hiringOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); }}
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isHiringActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+              }`}
+            >
+              👥 Hiring
+              <svg className={`w-3.5 h-3.5 transition-transform ${hiringOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {hiringOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+                {hiringItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setHiringOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && (
+                      <span className="text-green-500 text-xs">✔️</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </nav>
