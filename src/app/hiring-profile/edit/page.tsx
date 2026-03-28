@@ -437,7 +437,10 @@ function HiringProfileEditContent() {
                   Smart Pre-Fill {prefillDone && <span className="text-green-600 text-sm font-normal ml-2">Done!</span>}
                 </h3>
                 <p className="text-sm text-gray-500">
-                  Pre-fill from your Sales Narrative and GTM Assessment
+                  Pre-fill from your{" "}
+                  <a href="/sales-narrative" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">Sales Narrative</a>
+                  {" "}and{" "}
+                  <a href="/assessment/bulk" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">GTM Assessment</a>
                 </p>
               </div>
             </div>
