@@ -254,6 +254,10 @@ function HiringProfileContent() {
   const handleIterate = async () => {
     if (!version || !iterateFeedback.trim()) return;
     setIterating(true);
+    // Clear content to show streaming
+    setStreamingContent("");
+    setStreamingComplete(false);
+
     try {
       const response = await fetch("/api/hiring-profile/iterate", {
         method: "POST",
@@ -264,21 +268,56 @@ function HiringProfileContent() {
         }),
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         const data = await response.json().catch(() => ({}));
-        await showAlert({ title: "Error", message: data.error || "Failed to iterate. Please try again.", variant: "danger" });
+        await showAlert({ title: "Error", message: data.error || "Failed to iterate.", variant: "danger" });
+        setStreamingContent("");
+        setIterating(false);
         return;
       }
 
-      const data = await response.json();
-      setVersion(data.version);
-      setIterateFeedback("");
-      // Update URL if version id changed
-      if (data.version.id !== version.id) {
-        window.history.replaceState({}, "", `/hiring-profile?version=${data.version.id}`);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "token") {
+                setStreamingContent((prev) => prev + data.token);
+              } else if (currentEvent === "complete") {
+                // Reload the saved version
+                const res = await fetch(`/api/hiring-profile/versions/${data.versionId}`);
+                if (res.ok) {
+                  const vData = await res.json();
+                  setVersion(vData.version);
+                }
+                setStreamingContent("");
+                setStreamingComplete(true);
+                setIterateFeedback("");
+              } else if (currentEvent === "error") {
+                await showAlert({ title: "Error", message: data.message || "Iteration failed.", variant: "danger" });
+              }
+            } catch { /* ignore parse errors */ }
+            currentEvent = "";
+          }
+        }
       }
     } catch {
-      await showAlert({ title: "Error", message: "Failed to iterate. Please try again.", variant: "danger" });
+      await showAlert({ title: "Error", message: "Failed to iterate.", variant: "danger" });
+      setStreamingContent("");
     } finally {
       setIterating(false);
     }
@@ -352,7 +391,7 @@ function HiringProfileContent() {
 
   const isStreamingMode = isGenerating && !streamingComplete;
   const hasStreamingContent = streamingContent.length > 0;
-  const displayContent = isStreamingMode ? streamingContent : (isEditing ? editedContent : (version?.content || ""));
+  const displayContent = (isStreamingMode || (iterating && streamingContent)) ? streamingContent : (isEditing ? editedContent : (version?.content || ""));
 
   // Empty state — no profile exists
   if (!version && !isGenerating && !hasStreamingContent) {
