@@ -496,6 +496,19 @@ function HiringProfileEditContent() {
           )}
         </div>
 
+        {/* Best-effort note */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+          <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="text-sm text-blue-800 font-medium">Answer as many or as few as you like</p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              You don&apos;t need to answer every question. Mikey will generate the best possible AE hiring profile from whatever you provide &mdash; more detail just means a more tailored result.
+            </p>
+          </div>
+        </div>
+
         {/* Questions grouped by category */}
         {grouped.map((category, categoryIndex) => {
           const colors = categoryColors[category.category] || defaultColors;
