@@ -59,6 +59,8 @@ function HiringProfileContent() {
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<HiringProfileVersion | null>(null);
   const [showOverlay, setShowOverlay] = useState(isGenerating);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [streamingComplete, setStreamingComplete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -123,39 +125,75 @@ function HiringProfileContent() {
     loadData();
   }, [router, versionId, isGenerating]);
 
-  // Handle generating flow
+  // Handle streaming generation flow
   useEffect(() => {
     if (!isGenerating || generateStartedRef.current) return;
     generateStartedRef.current = true;
 
-    async function generate() {
+    async function streamGenerate() {
       try {
-        const response = await fetch("/api/hiring-profile/generate", {
+        const response = await fetch("/api/hiring-profile/generate-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
 
-        if (!response.ok) {
+        if (!response.ok || !response.body) {
           const data = await response.json().catch(() => ({}));
-          console.error("Generation failed:", data.error);
           await showAlert({ title: "Error", message: data.error || "Failed to generate hiring profile.", variant: "danger" });
           router.push("/hiring-profile/edit");
           return;
         }
 
-        const data = await response.json();
-        setVersion(data.version);
-        setShowOverlay(false);
-        // Update URL to the generated version
-        window.history.replaceState({}, "", `/hiring-profile?version=${data.version.id}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7);
+            } else if (line.startsWith("data: ") && currentEvent) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (currentEvent === "token") {
+                  // Hide overlay on first token
+                  setShowOverlay(false);
+                  setStreamingContent((prev) => prev + data.token);
+                } else if (currentEvent === "complete") {
+                  setStreamingComplete(true);
+                  window.history.replaceState({}, "", `/hiring-profile?version=${data.versionId}`);
+                  // Load the saved version
+                  const res = await fetch(`/api/hiring-profile/versions/${data.versionId}`);
+                  if (res.ok) {
+                    const vData = await res.json();
+                    setVersion(vData.version);
+                  }
+                } else if (currentEvent === "error") {
+                  await showAlert({ title: "Error", message: data.message || "Generation failed.", variant: "danger" });
+                  router.push("/hiring-profile/edit");
+                  return;
+                }
+              } catch { /* ignore parse errors */ }
+              currentEvent = "";
+            }
+          }
+        }
       } catch (error) {
-        console.error("Generation error:", error);
-        await showAlert({ title: "Error", message: "Failed to generate hiring profile. Please try again.", variant: "danger" });
+        console.error("Stream error:", error);
         router.push("/hiring-profile/edit");
       }
     }
 
-    generate();
+    streamGenerate();
   }, [isGenerating, router, showAlert]);
 
   // Delete handler
@@ -269,8 +307,12 @@ function HiringProfileContent() {
     );
   }
 
+  const isStreamingMode = isGenerating && !streamingComplete;
+  const hasStreamingContent = streamingContent.length > 0;
+  const displayContent = isStreamingMode ? streamingContent : (version?.content || "");
+
   // Empty state — no profile exists
-  if (!version && !isGenerating) {
+  if (!version && !isGenerating && !hasStreamingContent) {
     return (
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
@@ -338,9 +380,17 @@ function HiringProfileContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900">AE Hiring Profile</h1>
+                  <h1 className="text-xl font-semibold text-gray-900">{version?.title || "AE Hiring Profile"}</h1>
                   <p className="text-sm text-gray-500">
-                    {version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
+                    {isStreamingMode ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating...
+                      </span>
+                    ) : version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
                     {version?.user && (
                       <span className="text-sm text-gray-400 ml-2">
                         by {version.user.name || version.user.slackUserName || version.user.email}
@@ -430,7 +480,7 @@ function HiringProfileContent() {
               {/* Profile content */}
               <div className="bg-white border border-gray-200 rounded-xl p-8">
                 <div className="prose prose-gray max-w-none">
-                  <ReactMarkdown>{version?.content || ""}</ReactMarkdown>
+                  <ReactMarkdown>{displayContent}</ReactMarkdown>
                 </div>
               </div>
 
