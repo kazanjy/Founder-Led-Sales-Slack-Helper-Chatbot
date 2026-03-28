@@ -150,6 +150,7 @@ model User {
   hiringProfileVersions        HiringProfileVersion[]
   salesLeaderProfileAnswers    SalesLeaderProfileAnswer[]
   salesLeaderProfileVersions   SalesLeaderProfileVersion[]
+  preHireAssessmentVersions    PreHireAssessmentVersion[]
   attachmentPreference       UserAttachmentPreference?
   uploadedFiles              UserFile[]
   channelClaims              ChannelClaim[]
@@ -1568,4 +1569,27 @@ model SalesLeaderProfileVersion {
 
   @@index([userId, createdAt])
   @@map("sales_leader_profile_versions")
+}
+
+// ============================================
+// PRE-HIRE ASSESSMENT APP
+// ============================================
+
+model PreHireAssessmentVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String @default("Pre-Hire Assessment")
+  roleType String // "ae" or "sdr"
+  content  String @db.Text
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("pre_hire_assessment_versions")
 }

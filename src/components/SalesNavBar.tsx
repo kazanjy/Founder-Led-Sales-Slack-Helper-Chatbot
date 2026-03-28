@@ -34,6 +34,7 @@ const standaloneItems: NavItem[] = [
 const hiringItems: NavItem[] = [
   { href: "/hiring-profile", label: "👤 AE Profile", statusKey: "hiringProfile" },
   { href: "/sales-leader-profile", label: "👔 Sales Leader Profile", statusKey: "salesLeaderProfile" },
+  { href: "/pre-hire-assessment", label: "📋 Pre-Hire Assessment", statusKey: "preHireAssessment" },
 ];
 
 const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...hiringItems];
