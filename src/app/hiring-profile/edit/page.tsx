@@ -82,6 +82,10 @@ function HiringProfileEditContent() {
   const [prefillDone, setPrefillDone] = useState(false);
   const [prefillPanelOpen, setPrefillPanelOpen] = useState(true);
 
+  // Source freshness
+  const [narrativeDate, setNarrativeDate] = useState<string | null>(null);
+  const [assessmentDate, setAssessmentDate] = useState<string | null>(null);
+
   // Set browser tab title
   useEffect(() => {
     document.title = "AE Hiring Profile - Mikey";
@@ -132,6 +136,26 @@ function HiringProfileEditContent() {
           initialAnswers[q.id] = q.latestAnswer?.answer || "";
         });
         setAnswers(initialAnswers);
+
+        // Fetch source freshness dates
+        try {
+          const [narRes, assessRes] = await Promise.all([
+            fetch("/api/sales-narrative/latest"),
+            fetch("/api/maturity/latest"),
+          ]);
+          if (narRes.ok) {
+            const narData = await narRes.json();
+            if (narData.hasNarrative && narData.version?.createdAt) {
+              setNarrativeDate(narData.version.createdAt);
+            }
+          }
+          if (assessRes.ok) {
+            const assessData = await assessRes.json();
+            if (assessData.assessment?.completedAt) {
+              setAssessmentDate(assessData.assessment.completedAt);
+            }
+          }
+        } catch { /* ignore */ }
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -478,6 +502,50 @@ function HiringProfileEditContent() {
                     We&apos;ll use your existing Sales Narrative and GTM Assessment to automatically fill in answers.
                     You can review and edit everything after.
                   </p>
+
+                  {/* Source freshness */}
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {narrativeDate ? (
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        <span className="text-sm text-gray-700">Sales Narrative</span>
+                        {narrativeDate && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(narrativeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                      <a href={narrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                        {narrativeDate ? "Update" : "Create"}
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {assessmentDate ? (
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        <span className="text-sm text-gray-700">GTM Assessment</span>
+                        {assessmentDate && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(assessmentDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                      <a href={assessmentDate ? "/assessment/bulk" : "/chat?startAssessment=true"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                        {assessmentDate ? "Update" : "Start"}
+                      </a>
+                    </div>
+                    <p className="text-xs text-gray-400 pt-1">
+                      For a more accurate profile, keep these up to date before pre-filling.
+                    </p>
+                  </div>
+
                   <div className="flex items-center gap-4">
                     <button
                       onClick={handlePrefill}
