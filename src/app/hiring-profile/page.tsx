@@ -14,6 +14,7 @@ import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 
 interface HiringProfileVersion {
   id: string;
+  title: string;
   content: string;
   createdAt: string;
   userId: string;
