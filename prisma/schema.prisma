@@ -148,6 +148,8 @@ model User {
   icpVersions                IcpVersion[]
   hiringProfileQuestionAnswers HiringProfileAnswer[]
   hiringProfileVersions        HiringProfileVersion[]
+  salesLeaderProfileAnswers    SalesLeaderProfileAnswer[]
+  salesLeaderProfileVersions   SalesLeaderProfileVersion[]
   attachmentPreference       UserAttachmentPreference?
   uploadedFiles              UserFile[]
   channelClaims              ChannelClaim[]
@@ -1505,4 +1507,65 @@ model HiringProfileVersion {
 
   @@index([userId, createdAt])
   @@map("hiring_profile_versions")
+}
+
+// ============================================
+// SALES LEADER HIRING PROFILE APP
+// ============================================
+
+model SalesLeaderProfileQuestion {
+  id          String  @id @default(cuid())
+  category    String
+  globalOrder Int     @unique
+  question    String  @db.Text
+  helpText    String? @db.Text
+  enabled     Boolean @default(true)
+
+  answers SalesLeaderProfileAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_leader_profile_questions")
+}
+
+model SalesLeaderProfileAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   SalesLeaderProfileQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  versionId String?
+  version   SalesLeaderProfileVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("sales_leader_profile_answers")
+}
+
+model SalesLeaderProfileVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  answers SalesLeaderProfileAnswer[]
+
+  title   String @default("Sales Leader Hiring Profile")
+  content String @db.Text
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("sales_leader_profile_versions")
 }
