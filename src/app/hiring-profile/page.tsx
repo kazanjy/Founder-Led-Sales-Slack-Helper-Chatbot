@@ -117,7 +117,7 @@ function HiringProfileContent() {
         if (versionId) {
           setVersion(data.version);
         } else {
-          if (data.hasHiringProfile) {
+          if (data.hasProfile) {
             setVersion(data.version);
           }
         }
