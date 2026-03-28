@@ -129,10 +129,13 @@ export function SidebarAdCards({ currentPage }: SidebarAdCardsProps) {
       .catch(() => {});
   }, []);
 
+  // Don't render until we know which cards to show
+  if (!status) return null;
+
   // Filter: exclude current page + already-completed items
   const visibleCards = AD_CARDS.filter((card) => {
     if (card.key === currentPage) return false;
-    if (status && status[card.key]) return false;
+    if (status[card.key]) return false;
     return true;
   }).slice(0, MAX_VISIBLE);
 
