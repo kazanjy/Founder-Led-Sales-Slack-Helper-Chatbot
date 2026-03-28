@@ -641,8 +641,8 @@ function HiringProfileContent() {
                 <SidebarAdCards />
 
                 {/* Iterate panel — sticky, follows the user */}
-                {version && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                {(version || hasStreamingContent) && (
+                  <div className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-opacity ${isStreamingMode ? "opacity-50 pointer-events-none" : ""}`}>
                     <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
                       <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -657,12 +657,12 @@ function HiringProfileContent() {
                       onChange={(e) => setIterateFeedback(e.target.value)}
                       placeholder="e.g., Put more emphasis on outbound prospecting skills, adjust the comp range to $120-150K OTE..."
                       rows={5}
-                      disabled={iterating}
+                      disabled={iterating || isStreamingMode}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                     />
                     <button
                       onClick={handleIterate}
-                      disabled={iterating || !iterateFeedback.trim()}
+                      disabled={iterating || isStreamingMode || !iterateFeedback.trim()}
                       className="mt-3 w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {iterating ? (
