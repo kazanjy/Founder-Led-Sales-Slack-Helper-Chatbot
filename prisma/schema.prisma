@@ -152,6 +152,7 @@ model User {
   salesLeaderProfileVersions   SalesLeaderProfileVersion[]
   preHireAssessmentVersions    PreHireAssessmentVersion[]
   salesMotionCollections       SalesMotionCollection[]
+  callRecapVersions            CallRecapVersion[]
   attachmentPreference       UserAttachmentPreference?
   uploadedFiles              UserFile[]
   channelClaims              ChannelClaim[]
@@ -1675,4 +1676,35 @@ model SalesMotionCallScript {
 
   @@index([collectionId])
   @@map("sales_motion_call_scripts")
+}
+
+// ============================================
+// CALL RECAP EMAIL
+// ============================================
+
+model CallRecapVersion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Inputs
+  recordingUrl   String         // REQUIRED — public URL of call recording
+  callSummary    String @db.Text
+  callTranscript String? @db.Text
+  customNotes    String? @db.Text
+
+  // AI-generated
+  title        String  // "Acme Corp - Discovery Call - Pete + Sarah"
+  callType     String  // "discovery" | "demo" | "proposal" | etc.
+  emailSubject String  // Generated subject line
+  emailBody    String  @db.Text // Generated email body
+
+  // Iteration
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("call_recap_versions")
 }
