@@ -260,6 +260,18 @@ export default function NewSalesMotion() {
             )}
           </button>
         </div>
+
+        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-3">
+          <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="text-sm text-gray-700 font-medium">Best results come from 3-5 complete deals</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Include every call in each deal&apos;s sequence &mdash; from first discovery through close. The more complete the picture, the better Mikey can synthesize your prototypical sales motion and create canonical call scripts.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
