@@ -3433,10 +3433,25 @@ export default function ChatPage() {
                     className="w-20 h-20 md:w-32 md:h-32 rounded-3xl mx-auto mb-3 md:mb-4"
                   />
                   <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                    {user?.name ? `Hey, ${user.name.split(' ')[0]}!` : 'Welcome to Mikey'}
+                    {user?.name ? `Hey ${user.name.split(' ')[0]}! I'm Mikey 👋` : 'Hey there! I\'m Mikey 👋'}
                   </h2>
-                  <p className="text-gray-500 dark:text-gray-400 mb-6">
-                    What can I help you with today?
+                  <p className="text-gray-600 dark:text-gray-300 mb-4 max-w-xl mx-auto text-sm md:text-base">
+                    I&apos;m your AI-powered founder-led sales platform. I can help you build your entire sales playbook, create outreach content, prepare for calls, hire your sales team, and coach you along the way.
+                  </p>
+                  <div className="text-left max-w-md mx-auto mb-6 space-y-1.5 text-sm text-gray-500 dark:text-gray-400">
+                    <p>Here are some things I can help with:</p>
+                    <ul className="space-y-1 ml-4">
+                      <li>📖 <strong>Build your Sales Narrative</strong> — from just your website URL</li>
+                      <li>🎯 <strong>Define your ICP</strong> — with search criteria for prospecting</li>
+                      <li>📊 <strong>Create pitch decks</strong> — including Gamma presentations</li>
+                      <li>📧 <strong>Generate outreach sequences</strong> — email, LinkedIn, cold call</li>
+                      <li>👤 <strong>Build hiring profiles</strong> — for AEs and sales leaders</li>
+                      <li>🔄 <strong>Analyze your sales motion</strong> — from real deal recordings</li>
+                      <li>📞 <strong>Review your calls</strong> — with AI coaching feedback</li>
+                    </ul>
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    What would you like help with first?
                   </p>
                 </div>
 
