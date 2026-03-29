@@ -1301,5 +1301,220 @@ Under **Playbook & Strategy** dropdown (alongside Sales Narrative, ICP, Discover
 15. Compare sales motions across time periods
 16. Integration with call review (auto-pull from reviewed calls)
 17. Sales motion coaching (Mikey coaches against the canonical motion)
+
+---
+
+# Call Recap Email — Implementation Plan
+
+## Overview
+
+User provides a public call recording URL, call summary, and transcript, and Mikey generates a professional follow-up recap email tailored to the call type and the company's sales motion. The email is strategically aware — it knows what stage of the deal this is and what the appropriate next steps should be based on the company's declared sales motion.
+
+---
+
+## Data Model
+
+```prisma
+model CallRecapVersion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(...)
+
+  // Inputs
+  recordingUrl   String          // REQUIRED — public URL of the call recording (Fathom, Gong, Chorus, etc.)
+  callSummary    String  @db.Text
+  callTranscript String? @db.Text
+  customNotes    String? @db.Text
+
+  // AI-generated
+  title        String   // "Acme Corp - Discovery Call - Pete + Sarah"
+  callType     String   // "discovery" | "demo" | "proposal" | "negotiation" | "security" | "closing" | "other"
+  emailSubject String   // Generated subject line
+  emailBody    String   @db.Text  // Generated email body (markdown)
+
+  // Iteration
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("call_recap_versions")
+}
+```
+
+---
+
+## Context Stuffing
+
+The generation prompt includes:
+- **Call summary + transcript** (the raw material)
+- **Sales Narrative** (product/value prop context — so the email references the right value props)
+- **Sales Motion synthesis** (what typically comes next — so the email suggests the right next steps)
+- **Custom notes/instructions** (user overrides)
+
+Uses the raw GPT-5.2 pathway because of the large token size (transcripts can be 10K+ words plus context).
+
+---
+
+## Generation Pipeline
+
+Single GPT-5.2 streaming call that:
+
+1. **Classifies** the call type from the summary (discovery, demo, proposal, etc.)
+2. **Extracts** account name, participants, key topics
+3. **Generates title**: "Account - Call Type - Participants"
+4. **Generates email** with:
+   - Subject line
+   - Professional recap body (key takeaways, what was discussed)
+   - Action items (who owes what)
+   - Next steps (informed by Sales Motion — what typically comes after this call type in winning deals)
+   - Suggested next meeting agenda
+
+---
+
+## UX Flow
+
+### Input Page (`/call-recap/new`)
+
+```
+┌─────────────────────────────────────────────────┐
+│ Generate Call Recap Email                       │
+│                                                 │
+│ Paste your call details and Mikey will generate │
+│ a professional follow-up email.                 │
+│                                                 │
+│ ┌─ Call Recording URL (required) ────────────┐  │
+│ │ https://fathom.video/share/...             │  │
+│ └────────────────────────────────────────────┘  │
+│                                                 │
+│ ┌─ Call Summary (required) ──────────────────┐  │
+│ │ [paste from call recorder]                 │  │
+│ └────────────────────────────────────────────┘  │
+│                                                 │
+│ ┌─ Transcript (optional) ────────────────────┐  │
+│ │ [paste full transcript]                    │  │
+│ └────────────────────────────────────────────┘  │
+│                                                 │
+│ ┌─ Custom Notes (optional) ──────────────────┐  │
+│ │ e.g., "Emphasize the security review       │  │
+│ │  timeline" or "CC the CFO"                 │  │
+│ └────────────────────────────────────────────┘  │
+│                                                 │
+│ [📖 Narrative ✓] [🔄 Sales Motion ✓]           │
+│ "Powered by your narrative and sales motion"    │
+│                                                 │
+│ [⚡ Generate Recap Email]                       │
+└─────────────────────────────────────────────────┘
+```
+
+### View Page (`/call-recap`)
+
+```
+┌──────────────────────────────────────────────────┐
+│ Acme Corp - Discovery Call - Pete + Sarah        │
+│ Type: Discovery │ Generated Mar 29               │
+│ [Chat] [Copy] [Share] [History] [Edit] [Delete]  │
+├──────────────────────────────────────────────────┤
+│                                        │ Iterate │
+│ Subject: Following up on our           │         │
+│ conversation about [topic]             │ [text]  │
+│                                        │ [Apply] │
+│ Hi Sarah,                              │         │
+│                                        │ ──────  │
+│ Thank you for taking the time to...    │ Ads     │
+│                                        │ ...     │
+│ Key takeaways:                         │         │
+│ 1. ...                                 │         │
+│ 2. ...                                 │         │
+│                                        │         │
+│ Next steps:                            │         │
+│ - Schedule demo for [date]             │         │
+│ - Share [materials] with [person]      │         │
+│                                        │         │
+│ Best,                                  │         │
+│ [Name]                                 │         │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## Nav Placement
+
+Under **Call Execution** dropdown, after Call Review:
+
+```
+📞 Call Execution ▼
+  🔬 Pre-Call Research
+  📞 Call Review
+  ✉️ Call Recap Email    ← NEW
+  🎯 Cold Call Scripts
+```
+
+---
+
+## API Routes
+
+```
+POST   /api/call-recap/generate-stream  — generate recap (SSE streaming)
+       Body: { recordingUrl, callSummary, callTranscript?, customNotes? }
+       Internally: load Sales Narrative + Sales Motion, classify call, generate
+
+GET    /api/call-recap/latest           — get most recent recap
+GET    /api/call-recap/versions/[id]    — get specific version
+PATCH  /api/call-recap/versions/[id]    — update (inline edit)
+DELETE /api/call-recap/versions/[id]    — delete
+GET    /api/call-recap/history          — list all recaps
+POST   /api/call-recap/iterate          — iterate with feedback (SSE streaming)
+```
+
+---
+
+## Implementation Order
+
+### Phase 1: Schema + Migration
+1. `CallRecapVersion` table with recordingUrl (required), callSummary, callTranscript, customNotes, title, callType, emailSubject, emailBody, iterationHistory
+
+### Phase 2: API Routes
+2. generate-stream (SSE — classify + generate in one streaming call)
+3. latest, versions/[id] (GET/PATCH/DELETE)
+4. history
+5. iterate (SSE streaming)
+
+### Phase 3: Pages
+6. Input page (`/call-recap/new`) — recording URL first, then summary, transcript, notes
+7. View page (`/call-recap`) — streaming, iterate sidebar, full header actions
+8. History page (`/call-recap/history`)
+
+### Phase 4: Nav
+9. Add to Call Execution dropdown after Call Review
+
+### Phase 5: Future — Deals (not in this build)
+
+A "Deals" container that strings together multiple call recaps into a holistic deal view:
+
+```
+Deal: Acme Corp
+├── Discovery Call (Mar 15)
+├── Demo (Mar 22)
+├── Proposal Review (Mar 28)
+└── [Current stage: Negotiation]
+
+AI Assessment:
+- Deal health: ⚠️ Medium risk
+- "CFO hasn't been engaged yet — in your sales motion,
+   CFO typically enters at proposal stage"
+- Recommended next step: "Schedule security review +
+   CFO intro based on your winning deal pattern"
+```
+
+The deal view would show:
+- Timeline of all calls with recap emails
+- Running deal summary (auto-synthesized)
+- Current stage assessment vs declared sales motion
+- AI recommendations for next steps
+- Risk flags ("deal stalling", "missing stakeholder", etc.)
+
+This requires a `Deal` model with a `callRecaps` relation, but is explicitly out of scope for this build.
 17. Admin moderation UI for managing answers
 18. Duplicate question detection
