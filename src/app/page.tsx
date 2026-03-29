@@ -9,11 +9,11 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
 export const metadata: Metadata = {
   title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
   description:
-    "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Each step auto-generates from the last. Based on Pete Kazanjy's Founding Sales methodology.",
+    "Build your complete sales playbook automatically — narrative, ICP, sales motion analysis, discovery questions, sales decks, outreach sequences, hiring profiles, and more. Each step auto-generates from the last. Based on Pete Kazanjy's Founding Sales methodology.",
   openGraph: {
     title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
     description:
-      "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Based on Pete Kazanjy's Founding Sales methodology.",
+      "Build your complete sales playbook automatically — narrative, ICP, sales motion analysis, discovery questions, sales decks, outreach sequences, hiring profiles, and more. Based on Pete Kazanjy's Founding Sales methodology.",
     type: "website",
     url: appUrl,
     siteName: "Mikey",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
     description:
-      "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more. Based on Pete Kazanjy's Founding Sales methodology.",
+      "Build your complete sales playbook automatically — narrative, ICP, sales motion analysis, discovery questions, sales decks, outreach sequences, hiring profiles, and more. Based on Pete Kazanjy's Founding Sales methodology.",
     images: [`${appUrl}/mikey-avatar.png`],
   },
 };
@@ -90,8 +90,8 @@ export default async function Home({ searchParams }: HomeProps) {
             Your AI-Powered Founder-Led Sales Platform
           </p>
           <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
-            Build your sales playbook, define your ICP, generate outreach sequences and social content,
-            create presentation decks, research prospects, review calls, and get ongoing coaching &mdash; all based on Pete Kazanjy&apos;s <em>Founding Sales</em> methodology.
+            Build your sales playbook, define your ICP, analyze your sales motion, generate outreach sequences and social content,
+            create presentation decks, build hiring profiles, research prospects, review calls, and get ongoing coaching &mdash; all based on Pete Kazanjy&apos;s <em>Founding Sales</em> methodology.
           </p>
 
           {installed && (
@@ -169,7 +169,7 @@ export default async function Home({ searchParams }: HomeProps) {
             {/* Connection line (desktop only) */}
             <div className="hidden lg:block absolute top-10 left-[8%] right-[8%] h-0.5 bg-gradient-to-r from-purple-200 via-blue-200 to-green-200" />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-5">
               {/* Step 1 */}
               <div className="text-center relative">
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-purple-50 rounded-2xl flex items-center justify-center border border-purple-200 relative z-10">
@@ -203,7 +203,18 @@ export default async function Home({ searchParams }: HomeProps) {
                 <p className="text-xs text-gray-500">Define your ICP with search criteria</p>
               </div>
 
-              {/* Step 4 - Sales Deck */}
+              {/* Step 4 - Sales Motion */}
+              <div className="text-center relative">
+                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-violet-100 to-violet-50 rounded-2xl flex items-center justify-center border border-violet-200 relative z-10">
+                  <svg className="w-9 h-9 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1 text-sm">Sales Motion</h3>
+                <p className="text-xs text-gray-500">Synthesize your winning deal patterns</p>
+              </div>
+
+              {/* Step 5 - Sales Deck */}
               <div className="text-center relative">
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-rose-50 rounded-2xl flex items-center justify-center border border-orange-200 relative z-10">
                   <svg className="w-9 h-9 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -731,6 +742,91 @@ export default async function Home({ searchParams }: HomeProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sales Motion Analysis */}
+      <section className="py-16 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-8 md:p-12 border border-violet-100 flex flex-col md:flex-row items-center gap-8">
+            <div className="flex-shrink-0">
+              <div className="w-28 h-28 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <svg className="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Sales Motion Analysis</h3>
+              <p className="text-gray-600 mb-4">
+                Upload your best completed deals &mdash; call summaries and transcripts from your call recorder &mdash; and Mikey synthesizes your prototypical sales motion. See the canonical stages, timing, and patterns across your winning deals, plus auto-generated call scripts for each call type (discovery, demo, proposal, and more).
+              </p>
+              <a
+                href="/signin?next=/sales-motion/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors font-medium text-sm shadow-sm"
+              >
+                Analyze Your Sales Motion
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Hiring & Team Building */}
+      <section className="py-16 px-6 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Hiring &amp; Team Building</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Define exactly who to hire and how to evaluate them &mdash; all powered by your sales narrative, ICP, and GTM assessment.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* AE Profile */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">AE Hiring Profile</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Generate an ideal AE profile with must-have experience, where to look (with specific company names), red flags, interview focus areas, and comp expectations.
+              </p>
+              <span className="text-purple-600 text-sm font-medium">Pre-filled from your narrative &amp; assessment</span>
+            </div>
+
+            {/* Sales Leader Profile */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">Sales Leader Profile</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Define your VP Sales / Head of Sales hire &mdash; team size, GTM stages, leadership mandate, coaching style, and comp range based on 80 questions.
+              </p>
+              <span className="text-blue-600 text-sm font-medium">Pre-filled from 3 data sources</span>
+            </div>
+
+            {/* Pre-Hire Assessment */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-gray-900 text-lg mb-2">Pre-Hire Assessment</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Generate take-home assessments for AE or SDR candidates &mdash; sales motion fit, written intake, video prompt, and prospecting exercise, all customized to your motion.
+              </p>
+              <span className="text-green-600 text-sm font-medium">Shareable with candidates</span>
             </div>
           </div>
         </div>
