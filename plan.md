@@ -1401,12 +1401,30 @@ Single GPT-5.2 streaming call that:
 │ │  timeline" or "CC the CFO"                 │  │
 │ └────────────────────────────────────────────┘  │
 │                                                 │
-│ [📖 Narrative ✓] [🔄 Sales Motion ✓]           │
-│ "Powered by your narrative and sales motion"    │
+│ ┌─ Context Sources ─────────────────────────┐   │
+│ │ ✅ Sales Narrative    Mar 24, 2026 [Update]│   │
+│ │ ✅ Sales Motion       Mar 28, 2026 [Update]│   │
+│ │  — or —                                    │   │
+│ │ ❌ Sales Narrative    [Create]              │   │
+│ │ ❌ Sales Motion       [Create]              │   │
+│ │                                            │   │
+│ │ These assets provide context so Mikey can  │   │
+│ │ write strategically-aware follow-up emails │   │
+│ │ with the right next steps for your motion. │   │
+│ └────────────────────────────────────────────┘   │
 │                                                 │
 │ [⚡ Generate Recap Email]                       │
 └─────────────────────────────────────────────────┘
 ```
+
+**Source freshness panel behavior:**
+- On page load, fetch latest dates from `/api/sales-narrative/latest` and `/api/sales-motion/latest`
+- For each source:
+  - If exists: green checkmark + date + "Update" link (opens source in new tab)
+  - If missing: red X + "Create" link (opens creation page in new tab)
+- Helper text: "These assets provide context so Mikey can write strategically-aware follow-up emails with the right next steps for your motion."
+- The recap will still generate without these (best effort), but the email quality improves significantly with context
+- Missing sources should show a subtle warning but NOT block generation
 
 ### View Page (`/call-recap`)
 
