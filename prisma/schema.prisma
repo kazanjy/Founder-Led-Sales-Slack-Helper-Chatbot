@@ -151,6 +151,7 @@ model User {
   salesLeaderProfileAnswers    SalesLeaderProfileAnswer[]
   salesLeaderProfileVersions   SalesLeaderProfileVersion[]
   preHireAssessmentVersions    PreHireAssessmentVersion[]
+  salesMotionCollections       SalesMotionCollection[]
   attachmentPreference       UserAttachmentPreference?
   uploadedFiles              UserFile[]
   channelClaims              ChannelClaim[]
@@ -1592,4 +1593,85 @@ model PreHireAssessmentVersion {
 
   @@index([userId, createdAt])
   @@map("pre_hire_assessment_versions")
+}
+
+// ============================================
+// SALES MOTION ANALYZER
+// ============================================
+
+model SalesMotionCollection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title  String @default("Sales Motion Analysis")
+  status String @default("draft") // "draft" | "processing" | "complete"
+
+  // Synthesized output
+  salesMotionSynthesis String? @db.Text
+
+  deals   SalesMotionDeal[]
+  scripts SalesMotionCallScript[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("sales_motion_collections")
+}
+
+model SalesMotionDeal {
+  id           String @id @default(cuid())
+  collectionId String
+  collection   SalesMotionCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  name      String? // AI-generated
+  outcome   String? // "won"
+  dealOrder Int     @default(0)
+
+  calls SalesMotionCall[]
+
+  createdAt DateTime @default(now())
+
+  @@index([collectionId])
+  @@map("sales_motion_deals")
+}
+
+model SalesMotionCall {
+  id     String @id @default(cuid())
+  dealId String
+  deal   SalesMotionDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  // User inputs
+  summary    String? @db.Text
+  transcript String? @db.Text
+
+  // AI-generated
+  name      String?
+  callType  String? // "discovery" | "demo" | "proposal" | "negotiation" | "security" | "technical" | "closing" | "other"
+  callOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+  @@map("sales_motion_calls")
+}
+
+model SalesMotionCallScript {
+  id           String @id @default(cuid())
+  collectionId String
+  collection   SalesMotionCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  callType        String // "discovery" | "demo" | "proposal" etc.
+  title           String
+  content         String @db.Text
+  sourceCallCount Int    @default(0)
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collectionId])
+  @@map("sales_motion_call_scripts")
 }
