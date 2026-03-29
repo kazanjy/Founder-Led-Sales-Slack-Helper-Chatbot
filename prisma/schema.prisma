@@ -1643,8 +1643,9 @@ model SalesMotionCall {
   deal   SalesMotionDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   // User inputs
-  summary    String? @db.Text
-  transcript String? @db.Text
+  summary       String? @db.Text
+  transcript    String? @db.Text
+  recordingUrl  String? // Public URL of the call recording (e.g., Fathom, Gong, Chorus share link)
 
   // AI-generated
   name      String?

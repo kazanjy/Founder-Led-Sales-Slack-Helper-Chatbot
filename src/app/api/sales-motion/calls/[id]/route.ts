@@ -14,7 +14,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { summary, transcript, name, callType, callOrder } = body;
+    const { summary, transcript, recordingUrl, name, callType, callOrder } = body;
 
     // Verify the call's deal's collection belongs to the user
     const call = await prisma.salesMotionCall.findUnique({
@@ -37,12 +37,14 @@ export async function PATCH(
     const updateData: {
       summary?: string;
       transcript?: string;
+      recordingUrl?: string;
       name?: string;
       callType?: string;
       callOrder?: number;
     } = {};
     if (summary !== undefined) updateData.summary = summary;
     if (transcript !== undefined) updateData.transcript = transcript;
+    if (recordingUrl !== undefined) updateData.recordingUrl = recordingUrl;
     if (name !== undefined) updateData.name = name;
     if (callType !== undefined) updateData.callType = callType;
     if (callOrder !== undefined) updateData.callOrder = callOrder;

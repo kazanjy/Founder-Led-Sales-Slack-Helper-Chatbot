@@ -13,13 +13,14 @@ interface CallInput {
   id: string;
   summary: string;
   transcript: string;
+  recordingUrl: string;
 }
 
 let nextId = 1;
 function genId() { return `local_${nextId++}`; }
 
 function createCall(): CallInput {
-  return { id: genId(), summary: "", transcript: "" };
+  return { id: genId(), summary: "", transcript: "", recordingUrl: "" };
 }
 
 function createDeal(): DealInput {
@@ -57,7 +58,7 @@ export default function NewSalesMotion() {
     }));
   };
 
-  const updateCall = (dealId: string, callId: string, field: "summary" | "transcript", value: string) => {
+  const updateCall = (dealId: string, callId: string, field: "summary" | "transcript" | "recordingUrl", value: string) => {
     setDeals(deals.map((d) => {
       if (d.id !== dealId) return d;
       return {
@@ -107,6 +108,7 @@ export default function NewSalesMotion() {
               dealId: savedDeal.id,
               summary: call.summary.trim() || undefined,
               transcript: call.transcript.trim() || undefined,
+              recordingUrl: call.recordingUrl.trim() || undefined,
               callOrder: ci,
             }),
           });
@@ -213,6 +215,18 @@ export default function NewSalesMotion() {
                           placeholder="Paste the full call transcript..."
                           rows={3}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Recording URL <span className="text-gray-400">(optional — Fathom, Gong, Chorus, etc.)</span>
+                        </label>
+                        <input
+                          type="url"
+                          value={call.recordingUrl}
+                          onChange={(e) => updateCall(deal.id, call.id, "recordingUrl", e.target.value)}
+                          placeholder="https://fathom.video/share/..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
                       </div>
                     </div>

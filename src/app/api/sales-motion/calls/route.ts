@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { dealId, summary, transcript, callOrder } = body;
+    const { dealId, summary, transcript, recordingUrl, callOrder } = body;
 
     if (!dealId) {
       return NextResponse.json(
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
         dealId,
         summary: summary || null,
         transcript: transcript || null,
+        recordingUrl: recordingUrl || null,
         callOrder: order,
       },
     });
