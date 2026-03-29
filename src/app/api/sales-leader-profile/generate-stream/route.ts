@@ -65,7 +65,7 @@ Generate a detailed Sales Leader Hiring Profile report in Markdown with these se
 2-3 paragraphs: the sales leader role, what kind of leader is needed, what team they will manage, at what company stage, the GTM motion, and what makes this role unique.
 
 ## Ideal Background
-Companies they've worked at, team sizes they've managed, GTM stages they've navigated, revenue milestones they've hit. Be specific about the type of leadership experience that translates well.
+Companies they've worked at, team sizes they've managed, GTM stages they've navigated, revenue milestones they've hit. Be specific about the type of leadership experience that translates well. Name 5-10 specific companies that are exemplars of each org type you recommend (e.g., "Leaders who built the sales org at Gong from $5M-$50M ARR" or "VP Sales at Datadog, MongoDB, or HubSpot during their Series B-C phase").
 
 ## Must-Have Experience
 Bullet list of non-negotiable experience/skills tied to the founder's sales motion and company stage (e.g., built a team from scratch, managed X reps, sold into specific market segments).
@@ -74,7 +74,7 @@ Bullet list of non-negotiable experience/skills tied to the founder's sales moti
 Bullet list of valuable but not required experience.
 
 ## Where to Look
-Specific companies, LinkedIn search criteria, communities, events, sourcing channels. Be concrete about where to find sales leaders who match this profile.
+Name 10-15 specific companies to source candidates from, organized by category (similar stage/motion, adjacent markets, known for developing strong sales leaders, etc.). Include LinkedIn search criteria, communities, events, and sourcing channels. Be as concrete as possible — real company names, not generic descriptions.
 
 ## Red Flags
 Backgrounds that look good on paper but are bad fits for this stage/motion. Explain WHY each is a red flag (e.g., "led 50-person team at enterprise co" may signal wrong stage fit).

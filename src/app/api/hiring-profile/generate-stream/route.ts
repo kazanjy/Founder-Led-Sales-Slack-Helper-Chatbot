@@ -65,7 +65,7 @@ Generate a detailed AE Hiring Profile report in Markdown with these sections (us
 2-3 paragraphs: the AE role, sales motion, target market, what makes this role unique.
 
 ## Ideal Background
-Industries, company stages, deal sizes, selling experience that translates well. Be specific.
+Industries, company stages, deal sizes, selling experience that translates well. Be specific. Name 5-10 specific companies that are exemplars of each org type you recommend (e.g., "AEs from Gong, Outreach, or Salesloft who sold $30-80K ACV deals into VP Sales buyers").
 
 ## Must-Have Experience
 Bullet list of non-negotiable experience/skills tied to the founder's sales motion.
@@ -74,7 +74,7 @@ Bullet list of non-negotiable experience/skills tied to the founder's sales moti
 Bullet list of valuable but not required experience.
 
 ## Where to Look
-Specific companies, LinkedIn search criteria, communities, events, sourcing channels. Be concrete.
+Name 10-15 specific companies to source candidates from, organized by category (direct competitors, adjacent markets, similar sales motions, etc.). Include LinkedIn search criteria, communities, events, and sourcing channels. Be as concrete as possible — real company names, not generic descriptions.
 
 ## Red Flags
 Backgrounds that look good but are bad fits. Explain WHY each is a red flag.
