@@ -959,5 +959,347 @@ When the user clicks "New Session":
 21. Slack-based metric check-ins (Mikey asks "how did you do?")
 22. Metrics over time visualization
 23. Goal completion rate analytics
+
+---
+
+# Sales Motion Analyzer — Implementation Plan
+
+## Overview
+
+Users upload the "raw material" of their best completed deals — actual call summaries and transcripts from their call recorder — and the system synthesizes:
+
+1. A **prototypical sales motion** (the canonical sequence of stages and activities)
+2. **Canonical call scripts/flows** per call type (synthesized from multiple examples of the same type)
+3. A **GTM variable** (`SALES_MOTION`) so the sales motion context feeds into all other Mikey workflows
+
+### Core Instruction to Users
+
+> Provide 3-5 of your best completed deals. For each deal, paste the chronological series of calls — summaries and transcripts from your call recorder. Focus on "good to great" deals that represent how you want your sales process to work.
+
+---
+
+## Data Flow
+
+```
+User provides 3-5 complete deals
+  → Each deal has 3-8 calls in chronological order
+    → Each call has: pasted summary + pasted transcript (separate fields)
+
+On save:
+  → LLM auto-names each deal (e.g., "Acme Corp - Enterprise Deal")
+  → LLM auto-names each call (e.g., "Initial Discovery Call")
+  → LLM auto-classifies each call type (discovery, demo, proposal,
+    security, negotiation, technical, closing, etc.)
+
+On "Analyze Sales Motion":
+  → Pass 1: Synthesize the prototypical sales motion from all deals
+  → Pass 2: Group calls by type across deals
+  → Pass 3: For each type with 2+ examples, synthesize a canonical
+    call flow (timing, agenda, questions, content, structure)
+  → Save sales motion as GTM merge variable
+```
+
+---
+
+## Data Model
+
+### SalesMotionCollection (top-level container)
+
+```prisma
+model SalesMotionCollection {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(...)
+
+  title   String @default("Sales Motion Analysis")
+  status  String @default("draft") // "draft" | "processing" | "complete"
+
+  // Synthesized output
+  salesMotionSynthesis  String? @db.Text  // Prototypical sales motion (markdown)
+
+  deals    SalesMotionDeal[]
+  scripts  SalesMotionCallScript[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+```
+
+### SalesMotionDeal (a single completed deal)
+
+```prisma
+model SalesMotionDeal {
+  id            String @id @default(cuid())
+  collectionId  String
+  collection    SalesMotionCollection @relation(...)
+
+  name          String?  // AI-generated: "Acme Corp - Enterprise Deal"
+  outcome       String?  // "won" — focus on won deals
+  dealOrder     Int      @default(0)
+
+  calls         SalesMotionCall[]
+
+  createdAt     DateTime @default(now())
+}
+```
+
+### SalesMotionCall (a single call within a deal)
+
+```prisma
+model SalesMotionCall {
+  id         String @id @default(cuid())
+  dealId     String
+  deal       SalesMotionDeal @relation(...)
+
+  // User inputs (separate fields)
+  summary    String? @db.Text   // Pasted call summary from recorder
+  transcript String? @db.Text   // Pasted full transcript
+
+  // AI-generated on save
+  name       String?   // "Initial Discovery Call"
+  callType   String?   // "discovery" | "demo" | "proposal" | "negotiation" |
+                       // "security" | "technical" | "closing" | "other"
+  callOrder  Int @default(0)  // chronological order within the deal
+
+  createdAt  DateTime @default(now())
+}
+```
+
+### SalesMotionCallScript (synthesized canonical script per call type)
+
+```prisma
+model SalesMotionCallScript {
+  id              String @id @default(cuid())
+  collectionId    String
+  collection      SalesMotionCollection @relation(...)
+
+  callType        String   // "discovery" | "demo" | "proposal" etc.
+  title           String   // "Canonical Discovery Call"
+  content         String   @db.Text  // Synthesized script/flow (markdown)
+  sourceCallCount Int      // How many calls were used to synthesize
+
+  iterationHistory String[] @default([])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+```
+
+---
+
+## Processing Pipeline
+
+### Pass 1: Name & Classify (parallel per deal)
+
+For each deal, send all its call summaries to the LLM and ask it to:
+- Generate a deal name
+- Name each call
+- Classify each call type
+
+This is fast — one LLM call per deal, all in parallel.
+
+### Pass 2: Synthesize Sales Motion (single call)
+
+Take all deals' call sequences (names + types + summaries) and synthesize:
+- **Typical deal stages**: What's the usual progression? (e.g., Discovery → Demo → Proposal → Security Review → Negotiation → Close)
+- **Stage durations**: How long does each stage typically take?
+- **Key activities per stage**: What happens at each stage?
+- **Decision points**: Where do deals branch or stall?
+- **Stakeholder involvement**: When do different personas enter?
+- **Common patterns**: What's consistent across winning deals?
+
+Output: Markdown document saved as `salesMotionSynthesis` and as `SALES_MOTION` GTM variable.
+
+### Pass 3: Synthesize Call Scripts (parallel per call type)
+
+Group all calls by type across deals. For each type with 2+ examples:
+
+- **Discovery calls** (e.g., 4 examples across deals): Synthesize the canonical flow — opening, agenda setting, questions asked consistently, information gathered, objections handled, next steps, timing
+- **Demo calls** (e.g., 3 examples): Synthesize the demo structure — setup, flow, key moments, proof points shown, trial/next-step close
+- **Proposal calls**: Structure, pricing presentation, objection handling
+- etc.
+
+Each synthesis uses the **summaries as structure** and **transcripts for detail** (specific language, questions, transitions).
+
+### Size Management
+
+Transcripts can be huge (10K+ words each). Strategy:
+- **Summaries** are primary context for motion synthesis (Pass 2)
+- **Transcripts** are used selectively for script synthesis (Pass 3) — truncated per call to stay within context limits
+- On ingest: if a transcript exceeds 50K chars, truncate with a note
+
+---
+
+## UX Flow
+
+### Step 1: Data Entry Page (`/sales-motion/new`)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Analyze Your Sales Motion                           │
+│                                                     │
+│ Provide 3-5 of your best completed deals. For each, │
+│ paste call summaries and transcripts in order.       │
+│ Focus on "good to great" deals.                      │
+│                                                     │
+│ ┌─── Deal 1 ──────────────────────────────── [×] ─┐ │
+│ │                                                 │ │
+│ │  Call 1                                         │ │
+│ │  ┌─ Summary ─────────────────────────────────┐  │ │
+│ │  │ [paste call summary from recorder]        │  │ │
+│ │  └───────────────────────────────────────────┘  │ │
+│ │  ┌─ Transcript ──────────────────────────────┐  │ │
+│ │  │ [paste full transcript]                   │  │ │
+│ │  └───────────────────────────────────────────┘  │ │
+│ │                                                 │ │
+│ │  Call 2                                         │ │
+│ │  ┌─ Summary ─────────────────────────────────┐  │ │
+│ │  │ [paste call summary]                      │  │ │
+│ │  └───────────────────────────────────────────┘  │ │
+│ │  ┌─ Transcript ──────────────────────────────┐  │ │
+│ │  │ [paste transcript]                        │  │ │
+│ │  └───────────────────────────────────────────┘  │ │
+│ │                                                 │ │
+│ │  [+ Add Call]                                   │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ ┌─── Deal 2 ──────────────────────────────── [×] ─┐ │
+│ │ ...                                             │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ [+ Add Deal]                                        │
+│                                                     │
+│ [Analyze Sales Motion]                              │
+└─────────────────────────────────────────────────────┘
+```
+
+### Step 2: Processing
+
+Show a streaming progress page:
+- "Naming and classifying your calls..." (parallel, fast)
+- "Synthesizing your sales motion..." (streams into view)
+- "Creating canonical call scripts..." (parallel per type)
+
+### Step 3: Results Page (`/sales-motion`)
+
+Tabbed view:
+
+```
+Tabs: [Motion Overview] [Discovery Script] [Demo Script]
+      [Proposal Script] [...] [Deals]
+
+── Motion Overview ──
+[Rendered markdown of prototypical sales motion]
+[Iterate sidebar]
+
+── Discovery Call Script ──
+Synthesized from 4 discovery calls across 4 deals
+[Rendered markdown of canonical discovery flow]
+[Iterate sidebar]
+
+── Demo Script ──
+Synthesized from 3 demos across 3 deals
+[Rendered markdown of canonical demo structure]
+[Iterate sidebar]
+
+── Deals ──
+Deal 1: Acme Corp (4 calls: Discovery → Demo → Proposal → Close)
+Deal 2: Globex Inc (5 calls: Discovery → Discovery → Demo → Security → Close)
+Deal 3: Initech (3 calls: Discovery → Demo → Close)
+[Click to expand individual calls with summaries]
+```
+
+---
+
+## API Routes
+
+### Collections
+- `POST   /api/sales-motion/collections` — create new collection
+- `GET    /api/sales-motion/latest` — get latest complete collection
+- `GET    /api/sales-motion/collections/[id]` — get specific collection with deals/calls/scripts
+- `DELETE /api/sales-motion/collections/[id]` — delete collection
+- `GET    /api/sales-motion/history` — list all collections
+
+### Deals
+- `POST   /api/sales-motion/deals` — add deal to collection
+- `PATCH  /api/sales-motion/deals/[id]` — update deal
+- `DELETE /api/sales-motion/deals/[id]` — delete deal
+
+### Calls
+- `POST   /api/sales-motion/calls` — add call to deal
+- `PATCH  /api/sales-motion/calls/[id]` — update call (summary/transcript)
+- `DELETE /api/sales-motion/calls/[id]` — delete call
+
+### Analysis
+- `POST   /api/sales-motion/analyze` — run full pipeline (SSE streaming)
+  - Event: `classify_done` — deal/call names and types
+  - Event: `motion_token` — streaming sales motion synthesis
+  - Event: `motion_done` — motion complete
+  - Event: `script_done` — each call script as it completes
+  - Event: `complete` — all done, GTM variable saved
+
+### Iteration
+- `POST   /api/sales-motion/scripts/[id]/iterate` — iterate on a script (SSE streaming)
+- `POST   /api/sales-motion/iterate` — iterate on the motion overview (SSE streaming)
+
+---
+
+## GTM Variable Integration
+
+On completion, the sales motion synthesis is saved as:
+- **Merge field**: `SALES_MOTION`
+- **Name**: "Sales Motion"
+- **Value**: The full markdown synthesis
+
+This makes it available to all other content generation workflows (email sequences, discovery questions, coaching context, etc.).
+
+---
+
+## Nav Placement
+
+Under **Playbook & Strategy** dropdown (alongside Sales Narrative, ICP, Discovery Questions):
+
+```
+📊 GTM Assessment
+📖 Sales Narrative
+🎯 Ideal Customer Profile
+🔄 Sales Motion        ← NEW
+🔍 Discovery Questions
+✅ First Call Checklist
+📋 Pre-Call Checklist
+```
+
+---
+
+## Implementation Order
+
+### Phase 1: Schema + Migration
+1. Create 4 new tables: Collection, Deal, Call, CallScript
+2. Extend User model with relations
+3. Migration SQL
+
+### Phase 2: Data Entry
+4. Create/edit page with deal + call input UI
+5. CRUD API routes for collections, deals, calls
+6. Auto-save as user pastes content
+
+### Phase 3: Analysis Pipeline
+7. Name & classify endpoint (parallel per deal)
+8. Sales motion synthesis (streaming SSE)
+9. Call script synthesis (parallel per type)
+10. GTM variable save on completion
+
+### Phase 4: View Page
+11. Tabbed view: Motion Overview + per-type scripts + Deals
+12. Iterate sidebar per tab/section
+13. Share link, history, copy
+
+### Phase 5: Future (not in this build)
+14. Re-analyze with additional deals added later
+15. Compare sales motions across time periods
+16. Integration with call review (auto-pull from reviewed calls)
+17. Sales motion coaching (Mikey coaches against the canonical motion)
 17. Admin moderation UI for managing answers
 18. Duplicate question detection
