@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
 import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
@@ -3945,7 +3946,7 @@ export default function ChatPage() {
                   ) : (
                     <div>
                       <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a> }}>{msg.content}</ReactMarkdown>
                       </div>
                       {/* Copy/Share buttons for this response */}
                       <div className="flex items-center gap-1 mt-2">
@@ -3997,7 +3998,7 @@ export default function ChatPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="prose dark:prose-invert prose-sm max-w-none text-gray-700 dark:text-gray-300">
-                        <ReactMarkdown>{streamingMessage}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a> }}>{streamingMessage}</ReactMarkdown>
                         <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-0.5" />
                       </div>
                     </div>
