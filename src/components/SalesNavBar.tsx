@@ -43,6 +43,7 @@ const playbookItems: NavItem[] = [
   { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
   { href: "/sales-narrative", label: "📖 Sales Narrative", statusKey: "salesNarrative" },
   { href: "/icp", label: "🎯 Ideal Customer Profile", statusKey: "icp" },
+  { href: "/sales-motion", label: "🔄 Sales Motion", statusKey: "salesMotion" },
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
