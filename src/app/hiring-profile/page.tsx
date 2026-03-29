@@ -59,6 +59,8 @@ function HiringProfileContent() {
 
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<HiringProfileVersion | null>(null);
+  const [answersByCategory, setAnswersByCategory] = useState<Record<string, Array<{ questionId: string; globalOrder: number; question: string; answer: string }>> | null>(null);
+  const [activeTab, setActiveTab] = useState<"profile" | "qa">("profile");
   const [showOverlay, setShowOverlay] = useState(isGenerating);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingComplete, setStreamingComplete] = useState(false);
@@ -116,9 +118,11 @@ function HiringProfileContent() {
 
         if (versionId) {
           setVersion(data.version);
+          if (data.answersByCategory) setAnswersByCategory(data.answersByCategory);
         } else {
           if (data.hasProfile) {
             setVersion(data.version);
+            if (data.answersByCategory) setAnswersByCategory(data.answersByCategory);
           }
         }
       } catch (error) {
@@ -182,6 +186,7 @@ function HiringProfileContent() {
                   if (res.ok) {
                     const vData = await res.json();
                     setVersion(vData.version);
+                    if (vData.answersByCategory) setAnswersByCategory(vData.answersByCategory);
                   }
                 } else if (currentEvent === "error") {
                   await showAlert({ title: "Error", message: data.message || "Generation failed.", variant: "danger" });
@@ -586,7 +591,36 @@ function HiringProfileContent() {
           <div className="flex gap-8">
             {/* Left: Main content */}
             <div className="flex-1 min-w-0">
+              {/* Tabs */}
+              {!isStreamingMode && (
+                <div className="flex gap-1 mb-6 border-b border-gray-200">
+                  <button
+                    onClick={() => setActiveTab("profile")}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === "profile"
+                        ? "border-purple-600 text-purple-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    Profile
+                  </button>
+                  {answersByCategory && Object.keys(answersByCategory).length > 0 && (
+                    <button
+                      onClick={() => setActiveTab("qa")}
+                      className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === "qa"
+                          ? "border-purple-600 text-purple-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      Q&A Inputs
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Profile content */}
+              {(activeTab === "profile" || isStreamingMode) && (
               <div className="bg-white border border-gray-200 rounded-xl p-8">
                 {isEditing ? (
                   <textarea
@@ -600,6 +634,32 @@ function HiringProfileContent() {
                   </div>
                 )}
               </div>
+              )}
+
+              {/* Q&A Inputs tab */}
+              {activeTab === "qa" && answersByCategory && (
+                <div className="space-y-6">
+                  {Object.entries(answersByCategory).map(([category, answers]) => (
+                    <div key={category} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                      <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                        <h3 className="font-semibold text-gray-900">{category}</h3>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {(answers as Array<{ questionId: string; globalOrder: number; question: string; answer: string }>).map((qa) => (
+                          <div key={qa.questionId} className="px-6 py-4">
+                            <p className="text-sm font-medium text-gray-700 mb-1">
+                              Q{qa.globalOrder}: {qa.question}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {qa.answer || <span className="text-gray-400 italic">Not answered</span>}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Iteration History */}
               {version?.iterationHistory && version.iterationHistory.length > 0 && (
