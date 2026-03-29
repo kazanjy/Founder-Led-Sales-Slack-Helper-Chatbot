@@ -14,20 +14,19 @@ import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface SalesMotionCall {
+interface SalesMotionCallData {
   id: string;
-  name: string | null;
-  callType: string | null;
-  summary: string | null;
+  name: string;
+  callType: string;
   callOrder: number;
+  summary: string;
 }
 
 interface SalesMotionDeal {
   id: string;
-  name: string | null;
-  outcome: string | null;
+  name: string;
   dealOrder: number;
-  calls: SalesMotionCall[];
+  calls: SalesMotionCallData[];
 }
 
 interface SalesMotionScript {
@@ -36,18 +35,22 @@ interface SalesMotionScript {
   title: string;
   content: string;
   sourceCallCount: number;
-  iterationHistory: string[];
+  iterationHistory: Array<{
+    feedback: string;
+    createdAt: string;
+  }>;
 }
 
 interface SalesMotionCollection {
   id: string;
   title: string;
   status: string;
-  salesMotionSynthesis: string | null;
-  deals: SalesMotionDeal[];
+  salesMotionSynthesis: string;
   scripts: SalesMotionScript[];
+  deals: SalesMotionDeal[];
   createdAt: string;
   updatedAt: string;
+  userId: string;
 }
 
 type TabId = "motion" | "deals" | string; // string for script-{id}
@@ -297,8 +300,8 @@ function SalesMotionContent() {
   const handleDelete = async () => {
     if (!collection) return;
     const confirmed = await showConfirm({
-      title: "Delete Sales Motion Analysis",
-      message: "Are you sure you want to delete this analysis? This cannot be undone.",
+      title: "Delete Sales Motion",
+      message: "Are you sure you want to delete this Sales Motion? This cannot be undone.",
       variant: "danger",
       confirmLabel: "Delete",
     });
@@ -535,7 +538,7 @@ function SalesMotionContent() {
         <SalesNavBar />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
-            <div className="text-6xl mb-4">📊</div>
+            <div className="text-6xl mb-4">🔄</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">No Sales Motion Analysis Yet</h1>
             <p className="text-gray-600 mb-6">
               Analyze your sales calls to uncover your sales motion, deal patterns, and generate call playbooks.
@@ -565,7 +568,7 @@ function SalesMotionContent() {
         visible={showOverlay}
         title="Analyzing Your Sales Motion"
         subtitle="Classifying calls, identifying patterns, and synthesizing playbooks"
-        emojis={["📊", "🎯", "✨"]}
+        emojis={["🔄", "📊", "✨"]}
         messages={ANALYZE_MESSAGES}
       />
 
@@ -600,7 +603,7 @@ function SalesMotionContent() {
                 </Link>
                 <div className="flex-1 min-w-0">
                   <h1 className="text-xl font-semibold text-gray-900">
-                    {collection?.title || "Sales Motion Analysis"}
+                    {collection?.title || "Sales Motion"}
                   </h1>
                   <p className="text-sm text-gray-500">
                     {isStreamingMode ? (
@@ -655,8 +658,8 @@ function SalesMotionContent() {
                   <ShareDocumentButton
                     documentType="salesMotion"
                     documentId={collection.id}
-                    title="Sales Motion Analysis"
-                    content={collection.salesMotionSynthesis || ""}
+                    title="Sales Motion"
+                    content={collection.salesMotionSynthesis}
                   />
                 )}
                 <Link
@@ -788,15 +791,10 @@ function SalesMotionContent() {
                             </svg>
                             <div className="text-left">
                               <h3 className="font-semibold text-gray-900">
-                                {deal.name || `Deal ${deal.dealOrder + 1}`}
+                                {deal.name}
                               </h3>
                               <p className="text-sm text-gray-500">
                                 {deal.calls.length} call{deal.calls.length !== 1 ? "s" : ""}
-                                {deal.outcome && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                    {deal.outcome}
-                                  </span>
-                                )}
                               </p>
                             </div>
                           </div>
@@ -809,22 +807,18 @@ function SalesMotionContent() {
                               <div key={call.id} className="px-6 py-4 pl-14">
                                 <div className="flex items-center gap-3 mb-1">
                                   <h4 className="font-medium text-gray-800 text-sm">
-                                    {call.name || `Call ${call.callOrder + 1}`}
+                                    {call.name}
                                   </h4>
-                                  {call.callType && (
-                                    <span
-                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        CALL_TYPE_COLORS[call.callType] || CALL_TYPE_COLORS.other
-                                      }`}
-                                    >
-                                      {call.callType}
-                                    </span>
-                                  )}
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      CALL_TYPE_COLORS[call.callType] || CALL_TYPE_COLORS.other
+                                    }`}
+                                  >
+                                    {call.callType}
+                                  </span>
                                 </div>
-                                {call.summary ? (
+                                {call.summary && (
                                   <p className="text-sm text-gray-600 line-clamp-3">{call.summary}</p>
-                                ) : (
-                                  <p className="text-sm text-gray-400 italic">No summary available</p>
                                 )}
                               </div>
                             ))}
