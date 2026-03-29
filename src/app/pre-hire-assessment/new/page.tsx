@@ -8,27 +8,46 @@ import SalesNavBar from "@/components/SalesNavBar";
 export default function NewPreHireAssessment() {
   const router = useRouter();
   const [roleType, setRoleType] = useState<"ae" | "sdr">("ae");
-  const [hasNarrative, setHasNarrative] = useState<boolean | null>(null);
+  const [narrativeDate, setNarrativeDate] = useState<string | null>(null);
+  const [icpDate, setIcpDate] = useState<string | null>(null);
+  const [aeProfileDate, setAeProfileDate] = useState<string | null>(null);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
 
   useEffect(() => {
     document.title = "New Pre-Hire Assessment - Mikey";
   }, []);
 
-  // Check if sales narrative exists
+  // Check all source assets
   useEffect(() => {
-    async function check() {
+    async function checkSources() {
       try {
-        const res = await fetch("/api/sales-narrative/latest");
-        if (res.ok) {
-          const data = await res.json();
-          setHasNarrative(data.hasNarrative);
+        const [narRes, icpRes, aeRes] = await Promise.all([
+          fetch("/api/sales-narrative/latest"),
+          fetch("/api/icp/latest"),
+          fetch("/api/hiring-profile/latest"),
+        ]);
+        if (narRes.ok) {
+          const d = await narRes.json();
+          if (d.hasNarrative && d.version?.createdAt) setNarrativeDate(d.version.createdAt);
         }
-      } catch {
-        setHasNarrative(false);
-      }
+        if (icpRes.ok) {
+          const d = await icpRes.json();
+          if (d.hasIcp && d.version?.createdAt) setIcpDate(d.version.createdAt);
+        }
+        if (aeRes.ok) {
+          const d = await aeRes.json();
+          if (d.hasProfile && d.version?.createdAt) setAeProfileDate(d.version.createdAt);
+        }
+      } catch { /* ignore */ }
+      setSourcesLoaded(true);
     }
-    check();
+    checkSources();
   }, []);
+
+  const hasNarrative = narrativeDate !== null;
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   const handleGenerate = () => {
     router.push(`/pre-hire-assessment?generating=true&roleType=${roleType}`);
@@ -47,26 +66,66 @@ export default function NewPreHireAssessment() {
               Generate a customized take-home assessment for sales candidates, tailored to your sales motion and ICP.
             </p>
 
-            {/* Sales Narrative info banner */}
-            {hasNarrative === true && (
+            {/* Source assets panel */}
+            {sourcesLoaded && (
               <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl flex-shrink-0">📖</span>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-amber-900">Your Sales Narrative and ICP will power this assessment</h3>
-                    <p className="text-xs text-amber-700 mt-0.5">
-                      Mikey will use your product details, ICP, value prop, and hiring profile to generate a tailored candidate assessment.
-                    </p>
+                <h3 className="text-sm font-semibold text-amber-900 mb-3">These assets will power this assessment</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {narrativeDate ? (
+                        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      )}
+                      <span className="text-sm text-gray-700">Sales Narrative</span>
+                      {narrativeDate && <span className="text-xs text-gray-400">{formatDate(narrativeDate)}</span>}
+                    </div>
+                    <a href={narrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                      {narrativeDate ? "Update" : "Create"}
+                    </a>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {icpDate ? (
+                        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      )}
+                      <span className="text-sm text-gray-700">Ideal Customer Profile</span>
+                      {icpDate && <span className="text-xs text-gray-400">{formatDate(icpDate)}</span>}
+                    </div>
+                    <a href="/icp" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                      {icpDate ? "Update" : "Create"}
+                    </a>
+                  </div>
+                  {roleType === "ae" && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {aeProfileDate ? (
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        <span className="text-sm text-gray-700">AE Hiring Profile</span>
+                        {aeProfileDate && <span className="text-xs text-gray-400">{formatDate(aeProfileDate)}</span>}
+                      </div>
+                      <a href="/hiring-profile" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                        {aeProfileDate ? "Update" : "Create"}
+                      </a>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-
-            {hasNarrative === false && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-sm text-red-800">
-                  You need a <Link href="/sales-narrative/edit" className="underline font-medium">Sales Narrative</Link> before generating an assessment. The assessment is customized from your narrative and ICP.
-                </p>
+                {!narrativeDate && (
+                  <p className="text-xs text-red-600 mt-3 font-medium">
+                    A Sales Narrative is required before generating an assessment.
+                  </p>
+                )}
+                {narrativeDate && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    For a more tailored assessment, keep these assets up to date.
+                  </p>
+                )}
               </div>
             )}
 
