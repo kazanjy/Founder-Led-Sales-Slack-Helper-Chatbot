@@ -1,5 +1,7 @@
 # Objection Library Applet — Implementation Plan
 
+**STATUS: COMPLETED**
+
 ## Overview
 
 New applet at `/objection-library` that helps founders build, manage, and practice a library of objection handles organized by category and persona. Follows the same architecture as existing applets (Email Sequence, Ad Creator, etc.) with Chatbase API for generation and a new per-entry CRUD pattern.
@@ -606,5 +608,356 @@ generatePublicAnswer(input: {
 14. Add related questions feature (internal linking)
 15. Add FAQ structured data (JSON-LD)
 16. Add Open Graph + Twitter Card meta tags
+
+---
+
+# Coaching Session Enhancement — Implementation Plan
+
+## Overview
+
+Transform the coaching interface from a simple "log notes + transcript" tool into a structured **goal-tracking, metrics-measuring, stage-aware coaching framework** that carries state forward session to session.
+
+---
+
+## Session Lifecycle: 3 States
+
+### NEW (live coaching call)
+- Created from "New Session" button
+- Auto-locks the previous session (if one exists in NEW or IN_PROGRESS state)
+- Carries forward all ACTIVE goals, tasks, and metric definitions from the last session
+- Maturity stage snapshot'd at creation time
+- Full control: add/edit/complete/retire goals, tasks, metrics, notes, transcript
+
+### IN_PROGRESS (sprint — 1-2 weeks between sessions)
+- Triggered when user clicks **"Start Sprint"**
+- The working period between coaching calls
+- Full control: add/edit/complete/retire goals, tasks, update metrics, edit notes
+- Same capabilities as NEW — no restrictions on adding goals/tasks mid-sprint
+
+### LOCKED (archived)
+- Triggered automatically when user creates the next NEW session
+- Can also be triggered manually via "Lock Session"
+- Everything is frozen with timestamps
+- Read-only — view as historical record
+
+### Transition Diagram
+
+```
+[New Session] → NEW (live coaching call)
+                  │
+            "Start Sprint"
+                  │
+                  ▼
+            IN_PROGRESS (1-2 week sprint)
+                  │
+        ┌─────────┴──────────┐
+        │                    │
+  "Lock Session"      "New Session"
+   (manual)          (auto-locks this one)
+        │                    │
+        ▼                    ▼
+     LOCKED              LOCKED + NEW (next session)
+```
+
+### Transition Rules
+
+| Action | Button Label | From State | To State | What happens |
+|--------|-------------|-----------|----------|-------------|
+| User finishes live call | **"Start Sprint"** | NEW | IN_PROGRESS | Sprint period begins |
+| User creates next session | **"New Session"** | — | NEW (new) | Previous session auto → LOCKED, active items carry forward |
+| User manually archives | **"Lock Session"** | IN_PROGRESS | LOCKED | Manual archive |
+
+---
+
+## Data Model
+
+### 1. Extend Existing `CoachingSession`
+
+Add to the existing model:
+
+```prisma
+model CoachingSession {
+  // ...existing fields...
+
+  sessionStatus   String  @default("new")  // "new" | "in_progress" | "locked"
+  maturityStage   String? // snapshot of stage at session creation
+
+  // Relations to new models
+  goals           CoachingGoal[]
+  metricEntries   CoachingMetricEntry[]
+}
+```
+
+### 2. Sales Maturity Stage (per user, singleton)
+
+```prisma
+model SalesMaturityStage {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(...)
+
+  currentStage String
+  // Values:
+  //   "PROBLEM_VALIDATION"    - "Do we know what problem we're solving?"
+  //   "VALUE_VALIDATION"      - "Does the product solve the problem and create value?"
+  //   "FIRST_REVENUE"         - "Can we get someone to pay for the product?"
+  //   "REPEATABLE_REVENUE"    - "Can we get many people to pay for the product?"
+  //   "FIRST_SALES_HIRE"      - "Can we get someone other than the founder to sell?"
+  //   "SCALING_SALES"         - "Can we get many people other than the founder to sell?"
+
+  updatedAt DateTime @updatedAt
+}
+```
+
+### 3. Goals (persistent, carry across sessions)
+
+```prisma
+model CoachingGoal {
+  id          String  @id @default(cuid())
+  userId      String
+  user        User    @relation(...)
+
+  sessionId   String  // session where this goal was CREATED
+  session     CoachingSession @relation(...)
+
+  title       String
+  description String? @db.Text
+  status      String  @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+
+  tasks       CoachingTask[]
+
+  createdAt   DateTime @default(now())
+  order       Int      @default(0)
+}
+```
+
+Goals are **user-level persistent objects**. They're created once, linked to the session where they were born (`sessionId`), but visible across all non-locked sessions until retired.
+
+### 4. Tasks (under goals, persistent)
+
+```prisma
+model CoachingTask {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(...)
+
+  goalId   String
+  goal     CoachingGoal @relation(...)
+
+  title    String
+  status   String @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+}
+```
+
+Same carry-forward pattern as goals.
+
+### 5. Metric Definitions (persistent templates)
+
+```prisma
+model CoachingMetricDefinition {
+  id         String  @id @default(cuid())
+  userId     String
+  user       User    @relation(...)
+
+  name       String  // "Customers", "Revenue", or custom
+  definition String? @db.Text // "Companies with signed contract paying >$0/mo"
+  interval   String? // "weekly" | "monthly" | "quarterly" | null
+  isDefault  Boolean @default(false) // true for Customers & Revenue
+  order      Int     @default(0)
+
+  entries    CoachingMetricEntry[]
+
+  createdAt  DateTime @default(now())
+}
+```
+
+### 6. Metric Entries (per-session values)
+
+```prisma
+model CoachingMetricEntry {
+  id                    String @id @default(cuid())
+  userId                String
+  user                  User   @relation(...)
+
+  metricDefinitionId    String
+  metricDefinition      CoachingMetricDefinition @relation(...)
+
+  sessionId             String
+  session               CoachingSession @relation(...)
+
+  currentValue          Float  // total value at this point
+  addedSinceLastSession Float  @default(0) // auto-calculated delta
+
+  createdAt             DateTime @default(now())
+}
+```
+
+---
+
+## Default Metrics
+
+When a user creates their first coaching session, auto-create two metric definitions:
+
+1. **Customers** (isDefault: true)
+   - Definition slot: empty for user to fill
+   - User enters: total count + "added since last"
+
+2. **Revenue** (isDefault: true)
+   - Definition slot: empty for user to fill
+   - User enters: total value + "added since last"
+
+User can add custom metrics tied to their goals (e.g., "Outbound meetings booked", "Demo-to-close rate").
+
+---
+
+## "New Session" Carry-Forward Logic
+
+When the user clicks "New Session":
+
+1. **Lock previous session**: Set most recent NEW or IN_PROGRESS session to `status: "locked"`
+2. **Snapshot maturity stage**: Copy current `SalesMaturityStage.currentStage` to `session.maturityStage`
+3. **Carry forward goals**: All ACTIVE goals remain visible (they're user-level, always visible in non-locked sessions)
+4. **Carry forward tasks**: All ACTIVE tasks under active goals remain visible
+5. **Carry forward metrics**: All metric definitions carry over. For each definition, create empty `CoachingMetricEntry` entries for the new session. Auto-calculate `addedSinceLastSession` as `currentValue - previousSessionValue`
+6. **Create new session** with `status: "new"`
+
+---
+
+## UI Layout
+
+### Coaching Session Page (enhanced)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ HEADER                                              │
+│ Session: Mar 27, 2026    Status: [IN_PROGRESS]      │
+│ [Chat About All] [+ New Session] [Start Sprint]     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ 🔄 Sales Maturity Stage                            │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ ○ Problem Validation                            │ │
+│ │ ○ Value Validation                              │ │
+│ │ ● First Revenue       ← current                 │ │
+│ │ ○ Repeatable Revenue                            │ │
+│ │ ○ First Sales Hire                              │ │
+│ │ ○ Scaling Sales                                 │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ 📊 Metrics                                         │
+│ ┌────────────┬────────────┬────────────┐           │
+│ │ Customers  │ Revenue    │ Pipeline   │           │
+│ │ Total: 12  │ Total: $50K│ Total: 25  │           │
+│ │ +3 since   │ +$12K since│ +8 since   │           │
+│ │ last       │ last       │ last       │           │
+│ └────────────┴────────────┴────────────┘           │
+│ [+ Add Metric]                                      │
+│                                                     │
+│ 🎯 Goals & Tasks                                   │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ Goal: Prove outbound pipeline        [ACTIVE ▼] │ │
+│ │   ☑ Write 3 email templates          [DONE ✓]   │ │
+│ │   □ Run 50-contact test campaign     [ACTIVE ▼] │ │
+│ │   □ Analyze response rates           [ACTIVE ▼] │ │
+│ │                                                 │ │
+│ │ Goal: Improve demo conversion        [ACTIVE ▼] │ │
+│ │   □ Record 3 demo calls             [ACTIVE ▼] │ │
+│ │   □ Build demo script               [ACTIVE ▼] │ │
+│ └─────────────────────────────────────────────────┘ │
+│ [+ Add Goal]                                        │
+│                                                     │
+│ 📝 Notes (existing functionality)                  │
+│ ...                                                 │
+│                                                     │
+│ 🎙️ Transcript / Recording (existing)               │
+│ ...                                                 │
+└─────────────────────────────────────────────────────┘
+```
+
+### Status Badge Colors
+- **NEW**: Blue badge — "Live Session"
+- **IN_PROGRESS**: Orange badge — "Sprint"
+- **LOCKED**: Gray badge — "Archived"
+
+### Goal/Task Status Options
+- **Active**: Default, shown as open checkbox
+- **Done**: Green checkmark, timestamped
+- **Not Doing**: Strikethrough, gray
+- **Deprioritized**: Yellow, moved to bottom
+
+---
+
+## API Routes Needed
+
+### Maturity Stage
+- `GET /api/coaching/maturity-stage` — get current stage
+- `PUT /api/coaching/maturity-stage` — update stage
+
+### Session Status
+- `PATCH /api/coaching-sessions/[id]/status` — transition: "new" → "in_progress" → "locked"
+
+### Goals
+- `GET /api/coaching/goals` — list active goals (user-level)
+- `POST /api/coaching/goals` — create goal (linked to current session)
+- `PATCH /api/coaching/goals/[id]` — update title, description, status, order
+- `DELETE /api/coaching/goals/[id]` — delete goal
+
+### Tasks
+- `POST /api/coaching/goals/[id]/tasks` — create task under goal
+- `PATCH /api/coaching/tasks/[id]` — update title, status, order
+- `DELETE /api/coaching/tasks/[id]` — delete task
+
+### Metrics
+- `GET /api/coaching/metrics` — list metric definitions
+- `POST /api/coaching/metrics` — create metric definition
+- `PATCH /api/coaching/metrics/[id]` — update definition
+- `DELETE /api/coaching/metrics/[id]` — delete definition
+
+### Metric Entries
+- `POST /api/coaching/metrics/[id]/entries` — record a value for a session
+- `GET /api/coaching-sessions/[id]/metrics` — get all metric entries for a session
+
+### New Session (enhanced)
+- `POST /api/coaching-sessions` — create new session (auto-lock previous, carry forward, snapshot stage)
+
+---
+
+## Implementation Order
+
+### Phase 1: Schema + Migration
+1. Extend `CoachingSession` with `sessionStatus` and `maturityStage`
+2. Create `SalesMaturityStage` table
+3. Create `CoachingGoal` table
+4. Create `CoachingTask` table
+5. Create `CoachingMetricDefinition` table
+6. Create `CoachingMetricEntry` table
+7. Migration SQL
+
+### Phase 2: API Routes
+8. Maturity stage CRUD
+9. Goal CRUD + status transitions
+10. Task CRUD + status transitions
+11. Metric definition CRUD
+12. Metric entry recording
+13. Session status transitions (Start Sprint, Lock)
+14. Enhanced "new session" with carry-forward logic
+
+### Phase 3: UI
+15. Maturity stage selector section on coaching page
+16. Metrics section with cards + add metric modal
+17. Goals & tasks section with inline add/edit/status dropdowns
+18. "Start Sprint" / "Lock Session" / status badge in header
+19. Read-only mode for LOCKED sessions
+
+### Phase 4: Future (not in this build)
+20. Standalone metrics history page (charts + trends)
+21. Slack-based metric check-ins (Mikey asks "how did you do?")
+22. Metrics over time visualization
+23. Goal completion rate analytics
 17. Admin moderation UI for managing answers
 18. Duplicate question detection
