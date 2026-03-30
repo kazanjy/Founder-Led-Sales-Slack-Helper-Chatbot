@@ -728,8 +728,7 @@ function HiringProfileContent() {
                           key={index}
                           className="bg-white border border-gray-200 rounded-lg p-4"
                         >
-                          <p className="text-sm text-gray-700">{item.feedback}</p>
-                          <p className="text-xs text-gray-400 mt-2">{formatDate(item.createdAt)}</p>
+                          <p className="text-sm text-gray-700">&ldquo;{item}&rdquo;</p>
                         </div>
                       ))}
                     </div>
