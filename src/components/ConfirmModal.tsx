@@ -82,7 +82,7 @@ export default function ConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        onClick={showCancel ? onCancel : onConfirm}
+        onClick={onCancel || onConfirm}
       />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-6">

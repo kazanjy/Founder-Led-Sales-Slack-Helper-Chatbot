@@ -23,17 +23,19 @@ interface AlertOptions {
 export function useConfirmModal() {
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
+    isAlert: boolean;
     options: ModalOptions;
     resolve: ((value: boolean) => void) | null;
   }>({
     isOpen: false,
+    isAlert: false,
     options: { title: "", message: "" },
     resolve: null,
   });
 
   const confirm = useCallback((options: ModalOptions): Promise<boolean> => {
     return new Promise<boolean>((resolve) => {
-      setModalState({ isOpen: true, options, resolve });
+      setModalState({ isOpen: true, isAlert: false, options, resolve });
     });
   }, []);
 
@@ -41,6 +43,7 @@ export function useConfirmModal() {
     return new Promise<void>((resolve) => {
       setModalState({
         isOpen: true,
+        isAlert: true,
         options: { ...options, cancelLabel: undefined },
         resolve: () => resolve() as unknown as boolean,
       });
@@ -57,8 +60,6 @@ export function useConfirmModal() {
     setModalState((prev) => ({ ...prev, isOpen: false, resolve: null }));
   }, [modalState.resolve]);
 
-  const isAlert = !modalState.options.cancelLabel && modalState.options.cancelLabel !== "";
-
   const ConfirmModalElement = (
     <ConfirmModal
       isOpen={modalState.isOpen}
@@ -69,7 +70,7 @@ export function useConfirmModal() {
       cancelLabel={modalState.options.cancelLabel}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
-      showCancel={!isAlert}
+      showCancel={!modalState.isAlert}
     />
   );
 
