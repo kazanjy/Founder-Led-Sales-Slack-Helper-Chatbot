@@ -18,10 +18,7 @@ interface HiringProfileVersion {
   content: string;
   createdAt: string;
   userId: string;
-  iterationHistory?: Array<{
-    feedback: string;
-    createdAt: string;
-  }>;
+  iterationHistory?: string[];
   user?: { name: string | null; email: string | null; slackUserName: string | null };
 }
 
