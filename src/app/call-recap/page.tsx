@@ -95,6 +95,7 @@ function CallRecapContent() {
   // Tone & Polish state
   const [toneGuidance, setToneGuidance] = useState("");
   const [toneSaving, setToneSaving] = useState(false);
+  const [applyingTone, setApplyingTone] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -138,6 +139,83 @@ function CallRecapContent() {
       });
     } catch { /* ignore */ }
     setToneSaving(false);
+  };
+
+  // Re-generate with updated tone (uses the original call data)
+  const handleApplyTone = async () => {
+    if (!version) return;
+    // Save tone first
+    await saveToneGuidance();
+    setApplyingTone(true);
+    setStreamingContent("");
+    setStreamingComplete(false);
+
+    try {
+      const response = await fetch("/api/call-recap/generate-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordingUrl: version.recordingUrl,
+          callSummary: version.callSummary,
+          callTranscript: version.callTranscript || undefined,
+          toneGuidance: toneGuidance.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        await showAlert({ title: "Error", message: "Failed to regenerate.", variant: "danger" });
+        setApplyingTone(false);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "token") {
+                setStreamingContent((prev) => prev + data.token);
+              } else if (currentEvent === "complete") {
+                // Delete the old version, load the new one
+                if (data.versionId) {
+                  // Delete old version silently
+                  await fetch(`/api/call-recap/versions/${version.id}`, { method: "DELETE" }).catch(() => {});
+                  // Load new version
+                  const res = await fetch(`/api/call-recap/versions/${data.versionId}`);
+                  if (res.ok) {
+                    const vData = await res.json();
+                    setVersion(vData.version);
+                    setStreamingContent("");
+                    setStreamingComplete(true);
+                    window.history.replaceState({}, "", `/call-recap?version=${data.versionId}`);
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+            currentEvent = "";
+          }
+        }
+      }
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to regenerate.", variant: "danger" });
+      setStreamingContent("");
+    } finally {
+      setApplyingTone(false);
+    }
   };
 
   // Load data
@@ -456,7 +534,7 @@ function CallRecapContent() {
 
   const isStreamingMode = isGenerating && !streamingComplete;
   const hasStreamingContent = streamingContent.length > 0;
-  const displayBody = (isStreamingMode || (iterating && streamingContent)) ? streamingContent : (isEditing ? editedBody : (version?.emailBody || ""));
+  const displayBody = (isStreamingMode || (iterating && streamingContent) || (applyingTone && streamingContent)) ? streamingContent : (isEditing ? editedBody : (version?.emailBody || ""));
   const displaySubject = isStreamingMode ? streamingSubject : (isEditing ? editedSubject : (version?.emailSubject || ""));
 
   // Empty state
@@ -911,6 +989,25 @@ function CallRecapContent() {
                   <p className="text-xs text-gray-400 mt-1.5">
                     {toneSaving ? "Saving..." : "Saves automatically. Applies to all future recaps."}
                   </p>
+                  {version && (
+                    <button
+                      onClick={handleApplyTone}
+                      disabled={applyingTone || iterating}
+                      className="mt-3 w-full px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {applyingTone ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Regenerating...
+                        </>
+                      ) : (
+                        "Regenerate with Tone"
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
