@@ -924,6 +924,29 @@ function CallRecapContent() {
               <div className="sticky top-8 space-y-4">
                 <SidebarAdCards />
 
+                {/* Call Coaching CTA */}
+                {version && (
+                  <a
+                    href="/call-review"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+                  >
+                    <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-bold text-lg mb-1">Call Coaching</h3>
+                    <p className="text-green-100 text-sm mb-4">
+                      Grade this call with Mikey&apos;s call coaching scorecard and get actionable feedback.
+                    </p>
+                    <span className="block w-full text-center px-4 py-2.5 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors font-semibold text-sm">
+                      Grade This Call
+                    </span>
+                  </a>
+                )}
+
                 {/* Iterate panel */}
                 {(version || hasStreamingContent) && (
                   <div
