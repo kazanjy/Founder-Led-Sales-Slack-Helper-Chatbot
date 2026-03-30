@@ -128,15 +128,31 @@ function CallRecapContent() {
   const saveToneGuidance = async () => {
     setToneSaving(true);
     try {
-      await fetch("/api/gtm-variables", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mergeField: "RECAP_TONE_GUIDANCE",
-          name: "Recap Email Tone Guidance",
-          value: toneGuidance.trim(),
-        }),
-      });
+      // Check if variable exists already
+      const listRes = await fetch("/api/gtm-variables");
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const existing = listData.variables?.find((v: { mergeField: string }) => v.mergeField === "RECAP_TONE_GUIDANCE");
+        if (existing) {
+          // Update existing
+          await fetch(`/api/gtm-variables/${existing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: toneGuidance.trim() }),
+          });
+        } else {
+          // Create new
+          await fetch("/api/gtm-variables", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mergeField: "RECAP_TONE_GUIDANCE",
+              name: "Recap Email Tone Guidance",
+              value: toneGuidance.trim(),
+            }),
+          });
+        }
+      }
     } catch { /* ignore */ }
     setToneSaving(false);
   };
