@@ -131,18 +131,19 @@ export default function NewSalesMotion() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Analyze Your Sales Motion</h1>
           <p className="text-gray-600 mb-4">
-            Provide 3-5 of your best completed deals. For each deal, paste the call summaries and transcripts
-            from your call recorder in chronological order.
+            Provide 3-5 of your best <strong className="text-gray-900">closed-won deals</strong>. For each deal, paste <strong className="text-gray-900">all the calls</strong> from
+            first touch through close &mdash; summaries and transcripts from your call recorder in chronological order.
           </p>
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
             <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <p className="text-sm text-blue-800 font-medium">Focus on &ldquo;good to great&rdquo; deals</p>
+              <p className="text-sm text-blue-800 font-medium">Focus on &ldquo;good to great&rdquo; closed-won deals</p>
               <p className="text-xs text-blue-600 mt-0.5">
-                Pick deals that represent how you want your sales process to work. Mikey will synthesize these into a prototypical
-                sales motion and canonical call scripts.
+                Pick <strong>won deals</strong> that represent how you want your sales process to work. Include <strong>every call</strong> in
+                each deal &mdash; discovery, demo, proposal, negotiation, close. Mikey will synthesize these into a prototypical
+                sales motion and canonical call scripts for each stage.
               </p>
             </div>
           </div>
