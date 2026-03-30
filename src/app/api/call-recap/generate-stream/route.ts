@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401 });
     }
 
-    const { recordingUrl, callSummary, callTranscript, customNotes } = await request.json();
+    const { recordingUrl, callSummary, callTranscript, customNotes, toneGuidance: toneFromBody } = await request.json();
 
     if (!recordingUrl || !callSummary?.trim()) {
       return new Response(
@@ -33,12 +33,24 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     }).catch(() => null);
 
+    // Load tone guidance — from body or from GTM variable
+    let toneGuidance = toneFromBody || "";
+    if (!toneGuidance) {
+      const toneVar = await prisma.gtmVariable.findUnique({
+        where: { userId_mergeField: { userId: user.id, mergeField: "RECAP_TONE_GUIDANCE" } },
+      }).catch(() => null);
+      if (toneVar?.value) toneGuidance = toneVar.value;
+    }
+
     let contextSection = "";
     if (salesNarrative?.narrative) {
       contextSection += `\n## SALES NARRATIVE (for tone and positioning reference):\n\n${salesNarrative.narrative}\n`;
     }
     if (salesMotion?.salesMotionSynthesis) {
       contextSection += `\n## SALES MOTION (for process and next-steps reference):\n\n${salesMotion.salesMotionSynthesis}\n`;
+    }
+    if (toneGuidance.trim()) {
+      contextSection += `\n## TONE & POLISH GUIDANCE (apply this to the email style):\n\n${toneGuidance.trim()}\n`;
     }
 
     const prompt = `You are an expert sales communication assistant helping a founder craft professional follow-up emails after sales calls. You have deep knowledge of B2B sales best practices.

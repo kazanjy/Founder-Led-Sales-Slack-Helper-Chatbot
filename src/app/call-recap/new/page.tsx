@@ -10,6 +10,9 @@ export default function NewCallRecap() {
   const [callSummary, setCallSummary] = useState("");
   const [callTranscript, setCallTranscript] = useState("");
   const [customNotes, setCustomNotes] = useState("");
+  const [toneGuidance, setToneGuidance] = useState("");
+  const [toneLoaded, setToneLoaded] = useState(false);
+  const [toneSaving, setToneSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   // Source freshness
@@ -20,6 +23,39 @@ export default function NewCallRecap() {
   useEffect(() => {
     document.title = "Call Recap Email - Mikey";
   }, []);
+
+  // Load saved tone guidance
+  useEffect(() => {
+    async function loadTone() {
+      try {
+        const res = await fetch("/api/gtm-variables");
+        if (res.ok) {
+          const data = await res.json();
+          const toneVar = data.variables?.find((v: { mergeField: string }) => v.mergeField === "RECAP_TONE_GUIDANCE");
+          if (toneVar?.value) setToneGuidance(toneVar.value);
+        }
+      } catch { /* ignore */ }
+      setToneLoaded(true);
+    }
+    loadTone();
+  }, []);
+
+  // Save tone guidance on blur
+  const saveToneGuidance = async () => {
+    setToneSaving(true);
+    try {
+      await fetch("/api/gtm-variables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mergeField: "RECAP_TONE_GUIDANCE",
+          name: "Recap Email Tone Guidance",
+          value: toneGuidance.trim(),
+        }),
+      });
+    } catch { /* ignore */ }
+    setToneSaving(false);
+  };
 
   useEffect(() => {
     async function checkSources() {
@@ -56,6 +92,7 @@ export default function NewCallRecap() {
         callSummary: callSummary.trim(),
         callTranscript: callTranscript.trim() || undefined,
         customNotes: customNotes.trim() || undefined,
+        toneGuidance: toneGuidance.trim() || undefined,
       }));
     } catch { /* ignore */ }
     router.push("/call-recap?generating=true");
@@ -171,6 +208,26 @@ export default function NewCallRecap() {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                 />
               </div>
+
+              {/* Tone & Polish — persistent, saves on blur */}
+              {toneLoaded && (
+                <div className="border-t border-gray-100 pt-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tone &amp; Polish <span className="text-gray-400 font-normal">(saved for all recaps)</span>
+                  </label>
+                  <textarea
+                    value={toneGuidance}
+                    onChange={(e) => setToneGuidance(e.target.value)}
+                    onBlur={saveToneGuidance}
+                    placeholder='e.g., "Keep it concise and direct — no fluff. Use a warm but professional tone. Always end with a specific next step and proposed date."'
+                    rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {toneSaving ? "Saving..." : "This guidance applies to all recap emails you generate. Edit anytime."}
+                  </p>
+                </div>
+              )}
 
               {/* Generate button */}
               <button
