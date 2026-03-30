@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 
@@ -14,6 +14,11 @@ export default function NewCallRecap() {
   const [toneLoaded, setToneLoaded] = useState(false);
   const [toneSaving, setToneSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  // Auto-extraction state
+  const [extracting, setExtracting] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
+  const extractAttemptedRef = useRef<string | null>(null);
 
   // Source freshness
   const [narrativeDate, setNarrativeDate] = useState<string | null>(null);
@@ -56,6 +61,39 @@ export default function NewCallRecap() {
     } catch { /* ignore */ }
     setToneSaving(false);
   };
+
+  // Auto-extract transcript when a valid recording URL is pasted
+  useEffect(() => {
+    const url = recordingUrl.trim();
+    if (!url || extracting || extractAttemptedRef.current === url) return;
+    try { new URL(url); } catch { return; }
+    if (callTranscript.trim().length > 100) return;
+
+    extractAttemptedRef.current = url;
+    setExtracting(true);
+    setExtractionMessage("Extracting transcript from recording...");
+
+    fetch("/api/call-review/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.ok && data.transcript) {
+          setCallTranscript(data.transcript);
+          setExtractionMessage(`Transcript extracted from ${data.vendor || "recording"} (${data.transcript.length.toLocaleString()} chars)`);
+        } else {
+          setExtractionMessage(data.manualInstructions || data.error || "Could not auto-extract. Please paste the transcript manually.");
+        }
+      })
+      .catch(() => {
+        setExtractionMessage("Could not auto-extract. Please paste the transcript manually.");
+      })
+      .finally(() => {
+        setExtracting(false);
+      });
+  }, [recordingUrl, extracting, callTranscript]);
 
   useEffect(() => {
     async function checkSources() {
@@ -164,7 +202,21 @@ export default function NewCallRecap() {
                   placeholder="https://fathom.video/share/... or Gong/Chorus link"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                 />
-                <p className="text-xs text-gray-400 mt-1">Public share link from your call recorder</p>
+                <div className="flex items-center gap-2 mt-1 min-h-[18px]">
+                  {extracting ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <p className="text-xs text-purple-600 font-medium">{extractionMessage}</p>
+                    </>
+                  ) : extractionMessage ? (
+                    <p className="text-xs text-amber-600">{extractionMessage}</p>
+                  ) : (
+                    <p className="text-xs text-gray-400">Public share link — Mikey will try to auto-extract the transcript</p>
+                  )}
+                </div>
               </div>
 
               {/* Call Summary — required */}

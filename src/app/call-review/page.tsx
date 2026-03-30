@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
@@ -88,11 +88,14 @@ function CallReviewContent() {
   const [version, setVersion] = useState<CallReviewVersion | null>(null);
   const [transcript, setTranscript] = useState("");
   const [recordingUrl, setRecordingUrl] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
+  const [detectedVendor, setDetectedVendor] = useState<string | null>(null);
+  const extractAttemptedRef = useRef<string | null>(null);
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
-  // Link extraction wired off — keeping sourceUrl/sourceVendor fields for API compatibility
   const shareUrl = recordingUrl;
-  const extractedFrom: string | null = recordingUrl ? "user" : null;
+  const extractedFrom = detectedVendor;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"scorecard" | "transcript">("scorecard");
   const [recentReviews, setRecentReviews] = useState<Array<{
@@ -117,6 +120,44 @@ function CallReviewContent() {
       }
     } catch { /* ignore */ }
   }, []);
+
+  // Auto-extract transcript when a valid recording URL is pasted
+  useEffect(() => {
+    const url = recordingUrl.trim();
+    if (!url || extracting || extractAttemptedRef.current === url) return;
+    // Only attempt for URLs that look valid
+    try { new URL(url); } catch { return; }
+    // Don't extract if user already has transcript content
+    if (transcript.trim().length > 100) return;
+
+    extractAttemptedRef.current = url;
+    setExtracting(true);
+    setExtractionMessage("Extracting transcript from recording...");
+    setDetectedVendor(null);
+
+    fetch("/api/call-review/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.ok && data.transcript) {
+          setTranscript(data.transcript);
+          setDetectedVendor(data.vendor || null);
+          setExtractionMessage(`Transcript extracted from ${data.vendor || "recording"} (${data.transcript.length.toLocaleString()} chars)`);
+        } else {
+          // Extraction failed — show manual instructions
+          setExtractionMessage(data.manualInstructions || data.error || "Could not auto-extract. Please paste the transcript manually.");
+        }
+      })
+      .catch(() => {
+        setExtractionMessage("Could not auto-extract. Please paste the transcript manually.");
+      })
+      .finally(() => {
+        setExtracting(false);
+      });
+  }, [recordingUrl, extracting, transcript]);
 
   useEffect(() => {
     async function loadData() {
@@ -340,7 +381,28 @@ function CallReviewContent() {
                       disabled={analyzing}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-50"
                     />
-                    <p className="text-xs text-gray-400 mt-1">Public share link from your call recorder (Fathom, Gong, Chorus, etc.)</p>
+                    <div className="flex items-center gap-2 mt-1 min-h-[18px]">
+                      {extracting ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <p className="text-xs text-purple-600 font-medium">{extractionMessage}</p>
+                        </>
+                      ) : extractionMessage && detectedVendor ? (
+                        <>
+                          <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <p className="text-xs text-green-600 font-medium">{extractionMessage}</p>
+                        </>
+                      ) : extractionMessage ? (
+                        <p className="text-xs text-amber-600">{extractionMessage}</p>
+                      ) : (
+                        <p className="text-xs text-gray-400">Public share link from your call recorder (Fathom, Gong, Chorus, etc.) — Mikey will try to auto-extract the transcript</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* ── Paste Transcript ───────────────────────── */}
