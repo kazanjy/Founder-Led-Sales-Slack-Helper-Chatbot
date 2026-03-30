@@ -922,8 +922,6 @@ function CallRecapContent() {
             {/* Right: Sidebar */}
             <div className="hidden lg:block w-72 shrink-0">
               <div className="sticky top-8 space-y-4">
-                <SidebarAdCards />
-
                 {/* Call Coaching CTA */}
                 {version && (
                   <a
