@@ -164,6 +164,33 @@ Rules:
             },
           });
 
+          // Create a linked chat conversation
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+          const recapUrl = `${appUrl}/call-recap?version=${version.id}`;
+          const userMessage = `Generate a recap email for: ${title}`;
+          const assistantContent = `[View full Recap Email](${recapUrl})\n\n**Subject:** ${emailSubject}\n\n${emailBody.substring(0, 500)}${emailBody.length > 500 ? "..." : ""}`;
+
+          try {
+            await prisma.conversation.create({
+              data: {
+                userId: user.id,
+                source: "WEB",
+                title: `Recap: ${title}`,
+                firstMessagePreview: userMessage.substring(0, 100),
+                messageCount: 2,
+                lastMessageAt: new Date(),
+                messages: {
+                  create: [
+                    { userId: user.id, role: "USER", content: userMessage },
+                    { role: "ASSISTANT", content: assistantContent },
+                  ],
+                },
+              },
+            });
+          } catch (e) {
+            console.error("[call-recap] Failed to create conversation:", e);
+          }
+
           send("complete", {
             versionId: version.id,
             title,

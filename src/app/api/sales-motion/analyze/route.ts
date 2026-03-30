@@ -334,6 +334,35 @@ Be specific and grounded in the actual examples provided. Output ONLY the markdo
             data: { status: "complete" },
           });
 
+          // Create a linked chat conversation
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+          const motionUrl = `${appUrl}/sales-motion?collectionId=${collectionId}`;
+          const dealCount = collection.deals.length;
+          const userMessage = `Analyze my sales motion from ${dealCount} deal${dealCount !== 1 ? "s" : ""}`;
+          const motionPreview = fullMotion.substring(0, 500) + (fullMotion.length > 500 ? "..." : "");
+          const assistantContent = `[View full Sales Motion Analysis](${motionUrl})\n\n${motionPreview}`;
+
+          try {
+            await prisma.conversation.create({
+              data: {
+                userId: user.id,
+                source: "WEB",
+                title: `Sales Motion Analysis (${dealCount} deals)`,
+                firstMessagePreview: userMessage.substring(0, 100),
+                messageCount: 2,
+                lastMessageAt: new Date(),
+                messages: {
+                  create: [
+                    { userId: user.id, role: "USER", content: userMessage },
+                    { role: "ASSISTANT", content: assistantContent },
+                  ],
+                },
+              },
+            });
+          } catch (e) {
+            console.error("[sales-motion/analyze] Failed to create conversation:", e);
+          }
+
           send("complete", { collectionId });
         } catch (error) {
           console.error("[sales-motion/analyze] Error:", error);
