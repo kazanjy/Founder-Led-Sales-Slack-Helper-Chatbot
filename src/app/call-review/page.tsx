@@ -105,7 +105,17 @@ function CallReviewContent() {
   const { alert: showAlert, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
-    document.title = "Call Review - Mikey";
+    document.title = "Call Coaching - Mikey";
+    // Check for prefilled data from Call Recap Email
+    try {
+      const prefill = sessionStorage.getItem("callCoachingPrefill");
+      if (prefill) {
+        const data = JSON.parse(prefill);
+        if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
+        if (data.transcript) setTranscript(data.transcript);
+        sessionStorage.removeItem("callCoachingPrefill");
+      }
+    } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {

@@ -924,11 +924,17 @@ function CallRecapContent() {
               <div className="sticky top-8 space-y-4">
                 {/* Call Coaching CTA */}
                 {version && (
-                  <a
-                    href="/call-review"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+                  <button
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem("callCoachingPrefill", JSON.stringify({
+                          recordingUrl: version.recordingUrl,
+                          transcript: version.callTranscript || version.callSummary,
+                        }));
+                      } catch { /* ignore */ }
+                      window.open("/call-review", "_blank");
+                    }}
+                    className="block w-full text-left bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
                   >
                     <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -939,10 +945,10 @@ function CallRecapContent() {
                     <p className="text-green-100 text-sm mb-4">
                       Grade this call with Mikey&apos;s call coaching scorecard and get actionable feedback.
                     </p>
-                    <span className="block w-full text-center px-4 py-2.5 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors font-semibold text-sm">
+                    <span className="block w-full text-center px-4 py-2.5 bg-white text-green-600 rounded-lg font-semibold text-sm">
                       Grade This Call
                     </span>
-                  </a>
+                  </button>
                 )}
 
                 {/* Iterate panel */}
