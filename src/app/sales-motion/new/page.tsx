@@ -24,12 +24,12 @@ function createCall(): CallInput {
 }
 
 function createDeal(): DealInput {
-  return { id: genId(), calls: [createCall()] };
+  return { id: genId(), calls: [createCall(), createCall()] };
 }
 
 export default function NewSalesMotion() {
   const router = useRouter();
-  const [deals, setDeals] = useState<DealInput[]>([createDeal()]);
+  const [deals, setDeals] = useState<DealInput[]>([createDeal(), createDeal()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
