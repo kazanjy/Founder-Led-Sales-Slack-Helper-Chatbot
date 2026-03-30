@@ -120,7 +120,7 @@ export interface ResearchBrief {
 export type SearchProgressCallback = (update: SearchProgressUpdate) => void;
 
 export interface SearchProgressUpdate {
-  stage: "parsing" | "planning" | "searching" | "fetching" | "synthesizing" | "complete" | "error";
+  stage: "parsing" | "planning" | "searching" | "fetching" | "synthesizing" | "content_chunk" | "complete" | "error";
   message: string;
   /** 0-100 */
   progress: number;
