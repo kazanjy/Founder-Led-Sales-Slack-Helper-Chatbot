@@ -19,6 +19,8 @@ interface CallRecapVersion {
   emailSubject: string;
   emailBody: string;
   recordingUrl: string;
+  callSummary: string;
+  callTranscript?: string;
   iterationHistory?: Array<{
     feedback: string;
     createdAt: string;
@@ -82,6 +84,7 @@ function CallRecapContent() {
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingSubject, setStreamingSubject] = useState("");
   const [streamingComplete, setStreamingComplete] = useState(false);
+  const [activeTab, setActiveTab] = useState<"email" | "source">("email");
   const [deleting, setDeleting] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -644,7 +647,34 @@ function CallRecapContent() {
           <div className="flex gap-8">
             {/* Left: Main content */}
             <div className="flex-1 min-w-0">
-              {/* Email content */}
+              {/* Tabs */}
+              {!isStreamingMode && version && (
+                <div className="flex gap-1 mb-6 border-b border-gray-200">
+                  <button
+                    onClick={() => setActiveTab("email")}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === "email"
+                        ? "border-purple-600 text-purple-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    Recap Email
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("source")}
+                    className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === "source"
+                        ? "border-purple-600 text-purple-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    Source Material
+                  </button>
+                </div>
+              )}
+
+              {/* Email content tab */}
+              {(activeTab === "email" || isStreamingMode || !version) && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 {/* Subject line */}
                 {isEditing ? (
@@ -699,6 +729,43 @@ function CallRecapContent() {
                   </div>
                 )}
               </div>
+              )}
+
+              {/* Source Material tab */}
+              {activeTab === "source" && version && (
+                <div className="space-y-6">
+                  {/* Recording URL */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Call Recording</h3>
+                    <a
+                      href={version.recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium text-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {version.recordingUrl}
+                    </a>
+                  </div>
+
+                  {/* Call Summary */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Call Summary</h3>
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{version.callSummary}</div>
+                  </div>
+
+                  {/* Transcript */}
+                  {version.callTranscript && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-6">
+                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Full Transcript</h3>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-[600px] overflow-y-auto">{version.callTranscript}</div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Iteration History */}
               {version?.iterationHistory && version.iterationHistory.length > 0 && (
