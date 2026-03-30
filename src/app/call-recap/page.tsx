@@ -92,6 +92,10 @@ function CallRecapContent() {
   const [iterateFeedback, setIterateFeedback] = useState("");
   const [iterating, setIterating] = useState(false);
 
+  // Tone & Polish state
+  const [toneGuidance, setToneGuidance] = useState("");
+  const [toneSaving, setToneSaving] = useState(false);
+
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [editedSubject, setEditedSubject] = useState("");
@@ -108,6 +112,33 @@ function CallRecapContent() {
   useEffect(() => {
     document.title = "Call Recap Email - Mikey";
   }, []);
+
+  // Load tone guidance
+  useEffect(() => {
+    fetch("/api/gtm-variables")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        const toneVar = data?.variables?.find((v: { mergeField: string }) => v.mergeField === "RECAP_TONE_GUIDANCE");
+        if (toneVar?.value) setToneGuidance(toneVar.value);
+      })
+      .catch(() => {});
+  }, []);
+
+  const saveToneGuidance = async () => {
+    setToneSaving(true);
+    try {
+      await fetch("/api/gtm-variables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mergeField: "RECAP_TONE_GUIDANCE",
+          name: "Recap Email Tone Guidance",
+          value: toneGuidance.trim(),
+        }),
+      });
+    } catch { /* ignore */ }
+    setToneSaving(false);
+  };
 
   // Load data
   useEffect(() => {
@@ -857,6 +888,30 @@ function CallRecapContent() {
                     </button>
                   </div>
                 )}
+
+                {/* Tone & Polish panel */}
+                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Tone &amp; Polish
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Provide style guidance for all recap emails you generate.
+                  </p>
+                  <textarea
+                    value={toneGuidance}
+                    onChange={(e) => setToneGuidance(e.target.value)}
+                    onBlur={saveToneGuidance}
+                    placeholder='e.g., "Keep it concise — no fluff. Warm but professional tone. Always end with a specific next step and proposed date."'
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
+                  />
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {toneSaving ? "Saving..." : "Saves automatically. Applies to all future recaps."}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
