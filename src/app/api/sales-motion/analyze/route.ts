@@ -339,7 +339,7 @@ Be specific and grounded in the actual examples provided. Output ONLY the markdo
           const motionUrl = `${appUrl}/sales-motion?collectionId=${collectionId}`;
           const dealCount = collection.deals.length;
           const userMessage = `Analyze my sales motion from ${dealCount} deal${dealCount !== 1 ? "s" : ""}`;
-          const motionPreview = fullMotion.substring(0, 500) + (fullMotion.length > 500 ? "..." : "");
+          const motionPreview = motionContent.substring(0, 500) + (motionContent.length > 500 ? "..." : "");
           const assistantContent = `[View full Sales Motion Analysis](${motionUrl})\n\n${motionPreview}`;
 
           try {
