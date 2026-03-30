@@ -122,9 +122,13 @@ export default function HiringProfileHistory() {
                       {v.updatedAt !== v.createdAt && ` · Updated ${formatDate(v.updatedAt)}`}
                     </p>
                     {v.iterationHistory && v.iterationHistory.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        {v.iterationHistory.length} iteration{v.iterationHistory.length !== 1 ? "s" : ""}
-                      </p>
+                      <div className="mt-1">
+                        <p className="text-xs text-purple-500">
+                          Iterated: &ldquo;{v.iterationHistory[v.iterationHistory.length - 1].length > 80
+                            ? v.iterationHistory[v.iterationHistory.length - 1].substring(0, 80) + "..."
+                            : v.iterationHistory[v.iterationHistory.length - 1]}&rdquo;
+                        </p>
+                      </div>
                     )}
                   </div>
                   <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

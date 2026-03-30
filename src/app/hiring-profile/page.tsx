@@ -76,6 +76,10 @@ function HiringProfileContent() {
   const [editedContent, setEditedContent] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Regenerate state
+  const [showRegenerate, setShowRegenerate] = useState(false);
+  const [regenerateGuidance, setRegenerateGuidance] = useState("");
+
   // Iteration history collapsed state
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
@@ -142,9 +146,20 @@ function HiringProfileContent() {
 
     async function streamGenerate() {
       try {
+        // Check for guidance from regenerate modal or first-time creation
+        let guidance = "";
+        try {
+          const stored = sessionStorage.getItem("hiringProfileGuidance");
+          if (stored) {
+            guidance = stored;
+            sessionStorage.removeItem("hiringProfileGuidance");
+          }
+        } catch { /* ignore */ }
+
         const response = await fetch("/api/hiring-profile/generate-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ guidance: guidance || undefined }),
         });
 
         if (!response.ok || !response.body) {
@@ -303,12 +318,14 @@ function HiringProfileContent() {
               if (currentEvent === "token") {
                 setStreamingContent((prev) => prev + data.token);
               } else if (currentEvent === "complete") {
-                // Reload the saved version
+                // Reload the new version (iterate creates a new version)
                 const res = await fetch(`/api/hiring-profile/versions/${data.versionId}`);
                 if (res.ok) {
                   const vData = await res.json();
                   setVersion(vData.version);
+                  if (vData.answersByCategory) setAnswersByCategory(vData.answersByCategory);
                 }
+                window.history.replaceState({}, "", `/hiring-profile?version=${data.versionId}`);
                 setStreamingContent("");
                 setStreamingComplete(true);
                 setIterateFeedback("");
@@ -363,6 +380,17 @@ function HiringProfileContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Regenerate handler — creates a brand new profile with optional guidance
+  const handleRegenerate = () => {
+    try {
+      if (regenerateGuidance.trim()) {
+        sessionStorage.setItem("hiringProfileGuidance", regenerateGuidance.trim());
+      }
+    } catch { /* ignore */ }
+    setShowRegenerate(false);
+    router.push("/hiring-profile?generating=true");
   };
 
   const formatDate = (dateString: string) => {
@@ -526,6 +554,15 @@ function HiringProfileContent() {
                   </svg>
                   History
                 </Link>
+                <button
+                  onClick={() => setShowRegenerate(true)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Regenerate
+                </button>
                 {isEditing ? (
                   <>
                     <button
@@ -621,6 +658,14 @@ function HiringProfileContent() {
 
               {/* Profile content */}
               {(activeTab === "profile" || isStreamingMode) && (
+              <>
+              {/* Iteration prompt banner */}
+              {version?.iterationHistory && version.iterationHistory.length > 0 && !isEditing && (
+                <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                  <p className="text-xs font-medium text-purple-700 mb-1">Latest iteration prompt:</p>
+                  <p className="text-sm text-purple-900">&ldquo;{version.iterationHistory[version.iterationHistory.length - 1]}&rdquo;</p>
+                </div>
+              )}
               <div className="bg-white border border-gray-200 rounded-xl p-8">
                 {isEditing ? (
                   <textarea
@@ -634,6 +679,7 @@ function HiringProfileContent() {
                   </div>
                 )}
               </div>
+              </>
               )}
 
               {/* Q&A Inputs tab */}
@@ -748,7 +794,39 @@ function HiringProfileContent() {
         </div>
       )}
 
-      {/* Iterate Modal removed — iterate is now inline in sidebar */}
+      {/* Regenerate Modal */}
+      {showRegenerate && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowRegenerate(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Regenerate AE Hiring Profile</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              This will generate a brand new profile from your current Q&amp;A answers. Optionally provide guidance to steer the generation.
+            </p>
+            <textarea
+              value={regenerateGuidance}
+              onChange={e => setRegenerateGuidance(e.target.value)}
+              placeholder='Optional: e.g., "Focus more on outbound hunting skills" or "Target $50-100K ACV enterprise motion"'
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              autoFocus
+            />
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-4">
+              <button
+                onClick={() => setShowRegenerate(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRegenerate}
+                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-colors font-medium"
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ConfirmModalElement}
     </div>

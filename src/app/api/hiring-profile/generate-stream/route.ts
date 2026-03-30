@@ -4,12 +4,18 @@ import { openai } from "@/lib/openai";
 
 export const maxDuration = 180;
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401 });
     }
+
+    let guidance = "";
+    try {
+      const body = await request.json();
+      guidance = body?.guidance || "";
+    } catch { /* no body is fine */ }
 
     const questions = await prisma.hiringProfileQuestion.findMany({
       where: { enabled: true },
@@ -85,7 +91,9 @@ Key areas to probe with suggested questions or evaluation criteria.
 ## Comp Expectations
 Suggested OTE range and base/variable split with reasoning.
 
-Be specific and actionable — avoid generic advice. Output ONLY the markdown report, no JSON wrapping.`;
+Be specific and actionable — avoid generic advice.${guidance ? `\n\n## ADDITIONAL GUIDANCE FROM USER:\n\n${guidance}` : ""}
+
+Output ONLY the markdown report, no JSON wrapping.`;
 
     // Set up SSE stream
     const encoder = new TextEncoder();

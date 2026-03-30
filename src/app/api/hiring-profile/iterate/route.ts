@@ -77,18 +77,34 @@ Be specific and actionable. Output ONLY the revised markdown report, no JSON wra
             }
           }
 
-          // Save updated content and append feedback to history
-          const updatedVersion = await prisma.hiringProfileVersion.update({
-            where: { id: versionId },
+          // Create a NEW version (not update in-place) with the iteration prompt recorded
+          const newVersion = await prisma.hiringProfileVersion.create({
             data: {
+              userId: user.id,
+              title: version.title, // keep the same title
               content: fullContent,
-              iterationHistory: { push: feedback.trim() },
+              iterationHistory: [...(version.iterationHistory || []), feedback.trim()],
             },
           });
 
+          // Copy answer snapshots from the original version to the new one
+          const originalAnswers = await prisma.hiringProfileAnswer.findMany({
+            where: { versionId: version.id },
+          });
+          if (originalAnswers.length > 0) {
+            await prisma.hiringProfileAnswer.createMany({
+              data: originalAnswers.map((a) => ({
+                userId: a.userId,
+                questionId: a.questionId,
+                versionId: newVersion.id,
+                answer: a.answer,
+              })),
+            });
+          }
+
           send("complete", {
-            versionId: updatedVersion.id,
-            title: updatedVersion.title,
+            versionId: newVersion.id,
+            title: newVersion.title,
           });
         } catch (error) {
           console.error("[hiring-profile/iterate] Error:", error);
