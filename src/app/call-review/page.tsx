@@ -87,11 +87,12 @@ function CallReviewContent() {
   const [analyzing, setAnalyzing] = useState(false);
   const [version, setVersion] = useState<CallReviewVersion | null>(null);
   const [transcript, setTranscript] = useState("");
+  const [recordingUrl, setRecordingUrl] = useState("");
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
   // Link extraction wired off — keeping sourceUrl/sourceVendor fields for API compatibility
-  const shareUrl = "";
-  const extractedFrom: string | null = null;
+  const shareUrl = recordingUrl;
+  const extractedFrom: string | null = recordingUrl ? "user" : null;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"scorecard" | "transcript">("scorecard");
   const [recentReviews, setRecentReviews] = useState<Array<{
@@ -316,6 +317,22 @@ function CallReviewContent() {
                 </p>
 
                 <div className="space-y-4">
+                  {/* ── Recording URL ────────────────────────── */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Call Recording URL <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={recordingUrl}
+                      onChange={(e) => setRecordingUrl(e.target.value)}
+                      placeholder="https://fathom.video/share/... or Gong/Chorus link"
+                      disabled={analyzing}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-50"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Public share link from your call recorder (Fathom, Gong, Chorus, etc.)</p>
+                  </div>
+
                   {/* ── Paste Transcript ───────────────────────── */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -373,7 +390,7 @@ function CallReviewContent() {
 
                       <button
                         onClick={handleAnalyze}
-                        disabled={analyzing || transcript.trim().length < 100}
+                        disabled={analyzing || transcript.trim().length < 100 || !recordingUrl.trim()}
                         className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {analyzing ? (
