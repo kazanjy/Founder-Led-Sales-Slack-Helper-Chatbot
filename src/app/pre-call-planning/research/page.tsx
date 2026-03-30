@@ -62,6 +62,7 @@ function ResearchContent() {
   const [researching, setResearching] = useState(false);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [brief, setBrief] = useState<ResearchBrief | null>(null);
+  const [streamingContent, setStreamingContent] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [copied, setCopied] = useState(false);
   const [hasPreCallPlanning, setHasPreCallPlanning] = useState(false);
@@ -150,6 +151,7 @@ function ResearchContent() {
     setResearching(true);
     setProgress({ stage: "parsing", message: "Starting research...", progress: 5 });
     setBrief(null);
+    setStreamingContent("");
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -213,11 +215,16 @@ function ResearchContent() {
           try {
             const parsed = JSON.parse(eventData);
 
-            if (eventType === "progress") {
+            if (eventType === "content_chunk") {
+              // Stream content as it arrives — hide progress overlay
+              setProgress(null);
+              setStreamingContent((prev) => prev + (parsed.token || ""));
+            } else if (eventType === "progress") {
               setProgress(parsed);
             } else if (eventType === "complete") {
               setBrief(parsed);
               setProgress(null);
+              setStreamingContent("");
               // Update URL with the new brief ID
               router.replace(`/pre-call-planning/research?id=${parsed.id}`, { scroll: false });
               // Add to history
@@ -578,6 +585,15 @@ function ResearchContent() {
                 <div className="p-6">
                   <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.content}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            ) : streamingContent ? (
+              /* Streaming content — brief is being generated token by token */
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-6">
+                  <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
                   </div>
                 </div>
               </div>

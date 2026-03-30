@@ -195,16 +195,28 @@ Now generate the research brief.`;
 
   let aiResponse = "";
   try {
-    const response = await openai.chat.completions.create({
+    const stream = await openai.chat.completions.create({
       model: "gpt-5.2",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
+      stream: true,
     });
 
-    aiResponse = response.choices[0]?.message?.content || "";
+    for await (const chunk of stream) {
+      const token = chunk.choices[0]?.delta?.content;
+      if (token) {
+        aiResponse += token;
+        // Stream content chunks through the progress callback
+        onProgress?.({
+          stage: "content_chunk",
+          message: token,
+          progress: 85,
+        });
+      }
+    }
   } catch (error) {
     console.error("[Synthesis] OpenAI error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
