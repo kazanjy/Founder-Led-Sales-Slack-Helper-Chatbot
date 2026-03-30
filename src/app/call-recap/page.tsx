@@ -644,19 +644,6 @@ function CallRecapContent() {
                         {version?.createdAt && (
                           <span className="text-sm text-gray-500">{formatDate(version.createdAt)}</span>
                         )}
-                        {version?.recordingUrl && (
-                          <a
-                            href={version.recordingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Recording
-                          </a>
-                        )}
                         {version?.user && (
                           <span className="text-sm text-gray-400">
                             by {version.user.name || version.user.slackUserName || version.user.email}
@@ -669,27 +656,27 @@ function CallRecapContent() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Recording link — first, most prominent */}
+                {version?.recordingUrl && (
+                  <a
+                    href={version.recordingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-2 font-medium text-sm border border-purple-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Recording
+                  </a>
+                )}
                 <ChatAboutButton
                   title="Chat About Call Recap Email"
                   getContext={() => {
                     return "## Call Recap Email\n\nSubject: " + (version?.emailSubject || "") + "\n\n" + (version?.emailBody || "");
                   }}
                 />
-                <button
-                  onClick={handleCopy}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  {copiedField === "content" ? (
-                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  )}
-                  {copiedField === "content" ? "Copied!" : "Copy"}
-                </button>
                 {version && (
                   <ShareDocumentButton
                     documentType="callRecap"
@@ -810,7 +797,35 @@ function CallRecapContent() {
               {/* Email content tab */}
               {(activeTab === "email" || isStreamingMode || !version) && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                {/* Subject line */}
+                {/* Subject line + Copy button row */}
+                {!isEditing && displaySubject && (
+                  <div className="bg-gray-50 border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900">
+                      <span className="text-gray-500">Subject: </span>
+                      {displaySubject}
+                    </p>
+                    <button
+                      onClick={handleCopy}
+                      className="flex-shrink-0 ml-4 px-3 py-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                    >
+                      {copiedField === "content" ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
                 {isEditing ? (
                   <div className="bg-gray-50 border-b border-gray-200 px-8 py-4">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
@@ -820,13 +835,6 @@ function CallRecapContent() {
                       onChange={(e) => setEditedSubject(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
-                  </div>
-                ) : displaySubject ? (
-                  <div className="bg-gray-50 border-b border-gray-200 px-8 py-4">
-                    <p className="text-sm font-medium text-gray-900">
-                      <span className="text-gray-500">Subject: </span>
-                      {displaySubject}
-                    </p>
                   </div>
                 ) : null}
 
