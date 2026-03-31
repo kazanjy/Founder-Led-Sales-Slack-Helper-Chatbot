@@ -38,6 +38,7 @@ export async function POST(
 
     const task = await prisma.coachingTask.create({
       data: {
+        userId: user.id,
         goalId: id,
         title,
         order,
