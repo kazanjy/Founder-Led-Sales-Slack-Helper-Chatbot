@@ -125,7 +125,12 @@ Generate three product descriptions. Be specific about problem, solution, differ
 Respond ONLY with valid JSON (no markdown code blocks):
 {"description100w": "A ~100-word product marketing summary...", "description50w": "A ~50-word elevator pitch...", "description25w": "A ~25-word tagline..."}`;
 
-    const titlePrompt = `Given a product called "${productName}", generate a short descriptive title in the format: "[Product Name] - [Category/Market] - Sales Narrative". Respond with ONLY the title text, nothing else.`;
+    const titlePrompt = `Based on the following product/company information, generate a short descriptive title in the format: "[Product Name] - [Category/Market] - Sales Narrative". For example: "TalentBin - Technical Recruiting - Sales Narrative" or "Salesforce - B2B CRM - Sales Narrative". The title should make it immediately clear what product and market the narrative is about. Respond with ONLY the title text, nothing else.
+
+Product name: ${productName}
+
+Context:
+${answersSummary.substring(0, 2000)}`;
 
     // Set up SSE stream
     const encoder = new TextEncoder();
