@@ -195,32 +195,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>🔄</span> Sales Maturity Stage
         </h3>
-        <div className="space-y-1.5">
+        <select
+          value={maturityStage || ""}
+          onChange={(e) => canEdit && e.target.value && updateMaturityStage(e.target.value)}
+          disabled={!canEdit}
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white disabled:bg-gray-50 disabled:cursor-default"
+        >
+          <option value="">Select your current stage...</option>
           {MATURITY_STAGES.map((stage) => (
-            <button
-              key={stage.value}
-              onClick={() => canEdit && updateMaturityStage(stage.value)}
-              disabled={!canEdit}
-              className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all flex items-center gap-3 ${
-                maturityStage === stage.value
-                  ? "bg-purple-100 border-2 border-purple-300 text-purple-900 font-medium"
-                  : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100"
-              } ${!canEdit ? "cursor-default" : "cursor-pointer"}`}
-            >
-              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                maturityStage === stage.value ? "border-purple-500 bg-purple-500" : "border-gray-300"
-              }`}>
-                {maturityStage === stage.value && (
-                  <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                )}
-              </div>
-              <div>
-                <span className="font-medium">{stage.short}</span>
-                <span className="text-gray-400 ml-2 text-xs hidden sm:inline">— {stage.label}</span>
-              </div>
-            </button>
+            <option key={stage.value} value={stage.value}>
+              {stage.short} — {stage.label}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       {/* ── Metrics ─────────────────────────────────────────────── */}
