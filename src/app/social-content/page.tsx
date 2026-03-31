@@ -331,7 +331,7 @@ function SocialContentContent() {
               if (currentEvent === "token") {
                 streamedContent += data.token;
                 // Update a temporary version to show streaming content
-                setVersion((prev) => prev ? { ...prev, content: streamedContent } : {
+                setVersion((prev) => prev ? { ...prev, content: streamedContent } : ({
                   id: "streaming",
                   title: "Generating...",
                   content: streamedContent,
@@ -342,7 +342,7 @@ function SocialContentContent() {
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
                   userId: "",
-                } as typeof prev);
+                } as SocialContentVersion));
                 setEditedContent(streamedContent);
               } else if (currentEvent === "complete") {
                 // Load the actual saved version

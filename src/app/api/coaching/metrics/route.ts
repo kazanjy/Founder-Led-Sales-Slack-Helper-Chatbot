@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
+
     const metrics = await prisma.coachingMetricDefinition.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(includeArchived ? {} : { archived: false }),
+      },
       orderBy: { order: "asc" },
     });
 
@@ -34,6 +39,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, definition, interval } = body;
 
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
     const maxOrder = await prisma.coachingMetricDefinition.aggregate({
       where: { userId: user.id },
       _max: { order: true },
@@ -44,9 +53,9 @@ export async function POST(request: NextRequest) {
     const metric = await prisma.coachingMetricDefinition.create({
       data: {
         userId: user.id,
-        name,
-        definition,
-        interval,
+        name: name.trim(),
+        definition: definition?.trim() || null,
+        interval: interval || null,
         order,
       },
     });

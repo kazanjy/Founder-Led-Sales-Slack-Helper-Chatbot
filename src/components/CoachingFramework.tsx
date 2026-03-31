@@ -69,6 +69,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
+  const [newMetricDefinition, setNewMetricDefinition] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
 
   // ── Load data ──────────────────────────────────────────────────
 
@@ -175,12 +178,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const addMetricDefinition = async () => {
     if (!newMetricName.trim()) return;
     const name = newMetricName.trim();
+    const definition = newMetricDefinition.trim() || undefined;
     setNewMetricName("");
+    setNewMetricDefinition("");
     setAddingMetric(false);
     const res = await fetch("/api/coaching/metrics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, definition }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -196,9 +201,64 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           id: entryData.entry.id,
           currentValue: 0,
           addedSinceLastSession: 0,
-          metricDefinition: { id: data.metric.id, name, isDefault: false },
+          metricDefinition: { id: data.metric.id, name, definition, isDefault: false },
         }]);
       }
+    }
+  };
+
+  const archiveMetric = async (metricDefId: string) => {
+    // Optimistic: remove from active entries
+    const archived = metricEntries.find((e) => e.metricDefinition.id === metricDefId);
+    setMetricEntries((prev) => prev.filter((e) => e.metricDefinition.id !== metricDefId));
+    if (archived) {
+      setArchivedMetrics((prev) => [...prev, { id: archived.metricDefinition.id, name: archived.metricDefinition.name, definition: archived.metricDefinition.definition }]);
+    }
+    await fetch(`/api/coaching/metrics/${metricDefId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+  };
+
+  const unarchiveMetric = async (metricDefId: string) => {
+    const metric = archivedMetrics.find((m) => m.id === metricDefId);
+    setArchivedMetrics((prev) => prev.filter((m) => m.id !== metricDefId));
+    await fetch(`/api/coaching/metrics/${metricDefId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: false }),
+    });
+    if (metric) {
+      // Create entry for the current session
+      const entryRes = await fetch(`/api/coaching/metrics/${metricDefId}/entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, currentValue: 0 }),
+      });
+      if (entryRes.ok) {
+        const entryData = await entryRes.json();
+        setMetricEntries((prev) => [...prev, {
+          id: entryData.entry.id,
+          currentValue: 0,
+          addedSinceLastSession: 0,
+          metricDefinition: { id: metricDefId, name: metric.name, definition: metric.definition, isDefault: false },
+        }]);
+      }
+    }
+  };
+
+  const deleteMetric = async (metricDefId: string) => {
+    setMetricEntries((prev) => prev.filter((e) => e.metricDefinition.id !== metricDefId));
+    await fetch(`/api/coaching/metrics/${metricDefId}`, { method: "DELETE" });
+  };
+
+  const loadArchivedMetrics = async () => {
+    const res = await fetch("/api/coaching/metrics?includeArchived=true");
+    if (res.ok) {
+      const data = await res.json();
+      const archived = (data.metrics || []).filter((m: { archived: boolean }) => m.archived);
+      setArchivedMetrics(archived.map((m: { id: string; name: string; definition?: string }) => ({ id: m.id, name: m.name, definition: m.definition })));
     }
   };
 
@@ -236,8 +296,31 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => (
-            <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center">
+            <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center relative group">
+              {canEdit && (
+                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                  <button
+                    onClick={() => archiveMetric(entry.metricDefinition.id)}
+                    title="Archive metric"
+                    className="p-1 text-gray-400 hover:text-amber-500 rounded"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                  </button>
+                  {!entry.metricDefinition.isDefault && (
+                    <button
+                      onClick={() => deleteMetric(entry.metricDefinition.id)}
+                      title="Delete metric"
+                      className="p-1 text-gray-400 hover:text-red-500 rounded"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="text-xs text-gray-500 mb-1 font-medium">{entry.metricDefinition.name}</div>
+              {entry.metricDefinition.definition && (
+                <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
+              )}
               {canEdit ? (
                 <input
                   type="number"
@@ -266,28 +349,80 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           ))}
         </div>
         {canEdit && (
-          <div className="mt-3">
+          <div className="mt-3 space-y-2">
             {addingMetric ? (
-              <div className="flex items-center gap-2">
+              <div className="space-y-2">
                 <input
                   type="text"
                   value={newMetricName}
                   onChange={(e) => setNewMetricName(e.target.value)}
-                  placeholder="Metric name..."
-                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                  onKeyDown={(e) => e.key === "Enter" && addMetricDefinition()}
+                  placeholder="Metric name (e.g. MRR, Pipeline Value)..."
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && addMetricDefinition()}
                   autoFocus
                 />
-                <button onClick={addMetricDefinition} className="text-sm text-purple-600 font-medium">Add</button>
-                <button onClick={() => { setAddingMetric(false); setNewMetricName(""); }} className="text-sm text-gray-400">Cancel</button>
+                <input
+                  type="text"
+                  value={newMetricDefinition}
+                  onChange={(e) => setNewMetricDefinition(e.target.value)}
+                  placeholder="Definition / description (optional)..."
+                  className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-purple-500"
+                  onKeyDown={(e) => e.key === "Enter" && addMetricDefinition()}
+                />
+                <div className="flex items-center gap-2">
+                  <button onClick={addMetricDefinition} disabled={!newMetricName.trim()} className="text-sm text-purple-600 font-medium disabled:opacity-50">Add Metric</button>
+                  <button onClick={() => { setAddingMetric(false); setNewMetricName(""); setNewMetricDefinition(""); }} className="text-sm text-gray-400">Cancel</button>
+                </div>
               </div>
             ) : (
-              <button
-                onClick={() => setAddingMetric(true)}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-              >
-                + Add Metric
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setAddingMetric(true)}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  + Add Metric
+                </button>
+                {!showArchived && (
+                  <button
+                    onClick={() => { setShowArchived(true); loadArchivedMetrics(); }}
+                    className="text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    Show Archived
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Archived metrics */}
+        {showArchived && (
+          <div className="mt-4 border-t border-gray-100 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Archived Metrics</h4>
+              <button onClick={() => setShowArchived(false)} className="text-xs text-gray-400 hover:text-gray-600">Hide</button>
+            </div>
+            {archivedMetrics.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-2">No archived metrics.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {archivedMetrics.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <div>
+                      <span className="text-sm text-gray-500">{m.name}</span>
+                      {m.definition && <span className="text-xs text-gray-400 ml-2">— {m.definition}</span>}
+                    </div>
+                    {canEdit && (
+                      <button
+                        onClick={() => unarchiveMetric(m.id)}
+                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                      >
+                        Unarchive
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

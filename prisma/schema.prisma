@@ -1313,10 +1313,11 @@ model CoachingMetricDefinition {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name       String // "Customers", "Revenue", or custom
-  definition String? @db.Text // e.g. "Companies with signed contract paying >$0/mo"
+  name       String // "Customer Count", "ARR", or custom
+  definition String? @db.Text // e.g. "Number of paying customers"
   interval   String? // "weekly" | "monthly" | "quarterly"
-  isDefault  Boolean @default(false) // true for Customers & Revenue
+  isDefault  Boolean @default(false) // true for Customer Count & ARR
+  archived   Boolean @default(false) // archived metrics are hidden but preserved
   order      Int     @default(0)
 
   entries CoachingMetricEntry[]
