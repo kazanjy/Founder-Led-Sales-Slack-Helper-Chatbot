@@ -14,7 +14,7 @@ export async function POST(
 
     const { id } = await params;
 
-    const metric = await prisma.metricDefinition.findUnique({
+    const metric = await prisma.coachingMetricDefinition.findUnique({
       where: { id },
     });
 
@@ -33,18 +33,19 @@ export async function POST(
     const { sessionId, currentValue } = body;
 
     // Find the previous entry for this metric to calculate addedSinceLastSession
-    const previousEntry = await prisma.metricEntry.findFirst({
-      where: { metricId: id },
+    const previousEntry = await prisma.coachingMetricEntry.findFirst({
+      where: { metricDefinitionId: id },
       orderBy: { createdAt: "desc" },
     });
 
     const addedSinceLastSession = previousEntry
       ? currentValue - previousEntry.currentValue
-      : null;
+      : 0;
 
-    const entry = await prisma.metricEntry.create({
+    const entry = await prisma.coachingMetricEntry.create({
       data: {
-        metricId: id,
+        userId: user.id,
+        metricDefinitionId: id,
         sessionId,
         currentValue,
         addedSinceLastSession,
