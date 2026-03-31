@@ -27,6 +27,18 @@ export async function GET(
       where: accountScope(user, id),
       include: {
         user: { select: { name: true, email: true, slackUserName: true } },
+        goals: {
+          orderBy: { order: "asc" },
+          include: {
+            tasks: { orderBy: { order: "asc" } },
+          },
+        },
+        metricEntries: {
+          include: {
+            metricDefinition: true,
+          },
+          orderBy: { metricDefinition: { order: "asc" } },
+        },
       },
     });
 

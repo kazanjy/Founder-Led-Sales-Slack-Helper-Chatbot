@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+
+export async function GET(_request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const metrics = await prisma.metricDefinition.findMany({
+      where: { userId: user.id },
+      orderBy: { order: "asc" },
+    });
+
+    return NextResponse.json({ metrics });
+  } catch (error) {
+    console.error("Error fetching metric definitions:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch metric definitions" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, definition, interval } = body;
+
+    const maxOrder = await prisma.metricDefinition.aggregate({
+      where: { userId: user.id },
+      _max: { order: true },
+    });
+
+    const order = (maxOrder._max.order ?? -1) + 1;
+
+    const metric = await prisma.metricDefinition.create({
+      data: {
+        userId: user.id,
+        name,
+        definition,
+        interval,
+        order,
+      },
+    });
+
+    return NextResponse.json({ metric });
+  } catch (error) {
+    console.error("Error creating metric definition:", error);
+    return NextResponse.json(
+      { error: "Failed to create metric definition" },
+      { status: 500 }
+    );
+  }
+}

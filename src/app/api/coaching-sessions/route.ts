@@ -29,6 +29,8 @@ export async function GET() {
         notes: true,
         transcript: true,
         recordingUrl: true,
+        sessionStatus: true,
+        maturityStage: true,
         createdAt: true,
         updatedAt: true,
         userId: true,
@@ -72,6 +74,23 @@ export async function POST(request: NextRequest) {
       ? title.trim()
       : await generateSessionTitle(notes.trim(), transcript?.trim());
 
+    // ── Carry-forward logic ──────────────────────────────────────────
+
+    // 1. Lock any previous NEW or IN_PROGRESS session
+    await prisma.coachingSession.updateMany({
+      where: {
+        userId: user.id,
+        sessionStatus: { in: ["new", "in_progress"] },
+      },
+      data: { sessionStatus: "locked" },
+    });
+
+    // 2. Snapshot current maturity stage
+    const maturityStage = await prisma.salesMaturityStage.findUnique({
+      where: { userId: user.id },
+    });
+
+    // 3. Create the new session
     const session = await prisma.coachingSession.create({
       data: {
         userId: user.id,
@@ -80,8 +99,42 @@ export async function POST(request: NextRequest) {
         notes: notes.trim(),
         transcript: transcript?.trim() || null,
         recordingUrl: recordingUrl?.trim() || null,
+        sessionStatus: "new",
+        maturityStage: maturityStage?.currentStage || null,
       },
     });
+
+    // 4. Create default metric definitions if this is the user's first session
+    const existingMetrics = await prisma.coachingMetricDefinition.count({
+      where: { userId: user.id },
+    });
+
+    if (existingMetrics === 0) {
+      await prisma.coachingMetricDefinition.createMany({
+        data: [
+          { userId: user.id, name: "Customers", isDefault: true, order: 0 },
+          { userId: user.id, name: "Revenue", isDefault: true, order: 1 },
+        ],
+      });
+    }
+
+    // 5. Create empty metric entries for all metric definitions
+    const allMetrics = await prisma.coachingMetricDefinition.findMany({
+      where: { userId: user.id },
+      orderBy: { order: "asc" },
+    });
+
+    if (allMetrics.length > 0) {
+      await prisma.coachingMetricEntry.createMany({
+        data: allMetrics.map((m) => ({
+          userId: user.id,
+          metricDefinitionId: m.id,
+          sessionId: session.id,
+          currentValue: 0,
+          addedSinceLastSession: 0,
+        })),
+      });
+    }
 
     return NextResponse.json({ session }, { status: 201 });
   } catch (error) {
