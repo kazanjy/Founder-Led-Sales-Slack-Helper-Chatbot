@@ -277,6 +277,28 @@ ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${
       },
     });
 
+    // Create linked chat conversation
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+      const fccUrl = `${appUrl}/first-call-checklist?version=${version.id}`;
+      await prisma.conversation.create({
+        data: {
+          userId: user.id,
+          source: "WEB",
+          title: `First Call Checklist: ${version.title}`,
+          firstMessagePreview: "Generate my First Call Checklist",
+          messageCount: 2,
+          lastMessageAt: new Date(),
+          messages: {
+            create: [
+              { userId: user.id, role: "USER", content: "Generate my First Call Checklist" },
+              { role: "ASSISTANT", content: `[View your First Call Checklist](${fccUrl})\n\n**${version.title}**\n\n${cleanedResponse.substring(0, 500)}${cleanedResponse.length > 500 ? "..." : ""}` },
+            ],
+          },
+        },
+      });
+    } catch (e) { console.error("[first-call-checklist/generate] conversation error:", e); }
+
     return NextResponse.json({
       success: true,
       version: {

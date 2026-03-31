@@ -219,6 +219,29 @@ For each category: 4-6 open-ended questions with follow-up probes. Conversationa
       },
     });
 
+    // Create linked chat conversation
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+      const dqUrl = `${appUrl}/discovery-questions?version=${version.id}`;
+      const questionCount = parsedResponse.categories?.reduce((sum: number, c: { questions: unknown[] }) => sum + (c.questions?.length || 0), 0) || 0;
+      await prisma.conversation.create({
+        data: {
+          userId: user.id,
+          source: "WEB",
+          title: `Discovery Questions: ${version.title}`,
+          firstMessagePreview: "Generate my Discovery Questions",
+          messageCount: 2,
+          lastMessageAt: new Date(),
+          messages: {
+            create: [
+              { userId: user.id, role: "USER", content: "Generate my Discovery Questions" },
+              { role: "ASSISTANT", content: `[View your Discovery Questions](${dqUrl})\n\n**${version.title}**\n\n${questionCount} questions across ${parsedResponse.categories?.length || 0} categories.` },
+            ],
+          },
+        },
+      });
+    } catch (e) { console.error("[discovery-questions/generate] conversation error:", e); }
+
     return NextResponse.json({
       success: true,
       version: {

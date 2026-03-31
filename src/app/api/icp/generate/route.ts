@@ -189,6 +189,28 @@ Generate 4-8 specific, actionable items per section. Draw directly from the sale
       },
     });
 
+    // Create linked chat conversation
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+      const icpUrl = `${appUrl}/icp?version=${version.id}`;
+      await prisma.conversation.create({
+        data: {
+          userId: user.id,
+          source: "WEB",
+          title: `ICP: ${version.title}`,
+          firstMessagePreview: "Generate my Ideal Customer Profile",
+          messageCount: 2,
+          lastMessageAt: new Date(),
+          messages: {
+            create: [
+              { userId: user.id, role: "USER", content: "Generate my Ideal Customer Profile" },
+              { role: "ASSISTANT", content: `[View your Ideal Customer Profile](${icpUrl})\n\n**${version.title}**\n\nYour ICP has been generated with ${parsedResponse.sections?.length || 0} sections.` },
+            ],
+          },
+        },
+      });
+    } catch (e) { console.error("[icp/generate] conversation error:", e); }
+
     return NextResponse.json({
       success: true,
       version: {

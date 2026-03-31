@@ -246,6 +246,28 @@ Respond ONLY with valid JSON (no markdown code blocks):
             ),
           ]);
 
+          // Create linked chat conversation
+          try {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+            const narrativeUrl = `${appUrl}/sales-narrative?version=${version.id}`;
+            await prisma.conversation.create({
+              data: {
+                userId: user.id,
+                source: "WEB",
+                title: `Sales Narrative: ${narrativeTitle}`,
+                firstMessagePreview: "Generate my Sales Narrative",
+                messageCount: 2,
+                lastMessageAt: new Date(),
+                messages: {
+                  create: [
+                    { userId: user.id, role: "USER", content: "Generate my Sales Narrative" },
+                    { role: "ASSISTANT", content: `[View your Sales Narrative](${narrativeUrl})\n\n**${narrativeTitle}**\n\n${fullNarrative.substring(0, 500)}${fullNarrative.length > 500 ? "..." : ""}` },
+                  ],
+                },
+              },
+            });
+          } catch (e) { console.error("[generate-stream] conversation error:", e); }
+
           send("complete", {
             versionId: version.id,
             title: narrativeTitle,
