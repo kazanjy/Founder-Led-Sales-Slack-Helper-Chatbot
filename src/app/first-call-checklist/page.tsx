@@ -81,6 +81,9 @@ function FirstCallChecklistContent() {
   const [importText, setImportText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [deleting, setDeleting] = useState(false);
+  const [iterateFeedback, setIterateFeedback] = useState("");
+  const [iterating, setIterating] = useState(false);
+  const [iterationPrompt, setIterationPrompt] = useState<string | null>(null);
   const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
   const autoGenerateRef = useRef(searchParams.get("auto") === "true");
 
@@ -402,6 +405,57 @@ function FirstCallChecklistContent() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Iterate handler — creates a new version
+  const handleIterate = async () => {
+    if (!version || !iterateFeedback.trim()) return;
+    setIterating(true);
+    try {
+      const response = await fetch("/api/first-call-checklist/iterate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId: version.id, feedback: iterateFeedback.trim() }),
+      });
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
+        await showAlert({ title: "Error", message: data.error || "Failed to iterate.", variant: "danger" });
+        setIterating(false);
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) currentEvent = line.slice(7);
+          else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "complete") {
+                setVersion({ ...version, id: data.versionId, title: data.title, content: data.content });
+                setIterationPrompt(data.iterationPrompt);
+                setIterateFeedback("");
+                window.history.replaceState({}, "", `/first-call-checklist?version=${data.versionId}`);
+              } else if (currentEvent === "error") {
+                await showAlert({ title: "Error", message: data.message, variant: "danger" });
+              }
+            } catch { /* ignore */ }
+            currentEvent = "";
+          }
+        }
+      }
+    } catch {
+      await showAlert({ title: "Error", message: "Failed to iterate.", variant: "danger" });
+    } finally {
+      setIterating(false);
     }
   };
 
@@ -751,7 +805,7 @@ function FirstCallChecklistContent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Dismissable Pre-Call Checklist Banner */}
         {showPreCallBanner && !isEditing && !hasPreCallPlanning && (
           <div className="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 flex items-center justify-between text-white">
@@ -780,6 +834,15 @@ function FirstCallChecklistContent() {
           </div>
         )}
 
+        <div className="flex gap-8">
+        <div className="flex-1 min-w-0">
+        {/* Iteration prompt banner */}
+        {iterationPrompt && !isEditing && (
+          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+            <p className="text-xs font-medium text-purple-700 mb-1">Iterated with:</p>
+            <p className="text-sm text-purple-900">&ldquo;{iterationPrompt}&rdquo;</p>
+          </div>
+        )}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6">
             {isEditing ? (
@@ -819,6 +882,52 @@ function FirstCallChecklistContent() {
           </div>
         )}
 
+        </div>{/* end main content */}
+
+        {/* Right: Sidebar with Iterate */}
+        {!isEditing && version && (
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Iterate
+                </h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Describe what to change and we&apos;ll create an updated version.
+                </p>
+                <textarea
+                  value={iterateFeedback}
+                  onChange={(e) => setIterateFeedback(e.target.value)}
+                  placeholder="e.g., Add a section on pricing discovery, make the checklist shorter..."
+                  rows={4}
+                  disabled={iterating}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                />
+                <button
+                  onClick={handleIterate}
+                  disabled={iterating || !iterateFeedback.trim()}
+                  className="mt-3 w-full px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {iterating ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Iterating...
+                    </>
+                  ) : (
+                    "Apply Changes"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}
     </div>
