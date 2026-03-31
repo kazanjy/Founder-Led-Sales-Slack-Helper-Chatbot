@@ -9,7 +9,7 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const metrics = await prisma.metricDefinition.findMany({
+    const metrics = await prisma.coachingMetricDefinition.findMany({
       where: { userId: user.id },
       orderBy: { order: "asc" },
     });
@@ -34,14 +34,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, definition, interval } = body;
 
-    const maxOrder = await prisma.metricDefinition.aggregate({
+    const maxOrder = await prisma.coachingMetricDefinition.aggregate({
       where: { userId: user.id },
       _max: { order: true },
     });
 
     const order = (maxOrder._max.order ?? -1) + 1;
 
-    const metric = await prisma.metricDefinition.create({
+    const metric = await prisma.coachingMetricDefinition.create({
       data: {
         userId: user.id,
         name,

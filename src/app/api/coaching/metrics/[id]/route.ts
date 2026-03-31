@@ -14,7 +14,7 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const metric = await prisma.metricDefinition.findUnique({
+    const metric = await prisma.coachingMetricDefinition.findUnique({
       where: { id },
     });
 
@@ -38,7 +38,7 @@ export async function PATCH(
     if (interval !== undefined) updateData.interval = interval;
     if (order !== undefined) updateData.order = order;
 
-    const updated = await prisma.metricDefinition.update({
+    const updated = await prisma.coachingMetricDefinition.update({
       where: { id },
       data: updateData,
     });
@@ -65,7 +65,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const metric = await prisma.metricDefinition.findUnique({
+    const metric = await prisma.coachingMetricDefinition.findUnique({
       where: { id },
     });
 
@@ -80,7 +80,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    await prisma.metricDefinition.delete({
+    await prisma.coachingMetricDefinition.delete({
       where: { id },
     });
 
