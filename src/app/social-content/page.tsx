@@ -339,7 +339,7 @@ function SocialContentContent() {
                   tone: effectiveTone,
                   postCount,
                   topicSource,
-                  goldStandardExamples: null,
+                  goldStandardExamples: [],
                   salesNarrativeVersionId: null,
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
