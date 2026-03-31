@@ -160,6 +160,9 @@ function SalesDeckContent() {
           if (data.hasSalesDeck) {
             setVersion(data.version);
             setEditedContent(data.version?.content || "");
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/sales-deck?version=${data.version.id}`);
+            }
           }
         }
       } catch (error) {
