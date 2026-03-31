@@ -29,11 +29,12 @@ export async function GET(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const entries = await prisma.metricEntry.findMany({
+    const entries = await prisma.coachingMetricEntry.findMany({
       where: { sessionId: id },
       include: {
-        metric: true,
+        metricDefinition: true,
       },
+      orderBy: { metricDefinition: { order: "asc" } },
     });
 
     return NextResponse.json({ entries });
