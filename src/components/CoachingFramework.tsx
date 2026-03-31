@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -72,6 +72,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
+  const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   // ── Load data ──────────────────────────────────────────────────
 
@@ -99,6 +100,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   }, [sessionId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Cleanup metric save timers on unmount
+  useEffect(() => {
+    const timers = metricSaveTimers.current;
+    return () => { Object.values(timers).forEach(clearTimeout); };
+  }, []);
 
   // ── Handlers ───────────────────────────────────────────────────
 
@@ -330,8 +337,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                     setMetricEntries((prev) =>
                       prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
                     );
+                    // Debounced auto-save (2s after last keystroke)
+                    const key = entry.id;
+                    if (metricSaveTimers.current[key]) clearTimeout(metricSaveTimers.current[key]);
+                    metricSaveTimers.current[key] = setTimeout(() => {
+                      updateMetricValue(entry.id, entry.metricDefinition.id, val);
+                      delete metricSaveTimers.current[key];
+                    }, 2000);
                   }}
                   onBlur={(e) => {
+                    // Flush any pending debounce immediately on blur
+                    const key = entry.id;
+                    if (metricSaveTimers.current[key]) {
+                      clearTimeout(metricSaveTimers.current[key]);
+                      delete metricSaveTimers.current[key];
+                    }
                     const val = parseFloat(e.target.value) || 0;
                     updateMetricValue(entry.id, entry.metricDefinition.id, val);
                   }}
