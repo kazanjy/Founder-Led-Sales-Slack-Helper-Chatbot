@@ -340,11 +340,10 @@ function SocialContentContent() {
                   postCount,
                   topicSource,
                   goldStandardExamples: [],
-                  salesNarrativeVersionId: null,
+                  salesNarrativeVersionId: "",
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
-                  userId: "",
-                }));
+                } as SocialContentVersion));
                 setEditedContent(streamedContent);
               } else if (currentEvent === "complete") {
                 // Load the actual saved version
