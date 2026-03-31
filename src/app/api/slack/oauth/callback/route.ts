@@ -160,17 +160,46 @@ export async function GET(request: NextRequest) {
         console.error("[Slack Install] Could not fetch installer profile:", profileErr);
       }
 
-      user = await prisma.user.create({
-        data: {
-          slackUserId: installedByUserId,
-          workspaceId: workspace.id,
-          slackEmail: installerEmail,
-          slackUserName: installerName,
-          trialStartedAt: new Date(),
-          licenseStatus: "TRIAL",
-        },
-      });
-      console.log(`[Slack Install] Created new user for installer: ${user.id}`);
+      // Check if a user with this email already exists before creating
+      if (installerEmail) {
+        const existingByEmail = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: installerEmail },
+              { slackEmail: installerEmail },
+              { secondaryEmails: { has: installerEmail } },
+            ],
+          },
+        });
+
+        if (existingByEmail) {
+          // Link existing user to this Slack workspace
+          user = await prisma.user.update({
+            where: { id: existingByEmail.id },
+            data: {
+              slackUserId: installedByUserId,
+              workspaceId: workspace.id,
+              slackEmail: installerEmail,
+              slackUserName: installerName || existingByEmail.slackUserName,
+            },
+          });
+          console.log(`[Slack Install] Linked existing user ${user.id} to Slack workspace`);
+        }
+      }
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            slackUserId: installedByUserId,
+            workspaceId: workspace.id,
+            slackEmail: installerEmail,
+            slackUserName: installerName,
+            trialStartedAt: new Date(),
+            licenseStatus: "TRIAL",
+          },
+        });
+        console.log(`[Slack Install] Created new user for installer: ${user.id}`);
+      }
 
       // Auto-create or join an Account (if we have an email)
       if (installerEmail) {

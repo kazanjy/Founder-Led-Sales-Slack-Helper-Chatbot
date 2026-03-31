@@ -1411,6 +1411,33 @@ async function getOrCreateUser(workspaceId: string, slackUserId: string, botToke
       // Continue without user info - we can still create the user
     }
 
+    // Check if a user with this email already exists (e.g., from web login)
+    if (slackEmail) {
+      const existingByEmail = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: slackEmail },
+            { slackEmail: slackEmail },
+            { secondaryEmails: { has: slackEmail } },
+          ],
+        },
+      });
+
+      if (existingByEmail) {
+        // Link the existing user to this Slack workspace
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            slackUserId,
+            workspaceId,
+            slackEmail,
+            slackUserName: slackUserName || existingByEmail.slackUserName,
+          },
+        });
+        return user;
+      }
+    }
+
     user = await prisma.user.create({
       data: {
         slackUserId,

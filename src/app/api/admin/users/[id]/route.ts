@@ -709,6 +709,95 @@ export async function PATCH(
           where: { createdByUserId: sourceUser.id },
           data: { createdByUserId: id },
         }),
+        // Move ICP versions
+        prisma.icpVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move social content versions
+        prisma.socialContentVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move social content examples
+        prisma.socialContentExample.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move objection entries
+        prisma.objectionEntry.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move objection bootstraps
+        prisma.objectionBootstrap.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move hiring profile answers
+        prisma.hiringProfileAnswer.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move hiring profile versions
+        prisma.hiringProfileVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales leader profile answers
+        prisma.salesLeaderProfileAnswer.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales leader profile versions
+        prisma.salesLeaderProfileVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move pre-hire assessment versions
+        prisma.preHireAssessmentVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales motion collections
+        prisma.salesMotionCollection.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move call recap versions
+        prisma.callRecapVersion.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching goals
+        prisma.coachingGoal.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching tasks
+        prisma.coachingTask.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching metric definitions
+        prisma.coachingMetricDefinition.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching metric entries
+        prisma.coachingMetricEntry.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move sales maturity stage
+        prisma.salesMaturityStage.deleteMany({
+          where: { userId: sourceUser.id },
+        }),
+        // Move channel claims
+        prisma.channelClaim.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
         // Move referrals (as referrer)
         prisma.referral.updateMany({
           where: { referrerUserId: sourceUser.id },
