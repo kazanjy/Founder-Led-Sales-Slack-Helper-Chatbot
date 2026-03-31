@@ -171,6 +171,10 @@ function IcpContent() {
           setHasSalesNarrative(data.hasSalesNarrative !== false);
           if (data.hasIcp) {
             setVersion(data.version);
+            // Update URL with version ID for sharing/bookmarking
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/icp?version=${data.version.id}`);
+            }
             // Expand all sections by default
             if (data.version?.content?.sections) {
               setExpandedSections(new Set(data.version.content.sections.map((s: IcpSection) => s.name)));
