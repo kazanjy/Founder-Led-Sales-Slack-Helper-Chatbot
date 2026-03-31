@@ -110,76 +110,95 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   const addGoal = async () => {
     if (!newGoalTitle.trim()) return;
+    const title = newGoalTitle.trim();
+    setNewGoalTitle("");
     const res = await fetch("/api/coaching/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, title: newGoalTitle.trim() }),
+      body: JSON.stringify({ sessionId, title }),
     });
     if (res.ok) {
-      setNewGoalTitle("");
-      loadData();
+      const data = await res.json();
+      setGoals((prev) => [...prev, { ...data.goal, tasks: [] }]);
     }
   };
 
   const updateGoalStatus = async (goalId: string, status: string) => {
+    // Optimistic update
+    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, status } : g));
     await fetch(`/api/coaching/goals/${goalId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    loadData();
   };
 
   const addTask = async (goalId: string) => {
     const title = newTaskTitles[goalId]?.trim();
     if (!title) return;
+    setNewTaskTitles((prev) => ({ ...prev, [goalId]: "" }));
     const res = await fetch(`/api/coaching/goals/${goalId}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
     });
     if (res.ok) {
-      setNewTaskTitles((prev) => ({ ...prev, [goalId]: "" }));
-      loadData();
+      const data = await res.json();
+      setGoals((prev) => prev.map((g) =>
+        g.id === goalId ? { ...g, tasks: [...g.tasks, data.task] } : g
+      ));
     }
   };
 
   const updateTaskStatus = async (taskId: string, status: string) => {
+    // Optimistic update
+    setGoals((prev) => prev.map((g) => ({
+      ...g,
+      tasks: g.tasks.map((t) => t.id === taskId ? { ...t, status } : t),
+    })));
     await fetch(`/api/coaching/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    loadData();
   };
 
   const updateMetricValue = async (entryId: string, metricDefId: string, value: number) => {
+    // Already optimistically updated in the onChange handler
     await fetch(`/api/coaching/metrics/${metricDefId}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, currentValue: value }),
     });
-    loadData();
   };
 
   const addMetricDefinition = async () => {
     if (!newMetricName.trim()) return;
+    const name = newMetricName.trim();
+    setNewMetricName("");
+    setAddingMetric(false);
     const res = await fetch("/api/coaching/metrics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newMetricName.trim() }),
+      body: JSON.stringify({ name }),
     });
     if (res.ok) {
-      setNewMetricName("");
-      setAddingMetric(false);
-      // Create empty entry for this session
       const data = await res.json();
-      await fetch(`/api/coaching/metrics/${data.metric.id}/entries`, {
+      // Create empty entry for this session
+      const entryRes = await fetch(`/api/coaching/metrics/${data.metric.id}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, currentValue: 0 }),
       });
-      loadData();
+      if (entryRes.ok) {
+        const entryData = await entryRes.json();
+        setMetricEntries((prev) => [...prev, {
+          id: entryData.entry.id,
+          currentValue: 0,
+          addedSinceLastSession: 0,
+          metricDefinition: { id: data.metric.id, name, isDefault: false },
+        }]);
+      }
     }
   };
 

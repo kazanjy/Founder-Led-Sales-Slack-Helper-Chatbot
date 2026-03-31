@@ -118,7 +118,9 @@ export async function POST(request: NextRequest) {
 - Be self-contained and quotable
 - Use no hashtags unless specifically requested
 - For threads, clearly label each tweet (1/, 2/, etc.) and make tweet 1/ standalone compelling
-- Feel authentic, not like brand content`;
+- Feel authentic, not like brand content
+- Use line breaks between sentences for readability (each sentence on its own line)
+- Add a blank line between paragraphs/thoughts within each tweet`;
 
     const instructionPrompt = `You are an expert ${platformLabel} ghostwriter helping a founder build their personal brand through social content.
 
