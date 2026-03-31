@@ -793,11 +793,7 @@ export async function PATCH(
         prisma.salesMaturityStage.deleteMany({
           where: { userId: sourceUser.id },
         }),
-        // Move channel claims
-        prisma.channelClaim.updateMany({
-          where: { userId: sourceUser.id },
-          data: { userId: id },
-        }),
+        // Note: ChannelClaim belongs to Account, not User — no move needed
         // Move referrals (as referrer)
         prisma.referral.updateMany({
           where: { referrerUserId: sourceUser.id },
