@@ -96,6 +96,9 @@ function CoachingHistoryContent() {
   const [formTranscript, setFormTranscript] = useState("");
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
@@ -197,6 +200,65 @@ function CoachingHistoryContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Auto-save in create mode — debounced 3 seconds after any change
+  useEffect(() => {
+    if (mode !== "create" || !formNotes.trim() || !formDate) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const payload = {
+        title: formTitle || undefined,
+        sessionDate: formDate,
+        notes: formNotes,
+        transcript: formTranscript || null,
+        recordingUrl: formRecordingUrl || null,
+      };
+
+      try {
+        if (autoSavedId) {
+          // Update existing draft
+          await fetch(`/api/coaching-sessions/${autoSavedId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          // Create new draft
+          const res = await fetch("/api/coaching-sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setAutoSavedId(data.session.id);
+          }
+        }
+        setLastAutoSaved(new Date());
+      } catch {
+        // Silently fail — user can still manually save
+      }
+    }, 3000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [mode, formTitle, formDate, formNotes, formTranscript, formRecordingUrl, autoSavedId]);
+
+  // When manually saving a session that was auto-saved, use the auto-saved ID
+  const handleSaveWrapper = async () => {
+    if (mode === "create" && autoSavedId) {
+      // Switch to edit mode with the auto-saved ID so handleSave updates it
+      selectSession(autoSavedId);
+      setMode("edit");
+      // Small delay to let state settle, then save
+      setTimeout(() => handleSave(), 100);
+      return;
+    }
+    handleSave();
   };
 
   const handleDelete = async () => {
@@ -427,7 +489,7 @@ function CoachingHistoryContent() {
                       {mode === "edit" ? "Edit Session" : "New Coaching Session"}
                     </h2>
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveWrapper}
                       disabled={saving || !formDate || !formNotes.trim()}
                       className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                     >
@@ -525,6 +587,14 @@ function CoachingHistoryContent() {
                       Cancel
                     </button>
                     <div className="flex items-center gap-3">
+                      {lastAutoSaved && mode === "create" && (
+                        <span className="text-xs text-green-500 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Auto-saved {lastAutoSaved.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      )}
                       {!saving && (!formDate || !formNotes.trim()) && (
                         <span className="text-xs text-gray-400">
                           {!formDate && !formNotes.trim()
@@ -535,7 +605,7 @@ function CoachingHistoryContent() {
                         </span>
                       )}
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveWrapper}
                       disabled={saving || !formDate || !formNotes.trim()}
                       className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                     >
