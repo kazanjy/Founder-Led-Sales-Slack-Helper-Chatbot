@@ -140,6 +140,11 @@ model User {
   salesMetricsAnswers        SalesMetricsAnswer[]
   salesMetricsAssessments    SalesMetricsAssessment[]
   coachingSessions           CoachingSession[]
+  salesMaturityStage         SalesMaturityStage?
+  coachingGoals              CoachingGoal[]
+  coachingTasks              CoachingTask[]
+  coachingMetricDefinitions  CoachingMetricDefinition[]
+  coachingMetricEntries      CoachingMetricEntry[]
   adCreatorVersions          AdCreatorVersion[]
   socialContentVersions      SocialContentVersion[]
   socialContentExamples      SocialContentExample[]
@@ -1212,11 +1217,137 @@ model CoachingSession {
   transcript   String?  @db.Text // Optional pasted call transcript
   recordingUrl String? // Optional link to meeting recording
 
+  // Session lifecycle
+  sessionStatus String  @default("new") // "new" | "in_progress" | "locked"
+  maturityStage String? // Snapshot of sales maturity stage at session creation
+
+  // Relations to coaching framework models
+  goals         CoachingGoal[]
+  metricEntries CoachingMetricEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, sessionDate(sort: Desc)])
   @@map("coaching_sessions")
+}
+
+// ============================================
+// COACHING FRAMEWORK — MATURITY STAGE
+// ============================================
+
+// Per-user singleton tracking current sales maturity stage
+model SalesMaturityStage {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Values: PROBLEM_VALIDATION | VALUE_VALIDATION | FIRST_REVENUE |
+  //         REPEATABLE_REVENUE | FIRST_SALES_HIRE | SCALING_SALES
+  currentStage String
+
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_maturity_stages")
+}
+
+// ============================================
+// COACHING FRAMEWORK — GOALS & TASKS
+// ============================================
+
+// Persistent goals that carry across coaching sessions
+model CoachingGoal {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session where this goal was originally created
+  sessionId String
+  session   CoachingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  status      String  @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+
+  tasks CoachingTask[]
+
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+
+  @@index([userId, status])
+  @@index([sessionId])
+  @@map("coaching_goals")
+}
+
+// Tasks under goals, same carry-forward pattern
+model CoachingTask {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  goalId String
+  goal   CoachingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  title  String
+  status String @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+
+  @@index([goalId])
+  @@map("coaching_tasks")
+}
+
+// ============================================
+// COACHING FRAMEWORK — METRICS
+// ============================================
+
+// Persistent metric definitions (templates)
+model CoachingMetricDefinition {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String // "Customers", "Revenue", or custom
+  definition String? @db.Text // e.g. "Companies with signed contract paying >$0/mo"
+  interval   String? // "weekly" | "monthly" | "quarterly"
+  isDefault  Boolean @default(false) // true for Customers & Revenue
+  order      Int     @default(0)
+
+  entries CoachingMetricEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("coaching_metric_definitions")
+}
+
+// Per-session metric values
+model CoachingMetricEntry {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  metricDefinitionId String
+  metricDefinition   CoachingMetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  session   CoachingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  currentValue          Float // Total value at this point
+  addedSinceLastSession Float @default(0) // Auto-calculated delta
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([metricDefinitionId])
+  @@map("coaching_metric_entries")
 }
 
 // ============================================
