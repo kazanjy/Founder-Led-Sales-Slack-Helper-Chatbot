@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
+import CoachingFramework from "@/components/CoachingFramework";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
@@ -17,6 +18,8 @@ interface CoachingSession {
   notes: string;
   transcript: string | null;
   recordingUrl: string | null;
+  sessionStatus: string;
+  maturityStage: string | null;
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -632,11 +635,54 @@ function CoachingHistoryContent() {
                             <span className="ml-1.5 text-gray-400">· {sessionUserName(selectedSession)}</span>
                           )}
                         </div>
-                        <h2 className="text-xl font-semibold text-gray-900">
-                          {selectedSession.title}
-                        </h2>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-semibold text-gray-900">
+                            {selectedSession.title}
+                          </h2>
+                          {/* Status badge */}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            selectedSession.sessionStatus === "new" ? "bg-blue-100 text-blue-700" :
+                            selectedSession.sessionStatus === "in_progress" ? "bg-orange-100 text-orange-700" :
+                            "bg-gray-100 text-gray-500"
+                          }`}>
+                            {selectedSession.sessionStatus === "new" ? "Live Session" :
+                             selectedSession.sessionStatus === "in_progress" ? "Sprint" :
+                             "Archived"}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Lifecycle buttons */}
+                        {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "new" && (
+                          <button
+                            onClick={async () => {
+                              await fetch(`/api/coaching-sessions/${selectedSession.id}/status`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: "in_progress" }),
+                              });
+                              loadSessions();
+                            }}
+                            className="px-3 py-2 text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition-colors font-medium"
+                          >
+                            Start Sprint
+                          </button>
+                        )}
+                        {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "in_progress" && (
+                          <button
+                            onClick={async () => {
+                              await fetch(`/api/coaching-sessions/${selectedSession.id}/status`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ status: "locked" }),
+                              });
+                              loadSessions();
+                            }}
+                            className="px-3 py-2 text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+                          >
+                            Lock Session
+                          </button>
+                        )}
                         <ChatAboutButton
                           title={`Coaching: ${selectedSession.title}`}
                           getContext={() => formatSessionsForChat([selectedSession])}
@@ -664,6 +710,13 @@ function CoachingHistoryContent() {
                   </div>
 
                   <div className="p-6">
+                    {/* Coaching Framework — Maturity Stage, Metrics, Goals & Tasks */}
+                    <CoachingFramework
+                      sessionId={selectedSession.id}
+                      sessionStatus={selectedSession.sessionStatus || "new"}
+                      isOwner={selectedSession.userId === currentUserId}
+                    />
+
                     {/* Recording link */}
                     {selectedSession.recordingUrl && (
                       <div className="mb-6">
