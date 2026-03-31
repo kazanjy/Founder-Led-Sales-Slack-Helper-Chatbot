@@ -132,6 +132,10 @@ function FirstCallChecklistContent() {
           if (data.hasFirstCallChecklist) {
             setVersion(data.version);
             setEditedContent(data.version?.content || "");
+            // Update URL with version ID for sharing/bookmarking
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/first-call-checklist?version=${data.version.id}`);
+            }
           }
         }
 
