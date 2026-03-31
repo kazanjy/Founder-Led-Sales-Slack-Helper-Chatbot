@@ -300,16 +300,67 @@ function SocialContentContent() {
         }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
         await showAlert({ title: "Error", message: data.error || "Failed to generate", variant: "danger" });
         return;
       }
 
-      const data = await response.json();
-      setVersion(data.version);
-      setEditedContent(data.version?.content || "");
+      // Stream the response — show content as it arrives
       setShowForm(false);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let streamedContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "token") {
+                streamedContent += data.token;
+                // Update a temporary version to show streaming content
+                setVersion((prev) => prev ? { ...prev, content: streamedContent } : {
+                  id: "streaming",
+                  title: "Generating...",
+                  content: streamedContent,
+                  platform,
+                  tone: effectiveTone,
+                  postCount,
+                  topicSource,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  userId: "",
+                } as typeof prev);
+                setEditedContent(streamedContent);
+              } else if (currentEvent === "complete") {
+                // Load the actual saved version
+                const versionRes = await fetch(`/api/social-content/versions/${data.versionId}`);
+                if (versionRes.ok) {
+                  const vData = await versionRes.json();
+                  setVersion(vData.version);
+                  setEditedContent(vData.version?.content || "");
+                }
+                window.history.replaceState({}, "", `/social-content?version=${data.versionId}`);
+              } else if (currentEvent === "error") {
+                await showAlert({ title: "Error", message: data.message || "Generation failed", variant: "danger" });
+              }
+            } catch { /* ignore parse errors */ }
+            currentEvent = "";
+          }
+        }
+      }
     } catch (error) {
       console.error("Error generating:", error);
       await showAlert({ title: "Error", message: "Failed to generate social content. Please try again.", variant: "danger" });

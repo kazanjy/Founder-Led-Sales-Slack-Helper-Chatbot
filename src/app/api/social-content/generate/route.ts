@@ -142,61 +142,70 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
 
     console.log(`[social-content/generate] Sending to GPT-5.2: ${fullPrompt.length} chars, ${count} posts, ${platform}, ${tone}`);
 
-    let aiResponse = "";
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [{ role: "user", content: fullPrompt }],
-        temperature: 0.8,
-      });
-      aiResponse = response.choices[0]?.message?.content || "";
-    } catch (openaiError) {
-      console.error("OpenAI API error:", openaiError);
-      return NextResponse.json(
-        { error: "Failed to generate social content. Please try again." },
-        { status: 500 }
-      );
-    }
+    // Stream the response via SSE
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        function send(event: string, data: unknown) {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        }
 
-    // Clean up the response
-    let cleanedResponse = aiResponse.trim();
-    if (cleanedResponse.startsWith("```markdown")) {
-      cleanedResponse = cleanedResponse.slice(11);
-    } else if (cleanedResponse.startsWith("```")) {
-      cleanedResponse = cleanedResponse.slice(3);
-    }
-    if (cleanedResponse.endsWith("```")) {
-      cleanedResponse = cleanedResponse.slice(0, -3);
-    }
-    cleanedResponse = cleanedResponse.trim();
+        try {
+          const llmStream = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [{ role: "user", content: fullPrompt }],
+            temperature: 0.8,
+            stream: true,
+          });
 
-    // Generate a short AI title for this batch
-    let title = `${platformLabel} ${count > 1 ? "Posts" : "Post"} – ${tone}`;
-    try {
-      const titleResponse = await openai.chat.completions.create({
-        model: "gpt-4.1-nano",
-        messages: [
-          {
-            role: "user",
-            content: `Generate a short, catchy title (max 8 words) summarizing these social media posts. Return ONLY the title, no quotes or punctuation around it.\n\n${cleanedResponse.slice(0, 1000)}`,
-          },
-        ],
-        temperature: 0.7,
-      });
-      const generatedTitle = titleResponse.choices[0]?.message?.content?.trim();
-      if (generatedTitle && generatedTitle.length <= 80) {
-        title = generatedTitle;
-      }
-    } catch (titleError) {
-      console.error("Failed to generate title, using fallback:", titleError);
-    }
+          let aiResponse = "";
+          for await (const chunk of llmStream) {
+            const token = chunk.choices[0]?.delta?.content;
+            if (token) {
+              aiResponse += token;
+              send("token", { token });
+            }
+          }
 
-    // Save to DB
-    const version = await prisma.socialContentVersion.create({
-      data: {
-        userId: user.id,
-        salesNarrativeVersionId: latestNarrative.id,
-        firstCallChecklistVersionId: checklistVersionId,
+          // Clean up the response
+          let cleanedResponse = aiResponse.trim();
+          if (cleanedResponse.startsWith("```markdown")) {
+            cleanedResponse = cleanedResponse.slice(11);
+          } else if (cleanedResponse.startsWith("```")) {
+            cleanedResponse = cleanedResponse.slice(3);
+          }
+          if (cleanedResponse.endsWith("```")) {
+            cleanedResponse = cleanedResponse.slice(0, -3);
+          }
+          cleanedResponse = cleanedResponse.trim();
+
+          // Generate a short AI title
+          let title = `${platformLabel} ${count > 1 ? "Posts" : "Post"} – ${tone}`;
+          try {
+            const titleResponse = await openai.chat.completions.create({
+              model: "gpt-4.1-nano",
+              messages: [
+                {
+                  role: "user",
+                  content: `Generate a short, catchy title (max 8 words) summarizing these social media posts. Return ONLY the title, no quotes or punctuation around it.\n\n${cleanedResponse.slice(0, 1000)}`,
+                },
+              ],
+              temperature: 0.7,
+            });
+            const generatedTitle = titleResponse.choices[0]?.message?.content?.trim();
+            if (generatedTitle && generatedTitle.length <= 80) {
+              title = generatedTitle;
+            }
+          } catch (titleError) {
+            console.error("Failed to generate title, using fallback:", titleError);
+          }
+
+          // Save to DB
+          const version = await prisma.socialContentVersion.create({
+            data: {
+              userId: user.id,
+              salesNarrativeVersionId: latestNarrative.id,
+              firstCallChecklistVersionId: checklistVersionId,
         platform,
         tone,
         postCount: count,
@@ -246,29 +255,35 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      version: {
-        id: version.id,
-        title,
-        content: cleanedResponse,
-        platform,
-        tone,
-        postCount: count,
-        topicSource,
-        topicInput: topicInput || null,
-        goldStandardExamples: examples,
-        salesNarrativeVersionId: latestNarrative.id,
-        firstCallChecklistVersionId: checklistVersionId,
-        conversationId: conversation.id,
-        createdAt: version.createdAt,
-        updatedAt: version.updatedAt,
+          send("complete", {
+            versionId: version.id,
+            title,
+            content: cleanedResponse,
+            platform,
+            tone,
+            postCount: count,
+            conversationId: conversation.id,
+          });
+        } catch (error) {
+          console.error("[social-content/generate] Stream error:", error);
+          send("error", { message: error instanceof Error ? error.message : "Generation failed" });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     });
   } catch (error) {
     console.error("Error generating social content:", error);
-    return NextResponse.json(
-      { error: "Failed to generate social content" },
+    return new Response(
+      JSON.stringify({ error: "Failed to generate social content" }),
       { status: 500 }
     );
   }
