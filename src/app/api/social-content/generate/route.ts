@@ -67,7 +67,19 @@ export async function POST(request: NextRequest) {
 
     const count = Math.min(Math.max(postCount || 5, 1), 20);
     const platformLabel = platform === "linkedin" ? "LinkedIn" : "Twitter/X";
-    const toneLabel = tone === "thought-leadership" ? "thought leadership" : tone === "shitposting" ? "shitposting (edgy, irreverent, provocative humor)" : tone;
+    const toneLabel = tone === "thought-leadership"
+      ? "thought leadership (authoritative, insightful, data-backed perspective from someone who's been in the trenches)"
+      : tone === "shitposting"
+      ? `shitposting — snarky, irreverent, provocative. Channel the energy of the best tech Twitter/LinkedIn shitposters:
+- Lead with a deliberately spicy or contrarian take
+- Use sarcasm, dry wit, and absurdist humor
+- Mock conventional wisdom, buzzwords, and performative LinkedIn behavior
+- Short, punchy sentences. Fragment sentences. One-liners that hit.
+- It's OK to be a little mean (to ideas, not people)
+- Think "saying the quiet part out loud" energy
+- No corporate-speak, no "I'm humbled", no "excited to announce"
+- If it wouldn't make someone laugh or go "damn, that's true" — it's not snarky enough`
+      : tone;
 
     // Build examples section
     let examplesSection = "";
