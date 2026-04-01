@@ -85,8 +85,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
-  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
-  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
@@ -254,22 +252,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
       });
       delete descSaveTimers.current[`task-title-${taskId}`];
     }, 1500);
-  };
-
-  const toggleTaskExpanded = (taskId: string) => {
-    setExpandedTasks((prev) => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-    // Toggle explicit collapse for tasks with descriptions
-    setCollapsedTasks((prev) => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
   };
 
   const updateMetricValue = async (entryId: string, metricDefId: string, value: number) => {
@@ -600,8 +582,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
                 {goal.tasks.map((task) => {
-                  const hasDesc = !!(task.description || editingDescriptions[task.id]);
-                  const isExpanded = collapsedTasks.has(task.id) ? false : (expandedTasks.has(task.id) || hasDesc);
+                  const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
                     <div key={task.id} className="px-4 py-2.5 pl-8">
                       <div className="flex items-start justify-between gap-2">
@@ -619,61 +600,66 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             )}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-start gap-1">
-                              {canEdit ? (
-                                <input
-                                  type="text"
-                                  value={task.title}
-                                  onChange={(e) => updateTaskTitle(task.id, e.target.value)}
-                                  className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
-                                />
-                              ) : (
-                                <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                  <Linkify>{task.title}</Linkify>
-                                </span>
-                              )}
-                              <button
-                                onClick={() => toggleTaskExpanded(task.id)}
-                                className="flex-shrink-0 mt-0.5 text-gray-400 hover:text-gray-600"
-                                title={isExpanded ? "Collapse" : "Expand details"}
-                              >
-                                <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </button>
-                            </div>
-                            {isExpanded && (
-                              <div className="mt-1.5">
-                                {canEdit && editingDescTask === task.id ? (
-                                  <textarea
-                                    value={editingDescriptions[task.id] ?? task.description ?? ""}
-                                    onChange={(e) => {
-                                      updateTaskDescription(task.id, e.target.value);
-                                      e.target.style.height = "auto";
-                                      e.target.style.height = e.target.scrollHeight + "px";
-                                    }}
-                                    onBlur={() => setEditingDescTask(null)}
-                                    ref={(el) => {
-                                      if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; el.focus(); }
-                                    }}
-                                    placeholder="Add details, links, notes..."
-                                    rows={1}
-                                    className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                  />
-                                ) : (
-                                  <div
-                                    onClick={(e) => {
-                                      if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
-                                    }}
-                                    className={`text-sm whitespace-pre-wrap ${canEdit ? "cursor-text" : ""} ${(editingDescriptions[task.id] ?? task.description) ? "text-gray-500" : "text-gray-400"}`}
-                                  >
-                                    {(editingDescriptions[task.id] ?? task.description)
-                                      ? <Linkify>{editingDescriptions[task.id] ?? task.description ?? ""}</Linkify>
-                                      : canEdit ? <span className="text-gray-400 italic">Add details, links, notes...</span> : null}
-                                  </div>
-                                )}
-                              </div>
+                            {canEdit ? (
+                              <input
+                                type="text"
+                                value={task.title}
+                                onChange={(e) => updateTaskTitle(task.id, e.target.value)}
+                                className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
+                              />
+                            ) : (
+                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                <Linkify>{task.title}</Linkify>
+                              </span>
                             )}
+                            {/* Description */}
+                            {editingDescTask === task.id ? (
+                              <textarea
+                                value={descText}
+                                onChange={(e) => {
+                                  updateTaskDescription(task.id, e.target.value);
+                                  e.target.style.height = "auto";
+                                  e.target.style.height = e.target.scrollHeight + "px";
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const el = e.currentTarget;
+                                    requestAnimationFrame(() => {
+                                      el.style.height = "auto";
+                                      el.style.height = el.scrollHeight + "px";
+                                    });
+                                  }
+                                }}
+                                onBlur={() => setEditingDescTask(null)}
+                                ref={(el) => {
+                                  if (el) {
+                                    el.style.height = "auto";
+                                    el.style.height = el.scrollHeight + "px";
+                                    el.focus();
+                                    el.setSelectionRange(el.value.length, el.value.length);
+                                  }
+                                }}
+                                placeholder="Add details, links, notes..."
+                                rows={1}
+                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                              />
+                            ) : descText ? (
+                              <div
+                                onClick={(e) => {
+                                  if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
+                                }}
+                                className={`text-sm text-gray-500 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 rounded px-1 -mx-1" : ""}`}
+                              >
+                                <Linkify>{descText}</Linkify>
+                              </div>
+                            ) : canEdit ? (
+                              <button
+                                onClick={() => setEditingDescTask(task.id)}
+                                className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5"
+                              >
+                                Add description
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                         <div className="flex-shrink-0">
