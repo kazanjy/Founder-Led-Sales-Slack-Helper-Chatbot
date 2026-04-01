@@ -148,10 +148,27 @@ function CoachingHistoryContent() {
     setFormRecordingUrl("");
   };
 
-  const startCreate = () => {
+  const startCreate = async () => {
     resetForm();
-    selectSession(null);
     setMode("create");
+    setAutoSavedId(null);
+
+    // Immediately create a draft session so CoachingFramework has a sessionId
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const res = await fetch("/api/coaching-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionDate: today, notes: "(draft)" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAutoSavedId(data.session.id);
+        selectSession(data.session.id);
+        // Add to sessions list so sidebar updates
+        setSessions((prev) => [data.session, ...prev]);
+      }
+    } catch { /* will auto-save later */ }
   };
 
   const startEdit = (session: CoachingSession) => {
