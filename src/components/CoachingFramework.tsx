@@ -639,10 +639,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                                   <>
                                     <textarea
                                       value={editingDescriptions[task.id] ?? task.description ?? ""}
-                                      onChange={(e) => updateTaskDescription(task.id, e.target.value)}
+                                      onChange={(e) => {
+                                        updateTaskDescription(task.id, e.target.value);
+                                        e.target.style.height = "auto";
+                                        e.target.style.height = e.target.scrollHeight + "px";
+                                      }}
+                                      ref={(el) => {
+                                        if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+                                      }}
                                       placeholder="Add details, links, notes..."
-                                      rows={2}
-                                      className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                      rows={1}
+                                      className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                     />
                                     {URL_REGEX.test(editingDescriptions[task.id] ?? task.description ?? "") && (
                                       <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap"><Linkify>{editingDescriptions[task.id] ?? task.description ?? ""}</Linkify></p>
