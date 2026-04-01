@@ -294,6 +294,7 @@ function IcpContent() {
       }
       // Auto-generate search criteria in the background
       if (data.version?.id) {
+        window.history.replaceState({}, "", `/icp?version=${data.version.id}`);
         generateSearchCriteriaInBackground(data.version.id);
       }
     } catch (error) {

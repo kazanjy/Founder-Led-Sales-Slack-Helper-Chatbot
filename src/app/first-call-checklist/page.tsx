@@ -241,6 +241,9 @@ function FirstCallChecklistContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/first-call-checklist?version=${data.version.id}`);
+      }
     } catch (error) {
       console.error("Error generating:", error);
       await showAlert({
@@ -273,6 +276,9 @@ function FirstCallChecklistContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/first-call-checklist?version=${data.version.id}`);
+      }
       setShowImport(false);
       setImportText("");
     } catch (error) {
