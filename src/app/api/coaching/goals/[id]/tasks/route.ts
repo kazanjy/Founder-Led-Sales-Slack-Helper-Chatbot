@@ -27,7 +27,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title } = body;
+    const { title, description } = body;
 
     const maxOrder = await prisma.coachingTask.aggregate({
       where: { goalId: id },
@@ -41,6 +41,7 @@ export async function POST(
         userId: user.id,
         goalId: id,
         title,
+        description: description || null,
         order,
       },
     });

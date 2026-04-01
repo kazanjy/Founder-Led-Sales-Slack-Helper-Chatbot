@@ -38,6 +38,7 @@ interface Goal {
 interface Task {
   id: string;
   title: string;
+  description?: string | null;
   status: string;
   statusChangedAt?: string;
   order: number;
@@ -84,7 +85,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const descSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   // ── Load data ──────────────────────────────────────────────────
 
@@ -113,10 +117,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Cleanup metric save timers on unmount
+  // Cleanup save timers on unmount
   useEffect(() => {
-    const timers = metricSaveTimers.current;
-    return () => { Object.values(timers).forEach(clearTimeout); };
+    const mTimers = metricSaveTimers.current;
+    const dTimers = descSaveTimers.current;
+    return () => {
+      Object.values(mTimers).forEach(clearTimeout);
+      Object.values(dTimers).forEach(clearTimeout);
+    };
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────
@@ -182,6 +190,34 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
+    });
+  };
+
+  const updateTaskDescription = (taskId: string, description: string) => {
+    setEditingDescriptions((prev) => ({ ...prev, [taskId]: description }));
+    // Optimistic update
+    setGoals((prev) => prev.map((g) => ({
+      ...g,
+      tasks: g.tasks.map((t) => t.id === taskId ? { ...t, description } : t),
+    })));
+    // Debounced save
+    if (descSaveTimers.current[taskId]) clearTimeout(descSaveTimers.current[taskId]);
+    descSaveTimers.current[taskId] = setTimeout(async () => {
+      await fetch(`/api/coaching/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      delete descSaveTimers.current[taskId];
+    }, 1500);
+  };
+
+  const toggleTaskExpanded = (taskId: string) => {
+    setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
     });
   };
 
@@ -495,33 +531,75 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
-                {goal.tasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between px-4 py-2.5 pl-8">
-                    <div className="flex items-center gap-2">
-                      {task.status === "done" ? (
-                        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <div className="w-4 h-4 rounded border-2 border-gray-300" />
-                      )}
-                      <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                        <Linkify>{task.title}</Linkify>
-                      </span>
+                {goal.tasks.map((task) => {
+                  const isExpanded = expandedTasks.has(task.id);
+                  const hasDesc = !!(task.description || editingDescriptions[task.id]);
+                  return (
+                    <div key={task.id} className="px-4 py-2.5 pl-8">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <button
+                            onClick={() => canEdit && updateTaskStatus(task.id, task.status === "done" ? "active" : "done")}
+                            className="mt-0.5 flex-shrink-0"
+                          >
+                            {task.status === "done" ? (
+                              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <div className="w-4 h-4 rounded border-2 border-gray-300" />
+                            )}
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <button
+                              onClick={() => toggleTaskExpanded(task.id)}
+                              className="text-left w-full"
+                            >
+                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                <Linkify>{task.title}</Linkify>
+                              </span>
+                              {!isExpanded && hasDesc && (
+                                <span className="text-xs text-gray-400 ml-1.5">...</span>
+                              )}
+                            </button>
+                            {isExpanded && (
+                              <div className="mt-1.5">
+                                {canEdit ? (
+                                  <textarea
+                                    value={editingDescriptions[task.id] ?? task.description ?? ""}
+                                    onChange={(e) => updateTaskDescription(task.id, e.target.value)}
+                                    placeholder="Add details, links, notes..."
+                                    rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                  />
+                                ) : task.description ? (
+                                  <p className="text-sm text-gray-500 whitespace-pre-wrap"><Linkify>{task.description}</Linkify></p>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {canEdit ? (
+                            <select
+                              value={task.status}
+                              onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                              className={`text-xs font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${getStatusColor(task.status)}`}
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${getStatusColor(task.status)}`}>
+                              {STATUS_OPTIONS.find((s) => s.value === task.status)?.label || task.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {canEdit && (
-                      <select
-                        value={task.status}
-                        onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                        className={`text-xs font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${getStatusColor(task.status)}`}
-                      >
-                        {STATUS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Add task */}
                 {canEdit && (

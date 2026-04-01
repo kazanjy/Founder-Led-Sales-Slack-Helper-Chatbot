@@ -28,10 +28,11 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, status, order } = body;
+    const { title, description, status, order } = body;
 
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description || null;
     if (order !== undefined) updateData.order = order;
     if (status !== undefined) {
       updateData.status = status;

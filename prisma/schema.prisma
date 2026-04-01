@@ -1291,8 +1291,9 @@ model CoachingTask {
   goalId String
   goal   CoachingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
-  title  String
-  status String @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  title       String
+  description String?  @db.Text
+  status      String   @default("active") // "active" | "done" | "not_doing" | "deprioritized"
   statusChangedAt DateTime?
 
   createdAt DateTime @default(now())
