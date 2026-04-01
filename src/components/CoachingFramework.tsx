@@ -163,6 +163,45 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     });
   };
 
+  const moveGoal = async (goalId: string, direction: "up" | "down") => {
+    setGoals((prev) => {
+      const idx = prev.findIndex((g) => g.id === goalId);
+      if ((direction === "up" && idx === 0) || (direction === "down" && idx === prev.length - 1)) return prev;
+      const next = [...prev];
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      // Persist new order
+      next.forEach((g, i) => {
+        fetch(`/api/coaching/goals/${g.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: i }),
+        });
+      });
+      return next;
+    });
+  };
+
+  const moveTask = async (goalId: string, taskId: string, direction: "up" | "down") => {
+    setGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const idx = g.tasks.findIndex((t) => t.id === taskId);
+      if ((direction === "up" && idx === 0) || (direction === "down" && idx === g.tasks.length - 1)) return g;
+      const tasks = [...g.tasks];
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      [tasks[idx], tasks[swapIdx]] = [tasks[swapIdx], tasks[idx]];
+      // Persist new order
+      tasks.forEach((t, i) => {
+        fetch(`/api/coaching/tasks/${t.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: i }),
+        });
+      });
+      return { ...g, tasks };
+    }));
+  };
+
   const addTask = async (goalId: string) => {
     const title = newTaskTitles[goalId]?.trim();
     if (!title) return;
@@ -535,10 +574,30 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           <span>🎯</span> Goals &amp; Tasks
         </h3>
         <div className="space-y-4">
-          {goals.map((goal) => (
+          {goals.map((goal, goalIdx) => (
             <div key={goal.id} className="border border-gray-200 rounded-lg overflow-hidden">
               {/* Goal header */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2">
+                {canEdit && goals.length > 1 && (
+                  <div className="flex flex-col flex-shrink-0 -my-1">
+                    <button
+                      onClick={() => moveGoal(goal.id, "up")}
+                      disabled={goalIdx === 0}
+                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-default"
+                      title="Move up"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button
+                      onClick={() => moveGoal(goal.id, "down")}
+                      disabled={goalIdx === goals.length - 1}
+                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-default"
+                      title="Move down"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   {canEdit ? (
                     <input
@@ -581,12 +640,32 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
-                {goal.tasks.map((task) => {
+                {goal.tasks.map((task, taskIdx) => {
                   const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
                     <div key={task.id} className="px-4 py-2.5 pl-8">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
+                          {canEdit && goal.tasks.length > 1 && (
+                            <div className="flex flex-col flex-shrink-0 mt-0.5 -my-0.5">
+                              <button
+                                onClick={() => moveTask(goal.id, task.id, "up")}
+                                disabled={taskIdx === 0}
+                                className="p-0 text-gray-300 hover:text-gray-500 disabled:opacity-20 disabled:cursor-default"
+                                title="Move up"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                              </button>
+                              <button
+                                onClick={() => moveTask(goal.id, task.id, "down")}
+                                disabled={taskIdx === goal.tasks.length - 1}
+                                className="p-0 text-gray-300 hover:text-gray-500 disabled:opacity-20 disabled:cursor-default"
+                                title="Move down"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </button>
+                            </div>
+                          )}
                           <button
                             onClick={() => canEdit && updateTaskStatus(task.id, task.status === "done" ? "active" : "done")}
                             className="mt-0.5 flex-shrink-0"
