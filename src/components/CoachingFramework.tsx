@@ -212,6 +212,48 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     }, 1500);
   };
 
+  const updateGoalTitle = (goalId: string, title: string) => {
+    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, title } : g));
+    if (descSaveTimers.current[`goal-title-${goalId}`]) clearTimeout(descSaveTimers.current[`goal-title-${goalId}`]);
+    descSaveTimers.current[`goal-title-${goalId}`] = setTimeout(async () => {
+      await fetch(`/api/coaching/goals/${goalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      delete descSaveTimers.current[`goal-title-${goalId}`];
+    }, 1500);
+  };
+
+  const updateGoalDescription = (goalId: string, description: string) => {
+    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, description } : g));
+    if (descSaveTimers.current[`goal-desc-${goalId}`]) clearTimeout(descSaveTimers.current[`goal-desc-${goalId}`]);
+    descSaveTimers.current[`goal-desc-${goalId}`] = setTimeout(async () => {
+      await fetch(`/api/coaching/goals/${goalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      delete descSaveTimers.current[`goal-desc-${goalId}`];
+    }, 1500);
+  };
+
+  const updateTaskTitle = (taskId: string, title: string) => {
+    setGoals((prev) => prev.map((g) => ({
+      ...g,
+      tasks: g.tasks.map((t) => t.id === taskId ? { ...t, title } : t),
+    })));
+    if (descSaveTimers.current[`task-title-${taskId}`]) clearTimeout(descSaveTimers.current[`task-title-${taskId}`]);
+    descSaveTimers.current[`task-title-${taskId}`] = setTimeout(async () => {
+      await fetch(`/api/coaching/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      delete descSaveTimers.current[`task-title-${taskId}`];
+    }, 1500);
+  };
+
   const toggleTaskExpanded = (taskId: string) => {
     setExpandedTasks((prev) => {
       const next = new Set(prev);
@@ -505,12 +547,29 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           {goals.map((goal) => (
             <div key={goal.id} className="border border-gray-200 rounded-lg overflow-hidden">
               {/* Goal header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="font-medium text-gray-900 text-sm"><Linkify>{goal.title}</Linkify></span>
-                  {goal.description && (
-                    <span className="text-xs text-gray-400 hidden sm:inline">— <Linkify>{goal.description}</Linkify></span>
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2">
+                <div className="flex-1 min-w-0">
+                  {canEdit ? (
+                    <input
+                      type="text"
+                      value={goal.title}
+                      onChange={(e) => updateGoalTitle(goal.id, e.target.value)}
+                      className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
+                    />
+                  ) : (
+                    <span className="font-medium text-gray-900 text-sm"><Linkify>{goal.title}</Linkify></span>
                   )}
+                  {canEdit ? (
+                    <input
+                      type="text"
+                      value={goal.description || ""}
+                      onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
+                      placeholder="Add description..."
+                      className="text-xs text-gray-400 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
+                    />
+                  ) : goal.description ? (
+                    <span className="text-xs text-gray-400 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
+                  ) : null}
                 </div>
                 {canEdit ? (
                   <select
@@ -551,17 +610,29 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             )}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <button
-                              onClick={() => toggleTaskExpanded(task.id)}
-                              className="text-left w-full"
-                            >
-                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                <Linkify>{task.title}</Linkify>
-                              </span>
-                              {!isExpanded && hasDesc && (
-                                <span className="text-xs text-gray-400 ml-1.5">...</span>
+                            <div className="flex items-start gap-1">
+                              {canEdit ? (
+                                <input
+                                  type="text"
+                                  value={task.title}
+                                  onChange={(e) => updateTaskTitle(task.id, e.target.value)}
+                                  className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
+                                />
+                              ) : (
+                                <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                  <Linkify>{task.title}</Linkify>
+                                </span>
                               )}
-                            </button>
+                              <button
+                                onClick={() => toggleTaskExpanded(task.id)}
+                                className="flex-shrink-0 mt-0.5 text-gray-400 hover:text-gray-600"
+                                title={isExpanded ? "Collapse" : "Expand details"}
+                              >
+                                <svg className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            </div>
                             {isExpanded && (
                               <div className="mt-1.5">
                                 {canEdit ? (
