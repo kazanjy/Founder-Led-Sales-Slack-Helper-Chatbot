@@ -150,6 +150,7 @@ function CoachingHistoryContent() {
   };
 
   const startCreate = async () => {
+    if (creatingDraft) return; // Prevent double-click
     resetForm();
     setAutoSavedId(null);
     setCreatingDraft(true);
@@ -196,9 +197,11 @@ function CoachingHistoryContent() {
         recordingUrl: formRecordingUrl || null,
       };
 
+      // Always update existing session — draft is created on "New Session" click
+      const updateId = selectedId || autoSavedId;
       let res: Response;
-      if (mode === "edit" && selectedId) {
-        res = await fetch(`/api/coaching-sessions/${selectedId}`, {
+      if (updateId) {
+        res = await fetch(`/api/coaching-sessions/${updateId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -226,7 +229,7 @@ function CoachingHistoryContent() {
 
   // Auto-save in create mode — debounced 3 seconds after any change
   useEffect(() => {
-    if (mode !== "create" || !formNotes.trim() || !formDate) return;
+    if (mode !== "create" || !formNotes.trim() || !formDate || !autoSavedId) return;
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
@@ -240,25 +243,12 @@ function CoachingHistoryContent() {
       };
 
       try {
-        if (autoSavedId) {
-          // Update existing draft
-          await fetch(`/api/coaching-sessions/${autoSavedId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        } else {
-          // Create new draft
-          const res = await fetch("/api/coaching-sessions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setAutoSavedId(data.session.id);
-          }
-        }
+        // Always update the existing draft — never create a new one
+        await fetch(`/api/coaching-sessions/${autoSavedId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
         setLastAutoSaved(new Date());
       } catch {
         // Silently fail — user can still manually save
