@@ -86,6 +86,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const descSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
@@ -256,6 +257,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   const toggleTaskExpanded = (taskId: string) => {
     setExpandedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+    // Toggle explicit collapse for tasks with descriptions
+    setCollapsedTasks((prev) => {
       const next = new Set(prev);
       if (next.has(taskId)) next.delete(taskId);
       else next.add(taskId);
@@ -591,8 +599,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
                 {goal.tasks.map((task) => {
-                  const isExpanded = expandedTasks.has(task.id);
                   const hasDesc = !!(task.description || editingDescriptions[task.id]);
+                  const isExpanded = collapsedTasks.has(task.id) ? false : (expandedTasks.has(task.id) || hasDesc);
                   return (
                     <div key={task.id} className="px-4 py-2.5 pl-8">
                       <div className="flex items-start justify-between gap-2">
