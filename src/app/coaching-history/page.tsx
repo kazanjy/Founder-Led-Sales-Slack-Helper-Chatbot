@@ -578,10 +578,10 @@ function CoachingHistoryContent() {
 
                   {/* Coaching Framework — show in edit mode, and in create mode once auto-saved */}
                   {((mode === "edit" && selectedId) || (mode === "create" && autoSavedId)) && (
-                    <div className="px-6 pb-4">
+                    <div className="px-6 pb-6">
                       <CoachingFramework
                         sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
-                        sessionStatus="new"
+                        sessionStatus={mode === "edit" && selectedSession ? (selectedSession.sessionStatus || "new") : "new"}
                         isOwner={true}
                       />
                     </div>
