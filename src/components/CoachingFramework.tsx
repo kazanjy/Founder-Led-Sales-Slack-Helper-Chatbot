@@ -636,13 +636,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             {isExpanded && (
                               <div className="mt-1.5">
                                 {canEdit ? (
-                                  <textarea
-                                    value={editingDescriptions[task.id] ?? task.description ?? ""}
-                                    onChange={(e) => updateTaskDescription(task.id, e.target.value)}
-                                    placeholder="Add details, links, notes..."
-                                    rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                  />
+                                  <>
+                                    <textarea
+                                      value={editingDescriptions[task.id] ?? task.description ?? ""}
+                                      onChange={(e) => updateTaskDescription(task.id, e.target.value)}
+                                      placeholder="Add details, links, notes..."
+                                      rows={2}
+                                      className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                    {URL_REGEX.test(editingDescriptions[task.id] ?? task.description ?? "") && (
+                                      <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap"><Linkify>{editingDescriptions[task.id] ?? task.description ?? ""}</Linkify></p>
+                                    )}
+                                  </>
                                 ) : task.description ? (
                                   <p className="text-sm text-gray-500 whitespace-pre-wrap"><Linkify>{task.description}</Linkify></p>
                                 ) : null}
