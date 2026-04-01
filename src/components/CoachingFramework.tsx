@@ -221,6 +221,52 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     }));
   };
 
+  const deleteGoal = async (goalId: string) => {
+    if (!window.confirm("Are you sure you want to delete this goal and all its tasks?")) return;
+    setGoals((prev) => prev.filter((g) => g.id !== goalId));
+    await fetch(`/api/coaching/goals/${goalId}`, { method: "DELETE" });
+  };
+
+  const deleteTask = async (goalId: string, taskId: string) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    setGoals((prev) => prev.map((g) =>
+      g.id === goalId ? { ...g, tasks: g.tasks.filter((t) => t.id !== taskId) } : g
+    ));
+    await fetch(`/api/coaching/tasks/${taskId}`, { method: "DELETE" });
+  };
+
+  const updateMetricName = (metricDefId: string, name: string) => {
+    setMetricEntries((prev) => prev.map((e) =>
+      e.metricDefinition.id === metricDefId ? { ...e, metricDefinition: { ...e.metricDefinition, name } } : e
+    ));
+    const key = `metric-name-${metricDefId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/metrics/${metricDefId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
+  const updateMetricDefinition = (metricDefId: string, definition: string) => {
+    setMetricEntries((prev) => prev.map((e) =>
+      e.metricDefinition.id === metricDefId ? { ...e, metricDefinition: { ...e.metricDefinition, definition: definition || undefined } } : e
+    ));
+    const key = `metric-def-${metricDefId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/metrics/${metricDefId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ definition: definition || null }),
+      });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
   const addTask = async (goalId: string) => {
     const title = newTaskTitles[goalId]?.trim();
     if (!title) return;
@@ -463,10 +509,27 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                   )}
                 </div>
               )}
-              <div className="text-xs text-gray-500 mb-1 font-medium">{entry.metricDefinition.name}</div>
-              {entry.metricDefinition.definition && (
-                <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
+              {canEdit ? (
+                <input
+                  type="text"
+                  value={entry.metricDefinition.name}
+                  onChange={(e) => updateMetricName(entry.metricDefinition.id, e.target.value)}
+                  className="text-xs text-gray-500 font-medium mb-1 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
+                />
+              ) : (
+                <div className="text-xs text-gray-500 mb-1 font-medium">{entry.metricDefinition.name}</div>
               )}
+              {canEdit ? (
+                <input
+                  type="text"
+                  value={entry.metricDefinition.definition || ""}
+                  onChange={(e) => updateMetricDefinition(entry.metricDefinition.id, e.target.value)}
+                  placeholder="Add definition..."
+                  className="text-[10px] text-gray-400 mb-1.5 leading-tight bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
+                />
+              ) : entry.metricDefinition.definition ? (
+                <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
+              ) : null}
               {canEdit ? (
                 <input
                   type="number"
@@ -650,12 +713,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                 {canEdit ? (
                   <select
                     value={goal.status}
-                    onChange={(e) => updateGoalStatus(goal.id, e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value === "__delete__") { deleteGoal(goal.id); e.target.value = goal.status; return; }
+                      updateGoalStatus(goal.id, e.target.value);
+                    }}
                     className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer ${getStatusColor(goal.status)}`}
                   >
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
+                    <option value="__delete__" className="text-red-600">🗑 Delete Goal</option>
                   </select>
                 ) : (
                   <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${getStatusColor(goal.status)}`}>
@@ -778,12 +845,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                           {canEdit ? (
                             <select
                               value={task.status}
-                              onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                              onChange={(e) => {
+                                if (e.target.value === "__delete__") { deleteTask(goal.id, task.id); e.target.value = task.status; return; }
+                                updateTaskStatus(task.id, e.target.value);
+                              }}
                               className={`text-xs font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${getStatusColor(task.status)}`}
                             >
                               {STATUS_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
+                              <option value="__delete__" className="text-red-600">🗑 Delete Task</option>
                             </select>
                           ) : (
                             <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${getStatusColor(task.status)}`}>
