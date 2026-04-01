@@ -32,9 +32,14 @@ export async function POST(
     const body = await request.json();
     const { sessionId, currentValue } = body;
 
-    // Find the previous entry for this metric to calculate addedSinceLastSession
+    // Check if an entry already exists for this metric + session
+    const existingEntry = await prisma.coachingMetricEntry.findFirst({
+      where: { metricDefinitionId: id, sessionId },
+    });
+
+    // Find the previous entry from a DIFFERENT session for addedSinceLastSession
     const previousEntry = await prisma.coachingMetricEntry.findFirst({
-      where: { metricDefinitionId: id },
+      where: { metricDefinitionId: id, sessionId: { not: sessionId } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -42,15 +47,24 @@ export async function POST(
       ? currentValue - previousEntry.currentValue
       : 0;
 
-    const entry = await prisma.coachingMetricEntry.create({
-      data: {
-        userId: user.id,
-        metricDefinitionId: id,
-        sessionId,
-        currentValue,
-        addedSinceLastSession,
-      },
-    });
+    let entry;
+    if (existingEntry) {
+      // Update existing entry instead of creating a duplicate
+      entry = await prisma.coachingMetricEntry.update({
+        where: { id: existingEntry.id },
+        data: { currentValue, addedSinceLastSession },
+      });
+    } else {
+      entry = await prisma.coachingMetricEntry.create({
+        data: {
+          userId: user.id,
+          metricDefinitionId: id,
+          sessionId,
+          currentValue,
+          addedSinceLastSession,
+        },
+      });
+    }
 
     return NextResponse.json({ entry });
   } catch (error) {

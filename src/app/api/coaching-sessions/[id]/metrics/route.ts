@@ -30,7 +30,10 @@ export async function GET(
     }
 
     const entries = await prisma.coachingMetricEntry.findMany({
-      where: { sessionId: id },
+      where: {
+        sessionId: id,
+        metricDefinition: { archived: false },
+      },
       include: {
         metricDefinition: true,
       },

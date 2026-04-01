@@ -118,22 +118,32 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Create empty metric entries for all metric definitions
+    // 5. Create empty metric entries for all active (non-archived) metric definitions
     const allMetrics = await prisma.coachingMetricDefinition.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, archived: false },
       orderBy: { order: "asc" },
     });
 
     if (allMetrics.length > 0) {
-      await prisma.coachingMetricEntry.createMany({
-        data: allMetrics.map((m) => ({
-          userId: user.id,
-          metricDefinitionId: m.id,
-          sessionId: session.id,
-          currentValue: 0,
-          addedSinceLastSession: 0,
-        })),
+      // Check which metrics already have entries for this session (avoid dupes)
+      const existingEntries = await prisma.coachingMetricEntry.findMany({
+        where: { sessionId: session.id },
+        select: { metricDefinitionId: true },
       });
+      const existingDefIds = new Set(existingEntries.map((e) => e.metricDefinitionId));
+      const newMetrics = allMetrics.filter((m) => !existingDefIds.has(m.id));
+
+      if (newMetrics.length > 0) {
+        await prisma.coachingMetricEntry.createMany({
+          data: newMetrics.map((m) => ({
+            userId: user.id,
+            metricDefinitionId: m.id,
+            sessionId: session.id,
+            currentValue: 0,
+            addedSinceLastSession: 0,
+          })),
+        });
+      }
     }
 
     return NextResponse.json({ session }, { status: 201 });
