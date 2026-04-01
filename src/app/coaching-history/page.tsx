@@ -576,6 +576,17 @@ function CoachingHistoryContent() {
 
                   </div>
 
+                  {/* Coaching Framework — show in edit mode, and in create mode once auto-saved */}
+                  {((mode === "edit" && selectedId) || (mode === "create" && autoSavedId)) && (
+                    <div className="px-6 pb-4">
+                      <CoachingFramework
+                        sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
+                        sessionStatus="new"
+                        isOwner={true}
+                      />
+                    </div>
+                  )}
+
                   {/* Form actions */}
                   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-between">
                     <button
