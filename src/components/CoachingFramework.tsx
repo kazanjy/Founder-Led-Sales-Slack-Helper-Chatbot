@@ -117,6 +117,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Scroll to anchor after data loads
+  useEffect(() => {
+    if (goals.length === 0) return;
+    const hash = window.location.hash;
+    if (hash) {
+      const el = document.getElementById(hash.slice(1));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-purple-400", "ring-offset-2");
+        setTimeout(() => el.classList.remove("ring-2", "ring-purple-400", "ring-offset-2"), 3000);
+      }
+    }
+  }, [goals.length]); // only run once after goals load
+
+  const copyAnchorLink = (anchorId: string) => {
+    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#${anchorId}`;
+    navigator.clipboard.writeText(url);
+  };
+
   // Cleanup save timers on unmount
   useEffect(() => {
     const mTimers = metricSaveTimers.current;
@@ -575,9 +594,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
         </h3>
         <div className="space-y-4">
           {goals.map((goal, goalIdx) => (
-            <div key={goal.id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div key={goal.id} id={`goal-${goal.id}`} className="border border-gray-200 rounded-lg overflow-hidden scroll-mt-24">
               {/* Goal header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2 group/goal">
                 {canEdit && goals.length > 1 && (
                   <div className="flex flex-col flex-shrink-0 -my-1">
                     <button
@@ -621,6 +640,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                     <span className="text-xs text-gray-400 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
                   ) : null}
                 </div>
+                <button
+                  onClick={() => copyAnchorLink(`goal-${goal.id}`)}
+                  className="flex-shrink-0 p-1 text-gray-300 hover:text-purple-500 opacity-0 group-hover/goal:opacity-100 transition-opacity"
+                  title="Copy link to goal"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                </button>
                 {canEdit ? (
                   <select
                     value={goal.status}
@@ -643,7 +669,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                 {goal.tasks.map((task, taskIdx) => {
                   const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
-                    <div key={task.id} className="px-4 py-2.5 pl-8">
+                    <div key={task.id} id={`task-${task.id}`} className="px-4 py-2.5 pl-8 scroll-mt-24 group/task">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
                           {canEdit && goal.tasks.length > 1 && (
@@ -741,7 +767,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             ) : null}
                           </div>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 flex items-center gap-1">
+                          <button
+                            onClick={() => copyAnchorLink(`task-${task.id}`)}
+                            className="p-0.5 text-gray-300 hover:text-purple-500 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            title="Copy link to task"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                          </button>
                           {canEdit ? (
                             <select
                               value={task.status}
