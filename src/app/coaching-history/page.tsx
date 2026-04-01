@@ -535,6 +535,18 @@ function CoachingHistoryContent() {
                       {mode === "edit" ? "Save Changes" : "Create Session"}
                     </button>
                   </div>
+
+                  {/* Coaching Framework — at top of form */}
+                  {((mode === "edit" && selectedId) || (mode === "create" && autoSavedId)) && (
+                    <div className="px-6 pt-6">
+                      <CoachingFramework
+                        sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
+                        sessionStatus={mode === "edit" && selectedSession ? (selectedSession.sessionStatus || "new") : "new"}
+                        isOwner={true}
+                      />
+                    </div>
+                  )}
+
                   <div className="p-6 space-y-5">
                     {/* Title */}
                     <div>
@@ -605,17 +617,6 @@ function CoachingHistoryContent() {
                     </div>
 
                   </div>
-
-                  {/* Coaching Framework — show in edit mode, and in create mode once auto-saved */}
-                  {((mode === "edit" && selectedId) || (mode === "create" && autoSavedId)) && (
-                    <div className="px-6 pb-6">
-                      <CoachingFramework
-                        sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
-                        sessionStatus={mode === "edit" && selectedSession ? (selectedSession.sessionStatus || "new") : "new"}
-                        isOwner={true}
-                      />
-                    </div>
-                  )}
 
                   {/* Form actions */}
                   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-between">
