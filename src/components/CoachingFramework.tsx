@@ -87,6 +87,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+  const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const descSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
@@ -643,29 +644,34 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             </div>
                             {isExpanded && (
                               <div className="mt-1.5">
-                                {canEdit ? (
-                                  <>
-                                    <textarea
-                                      value={editingDescriptions[task.id] ?? task.description ?? ""}
-                                      onChange={(e) => {
-                                        updateTaskDescription(task.id, e.target.value);
-                                        e.target.style.height = "auto";
-                                        e.target.style.height = e.target.scrollHeight + "px";
-                                      }}
-                                      ref={(el) => {
-                                        if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
-                                      }}
-                                      placeholder="Add details, links, notes..."
-                                      rows={1}
-                                      className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                    />
-                                    {URL_REGEX.test(editingDescriptions[task.id] ?? task.description ?? "") && (
-                                      <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap"><Linkify>{editingDescriptions[task.id] ?? task.description ?? ""}</Linkify></p>
-                                    )}
-                                  </>
-                                ) : task.description ? (
-                                  <p className="text-sm text-gray-500 whitespace-pre-wrap"><Linkify>{task.description}</Linkify></p>
-                                ) : null}
+                                {canEdit && editingDescTask === task.id ? (
+                                  <textarea
+                                    value={editingDescriptions[task.id] ?? task.description ?? ""}
+                                    onChange={(e) => {
+                                      updateTaskDescription(task.id, e.target.value);
+                                      e.target.style.height = "auto";
+                                      e.target.style.height = e.target.scrollHeight + "px";
+                                    }}
+                                    onBlur={() => setEditingDescTask(null)}
+                                    ref={(el) => {
+                                      if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; el.focus(); }
+                                    }}
+                                    placeholder="Add details, links, notes..."
+                                    rows={1}
+                                    className="w-full px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                  />
+                                ) : (
+                                  <div
+                                    onClick={(e) => {
+                                      if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
+                                    }}
+                                    className={`text-sm whitespace-pre-wrap ${canEdit ? "cursor-text" : ""} ${(editingDescriptions[task.id] ?? task.description) ? "text-gray-500" : "text-gray-400"}`}
+                                  >
+                                    {(editingDescriptions[task.id] ?? task.description)
+                                      ? <Linkify>{editingDescriptions[task.id] ?? task.description ?? ""}</Linkify>
+                                      : canEdit ? <span className="text-gray-400 italic">Add details, links, notes...</span> : null}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
