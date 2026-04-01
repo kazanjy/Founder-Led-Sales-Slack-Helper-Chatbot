@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, ReactNode } from "react";
+
+// ── Linkify helper ───────────────────────────────────────────────
+const URL_REGEX = /(https?:\/\/[^\s<]+)/g;
+function Linkify({ children }: { children: string }): ReactNode {
+  const parts = children.split(URL_REGEX);
+  if (parts.length === 1) return children;
+  return parts.map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all">{part}</a>
+    ) : part
+  );
+}
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -459,9 +471,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
               {/* Goal header */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="font-medium text-gray-900 text-sm truncate">{goal.title}</span>
+                  <span className="font-medium text-gray-900 text-sm"><Linkify>{goal.title}</Linkify></span>
                   {goal.description && (
-                    <span className="text-xs text-gray-400 hidden sm:inline truncate">— {goal.description}</span>
+                    <span className="text-xs text-gray-400 hidden sm:inline">— <Linkify>{goal.description}</Linkify></span>
                   )}
                 </div>
                 {canEdit ? (
@@ -494,7 +506,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                         <div className="w-4 h-4 rounded border-2 border-gray-300" />
                       )}
                       <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                        {task.title}
+                        <Linkify>{task.title}</Linkify>
                       </span>
                     </div>
                     {canEdit && (

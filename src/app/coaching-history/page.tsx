@@ -103,6 +103,7 @@ function CoachingHistoryContent() {
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Sync selectedId with URL query param
@@ -150,8 +151,9 @@ function CoachingHistoryContent() {
 
   const startCreate = async () => {
     resetForm();
-    setMode("create");
     setAutoSavedId(null);
+    setCreatingDraft(true);
+    setMode("create");
 
     // Immediately create a draft session so CoachingFramework has a sessionId
     try {
@@ -165,10 +167,10 @@ function CoachingHistoryContent() {
         const data = await res.json();
         setAutoSavedId(data.session.id);
         selectSession(data.session.id);
-        // Add to sessions list so sidebar updates
         setSessions((prev) => [data.session, ...prev]);
       }
     } catch { /* will auto-save later */ }
+    setCreatingDraft(false);
   };
 
   const startEdit = (session: CoachingSession) => {
@@ -502,6 +504,17 @@ function CoachingHistoryContent() {
             {/* Right panel: Detail or Form */}
             <div className="flex-1 min-w-0">
               {mode === "create" || mode === "edit" ? (
+                creatingDraft ? (
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex items-center justify-center">
+                    <div className="flex items-center gap-3 text-gray-400">
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span className="text-sm font-medium">Setting up session...</span>
+                    </div>
+                  </div>
+                ) :
                 /* Create/Edit Form */
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
                   <div className="p-4 border-b border-gray-200 flex items-center justify-between">
