@@ -87,6 +87,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
+  const [dragGoal, setDragGoal] = useState<string | null>(null);
+  const [dragTask, setDragTask] = useState<{ goalId: string; taskId: string } | null>(null);
+  const [dragOverGoal, setDragOverGoal] = useState<string | null>(null);
+  const [dragOverTask, setDragOverTask] = useState<string | null>(null);
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const descSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -182,43 +186,123 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     });
   };
 
-  const moveGoal = async (goalId: string, direction: "up" | "down") => {
-    setGoals((prev) => {
-      const idx = prev.findIndex((g) => g.id === goalId);
-      if ((direction === "up" && idx === 0) || (direction === "down" && idx === prev.length - 1)) return prev;
-      const next = [...prev];
-      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-      // Persist new order
-      next.forEach((g, i) => {
-        fetch(`/api/coaching/goals/${g.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: i }),
-        });
+  const persistGoalOrder = (reordered: Goal[]) => {
+    reordered.forEach((g, i) => {
+      fetch(`/api/coaching/goals/${g.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: i }),
       });
-      return next;
     });
   };
 
-  const moveTask = async (goalId: string, taskId: string, direction: "up" | "down") => {
-    setGoals((prev) => prev.map((g) => {
-      if (g.id !== goalId) return g;
-      const idx = g.tasks.findIndex((t) => t.id === taskId);
-      if ((direction === "up" && idx === 0) || (direction === "down" && idx === g.tasks.length - 1)) return g;
-      const tasks = [...g.tasks];
-      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-      [tasks[idx], tasks[swapIdx]] = [tasks[swapIdx], tasks[idx]];
-      // Persist new order
-      tasks.forEach((t, i) => {
-        fetch(`/api/coaching/tasks/${t.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: i }),
-        });
+  const persistTaskOrder = (tasks: Task[]) => {
+    tasks.forEach((t, i) => {
+      fetch(`/api/coaching/tasks/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: i }),
       });
-      return { ...g, tasks };
-    }));
+    });
+  };
+
+  const handleGoalDrop = (targetGoalId: string) => {
+    if (!dragGoal || dragGoal === targetGoalId) return;
+    setGoals((prev) => {
+      const fromIdx = prev.findIndex((g) => g.id === dragGoal);
+      const toIdx = prev.findIndex((g) => g.id === targetGoalId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      persistGoalOrder(next);
+      return next;
+    });
+    setDragGoal(null);
+    setDragOverGoal(null);
+  };
+
+  const handleTaskDrop = (goalId: string, targetTaskId: string) => {
+    if (!dragTask || (dragTask.taskId === targetTaskId && dragTask.goalId === goalId)) return;
+    setGoals((prev) => {
+      // Find source goal and task
+      const srcGoal = prev.find((g) => g.id === dragTask.goalId);
+      if (!srcGoal) return prev;
+      const task = srcGoal.tasks.find((t) => t.id === dragTask.taskId);
+      if (!task) return prev;
+
+      if (dragTask.goalId === goalId) {
+        // Reorder within same goal
+        return prev.map((g) => {
+          if (g.id !== goalId) return g;
+          const tasks = [...g.tasks];
+          const fromIdx = tasks.findIndex((t) => t.id === dragTask.taskId);
+          const toIdx = tasks.findIndex((t) => t.id === targetTaskId);
+          if (fromIdx === -1 || toIdx === -1) return g;
+          const [moved] = tasks.splice(fromIdx, 1);
+          tasks.splice(toIdx, 0, moved);
+          persistTaskOrder(tasks);
+          return { ...g, tasks };
+        });
+      } else {
+        // Move between goals
+        return prev.map((g) => {
+          if (g.id === dragTask.goalId) {
+            const tasks = g.tasks.filter((t) => t.id !== dragTask.taskId);
+            persistTaskOrder(tasks);
+            return { ...g, tasks };
+          }
+          if (g.id === goalId) {
+            const tasks = [...g.tasks];
+            const toIdx = tasks.findIndex((t) => t.id === targetTaskId);
+            tasks.splice(toIdx === -1 ? tasks.length : toIdx, 0, task);
+            persistTaskOrder(tasks);
+            // Update task's goalId on server
+            fetch(`/api/coaching/tasks/${task.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ goalId }),
+            });
+            return { ...g, tasks };
+          }
+          return g;
+        });
+      }
+    });
+    setDragTask(null);
+    setDragOverTask(null);
+  };
+
+  const handleTaskDropOnGoal = (goalId: string) => {
+    // Drop task at end of a goal (when dropping on goal header or empty task area)
+    if (!dragTask || dragTask.goalId === goalId) return;
+    setGoals((prev) => {
+      const srcGoal = prev.find((g) => g.id === dragTask.goalId);
+      if (!srcGoal) return prev;
+      const task = srcGoal.tasks.find((t) => t.id === dragTask.taskId);
+      if (!task) return prev;
+      return prev.map((g) => {
+        if (g.id === dragTask.goalId) {
+          const tasks = g.tasks.filter((t) => t.id !== dragTask.taskId);
+          persistTaskOrder(tasks);
+          return { ...g, tasks };
+        }
+        if (g.id === goalId) {
+          const tasks = [...g.tasks, task];
+          persistTaskOrder(tasks);
+          fetch(`/api/coaching/tasks/${task.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ goalId }),
+          });
+          return { ...g, tasks };
+        }
+        return g;
+      });
+    });
+    setDragTask(null);
+    setDragOverTask(null);
+    setDragOverGoal(null);
   };
 
   const deleteGoal = async (goalId: string) => {
@@ -656,28 +740,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           <span>🎯</span> Goals &amp; Tasks
         </h3>
         <div className="space-y-4">
-          {goals.map((goal, goalIdx) => (
-            <div key={goal.id} id={`goal-${goal.id}`} className="border border-gray-200 rounded-lg overflow-hidden scroll-mt-24">
+          {goals.map((goal) => (
+            <div
+              key={goal.id}
+              id={`goal-${goal.id}`}
+              draggable={canEdit}
+              onDragStart={(e) => { setDragGoal(goal.id); e.dataTransfer.effectAllowed = "move"; }}
+              onDragEnd={() => { setDragGoal(null); setDragOverGoal(null); }}
+              onDragOver={(e) => { if (dragGoal && dragGoal !== goal.id) { e.preventDefault(); setDragOverGoal(goal.id); } if (dragTask) { e.preventDefault(); setDragOverGoal(goal.id); } }}
+              onDragLeave={() => setDragOverGoal(null)}
+              onDrop={() => { if (dragGoal) handleGoalDrop(goal.id); if (dragTask) handleTaskDropOnGoal(goal.id); }}
+              className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragGoal === goal.id ? "opacity-40" : ""} ${dragOverGoal === goal.id && dragGoal ? "border-purple-400 shadow-md" : dragOverGoal === goal.id && dragTask ? "border-blue-400 shadow-md" : "border-gray-200"}`}
+            >
               {/* Goal header */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2 group/goal">
-                {canEdit && goals.length > 1 && (
-                  <div className="flex flex-col flex-shrink-0 -my-1">
-                    <button
-                      onClick={() => moveGoal(goal.id, "up")}
-                      disabled={goalIdx === 0}
-                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-default"
-                      title="Move up"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    </button>
-                    <button
-                      onClick={() => moveGoal(goal.id, "down")}
-                      disabled={goalIdx === goals.length - 1}
-                      className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-default"
-                      title="Move down"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
+                {canEdit && (
+                  <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -733,30 +812,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
-                {goal.tasks.map((task, taskIdx) => {
+                {goal.tasks.map((task) => {
                   const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
-                    <div key={task.id} id={`task-${task.id}`} className="px-4 py-2.5 pl-8 scroll-mt-24 group/task">
+                    <div
+                      key={task.id}
+                      id={`task-${task.id}`}
+                      draggable={canEdit}
+                      onDragStart={(e) => { e.stopPropagation(); setDragTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; }}
+                      onDragEnd={() => { setDragTask(null); setDragOverTask(null); }}
+                      onDragOver={(e) => { if (dragTask && dragTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverTask(task.id); } }}
+                      onDragLeave={() => setDragOverTask(null)}
+                      onDrop={(e) => { e.stopPropagation(); handleTaskDrop(goal.id, task.id); }}
+                      className={`px-4 py-2.5 pl-8 scroll-mt-24 group/task transition-all ${dragTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
-                          {canEdit && goal.tasks.length > 1 && (
-                            <div className="flex flex-col flex-shrink-0 mt-0.5 -my-0.5">
-                              <button
-                                onClick={() => moveTask(goal.id, task.id, "up")}
-                                disabled={taskIdx === 0}
-                                className="p-0 text-gray-300 hover:text-gray-500 disabled:opacity-20 disabled:cursor-default"
-                                title="Move up"
-                              >
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                              </button>
-                              <button
-                                onClick={() => moveTask(goal.id, task.id, "down")}
-                                disabled={taskIdx === goal.tasks.length - 1}
-                                className="p-0 text-gray-300 hover:text-gray-500 disabled:opacity-20 disabled:cursor-default"
-                                title="Move down"
-                              >
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                              </button>
+                          {canEdit && (
+                            <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 mt-0.5 mr-0.5">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>
                             </div>
                           )}
                           <button
