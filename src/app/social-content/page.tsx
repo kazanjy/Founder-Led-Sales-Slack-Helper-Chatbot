@@ -194,6 +194,18 @@ function SocialContentContent() {
 
   useEffect(() => {
     document.title = "Social Content - Mikey";
+    // Scroll to hash anchor on load
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.getElementById(hash.slice(1));
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-purple-400", "ring-offset-2");
+          setTimeout(() => el.classList.remove("ring-2", "ring-purple-400", "ring-offset-2"), 3000);
+        }
+      }, 500);
+    }
   }, []);
 
   useEffect(() => {
@@ -1277,7 +1289,7 @@ function SocialContentContent() {
                   {parsed.map((post, idx) => {
                     const color = post.topic ? getTopicColor(post.topic, allTopics) : null;
                     return (
-                      <div key={idx} className="border border-gray-100 rounded-lg overflow-hidden group/post">
+                      <div key={idx} id={`post-${idx + 1}`} className="border border-gray-100 rounded-lg overflow-hidden group/post scroll-mt-24">
                         <div className="p-4 pb-3">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -1286,10 +1298,27 @@ function SocialContentContent() {
                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{post.topic}</span>
                               )}
                             </div>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(post.content);
-                                setCopiedPostIdx(idx);
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  const url = `${window.location.origin}${window.location.pathname}${window.location.search}#post-${idx + 1}`;
+                                  navigator.clipboard.writeText(url);
+                                  setCopiedPostIdx(-1 - idx);
+                                  setTimeout(() => setCopiedPostIdx(null), 1500);
+                                }}
+                                className="flex-shrink-0 p-1 text-gray-300 hover:text-purple-500 opacity-0 group-hover/post:opacity-100 transition-opacity"
+                                title="Copy link to post"
+                              >
+                                {copiedPostIdx === -1 - idx ? (
+                                  <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                ) : (
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(post.content);
+                                  setCopiedPostIdx(idx);
                                 setTimeout(() => setCopiedPostIdx(null), 1500);
                               }}
                               className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
@@ -1300,6 +1329,7 @@ function SocialContentContent() {
                                 <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy</>
                               )}
                             </button>
+                            </div>{/* end link+copy buttons */}
                           </div>
                           <div className="prose prose-gray max-w-none prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-sm">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
