@@ -80,9 +80,11 @@ function SocialContentContent() {
   const [platform, setPlatform] = useState<"linkedin" | "twitter">("linkedin");
   const [tone, setTone] = useState("thought-leadership");
   const [customTone, setCustomTone] = useState("");
-  const [postCount, setPostCount] = useState(5);
+  const [postCount, setPostCount] = useState(10);
   const [topicSource, setTopicSource] = useState<"narrative" | "custom" | "content">("narrative");
   const [topicInput, setTopicInput] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [copiedPostIdx, setCopiedPostIdx] = useState<number | null>(null);
   const [goldExamples, setGoldExamples] = useState<string[]>([]);
   const [newExample, setNewExample] = useState("");
   const [includeChecklist, setIncludeChecklist] = useState(false);
@@ -203,6 +205,14 @@ function SocialContentContent() {
     }
   }, [platform, loading, hasSalesNarrative]);
 
+  // Auto-generate topic suggestions when form is shown and no topics yet
+  useEffect(() => {
+    if (!loading && hasSalesNarrative && !version && topicSuggestions.length === 0 && !loadingTopics) {
+      handleGenerateTopics();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, hasSalesNarrative, version]);
+
   const handleGenerateTopics = async () => {
     setLoadingTopics(true);
     try {
@@ -213,13 +223,26 @@ function SocialContentContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setTopicSuggestions(data.topics || []);
+        const topics = data.topics || [];
+        setTopicSuggestions(topics);
       }
     } catch {
       // silently fail
     } finally {
       setLoadingTopics(false);
     }
+  };
+
+  const toggleTopic = (topic: string) => {
+    setSelectedTopics((prev) => {
+      const next = prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic];
+      // Auto-adjust post count: minimum 3 per selected topic
+      if (next.length > 0) {
+        const minPosts = next.length * 3;
+        if (postCount < minPosts) setPostCount(minPosts);
+      }
+      return next;
+    });
   };
 
   const handleAddExample = () => {
@@ -279,8 +302,12 @@ function SocialContentContent() {
       await showAlert({ title: "Missing Tone", message: "Please specify a tone.", variant: "danger" });
       return;
     }
-    if ((topicSource === "custom" || topicSource === "content") && !topicInput.trim()) {
-      await showAlert({ title: "Missing Input", message: "Please provide a topic or content to repurpose.", variant: "danger" });
+    if (topicSource === "content" && !topicInput.trim()) {
+      await showAlert({ title: "Missing Input", message: "Please provide content to repurpose.", variant: "danger" });
+      return;
+    }
+    if (topicSource === "custom" && !topicInput.trim() && selectedTopics.length === 0) {
+      await showAlert({ title: "Missing Input", message: "Please provide a topic or select topics.", variant: "danger" });
       return;
     }
 
@@ -295,6 +322,7 @@ function SocialContentContent() {
           postCount,
           topicSource,
           topicInput: topicInput.trim() || undefined,
+          selectedTopics: selectedTopics.length > 0 ? selectedTopics : undefined,
           goldStandardExamples: goldExamples.length > 0 ? goldExamples : undefined,
           includeFirstCallChecklist: includeChecklist,
         }),
@@ -500,11 +528,15 @@ function SocialContentContent() {
     }
 
     const platformLabel = version.platform === "linkedin" ? "LinkedIn" : "Twitter/X";
-    const csvRows = [["Post #", "Platform", "Tone", "Content"]];
+    const csvRows = [["Post #", "Platform", "Tone", "Topic", "Content"]];
     posts.forEach((post, i) => {
-      // Escape quotes for CSV
-      const escaped = post.replace(/"/g, '""');
-      csvRows.push([(i + 1).toString(), platformLabel, version.tone, escaped]);
+      // Extract topic if present
+      const topicMatch = post.match(/^\*\*Topic:\*\*\s*(.+)\n/);
+      const topic = topicMatch ? topicMatch[1].trim() : "";
+      const content = topicMatch ? post.slice(topicMatch[0].length).trim() : post;
+      const escaped = content.replace(/"/g, '""');
+      const escapedTopic = topic.replace(/"/g, '""');
+      csvRows.push([(i + 1).toString(), platformLabel, version.tone, escapedTopic, escaped]);
     });
 
     const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
@@ -793,6 +825,7 @@ function SocialContentContent() {
 
                 {topicSource === "narrative" && (
                   <div className="mt-3">
+                    {topicSuggestions.length === 0 && (
                     <button
                       type="button"
                       onClick={handleGenerateTopics}
@@ -811,18 +844,48 @@ function SocialContentContent() {
                         <>💡 Generate Topic Ideas from Narrative</>
                       )}
                     </button>
+                    )}
+                    {loadingTopics && topicSuggestions.length === 0 && (
+                      <div className="flex items-center gap-2 text-sm text-gray-400 mt-2">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating topic ideas...
+                      </div>
+                    )}
                     {topicSuggestions.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {topicSuggestions.map((topic, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => { setTopicSource("custom"); setTopicInput(topic); }}
-                            className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 rounded-md transition-colors"
-                          >
-                            {topic}
-                          </button>
-                        ))}
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs text-gray-500 font-medium">Select topics (multi-select)</span>
+                          {selectedTopics.length > 0 && (
+                            <span className="text-xs text-purple-600 font-medium">{selectedTopics.length} selected ({selectedTopics.length * 3}+ posts)</span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          {topicSuggestions.map((topic, i) => (
+                            <label
+                              key={i}
+                              className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-md cursor-pointer transition-colors ${selectedTopics.includes(topic) ? "bg-purple-50 text-purple-700 border border-purple-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTopics.includes(topic)}
+                                onChange={() => toggleTopic(topic)}
+                                className="text-purple-600 focus:ring-purple-500 rounded"
+                              />
+                              {topic}
+                            </label>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleGenerateTopics}
+                          disabled={loadingTopics}
+                          className="mt-2 text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        >
+                          Regenerate topics
+                        </button>
                       </div>
                     )}
                   </div>
@@ -845,14 +908,17 @@ function SocialContentContent() {
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={1}
-                    max={15}
+                    min={selectedTopics.length > 0 ? selectedTopics.length * 3 : 1}
+                    max={30}
                     value={postCount}
                     onChange={(e) => setPostCount(parseInt(e.target.value))}
                     className="flex-1 accent-purple-600"
                   />
                   <span className="text-sm font-semibold text-gray-900 w-8 text-center">{postCount}</span>
                 </div>
+                {selectedTopics.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">Minimum {selectedTopics.length * 3} posts ({selectedTopics.length} topics x 3 posts each)</p>
+                )}
               </div>
 
               {/* Gold Standard Examples */}
@@ -1154,11 +1220,54 @@ function SocialContentContent() {
           <div className="p-6">
             {isEditing ? (
               <RichTextEditor value={editedContent} onChange={(val) => setEditedContent(val)} height={600} />
-            ) : (
-              <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
-              </div>
-            )}
+            ) : (() => {
+              // Parse posts from content
+              const sections = currentContent.split(/(?:^|\n)(?:#{1,3}\s*)?(?:\*\*)?Post\s+\d+(?:\*\*)?(?:\s*[-:]*)?\s*\n/i);
+              const parsedPosts = sections.filter((s: string) => s.trim()).map((section: string) => {
+                const topicMatch = section.match(/^\*\*Topic:\*\*\s*(.+)\n/);
+                const topic = topicMatch ? topicMatch[1].trim() : null;
+                const content = topicMatch ? section.slice(topicMatch[0].length).trim() : section.trim();
+                return { topic, content };
+              });
+
+              return parsedPosts.length > 1 ? (
+                <div className="space-y-6">
+                  {parsedPosts.map((post: { topic: string | null; content: string }, idx: number) => (
+                    <div key={idx} className="border border-gray-100 rounded-lg p-4 relative group/post">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-gray-400">Post {idx + 1}</span>
+                          {post.topic && (
+                            <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{post.topic}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(post.content);
+                            setCopiedPostIdx(idx);
+                            setTimeout(() => setCopiedPostIdx(null), 1500);
+                          }}
+                          className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover/post:opacity-100"
+                        >
+                          {copiedPostIdx === idx ? (
+                            <><svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
+                          ) : (
+                            <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy</>
+                          )}
+                        </button>
+                      </div>
+                      <div className="prose prose-gray max-w-none prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-sm">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>{/* end main content */}

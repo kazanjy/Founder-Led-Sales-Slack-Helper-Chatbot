@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       postCount,
       topicSource,
       topicInput,
+      selectedTopics,
       goldStandardExamples,
       includeFirstCallChecklist,
     } = await request.json();
@@ -31,9 +32,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if ((topicSource === "custom" || topicSource === "content") && !topicInput?.trim()) {
+    if (topicSource === "content" && !topicInput?.trim()) {
       return NextResponse.json(
-        { error: "Please provide topic or content input" },
+        { error: "Please provide content to repurpose" },
+        { status: 400 }
+      );
+    }
+    if (topicSource === "custom" && !topicInput?.trim() && (!selectedTopics || selectedTopics.length === 0)) {
+      return NextResponse.json(
+        { error: "Please provide a topic or select topics" },
         { status: 400 }
       );
     }
@@ -65,7 +72,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const count = Math.min(Math.max(postCount || 5, 1), 20);
+    // For multi-topic, enforce minimum 3 posts per topic
+    const topics: string[] = selectedTopics || [];
+    const minPosts = topics.length > 0 ? topics.length * 3 : 1;
+    const count = Math.min(Math.max(postCount || 10, minPosts), 30);
     const platformLabel = platform === "linkedin" ? "LinkedIn" : "Twitter/X";
     const toneLabel = tone === "thought-leadership"
       ? "thought leadership (authoritative, insightful, data-backed perspective from someone who's been in the trenches)"
@@ -90,12 +100,27 @@ export async function POST(request: NextRequest) {
 
     // Build topic section
     let topicSection = "";
-    if (topicSource === "narrative") {
-      topicSection = `Generate topics organically from the sales narrative below. Pick angles that would resonate with the target audience on ${platformLabel}.`;
+    if (topics.length > 0) {
+      topicSection = `The user has selected ${topics.length} specific topics. Each post should focus on ONE topic. Generate at least 3 posts per topic, distributing the ${count} total posts across topics.
+
+**SELECTED TOPICS:**
+${topics.map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}
+
+IMPORTANT: At the START of each post (before the content), include a topic label like this:
+**Topic:** [the topic this post is about]
+
+Then a blank line, then the post content.`;
+    } else if (topicSource === "narrative") {
+      topicSection = `Generate topics organically from the sales narrative below. Pick angles that would resonate with the target audience on ${platformLabel}.
+
+IMPORTANT: At the START of each post (before the content), include a topic label like this:
+**Topic:** [a short topic label for this post]
+
+Then a blank line, then the post content.`;
     } else if (topicSource === "custom") {
-      topicSection = `The user wants posts about this specific topic:\n\n${topicInput}`;
+      topicSection = `The user wants posts about this specific topic:\n\n${topicInput}\n\nIMPORTANT: At the START of each post (before the content), include:\n**Topic:** [a short topic label]\n\nThen a blank line, then the post content.`;
     } else if (topicSource === "content") {
-      topicSection = `The user wants to repurpose the following content into ${platformLabel} posts:\n\n${topicInput}`;
+      topicSection = `The user wants to repurpose the following content into ${platformLabel} posts:\n\n${topicInput}\n\nIMPORTANT: At the START of each post (before the content), include:\n**Topic:** [a short topic label]\n\nThen a blank line, then the post content.`;
     }
 
     // Build context
@@ -212,7 +237,7 @@ Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as he
         tone,
         postCount: count,
         topicSource,
-        topicInput: topicInput || null,
+        topicInput: topics.length > 0 ? JSON.stringify(topics) : (topicInput || null),
         goldStandardExamples: examples.length > 0 ? JSON.stringify(examples) : null,
         title,
         content: cleanedResponse,
