@@ -30,11 +30,12 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, definition, interval, order, archived } = body;
+    const { name, definition, format, interval, order, archived } = body;
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (definition !== undefined) updateData.definition = definition;
+    if (format !== undefined) updateData.format = format;
     if (interval !== undefined) updateData.interval = interval;
     if (order !== undefined) updateData.order = order;
     if (archived !== undefined) updateData.archived = archived;

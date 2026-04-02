@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, definition, interval } = body;
+    const { name, definition, format, interval } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         name: name.trim(),
         definition: definition?.trim() || null,
+        format: format || "number",
         interval: interval || null,
         order,
       },

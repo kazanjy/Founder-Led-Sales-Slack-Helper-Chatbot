@@ -1318,6 +1318,7 @@ model CoachingMetricDefinition {
 
   name       String // "Customer Count", "ARR", or custom
   definition String? @db.Text // e.g. "Number of paying customers"
+  format     String  @default("number") // "number" | "currency"
   interval   String? // "weekly" | "monthly" | "quarterly"
   isDefault  Boolean @default(false) // true for Customer Count & ARR
   archived   Boolean @default(false) // archived metrics are hidden but preserved

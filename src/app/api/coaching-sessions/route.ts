@@ -115,8 +115,8 @@ export async function POST(request: NextRequest) {
     if (existingMetrics === 0) {
       await prisma.coachingMetricDefinition.createMany({
         data: [
-          { userId: user.id, name: "Customer Count", definition: "Number of paying customers (signed contract, active subscription, etc.)", isDefault: true, order: 0 },
-          { userId: user.id, name: "ARR", definition: "Annual Recurring Revenue — total annualized value of recurring contracts", isDefault: true, order: 1 },
+          { userId: user.id, name: "Customer Count", definition: "Number of paying customers (signed contract, active subscription, etc.)", format: "number", isDefault: true, order: 0 },
+          { userId: user.id, name: "ARR", definition: "Annual Recurring Revenue — total annualized value of recurring contracts", format: "currency", isDefault: true, order: 1 },
         ],
       });
     }

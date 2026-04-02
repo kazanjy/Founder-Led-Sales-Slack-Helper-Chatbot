@@ -67,8 +67,38 @@ interface MetricEntry {
     id: string;
     name: string;
     definition?: string;
+    format?: string;
     isDefault: boolean;
   };
+}
+
+const METRIC_FORMATS = [
+  { value: "number", label: "#", title: "Number" },
+  { value: "currency", label: "$", title: "Currency (USD)" },
+];
+
+function formatMetricValue(value: number, format?: string): string {
+  if (!value && value !== 0) return "";
+  if (format === "currency") {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}m`;
+    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`;
+    return `${sign}$${abs.toLocaleString()}`;
+  }
+  return value.toLocaleString();
+}
+
+function formatMetricDelta(value: number, format?: string): string {
+  const sign = value > 0 ? "+" : "";
+  if (format === "currency") {
+    const abs = Math.abs(value);
+    const s = value < 0 ? "-" : "+";
+    if (abs >= 1_000_000) return `${s}$${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}m`;
+    if (abs >= 1_000) return `${s}$${(abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`;
+    return `${s}$${abs.toLocaleString()}`;
+  }
+  return `${sign}${value.toLocaleString()}`;
 }
 
 interface CoachingFrameworkProps {
@@ -98,6 +128,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
+  const [newMetricFormat, setNewMetricFormat] = useState("number");
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
@@ -381,6 +412,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     }, 1500);
   };
 
+  const updateMetricFormat = (metricDefId: string, format: string) => {
+    setMetricEntries((prev) => prev.map((e) =>
+      e.metricDefinition.id === metricDefId ? { ...e, metricDefinition: { ...e.metricDefinition, format } } : e
+    ));
+    fetch(`/api/coaching/metrics/${metricDefId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ format }),
+    });
+  };
+
   const addTask = async (goalId: string) => {
     const title = newTaskTitles[goalId]?.trim();
     if (!title) return;
@@ -485,17 +527,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
     if (!newMetricName.trim()) return;
     const name = newMetricName.trim();
     const definition = newMetricDefinition.trim() || undefined;
+    const format = newMetricFormat;
     setNewMetricName("");
     setNewMetricDefinition("");
+    setNewMetricFormat("number");
     setAddingMetric(false);
     const res = await fetch("/api/coaching/metrics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, definition }),
+      body: JSON.stringify({ name, definition, format }),
     });
     if (res.ok) {
       const data = await res.json();
-      // Create empty entry for this session
       const entryRes = await fetch(`/api/coaching/metrics/${data.metric.id}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -507,7 +550,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           id: entryData.entry.id,
           currentValue: 0,
           addedSinceLastSession: 0,
-          metricDefinition: { id: data.metric.id, name, definition, isDefault: false },
+          metricDefinition: { id: data.metric.id, name, definition, format, isDefault: false },
         }]);
       }
     }
@@ -765,7 +808,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <input type="text" value={task.title} onChange={(e) => updateNextTaskTitle(task.id, e.target.value)} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
+                              <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
                               {editingNextDescTask === task.id ? (
                                 <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
                               ) : descText ? (
@@ -827,6 +870,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
             <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center relative group">
               {canEdit && (
                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                  {METRIC_FORMATS.map((fmt) => (
+                    <button
+                      key={fmt.value}
+                      onClick={() => updateMetricFormat(entry.metricDefinition.id, fmt.value)}
+                      title={fmt.title}
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${entry.metricDefinition.format === fmt.value ? "bg-purple-100 text-purple-600" : "text-gray-400 hover:text-gray-600"}`}
+                    >
+                      {fmt.label}
+                    </button>
+                  ))}
                   <button
                     onClick={() => archiveMetric(entry.metricDefinition.id)}
                     title="Archive metric"
@@ -896,11 +949,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                   className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               ) : (
-                <div className="text-lg font-semibold text-gray-900">{entry.currentValue}</div>
+                <div className="text-lg font-semibold text-gray-900">{formatMetricValue(entry.currentValue, entry.metricDefinition.format)}</div>
               )}
               {entry.addedSinceLastSession !== 0 && (
                 <div className={`text-xs mt-1 font-medium ${entry.addedSinceLastSession > 0 ? "text-green-600" : "text-red-500"}`}>
-                  {entry.addedSinceLastSession > 0 ? "+" : ""}{entry.addedSinceLastSession} since last
+                  {formatMetricDelta(entry.addedSinceLastSession, entry.metricDefinition.format)} since last
                 </div>
               )}
             </div>
@@ -928,8 +981,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                   onKeyDown={(e) => e.key === "Enter" && addMetricDefinition()}
                 />
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
+                    {METRIC_FORMATS.map((fmt) => (
+                      <button
+                        key={fmt.value}
+                        onClick={() => setNewMetricFormat(fmt.value)}
+                        className={`px-2.5 py-1 text-xs font-medium transition-colors ${newMetricFormat === fmt.value ? "bg-purple-100 text-purple-700" : "text-gray-500 hover:text-gray-700"}`}
+                        title={fmt.title}
+                      >
+                        {fmt.title}
+                      </button>
+                    ))}
+                  </div>
                   <button onClick={addMetricDefinition} disabled={!newMetricName.trim()} className="text-sm text-purple-600 font-medium disabled:opacity-50">Add Metric</button>
-                  <button onClick={() => { setAddingMetric(false); setNewMetricName(""); setNewMetricDefinition(""); }} className="text-sm text-gray-400">Cancel</button>
+                  <button onClick={() => { setAddingMetric(false); setNewMetricName(""); setNewMetricDefinition(""); setNewMetricFormat("number"); }} className="text-sm text-gray-400">Cancel</button>
                 </div>
               </div>
             ) : (
@@ -1099,11 +1164,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                           </button>
                           <div className="min-w-0 flex-1">
                             {canEdit ? (
-                              <input
-                                type="text"
+                              <textarea
                                 value={task.title}
-                                onChange={(e) => updateTaskTitle(task.id, e.target.value)}
-                                className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
+                                onChange={(e) => { updateTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                                ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                                rows={1}
+                                className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
                               />
                             ) : (
                               <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
