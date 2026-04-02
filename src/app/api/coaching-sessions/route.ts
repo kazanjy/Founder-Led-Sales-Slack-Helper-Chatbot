@@ -62,20 +62,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, sessionDate, notes, transcript, recordingUrl } = body;
 
-    if (!sessionDate || !notes?.trim()) {
+    if (!sessionDate) {
       return NextResponse.json(
-        { error: "Date and notes are required." },
+        { error: "Date is required." },
         { status: 400 }
       );
     }
 
     // Auto-generate title from session content if not provided (skip for drafts)
-    const isDraft = notes.trim() === "(draft)";
+    const notesText = notes?.trim() || "";
+    const isDraft = notesText === "(draft)" || notesText === "";
     const sessionTitle = title?.trim()
       ? title.trim()
       : isDraft
         ? ""
-        : await generateSessionTitle(notes.trim(), transcript?.trim());
+        : await generateSessionTitle(notesText, transcript?.trim());
 
     // ── Carry-forward logic ──────────────────────────────────────────
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         title: sessionTitle,
         sessionDate: new Date(sessionDate),
-        notes: notes.trim(),
+        notes: notesText,
         transcript: transcript?.trim() || null,
         recordingUrl: recordingUrl?.trim() || null,
         sessionStatus: "new",

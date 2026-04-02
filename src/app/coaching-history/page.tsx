@@ -185,7 +185,7 @@ function CoachingHistoryContent() {
   };
 
   const handleSave = async () => {
-    if (!formDate || !formNotes.trim()) return;
+    if (!formDate) return;
 
     setSaving(true);
     try {
@@ -229,7 +229,7 @@ function CoachingHistoryContent() {
 
   // Auto-save in create mode — debounced 3 seconds after any change
   useEffect(() => {
-    if (mode !== "create" || !formNotes.trim() || !formDate || !autoSavedId) return;
+    if (mode !== "create" || !formDate || !autoSavedId) return;
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
@@ -518,7 +518,7 @@ function CoachingHistoryContent() {
                     </h2>
                     <button
                       onClick={handleSaveWrapper}
-                      disabled={saving || !formDate || !formNotes.trim()}
+                      disabled={saving || !formDate}
                       className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
                     >
                       {saving && (
@@ -587,7 +587,7 @@ function CoachingHistoryContent() {
                     {/* Notes — rich text */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Session Notes <span className="text-red-500">*</span>
+                        Session Notes <span className="font-normal text-gray-400">(optional)</span>
                       </label>
                       <RichTextEditor
                         value={formNotes}
@@ -642,18 +642,12 @@ function CoachingHistoryContent() {
                           Auto-saved {lastAutoSaved.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                         </span>
                       )}
-                      {!saving && (!formDate || !formNotes.trim()) && (
-                        <span className="text-xs text-gray-400">
-                          {!formDate && !formNotes.trim()
-                            ? "Date and notes required"
-                            : !formDate
-                              ? "Date required"
-                              : "Notes required"}
-                        </span>
+                      {!saving && !formDate && (
+                        <span className="text-xs text-gray-400">Date required</span>
                       )}
                     <button
                       onClick={handleSaveWrapper}
-                      disabled={saving || !formDate || !formNotes.trim()}
+                      disabled={saving || !formDate}
                       className="inline-flex items-center gap-2 px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                     >
                       {saving && (
