@@ -422,7 +422,12 @@ function CoachingHistoryContent() {
                 </div>
               )}
               <div className="space-y-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
-                {sessions.map((session) => {
+                {sessions.filter((s) => {
+                  // Hide draft sessions from sidebar unless it's the active draft in create mode
+                  if (s.notes === "(draft)" && s.id !== autoSavedId) return false;
+                  if (s.notes === "(draft)" && mode !== "create") return false;
+                  return true;
+                }).map((session) => {
                   const isActive = selectedId === session.id && mode === "view";
                   return (
                     <div
@@ -611,10 +616,17 @@ function CoachingHistoryContent() {
                   {/* Form actions */}
                   <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-between">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        // Delete the draft session if canceling create mode
+                        if (mode === "create" && autoSavedId) {
+                          await fetch(`/api/coaching-sessions/${autoSavedId}`, { method: "DELETE" });
+                          setSessions((prev) => prev.filter((s) => s.id !== autoSavedId));
+                          setAutoSavedId(null);
+                        }
                         setMode("view");
                         if (!selectedId && sessions.length > 0) {
-                          selectSession(sessions[0].id);
+                          const firstReal = sessions.find((s) => s.id !== autoSavedId);
+                          selectSession(firstReal?.id || sessions[0]?.id || null);
                         }
                       }}
                       className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
