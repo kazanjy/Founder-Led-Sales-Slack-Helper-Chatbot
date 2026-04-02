@@ -64,6 +64,61 @@ export default function SocialContentPage() {
   );
 }
 
+const TOPIC_COLORS = [
+  { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+  { bg: "bg-cyan-50", text: "text-cyan-700", border: "border-cyan-200" },
+  { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
+  { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
+  { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
+];
+
+interface ParsedPost {
+  topic: string | null;
+  content: string;
+  timing: string | null;
+  visual: string | null;
+}
+
+function parsePosts(raw: string): ParsedPost[] {
+  // Split on "## Post N" headers or "---" separators
+  const sections = raw.split(/(?:^|\n)(?:#{1,3}\s*)?(?:\*\*)?Post\s+\d+(?:\*\*)?(?:\s*[-:]*)?\s*\n/i);
+  const posts: ParsedPost[] = [];
+  for (const section of sections) {
+    const trimmed = section.replace(/^---\s*$/gm, "").trim();
+    if (!trimmed) continue;
+
+    // Extract topic
+    const topicMatch = trimmed.match(/^\*\*Topic:\*\*\s*(.+)\n?/);
+    const afterTopic = topicMatch ? trimmed.slice(topicMatch[0].length).trim() : trimmed;
+
+    // Extract timing
+    const timingMatch = afterTopic.match(/\n\*\*Timing:\*\*\s*(.+)/);
+    const afterTiming = timingMatch ? afterTopic.slice(0, timingMatch.index).trim() : afterTopic;
+
+    // Extract visual
+    const visualMatch = afterTopic.match(/\n\*\*Visual:\*\*\s*(.+)/);
+    const content = afterTiming.replace(/\n\*\*Visual:\*\*\s*.+/, "").trim();
+
+    posts.push({
+      topic: topicMatch ? topicMatch[1].trim() : null,
+      content,
+      timing: timingMatch ? timingMatch[1].trim() : null,
+      visual: visualMatch ? visualMatch[1].trim() : null,
+    });
+  }
+  return posts;
+}
+
+function getTopicColor(topic: string, allTopics: string[]) {
+  const idx = allTopics.indexOf(topic);
+  return TOPIC_COLORS[(idx === -1 ? 0 : idx) % TOPIC_COLORS.length];
+}
+
 function SocialContentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -517,26 +572,19 @@ function SocialContentContent() {
     if (!version) return;
     const content = version.content;
     // Split on "Post N" or "## Post N" headings
-    const posts: string[] = [];
-    const sections = content.split(/(?:^|\n)(?:#{1,3}\s*)?(?:\*\*)?Post\s+\d+(?:\*\*)?(?:\s*[-:]*)?\s*\n/i);
-    for (const section of sections) {
-      const trimmed = section.trim();
-      if (trimmed) posts.push(trimmed);
-    }
-    if (posts.length === 0) {
-      posts.push(content);
-    }
-
     const platformLabel = version.platform === "linkedin" ? "LinkedIn" : "Twitter/X";
-    const csvRows = [["Post #", "Platform", "Tone", "Topic", "Content"]];
-    posts.forEach((post, i) => {
-      // Extract topic if present
-      const topicMatch = post.match(/^\*\*Topic:\*\*\s*(.+)\n/);
-      const topic = topicMatch ? topicMatch[1].trim() : "";
-      const content = topicMatch ? post.slice(topicMatch[0].length).trim() : post;
-      const escaped = content.replace(/"/g, '""');
-      const escapedTopic = topic.replace(/"/g, '""');
-      csvRows.push([(i + 1).toString(), platformLabel, version.tone, escapedTopic, escaped]);
+    const parsed = parsePosts(content);
+    const csvRows = [["Post #", "Platform", "Tone", "Topic", "Content", "Timing", "Visual"]];
+    parsed.forEach((post, i) => {
+      csvRows.push([
+        (i + 1).toString(),
+        platformLabel,
+        version.tone,
+        (post.topic || "").replace(/"/g, '""'),
+        post.content.replace(/"/g, '""'),
+        (post.timing || "").replace(/"/g, '""'),
+        (post.visual || "").replace(/"/g, '""'),
+      ]);
     });
 
     const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
@@ -1221,46 +1269,61 @@ function SocialContentContent() {
             {isEditing ? (
               <RichTextEditor value={editedContent} onChange={(val) => setEditedContent(val)} height={600} />
             ) : (() => {
-              // Parse posts from content
-              const sections = currentContent.split(/(?:^|\n)(?:#{1,3}\s*)?(?:\*\*)?Post\s+\d+(?:\*\*)?(?:\s*[-:]*)?\s*\n/i);
-              const parsedPosts = sections.filter((s: string) => s.trim()).map((section: string) => {
-                const topicMatch = section.match(/^\*\*Topic:\*\*\s*(.+)\n/);
-                const topic = topicMatch ? topicMatch[1].trim() : null;
-                const content = topicMatch ? section.slice(topicMatch[0].length).trim() : section.trim();
-                return { topic, content };
-              });
+              const parsed = parsePosts(currentContent);
+              const allTopics = [...new Set(parsed.map((p) => p.topic).filter(Boolean))] as string[];
 
-              return parsedPosts.length > 1 ? (
-                <div className="space-y-6">
-                  {parsedPosts.map((post: { topic: string | null; content: string }, idx: number) => (
-                    <div key={idx} className="border border-gray-100 rounded-lg p-4 relative group/post">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-gray-400">Post {idx + 1}</span>
-                          {post.topic && (
-                            <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{post.topic}</span>
-                          )}
+              return parsed.length > 1 ? (
+                <div className="space-y-4">
+                  {parsed.map((post, idx) => {
+                    const color = post.topic ? getTopicColor(post.topic, allTopics) : null;
+                    return (
+                      <div key={idx} className="border border-gray-100 rounded-lg overflow-hidden group/post">
+                        <div className="p-4 pb-3">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-semibold text-gray-400">Post {idx + 1}</span>
+                              {post.topic && color && (
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color.bg} ${color.text}`}>{post.topic}</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(post.content);
+                                setCopiedPostIdx(idx);
+                                setTimeout(() => setCopiedPostIdx(null), 1500);
+                              }}
+                              className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              {copiedPostIdx === idx ? (
+                                <><svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
+                              ) : (
+                                <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy</>
+                              )}
+                            </button>
+                          </div>
+                          <div className="prose prose-gray max-w-none prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-sm">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(post.content);
-                            setCopiedPostIdx(idx);
-                            setTimeout(() => setCopiedPostIdx(null), 1500);
-                          }}
-                          className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover/post:opacity-100"
-                        >
-                          {copiedPostIdx === idx ? (
-                            <><svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
-                          ) : (
-                            <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy</>
-                          )}
-                        </button>
+                        {(post.timing || post.visual) && (
+                          <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500">
+                            {post.timing && (
+                              <div className="flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                {post.timing}
+                              </div>
+                            )}
+                            {post.visual && (
+                              <div className="flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                {post.visual}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="prose prose-gray max-w-none prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-sm">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">

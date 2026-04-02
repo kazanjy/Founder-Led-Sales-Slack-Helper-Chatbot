@@ -163,7 +163,24 @@ ${platformInstructions}
 
 ## OUTPUT FORMAT:
 
-Return clean markdown (NO code blocks). Use "## Post 1", "## Post 2", etc. as headers. After each post, include a brief one-line note on the best time/day to post and any visual suggestion if applicable.${examplesSection}`;
+Return clean markdown (NO code blocks). For each post, use EXACTLY this structure:
+
+## Post N
+
+**Topic:** [short topic label]
+
+[The actual post content — this is what gets copied and pasted into ${platformLabel}]
+
+**Timing:** [Best day/time to post and why, e.g. "Tuesday 8am — catches morning commuters"]
+
+**Visual:** [Suggested image/visual to pair with this post, e.g. "Screenshot of dashboard with metrics highlighted"]
+
+---
+
+IMPORTANT RULES:
+- The post content MUST be between **Topic:** and **Timing:** — keep it clean, no extra labels
+- **Timing:** and **Visual:** are metadata — they go AFTER the post content
+- Use "---" as separator between posts${examplesSection}`;
 
     const fullPrompt = `${instructionPrompt}\n\n${contextSection}`;
 
