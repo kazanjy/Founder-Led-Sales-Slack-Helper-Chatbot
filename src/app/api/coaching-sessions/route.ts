@@ -69,10 +69,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Auto-generate title from session content if not provided
+    // Auto-generate title from session content if not provided (skip for drafts)
+    const isDraft = notes.trim() === "(draft)";
     const sessionTitle = title?.trim()
       ? title.trim()
-      : await generateSessionTitle(notes.trim(), transcript?.trim());
+      : isDraft
+        ? ""
+        : await generateSessionTitle(notes.trim(), transcript?.trim());
 
     // ── Carry-forward logic ──────────────────────────────────────────
 

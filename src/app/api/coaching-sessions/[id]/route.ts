@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { generateSessionTitle } from "@/lib/openai";
 
 // Helper to build a where clause scoped to the user's account (or just the user)
 function accountScope(user: { id: string; accountId: string | null }, id: string) {
@@ -81,13 +82,23 @@ export async function PUT(
     const session = await prisma.coachingSession.update({
       where: { id },
       data: {
-        ...(title !== undefined && { title: title.trim() }),
+        ...(title !== undefined && title.trim() && { title: title.trim() }),
         ...(sessionDate !== undefined && { sessionDate: new Date(sessionDate) }),
         ...(notes !== undefined && { notes: notes.trim() }),
         ...(transcript !== undefined && { transcript: transcript?.trim() || null }),
         ...(recordingUrl !== undefined && { recordingUrl: recordingUrl?.trim() || null }),
       },
     });
+
+    // Auto-generate title if it's still a draft placeholder and real notes were provided
+    if ((!session.title || session.title.startsWith("It appears")) && notes?.trim() && notes.trim() !== "(draft)") {
+      const generatedTitle = await generateSessionTitle(notes.trim(), transcript?.trim());
+      await prisma.coachingSession.update({
+        where: { id },
+        data: { title: generatedTitle },
+      });
+      return NextResponse.json({ session: { ...session, title: generatedTitle } });
+    }
 
     return NextResponse.json({ session });
   } catch (error) {
