@@ -735,7 +735,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                   </div>
                   <div className="flex-1 min-w-0">
                     <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
-                    <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-400 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
+                    <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
                   </div>
                   <button onClick={() => copyAnchorLink(`next-goal-${goal.id}`)} className="flex-shrink-0 p-1 text-gray-300 hover:text-purple-500 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Copy link">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
@@ -1028,10 +1028,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                       value={goal.description || ""}
                       onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
                       placeholder="Add description..."
-                      className="text-xs text-gray-400 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
+                      className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
                     />
                   ) : goal.description ? (
-                    <span className="text-xs text-gray-400 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
+                    <span className="text-xs text-gray-600 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
                   ) : null}
                 </div>
                 <button
