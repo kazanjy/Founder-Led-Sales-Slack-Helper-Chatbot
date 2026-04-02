@@ -66,7 +66,6 @@ Respond ONLY with the revised LinkedIn sequence content in markdown format (no J
           const newVersion = await prisma.linkedInSequenceVersion.create({
             data: {
               userId: user.id,
-              title: version.title,
               content,
               orgPersona: version.orgPersona,
               humanPersona: version.humanPersona,
@@ -77,7 +76,6 @@ Respond ONLY with the revised LinkedIn sequence content in markdown format (no J
 
           send("complete", {
             versionId: newVersion.id,
-            title: newVersion.title,
             content: newVersion.content,
             iterationPrompt: feedback.trim(),
           });

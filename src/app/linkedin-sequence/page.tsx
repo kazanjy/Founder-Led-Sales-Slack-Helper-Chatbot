@@ -286,7 +286,7 @@ function LinkedInSequenceContent() {
             try {
               const data = JSON.parse(line.slice(6));
               if (currentEvent === "complete") {
-                setVersion({ ...version, id: data.versionId, title: data.title, content: data.content });
+                setVersion({ ...version, id: data.versionId, content: data.content });
                 setEditedContent(data.content);
                 setIterateFeedback("");
                 setIterationPrompt(data.iterationPrompt);

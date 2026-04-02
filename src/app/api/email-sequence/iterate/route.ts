@@ -66,7 +66,6 @@ Respond ONLY with the revised email sequence content in markdown format (no JSON
           const newVersion = await prisma.emailSequenceVersion.create({
             data: {
               userId: user.id,
-              title: version.title,
               content,
               orgPersona: version.orgPersona,
               humanPersona: version.humanPersona,
@@ -78,7 +77,6 @@ Respond ONLY with the revised email sequence content in markdown format (no JSON
 
           send("complete", {
             versionId: newVersion.id,
-            title: newVersion.title,
             content: newVersion.content,
             iterationPrompt: feedback.trim(),
           });
