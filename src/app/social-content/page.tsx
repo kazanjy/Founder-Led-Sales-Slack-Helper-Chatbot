@@ -1307,7 +1307,7 @@ function SocialContentContent() {
                                   setCopiedPostIdx(-1 - idx);
                                   setTimeout(() => setCopiedPostIdx(null), 1500);
                                 }}
-                                className="flex-shrink-0 p-1 text-gray-300 hover:text-purple-500 opacity-0 group-hover/post:opacity-100 transition-opacity"
+                                className="flex-shrink-0 p-1 text-gray-500 hover:text-purple-600"
                                 title="Copy link to post"
                               >
                                 {copiedPostIdx === -1 - idx ? (
