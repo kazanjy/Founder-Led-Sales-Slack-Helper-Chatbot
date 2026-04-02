@@ -44,6 +44,21 @@ interface Task {
   order: number;
 }
 
+interface NextGoal {
+  id: string;
+  title: string;
+  description?: string | null;
+  order: number;
+  tasks: NextTask[];
+}
+
+interface NextTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  order: number;
+}
+
 interface MetricEntry {
   id: string;
   currentValue: number;
@@ -87,6 +102,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
+  // Up Next state
+  const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
+  const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
+  const [newNextTaskTitles, setNewNextTaskTitles] = useState<Record<string, string>>({});
+  const [editingNextDescTask, setEditingNextDescTask] = useState<string | null>(null);
+  const [editingNextDescriptions, setEditingNextDescriptions] = useState<Record<string, string>>({});
+  const [dragNextGoal, setDragNextGoal] = useState<string | null>(null);
+  const [dragOverNextGoal, setDragOverNextGoal] = useState<string | null>(null);
+  const [dragNextTask, setDragNextTask] = useState<{ goalId: string; taskId: string } | null>(null);
+  const [dragOverNextTask, setDragOverNextTask] = useState<string | null>(null);
   const [dragGoal, setDragGoal] = useState<string | null>(null);
   const [dragTask, setDragTask] = useState<{ goalId: string; taskId: string } | null>(null);
   const [dragOverGoal, setDragOverGoal] = useState<string | null>(null);
@@ -98,10 +123,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   const loadData = useCallback(async () => {
     try {
-      const [stageRes, goalsRes, metricsRes] = await Promise.all([
+      const [stageRes, goalsRes, metricsRes, nextGoalsRes] = await Promise.all([
         fetch("/api/coaching/maturity-stage"),
         fetch("/api/coaching/goals?status=active"),
         fetch(`/api/coaching-sessions/${sessionId}/metrics`),
+        fetch("/api/coaching/next-goals"),
       ]);
 
       if (stageRes.ok) {
@@ -115,6 +141,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
       if (metricsRes.ok) {
         const d = await metricsRes.json();
         setMetricEntries(d.entries || []);
+      }
+      if (nextGoalsRes.ok) {
+        const d = await nextGoalsRes.json();
+        setNextGoals(d.goals || []);
       }
     } catch { /* ignore */ }
   }, [sessionId]);
@@ -540,6 +570,140 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
 
   const getStatusColor = (status: string) =>
     STATUS_OPTIONS.find((s) => s.value === status)?.color || "bg-gray-100 text-gray-600";
+
+  // ── Up Next handlers ───────────────────────────────────────────
+
+  const addNextGoal = async () => {
+    if (!newNextGoalTitle.trim()) return;
+    const title = newNextGoalTitle.trim();
+    setNewNextGoalTitle("");
+    const res = await fetch("/api/coaching/next-goals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setNextGoals((prev) => [...prev, { ...data.goal, tasks: [] }]);
+    }
+  };
+
+  const addNextTask = async (goalId: string) => {
+    const title = newNextTaskTitles[goalId]?.trim();
+    if (!title) return;
+    setNewNextTaskTitles((prev) => ({ ...prev, [goalId]: "" }));
+    const res = await fetch(`/api/coaching/next-goals/${goalId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setNextGoals((prev) => prev.map((g) =>
+        g.id === goalId ? { ...g, tasks: [...g.tasks, data.task] } : g
+      ));
+    }
+  };
+
+  const updateNextGoalTitle = (goalId: string, title: string) => {
+    setNextGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, title } : g));
+    const key = `next-goal-title-${goalId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/next-goals/${goalId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
+  const updateNextGoalDescription = (goalId: string, description: string) => {
+    setNextGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, description } : g));
+    const key = `next-goal-desc-${goalId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/next-goals/${goalId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description }) });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
+  const updateNextTaskTitle = (taskId: string, title: string) => {
+    setNextGoals((prev) => prev.map((g) => ({ ...g, tasks: g.tasks.map((t) => t.id === taskId ? { ...t, title } : t) })));
+    const key = `next-task-title-${taskId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/next-tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
+  const updateNextTaskDescription = (taskId: string, description: string) => {
+    setEditingNextDescriptions((prev) => ({ ...prev, [taskId]: description }));
+    setNextGoals((prev) => prev.map((g) => ({ ...g, tasks: g.tasks.map((t) => t.id === taskId ? { ...t, description } : t) })));
+    const key = `next-task-desc-${taskId}`;
+    if (descSaveTimers.current[key]) clearTimeout(descSaveTimers.current[key]);
+    descSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/coaching/next-tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description }) });
+      delete descSaveTimers.current[key];
+    }, 1500);
+  };
+
+  const deleteNextGoal = async (goalId: string) => {
+    if (!window.confirm("Delete this future goal and all its tasks?")) return;
+    setNextGoals((prev) => prev.filter((g) => g.id !== goalId));
+    await fetch(`/api/coaching/next-goals/${goalId}`, { method: "DELETE" });
+  };
+
+  const deleteNextTask = async (goalId: string, taskId: string) => {
+    if (!window.confirm("Delete this future task?")) return;
+    setNextGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, tasks: g.tasks.filter((t) => t.id !== taskId) } : g));
+    await fetch(`/api/coaching/next-tasks/${taskId}`, { method: "DELETE" });
+  };
+
+  const promoteNextGoal = async (goalId: string) => {
+    const res = await fetch(`/api/coaching/next-goals/${goalId}/promote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Move from next to active
+      setNextGoals((prev) => prev.filter((g) => g.id !== goalId));
+      setGoals((prev) => [...prev, data.goal]);
+    }
+  };
+
+  const handleNextGoalDrop = (targetId: string) => {
+    if (!dragNextGoal || dragNextGoal === targetId) return;
+    setNextGoals((prev) => {
+      const fromIdx = prev.findIndex((g) => g.id === dragNextGoal);
+      const toIdx = prev.findIndex((g) => g.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      next.forEach((g, i) => { fetch(`/api/coaching/next-goals/${g.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order: i }) }); });
+      return next;
+    });
+    setDragNextGoal(null);
+    setDragOverNextGoal(null);
+  };
+
+  const handleNextTaskDrop = (goalId: string, targetTaskId: string) => {
+    if (!dragNextTask || dragNextTask.taskId === targetTaskId) return;
+    setNextGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const tasks = [...g.tasks];
+      const fromIdx = tasks.findIndex((t) => t.id === dragNextTask.taskId);
+      const toIdx = tasks.findIndex((t) => t.id === targetTaskId);
+      if (fromIdx === -1 || toIdx === -1) return g;
+      const [moved] = tasks.splice(fromIdx, 1);
+      tasks.splice(toIdx, 0, moved);
+      tasks.forEach((t, i) => { fetch(`/api/coaching/next-tasks/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order: i }) }); });
+      return { ...g, tasks };
+    }));
+    setDragNextTask(null);
+    setDragOverNextTask(null);
+  };
 
   // ── Render ─────────────────────────────────────────────────────
 
@@ -991,6 +1155,172 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
           )}
         </div>
       </div>
+
+      {/* ── Up Next Queue ──────────────────────────────────────── */}
+      {canEdit && (
+        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-5">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <span>📋</span> Up Next
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready.</p>
+          <div className="space-y-3">
+            {nextGoals.map((goal) => (
+              <div
+                key={goal.id}
+                id={`next-goal-${goal.id}`}
+                draggable
+                onDragStart={(e) => { setDragNextGoal(goal.id); e.dataTransfer.effectAllowed = "move"; }}
+                onDragEnd={() => { setDragNextGoal(null); setDragOverNextGoal(null); }}
+                onDragOver={(e) => { if (dragNextGoal && dragNextGoal !== goal.id) { e.preventDefault(); setDragOverNextGoal(goal.id); } }}
+                onDragLeave={() => setDragOverNextGoal(null)}
+                onDrop={() => handleNextGoalDrop(goal.id)}
+                className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragNextGoal === goal.id ? "opacity-40" : ""} ${dragOverNextGoal === goal.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
+              >
+                {/* Next Goal header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 gap-2 group/ngoal">
+                  <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={goal.title}
+                      onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)}
+                      className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
+                    />
+                    <input
+                      type="text"
+                      value={goal.description || ""}
+                      onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)}
+                      placeholder="Add description..."
+                      className="text-xs text-gray-400 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
+                    />
+                  </div>
+                  <button
+                    onClick={() => copyAnchorLink(`next-goal-${goal.id}`)}
+                    className="flex-shrink-0 p-1 text-gray-300 hover:text-purple-500 opacity-0 group-hover/ngoal:opacity-100 transition-opacity"
+                    title="Copy link"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => promoteNextGoal(goal.id)}
+                      className="text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-full transition-colors"
+                      title="Promote to active goals"
+                    >
+                      Promote
+                    </button>
+                    <button
+                      onClick={() => deleteNextGoal(goal.id)}
+                      className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover/ngoal:opacity-100 transition-opacity"
+                      title="Delete goal"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Next Tasks */}
+                <div className="divide-y divide-gray-100">
+                  {goal.tasks.map((task) => {
+                    const descText = editingNextDescriptions[task.id] ?? task.description ?? "";
+                    return (
+                      <div
+                        key={task.id}
+                        id={`next-task-${task.id}`}
+                        draggable
+                        onDragStart={(e) => { e.stopPropagation(); setDragNextTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => { setDragNextTask(null); setDragOverNextTask(null); }}
+                        onDragOver={(e) => { if (dragNextTask && dragNextTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverNextTask(task.id); } }}
+                        onDragLeave={() => setDragOverNextTask(null)}
+                        onDrop={(e) => { e.stopPropagation(); handleNextTaskDrop(goal.id, task.id); }}
+                        className={`px-4 py-2 pl-8 group/ntask transition-all ${dragNextTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverNextTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2 min-w-0 flex-1">
+                            <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 mt-0.5 mr-0.5">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <input
+                                type="text"
+                                value={task.title}
+                                onChange={(e) => updateNextTaskTitle(task.id, e.target.value)}
+                                className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
+                              />
+                              {editingNextDescTask === task.id ? (
+                                <textarea
+                                  value={descText}
+                                  onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                                  onBlur={() => setEditingNextDescTask(null)}
+                                  ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }}
+                                  placeholder="Add details, links, notes..."
+                                  rows={1}
+                                  className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                />
+                              ) : descText ? (
+                                <div onClick={(e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); }} className="text-sm text-gray-500 whitespace-pre-wrap mt-0.5 cursor-text hover:bg-gray-50 rounded px-1 -mx-1">
+                                  <Linkify>{descText}</Linkify>
+                                </div>
+                              ) : (
+                                <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">
+                                  Add description
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deleteNextTask(goal.id, task.id)}
+                            className="flex-shrink-0 p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover/ntask:opacity-100 transition-opacity mt-0.5"
+                            title="Delete task"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add next task */}
+                  <div className="flex items-center gap-2 px-4 py-2 pl-8">
+                    <input
+                      type="text"
+                      value={newNextTaskTitles[goal.id] || ""}
+                      onChange={(e) => setNewNextTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))}
+                      placeholder="Add a future task..."
+                      className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      onKeyDown={(e) => e.key === "Enter" && addNextTask(goal.id)}
+                    />
+                    <button onClick={() => addNextTask(goal.id)} disabled={!newNextTaskTitles[goal.id]?.trim()} className="text-xs text-purple-600 font-medium disabled:opacity-50">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Add next goal */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newNextGoalTitle}
+                onChange={(e) => setNewNextGoalTitle(e.target.value)}
+                placeholder="Add a future goal..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                onKeyDown={(e) => e.key === "Enter" && addNextGoal()}
+              />
+              <button
+                onClick={addNextGoal}
+                disabled={!newNextGoalTitle.trim()}
+                className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50"
+              >
+                + Add Goal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
