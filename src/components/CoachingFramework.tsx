@@ -78,25 +78,47 @@ const METRIC_FORMATS = [
 ];
 
 function formatMetricValue(value: number, format?: string): string {
-  if (!value && value !== 0) return "";
+  if (value === null || value === undefined) return "";
   if (format === "currency") {
+    if (value === 0) return "$0";
     const abs = Math.abs(value);
     const sign = value < 0 ? "-" : "";
-    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}m`;
-    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`;
-    return `${sign}$${abs.toLocaleString()}`;
+    if (abs >= 1_000_000) {
+      const v = abs / 1_000_000;
+      return `${sign}$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}m`;
+    }
+    if (abs >= 10_000) {
+      const v = abs / 1_000;
+      return `${sign}$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}k`;
+    }
+    if (abs >= 1_000) {
+      return `${sign}$${abs.toLocaleString()}`;
+    }
+    return `${sign}$${abs}`;
   }
   return value.toLocaleString();
 }
 
 function formatMetricDelta(value: number, format?: string): string {
-  const sign = value > 0 ? "+" : "";
+  if (value === 0) return "";
+  const s = value > 0 ? "+" : "-";
+  const abs = Math.abs(value);
   if (format === "currency") {
-    const abs = Math.abs(value);
-    const s = value < 0 ? "-" : "+";
-    if (abs >= 1_000_000) return `${s}$${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}m`;
-    if (abs >= 1_000) return `${s}$${(abs / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`;
-    return `${s}$${abs.toLocaleString()}`;
+    if (abs >= 1_000_000) {
+      const v = abs / 1_000_000;
+      return `${s}$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}m`;
+    }
+    if (abs >= 10_000) {
+      const v = abs / 1_000;
+      return `${s}$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}k`;
+    }
+    if (abs >= 1_000) {
+      return `${s}$${abs.toLocaleString()}`;
+    }
+    return `${s}$${abs}`;
+  }
+  return `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
+}
   }
   return `${sign}${value.toLocaleString()}`;
 }
@@ -132,6 +154,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [showArchived, setShowArchived] = useState(false);
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
+  const [focusedMetric, setFocusedMetric] = useState<string | null>(null);
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
@@ -958,6 +981,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
               ) : null}
               {canEdit ? (
+                focusedMetric === entry.id ? (
                 <input
                   type="number"
                   value={entry.currentValue ?? ""}
@@ -966,7 +990,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                     setMetricEntries((prev) =>
                       prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
                     );
-                    // Debounced auto-save (2s after last keystroke)
                     const key = entry.id;
                     if (metricSaveTimers.current[key]) clearTimeout(metricSaveTimers.current[key]);
                     metricSaveTimers.current[key] = setTimeout(() => {
@@ -975,7 +998,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                     }, 2000);
                   }}
                   onBlur={(e) => {
-                    // Flush any pending debounce immediately on blur
                     const key = entry.id;
                     if (metricSaveTimers.current[key]) {
                       clearTimeout(metricSaveTimers.current[key]);
@@ -983,9 +1005,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                     }
                     const val = parseFloat(e.target.value) || 0;
                     updateMetricValue(entry.id, entry.metricDefinition.id, val);
+                    setFocusedMetric(null);
                   }}
+                  autoFocus
                   className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
+                ) : (
+                <button
+                  onClick={() => setFocusedMetric(entry.id)}
+                  className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 hover:border-gray-300 cursor-text"
+                >
+                  {entry.currentValue != null && entry.currentValue !== 0 ? formatMetricValue(entry.currentValue, entry.metricDefinition.format) : <span className="text-gray-300">{entry.metricDefinition.format === "currency" ? "$0" : "0"}</span>}
+                </button>
+                )
               ) : (
                 <div className="text-lg font-semibold text-gray-900">{formatMetricValue(entry.currentValue, entry.metricDefinition.format)}</div>
               )}
