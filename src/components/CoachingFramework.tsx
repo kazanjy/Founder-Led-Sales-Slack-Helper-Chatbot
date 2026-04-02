@@ -810,7 +810,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                             <div className="min-w-0 flex-1">
                               <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
                               {editingNextDescTask === task.id ? (
-                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
                               ) : descText ? (
                                 <div onClick={(e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); }} className="text-sm text-gray-500 whitespace-pre-wrap mt-0.5 cursor-text hover:bg-gray-50 rounded px-1 -mx-1"><Linkify>{descText}</Linkify></div>
                               ) : (
@@ -1199,8 +1199,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                                   if (el) {
                                     el.style.height = "auto";
                                     el.style.height = el.scrollHeight + "px";
-                                    el.focus();
-                                    el.setSelectionRange(el.value.length, el.value.length);
+                                    if (!el.dataset.focused) {
+                                      el.dataset.focused = "1";
+                                      el.focus();
+                                      el.setSelectionRange(el.value.length, el.value.length);
+                                    }
                                   }
                                 }}
                                 placeholder="Add details, links, notes..."
