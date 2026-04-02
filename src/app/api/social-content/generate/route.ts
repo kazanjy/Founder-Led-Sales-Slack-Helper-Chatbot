@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       topicSource,
       topicInput,
       selectedTopics,
+      styleGuidance,
       goldStandardExamples,
       includeFirstCallChecklist,
     } = await request.json();
@@ -160,6 +161,7 @@ Generate exactly ${count} ${platformLabel} post${count > 1 ? "s" : ""} in the sp
 ## PLATFORM RULES (${platformLabel}):
 
 ${platformInstructions}
+${styleGuidance ? `\n## STYLE GUIDANCE FROM USER:\n\n${styleGuidance}\n\nFollow these style instructions carefully — they override default writing patterns.` : ""}
 
 ## OUTPUT FORMAT:
 

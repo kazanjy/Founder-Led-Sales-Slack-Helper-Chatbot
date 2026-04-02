@@ -143,6 +143,7 @@ function SocialContentContent() {
   const [goldExamples, setGoldExamples] = useState<string[]>([]);
   const [newExample, setNewExample] = useState("");
   const [includeChecklist, setIncludeChecklist] = useState(false);
+  const [styleGuidance, setStyleGuidance] = useState("");
   const [hasFirstCallChecklist, setHasFirstCallChecklist] = useState(false);
 
   // Saved examples
@@ -391,6 +392,7 @@ function SocialContentContent() {
           topicSource,
           topicInput: topicInput.trim() || undefined,
           selectedTopics: selectedTopics.length > 0 ? selectedTopics : undefined,
+          styleGuidance: styleGuidance.trim() || undefined,
           goldStandardExamples: goldExamples.length > 0 ? goldExamples : undefined,
           includeFirstCallChecklist: includeChecklist,
         }),
@@ -1080,6 +1082,20 @@ function SocialContentContent() {
                   Include First Call Checklist context
                 </label>
               )}
+
+              {/* Style Guidance */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Style Guidance <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <textarea
+                  value={styleGuidance}
+                  onChange={(e) => setStyleGuidance(e.target.value)}
+                  placeholder='e.g. "Write like Paul Graham — short sentences, concrete examples, no jargon" or "Include data points and metrics where possible" or "Keep it conversational, like texting a friend"'
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-sm"
+                />
+              </div>
 
               {/* Generate Button */}
               <div className="flex items-center gap-3 pt-2">
