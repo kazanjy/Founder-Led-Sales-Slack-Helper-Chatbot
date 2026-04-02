@@ -960,7 +960,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
               {canEdit ? (
                 <input
                   type="number"
-                  value={entry.currentValue || ""}
+                  value={entry.currentValue ?? ""}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
                     setMetricEntries((prev) =>
