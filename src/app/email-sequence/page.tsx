@@ -82,6 +82,9 @@ function EmailSequenceContent() {
   const [deleting, setDeleting] = useState(false);
   const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
   const [importing, setImporting] = useState(false);
+  const [iterateFeedback, setIterateFeedback] = useState("");
+  const [iterating, setIterating] = useState(false);
+  const [iterationPrompt, setIterationPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Email Sequence - Mikey";
@@ -122,6 +125,9 @@ function EmailSequenceContent() {
           if (data.hasEmailSequence) {
             setVersion(data.version);
             setEditedContent(data.version?.content || "");
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/email-sequence?version=${data.version.id}`);
+            }
           }
         }
       } catch (error) {
@@ -197,6 +203,9 @@ function EmailSequenceContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/email-sequence?version=${data.version.id}`);
+      }
       setShowForm(false);
     } catch (error) {
       console.error("Error generating:", error);
@@ -235,12 +244,66 @@ function EmailSequenceContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/email-sequence?version=${data.version.id}`);
+      }
       setShowForm(false);
     } catch (error) {
       console.error("Error importing PDF:", error);
       await showAlert({ title: "Error", message: "Failed to import PDF. Please try again.", variant: "danger" });
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleIterate = async () => {
+    if (!version || !iterateFeedback.trim()) return;
+    setIterating(true);
+    try {
+      const response = await fetch("/api/email-sequence/iterate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId: version.id, feedback: iterateFeedback.trim() }),
+      });
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
+        await showAlert({ title: "Error", message: data.error || "Failed to iterate.", variant: "danger" });
+        setIterating(false);
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) currentEvent = line.slice(7);
+          else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "complete") {
+                setVersion({ ...version, id: data.versionId, title: data.title, content: data.content });
+                setEditedContent(data.content);
+                setIterateFeedback("");
+                setIterationPrompt(data.iterationPrompt);
+                window.history.replaceState({}, "", `/email-sequence?version=${data.versionId}`);
+              } else if (currentEvent === "error") {
+                await showAlert({ title: "Error", message: data.message || "Iteration failed", variant: "danger" });
+              }
+            } catch { /* ignore */ }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error iterating:", error);
+      await showAlert({ title: "Error", message: "Failed to iterate. Please try again.", variant: "danger" });
+    } finally {
+      setIterating(false);
     }
   };
 
@@ -772,7 +835,44 @@ function EmailSequenceContent() {
 
       </div>{/* end main content */}
       <div className="hidden lg:block w-64 flex-shrink-0">
-        <div className="sticky top-8">
+        <div className="sticky top-8 space-y-4">
+          {version && !isEditing && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Iterate on Sequence</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Describe what you&apos;d like to change and we&apos;ll create a new version.
+              </p>
+              {iterationPrompt && (
+                <div className="mb-3 bg-purple-50 rounded-lg p-2.5">
+                  <p className="text-xs text-purple-600 font-medium mb-0.5">Last iteration:</p>
+                  <p className="text-xs text-purple-700">{iterationPrompt}</p>
+                </div>
+              )}
+              <textarea
+                value={iterateFeedback}
+                onChange={(e) => setIterateFeedback(e.target.value)}
+                disabled={iterating}
+                placeholder='e.g. "Make the subject lines shorter" or "Add more social proof"'
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y disabled:opacity-50"
+              />
+              <button
+                onClick={handleIterate}
+                disabled={iterating || !iterateFeedback.trim()}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-sm shadow-md"
+              >
+                {iterating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Iterating...
+                  </>
+                ) : "Iterate"}
+              </button>
+            </div>
+          )}
           <SidebarAdCards currentPage="emailSequence" />
         </div>
       </div>
