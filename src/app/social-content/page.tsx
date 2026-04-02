@@ -274,11 +274,12 @@ function SocialContentContent() {
 
   // Auto-generate topic suggestions when form is shown and no topics yet
   useEffect(() => {
-    if (!loading && hasSalesNarrative && !version && topicSuggestions.length === 0 && !loadingTopics) {
+    const formVisible = !version || showForm;
+    if (!loading && hasSalesNarrative && formVisible && topicSuggestions.length === 0 && !loadingTopics) {
       handleGenerateTopics();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, hasSalesNarrative, version]);
+  }, [loading, hasSalesNarrative, version, showForm]);
 
   const handleGenerateTopics = async () => {
     setLoadingTopics(true);
