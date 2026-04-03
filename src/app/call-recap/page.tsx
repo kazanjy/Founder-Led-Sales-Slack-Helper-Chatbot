@@ -603,7 +603,25 @@ function CallRecapContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900">{version?.title || "Call Recap Email"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900">
+                    <input
+                      type="text"
+                      value={version?.title || ""}
+                      onChange={(e) => version && setVersion({ ...version, title: e.target.value })}
+                      onBlur={(e) => {
+                        const newTitle = e.target.value.trim();
+                        if (version && newTitle && newTitle !== version.title) {
+                          fetch(`/api/call-recap/versions/${version.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ title: newTitle }),
+                          });
+                        }
+                      }}
+                      placeholder="Call Recap Email"
+                      className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-0 py-0 text-xl font-semibold text-gray-900 w-full"
+                    />
+                  </h1>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {isStreamingMode ? (
                       <span className="flex items-center gap-2 text-sm text-gray-500">

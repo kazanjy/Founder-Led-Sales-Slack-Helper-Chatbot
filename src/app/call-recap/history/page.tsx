@@ -17,6 +17,8 @@ export default function CallRecapHistory() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   useEffect(() => {
     document.title = "Call Recap Email History - Mikey";
@@ -114,12 +116,44 @@ export default function CallRecapHistory() {
               <Link
                 key={v.id}
                 href={`/call-recap?version=${v.id}`}
-                className="block bg-white border border-gray-200 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all"
+                className="group block bg-white border border-gray-200 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900 truncate">{v.title}</h3>
+                      {editingId === v.id ? (
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={async () => {
+                            if (editingTitle.trim() && editingTitle !== v.title) {
+                              await fetch(`/api/call-recap/versions/${v.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: editingTitle.trim() }),
+                              });
+                              setVersions((prev) => prev.map((ver) => ver.id === v.id ? { ...ver, title: editingTitle.trim() } : ver));
+                            }
+                            setEditingId(null);
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingId(null); }}
+                          onClick={(e) => e.preventDefault()}
+                          autoFocus
+                          className="font-semibold text-gray-900 bg-white border border-purple-300 rounded px-2 py-0.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full"
+                        />
+                      ) : (
+                        <h3 className="font-semibold text-gray-900 truncate">{v.title}</h3>
+                      )}
+                      {editingId !== v.id && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); setEditingId(v.id); setEditingTitle(v.title || ""); }}
+                          className="flex-shrink-0 p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Edit name"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                      )}
                       {index === 0 && (
                         <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
                           Latest

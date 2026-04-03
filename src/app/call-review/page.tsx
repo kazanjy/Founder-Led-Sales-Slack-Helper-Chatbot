@@ -618,7 +618,23 @@ function CallReviewContent() {
               </Link>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  {version.title || "Discovery Call Review"}
+                  <input
+                    type="text"
+                    value={version.title || ""}
+                    onChange={(e) => setVersion({ ...version, title: e.target.value })}
+                    onBlur={(e) => {
+                      const newTitle = e.target.value.trim();
+                      if (newTitle && newTitle !== version.title) {
+                        fetch(`/api/call-review/versions/${version.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ title: newTitle }),
+                        });
+                      }
+                    }}
+                    placeholder="Discovery Call Review"
+                    className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-0 py-0 text-xl font-semibold text-gray-900 w-full"
+                  />
                 </h1>
                 <p className="text-sm text-gray-500">
                   {formatDate(version.createdAt)} &middot; {version.overallScore}/{version.maxScore} ({Math.round((version.overallScore / version.maxScore) * 100)}%)

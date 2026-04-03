@@ -79,7 +79,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { emailSubject, emailBody } = body;
+    const { emailSubject, emailBody, title } = body;
 
     const version = await prisma.callRecapVersion.findUnique({
       where: { id },
@@ -93,9 +93,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    const updateData: { emailSubject?: string; emailBody?: string } = {};
+    const updateData: { emailSubject?: string; emailBody?: string; title?: string } = {};
     if (emailSubject !== undefined) updateData.emailSubject = emailSubject;
     if (emailBody !== undefined) updateData.emailBody = emailBody;
+    if (title !== undefined) updateData.title = title;
 
     const updated = await prisma.callRecapVersion.update({
       where: { id },

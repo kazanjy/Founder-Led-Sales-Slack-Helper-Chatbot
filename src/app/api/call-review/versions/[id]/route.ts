@@ -82,12 +82,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
+    const updateData: Record<string, unknown> = {};
+    if (body.scores !== undefined) updateData.scores = JSON.stringify(body.scores);
+    if (body.overallScore !== undefined) updateData.overallScore = body.overallScore;
+    if (body.title !== undefined) updateData.title = body.title;
+
     const updated = await prisma.callReviewVersion.update({
       where: { id },
-      data: {
-        scores: JSON.stringify(body.scores),
-        overallScore: body.overallScore,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
