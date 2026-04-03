@@ -922,7 +922,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── Maturity Stage ──────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
