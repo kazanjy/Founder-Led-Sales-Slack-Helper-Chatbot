@@ -677,7 +677,7 @@ function CoachingHistoryContent() {
                           "bg-gray-100 text-gray-500"
                         }`}>
                           {selectedSession.sessionStatus === "new" ? "Live Session" :
-                           selectedSession.sessionStatus === "in_progress" ? "Sprint" :
+                           selectedSession.sessionStatus === "in_progress" ? "Live Sprint" :
                            "Archived"}
                         </span>
                       </div>
