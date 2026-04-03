@@ -789,11 +789,30 @@ export async function PATCH(
           where: { userId: sourceUser.id },
           data: { userId: id },
         }),
+        // Move coaching next goals (Up Next queue)
+        prisma.coachingNextGoal.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
+        // Move coaching next tasks
+        prisma.coachingNextTask.updateMany({
+          where: { userId: sourceUser.id },
+          data: { userId: id },
+        }),
         // Move sales maturity stage
         prisma.salesMaturityStage.deleteMany({
           where: { userId: sourceUser.id },
         }),
-        // Note: ChannelClaim belongs to Account, not User — no move needed
+        // Move ChannelClaim claimedBy references
+        prisma.channelClaim.updateMany({
+          where: { claimedByUserId: sourceUser.id },
+          data: { claimedByUserId: id },
+        }),
+        // Move shared conversations
+        prisma.sharedConversation.updateMany({
+          where: { createdByUserId: sourceUser.id },
+          data: { createdByUserId: id },
+        }),
         // Move referrals (as referrer)
         prisma.referral.updateMany({
           where: { referrerUserId: sourceUser.id },
