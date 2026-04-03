@@ -608,39 +608,35 @@ function CallReviewContent() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center gap-4 mb-2">
+            <Link href="/chat" className="text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </Link>
+            <input
+              type="text"
+              value={version.title || ""}
+              onChange={(e) => setVersion({ ...version, title: e.target.value })}
+              onBlur={(e) => {
+                const newTitle = e.target.value.trim();
+                if (newTitle && newTitle !== version.title) {
+                  fetch(`/api/call-review/versions/${version.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title: newTitle }),
+                  });
+                }
+              }}
+              placeholder="Discovery Call Review"
+              className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-0 py-0 text-xl font-semibold text-gray-900 flex-1 min-w-0"
+            />
+          </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/chat" className="text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </Link>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  <input
-                    type="text"
-                    value={version.title || ""}
-                    onChange={(e) => setVersion({ ...version, title: e.target.value })}
-                    onBlur={(e) => {
-                      const newTitle = e.target.value.trim();
-                      if (newTitle && newTitle !== version.title) {
-                        fetch(`/api/call-review/versions/${version.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ title: newTitle }),
-                        });
-                      }
-                    }}
-                    placeholder="Discovery Call Review"
-                    className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-0 py-0 text-xl font-semibold text-gray-900 w-full"
-                  />
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {formatDate(version.createdAt)} &middot; {version.overallScore}/{version.maxScore} ({Math.round((version.overallScore / version.maxScore) * 100)}%)
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-gray-500 pl-16">
+              {formatDate(version.createdAt)} &middot; {version.overallScore}/{version.maxScore} ({Math.round((version.overallScore / version.maxScore) * 100)}%)
+            </p>
 
             <div className="flex items-center gap-2">
               <ChatAboutButton
