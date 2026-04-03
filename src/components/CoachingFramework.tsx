@@ -926,7 +926,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => (
-            <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center relative group">
+            <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center relative group group/metric">
+              {/* Fast popover tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/metric:opacity-100 transition-opacity duration-100 pointer-events-none z-10 max-w-xs">
+                <div className="font-medium">{entry.metricDefinition.name}</div>
+                {entry.metricDefinition.definition && (
+                  <div className="text-gray-300 font-normal mt-0.5 whitespace-normal">{entry.metricDefinition.definition}</div>
+                )}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-900" />
+              </div>
               {canEdit && (
                 <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
                   {METRIC_FORMATS.map((fmt) => (
