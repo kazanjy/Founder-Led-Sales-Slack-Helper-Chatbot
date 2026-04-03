@@ -697,7 +697,7 @@ function CoachingHistoryContent() {
                             Start Sprint
                           </button>
                         )}
-                        {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "in_progress" && (
+                        {selectedSession.userId === currentUserId && (selectedSession.sessionStatus === "new" || selectedSession.sessionStatus === "in_progress") && (
                           <button
                             onClick={async () => {
                               await fetch(`/api/coaching-sessions/${selectedSession.id}/status`, {
