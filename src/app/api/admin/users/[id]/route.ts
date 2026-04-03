@@ -577,6 +577,50 @@ export async function PATCH(
         );
       }
 
+      // Handle unique constraints before the transaction
+      // 1. GTM variables: delete source dupes where target already has same mergeField
+      const targetGtmFields = await prisma.gtmVariable.findMany({
+        where: { userId: id },
+        select: { mergeField: true },
+      });
+      if (targetGtmFields.length > 0) {
+        await prisma.gtmVariable.deleteMany({
+          where: { userId: sourceUser.id, mergeField: { in: targetGtmFields.map(v => v.mergeField) } },
+        });
+      }
+
+      // 2. Referrals: delete source dupes where same referrer+referred pair exists on target
+      const targetReferrals = await prisma.referral.findMany({
+        where: { referrerUserId: id },
+        select: { referredUserId: true },
+      });
+      if (targetReferrals.length > 0) {
+        await prisma.referral.deleteMany({
+          where: { referrerUserId: sourceUser.id, referredUserId: { in: targetReferrals.map(r => r.referredUserId) } },
+        });
+      }
+      // Also handle referrals where source is the referred user
+      const targetReferredBy = await prisma.referral.findMany({
+        where: { referredUserId: id },
+        select: { referrerUserId: true },
+      });
+      if (targetReferredBy.length > 0) {
+        await prisma.referral.deleteMany({
+          where: { referredUserId: sourceUser.id, referrerUserId: { in: targetReferredBy.map(r => r.referrerUserId) } },
+        });
+      }
+
+      // 3. ChatShare: delete dupes where same conversation+sharedToEmail exists
+      const targetChatShares = await prisma.chatShare.findMany({
+        where: { sharedByUserId: id },
+        select: { conversationId: true, sharedToEmail: true },
+      });
+      for (const share of targetChatShares) {
+        await prisma.chatShare.deleteMany({
+          where: { sharedByUserId: sourceUser.id, conversationId: share.conversationId, sharedToEmail: share.sharedToEmail },
+        });
+      }
+
       // Move all related data from source to target
       await prisma.$transaction([
         // Move conversations
@@ -679,7 +723,7 @@ export async function PATCH(
           where: { userId: sourceUser.id },
           data: { userId: id },
         }),
-        // Move GTM variables
+        // Move GTM variables (dupes already deleted above)
         prisma.gtmVariable.updateMany({
           where: { userId: sourceUser.id },
           data: { userId: id },
