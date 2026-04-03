@@ -665,32 +665,23 @@ function CoachingHistoryContent() {
                 /* Session Detail View */
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
                   <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm text-gray-500 mb-1">
-                          {formatDate(selectedSession.sessionDate)}
-                          {sessionUserName(selectedSession) && (
-                            <span className="ml-1.5 text-gray-400">· {sessionUserName(selectedSession)}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-semibold text-gray-900">
-                            {selectedSession.title}
-                          </h2>
-                          {/* Status badge */}
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            selectedSession.sessionStatus === "new" ? "bg-blue-100 text-blue-700" :
-                            selectedSession.sessionStatus === "in_progress" ? "bg-orange-100 text-orange-700" :
-                            "bg-gray-100 text-gray-500"
-                          }`}>
-                            {selectedSession.sessionStatus === "new" ? "Live Session" :
-                             selectedSession.sessionStatus === "in_progress" ? "Sprint" :
-                             "Archived"}
-                          </span>
-                        </div>
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span>{formatDate(selectedSession.sessionDate)}</span>
+                        {sessionUserName(selectedSession) && (
+                          <span className="text-gray-400">· {sessionUserName(selectedSession)}</span>
+                        )}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          selectedSession.sessionStatus === "new" ? "bg-blue-100 text-blue-700" :
+                          selectedSession.sessionStatus === "in_progress" ? "bg-orange-100 text-orange-700" :
+                          "bg-gray-100 text-gray-500"
+                        }`}>
+                          {selectedSession.sessionStatus === "new" ? "Live Session" :
+                           selectedSession.sessionStatus === "in_progress" ? "Sprint" :
+                           "Archived"}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {/* Lifecycle buttons */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "new" && (
                           <button
                             onClick={async () => {
@@ -701,7 +692,7 @@ function CoachingHistoryContent() {
                               });
                               loadSessions();
                             }}
-                            className="px-3 py-2 text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition-colors font-medium"
+                            className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium"
                           >
                             Start Sprint
                           </button>
@@ -716,35 +707,36 @@ function CoachingHistoryContent() {
                               });
                               loadSessions();
                             }}
-                            className="px-3 py-2 text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+                            className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors font-medium"
                           >
                             Lock Session
                           </button>
                         )}
-                        <ChatAboutButton
-                          title={`Coaching: ${selectedSession.title}`}
-                          getContext={() => formatSessionsForChat([selectedSession])}
-                          label="Chat About This"
-                        />
                         {selectedSession.userId === currentUserId && (
                           <>
                             <button
                               onClick={() => startEdit(selectedSession)}
-                              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                               Edit
                             </button>
                             <button
                               onClick={handleDelete}
                               disabled={deleting}
-                              className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="px-2.5 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {deleting ? "Deleting..." : "Delete"}
+                              {deleting ? "..." : "Delete"}
                             </button>
                           </>
                         )}
                       </div>
                     </div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">{selectedSession.title}</h2>
+                    <ChatAboutButton
+                      title={`Coaching: ${selectedSession.title}`}
+                      getContext={() => formatSessionsForChat([selectedSession])}
+                      label="Chat About This"
+                    />
                   </div>
 
                   <div className="p-6">
