@@ -152,6 +152,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   const [archivedMetrics, setArchivedMetrics] = useState<Array<{ id: string; name: string; definition?: string }>>([]);
   const [editingDescTask, setEditingDescTask] = useState<string | null>(null);
   const [focusedMetric, setFocusedMetric] = useState<string | null>(null);
+  const [metricInputValue, setMetricInputValue] = useState("");
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
@@ -981,35 +982,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                 focusedMetric === entry.id ? (
                 <input
                   type="number"
-                  value={entry.currentValue ?? ""}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
+                  value={metricInputValue}
+                  onChange={(e) => setMetricInputValue(e.target.value)}
+                  onBlur={() => {
+                    const val = parseFloat(metricInputValue) || 0;
                     setMetricEntries((prev) =>
                       prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
                     );
-                    const key = entry.id;
-                    if (metricSaveTimers.current[key]) clearTimeout(metricSaveTimers.current[key]);
-                    metricSaveTimers.current[key] = setTimeout(() => {
-                      updateMetricValue(entry.id, entry.metricDefinition.id, val);
-                      delete metricSaveTimers.current[key];
-                    }, 2000);
-                  }}
-                  onBlur={(e) => {
-                    const key = entry.id;
-                    if (metricSaveTimers.current[key]) {
-                      clearTimeout(metricSaveTimers.current[key]);
-                      delete metricSaveTimers.current[key];
-                    }
-                    const val = parseFloat(e.target.value) || 0;
                     updateMetricValue(entry.id, entry.metricDefinition.id, val);
                     setFocusedMetric(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                   }}
                   autoFocus
                   className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
                 ) : (
                 <button
-                  onClick={() => setFocusedMetric(entry.id)}
+                  onClick={() => { setMetricInputValue(entry.currentValue ? String(entry.currentValue) : ""); setFocusedMetric(entry.id); }}
                   className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 hover:border-gray-300 cursor-text"
                 >
                   {entry.currentValue != null && entry.currentValue !== 0 ? formatMetricValue(entry.currentValue, entry.metricDefinition.format) : <span className="text-gray-300">{entry.metricDefinition.format === "currency" ? "$0" : "0"}</span>}
