@@ -536,7 +536,7 @@ function CoachingHistoryContent() {
                     <div className="px-6 pt-6">
                       <CoachingFramework
                         sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
-                        sessionStatus={mode === "edit" && selectedSession ? (selectedSession.sessionStatus || "new") : "new"}
+                        sessionStatus="new"
                         isOwner={true}
                       />
                     </div>
