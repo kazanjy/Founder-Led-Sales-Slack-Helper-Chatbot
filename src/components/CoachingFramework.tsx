@@ -812,7 +812,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   return (
     <div className="space-y-6 mb-8">
       {/* ── Up Next Queue ──────────────────────────────────────── */}
-      {canEdit && (
+      {nextGoals.length > 0 || canEdit ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-5">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
@@ -832,69 +832,94 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
                 className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragNextGoal === goal.id ? "opacity-40" : ""} ${dragOverNextGoal === goal.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
               >
                 <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 gap-2 group/ngoal">
+                  {canEdit && (
                   <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                   </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
-                    <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
+                    {canEdit ? (
+                      <>
+                        <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
+                        <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-gray-900 text-sm">{goal.title}</span>
+                        {goal.description && <span className="text-xs text-gray-600 block mt-0.5">{goal.description}</span>}
+                      </>
+                    )}
                   </div>
                   <button onClick={() => copyAnchorLink(`next-goal-${goal.id}`)} className="flex-shrink-0 p-1 text-gray-500 hover:text-purple-600 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Copy link">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   </button>
+                  {canEdit && (
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => promoteNextGoal(goal.id)} className="text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-full transition-colors" title="Promote to active goals">Promote</button>
                     <button onClick={() => deleteNextGoal(goal.id)} className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Delete goal">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
+                  )}
                 </div>
                 <div className="divide-y divide-gray-100">
                   {goal.tasks.map((task) => {
                     const descText = editingNextDescriptions[task.id] ?? task.description ?? "";
                     return (
-                      <div key={task.id} id={`next-task-${task.id}`} draggable
-                        onDragStart={(e) => { e.stopPropagation(); setDragNextTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; }}
-                        onDragEnd={() => { setDragNextTask(null); setDragOverNextTask(null); }}
-                        onDragOver={(e) => { if (dragNextTask && dragNextTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverNextTask(task.id); } }}
-                        onDragLeave={() => setDragOverNextTask(null)}
-                        onDrop={(e) => { e.stopPropagation(); handleNextTaskDrop(goal.id, task.id); }}
+                      <div key={task.id} id={`next-task-${task.id}`} draggable={canEdit}
+                        onDragStart={canEdit ? (e) => { e.stopPropagation(); setDragNextTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                        onDragEnd={canEdit ? () => { setDragNextTask(null); setDragOverNextTask(null); } : undefined}
+                        onDragOver={canEdit ? (e) => { if (dragNextTask && dragNextTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverNextTask(task.id); } } : undefined}
+                        onDragLeave={canEdit ? () => setDragOverNextTask(null) : undefined}
+                        onDrop={canEdit ? (e) => { e.stopPropagation(); handleNextTaskDrop(goal.id, task.id); } : undefined}
                         className={`px-4 py-2 pl-8 group/ntask transition-all ${dragNextTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverNextTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2 min-w-0 flex-1">
+                            {canEdit && (
                             <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 mt-0.5 mr-0.5">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>
                             </div>
+                            )}
                             <div className="min-w-0 flex-1">
-                              <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
-                              {editingNextDescTask === task.id ? (
+                              {canEdit ? (
+                                <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
+                              ) : (
+                                <span className="text-sm text-gray-700"><Linkify>{task.title}</Linkify></span>
+                              )}
+                              {canEdit && editingNextDescTask === task.id ? (
                                 <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
                               ) : descText ? (
-                                <div onClick={(e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); }} className="text-sm text-gray-500 whitespace-pre-wrap mt-0.5 cursor-text hover:bg-gray-50 rounded px-1 -mx-1"><Linkify>{descText}</Linkify></div>
-                              ) : (
+                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50" : ""} rounded px-1 -mx-1`}><Linkify>{descText}</Linkify></div>
+                              ) : canEdit ? (
                                 <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
-                              )}
+                              ) : null}
                             </div>
                           </div>
+                          {canEdit && (
                           <button onClick={() => deleteNextTask(goal.id, task.id)} className="flex-shrink-0 p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover/ntask:opacity-100 transition-opacity mt-0.5" title="Delete task">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           </button>
+                          )}
                         </div>
                       </div>
                     );
                   })}
+                  {canEdit && (
                   <div className="flex items-center gap-2 px-4 py-2 pl-8">
                     <input type="text" value={newNextTaskTitles[goal.id] || ""} onChange={(e) => setNewNextTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))} placeholder="Add a future task..." className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextTask(goal.id)} />
                     <button onClick={() => addNextTask(goal.id)} disabled={!newNextTaskTitles[goal.id]?.trim()} className="text-xs text-purple-600 font-medium disabled:opacity-50">Add</button>
                   </div>
+                  )}
                 </div>
               </div>
             ))}
+            {canEdit && (
             <div className="flex items-center gap-2">
               <input type="text" value={newNextGoalTitle} onChange={(e) => setNewNextGoalTitle(e.target.value)} placeholder="Add a future goal..." className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextGoal()} />
               <button onClick={addNextGoal} disabled={!newNextGoalTitle.trim()} className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50">+ Add Goal</button>
             </div>
+            )}
           </div>
         </div>
       )}
