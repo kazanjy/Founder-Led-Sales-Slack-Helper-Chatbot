@@ -745,6 +745,7 @@ function CoachingHistoryContent() {
                       sessionId={selectedSession.id}
                       sessionStatus={selectedSession.sessionStatus || "new"}
                       isOwner={selectedSession.userId === currentUserId}
+                      sessionCreatedAt={selectedSession.createdAt}
                     />
 
                     {/* Recording link */}

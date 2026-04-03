@@ -49,6 +49,7 @@ interface NextGoal {
   title: string;
   description?: string | null;
   order: number;
+  createdAt?: string;
   tasks: NextTask[];
 }
 
@@ -124,6 +125,7 @@ interface CoachingFrameworkProps {
   sessionId: string;
   sessionStatus: string;
   isOwner: boolean;
+  sessionCreatedAt?: string;
 }
 
 const STATUS_OPTIONS = [
@@ -133,7 +135,7 @@ const STATUS_OPTIONS = [
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700" },
 ];
 
-export default function CoachingFramework({ sessionId, sessionStatus, isOwner }: CoachingFrameworkProps) {
+export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
 
@@ -812,14 +814,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
   return (
     <div className="space-y-6 mb-8">
       {/* ── Up Next Queue ──────────────────────────────────────── */}
-      {nextGoals.length > 0 || canEdit ? (
+      {(() => {
+        // In read-only mode, only show next goals that existed when this session was created
+        const visibleNextGoals = !canEdit && sessionCreatedAt
+          ? nextGoals.filter((g) => new Date(g.createdAt || 0) <= new Date(sessionCreatedAt))
+          : nextGoals;
+        return visibleNextGoals.length > 0 || canEdit ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-5">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
           </h3>
           <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready.</p>
           <div className="space-y-3">
-            {nextGoals.map((goal) => (
+            {visibleNextGoals.map((goal) => (
               <div
                 key={goal.id}
                 id={`next-goal-${goal.id}`}
@@ -922,7 +929,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner }:
             )}
           </div>
         </div>
-      ) : null}
+      ) : null;
+      })()}
 
       {/* ── Maturity Stage ──────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
