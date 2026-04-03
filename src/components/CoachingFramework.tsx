@@ -119,9 +119,6 @@ function formatMetricDelta(value: number, format?: string): string {
   }
   return `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
 }
-  }
-  return `${sign}${value.toLocaleString()}`;
-}
 
 interface CoachingFrameworkProps {
   sessionId: string;
