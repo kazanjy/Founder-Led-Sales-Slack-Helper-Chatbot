@@ -123,6 +123,9 @@ function SalesLeaderProfileContent() {
           if (data.hasProfile) {
             setVersion(data.version);
             if (data.answersByCategory) setAnswersByCategory(data.answersByCategory);
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/sales-leader-profile?version=${data.version.id}`);
+            }
           }
         }
       } catch (error) {

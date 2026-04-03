@@ -124,6 +124,9 @@ function HiringProfileContent() {
           if (data.hasProfile) {
             setVersion(data.version);
             if (data.answersByCategory) setAnswersByCategory(data.answersByCategory);
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/hiring-profile?version=${data.version.id}`);
+            }
           }
         }
       } catch (error) {

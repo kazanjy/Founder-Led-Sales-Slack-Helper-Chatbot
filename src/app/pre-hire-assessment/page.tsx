@@ -120,6 +120,9 @@ function PreHireAssessmentContent() {
         } else {
           if (data.hasAssessment) {
             setVersion(data.version);
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/pre-hire-assessment?version=${data.version.id}`);
+            }
           }
         }
       } catch (error) {
