@@ -329,6 +329,9 @@ function SalesDeckContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/sales-deck?version=${data.version.id}`);
+      }
       setShowForm(false);
 
       if (data.gammaFailed) {
@@ -441,6 +444,9 @@ function SalesDeckContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/sales-deck?version=${data.version.id}`);
+      }
       setShowForm(false);
     } catch (error) {
       console.error("Error generating:", error);
@@ -485,6 +491,9 @@ function SalesDeckContent() {
       const data = await response.json();
       setVersion(data.version);
       setEditedContent(data.version?.content || "");
+      if (data.version?.id) {
+        window.history.replaceState({}, "", `/sales-deck?version=${data.version.id}`);
+      }
       setShowForm(false);
     } catch (error) {
       console.error("Error importing PDF:", error);
