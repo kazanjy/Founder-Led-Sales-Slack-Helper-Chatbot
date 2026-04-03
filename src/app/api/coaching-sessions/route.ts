@@ -80,14 +80,16 @@ export async function POST(request: NextRequest) {
 
     // ── Carry-forward logic ──────────────────────────────────────────
 
-    // 1. Lock any previous NEW or IN_PROGRESS session
-    await prisma.coachingSession.updateMany({
-      where: {
-        userId: user.id,
-        sessionStatus: { in: ["new", "in_progress"] },
-      },
-      data: { sessionStatus: "locked" },
-    });
+    // 1. Lock any previous NEW or IN_PROGRESS session (only for real sessions, not drafts)
+    if (!isDraft) {
+      await prisma.coachingSession.updateMany({
+        where: {
+          userId: user.id,
+          sessionStatus: { in: ["new", "in_progress"] },
+        },
+        data: { sessionStatus: "locked" },
+      });
+    }
 
     // 2. Snapshot current maturity stage
     const maturityStage = await prisma.salesMaturityStage.findUnique({

@@ -91,7 +91,8 @@ export async function PUT(
     });
 
     // Auto-generate title if it's still a draft placeholder and real notes were provided
-    if ((!session.title || session.title.startsWith("It appears")) && notes?.trim() && notes.trim() !== "(draft)") {
+    const isRealSave = notes?.trim() && notes.trim() !== "(draft)" && notes.trim() !== "";
+    if ((!session.title || session.title.startsWith("It appears")) && isRealSave) {
       const generatedTitle = await generateSessionTitle(notes.trim(), transcript?.trim());
       await prisma.coachingSession.update({
         where: { id },
