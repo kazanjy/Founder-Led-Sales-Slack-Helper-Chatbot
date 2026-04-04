@@ -47,6 +47,11 @@ const SUPPORTED_IMAGE_TYPES = [
 // Supported PDF mime type
 const PDF_MIME_TYPE = "application/pdf";
 
+// Text/markdown file detection
+const isTextFile = (name: string, mimetype: string) =>
+  name.endsWith(".md") || name.endsWith(".markdown") || name.endsWith(".txt") ||
+  mimetype === "text/markdown" || mimetype === "text/plain";
+
 /**
  * Download a file from Slack using the bot token
  */
@@ -155,27 +160,31 @@ async function processSlackFiles(
     size: f.size,
   })));
 
-  // Separate images and PDFs
+  // Separate images, PDFs, and markdown files
   const imageFiles = files.filter((f) =>
     SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
   );
   const pdfFiles = files.filter((f) =>
     isPDFMimeType(f.mimetype)
   );
+  const markdownFiles = files.filter((f) =>
+    isTextFile(f.name, f.mimetype)
+  );
 
   console.log("[Slack Files] Filtered:", {
     imageCount: imageFiles.length,
     pdfCount: pdfFiles.length,
+    markdownCount: markdownFiles.length,
     unsupportedFiles: files.filter(f =>
-      !SUPPORTED_IMAGE_TYPES.includes(f.mimetype) && !isPDFMimeType(f.mimetype)
+      !SUPPORTED_IMAGE_TYPES.includes(f.mimetype) && !isPDFMimeType(f.mimetype) && !isTextFile(f.name, f.mimetype)
     ).map(f => ({ name: f.name, mimetype: f.mimetype })),
   });
 
-  if (imageFiles.length === 0 && pdfFiles.length === 0) {
+  if (imageFiles.length === 0 && pdfFiles.length === 0 && markdownFiles.length === 0) {
     return { descriptions, storedFiles, imageCount: 0, pdfCount: 0 };
   }
 
-  console.log(`[Slack] Processing ${imageFiles.length} image(s) and ${pdfFiles.length} PDF(s)`);
+  console.log(`[Slack] Processing ${imageFiles.length} image(s), ${pdfFiles.length} PDF(s), and ${markdownFiles.length} markdown file(s)`);
 
   // Process images through Vision API
   for (const file of imageFiles) {
@@ -235,6 +244,36 @@ async function processSlackFiles(
     } catch (error) {
       console.error(`[Slack] Error processing PDF ${file.name}:`, error);
       descriptions.push(`[PDF: ${file.name}] (Error processing PDF)`);
+    }
+  }
+
+  // Process markdown files (plain text — no extraction needed)
+  for (const file of markdownFiles) {
+    try {
+      const fileBuffer = await downloadSlackFile(file.url_private, botToken);
+      const textContent = fileBuffer.toString("utf-8");
+
+      // Truncate very large files to avoid context overflow
+      const maxChars = 50000;
+      const truncated = textContent.length > maxChars;
+      const content = truncated ? textContent.slice(0, maxChars) + "\n\n...(truncated)" : textContent;
+
+      descriptions.push(`[Markdown: ${file.name}${truncated ? " (truncated)" : ""}]\n\n${content}`);
+
+      // Store in Supabase
+      const base64 = fileBuffer.toString("base64");
+      const dataUrl = `data:text/markdown;base64,${base64}`;
+      const storedRef = await uploadFile(userId, conversationId, {
+        name: file.name,
+        type: "pdf", // reuse pdf type for text files in storage
+        data: dataUrl,
+      });
+      storedFiles.push(storedRef);
+
+      console.log(`[Slack] Processed markdown file: ${file.name} (${textContent.length} chars${truncated ? ", truncated" : ""})`);
+    } catch (error) {
+      console.error(`[Slack] Error processing markdown ${file.name}:`, error);
+      descriptions.push(`[Markdown: ${file.name}] (Error reading file)`);
     }
   }
 
