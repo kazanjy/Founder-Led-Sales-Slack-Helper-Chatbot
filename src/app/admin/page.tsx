@@ -105,6 +105,8 @@ export default function AdminDashboard() {
   const [convsLoading, setConvsLoading] = useState(true);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityTotalPages, setActivityTotalPages] = useState(1);
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<string>("all");
   const [feedSearch, setFeedSearch] = useState("");
@@ -156,11 +158,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function fetchActivity() {
+      setActivityLoading(true);
       try {
-        const res = await fetch("/api/admin/activity");
+        const res = await fetch(`/api/admin/activity?page=${activityPage}&pageSize=30`);
         if (res.ok) {
           const data = await res.json();
           setActivity(data.activity);
+          setActivityTotalPages(data.totalPages || 1);
         }
       } catch (error) {
         console.error("Failed to fetch activity:", error);
@@ -169,7 +173,7 @@ export default function AdminDashboard() {
       }
     }
     fetchActivity();
-  }, []);
+  }, [activityPage]);
 
   useEffect(() => {
     async function fetchCompletion() {
@@ -707,6 +711,29 @@ export default function AdminDashboard() {
                   {filteredItems.map((item) => (
                     <div key={item.key}>{item.render}</div>
                   ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {activityTotalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                  <button
+                    onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                    disabled={activityPage <= 1}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    Page {activityPage} of {activityTotalPages}
+                  </span>
+                  <button
+                    onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                    disabled={activityPage >= activityTotalPages}
+                    className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
               )}
             </div>

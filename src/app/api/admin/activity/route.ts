@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 
@@ -28,12 +28,16 @@ function userName(user: { name: string | null; slackUserName: string | null; ema
   return user.name || user.slackUserName || user.email;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const admin = await getAdminUser();
     if (!admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const page = parseInt(request.nextUrl.searchParams.get("page") || "1");
+    const pageSize = parseInt(request.nextUrl.searchParams.get("pageSize") || "30");
+    const perType = Math.max(pageSize, 30); // fetch enough per type to fill the page
 
     // Query all version/action tables in parallel
     const [
@@ -53,67 +57,67 @@ export async function GET() {
     ] = await Promise.all([
       prisma.salesNarrativeVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.discoveryQuestionsVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.firstCallChecklistVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.preCallPlanningVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.preCallResearch.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, companyName: true, contactName: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.emailSequenceVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.linkedInSequenceVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.coldCallScriptVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.salesDeckVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.callReviewVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, overallScore: true, maxScore: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.maturityAssessment.findMany({
         orderBy: { completedAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, completedAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.salesMetricsAssessment.findMany({
         orderBy: { completedAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, title: true, completedAt: true, userId: true, user: { select: userSelect } },
       }),
       prisma.adCreatorVersion.findMany({
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: perType,
         select: { id: true, orgPersona: true, humanPersona: true, createdAt: true, userId: true, user: { select: userSelect } },
       }),
     ]);
@@ -256,10 +260,20 @@ export async function GET() {
       });
     }
 
-    // Sort all items by date descending and take most recent 30
+    // Sort all items by date descending
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return NextResponse.json({ activity: items.slice(0, 30) });
+    const total = items.length;
+    const start = (page - 1) * pageSize;
+    const paged = items.slice(start, start + pageSize);
+
+    return NextResponse.json({
+      activity: paged,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    });
   } catch (error) {
     console.error("Admin activity error:", error);
     return NextResponse.json(
