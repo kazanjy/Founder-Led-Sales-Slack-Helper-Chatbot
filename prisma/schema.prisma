@@ -17,6 +17,7 @@ model Account {
 
   users         User[]
   channelClaims ChannelClaim[]
+  salesReadinessItems SalesReadinessAccountItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1397,6 +1398,50 @@ model CoachingNextTask {
 
   @@index([goalId])
   @@map("coaching_next_tasks")
+}
+
+// ============================================
+// SALES READINESS CHECKLIST
+// ============================================
+
+// Global template items (same for all accounts)
+model SalesReadinessItem {
+  id String @id @default(cuid())
+
+  maturityStage      String  // "WILL_SOMEONE_PAY", "REPEATABLE_REVENUE", etc.
+  capabilityCategory String  // "MVP Inbound", "Sales First Call", etc.
+  title              String  // "Demo Request Calendar Automation"
+  description        String? @db.Text
+  order              Int     @default(0)
+
+  accountItems SalesReadinessAccountItem[]
+
+  @@index([maturityStage])
+  @@map("sales_readiness_items")
+}
+
+// Per-account progress on each item
+model SalesReadinessAccountItem {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   SalesReadinessItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  status          String    @default("to_do") // "to_do" | "done" | "up_next" | "not_doing" | "deferred"
+  statusChangedAt DateTime?
+  statusChangedBy String?   // userId of who last changed status
+  completedAt     DateTime?
+  notes           String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, itemId])
+  @@index([accountId])
+  @@map("sales_readiness_account_items")
 }
 
 // ============================================
