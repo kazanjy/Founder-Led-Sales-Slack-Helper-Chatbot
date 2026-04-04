@@ -26,60 +26,60 @@ export const SALES_READINESS_SEED: SeedItem[] = [
   { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "MVP Tech Stack", title: "Call Recording Capability", order: 1 },
 
   // ════════════════════════════════════════════════════════════
-  // STAGE 2: WILL_SOMEONE_PAY — "Will Someone Pay"
+  // STAGE 2: VALUE_VALIDATION — "Will Someone Pay"
   // ════════════════════════════════════════════════════════════
 
   // ── Market Opportunity Hypothesis ──────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Market Opportunity Hypothesis", title: "Sales Narrative (Product Marketing Messaging)", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Market Opportunity Hypothesis", title: "Ideal Customer Profile (Org, Humans) & Buckets", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Market Opportunity Hypothesis", title: "Sales Narrative (Product Marketing Messaging)", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Market Opportunity Hypothesis", title: "Ideal Customer Profile (Org, Humans) & Buckets", order: 1 },
 
   // ── Proof of Utility ───────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Proof of Utility", title: "Proof of Value: Quantitative & Qualitative", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Proof of Utility", title: "Proof of Value: Quantitative & Qualitative", order: 0 },
 
   // ── Demand Generation Hypothesis ───────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Demand Generation Hypothesis", title: "LinkedIn Search URLs (Other URLs) for Targets", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Demand Generation Hypothesis", title: "LinkedIn Search URLs (Other URLs) for Targets", order: 0 },
 
   // ── MVP Outbound ───────────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Outbound Email Sequence & LinkedIn Sequence", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Email Automation Capability", order: 1 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "LinkedIn Automation Capability", order: 2 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Email Outbound Sequence", order: 3 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "LinkedIn Outbound Sequence", order: 4 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Outbound", title: "Outbound Email Sequence & LinkedIn Sequence", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Outbound", title: "Email Automation Capability", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Outbound", title: "LinkedIn Automation Capability", order: 2 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Outbound", title: "Email Outbound Sequence", order: 3 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Outbound", title: "LinkedIn Outbound Sequence", order: 4 },
 
   // ── MVP Inbound ────────────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Inbound Basics & Audit Inbound", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Button Well Placed", order: 1 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Calendar Automation", order: 2 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Internal Notifications & Response", order: 3 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request form qualification criteria & routing", order: 4 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Prospect Facing auto-email", order: 5 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Outbound Multi-thread", order: 6 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Inbound Basics & Audit Inbound", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request Button Well Placed", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request Calendar Automation", order: 2 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request Internal Notifications & Response", order: 3 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request form qualification criteria & routing", order: 4 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request Prospect Facing auto-email", order: 5 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "MVP Inbound", title: "Demo Request Outbound Multi-thread", order: 6 },
 
   // ── Inbound Process ────────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Meeting Invite Format", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Website De-anonymize & alert & action", order: 1 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Website De-anonymize automated action", order: 2 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Recorded Demo Video Collateral", order: 3 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Inbound Process", title: "Meeting Invite Format", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Inbound Process", title: "Website De-anonymize & alert & action", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Inbound Process", title: "Website De-anonymize automated action", order: 2 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Inbound Process", title: "Recorded Demo Video Collateral", order: 3 },
 
   // ── User Table Inbound ─────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Signup Internal Alerting", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Automatic Email", order: 1 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Backlog Enrich & Triage", order: 2 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Backlog Outbound", order: 3 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Signup Auto-Email With Content", order: 4 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Outbound Multi-thread", order: 5 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Signup Internal Alerting", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Automatic Email", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Backlog Enrich & Triage", order: 2 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Backlog Outbound", order: 3 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Signup Auto-Email With Content", order: 4 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "User Table Inbound", title: "User Table Outbound Multi-thread", order: 5 },
 
   // ── Sales First Call ───────────────────────────────────────
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Are you properly blocking calendar for prep and follow-up?", order: 0 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Call Execution Setup (Second monitor)", order: 1 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Headphones", order: 2 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Pre-Call Planning Checklist", order: 3 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Rapport & Agenda Set Approach", order: 4 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Elevator Pitch", order: 5 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Discovery Questions", order: 6 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "First Call Checklist", order: 7 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Sales Deck", order: 8 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Demo Outline / Script", order: 9 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Pricing", order: 10 },
-  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Next Steps / Sales Motion Map", order: 11 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Are you properly blocking calendar for prep and follow-up?", order: 0 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Call Execution Setup (Second monitor)", order: 1 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Headphones", order: 2 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Pre-Call Planning Checklist", order: 3 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Rapport & Agenda Set Approach", order: 4 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Elevator Pitch", order: 5 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Discovery Questions", order: 6 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "First Call Checklist", order: 7 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Sales Deck", order: 8 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Demo Outline / Script", order: 9 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Pricing", order: 10 },
+  { maturityStage: "VALUE_VALIDATION", capabilityCategory: "Sales First Call", title: "Next Steps / Sales Motion Map", order: 11 },
 ];

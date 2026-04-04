@@ -6,17 +6,15 @@ import { getCurrentUser } from "@/lib/auth";
 const STAGE_ORDER: Record<string, number> = {
   PROBLEM_VALIDATION: 0,
   VALUE_VALIDATION: 1,
-  WILL_SOMEONE_PAY: 2,
-  FIRST_REVENUE: 3,
-  REPEATABLE_REVENUE: 4,
-  FIRST_SALES_HIRE: 5,
-  SCALING_SALES: 6,
+  FIRST_REVENUE: 2,
+  REPEATABLE_REVENUE: 3,
+  FIRST_SALES_HIRE: 4,
+  SCALING_SALES: 5,
 };
 
 const STAGE_LABELS: Record<string, { short: string; question: string }> = {
   PROBLEM_VALIDATION: { short: "Problem Validation", question: "Do we know what problem we're solving?" },
   VALUE_VALIDATION: { short: "Value Validation", question: "Does the product solve the problem and create value?" },
-  WILL_SOMEONE_PAY: { short: "Will Someone Pay", question: "Can we get someone to pay for the product?" },
   FIRST_REVENUE: { short: "First Revenue", question: "Can we get someone to pay for the product?" },
   REPEATABLE_REVENUE: { short: "Repeatable Revenue", question: "Can we get many people to pay for the product?" },
   FIRST_SALES_HIRE: { short: "First Sales Hire", question: "Can we get someone other than the founder to sell?" },
