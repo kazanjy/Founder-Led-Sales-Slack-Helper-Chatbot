@@ -73,6 +73,7 @@ export async function GET() {
       statusChangedByName: string | null;
       completedAt: string | null;
       notes: string | null;
+      evidenceUrl: string | null;
     }>>>();
 
     for (const item of items) {
