@@ -425,25 +425,31 @@ function SalesReadinessContent() {
                                   <div className="flex-shrink-0 w-48">
                                     {editingEvidence === item.id ? (
                                       <input
-                                        type="url"
+                                        type="text"
                                         defaultValue={item.evidenceUrl || ""}
                                         onBlur={(e) => {
-                                          const url = e.target.value.trim();
-                                          updateItemEvidenceUrl(item.id, url);
+                                          const val = e.target.value.trim();
+                                          updateItemEvidenceUrl(item.id, val);
                                           setEditingEvidence(null);
                                         }}
                                         onKeyDown={(e) => {
                                           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                                           if (e.key === "Escape") setEditingEvidence(null);
                                         }}
-                                        placeholder="Paste URL..."
+                                        placeholder="URL, doc name, notes..."
                                         autoFocus
                                         className="w-full text-xs px-2 py-1 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                       />
                                     ) : item.evidenceUrl ? (
                                       <div className="flex items-center gap-1.5">
-                                        <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                        <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate">{item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                                        {/^https?:\/\//.test(item.evidenceUrl) ? (
+                                          <>
+                                            <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                            <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate">{item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</a>
+                                          </>
+                                        ) : (
+                                          <span className="text-xs text-gray-600 truncate">{item.evidenceUrl}</span>
+                                        )}
                                         <button onClick={() => setEditingEvidence(item.id)} className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">✎</button>
                                         <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">✕</button>
                                       </div>
