@@ -6,7 +6,7 @@ interface ChatAboutButtonProps {
   /** Title for the new conversation */
   title: string;
   /** Function that returns the full context string to send to chat */
-  getContext: () => string;
+  getContext: () => string | Promise<string>;
   /** Optional custom label */
   label?: string;
 }
@@ -17,7 +17,7 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This" }
   const handleClick = async () => {
     setLoading(true);
     try {
-      const context = getContext();
+      const context = await getContext();
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

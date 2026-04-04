@@ -44,12 +44,127 @@ function sessionUserName(session: CoachingSession): string | null {
 }
 
 function formatSessionForChat(session: CoachingSession): string {
-  let text = `### Session: ${session.title} — ${formatDate(session.sessionDate)}\n\n`;
-  text += `#### Notes\n${session.notes}\n\n`;
+  let text = `### Session: ${session.title} — ${formatDate(session.sessionDate)}\n`;
+  if (session.sessionStatus) {
+    text += `**Status:** ${session.sessionStatus === "new" ? "Live Session" : session.sessionStatus === "in_progress" ? "Live Sprint" : "Archived"}\n`;
+  }
+  text += `\n`;
+  if (session.notes && session.notes !== "(draft)") {
+    text += `#### Notes\n${session.notes}\n\n`;
+  }
   if (session.transcript) {
     text += `#### Call Transcript\n${session.transcript}\n\n`;
   }
   return text;
+}
+
+interface EnrichedSession {
+  session: CoachingSession;
+  goals?: Array<{ title: string; description?: string; status: string; tasks: Array<{ title: string; description?: string | null; status: string }> }>;
+  metricEntries?: Array<{ currentValue: number; addedSinceLastSession: number; metricDefinition: { name: string; format?: string } }>;
+  maturityStage?: string | null;
+}
+
+async function fetchEnrichedSession(sessionId: string): Promise<EnrichedSession | null> {
+  try {
+    const res = await fetch(`/api/coaching-sessions/${sessionId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function formatEnrichedContext(session: CoachingSession, enriched: EnrichedSession | null): string {
+  let text = formatSessionForChat(session);
+
+  if (enriched?.maturityStage) {
+    text += `#### Sales Maturity Stage\n${enriched.maturityStage}\n\n`;
+  }
+
+  if (enriched?.metricEntries && enriched.metricEntries.length > 0) {
+    text += `#### Metrics\n`;
+    for (const entry of enriched.metricEntries) {
+      const delta = entry.addedSinceLastSession ? ` (${entry.addedSinceLastSession > 0 ? "+" : ""}${entry.addedSinceLastSession} since last)` : "";
+      text += `- **${entry.metricDefinition.name}:** ${entry.currentValue}${delta}\n`;
+    }
+    text += `\n`;
+  }
+
+  if (enriched?.goals && enriched.goals.length > 0) {
+    text += `#### Goals & Tasks\n`;
+    for (const goal of enriched.goals) {
+      text += `\n**${goal.title}** [${goal.status}]\n`;
+      if (goal.description) text += `${goal.description}\n`;
+      for (const task of goal.tasks) {
+        const check = task.status === "done" ? "x" : " ";
+        text += `- [${check}] ${task.title}`;
+        if (task.status === "not_doing") text += ` ~~(not doing)~~`;
+        if (task.status === "deprioritized") text += ` *(deprioritized)*`;
+        text += `\n`;
+        if (task.description) text += `  ${task.description}\n`;
+      }
+    }
+    text += `\n`;
+  }
+
+  return text;
+}
+
+async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<string> {
+  const sorted = [...sessions].sort(
+    (a, b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime()
+  );
+
+  // Fetch enriched data for all sessions in parallel
+  const enrichedData = await Promise.all(
+    sorted.map((s) => fetchEnrichedSession(s.id))
+  );
+
+  // Also fetch maturity stage and next goals
+  let maturityStage: string | null = null;
+  let nextGoals: Array<{ title: string; description?: string; tasks: Array<{ title: string; description?: string | null }> }> = [];
+  try {
+    const [stageRes, nextRes] = await Promise.all([
+      fetch("/api/coaching/maturity-stage"),
+      fetch("/api/coaching/next-goals"),
+    ]);
+    if (stageRes.ok) {
+      const d = await stageRes.json();
+      maturityStage = d.stage?.currentStage || null;
+    }
+    if (nextRes.ok) {
+      const d = await nextRes.json();
+      nextGoals = d.goals || [];
+    }
+  } catch { /* ignore */ }
+
+  let context = "## Coaching History\n\n";
+  context += `*${sorted.length} session${sorted.length !== 1 ? "s" : ""} from ${formatDate(sorted[0].sessionDate)} to ${formatDate(sorted[sorted.length - 1].sessionDate)}*\n\n`;
+
+  if (maturityStage) {
+    context += `**Current Sales Maturity Stage:** ${maturityStage}\n\n`;
+  }
+
+  context += `---\n\n`;
+  context += sorted.map((s, i) => formatEnrichedContext(s, enrichedData[i])).join("---\n\n");
+
+  // Add Up Next items
+  if (nextGoals.length > 0) {
+    context += `---\n\n### Up Next (Future Goals Queue)\n\n`;
+    for (const goal of nextGoals) {
+      context += `**${goal.title}**\n`;
+      if (goal.description) context += `${goal.description}\n`;
+      for (const task of goal.tasks) {
+        context += `- ${task.title}\n`;
+        if (task.description) context += `  ${task.description}\n`;
+      }
+      context += `\n`;
+    }
+  }
+
+  return context;
 }
 
 function formatSessionsForChat(sessions: CoachingSession[]): string {
@@ -339,7 +454,7 @@ function CoachingHistoryContent() {
             {sessions.length > 0 && (
               <ChatAboutButton
                 title="Coaching History — All Sessions"
-                getContext={() => formatSessionsForChat(sessions)}
+                getContext={() => buildEnrichedChatContext(sessions)}
                 label="Chat All Sessions"
               />
             )}
@@ -370,7 +485,7 @@ function CoachingHistoryContent() {
               </button>
               <ChatAboutButton
                 title={`Coaching History — ${checkedSessions.length} Sessions`}
-                getContext={() => formatSessionsForChat(checkedSessions)}
+                getContext={() => buildEnrichedChatContext(checkedSessions)}
                 label={`Chat About ${checkedSessions.length} Sessions`}
               />
             </div>
@@ -734,7 +849,7 @@ function CoachingHistoryContent() {
                     <h2 className="text-lg font-semibold text-gray-900 mb-2">{selectedSession.title}</h2>
                     <ChatAboutButton
                       title={`Coaching: ${selectedSession.title}`}
-                      getContext={() => formatSessionsForChat([selectedSession])}
+                      getContext={() => buildEnrichedChatContext([selectedSession])}
                       label="Chat About This"
                     />
                   </div>
