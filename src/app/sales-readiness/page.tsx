@@ -14,6 +14,7 @@ interface ReadinessItem {
   statusChangedByName: string | null;
   completedAt: string | null;
   notes: string | null;
+  evidenceUrl: string | null;
 }
 
 interface Category {
@@ -202,6 +203,26 @@ function SalesReadinessContent() {
     }, 1500);
   };
 
+  const updateItemEvidenceUrl = (itemId: string, evidenceUrl: string) => {
+    setStages((prev) => prev.map((stage) => ({
+      ...stage,
+      categories: stage.categories.map((cat) => ({
+        ...cat,
+        items: cat.items.map((item) => item.id === itemId ? { ...item, evidenceUrl } : item),
+      })),
+    })));
+    const key = `evidence-${itemId}`;
+    if (noteSaveTimers.current[key]) clearTimeout(noteSaveTimers.current[key]);
+    noteSaveTimers.current[key] = setTimeout(async () => {
+      await fetch(`/api/sales-readiness/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ evidenceUrl }),
+      });
+      delete noteSaveTimers.current[key];
+    }, 1500);
+  };
+
   // Cleanup timers
   useEffect(() => {
     const timers = noteSaveTimers.current;
@@ -385,6 +406,24 @@ function SalesReadinessContent() {
                                         className="mt-1 text-xs text-purple-500 hover:text-purple-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
                                         + Add notes
+                                      </button>
+                                    )}
+                                    {/* Evidence URL */}
+                                    {item.evidenceUrl ? (
+                                      <div className="mt-1.5 flex items-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                        <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate max-w-xs">{item.evidenceUrl}</a>
+                                        <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">✕</button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          const url = prompt("Paste a link to the evidence / asset:");
+                                          if (url?.trim()) updateItemEvidenceUrl(item.id, url.trim());
+                                        }}
+                                        className="mt-1 text-xs text-blue-500 hover:text-blue-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        🔗 Add evidence / asset link
                                       </button>
                                     )}
                                   </div>

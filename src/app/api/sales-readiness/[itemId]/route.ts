@@ -19,7 +19,7 @@ export async function PATCH(
 
     const { itemId } = await params;
     const body = await request.json();
-    const { status, notes } = body;
+    const { status, notes, evidenceUrl } = body;
 
     // Verify item exists
     const item = await prisma.salesReadinessItem.findUnique({ where: { id: itemId } });
@@ -42,6 +42,9 @@ export async function PATCH(
     if (notes !== undefined) {
       updateData.notes = notes || null;
     }
+    if (evidenceUrl !== undefined) {
+      updateData.evidenceUrl = evidenceUrl || null;
+    }
 
     // Upsert — create if doesn't exist, update if it does
     const result = await prisma.salesReadinessAccountItem.upsert({
@@ -60,6 +63,7 @@ export async function PATCH(
         statusChangedBy: status ? user.id : null,
         completedAt: status === "done" ? new Date() : null,
         notes: notes || null,
+        evidenceUrl: evidenceUrl || null,
       },
     });
 

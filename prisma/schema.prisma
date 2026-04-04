@@ -1435,6 +1435,7 @@ model SalesReadinessAccountItem {
   statusChangedBy String?   // userId of who last changed status
   completedAt     DateTime?
   notes           String?   @db.Text
+  evidenceUrl     String?   // link to relevant asset, doc, or proof
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

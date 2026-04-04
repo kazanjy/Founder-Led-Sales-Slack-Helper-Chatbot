@@ -10,7 +10,43 @@ export interface SeedItem {
 }
 
 export const SALES_READINESS_SEED: SeedItem[] = [
-  // ── WILL_SOMEONE_PAY — MVP Inbound ────────────────────
+  // ════════════════════════════════════════════════════════════
+  // STAGE 1: PROBLEM_VALIDATION — "Validating Problem"
+  // ════════════════════════════════════════════════════════════
+
+  // ── Customer Research Call ──────────────────────────────────
+  { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "Customer Research Call", title: "Customer Research Deck", order: 0 },
+
+  // ── Customer Research Pipegen ──────────────────────────────
+  { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "Customer Research Pipegen", title: "Hypothesized Customer Profile", order: 0 },
+  { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "Customer Research Pipegen", title: "Hypothesized Customer Outbound (Email & LinkedIn)", order: 1 },
+
+  // ── MVP Tech Stack ─────────────────────────────────────────
+  { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "MVP Tech Stack", title: "Basic CRM", order: 0 },
+  { maturityStage: "PROBLEM_VALIDATION", capabilityCategory: "MVP Tech Stack", title: "Call Recording Capability", order: 1 },
+
+  // ════════════════════════════════════════════════════════════
+  // STAGE 2: WILL_SOMEONE_PAY — "Will Someone Pay"
+  // ════════════════════════════════════════════════════════════
+
+  // ── Market Opportunity Hypothesis ──────────────────────────
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Market Opportunity Hypothesis", title: "Sales Narrative (Product Marketing Messaging)", order: 0 },
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Market Opportunity Hypothesis", title: "Ideal Customer Profile (Org, Humans) & Buckets", order: 1 },
+
+  // ── Proof of Utility ───────────────────────────────────────
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Proof of Utility", title: "Proof of Value: Quantitative & Qualitative", order: 0 },
+
+  // ── Demand Generation Hypothesis ───────────────────────────
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Demand Generation Hypothesis", title: "LinkedIn Search URLs (Other URLs) for Targets", order: 0 },
+
+  // ── MVP Outbound ───────────────────────────────────────────
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Outbound Email Sequence & LinkedIn Sequence", order: 0 },
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Email Automation Capability", order: 1 },
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "LinkedIn Automation Capability", order: 2 },
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "Email Outbound Sequence", order: 3 },
+  { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Outbound", title: "LinkedIn Outbound Sequence", order: 4 },
+
+  // ── MVP Inbound ────────────────────────────────────────────
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Inbound Basics & Audit Inbound", order: 0 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Button Well Placed", order: 1 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Calendar Automation", order: 2 },
@@ -19,13 +55,13 @@ export const SALES_READINESS_SEED: SeedItem[] = [
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Prospect Facing auto-email", order: 5 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "MVP Inbound", title: "Demo Request Outbound Multi-thread", order: 6 },
 
-  // ── WILL_SOMEONE_PAY — Inbound Process ────────────────
+  // ── Inbound Process ────────────────────────────────────────
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Meeting Invite Format", order: 0 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Website De-anonymize & alert & action", order: 1 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Website De-anonymize automated action", order: 2 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Inbound Process", title: "Recorded Demo Video Collateral", order: 3 },
 
-  // ── WILL_SOMEONE_PAY — MVP Inbound (User Table) ──────
+  // ── User Table Inbound ─────────────────────────────────────
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Signup Internal Alerting", order: 0 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Automatic Email", order: 1 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Backlog Enrich & Triage", order: 2 },
@@ -33,7 +69,7 @@ export const SALES_READINESS_SEED: SeedItem[] = [
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Signup Auto-Email With Content", order: 4 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "User Table Inbound", title: "User Table Outbound Multi-thread", order: 5 },
 
-  // ── WILL_SOMEONE_PAY — Sales First Call ───────────────
+  // ── Sales First Call ───────────────────────────────────────
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Are you properly blocking calendar for prep and follow-up?", order: 0 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Call Execution Setup (Second monitor)", order: 1 },
   { maturityStage: "WILL_SOMEONE_PAY", capabilityCategory: "Sales First Call", title: "Headphones", order: 2 },

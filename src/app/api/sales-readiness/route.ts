@@ -95,6 +95,7 @@ export async function GET() {
         statusChangedByName: progress?.statusChangedBy ? userNameMap.get(progress.statusChangedBy) || null : null,
         completedAt: progress?.completedAt?.toISOString() || null,
         notes: progress?.notes || null,
+        evidenceUrl: progress?.evidenceUrl || null,
       });
     }
 
