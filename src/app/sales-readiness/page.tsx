@@ -354,8 +354,10 @@ function SalesReadinessContent() {
                       {filteredCategories.map((cat) => (
                         <div key={cat.name} className="border-b border-gray-50 last:border-b-0">
                           {/* Category header */}
-                          <div className="px-5 py-2.5 bg-gray-50/50 flex items-center justify-between">
-                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
+                          <div className="px-5 py-2.5 bg-gray-50/50 flex items-center gap-3">
+                            <div className="w-24 flex-shrink-0" />
+                            <span className="flex-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
+                            <span className="w-48 flex-shrink-0 text-xs text-gray-400 font-medium">Evidence / Asset</span>
                             <span className="text-xs text-gray-400">{cat.doneCount}/{cat.totalCount}</span>
                           </div>
 
@@ -434,7 +436,7 @@ function SalesReadinessContent() {
                                         }}
                                         className="text-xs text-gray-400 hover:text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
-                                        🔗 Add link
+                                        + Evidence / Asset
                                       </button>
                                     )}
                                   </div>
