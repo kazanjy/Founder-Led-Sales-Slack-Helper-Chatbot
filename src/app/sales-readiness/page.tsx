@@ -379,9 +379,9 @@ function SalesReadinessContent() {
 
                                   {/* Title + notes — center */}
                                   <div className="flex-1 min-w-0">
-                                    <span className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                    <div className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
                                       {item.title}
-                                    </span>
+                                    </div>
                                     {item.description && (
                                       <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>
                                     )}
@@ -432,7 +432,7 @@ function SalesReadinessContent() {
                                           const url = prompt("Paste a link to the evidence / asset:");
                                           if (url?.trim()) updateItemEvidenceUrl(item.id, url.trim());
                                         }}
-                                        className="text-xs text-blue-500 hover:text-blue-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="text-xs text-gray-400 hover:text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
                                         🔗 Add link
                                       </button>
