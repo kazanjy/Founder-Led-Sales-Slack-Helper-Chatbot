@@ -85,6 +85,7 @@ function CallReviewContent() {
 
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState<string | null>(null);
   const [version, setVersion] = useState<CallReviewVersion | null>(null);
   const [transcript, setTranscript] = useState("");
   const [recordingUrl, setRecordingUrl] = useState("");
@@ -207,6 +208,7 @@ function CallReviewContent() {
     }
 
     setAnalyzing(true);
+    setAnalyzeProgress("Starting analysis...");
     try {
       const res = await fetch("/api/call-review/analyze", {
         method: "POST",
@@ -220,8 +222,8 @@ function CallReviewContent() {
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
         await showAlert({
           title: "Error",
           message: data.error || "Failed to analyze transcript",
@@ -230,17 +232,44 @@ function CallReviewContent() {
         return;
       }
 
-      const data = await res.json();
-      setVersion(data.version);
-      setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
-      setTranscript("");
-      // Add to recent reviews list
-      setRecentReviews((prev) => [
-        { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
-        ...prev,
-      ]);
-      // Update URL with version ID for sharing/bookmarking
-      window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
+      // Stream SSE response
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "progress") {
+                setAnalyzeProgress(data.message);
+              } else if (currentEvent === "complete") {
+                setVersion(data.version);
+                setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
+                setTranscript("");
+                setRecentReviews((prev) => [
+                  { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
+                  ...prev,
+                ]);
+                window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
+              } else if (currentEvent === "error") {
+                await showAlert({ title: "Error", message: data.message || "Analysis failed", variant: "danger" });
+              }
+            } catch { /* ignore */ }
+            currentEvent = "";
+          }
+        }
+      }
     } catch (error) {
       console.error("Error analyzing:", error);
       await showAlert({
@@ -250,6 +279,7 @@ function CallReviewContent() {
       });
     } finally {
       setAnalyzing(false);
+      setAnalyzeProgress(null);
     }
   };
 
@@ -475,7 +505,7 @@ function CallReviewContent() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-                        Analyzing Call...
+                        {analyzeProgress || "Analyzing Call..."}
                       </>
                     ) : (
                       <>
