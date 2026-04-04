@@ -1159,9 +1159,10 @@ async function processMessage(
   if (files && files.length > 0) {
     console.log(`[Slack] Processing ${files.length} file attachments`);
 
-    // Count images and PDFs for the processing message
+    // Count files by type for the processing message
     const imageCount = files.filter(f => SUPPORTED_IMAGE_TYPES.includes(f.mimetype)).length;
     const pdfCount = files.filter(f => isPDFMimeType(f.mimetype)).length;
+    const textCount = files.filter(f => isTextFile(f.name, f.mimetype)).length;
 
     // Build processing message
     const processingParts: string[] = [];
@@ -1170,6 +1171,9 @@ async function processMessage(
     }
     if (pdfCount > 0) {
       processingParts.push(`${pdfCount} PDF${pdfCount > 1 ? "s" : ""}`);
+    }
+    if (textCount > 0) {
+      processingParts.push(`${textCount} file${textCount > 1 ? "s" : ""}`);
     }
 
     if (processingParts.length > 0) {
