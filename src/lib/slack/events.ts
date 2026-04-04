@@ -47,10 +47,11 @@ const SUPPORTED_IMAGE_TYPES = [
 // Supported PDF mime type
 const PDF_MIME_TYPE = "application/pdf";
 
-// Text/markdown file detection
+// Text/markdown file detection (by extension or MIME type)
 const isTextFile = (name: string, mimetype: string) =>
   name.endsWith(".md") || name.endsWith(".markdown") || name.endsWith(".txt") ||
-  mimetype === "text/markdown" || mimetype === "text/plain";
+  name.endsWith(".csv") || name.endsWith(".json") || name.endsWith(".yaml") || name.endsWith(".yml") ||
+  mimetype === "text/markdown";
 
 /**
  * Download a file from Slack using the bot token
@@ -662,7 +663,7 @@ async function handleMention(
           if (msg.files && msg.files.length > 0) {
             // Filter to supported image types and PDFs, add to collection
             const supportedFiles = msg.files.filter(f =>
-              SUPPORTED_IMAGE_TYPES.includes(f.mimetype) || isPDFMimeType(f.mimetype)
+              SUPPORTED_IMAGE_TYPES.includes(f.mimetype) || isPDFMimeType(f.mimetype) || isTextFile(f.name, f.mimetype)
             );
             priorThreadFiles.push(...supportedFiles);
           }
