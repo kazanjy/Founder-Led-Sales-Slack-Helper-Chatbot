@@ -1035,6 +1035,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    if (e.key === "Tab") {
+                      e.preventDefault();
+                      // Save current value
+                      const val = parseFloat(metricInputValue) || 0;
+                      setMetricEntries((prev) =>
+                        prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
+                      );
+                      updateMetricValue(entry.id, entry.metricDefinition.id, val);
+                      // Find next metric in the list
+                      const currentIdx = metricEntries.findIndex((me) => me.id === entry.id);
+                      const nextIdx = e.shiftKey ? currentIdx - 1 : currentIdx + 1;
+                      if (nextIdx >= 0 && nextIdx < metricEntries.length) {
+                        const nextEntry = metricEntries[nextIdx];
+                        setMetricInputValue(nextEntry.currentValue ? String(nextEntry.currentValue) : "");
+                        setFocusedMetric(nextEntry.id);
+                      } else {
+                        setFocusedMetric(null);
+                      }
+                    }
                   }}
                   autoFocus
                   className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
