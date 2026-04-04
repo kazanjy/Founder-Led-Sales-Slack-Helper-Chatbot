@@ -365,24 +365,32 @@ function SalesReadinessContent() {
                             const notesValue = noteValues[item.id] ?? item.notes ?? "";
                             return (
                               <div key={item.id} id={`readiness-${item.id}`} className="px-5 py-3 border-t border-gray-100 first:border-t-0 group">
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  {/* Status dropdown — left */}
+                                  <select
+                                    value={item.status}
+                                    onChange={(e) => updateItemStatus(item.id, e.target.value)}
+                                    className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer flex-shrink-0 mt-0.5 ${statusOpt.color}`}
+                                  >
+                                    {STATUS_OPTIONS.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+                                    ))}
+                                  </select>
+
+                                  {/* Title + notes — center */}
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                        {item.title}
-                                      </span>
-                                    </div>
+                                    <span className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                      {item.title}
+                                    </span>
                                     {item.description && (
                                       <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>
                                     )}
-                                    {/* Status attribution */}
                                     {item.status !== "to_do" && item.statusChangedAt && (
                                       <p className="text-[11px] text-gray-400 mt-1">
                                         {statusOpt.label} {formatDate(item.statusChangedAt)}
                                         {item.statusChangedByName && ` by ${item.statusChangedByName}`}
                                       </p>
                                     )}
-                                    {/* Notes */}
                                     {editingNotes === item.id ? (
                                       <textarea
                                         value={notesValue}
@@ -408,12 +416,15 @@ function SalesReadinessContent() {
                                         + Add notes
                                       </button>
                                     )}
-                                    {/* Evidence URL */}
+                                  </div>
+
+                                  {/* Evidence / Asset — right column */}
+                                  <div className="flex-shrink-0 w-48">
                                     {item.evidenceUrl ? (
-                                      <div className="mt-1.5 flex items-center gap-1.5">
+                                      <div className="flex items-center gap-1.5">
                                         <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                        <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate max-w-xs">{item.evidenceUrl}</a>
-                                        <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0">✕</button>
+                                        <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate">{item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</a>
+                                        <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                                       </div>
                                     ) : (
                                       <button
@@ -421,22 +432,12 @@ function SalesReadinessContent() {
                                           const url = prompt("Paste a link to the evidence / asset:");
                                           if (url?.trim()) updateItemEvidenceUrl(item.id, url.trim());
                                         }}
-                                        className="mt-1 text-xs text-blue-500 hover:text-blue-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="text-xs text-blue-500 hover:text-blue-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
-                                        🔗 Add evidence / asset link
+                                        🔗 Add link
                                       </button>
                                     )}
                                   </div>
-                                  {/* Status dropdown */}
-                                  <select
-                                    value={item.status}
-                                    onChange={(e) => updateItemStatus(item.id, e.target.value)}
-                                    className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer flex-shrink-0 ${statusOpt.color}`}
-                                  >
-                                    {STATUS_OPTIONS.map((opt) => (
-                                      <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
-                                    ))}
-                                  </select>
                                 </div>
                               </div>
                             );
