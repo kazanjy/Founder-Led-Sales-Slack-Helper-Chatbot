@@ -2902,7 +2902,7 @@ export default function ChatPage() {
                         Rename
                       </button>
                       {/* Move to Project */}
-                      <div className="relative">
+                      <div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2914,12 +2914,12 @@ export default function ChatPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                           </svg>
                           {conv.projectId ? "Move to Project" : "Add to Project"}
-                          <svg className="w-3 h-3 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className={`w-3 h-3 ml-auto transition-transform ${moveToProjectMenu === conv.id ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
                         {moveToProjectMenu === conv.id && (
-                          <div className="fixed w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60] max-h-60 overflow-y-auto" style={{ left: (menuRef.current?.getBoundingClientRect().right ?? 0) + 4, top: menuRef.current?.getBoundingClientRect().top ?? 0 }}>
+                          <div className="py-1 border-t border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 max-h-48 overflow-y-auto">
                             {conv.projectId && (
                               <button
                                 onClick={async (e) => {
