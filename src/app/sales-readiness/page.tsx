@@ -122,6 +122,14 @@ function SalesReadinessContent() {
   const noteSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const [whatNextLoading, setWhatNextLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncHistory, setSyncHistory] = useState<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedSyncDetail, setSelectedSyncDetail] = useState<any>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmation, setResetConfirmation] = useState("");
+  const [resetting, setResetting] = useState(false);
   const [showSyncOverlay, setShowSyncOverlay] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [syncData, setSyncData] = useState<any>(null);
@@ -482,6 +490,24 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       });
     }
 
+    // Save sync history
+    await fetch("/api/sales-readiness/sync-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: syncSource,
+        sourceContent: syncData.sourceContent || "",
+        analysisResult: {
+          proposedChanges: syncData.proposedChanges,
+          recommendedStage: syncData.recommendedStage,
+        },
+        acceptedItemIds: selectedItemIds,
+        stageAccepted: acceptStage && !!syncData.recommendedStage,
+        totalProposed: syncData.proposedChanges.length,
+        totalAccepted: selectedItemIds.length,
+      }),
+    }).catch(() => {}); // Non-critical
+
     setShowSyncOverlay(false);
     setSyncData(null);
 
@@ -497,6 +523,58 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       }
     } catch { /* ignore */ }
     setLoading(false);
+  };
+
+  const openSyncHistory = async () => {
+    try {
+      const res = await fetch("/api/sales-readiness/sync-history");
+      if (res.ok) {
+        const data = await res.json();
+        setSyncHistory(data.history || []);
+      }
+    } catch { /* ignore */ }
+    setSelectedSyncDetail(null);
+    setShowSyncHistory(true);
+  };
+
+  const viewSyncDetail = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sales-readiness/sync-history/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedSyncDetail(data);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleReset = async () => {
+    if (resetConfirmation !== "RESET") return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/sales-readiness/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "RESET" }),
+      });
+      if (res.ok) {
+        setShowResetModal(false);
+        setResetConfirmation("");
+        // Reload
+        setLoading(true);
+        const dataRes = await fetch("/api/sales-readiness");
+        if (dataRes.ok) {
+          const data = await dataRes.json();
+          setStages(data.stages || []);
+          setOverall(data.overall || null);
+          setCurrentMaturityStage(data.currentMaturityStage || null);
+        }
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error resetting:", error);
+    } finally {
+      setResetting(false);
+    }
   };
 
   const handleWhatNext = async () => {
@@ -640,7 +718,31 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
             <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Sync History */}
+            <button
+              onClick={openSyncHistory}
+              className="px-3 py-2.5 text-sm text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Sync History
+            </button>
+
+            {/* Reset */}
+            <button
+              onClick={() => setShowResetModal(true)}
+              className="px-3 py-2.5 text-sm text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Reset
+            </button>
+
+            <div className="h-6 w-px bg-gray-300" />
+
             {/* What Next? button */}
             <button
               onClick={handleWhatNext}
@@ -1110,6 +1212,213 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           recommendedStage={syncData.recommendedStage}
           onApply={handleApplySync}
         />
+      )}
+
+      {/* Sync History Modal */}
+      {showSyncHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col mx-4">
+            <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedSyncDetail ? "Sync Detail" : "Sync History"}
+                </h2>
+                {!selectedSyncDetail && (
+                  <p className="text-sm text-gray-500 mt-0.5">{syncHistory.length} sync{syncHistory.length !== 1 ? "s" : ""} recorded</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedSyncDetail && (
+                  <button
+                    onClick={() => setSelectedSyncDetail(null)}
+                    className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Back
+                  </button>
+                )}
+                <button
+                  onClick={() => { setShowSyncHistory(false); setSelectedSyncDetail(null); }}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {!selectedSyncDetail ? (
+                /* History list */
+                syncHistory.length === 0 ? (
+                  <p className="text-center text-gray-400 py-12">No syncs yet. Use Sync Readiness to get started.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {syncHistory.map((entry: { id: string; source: string; totalProposed: number; totalAccepted: number; stageAccepted: boolean; createdAt: string; userName: string }) => (
+                      <button
+                        key={entry.id}
+                        onClick={() => viewSyncDetail(entry.id)}
+                        className="w-full text-left p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${entry.source === "assessment" ? "bg-green-100" : "bg-blue-100"}`}>
+                              {entry.source === "assessment" ? (
+                                <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {entry.source === "assessment" ? "GTM Assessment" : "Coaching Sessions"} Sync
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} by {entry.userName}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {entry.totalAccepted}/{entry.totalProposed} accepted
+                            </p>
+                            {entry.stageAccepted && (
+                              <p className="text-xs text-purple-600">+ stage updated</p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                /* Detail view */
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedSyncDetail.source === "assessment" ? "bg-green-100" : "bg-blue-100"}`}>
+                      <svg className={`w-4 h-4 ${selectedSyncDetail.source === "assessment" ? "text-green-600" : "text-blue-600"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedSyncDetail.source === "assessment" ? "GTM Assessment" : "Coaching"} Sync — {selectedSyncDetail.totalAccepted}/{selectedSyncDetail.totalProposed} accepted
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(selectedSyncDetail.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} by {selectedSyncDetail.userName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Proposed changes */}
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Proposed Changes</h3>
+                  <div className="space-y-2 mb-6">
+                    {(selectedSyncDetail.analysisResult?.proposedChanges || []).map((change: { itemId: string; itemTitle: string; capabilityCategory: string; proposedStatus: string; currentStatus: string; confidence: string; evidenceText: string; reasoning: string; supportingExcerpts: Array<{ source: string; text: string }> }, i: number) => {
+                      const accepted = (selectedSyncDetail.acceptedItemIds || []).includes(change.itemId);
+                      return (
+                        <div key={i} className={`border rounded-lg p-3 ${accepted ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-gray-50/30"}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              {accepted ? (
+                                <span className="text-green-600 text-xs font-medium px-2 py-0.5 bg-green-100 rounded-full">Accepted</span>
+                              ) : (
+                                <span className="text-gray-400 text-xs font-medium px-2 py-0.5 bg-gray-100 rounded-full">Skipped</span>
+                              )}
+                              <span className="text-sm font-medium text-gray-900">{change.itemTitle}</span>
+                              <span className="text-xs text-gray-400">{change.capabilityCategory}</span>
+                            </div>
+                            <span className="text-xs text-gray-500">{change.currentStatus} → {change.proposedStatus}</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">{change.evidenceText}</p>
+                          {change.supportingExcerpts?.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {change.supportingExcerpts.map((ex: { source: string; text: string }, j: number) => (
+                                <div key={j} className="bg-white rounded p-2 text-xs">
+                                  <span className="text-gray-400 font-medium">{ex.source}:</span>{" "}
+                                  <span className="text-gray-600">{ex.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Source content (collapsible) */}
+                  {selectedSyncDetail.sourceContent && (
+                    <details className="mb-4">
+                      <summary className="text-sm font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 mb-2">
+                        Source Material
+                      </summary>
+                      <pre className="text-xs text-gray-600 bg-gray-50 rounded-lg p-4 overflow-auto max-h-60 whitespace-pre-wrap border border-gray-200">
+                        {selectedSyncDetail.sourceContent}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Reset GTM Readiness</h3>
+                <p className="text-sm text-gray-500">This cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-4">
+              This will reset all readiness item statuses, notes, and evidence back to &quot;To Do&quot;.
+              Template items and sync history will be preserved.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type <span className="font-mono text-red-600 bg-red-50 px-1.5 py-0.5 rounded">RESET</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={resetConfirmation}
+                onChange={(e) => setResetConfirmation(e.target.value)}
+                placeholder="RESET"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setShowResetModal(false); setResetConfirmation(""); }}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={resetConfirmation !== "RESET" || resetting}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {resetting ? "Resetting..." : "Reset Everything"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

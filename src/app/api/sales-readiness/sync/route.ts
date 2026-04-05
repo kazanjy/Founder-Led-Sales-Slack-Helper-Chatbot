@@ -164,6 +164,7 @@ ${eligibleItems.map((i) => `- ID: ${i.id} | Stage: ${i.maturityStage} | Category
       proposedChanges: enrichedChanges,
       recommendedStage: result.recommendedStage || null,
       totalItemsAnalyzed: eligibleItems.length,
+      sourceContent: sourceText,
     });
   } catch (error) {
     console.error("Error in readiness sync:", error);

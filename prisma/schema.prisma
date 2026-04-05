@@ -1446,6 +1446,36 @@ model SalesReadinessAccountItem {
   @@map("sales_readiness_account_items")
 }
 
+// History of readiness sync operations
+model SalesReadinessSyncHistory {
+  id String @id @default(cuid())
+
+  accountId String
+  userId    String // who triggered the sync
+  source    String // "assessment" | "coaching"
+
+  // Snapshot of source material used for analysis
+  sourceContent String @db.Text
+
+  // Full AI analysis result (JSON: proposedChanges, recommendedStage)
+  analysisResult String @db.Text
+
+  // Which item IDs the user accepted
+  acceptedItemIds String @db.Text // JSON array of item IDs
+
+  // Whether the recommended stage was accepted
+  stageAccepted Boolean @default(false)
+
+  // Stats for quick display
+  totalProposed Int @default(0)
+  totalAccepted Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
+  @@map("sales_readiness_sync_history")
+}
+
 // ============================================
 // AD CREATOR APP
 // ============================================

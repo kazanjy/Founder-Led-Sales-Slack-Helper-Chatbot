@@ -474,6 +474,24 @@ function BulkAssessmentContent() {
       });
     }
 
+    // Save sync history
+    await fetch("/api/sales-readiness/sync-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "assessment",
+        sourceContent: syncData.sourceContent || "",
+        analysisResult: {
+          proposedChanges: syncData.proposedChanges,
+          recommendedStage: syncData.recommendedStage,
+        },
+        acceptedItemIds: selectedItemIds,
+        stageAccepted: acceptStage && !!syncData.recommendedStage,
+        totalProposed: syncData.proposedChanges.length,
+        totalAccepted: selectedItemIds.length,
+      }),
+    }).catch(() => {});
+
     setShowSyncOverlay(false);
     setSyncData(null);
   };
