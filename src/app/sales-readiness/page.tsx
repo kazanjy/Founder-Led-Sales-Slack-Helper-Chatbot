@@ -386,7 +386,7 @@ Please explain:
             <p className="text-gray-500">Ask your admin to seed the Sales Readiness checklist items.</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {stages.map((stage) => {
               const isExpanded = expandedStages.has(stage.key);
               const isCurrent = stage.key === currentMaturityStage;
@@ -404,31 +404,23 @@ Please explain:
                   {/* Stage header */}
                   <button
                     onClick={() => toggleStage(stage.key)}
-                    className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                    className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50/50 transition-colors gap-3"
                   >
-                    <div className="flex items-center gap-3">
-                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-900">{stage.label}</span>
-                          {isCurrent && (
-                            <span className="text-[10px] font-medium bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Current Stage</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-0.5">{stage.question}</p>
-                      </div>
+                      <span className="font-semibold text-gray-900">{stage.label}</span>
+                      {isCurrent && (
+                        <span className="text-[10px] font-medium bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Current</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-sm font-medium ${stage.doneCount === stage.totalCount && stage.totalCount > 0 ? "text-green-600" : "text-gray-500"}`}>
+                      <span className={`text-sm font-semibold ${stage.doneCount === stage.totalCount && stage.totalCount > 0 ? "text-green-600" : "text-gray-400"}`}>
                         {stage.doneCount}/{stage.totalCount}
                       </span>
                       <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className="bg-green-500 h-1.5 rounded-full transition-all"
-                          style={{ width: `${stage.totalCount > 0 ? (stage.doneCount / stage.totalCount) * 100 : 0}%` }}
-                        />
+                        <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${stage.totalCount > 0 ? (stage.doneCount / stage.totalCount) * 100 : 0}%` }} />
                       </div>
                     </div>
                   </button>
@@ -440,30 +432,36 @@ Please explain:
                         const catKey = `${stage.key}::${cat.name}`;
                         const isCatCollapsed = collapsedCategories.has(catKey);
                         return (
-                        <div key={cat.name} className="border-b border-gray-50 last:border-b-0">
-                          {/* Category header — clickable to collapse */}
+                        <div key={cat.name}>
+                          {/* Category header */}
                           <button
                             onClick={() => toggleCategory(stage.key, cat.name)}
-                            className="w-full px-5 py-2.5 bg-gray-50/50 flex items-center gap-3 hover:bg-gray-100/50 transition-colors text-left"
+                            className="w-full px-4 py-2 bg-gray-50 border-y border-gray-100 flex items-center gap-2 hover:bg-gray-100/70 transition-colors text-left"
                           >
-                            <div className="w-24 flex-shrink-0 flex items-center">
-                              <svg className={`w-3 h-3 text-gray-400 transition-transform ${isCatCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </div>
-                            <span className="flex-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
-                            {!isCatCollapsed && <span className="w-32 flex-shrink-0 text-xs text-gray-400 font-medium">MikeyBot</span>}
-                            {!isCatCollapsed && <span className="w-48 flex-shrink-0 text-xs text-gray-400 font-medium">Evidence / Asset</span>}
-                            <span className="text-xs text-gray-400">{cat.doneCount}/{cat.totalCount}</span>
+                            <svg className={`w-2.5 h-2.5 text-gray-400 transition-transform ${isCatCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span className="flex-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
+                            <span className={`text-[11px] font-medium ${cat.doneCount === cat.totalCount && cat.totalCount > 0 ? "text-green-600" : "text-gray-400"}`}>{cat.doneCount}/{cat.totalCount}</span>
                           </button>
+
+                          {/* Column headers */}
+                          {!isCatCollapsed && (
+                            <div className="px-4 py-1 flex items-center gap-2 border-b border-gray-50">
+                              <div className="w-20 flex-shrink-0" />
+                              <div className="flex-1" />
+                              <span className="w-28 flex-shrink-0 text-[10px] text-gray-400 font-medium uppercase hidden lg:block">MikeyBot</span>
+                              <span className="w-36 flex-shrink-0 text-[10px] text-gray-400 font-medium uppercase hidden md:block">Evidence</span>
+                            </div>
+                          )}
 
                           {/* Items — collapsible */}
                           {!isCatCollapsed && cat.items.map((item) => {
                             const statusOpt = getStatusOption(item.status);
                             const notesValue = noteValues[item.id] ?? item.notes ?? "";
                             return (
-                              <div key={item.id} id={`readiness-${item.id}`} className="px-5 py-3 border-t border-gray-100 first:border-t-0 group">
-                                <div className="flex items-start gap-3">
+                              <div key={item.id} id={`readiness-${item.id}`} className="px-4 py-2 border-b border-gray-50 last:border-b-0 group hover:bg-gray-50/30 transition-colors">
+                                <div className="flex items-center gap-2">
                                   {/* Status dropdown — left */}
                                   <select
                                     value={item.status}
@@ -527,7 +525,7 @@ Please explain:
                                   </div>
 
                                   {/* MikeyBot links column */}
-                                  <div className="flex-shrink-0 w-32">
+                                  <div className="flex-shrink-0 w-28 hidden lg:block">
                                     {item.mikeyLinks && item.mikeyLinks.length > 0 && (
                                       <div className="flex flex-col gap-0.5">
                                         {item.mikeyLinks.map((link, i) => (
@@ -546,7 +544,7 @@ Please explain:
                                   </div>
 
                                   {/* Evidence / Asset — right column */}
-                                  <div className="flex-shrink-0 w-48">
+                                  <div className="flex-shrink-0 w-36 hidden md:block">
                                     {editingEvidence === item.id ? (
                                       <input
                                         type="text"
