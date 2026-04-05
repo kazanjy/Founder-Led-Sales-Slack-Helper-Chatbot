@@ -10,6 +10,7 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
+import SyncReviewOverlay from "@/components/SyncReviewOverlay";
 
 interface CoachingSession {
   id: string;
@@ -219,6 +220,10 @@ function CoachingHistoryContent() {
   const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncData, setSyncData] = useState<any>(null);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Sync selectedId with URL query param
@@ -429,6 +434,60 @@ function CoachingHistoryContent() {
     });
   };
 
+  const handleSyncCoachingToReadiness = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await fetch("/api/sales-readiness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "coaching" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncData(data);
+        setShowSyncOverlay(true);
+      } else {
+        console.error("Sync failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Error syncing:", error);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean) => {
+    if (!syncData) return;
+
+    const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
+      selectedItemIds.includes(c.itemId)
+    );
+
+    await Promise.all(
+      changes.map((change: { itemId: string; proposedStatus: string; evidenceText: string }) =>
+        fetch(`/api/sales-readiness/${change.itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: change.proposedStatus,
+            evidenceUrl: change.evidenceText,
+          }),
+        })
+      )
+    );
+
+    if (acceptStage && syncData.recommendedStage) {
+      await fetch("/api/coaching/maturity-stage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStage: syncData.recommendedStage.stage }),
+      });
+    }
+
+    setShowSyncOverlay(false);
+    setSyncData(null);
+  };
+
   const toggleCheckAll = () => {
     if (checkedIds.size === sessions.length) {
       setCheckedIds(new Set());
@@ -451,6 +510,25 @@ function CoachingHistoryContent() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {sessions.length > 0 && (
+              <button
+                onClick={handleSyncCoachingToReadiness}
+                disabled={syncLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+              >
+                {syncLoading ? (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+                Sync to GTM Readiness
+              </button>
+            )}
             {sessions.length > 0 && (
               <ChatAboutButton
                 title="Coaching History — All Sessions"
@@ -930,6 +1008,18 @@ function CoachingHistoryContent() {
         )}
       </div>
       {ConfirmModalElement}
+
+      {/* Sync Review Overlay */}
+      {syncData && (
+        <SyncReviewOverlay
+          isOpen={showSyncOverlay}
+          onClose={() => { setShowSyncOverlay(false); setSyncData(null); }}
+          source="coaching"
+          proposedChanges={syncData.proposedChanges}
+          recommendedStage={syncData.recommendedStage}
+          onApply={handleApplySync}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import ChatWithAssessmentModal from "@/components/ChatWithAssessmentModal";
+import SyncReviewOverlay from "@/components/SyncReviewOverlay";
 
 interface Question {
   id: string;
@@ -83,6 +84,9 @@ function BulkAssessmentContent() {
   } | null>(null);
   const [showChatModal, setShowChatModal] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
+  const [syncData, setSyncData] = useState<{ proposedChanges: never[]; recommendedStage: null } | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -418,6 +422,62 @@ function BulkAssessmentContent() {
     }
   };
 
+  const handleSyncToReadiness = async () => {
+    setSyncLoading(true);
+    try {
+      const res = await fetch("/api/sales-readiness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "assessment" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncData(data);
+        setShowSyncOverlay(true);
+      } else {
+        console.error("Sync failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Error syncing:", error);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean) => {
+    if (!syncData) return;
+
+    // Apply selected item changes
+    const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
+      selectedItemIds.includes(c.itemId)
+    );
+
+    await Promise.all(
+      changes.map((change: { itemId: string; proposedStatus: string; evidenceText: string }) =>
+        fetch(`/api/sales-readiness/${change.itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: change.proposedStatus,
+            evidenceUrl: change.evidenceText,
+          }),
+        })
+      )
+    );
+
+    // Apply stage if accepted
+    if (acceptStage && syncData.recommendedStage) {
+      await fetch("/api/coaching/maturity-stage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStage: (syncData.recommendedStage as { stage: string }).stage }),
+      });
+    }
+
+    setShowSyncOverlay(false);
+    setSyncData(null);
+  };
+
   // Calculate progress
   // In update mode, count both new answers AND prior answers (that will be kept)
   const getEffectiveAnswerCount = () => {
@@ -579,6 +639,27 @@ function BulkAssessmentContent() {
                   </svg>
                   History
                 </Link>
+              )}
+
+              {/* Sync to Readiness Progression */}
+              {latestAssessment && (
+                <button
+                  onClick={handleSyncToReadiness}
+                  disabled={syncLoading}
+                  className="px-3 py-2 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium disabled:opacity-50"
+                >
+                  {syncLoading ? (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  Sync to Readiness
+                </button>
               )}
 
               {/* Divider when there are nav CTAs */}
@@ -872,6 +953,18 @@ function BulkAssessmentContent() {
         onSubmit={handleChatWithAssessment}
         isLoading={startingChat}
       />
+
+      {/* Sync Review Overlay */}
+      {syncData && (
+        <SyncReviewOverlay
+          isOpen={showSyncOverlay}
+          onClose={() => { setShowSyncOverlay(false); setSyncData(null); }}
+          source="assessment"
+          proposedChanges={syncData.proposedChanges}
+          recommendedStage={syncData.recommendedStage}
+          onApply={handleApplySync}
+        />
+      )}
     </div>
   );
 }

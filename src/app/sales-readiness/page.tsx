@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import SyncReviewOverlay from "@/components/SyncReviewOverlay";
 
 interface ReadinessItem {
   id: string;
@@ -119,6 +120,17 @@ function SalesReadinessContent() {
   const searchRef = useRef<HTMLDivElement>(null);
   const [noteValues, setNoteValues] = useState<Record<string, string>>({});
   const noteSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncData, setSyncData] = useState<any>(null);
+  const [syncSource, setSyncSource] = useState<"assessment" | "coaching">("assessment");
+  const [showSyncPicker, setShowSyncPicker] = useState(false);
+  const [syncSources, setSyncSources] = useState<{
+    assessment: { available: boolean; date?: string; title?: string };
+    coaching: { available: boolean; date?: string; title?: string; sessionCount?: number };
+  } | null>(null);
+  const syncPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = "GTM Readiness Progression - Mikey";
@@ -409,6 +421,103 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
     }
   }, [searchFocused]);
 
+  // ── Sync functions ──────────────────────────────────────
+  const openSyncPicker = async () => {
+    // Fetch available sources with dates
+    try {
+      const res = await fetch("/api/sales-readiness/sync-sources");
+      if (res.ok) {
+        const data = await res.json();
+        setSyncSources(data);
+      }
+    } catch {
+      // Silently fail — picker will show with no sources
+    }
+    setShowSyncPicker(true);
+  };
+
+  const handleSyncFromSource = async (source: "assessment" | "coaching") => {
+    setShowSyncPicker(false);
+    setSyncSource(source);
+    setSyncLoading(true);
+    try {
+      const res = await fetch("/api/sales-readiness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncData(data);
+        setShowSyncOverlay(true);
+      } else {
+        console.error("Sync failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Error syncing:", error);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean) => {
+    if (!syncData) return;
+
+    const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
+      selectedItemIds.includes(c.itemId)
+    );
+
+    await Promise.all(
+      changes.map((change: { itemId: string; proposedStatus: string; evidenceText: string }) =>
+        fetch(`/api/sales-readiness/${change.itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: change.proposedStatus,
+            evidenceUrl: change.evidenceText,
+          }),
+        })
+      )
+    );
+
+    if (acceptStage && syncData.recommendedStage) {
+      await fetch("/api/coaching/maturity-stage", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStage: syncData.recommendedStage.stage }),
+      });
+    }
+
+    setShowSyncOverlay(false);
+    setSyncData(null);
+
+    // Reload the page data
+    setLoading(true);
+    try {
+      const res = await fetch("/api/sales-readiness");
+      if (res.ok) {
+        const data = await res.json();
+        setStages(data.stages);
+        setOverall(data.overall);
+        setCurrentMaturityStage(data.currentMaturityStage || null);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  // Close sync picker on outside click
+  useEffect(() => {
+    if (showSyncPicker) {
+      const handleClick = (e: MouseEvent) => {
+        if (syncPickerRef.current && !syncPickerRef.current.contains(e.target as Node)) {
+          setShowSyncPicker(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [showSyncPicker]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -430,9 +539,87 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       <SalesNavBar />
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
-          <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
+            <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
+          </div>
+          <div className="relative" ref={syncPickerRef}>
+            <button
+              onClick={openSyncPicker}
+              disabled={syncLoading}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50 border border-purple-200"
+            >
+              {syncLoading ? (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {syncLoading ? "Analyzing..." : "Sync Readiness"}
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showSyncPicker && syncSources && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-2">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sync from...</p>
+                </div>
+
+                {/* Assessment source */}
+                <button
+                  onClick={() => handleSyncFromSource("assessment")}
+                  disabled={!syncSources.assessment.available}
+                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-purple-50 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-4.5 h-4.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">GTM Maturity Assessment</p>
+                    {syncSources.assessment.available ? (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Completed {new Date(syncSources.assessment.date!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-0.5">No completed assessment yet</p>
+                    )}
+                  </div>
+                </button>
+
+                {/* Coaching source */}
+                <button
+                  onClick={() => handleSyncFromSource("coaching")}
+                  disabled={!syncSources.coaching.available}
+                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-purple-50 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="w-4.5 h-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Coaching Sessions</p>
+                    {syncSources.coaching.available ? (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {syncSources.coaching.sessionCount} session{syncSources.coaching.sessionCount !== 1 ? "s" : ""} — latest {new Date(syncSources.coaching.date!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-0.5">No coaching sessions yet</p>
+                    )}
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Maturity Stage Selector */}
@@ -788,6 +975,18 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           </div>
         )}
       </div>
+
+      {/* Sync Review Overlay */}
+      {syncData && (
+        <SyncReviewOverlay
+          isOpen={showSyncOverlay}
+          onClose={() => { setShowSyncOverlay(false); setSyncData(null); }}
+          source={syncSource}
+          proposedChanges={syncData.proposedChanges}
+          recommendedStage={syncData.recommendedStage}
+          onApply={handleApplySync}
+        />
+      )}
     </div>
   );
 }
