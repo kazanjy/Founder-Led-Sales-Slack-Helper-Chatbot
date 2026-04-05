@@ -605,13 +605,13 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                             const statusOpt = getStatusOption(item.status);
                             const notesValue = noteValues[item.id] ?? item.notes ?? "";
                             return (
-                              <div key={item.id} id={`readiness-${item.id}`} className="px-4 py-2 border-b border-gray-50 last:border-b-0 group hover:bg-gray-50/30 transition-colors">
-                                <div className="flex items-center gap-2">
+                              <div key={item.id} id={`readiness-${item.id}`} className="px-4 py-2.5 border-b border-gray-50 last:border-b-0 group hover:bg-gray-50/30 transition-colors">
+                                <div className="flex items-center gap-3">
                                   {/* Status dropdown — left */}
                                   <select
                                     value={item.status}
                                     onChange={(e) => updateItemStatus(item.id, e.target.value)}
-                                    className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer flex-shrink-0 mt-0.5 ${statusOpt.color}`}
+                                    className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer flex-shrink-0 ${statusOpt.color}`}
                                   >
                                     {STATUS_OPTIONS.map((opt) => (
                                       <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
