@@ -76,13 +76,13 @@ export const SALES_READINESS_SEED: SeedItem[] = [
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Inbound Demand Generation", title: "Search Engine Marketing", order: 1 },
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Inbound Demand Generation", title: "Paid Ads", order: 2, mikeyLinks: [{ label: "Ad Creator", href: "/ad-creator" }] },
 
-  // ── User Table Inbound ─────────────────────────────────────
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Signup Internal Alerting", order: 0 },
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Automatic Email", order: 1 },
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Backlog Enrich & Triage", order: 2 },
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Backlog Outbound", order: 3 },
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Signup Auto-Email With Content", order: 4 },
-  { maturityStage: "FIRST_REVENUE", capabilityCategory: "User Table Inbound", title: "User Table Outbound Multi-thread", order: 5 },
+  // ── PLG Inbound ─────────────────────────────────────
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Signup Internal Alerting", order: 0 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Automatic Email", order: 1 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Backlog Enrich & Triage", order: 2 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Backlog Outbound", order: 3 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Signup Auto-Email With Content", order: 4 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "PLG Inbound", title: "User Table Outbound Multi-thread", order: 5 },
 
   // ── Sales First Call ───────────────────────────────────────
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Sales First Call", title: "Are you properly blocking calendar for prep and follow-up?", order: 0 },
