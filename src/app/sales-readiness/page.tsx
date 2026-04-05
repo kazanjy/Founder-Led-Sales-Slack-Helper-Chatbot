@@ -295,7 +295,7 @@ Please explain:
       });
       const data = await res.json();
       if (data.conversationId) {
-        window.open(`/chat/${data.conversationId}`, "_blank");
+        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
       }
     } catch (error) {
       console.error("Failed to create chat:", error);

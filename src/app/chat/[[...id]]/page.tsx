@@ -1424,6 +1424,24 @@ export default function ChatPage() {
     }
   }, [loading, user]);
 
+  // Handle autoSend query param — auto-trigger Mikey's response for the pending user message
+  const autoSendTriggered = useRef(false);
+  useEffect(() => {
+    if (loading || !user || autoSendTriggered.current) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("autoSend") !== "true") return;
+    // Wait for messages to load
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === "USER" && lastMsg.content) {
+      autoSendTriggered.current = true;
+      // Remove query param
+      window.history.replaceState({}, "", window.location.pathname);
+      // Trigger send with the existing user message content
+      sendMessage(lastMsg.content);
+    }
+  }, [loading, user, messages]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Show "Get Started" modal for users who haven't created a sales narrative yet
   useEffect(() => {
     if (loading || !user) return;
