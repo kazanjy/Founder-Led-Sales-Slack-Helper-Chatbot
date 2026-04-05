@@ -21,6 +21,33 @@ const STAGE_LABELS: Record<string, { short: string; question: string }> = {
   SCALING_SALES: { short: "📈 Scaling Sales", question: "Can we get many people other than the founder to sell?" },
 };
 
+// Category display order within each stage
+const CATEGORY_ORDER: Record<string, number> = {
+  // Problem Validation
+  "Customer Research Call": 0,
+  "Customer Research Pipegen": 1,
+  "MVP Tech Stack": 2,
+  // Value Validation
+  "Market Opportunity Hypothesis": 0,
+  "Proof of Utility": 1,
+  // First Revenue
+  "Demand Generation Hypothesis": 0,
+  "MVP Inbound": 1,
+  "Inbound Process": 2,
+  "Inbound Demand Generation": 3,
+  "MVP Outbound": 4,
+  "Sales First Call": 5,
+  "MVP Customer Success": 6,
+  "Beginning Tech Stack": 7,
+  "PLG Inbound": 8,
+  // Repeatable Revenue
+  "Intermediate Tech Stack": 0,
+  "Pipeline Management": 1,
+  "Intermediate Customer Success": 2,
+  "Sales Playbook Documentation": 3,
+  "Referral Prospecting": 4,
+};
+
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -113,7 +140,9 @@ export async function GET() {
     const stages = [...stageMap.entries()]
       .sort((a, b) => (STAGE_ORDER[a[0]] ?? 99) - (STAGE_ORDER[b[0]] ?? 99))
       .map(([stageKey, catMap]) => {
-        const categories = [...catMap.entries()].map(([catName, catItems]) => ({
+        const categories = [...catMap.entries()]
+          .sort((a, b) => (CATEGORY_ORDER[a[0]] ?? 99) - (CATEGORY_ORDER[b[0]] ?? 99))
+          .map(([catName, catItems]) => ({
           name: catName,
           items: catItems.sort((a, b) => a.order - b.order),
           doneCount: catItems.filter((i) => i.status === "done").length,
