@@ -166,6 +166,11 @@ function SalesReadinessContent() {
         }
       } catch (error) {
         console.error("Error loading readiness data:", error);
+        // Fetch sync sources in parallel (non-blocking)
+        fetch("/api/sales-readiness/sync-sources")
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => { if (data) setSyncSources(data); })
+          .catch(() => {});
       } finally {
         setLoading(false);
       }
@@ -422,19 +427,6 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
   }, [searchFocused]);
 
   // ── Sync functions ──────────────────────────────────────
-  const openSyncPicker = async () => {
-    // Fetch available sources with dates
-    try {
-      const res = await fetch("/api/sales-readiness/sync-sources");
-      if (res.ok) {
-        const data = await res.json();
-        setSyncSources(data);
-      }
-    } catch {
-      // Silently fail — picker will show with no sources
-    }
-    setShowSyncPicker(true);
-  };
 
   const handleSyncFromSource = async (source: "assessment" | "coaching") => {
     setShowSyncPicker(false);
@@ -505,19 +497,6 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
     setLoading(false);
   };
 
-  // Close sync picker on outside click
-  useEffect(() => {
-    if (showSyncPicker) {
-      const handleClick = (e: MouseEvent) => {
-        if (syncPickerRef.current && !syncPickerRef.current.contains(e.target as Node)) {
-          setShowSyncPicker(false);
-        }
-      };
-      document.addEventListener("mousedown", handleClick);
-      return () => document.removeEventListener("mousedown", handleClick);
-    }
-  }, [showSyncPicker]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -544,9 +523,13 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
             <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
           </div>
-          <div className="relative" ref={syncPickerRef}>
+          <div
+            className="relative"
+            ref={syncPickerRef}
+            onMouseEnter={() => !syncLoading && setShowSyncPicker(true)}
+            onMouseLeave={() => setShowSyncPicker(false)}
+          >
             <button
-              onClick={openSyncPicker}
               disabled={syncLoading}
               className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50 border border-purple-200"
             >
