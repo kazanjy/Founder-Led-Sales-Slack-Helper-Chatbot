@@ -164,6 +164,7 @@ export async function GET() {
     const allItems = stages.flatMap((s) => s.categories.flatMap((c) => c.items));
     const overall = {
       done: allItems.filter((i) => i.status === "done").length,
+      inProgress: allItems.filter((i) => i.status === "in_progress").length,
       upNext: allItems.filter((i) => i.status === "up_next").length,
       deferred: allItems.filter((i) => i.status === "deferred").length,
       notDoing: allItems.filter((i) => i.status === "not_doing").length,

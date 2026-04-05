@@ -65,8 +65,8 @@ model SalesReadinessAccountItem {
 ## Status Flow
 
 ```
-to_do ──→ up_next ──→ done (with optional notes/proof)
-  │          │
+to_do ──→ up_next ──→ in_progress ──→ done (with optional notes/proof)
+  │          │              │
   ├──→ deferred (revisit later, pushed back)
   │
   └──→ not_doing (explicitly skipped, won't do)
@@ -75,9 +75,74 @@ to_do ──→ up_next ──→ done (with optional notes/proof)
 ### Status Definitions
 - **To Do** `○` gray — not started, default state
 - **Up Next** `⏭` purple — actively working on or prioritized for next
+- **In Progress** `🔨` blue — partially done, more work needed
 - **Done** `✅` green — completed, with completion date recorded
 - **Deferred** `⏸` amber — acknowledged but pushing to later
 - **Not Doing** `✗` gray strikethrough — explicitly decided not to do
+
+## GTM Assessment Integration (Auto-Status)
+
+### Concept
+
+When a user completes the GTM Maturity Assessment questionnaire, Mikey analyzes their answers and automatically updates the Sales Readiness Checklist items based on what they describe.
+
+### How It Works
+
+1. **User completes GTM Assessment** — answers questions about their current sales setup, tools, processes, etc.
+
+2. **Mikey analyzes each answer** — for each assessment question that maps to a readiness capability, Mikey makes a judgment:
+   - **"Done"** — the user's answer clearly describes having this capability in place and working
+   - **"In Progress"** — the user describes partial implementation or work underway
+   - **"Not started"** — no mention of this capability, or explicitly says they don't have it
+
+3. **Auto-update readiness items** — Mikey updates the matching `SalesReadinessAccountItem` records:
+   - Sets `status` to `done`, `in_progress`, or leaves as `to_do`
+   - Sets `statusChangedBy` to "mikey-auto" (or the user's ID)
+   - Adds a note like "Auto-assessed from GTM Assessment: [relevant excerpt from answer]"
+   - Does NOT override items the user has manually set (respects manual overrides)
+
+### Mapping: Assessment Questions → Readiness Items
+
+Each GTM Assessment question can map to one or more readiness items. Examples:
+
+| Assessment Question | Maps To |
+|---|---|
+| "Do you have a CRM?" | MVP Tech Stack → Basic CRM |
+| "How do you handle inbound demos?" | MVP Inbound → Demo Request Calendar Automation, Internal Notifications |
+| "Do you have discovery questions documented?" | Sales First Call → Discovery Questions |
+| "What's your sales narrative?" | Market Opportunity Hypothesis → Sales Narrative |
+| "How do you onboard new customers?" | MVP Customer Success → Onboarding Checklist, Onboarding Deck |
+
+### Implementation
+
+1. **Create mapping table** — define which assessment questions map to which readiness items (can be JSON config or a DB table)
+
+2. **Post-assessment hook** — after the GTM Assessment is completed, trigger the analysis:
+   ```
+   POST /api/sales-readiness/auto-assess
+   Body: { assessmentId: string }
+   ```
+
+3. **LLM analysis** — send each relevant answer + the mapped capability description to GPT with a prompt:
+   ```
+   Based on this user's answer about their sales setup, determine if they have
+   this capability: "[capability title]"
+   
+   Their answer: "[assessment answer text]"
+   
+   Respond with:
+   - status: "done" | "in_progress" | "to_do"
+   - confidence: "high" | "medium" | "low"
+   - excerpt: a brief quote from their answer that supports your judgment
+   ```
+
+4. **Apply results** — update readiness items where confidence is medium or high, skip low confidence, never override manual user changes
+
+### UX
+
+- After assessment completion, show a banner: "Mikey updated 8 items on your Sales Readiness Checklist based on your assessment"
+- Auto-assessed items show a note: "🤖 Auto-assessed from GTM Assessment"
+- User can always override Mikey's judgment by changing the status manually
 
 ## Maturity Stages (from existing system)
 

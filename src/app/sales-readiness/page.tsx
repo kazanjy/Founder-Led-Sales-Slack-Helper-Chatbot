@@ -36,6 +36,7 @@ interface Stage {
 
 interface OverallStats {
   done: number;
+  inProgress: number;
   upNext: number;
   deferred: number;
   notDoing: number;
@@ -46,6 +47,7 @@ interface OverallStats {
 const STATUS_OPTIONS = [
   { value: "to_do", label: "To Do", icon: "○", color: "bg-gray-100 text-gray-600" },
   { value: "up_next", label: "Up Next", icon: "⏭", color: "bg-purple-100 text-purple-700" },
+  { value: "in_progress", label: "In Progress", icon: "🔨", color: "bg-blue-100 text-blue-700" },
   { value: "done", label: "Done", icon: "✅", color: "bg-green-100 text-green-700" },
   { value: "deferred", label: "Deferred", icon: "⏸", color: "bg-amber-100 text-amber-700" },
   { value: "not_doing", label: "Not Doing", icon: "✗", color: "bg-gray-100 text-gray-400" },
@@ -55,6 +57,7 @@ const FILTER_OPTIONS = [
   { value: "all", label: "All" },
   { value: "to_do", label: "To Do" },
   { value: "up_next", label: "Up Next" },
+  { value: "in_progress", label: "In Progress" },
   { value: "done", label: "Done" },
   { value: "deferred", label: "Deferred" },
   { value: "not_doing", label: "Not Doing" },
@@ -260,23 +263,27 @@ function SalesReadinessContent() {
   const askMikeyAbout = async (item: ReadinessItem, categoryName: string, stageLabel: string) => {
     setAskingMikey(item.id);
     try {
-      const context = `The user is working through their Sales Readiness Checklist and has a question about a specific capability they need to build.
+      const mikeyToolsList = item.mikeyLinks?.map((l) => `- ${l.label} (${l.href})`).join("\n") || "";
+
+      const context = `The user is working through their Sales Readiness Checklist and wants to learn about a specific capability they need to build.
 
 ## Capability Details
 - **Stage:** ${stageLabel}
 - **Category:** ${categoryName}
 - **Capability:** ${item.title}
 ${item.description ? `- **Description:** ${item.description}` : ""}
-- **Current Status:** ${item.status.replace("_", " ")}
+- **Current Status:** ${item.status.replace(/_/g, " ")}
 ${item.notes ? `- **User's Notes:** ${item.notes}` : ""}
+${mikeyToolsList ? `\n## Linked MikeyBot Tools\n${mikeyToolsList}` : ""}
 
 ## What the User Needs
 Please explain:
-1. What this capability is and why it matters for founder-led sales at this stage
-2. What "good" looks like for this capability
-3. Concrete steps to get this done
-4. Whether MikeyBot has any tools that can help build this (and which ones)
-5. Common mistakes founders make with this capability`;
+1. What "${item.title}" is and why it matters for founder-led sales at the "${stageLabel}" stage
+2. What "good" looks like — concrete examples of this capability done well
+3. Step-by-step instructions to get this done (actionable, specific)
+4. If MikeyBot has tools that can help build this, explain which ones and how to use them — include direct links
+5. Reference resources: books, frameworks, articles, or templates that would help (from the Founding Sales / Founder-Led Sales body of knowledge if applicable)
+6. Common mistakes founders make with this and how to avoid them`;
 
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
@@ -335,6 +342,7 @@ Please explain:
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-4 flex-wrap text-sm">
                 <span className="font-semibold text-gray-900">{overall.done}/{overall.total} done</span>
+                {overall.inProgress > 0 && <span className="text-blue-600">{overall.inProgress} in progress</span>}
                 {overall.upNext > 0 && <span className="text-purple-600">{overall.upNext} up next</span>}
                 {overall.deferred > 0 && <span className="text-amber-600">{overall.deferred} deferred</span>}
                 {overall.notDoing > 0 && <span className="text-gray-400">{overall.notDoing} not doing</span>}
