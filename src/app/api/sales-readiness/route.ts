@@ -13,12 +13,12 @@ const STAGE_ORDER: Record<string, number> = {
 };
 
 const STAGE_LABELS: Record<string, { short: string; question: string }> = {
-  PROBLEM_VALIDATION: { short: "Problem Validation", question: "Do we know what problem we're solving?" },
-  VALUE_VALIDATION: { short: "Value Validation", question: "Does the product solve the problem and create value?" },
-  FIRST_REVENUE: { short: "First Revenue", question: "Can we get someone to pay for the product?" },
-  REPEATABLE_REVENUE: { short: "Repeatable Revenue", question: "Can we get many people to pay for the product?" },
-  FIRST_SALES_HIRE: { short: "First Sales Hire", question: "Can we get someone other than the founder to sell?" },
-  SCALING_SALES: { short: "Scaling Sales", question: "Can we get many people other than the founder to sell?" },
+  PROBLEM_VALIDATION: { short: "🔍 Problem Validation", question: "Do we know what problem we're solving?" },
+  VALUE_VALIDATION: { short: "💡 Value Validation", question: "Does the product solve the problem and create value?" },
+  FIRST_REVENUE: { short: "💰 First Revenue", question: "Can we get someone to pay for the product?" },
+  REPEATABLE_REVENUE: { short: "🔄 Repeatable Revenue", question: "Can we get many people to pay for the product?" },
+  FIRST_SALES_HIRE: { short: "👤 First Sales Hire", question: "Can we get someone other than the founder to sell?" },
+  SCALING_SALES: { short: "📈 Scaling Sales", question: "Can we get many people other than the founder to sell?" },
 };
 
 export async function GET() {
