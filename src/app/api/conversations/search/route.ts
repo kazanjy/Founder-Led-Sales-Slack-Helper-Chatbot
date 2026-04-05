@@ -164,12 +164,39 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Search projects by name/description
+    const projectResults = await prisma.project.findMany({
+      where: {
+        userId: user.id,
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      include: {
+        _count: { select: { conversations: true } },
+      },
+    });
+
+    const projectHits = projectResults.map((p) => ({
+      id: p.id,
+      type: "project" as const,
+      title: p.name,
+      description: p.description,
+      conversationCount: p._count.conversations,
+    }));
+
     // Sort by lastMessageAt
     results.sort((a, b) =>
       new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
     );
 
-    return NextResponse.json({ results: results.slice(0, limit) });
+    return NextResponse.json({
+      results: results.slice(0, limit),
+      projects: projectHits,
+    });
   } catch (error) {
     console.error("Search error:", error);
     return NextResponse.json(

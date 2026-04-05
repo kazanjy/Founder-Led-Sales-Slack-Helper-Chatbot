@@ -113,6 +113,7 @@ model User {
 
   // Relations
   conversations              Conversation[]
+  projects                   Project[]
   messages                   Message[]
   referralsMade              Referral[]                  @relation("Referrer")
   referralsReceived          Referral[]                  @relation("Referred")
@@ -306,6 +307,26 @@ model GtmVariableHistory {
   @@map("gtm_variable_history")
 }
 
+// Project folder for organizing conversations
+model Project {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  order       Int     @default(0)
+
+  conversations Conversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, order])
+  @@map("projects")
+}
+
 // A conversation thread (Slack thread or web chat)
 model Conversation {
   id String @id @default(cuid())
@@ -315,6 +336,10 @@ model Conversation {
 
   workspaceId String? // Null for web-only conversations
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Project folder (null = unfiled)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   // Source of the conversation
   source ConversationSource @default(SLACK)

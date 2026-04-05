@@ -36,6 +36,7 @@ export async function GET(request: Request) {
       attachmentsIncluded: true,
       imagesIncluded: true,
       mode: true,
+      projectId: true,
     },
   });
 

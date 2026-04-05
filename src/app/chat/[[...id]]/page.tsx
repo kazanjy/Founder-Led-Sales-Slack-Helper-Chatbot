@@ -186,6 +186,7 @@ interface Conversation {
   attachmentsIncluded?: string[] | null;
   imagesIncluded?: AttachedFile[] | StoredFileRef[] | null; // Base64 (session) or storage refs (from DB)
   mode?: "CHATBASE" | "DIRECT";
+  projectId?: string | null;
 }
 
 interface SearchResult {
@@ -217,6 +218,18 @@ export default function ChatPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  // Projects state
+  interface ProjectSummary { id: string; name: string; description: string | null; conversationCount: number; lastActivityAt: string; }
+  interface ProjectDetail { id: string; name: string; description: string | null; conversations: Array<{ id: string; title: string | null; firstMessagePreview: string | null; lastMessageAt: string; source: string; mode: string }> }
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [showAllProjects, setShowAllProjects] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [describingProject, setDescribingProject] = useState(false);
+  const [moveToProjectMenu, setMoveToProjectMenu] = useState<string | null>(null); // conv ID with open submenu
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareModalConversationId, setShareModalConversationId] = useState<string | null>(null);
@@ -1228,6 +1241,7 @@ export default function ChatPage() {
     setSending(false);
 
     setSelectedConversation(conversationId);
+    setSelectedProject(null); // Clear project view when selecting a conversation
     isInitialLoad.current = true; // Reset for new conversation
     // Set mode from conversation list data, or default to CHATBASE for new chats
     const conv = conversations.find(c => c.id === conversationId);
@@ -1377,6 +1391,13 @@ export default function ChatPage() {
         const convsRes = await fetch("/api/conversations");
         const convsData = await convsRes.json();
         setConversations(convsData.conversations || []);
+
+        // Get projects
+        try {
+          const projectsRes = await fetch("/api/projects");
+          const projectsData = await projectsRes.json();
+          setProjects(projectsData.projects || []);
+        } catch { /* ignore */ }
 
         // Get chats shared with me
         try {
@@ -2662,6 +2683,119 @@ export default function ChatPage() {
           </button>
         </div>
 
+        {/* Projects Section */}
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setProjectsExpanded(!projectsExpanded)}
+            className="flex items-center justify-between w-full mb-1 px-1"
+          >
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Projects</span>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${projectsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {projectsExpanded && (
+            <div className="space-y-0.5">
+              {/* New project button / inline input */}
+              {creatingProject ? (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newProjectName.trim()) return;
+                    try {
+                      const res = await fetch("/api/projects", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: newProjectName.trim() }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setProjects((prev) => [...prev, data.project]);
+                        setNewProjectName("");
+                        setCreatingProject(false);
+                        setSelectedProject(data.project.id);
+                        setSelectedConversation(null);
+                      }
+                    } catch { /* ignore */ }
+                  }}
+                  className="flex items-center gap-2 px-2"
+                >
+                  <input
+                    autoFocus
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") { setCreatingProject(false); setNewProjectName(""); } }}
+                    onBlur={() => { if (!newProjectName.trim()) { setCreatingProject(false); setNewProjectName(""); } }}
+                    placeholder="Project name..."
+                    className="flex-1 px-2 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </form>
+              ) : (
+                <button
+                  onClick={() => setCreatingProject(true)}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  New project
+                </button>
+              )}
+
+              {/* Project list */}
+              {(showAllProjects ? projects : projects.slice(0, 5)).map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => {
+                    setSelectedProject(project.id);
+                    setSelectedConversation(null);
+                    // Fetch project detail
+                    fetch(`/api/projects/${project.id}`)
+                      .then((r) => r.json())
+                      .then((d) => setProjectDetail(d.project))
+                      .catch(() => {});
+                  }}
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-lg transition-colors truncate ${
+                    selectedProject === project.id
+                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <svg className="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  <span className="truncate">{project.name}</span>
+                </button>
+              ))}
+
+              {/* More toggle */}
+              {projects.length > 5 && !showAllProjects && (
+                <button
+                  onClick={() => setShowAllProjects(true)}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
+                >
+                  <span className="text-xs">•••</span>
+                  More
+                </button>
+              )}
+
+              {/* Empty state */}
+              {projects.length === 0 && !creatingProject && (
+                <p className="px-2 py-2 text-xs text-gray-400 leading-relaxed">
+                  Bundle your Mikey chats for a deal, a marketing project, or anything else.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Recents label */}
+        {projects.length > 0 && (
+          <div className="px-4 pt-1 pb-1">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recents</span>
+          </div>
+        )}
+
         {/* Conversations List - this part scrolls independently */}
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
@@ -2767,6 +2901,87 @@ export default function ChatPage() {
                         </svg>
                         Rename
                       </button>
+                      {/* Move to Project */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMoveToProjectMenu(moveToProjectMenu === conv.id ? null : conv.id);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                          </svg>
+                          {conv.projectId ? "Move to Project" : "Add to Project"}
+                          <svg className="w-3 h-3 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                        {moveToProjectMenu === conv.id && (
+                          <div className="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 max-h-60 overflow-y-auto">
+                            {conv.projectId && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await fetch(`/api/conversations/${conv.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ projectId: null }),
+                                  });
+                                  setConversations((prev) => prev.map((c) => c.id === conv.id ? { ...c, projectId: null } : c));
+                                  setOpenMenuId(null);
+                                  setMoveToProjectMenu(null);
+                                  // Refresh projects
+                                  fetch("/api/projects").then((r) => r.json()).then((d) => setProjects(d.projects || [])).catch(() => {});
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                Remove from project
+                              </button>
+                            )}
+                            {projects.map((p) => (
+                              <button
+                                key={p.id}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await fetch(`/api/conversations/${conv.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ projectId: p.id }),
+                                  });
+                                  setConversations((prev) => prev.map((c) => c.id === conv.id ? { ...c, projectId: p.id } : c));
+                                  setOpenMenuId(null);
+                                  setMoveToProjectMenu(null);
+                                  fetch("/api/projects").then((r) => r.json()).then((d) => setProjects(d.projects || [])).catch(() => {});
+                                }}
+                                className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 ${conv.projectId === p.id ? "text-purple-600 font-medium" : "text-gray-700 dark:text-gray-300"}`}
+                              >
+                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                </svg>
+                                <span className="truncate">{p.name}</span>
+                              </button>
+                            ))}
+                            {projects.length > 0 && <div className="border-t border-gray-100 dark:border-gray-700 my-1" />}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setMoveToProjectMenu(null);
+                                setCreatingProject(true);
+                                setProjectsExpanded(true);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center gap-2"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              New Project
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2939,7 +3154,155 @@ export default function ChatPage() {
 
       {/* Main Chat Area - scrolls independently */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Top header with Upgrade and Copy/Share buttons */}
+        {/* Project Detail View */}
+        {selectedProject && !selectedConversation && projectDetail && (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-6 py-8">
+              {/* Project Header */}
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <input
+                    defaultValue={projectDetail.name}
+                    onBlur={async (e) => {
+                      const newName = e.target.value.trim();
+                      if (newName && newName !== projectDetail.name) {
+                        await fetch(`/api/projects/${projectDetail.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: newName }),
+                        });
+                        setProjectDetail((prev) => prev ? { ...prev, name: newName } : prev);
+                        setProjects((prev) => prev.map((p) => p.id === projectDetail.id ? { ...p, name: newName } : p));
+                      }
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                    className="text-2xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-none outline-none w-full hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg px-1 -mx-1 focus:ring-2 focus:ring-purple-500"
+                  />
+
+                  {/* Description */}
+                  <div className="flex items-center gap-2 mt-2">
+                    {projectDetail.description ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{projectDetail.description}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No description</p>
+                    )}
+                    <button
+                      onClick={async () => {
+                        setDescribingProject(true);
+                        try {
+                          const res = await fetch(`/api/projects/${projectDetail.id}/describe`, { method: "POST" });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setProjectDetail((prev) => prev ? { ...prev, description: data.description } : prev);
+                          }
+                        } catch { /* ignore */ }
+                        setDescribingProject(false);
+                      }}
+                      disabled={describingProject}
+                      className="text-xs text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 flex-shrink-0"
+                    >
+                      {describingProject ? "Describing..." : "Describe"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delete project */}
+                <button
+                  onClick={async () => {
+                    if (!confirm("Delete this project? Conversations will be unfiled, not deleted.")) return;
+                    await fetch(`/api/projects/${projectDetail.id}`, { method: "DELETE" });
+                    setProjects((prev) => prev.filter((p) => p.id !== projectDetail.id));
+                    setSelectedProject(null);
+                    setProjectDetail(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  title="Delete project"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* New chat in project */}
+              <button
+                onClick={async () => {
+                  const res = await fetch("/api/conversations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ mode: "CHATBASE" }),
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    // Assign to project
+                    await fetch(`/api/conversations/${data.conversation.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ projectId: projectDetail.id }),
+                    });
+                    setConversations((prev) => [{ ...data.conversation, projectId: projectDetail.id }, ...prev]);
+                    setSelectedConversation(data.conversation.id);
+                    setSelectedProject(null);
+                  }
+                }}
+                className="w-full mb-6 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-500 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New chat in {projectDetail.name}
+              </button>
+
+              {/* Conversations in project */}
+              {projectDetail.conversations.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium">No chats in this project yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Add chats using the ⋯ menu on any conversation</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {projectDetail.conversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        setSelectedConversation(conv.id);
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {conv.title || conv.firstMessagePreview?.substring(0, 50) || "New chat"}
+                        </p>
+                        {conv.firstMessagePreview && conv.title && (
+                          <p className="text-xs text-gray-400 truncate mt-0.5">
+                            {conv.firstMessagePreview.substring(0, 100)}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-400 ml-3 flex-shrink-0">
+                        {new Date(conv.lastMessageAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Top header with Upgrade and Copy/Share buttons — hidden when viewing project */}
+        {!(selectedProject && !selectedConversation) && (<>
+        {/* Top header */}
         <div className="border-b border-gray-200 dark:border-gray-700 px-3 md:px-6 py-2 md:py-3 flex justify-between items-center bg-white dark:bg-gray-900">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* Expand sidebar button (shown when collapsed or on mobile) */}
@@ -4066,6 +4429,7 @@ export default function ChatPage() {
           </div>
         </div>
         )}
+      </>)}
       </div>
 
       {/* Toast notification */}
