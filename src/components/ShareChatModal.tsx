@@ -33,6 +33,7 @@ export function ShareChatModal({
 }: ShareChatModalProps) {
   const [email, setEmail] = useState("");
   const [shares, setShares] = useState<Share[]>([]);
+  const [teammates, setTeammates] = useState<Recipient[]>([]);
   const [recentRecipients, setRecentRecipients] = useState<Recipient[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,7 +56,7 @@ export function ShareChatModal({
     }
   }, [conversationId]);
 
-  // Fetch recent recipients for typeahead
+  // Fetch recent recipients and teammates for typeahead
   const fetchRecentRecipients = useCallback(async (query: string = "") => {
     try {
       const res = await fetch(
@@ -63,6 +64,7 @@ export function ShareChatModal({
       );
       if (res.ok) {
         const data = await res.json();
+        setTeammates(data.teammates || []);
         setRecentRecipients(data.recipients || []);
       }
     } catch {
@@ -190,9 +192,14 @@ export function ShareChatModal({
   if (!isOpen) return null;
 
   // Filter suggestions to exclude already shared emails
-  const filteredSuggestions = recentRecipients.filter(
-    (r) => !shares.some((s) => s.email === r.email)
+  const sharedEmails = new Set(shares.map((s) => s.email.toLowerCase()));
+  const filteredTeammates = teammates.filter(
+    (t) => !sharedEmails.has(t.email.toLowerCase())
   );
+  const filteredRecent = recentRecipients.filter(
+    (r) => !sharedEmails.has(r.email.toLowerCase())
+  );
+  const hasSuggestions = filteredTeammates.length > 0 || filteredRecent.length > 0;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -245,43 +252,75 @@ export function ShareChatModal({
                 />
 
                 {/* Suggestions dropdown */}
-                {showSuggestions && filteredSuggestions.length > 0 && (
+                {showSuggestions && hasSuggestions && (
                   <div
                     ref={suggestionsRef}
-                    className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto"
+                    className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 max-h-56 overflow-y-auto"
                   >
-                    <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                      Recent
-                    </div>
-                    {filteredSuggestions.map((recipient) => (
-                      <button
-                        key={recipient.email}
-                        onClick={() => handleSelectRecipient(recipient)}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
-                      >
-                        {recipient.avatarUrl ? (
-                          <img
-                            src={recipient.avatarUrl}
-                            alt=""
-                            className="w-8 h-8 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-300 text-sm">
-                            {recipient.name?.[0] || recipient.email[0].toUpperCase()}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          {recipient.name && (
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                              {recipient.name}
-                            </div>
-                          )}
-                          <div className="text-sm text-gray-500 truncate">
-                            {recipient.email}
-                          </div>
+                    {filteredTeammates.length > 0 && (
+                      <>
+                        <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                          Team
                         </div>
-                      </button>
-                    ))}
+                        {filteredTeammates.map((teammate) => (
+                          <button
+                            key={teammate.email}
+                            onClick={() => handleSelectRecipient(teammate)}
+                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
+                          >
+                            {teammate.avatarUrl ? (
+                              <img src={teammate.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 text-sm font-medium">
+                                {teammate.name?.[0] || teammate.email[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              {teammate.name && (
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {teammate.name}
+                                </div>
+                              )}
+                              <div className="text-sm text-gray-500 truncate">
+                                {teammate.email}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {filteredRecent.length > 0 && (
+                      <>
+                        <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                          Recent
+                        </div>
+                        {filteredRecent.map((recipient) => (
+                          <button
+                            key={recipient.email}
+                            onClick={() => handleSelectRecipient(recipient)}
+                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3"
+                          >
+                            {recipient.avatarUrl ? (
+                              <img src={recipient.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-300 text-sm">
+                                {recipient.name?.[0] || recipient.email[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              {recipient.name && (
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {recipient.name}
+                                </div>
+                              )}
+                              <div className="text-sm text-gray-500 truncate">
+                                {recipient.email}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
