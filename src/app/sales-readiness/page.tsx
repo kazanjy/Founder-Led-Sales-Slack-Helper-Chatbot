@@ -291,10 +291,13 @@ Please explain:
         body: JSON.stringify({
           title: `Sales Readiness: ${item.title}`,
           context,
+          autoSend: true,
         }),
       });
       const data = await res.json();
       if (data.conversationId) {
+        // Store context in sessionStorage for the chat page to pick up
+        sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
         window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
       }
     } catch (error) {

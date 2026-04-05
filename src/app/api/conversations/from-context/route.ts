@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { title, context } = await request.json();
+    const { title, context, autoSend } = await request.json();
 
     if (!context || typeof context !== "string") {
       return NextResponse.json({ error: "Context is required" }, { status: 400 });
@@ -22,27 +22,31 @@ export async function POST(request: NextRequest) {
 
     const conversationTitle = title || "Chat About Asset";
 
+    // If autoSend, create empty conversation (message will be sent by chat page)
+    // Otherwise, create with user message pre-seeded
     const conversation = await prisma.conversation.create({
       data: {
         userId: user.id,
         source: "WEB",
         title: conversationTitle,
         firstMessagePreview: context.substring(0, 100),
-        messageCount: 1,
+        messageCount: autoSend ? 0 : 1,
         lastMessageAt: new Date(),
-        messages: {
-          create: [
-            {
-              userId: user.id,
-              role: "USER",
-              content: context,
-            },
-          ],
-        },
+        ...(autoSend ? {} : {
+          messages: {
+            create: [
+              {
+                userId: user.id,
+                role: "USER",
+                content: context,
+              },
+            ],
+          },
+        }),
       },
     });
 
-    return NextResponse.json({ conversationId: conversation.id });
+    return NextResponse.json({ conversationId: conversation.id, autoSendContext: autoSend ? context : undefined });
   } catch (error) {
     console.error("Error creating context conversation:", error);
     return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
