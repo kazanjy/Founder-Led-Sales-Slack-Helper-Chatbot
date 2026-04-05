@@ -103,6 +103,11 @@ function SalesReadinessContent() {
   const [filter, setFilter] = useState("all");
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingEvidence, setEditingEvidence] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
+  const [searchSelectedIdx, setSearchSelectedIdx] = useState(0);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [noteValues, setNoteValues] = useState<Record<string, string>>({});
   const noteSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -313,6 +318,88 @@ Please explain:
     return () => { Object.values(timers).forEach(clearTimeout); };
   }, []);
 
+  // Search results — computed from all stages/categories/items
+  interface SearchResult {
+    itemId: string;
+    title: string;
+    stageKey: string;
+    stageLabel: string;
+    categoryName: string;
+    status: string;
+  }
+
+  const searchResults: SearchResult[] = (() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    const results: SearchResult[] = [];
+    for (const stage of stages) {
+      for (const cat of stage.categories) {
+        for (const item of cat.items) {
+          if (
+            item.title.toLowerCase().includes(q) ||
+            cat.name.toLowerCase().includes(q) ||
+            stage.label.toLowerCase().includes(q)
+          ) {
+            results.push({
+              itemId: item.id,
+              title: item.title,
+              stageKey: stage.key,
+              stageLabel: stage.label,
+              categoryName: cat.name,
+              status: item.status,
+            });
+          }
+        }
+      }
+    }
+    return results.slice(0, 15); // cap at 15 results
+  })();
+
+  const jumpToItem = (result: SearchResult) => {
+    // Expand the parent stage
+    setExpandedStages((prev) => {
+      const next = new Set(prev);
+      next.add(result.stageKey);
+      return next;
+    });
+    // Uncollapse the parent category
+    const catKey = `${result.stageKey}::${result.categoryName}`;
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(catKey);
+      return next;
+    });
+    // Clear search
+    setSearchQuery("");
+    setSearchFocused(false);
+    // Highlight and scroll after a tick (to let the DOM expand)
+    setHighlightedItem(result.itemId);
+    setTimeout(() => {
+      const el = document.getElementById(`readiness-${result.itemId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-purple-400", "ring-offset-1");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-purple-400", "ring-offset-1");
+          setHighlightedItem(null);
+        }, 3000);
+      }
+    }, 150);
+  };
+
+  // Close search on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    }
+    if (searchFocused) {
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [searchFocused]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -360,6 +447,64 @@ Please explain:
             </div>
           </div>
         )}
+
+        {/* Search */}
+        <div className="relative mb-4" ref={searchRef}>
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setSearchSelectedIdx(0); }}
+              onFocus={() => setSearchFocused(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setSearchQuery(""); setSearchFocused(false); }
+                if (e.key === "ArrowDown") { e.preventDefault(); setSearchSelectedIdx((i) => Math.min(i + 1, searchResults.length - 1)); }
+                if (e.key === "ArrowUp") { e.preventDefault(); setSearchSelectedIdx((i) => Math.max(i - 1, 0)); }
+                if (e.key === "Enter" && searchResults[searchSelectedIdx]) { e.preventDefault(); jumpToItem(searchResults[searchSelectedIdx]); }
+              }}
+              placeholder="Search capabilities..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(""); setSearchFocused(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
+
+          {/* Search results dropdown */}
+          {searchFocused && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+              {searchResults.map((result, idx) => {
+                const statusOpt = getStatusOption(result.status);
+                return (
+                  <button
+                    key={result.itemId}
+                    onClick={() => jumpToItem(result)}
+                    onMouseEnter={() => setSearchSelectedIdx(idx)}
+                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 transition-colors ${idx === searchSelectedIdx ? "bg-purple-50" : "hover:bg-gray-50"} ${idx > 0 ? "border-t border-gray-50" : ""}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-gray-900">{result.title}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{result.stageLabel} → {result.categoryName}</div>
+                    </div>
+                    <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 flex-shrink-0 ${statusOpt.color}`}>
+                      {statusOpt.icon} {statusOpt.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {searchFocused && searchQuery.trim() && searchResults.length === 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 text-center text-sm text-gray-400">
+              No capabilities matching &ldquo;{searchQuery}&rdquo;
+            </div>
+          )}
+        </div>
 
         {/* Filter chips */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
