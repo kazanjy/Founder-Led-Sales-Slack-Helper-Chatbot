@@ -31,6 +31,7 @@ export async function POST() {
           data: {
             order: item.order,
             description: item.description || existing.description,
+            mikeyLinks: item.mikeyLinks ? JSON.stringify(item.mikeyLinks) : existing.mikeyLinks,
           },
         });
         updated++;
@@ -41,6 +42,7 @@ export async function POST() {
             capabilityCategory: item.capabilityCategory,
             title: item.title,
             description: item.description || null,
+            mikeyLinks: item.mikeyLinks ? JSON.stringify(item.mikeyLinks) : null,
             order: item.order,
           },
         });

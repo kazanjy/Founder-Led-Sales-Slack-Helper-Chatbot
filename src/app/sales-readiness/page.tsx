@@ -15,6 +15,7 @@ interface ReadinessItem {
   completedAt: string | null;
   notes: string | null;
   evidenceUrl: string | null;
+  mikeyLinks: Array<{ label: string; href: string }> | null;
 }
 
 interface Category {
@@ -358,6 +359,7 @@ function SalesReadinessContent() {
                           <div className="px-5 py-2.5 bg-gray-50/50 flex items-center gap-3">
                             <div className="w-24 flex-shrink-0" />
                             <span className="flex-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
+                            <span className="w-32 flex-shrink-0 text-xs text-gray-400 font-medium">MikeyBot</span>
                             <span className="w-48 flex-shrink-0 text-xs text-gray-400 font-medium">Evidence / Asset</span>
                             <span className="text-xs text-gray-400">{cat.doneCount}/{cat.totalCount}</span>
                           </div>
@@ -418,6 +420,25 @@ function SalesReadinessContent() {
                                       >
                                         + Add notes
                                       </button>
+                                    )}
+                                  </div>
+
+                                  {/* MikeyBot links column */}
+                                  <div className="flex-shrink-0 w-32">
+                                    {item.mikeyLinks && item.mikeyLinks.length > 0 && (
+                                      <div className="flex flex-col gap-0.5">
+                                        {item.mikeyLinks.map((link, i) => (
+                                          <a
+                                            key={i}
+                                            href={link.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-purple-600 hover:text-purple-700 font-medium truncate block"
+                                          >
+                                            → {link.label}
+                                          </a>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
 

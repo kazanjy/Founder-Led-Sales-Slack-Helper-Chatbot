@@ -1412,6 +1412,7 @@ model SalesReadinessItem {
   capabilityCategory String  // "MVP Inbound", "Sales First Call", etc.
   title              String  // "Demo Request Calendar Automation"
   description        String? @db.Text
+  mikeyLinks         String? @db.Text // JSON array of {label, href} for linked MikeyBot tools
   order              Int     @default(0)
 
   accountItems SalesReadinessAccountItem[]

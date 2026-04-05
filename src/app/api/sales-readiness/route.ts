@@ -72,6 +72,7 @@ export async function GET() {
       completedAt: string | null;
       notes: string | null;
       evidenceUrl: string | null;
+      mikeyLinks: Array<{ label: string; href: string }> | null;
     }>>>();
 
     for (const item of items) {
@@ -88,6 +89,7 @@ export async function GET() {
         id: item.id,
         title: item.title,
         description: item.description,
+        mikeyLinks: item.mikeyLinks ? JSON.parse(item.mikeyLinks) : null,
         order: item.order,
         status: progress?.status || "to_do",
         statusChangedAt: progress?.statusChangedAt?.toISOString() || null,
