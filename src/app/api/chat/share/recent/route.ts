@@ -47,12 +47,14 @@ export async function GET(request: Request) {
         take: 10,
       });
 
-      teammates = accountUsers.map((u) => ({
-        email: u.email,
-        name: u.name || u.slackUserName || null,
-        avatarUrl: u.avatarUrl || null,
-        isTeammate: true,
-      }));
+      teammates = accountUsers
+        .filter((u) => u.email)
+        .map((u) => ({
+          email: u.email!,
+          name: u.name || u.slackUserName || null,
+          avatarUrl: u.avatarUrl || null,
+          isTeammate: true,
+        }));
     }
 
     // Get unique recent share recipients
