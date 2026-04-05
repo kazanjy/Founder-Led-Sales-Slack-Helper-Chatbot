@@ -627,7 +627,7 @@ Please explain:
                                       <button
                                         onClick={() => askMikeyAbout(item, cat.name, stage.label)}
                                         disabled={askingMikey === item.id}
-                                        className="flex-shrink-0 text-[11px] text-purple-500 hover:text-purple-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                        className="flex-shrink-0 text-[11px] text-purple-500 hover:text-purple-700 font-medium disabled:opacity-50"
                                         title="Ask Mikey about this capability"
                                       >
                                         {askingMikey === item.id ? "..." : "💬 Ask Mikey"}
@@ -662,7 +662,7 @@ Please explain:
                                     ) : (
                                       <button
                                         onClick={() => setEditingNotes(item.id)}
-                                        className="mt-1 text-xs text-purple-500 hover:text-purple-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="mt-1 text-xs text-purple-500 hover:text-purple-700 font-medium"
                                       >
                                         + Add notes
                                       </button>
@@ -717,13 +717,13 @@ Please explain:
                                         ) : (
                                           <span className="text-xs text-gray-600 truncate">{item.evidenceUrl}</span>
                                         )}
-                                        <button onClick={() => setEditingEvidence(item.id)} className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">✎</button>
-                                        <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">✕</button>
+                                        <button onClick={() => setEditingEvidence(item.id)} className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0 transition-colors" title="Edit">✎</button>
+                                        <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors" title="Remove">✕</button>
                                       </div>
                                     ) : (
                                       <button
                                         onClick={() => setEditingEvidence(item.id)}
-                                        className="text-xs text-gray-400 hover:text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="text-xs text-gray-400 hover:text-blue-600 font-medium transition-colors"
                                       >
                                         + Evidence / Asset
                                       </button>
