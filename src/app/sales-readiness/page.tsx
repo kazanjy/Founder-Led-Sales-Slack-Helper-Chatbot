@@ -604,6 +604,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       });
       const data = await res.json();
       if (data.conversationId) {
+        sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
         window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
       }
     } catch (error) {
