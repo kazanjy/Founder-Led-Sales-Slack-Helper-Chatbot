@@ -86,4 +86,38 @@ export const SALES_READINESS_SEED: SeedItem[] = [
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Sales First Call", title: "Demo Outline / Script", order: 9 },
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Sales First Call", title: "Pricing", order: 10 },
   { maturityStage: "FIRST_REVENUE", capabilityCategory: "Sales First Call", title: "Next Steps / Sales Motion Map", order: 11 },
+
+  // ── Beginning Tech Stack ───────────────────────────────────
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "Beginning Tech Stack", title: "Order Form (Autorenew) / e-Sign / Payment Collection", order: 0 },
+
+  // ── MVP Customer Success ───────────────────────────────────
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "MVP Customer Success", title: "Onboarding Checklist", order: 0 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "MVP Customer Success", title: "Onboarding Deck", order: 1 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "MVP Customer Success", title: "Inbound Support", order: 2 },
+  { maturityStage: "FIRST_REVENUE", capabilityCategory: "MVP Customer Success", title: "Success Monitoring", order: 3 },
+
+  // ════════════════════════════════════════════════════════════
+  // STAGE 4: REPEATABLE_REVENUE — "Can we get many people to pay?"
+  // ════════════════════════════════════════════════════════════
+
+  // ── Intermediate Tech Stack ────────────────────────────────
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Tech Stack", title: "Real CRM", order: 0 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Tech Stack", title: "Metrics Basics", order: 1 },
+
+  // ── Pipeline Management ────────────────────────────────────
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Pipeline Management", title: "Pipeline Review Cadence", order: 0 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Pipeline Management", title: "Business Case Template", order: 1 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Pipeline Management", title: "Closed Lost Opp Resurrection Process", order: 2 },
+
+  // ── Intermediate Customer Success ──────────────────────────
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Customer Success", title: "Success Outcome Capture", order: 0 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Customer Success", title: "QBRs", order: 1 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Customer Success", title: "Renewal Motion", order: 2 },
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Intermediate Customer Success", title: "Implementation Deck / Checklist", order: 3 },
+
+  // ── Sales Playbook Documentation ───────────────────────────
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Sales Playbook Documentation", title: "MVP Sales Playbook (ICP, Qualification, Stages, Metrics)", order: 0 },
+
+  // ── Referral Prospecting ───────────────────────────────────
+  { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Referral Prospecting", title: "TK", order: 0 },
 ];
