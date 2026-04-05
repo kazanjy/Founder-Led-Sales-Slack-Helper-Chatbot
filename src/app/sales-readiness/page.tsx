@@ -255,6 +255,48 @@ function SalesReadinessContent() {
     }, 1500);
   };
 
+  const [askingMikey, setAskingMikey] = useState<string | null>(null);
+
+  const askMikeyAbout = async (item: ReadinessItem, categoryName: string, stageLabel: string) => {
+    setAskingMikey(item.id);
+    try {
+      const context = `The user is working through their Sales Readiness Checklist and has a question about a specific capability they need to build.
+
+## Capability Details
+- **Stage:** ${stageLabel}
+- **Category:** ${categoryName}
+- **Capability:** ${item.title}
+${item.description ? `- **Description:** ${item.description}` : ""}
+- **Current Status:** ${item.status.replace("_", " ")}
+${item.notes ? `- **User's Notes:** ${item.notes}` : ""}
+
+## What the User Needs
+Please explain:
+1. What this capability is and why it matters for founder-led sales at this stage
+2. What "good" looks like for this capability
+3. Concrete steps to get this done
+4. Whether MikeyBot has any tools that can help build this (and which ones)
+5. Common mistakes founders make with this capability`;
+
+      const res = await fetch("/api/conversations/from-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Sales Readiness: ${item.title}`,
+          context,
+        }),
+      });
+      const data = await res.json();
+      if (data.conversationId) {
+        window.open(`/chat/${data.conversationId}`, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+    } finally {
+      setAskingMikey(null);
+    }
+  };
+
   // Cleanup timers
   useEffect(() => {
     const timers = noteSaveTimers.current;
@@ -424,8 +466,18 @@ function SalesReadinessContent() {
 
                                   {/* Title + notes — center */}
                                   <div className="flex-1 min-w-0">
-                                    <div className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                      {item.title}
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                        {item.title}
+                                      </span>
+                                      <button
+                                        onClick={() => askMikeyAbout(item, cat.name, stage.label)}
+                                        disabled={askingMikey === item.id}
+                                        className="flex-shrink-0 text-[11px] text-purple-500 hover:text-purple-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                                        title="Ask Mikey about this capability"
+                                      >
+                                        {askingMikey === item.id ? "..." : "💬 Ask Mikey"}
+                                      </button>
                                     </div>
                                     {item.description && (
                                       <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>
