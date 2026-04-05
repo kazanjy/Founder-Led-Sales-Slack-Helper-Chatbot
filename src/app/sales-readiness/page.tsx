@@ -551,7 +551,8 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             </button>
 
             {showSyncPicker && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-2">
+              <div className="absolute right-0 top-full pt-1 w-80 z-50">
+              <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-2">
                 <div className="px-4 py-2 border-b border-gray-100">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sync from...</p>
                 </div>
@@ -601,6 +602,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                     )}
                   </div>
                 </button>
+              </div>
               </div>
             )}
           </div>
