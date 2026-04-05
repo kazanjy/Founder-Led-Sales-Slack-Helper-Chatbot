@@ -112,7 +112,7 @@ function SalesReadinessContent() {
   const noteSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   useEffect(() => {
-    document.title = "Sales Readiness - Mikey";
+    document.title = "GTM Readiness Progression - Mikey";
   }, []);
 
   useEffect(() => {
@@ -422,8 +422,8 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Readiness Checklist</h1>
-          <p className="text-gray-500 text-sm">Track your sales capabilities and assets across each maturity stage.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
+          <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
         </div>
 
         {/* Overall Progress */}

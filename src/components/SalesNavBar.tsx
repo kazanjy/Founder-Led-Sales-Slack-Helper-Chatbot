@@ -33,7 +33,11 @@ const standaloneItems: NavItem[] = [
 
 const coachingItems: NavItem[] = [
   { href: "/coaching-history", label: "🎓 Coaching Sessions", statusKey: "coachingHistory" },
-  { href: "/sales-readiness", label: "✅ Sales Readiness", statusKey: "salesReadiness" },
+];
+
+const gtmMaturityItems: NavItem[] = [
+  { href: "/assessment/bulk", label: "📊 GTM Maturity Assessment", statusKey: "assessment" },
+  { href: "/sales-readiness", label: "✅ GTM Readiness Progression", statusKey: "salesReadiness" },
 ];
 
 const hiringItems: NavItem[] = [
@@ -42,10 +46,9 @@ const hiringItems: NavItem[] = [
   { href: "/pre-hire-assessment", label: "📋 Pre-Hire Assessment", statusKey: "preHireAssessment" },
 ];
 
-const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...coachingItems, ...hiringItems];
+const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...coachingItems, ...gtmMaturityItems, ...hiringItems];
 
 const playbookItems: NavItem[] = [
-  { href: "/assessment/bulk", label: "📊 GTM Assessment", statusKey: "assessment" },
   { href: "/sales-narrative", label: "📖 Sales Narrative", statusKey: "salesNarrative" },
   { href: "/icp", label: "🎯 Ideal Customer Profile", statusKey: "icp" },
   { href: "/sales-motion", label: "🔄 Sales Motion", statusKey: "salesMotion" },
@@ -66,12 +69,14 @@ export default function SalesNavBar() {
   const [callExecOpen, setCallExecOpen] = useState(false);
   const [hiringOpen, setHiringOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [gtmMaturityOpen, setGtmMaturityOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contentDropdownRef = useRef<HTMLDivElement>(null);
   const callExecDropdownRef = useRef<HTMLDivElement>(null);
   const hiringDropdownRef = useRef<HTMLDivElement>(null);
   const coachingDropdownRef = useRef<HTMLDivElement>(null);
+  const gtmMaturityDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
 
@@ -169,8 +174,11 @@ export default function SalesNavBar() {
       if (coachingDropdownRef.current && !coachingDropdownRef.current.contains(e.target as Node)) {
         setCoachingOpen(false);
       }
+      if (gtmMaturityDropdownRef.current && !gtmMaturityDropdownRef.current.contains(e.target as Node)) {
+        setGtmMaturityOpen(false);
+      }
     }
-    if (playbookOpen || contentOpen || callExecOpen || hiringOpen || coachingOpen) {
+    if (playbookOpen || contentOpen || callExecOpen || hiringOpen || coachingOpen || gtmMaturityOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
@@ -190,6 +198,7 @@ export default function SalesNavBar() {
   const isCallExecActive = callExecutionItems.some((item) => isActive(item.href));
   const isHiringActive = hiringItems.some((item) => isActive(item.href));
   const isCoachingActive = coachingItems.some((item) => isActive(item.href));
+  const isGtmMaturityActive = gtmMaturityItems.some((item) => isActive(item.href));
 
   return (
     <>
@@ -314,6 +323,23 @@ export default function SalesNavBar() {
                   </Link>
                 ))}
               </div>
+              {/* GTM Maturity */}
+              <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">GTM Maturity</div>
+                {gtmMaturityItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className={`flex items-center gap-2 px-6 py-2.5 text-sm transition-colors ${
+                      isActive(item.href) ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
+                ))}
+              </div>
               {/* Coaching */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Coaching</div>
@@ -349,10 +375,49 @@ export default function SalesNavBar() {
             💬 Chat
           </Link>
 
+          {/* GTM Maturity dropdown */}
+          <div className="relative" ref={gtmMaturityDropdownRef}>
+            <button
+              onClick={() => { setGtmMaturityOpen(!gtmMaturityOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); setCoachingOpen(false); }}
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isGtmMaturityActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+              }`}
+            >
+              📋 GTM Maturity
+              <svg className={`w-3.5 h-3.5 transition-transform ${gtmMaturityOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {gtmMaturityOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[260px]">
+                {gtmMaturityItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setGtmMaturityOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && (
+                      <span className="text-green-500 text-xs">✔️</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Playbook dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => { setPlaybookOpen(!playbookOpen); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); setCoachingOpen(false); }}
+              onClick={() => { setPlaybookOpen(!playbookOpen); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); setCoachingOpen(false); setGtmMaturityOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isPlaybookActive
                   ? "border-purple-600 text-purple-600"
@@ -400,7 +465,7 @@ export default function SalesNavBar() {
           {/* Content dropdown */}
           <div className="relative" ref={contentDropdownRef}>
             <button
-              onClick={() => { setContentOpen(!contentOpen); setCallExecOpen(false); setPlaybookOpen(false); setHiringOpen(false); setCoachingOpen(false); }}
+              onClick={() => { setContentOpen(!contentOpen); setCallExecOpen(false); setPlaybookOpen(false); setHiringOpen(false); setCoachingOpen(false); setGtmMaturityOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isContentActive
                   ? "border-purple-600 text-purple-600"
@@ -439,7 +504,7 @@ export default function SalesNavBar() {
           {/* Call Execution dropdown */}
           <div className="relative" ref={callExecDropdownRef}>
             <button
-              onClick={() => { setCallExecOpen(!callExecOpen); setContentOpen(false); setPlaybookOpen(false); setHiringOpen(false); setCoachingOpen(false); }}
+              onClick={() => { setCallExecOpen(!callExecOpen); setContentOpen(false); setPlaybookOpen(false); setHiringOpen(false); setCoachingOpen(false); setGtmMaturityOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isCallExecActive
                   ? "border-purple-600 text-purple-600"
@@ -496,7 +561,7 @@ export default function SalesNavBar() {
           {/* Coaching dropdown */}
           <div className="relative" ref={coachingDropdownRef}>
             <button
-              onClick={() => { setCoachingOpen(!coachingOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); }}
+              onClick={() => { setCoachingOpen(!coachingOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); setGtmMaturityOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isCoachingActive
                   ? "border-purple-600 text-purple-600"
@@ -535,7 +600,7 @@ export default function SalesNavBar() {
           {/* Hiring dropdown */}
           <div className="relative" ref={hiringDropdownRef}>
             <button
-              onClick={() => { setHiringOpen(!hiringOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setCoachingOpen(false); }}
+              onClick={() => { setHiringOpen(!hiringOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setCoachingOpen(false); setGtmMaturityOpen(false); }}
               className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
                 isHiringActive
                   ? "border-purple-600 text-purple-600"
