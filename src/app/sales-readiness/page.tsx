@@ -45,7 +45,7 @@ interface OverallStats {
 }
 
 const STATUS_OPTIONS = [
-  { value: "to_do", label: "To Do", icon: "○", color: "bg-gray-100 text-gray-600" },
+  { value: "to_do", label: "To Do", icon: "○", color: "bg-slate-200 text-slate-700 border border-slate-300" },
   { value: "up_next", label: "Up Next", icon: "⏭", color: "bg-purple-100 text-purple-700" },
   { value: "in_progress", label: "In Progress", icon: "🔨", color: "bg-blue-100 text-blue-700" },
   { value: "done", label: "Done", icon: "✅", color: "bg-green-100 text-green-700" },
