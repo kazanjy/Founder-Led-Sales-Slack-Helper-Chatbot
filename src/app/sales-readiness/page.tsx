@@ -96,6 +96,7 @@ function SalesReadinessContent() {
   const [overall, setOverall] = useState<OverallStats | null>(null);
   const [currentMaturityStage, setCurrentMaturityStage] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("all");
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingEvidence, setEditingEvidence] = useState<string | null>(null);
@@ -122,10 +123,16 @@ function SalesReadinessContent() {
           setStages(data.stages || []);
           setOverall(data.overall || null);
           setCurrentMaturityStage(data.currentMaturityStage || null);
-          // Auto-expand current maturity stage, or first stage with items
-          const expandStage = data.currentMaturityStage || data.stages?.[0]?.key;
-          if (expandStage) {
-            setExpandedStages(new Set([expandStage]));
+          // Load saved UI state
+          if (data.uiState?.expandedStages) {
+            setExpandedStages(new Set(data.uiState.expandedStages));
+          } else {
+            // First visit — auto-expand current maturity stage
+            const expandStage = data.currentMaturityStage || data.stages?.[0]?.key;
+            if (expandStage) setExpandedStages(new Set([expandStage]));
+          }
+          if (data.uiState?.collapsedCategories) {
+            setCollapsedCategories(new Set(data.uiState.collapsedCategories));
           }
         }
       } catch (error) {
@@ -137,11 +144,34 @@ function SalesReadinessContent() {
     loadData();
   }, [router]);
 
+  const saveCollapseState = (stages: Set<string>, categories: Set<string>) => {
+    fetch("/api/sales-readiness/ui-state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expandedStages: [...stages],
+        collapsedCategories: [...categories],
+      }),
+    }).catch(() => {});
+  };
+
   const toggleStage = (key: string) => {
     setExpandedStages((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      saveCollapseState(next, collapsedCategories);
+      return next;
+    });
+  };
+
+  const toggleCategory = (stageKey: string, catName: string) => {
+    const catKey = `${stageKey}::${catName}`;
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(catKey)) next.delete(catKey);
+      else next.add(catKey);
+      saveCollapseState(expandedStages, next);
       return next;
     });
   };
@@ -353,19 +383,29 @@ function SalesReadinessContent() {
                   {/* Stage content */}
                   {isExpanded && (
                     <div className="border-t border-gray-100">
-                      {filteredCategories.map((cat) => (
+                      {filteredCategories.map((cat) => {
+                        const catKey = `${stage.key}::${cat.name}`;
+                        const isCatCollapsed = collapsedCategories.has(catKey);
+                        return (
                         <div key={cat.name} className="border-b border-gray-50 last:border-b-0">
-                          {/* Category header */}
-                          <div className="px-5 py-2.5 bg-gray-50/50 flex items-center gap-3">
-                            <div className="w-24 flex-shrink-0" />
+                          {/* Category header — clickable to collapse */}
+                          <button
+                            onClick={() => toggleCategory(stage.key, cat.name)}
+                            className="w-full px-5 py-2.5 bg-gray-50/50 flex items-center gap-3 hover:bg-gray-100/50 transition-colors text-left"
+                          >
+                            <div className="w-24 flex-shrink-0 flex items-center">
+                              <svg className={`w-3 h-3 text-gray-400 transition-transform ${isCatCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
                             <span className="flex-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
-                            <span className="w-32 flex-shrink-0 text-xs text-gray-400 font-medium">MikeyBot</span>
-                            <span className="w-48 flex-shrink-0 text-xs text-gray-400 font-medium">Evidence / Asset</span>
+                            {!isCatCollapsed && <span className="w-32 flex-shrink-0 text-xs text-gray-400 font-medium">MikeyBot</span>}
+                            {!isCatCollapsed && <span className="w-48 flex-shrink-0 text-xs text-gray-400 font-medium">Evidence / Asset</span>}
                             <span className="text-xs text-gray-400">{cat.doneCount}/{cat.totalCount}</span>
-                          </div>
+                          </button>
 
-                          {/* Items */}
-                          {cat.items.map((item) => {
+                          {/* Items — collapsible */}
+                          {!isCatCollapsed && cat.items.map((item) => {
                             const statusOpt = getStatusOption(item.status);
                             const notesValue = noteValues[item.id] ?? item.notes ?? "";
                             return (
@@ -488,7 +528,8 @@ function SalesReadinessContent() {
                             );
                           })}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

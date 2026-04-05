@@ -60,6 +60,15 @@ export async function GET() {
       where: { userId: user.id },
     });
 
+    // Get saved UI state
+    const uiStateVar = await prisma.gtmVariable.findUnique({
+      where: { userId_mergeField: { userId: user.id, mergeField: "SALES_READINESS_UI_STATE" } },
+    });
+    let uiState = null;
+    if (uiStateVar?.value) {
+      try { uiState = JSON.parse(uiStateVar.value); } catch { /* ignore */ }
+    }
+
     // Group by stage → category → items
     const stageMap = new Map<string, Map<string, Array<{
       id: string;
@@ -137,6 +146,7 @@ export async function GET() {
       stages,
       overall,
       currentMaturityStage: maturityStage?.currentStage || null,
+      uiState,
     });
   } catch (error) {
     console.error("Error fetching sales readiness:", error);
