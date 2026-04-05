@@ -279,14 +279,14 @@ function SalesReadinessContent() {
 ${item.description ? `- **Description:** ${item.description}` : ""}
 - **Current Status:** ${item.status.replace(/_/g, " ")}
 ${item.notes ? `- **User's Notes:** ${item.notes}` : ""}
-${mikeyToolsList ? `\n## Linked MikeyBot Tools\n${mikeyToolsList}` : ""}
+${mikeyToolsList ? `\n## Linked MikeyBot Tools (CONFIRMED — these are purpose-built for this)\n${mikeyToolsList}\nONLY mention these specific tools. Do NOT speculate about other MikeyBot tools that might exist.` : "\nIMPORTANT: Do NOT speculate about MikeyBot tools that might help. Only mention MikeyBot tools if they are explicitly listed above under 'Linked MikeyBot Tools'. If none are listed, do not suggest any."}
 
 ## What the User Needs
 Please explain:
 1. What "${item.title}" is and why it matters for founder-led sales at the "${stageLabel}" stage
 2. What "good" looks like — concrete examples of this capability done well
 3. Step-by-step instructions to get this done (actionable, specific)
-4. If MikeyBot has tools that can help build this, explain which ones and how to use them — include direct links
+${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help with this — explain how to use them and include the direct links` : "4. Skip MikeyBot tool suggestions — there are no tools specifically built for this capability"}
 5. Reference resources: books, frameworks, articles, or templates that would help (from the Founding Sales / Founder-Led Sales body of knowledge if applicable)
 6. Common mistakes founders make with this and how to avoid them`;
 
