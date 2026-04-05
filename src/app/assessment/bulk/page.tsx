@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
+import ChatWithAssessmentModal from "@/components/ChatWithAssessmentModal";
 
 interface Question {
   id: string;
@@ -75,6 +76,13 @@ function BulkAssessmentContent() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
+  const [latestAssessment, setLatestAssessment] = useState<{
+    id: string;
+    completedAt: string;
+    conversationId: string | null;
+  } | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -129,6 +137,19 @@ function BulkAssessmentContent() {
         const data = await response.json();
         setQuestions(data.questions);
         setGrouped(data.grouped);
+
+        // Fetch assessment progress to know if there's a completed assessment
+        try {
+          const progressRes = await fetch("/api/maturity/progress");
+          if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            if (progressData.latestAssessment) {
+              setLatestAssessment(progressData.latestAssessment);
+            }
+          }
+        } catch {
+          // Non-critical, just won't show nav CTAs
+        }
 
         // Store prior answers and initialize editable answers
         const initialAnswers: Record<string, string> = {};
@@ -377,6 +398,26 @@ function BulkAssessmentContent() {
     }
   };
 
+  const handleChatWithAssessment = async (userPrompt: string) => {
+    setStartingChat(true);
+    try {
+      const res = await fetch("/api/maturity/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt }),
+      });
+      const data = await res.json();
+      if (res.ok && data.conversationId) {
+        setShowChatModal(false);
+        router.push(`/chat/${data.conversationId}`);
+      }
+    } catch (error) {
+      console.error("Error starting chat with assessment:", error);
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   // Calculate progress
   // In update mode, count both new answers AND prior answers (that will be kept)
   const getEffectiveAnswerCount = () => {
@@ -493,19 +534,45 @@ function BulkAssessmentContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Last saved indicator */}
               {lastSaved && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 mr-1">
                   Saved {lastSaved.toLocaleTimeString()}
                 </span>
               )}
 
-              {/* View History link - show in update mode (implies prior assessments exist) */}
-              {mode === "update" && (
+              {/* View Results - show if there's a completed assessment with a conversation */}
+              {latestAssessment?.conversationId && (
+                <Link
+                  href={`/chat/${latestAssessment.conversationId}`}
+                  className="px-3 py-2 text-sm text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Results
+                </Link>
+              )}
+
+              {/* Chat with Assessment - show if there's a completed assessment */}
+              {latestAssessment && (
+                <button
+                  onClick={() => setShowChatModal(true)}
+                  className="px-3 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5 font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  Chat
+                </button>
+              )}
+
+              {/* Assessment History */}
+              {latestAssessment && (
                 <Link
                   href="/maturity-history"
-                  className="px-3 py-2 text-sm text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -514,11 +581,16 @@ function BulkAssessmentContent() {
                 </Link>
               )}
 
+              {/* Divider when there are nav CTAs */}
+              {latestAssessment && (
+                <div className="h-6 w-px bg-gray-300 mx-1" />
+              )}
+
               {/* Save for Later button */}
               <button
                 onClick={handleSaveAll}
                 disabled={saving || submitting}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2 text-sm"
               >
                 {saving ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -792,6 +864,14 @@ function BulkAssessmentContent() {
           </button>
         </div>
       </div>
+
+      {/* Chat with Assessment Modal */}
+      <ChatWithAssessmentModal
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onSubmit={handleChatWithAssessment}
+        isLoading={startingChat}
+      />
     </div>
   );
 }
