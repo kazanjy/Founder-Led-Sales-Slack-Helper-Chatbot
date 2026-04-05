@@ -224,6 +224,7 @@ function CoachingHistoryContent() {
   const [showSyncOverlay, setShowSyncOverlay] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [syncData, setSyncData] = useState<any>(null);
+  const [whatNextLoading, setWhatNextLoading] = useState(false);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   // Sync selectedId with URL query param
@@ -488,6 +489,109 @@ function CoachingHistoryContent() {
     setSyncData(null);
   };
 
+  const handleWhatNext = async () => {
+    setWhatNextLoading(true);
+    try {
+      // Build context from readiness state + coaching sessions
+      let context = "";
+
+      // Fetch readiness state
+      try {
+        const readinessRes = await fetch("/api/sales-readiness");
+        if (readinessRes.ok) {
+          const data = await readinessRes.json();
+          context += "## Current GTM Readiness Progression State\n\n";
+          if (data.currentMaturityStage) {
+            context += `**Current Maturity Stage:** ${data.currentMaturityStage}\n\n`;
+          }
+          if (data.overall) {
+            context += `**Overall Progress:** ${data.overall.done}/${data.overall.total} done, ${data.overall.inProgress} in progress, ${data.overall.upNext} up next, ${data.overall.toDo} to do\n\n`;
+          }
+          for (const stage of data.stages || []) {
+            context += `### ${stage.label} (${stage.doneCount}/${stage.totalCount})\n`;
+            for (const cat of stage.categories) {
+              const nonTodoItems = cat.items.filter((i: { status: string }) => i.status !== "to_do");
+              if (nonTodoItems.length > 0) {
+                context += `**${cat.name}** (${cat.doneCount}/${cat.totalCount})\n`;
+                for (const item of nonTodoItems) {
+                  context += `- [${item.status}] ${item.title}`;
+                  if (item.evidenceUrl) context += ` — Evidence: ${item.evidenceUrl}`;
+                  context += "\n";
+                }
+                context += "\n";
+              }
+            }
+          }
+        }
+      } catch { /* no readiness data */ }
+
+      // Add last 3 coaching sessions
+      const recentSessions = [...sessions]
+        .sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime())
+        .slice(0, 3);
+
+      if (recentSessions.length > 0) {
+        context += "\n---\n\n## Recent Coaching Sessions\n\n";
+        for (const session of recentSessions) {
+          try {
+            const enrichedRes = await fetch(`/api/coaching-sessions/${session.id}`);
+            if (enrichedRes.ok) {
+              const enriched = await enrichedRes.json();
+              const sessionDate = new Date(session.sessionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+              context += `### ${session.title} (${sessionDate})\n\n`;
+              if (session.notes) {
+                const notesTruncated = session.notes.length > 2000
+                  ? session.notes.substring(0, 2000) + "...[truncated]"
+                  : session.notes;
+                context += `**Notes:**\n${notesTruncated}\n\n`;
+              }
+              if (enriched.goals?.length > 0) {
+                context += "**Goals:**\n";
+                for (const goal of enriched.goals) {
+                  context += `- [${goal.status.toUpperCase()}] ${goal.title}`;
+                  if (goal.description) context += `: ${goal.description}`;
+                  context += "\n";
+                  if (goal.tasks) {
+                    for (const task of goal.tasks) {
+                      context += `  - [${task.status.toUpperCase()}] ${task.title}\n`;
+                    }
+                  }
+                }
+                context += "\n";
+              }
+            }
+          } catch { /* skip */ }
+        }
+      }
+
+      context += "\n---\n\n## Your Request\n\n";
+      context += "Based on my current GTM Readiness Progression state and recent coaching sessions above, what should I focus on next? ";
+      context += "Please recommend the top 3-5 specific actions I should take, considering:\n";
+      context += "1. What capabilities I'm missing or have in progress at my current maturity stage\n";
+      context += "2. What my coaching goals and tasks suggest I should prioritize\n";
+      context += "3. What would have the highest impact on moving to the next maturity stage\n\n";
+      context += "For each recommendation, explain WHY it matters and link it to specific readiness items or coaching goals.";
+
+      const res = await fetch("/api/conversations/from-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "What Next? — Coaching & Readiness Recommendations",
+          context,
+          autoSend: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.conversationId) {
+        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+      }
+    } catch (error) {
+      console.error("Error creating What Next chat:", error);
+    } finally {
+      setWhatNextLoading(false);
+    }
+  };
+
   const toggleCheckAll = () => {
     if (checkedIds.size === sessions.length) {
       setCheckedIds(new Set());
@@ -527,6 +631,25 @@ function CoachingHistoryContent() {
                   </svg>
                 )}
                 Sync to GTM Readiness
+              </button>
+            )}
+            {sessions.length > 0 && (
+              <button
+                onClick={handleWhatNext}
+                disabled={whatNextLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50"
+              >
+                {whatNextLoading ? (
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                )}
+                What Next?
               </button>
             )}
             {sessions.length > 0 && (
