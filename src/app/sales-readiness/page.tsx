@@ -164,13 +164,14 @@ function SalesReadinessContent() {
             setCollapsedCategories(new Set(data.uiState.collapsedCategories));
           }
         }
-      } catch (error) {
-        console.error("Error loading readiness data:", error);
+
         // Fetch sync sources in parallel (non-blocking)
         fetch("/api/sales-readiness/sync-sources")
           .then((r) => r.ok ? r.json() : null)
-          .then((data) => { if (data) setSyncSources(data); })
+          .then((d) => { if (d) setSyncSources(d); })
           .catch(() => {});
+      } catch (error) {
+        console.error("Error loading readiness data:", error);
       } finally {
         setLoading(false);
       }
