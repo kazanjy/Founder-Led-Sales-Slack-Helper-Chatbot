@@ -63,6 +63,15 @@ const FILTER_OPTIONS = [
   { value: "not_doing", label: "Not Doing" },
 ];
 
+const MATURITY_STAGES = [
+  { value: "PROBLEM_VALIDATION", label: "Do we know what problem we're solving?", short: "🔍 Problem Validation" },
+  { value: "VALUE_VALIDATION", label: "Does the product solve the problem and create value?", short: "💡 Value Validation" },
+  { value: "FIRST_REVENUE", label: "Can we get someone to pay for the product?", short: "💰 First Revenue" },
+  { value: "REPEATABLE_REVENUE", label: "Can we get many people to pay for the product?", short: "🔄 Repeatable Revenue" },
+  { value: "FIRST_SALES_HIRE", label: "Can we get someone other than the founder to sell?", short: "👤 First Sales Hire" },
+  { value: "SCALING_SALES", label: "Can we get many people other than the founder to sell?", short: "📈 Scaling Sales" },
+];
+
 function getStatusOption(status: string) {
   return STATUS_OPTIONS.find((s) => s.value === status) || STATUS_OPTIONS[0];
 }
@@ -424,6 +433,41 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
           <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
+        </div>
+
+        {/* Maturity Stage Selector */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 flex-shrink-0">Current Stage:</label>
+            <select
+              value={currentMaturityStage || ""}
+              onChange={async (e) => {
+                const stage = e.target.value;
+                setCurrentMaturityStage(stage || null);
+                await fetch("/api/coaching/maturity-stage", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ currentStage: stage }),
+                });
+                // Auto-expand the selected stage
+                if (stage) {
+                  setExpandedStages((prev) => {
+                    const next = new Set(prev);
+                    next.add(stage);
+                    return next;
+                  });
+                }
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+            >
+              <option value="">Select your current stage...</option>
+              {MATURITY_STAGES.map((stage) => (
+                <option key={stage.value} value={stage.value}>
+                  {stage.short} — {stage.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Overall Progress */}
