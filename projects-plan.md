@@ -1,5 +1,7 @@
 # Projects (Chat Folders) Feature — Implementation Plan
 
+**STATUS: COMPLETED**
+
 ## Overview
 
 Add "Projects" capability to the chat sidebar, allowing users to organize conversations into named folders. Projects can represent deals, marketing campaigns, research threads, or any grouping the user wants.
@@ -133,13 +135,19 @@ First time the Projects section shows (0 projects), display:
 
 ## Implementation Order
 
-1. **DB**: Add Project model + projectId on Conversation + migration
-2. **API**: CRUD for projects, update conversation PATCH, AI describe
-3. **Sidebar**: Projects section with list, "New project", "More" toggle
-4. **Project view**: Detail page shown when project selected
-5. **Three-dot menu**: "Move to Project" submenu on conversations
-6. **Chat header**: Project badge + "Add to Project"
-7. **Search**: Extend to include project names/descriptions
+1. ~~**DB**: Add Project model + projectId on Conversation + migration~~ ✅
+2. ~~**API**: CRUD for projects, update conversation PATCH, AI describe~~ ✅
+3. ~~**Sidebar**: Projects section with list, "New project", "More" toggle~~ ✅
+4. ~~**Project view**: Detail page shown when project selected~~ ✅
+5. ~~**Three-dot menu**: "Move to Project" submenu on conversations~~ ✅
+6. ~~**Chat header**: Project badge + "Add to Project"~~ ✅
+7. ~~**Search**: Extend to include project names/descriptions~~ ✅
+
+## Future / Phase 2
+
+- **Share projects**: Email-based sharing (same pattern as Share Chat). Sharing a project implicitly shares all conversations in it.
+- **Drag-and-drop**: Reorder projects in sidebar, drag conversations between projects.
+- **Project search results in UI**: Surface project matches in the search modal (API returns them, UI doesn't render yet).
 
 ---
 
