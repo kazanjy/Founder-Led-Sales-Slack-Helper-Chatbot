@@ -110,7 +110,7 @@ function SalesReadinessContent() {
   const [currentMaturityStage, setCurrentMaturityStage] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<Set<string>>(new Set(["all"]));
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingEvidence, setEditingEvidence] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -969,9 +969,22 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             {FILTER_OPTIONS.map((f) => (
               <button
                 key={f.value}
-                onClick={() => setFilter(f.value)}
+                onClick={() => {
+                  setFilter((prev) => {
+                    if (f.value === "all") return new Set(["all"]);
+                    const next = new Set(prev);
+                    next.delete("all");
+                    if (next.has(f.value)) {
+                      next.delete(f.value);
+                      if (next.size === 0) return new Set(["all"]);
+                    } else {
+                      next.add(f.value);
+                    }
+                    return next;
+                  });
+                }}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                  filter === f.value
+                  filter.has(f.value)
                     ? "bg-purple-100 text-purple-700"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -1020,10 +1033,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
               // Filter items
               const filteredCategories = stage.categories.map((cat) => ({
                 ...cat,
-                items: filter === "all" ? cat.items : cat.items.filter((i) => i.status === filter),
+                items: filter.has("all") ? cat.items : cat.items.filter((i) => filter.has(i.status)),
               })).filter((cat) => cat.items.length > 0);
 
-              if (filter !== "all" && filteredCategories.length === 0) return null;
+              if (!filter.has("all") && filteredCategories.length === 0) return null;
 
               return (
                 <div key={stage.key} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${isCurrent ? "border-purple-300 ring-1 ring-purple-100" : "border-gray-200"}`}>
