@@ -131,4 +131,43 @@ export const SALES_READINESS_SEED: SeedItem[] = [
 
   // ── Referral Prospecting ───────────────────────────────────
   { maturityStage: "REPEATABLE_REVENUE", capabilityCategory: "Referral Prospecting", title: "TK", order: 0 },
+
+  // ════════════════════════════════════════════════════════════
+  // STAGE 5: FIRST_SALES_HIRE — "Can we get someone other than the founder to sell?"
+  // ════════════════════════════════════════════════════════════
+
+  // ── AE / SDR Hiring ────────────────────────────────────────
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Hiring", title: "Hiring Profile", order: 0, mikeyLinks: [{ label: "AE Profile", href: "/hiring-profile" }] },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Hiring", title: "Compensation Plan & Operationalization of it", order: 1 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Hiring", title: "Hiring Assessment", order: 2, mikeyLinks: [{ label: "Pre-Hire Assessment", href: "/pre-hire-assessment" }] },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Hiring", title: "Interview Process", order: 3 },
+
+  // ── AE / SDR Onboarding ────────────────────────────────────
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Example Call Library", order: 0 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Pre-Call Planning Process", order: 1, mikeyLinks: [{ label: "Pre-Call Checklist", href: "/pre-call-planning" }] },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Discovery Call Script", order: 2, mikeyLinks: [{ label: "Discovery Questions", href: "/discovery-questions" }] },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "MVP Sales Playbook (ICP, Qualification, Stages, Metrics)", order: 3 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Assorted Market / Persona Training Materials", order: 4 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Sales Deck", order: 5, mikeyLinks: [{ label: "Sales Deck", href: "/sales-deck" }] },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Sales Deck Script", order: 6 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Demo Account Capability", order: 7 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Demo Script", order: 8 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Pricing", order: 9 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Onboarding", title: "Documented / Refined Contracting Process", order: 10 },
+
+  // ── AE / SDR Management ────────────────────────────────────
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Mindset Changes", order: 0 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Metrics & Goals", order: 1 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Operating Rhythm", order: 2 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "TK", order: 3 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Headsets for reps", order: 4 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Are reps properly blocking calendar for prep and follow-up?", order: 5 },
+  { maturityStage: "FIRST_SALES_HIRE", capabilityCategory: "AE / SDR Management", title: "Do reps have properly specified and inspected Call Execution Setup?", order: 6 },
+
+  // ════════════════════════════════════════════════════════════
+  // STAGE 6: SCALING_SALES — "Can we get many people other than the founder to sell?"
+  // ════════════════════════════════════════════════════════════
+
+  // ── Scaling Sales ──────────────────────────────────────────
+  { maturityStage: "SCALING_SALES", capabilityCategory: "Scaling Sales", title: "TK", order: 0 },
 ];
