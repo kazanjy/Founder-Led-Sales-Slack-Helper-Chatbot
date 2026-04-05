@@ -2919,7 +2919,7 @@ export default function ChatPage() {
                           </svg>
                         </button>
                         {moveToProjectMenu === conv.id && (
-                          <div className="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 max-h-60 overflow-y-auto">
+                          <div className="fixed w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60] max-h-60 overflow-y-auto" style={{ left: (menuRef.current?.getBoundingClientRect().right ?? 0) + 4, top: menuRef.current?.getBoundingClientRect().top ?? 0 }}>
                             {conv.projectId && (
                               <button
                                 onClick={async (e) => {
