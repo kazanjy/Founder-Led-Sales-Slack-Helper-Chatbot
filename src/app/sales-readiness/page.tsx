@@ -963,21 +963,45 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           )}
         </div>
 
-        {/* Filter chips */}
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {FILTER_OPTIONS.map((f) => (
+        {/* Filter chips + expand/collapse */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 flex-wrap">
+            {FILTER_OPTIONS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                  filter === f.value
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                filter === f.value
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              onClick={() => {
+                const allKeys = new Set(stages.map((s) => s.key));
+                setExpandedStages(allKeys);
+                setCollapsedCategories(new Set());
+                saveCollapseState(allKeys, new Set());
+              }}
+              className="px-3 py-1.5 text-xs text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
             >
-              {f.label}
+              Expand All
             </button>
-          ))}
+            <button
+              onClick={() => {
+                setExpandedStages(new Set());
+                saveCollapseState(new Set(), collapsedCategories);
+              }}
+              className="px-3 py-1.5 text-xs text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+            >
+              Collapse All
+            </button>
+          </div>
         </div>
 
         {/* Stages */}
