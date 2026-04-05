@@ -86,7 +86,8 @@ function BulkAssessmentContent() {
   const [startingChat, setStartingChat] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [showSyncOverlay, setShowSyncOverlay] = useState(false);
-  const [syncData, setSyncData] = useState<{ proposedChanges: never[]; recommendedStage: null } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncData, setSyncData] = useState<any>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
