@@ -40,6 +40,7 @@ export async function GET(
         callType: version.callType,
         title: version.title,
         transcript: version.transcript,
+        sourceUrl: version.sourceUrl,
         scores,
         overallScore: version.overallScore,
         maxScore: version.maxScore,

@@ -175,6 +175,7 @@ function CallReviewContent() {
           if (res.ok) {
             const data = await res.json();
             setVersion(data.version);
+            if (data.version.sourceUrl) setRecordingUrl(data.version.sourceUrl);
             setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
           }
         }
