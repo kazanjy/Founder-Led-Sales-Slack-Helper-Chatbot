@@ -647,20 +647,21 @@ function CallReviewContent() {
             </Link>
             <input
               type="text"
-              value={version.title || ""}
-              onChange={(e) => setVersion({ ...version, title: e.target.value })}
+              defaultValue={version.title || ""}
               onBlur={(e) => {
                 const newTitle = e.target.value.trim();
-                if (newTitle && newTitle !== version.title) {
+                if (newTitle) {
+                  setVersion({ ...version, title: newTitle });
                   fetch(`/api/call-review/versions/${version.id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ title: newTitle }),
-                  });
+                  }).catch(() => {});
                 }
               }}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
               placeholder="Discovery Call Review"
-              className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-0 py-0 text-xl font-semibold text-gray-900 flex-1 min-w-0"
+              className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-1 py-0 text-xl font-semibold text-gray-900 flex-1 min-w-0 truncate rounded"
             />
           </div>
           <div className="flex items-center justify-between">
