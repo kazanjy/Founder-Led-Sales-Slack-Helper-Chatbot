@@ -793,24 +793,6 @@ function CallRecapContent() {
                 </div>
               )}
 
-              {/* Recording link bar */}
-              {version?.recordingUrl && (
-                <div className="flex items-center gap-2 mb-4 px-1">
-                  <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <a
-                    href={version.recordingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-green-600 hover:text-green-700 font-medium truncate"
-                  >
-                    {version.recordingUrl}
-                  </a>
-                </div>
-              )}
-
               {/* Email content tab */}
               {(activeTab === "email" || isStreamingMode || !version) && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -870,46 +852,12 @@ function CallRecapContent() {
                   )}
                 </div>
 
-                {/* View Recording link */}
-                {!isEditing && version?.recordingUrl && (
-                  <div className="border-t border-gray-200 px-8 py-4">
-                    <a
-                      href={version.recordingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      View Recording
-                    </a>
-                  </div>
-                )}
               </div>
               )}
 
               {/* Source Material tab */}
               {activeTab === "source" && version && (
                 <div className="space-y-6">
-                  {/* Recording URL */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Call Recording</h3>
-                    <a
-                      href={version.recordingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium text-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {version.recordingUrl}
-                    </a>
-                  </div>
-
                   {/* Call Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-6">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Call Summary</h3>
