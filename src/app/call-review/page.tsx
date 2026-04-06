@@ -753,50 +753,49 @@ function CallReviewContent() {
       {/* Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
-          <nav className="flex gap-6" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab("scorecard")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "scorecard"
-                  ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Scorecard
-            </button>
-            <button
-              onClick={() => setActiveTab("transcript")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "transcript"
-                  ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Transcript
-            </button>
-          </nav>
+          <div className="flex items-center justify-between">
+            <nav className="flex gap-6" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab("scorecard")}
+                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "scorecard"
+                    ? "border-purple-600 text-purple-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                Scorecard
+              </button>
+              <button
+                onClick={() => setActiveTab("transcript")}
+                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "transcript"
+                    ? "border-purple-600 text-purple-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                Transcript
+              </button>
+            </nav>
+            {recordingUrl && (
+              <a
+                href={recordingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Recording
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Recording link bar */}
-        {recordingUrl && (
-          <div className="flex items-center gap-2 mb-4">
-            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <a
-              href={recordingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-green-600 hover:text-green-700 font-medium truncate"
-            >
-              {recordingUrl}
-            </a>
-          </div>
-        )}
         {/* Transcript Tab */}
         {activeTab === "transcript" && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
