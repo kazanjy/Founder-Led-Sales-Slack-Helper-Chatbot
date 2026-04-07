@@ -247,16 +247,41 @@ Card grid of active deals showing:
 
 ---
 
-## Implementation Order
+## Deal Creation Flow
 
-1. **DB**: Deal, DealParticipant, DealTimelineEntry models + migration
-2. **API**: CRUD for deals, entries, participants
-3. **Deal list page** (`/deals`) — card grid with stage/health
-4. **Deal detail page** (`/deals/[id]`) — timeline + participants + analysis
-5. **Add entry input** — unified drop zone with paste/drag/type support
-6. **Screenshot extraction** — clipboard paste → GPT-4o vision → stored text
-7. **PDL participant enrichment** — reuse existing `src/lib/search/pdl.ts`
-8. **Deal analysis** — GPT-5.2 with context stuffing (Sales Narrative + Motion)
+The primary way to create a deal is by **pasting a call transcript/summary**. The system extracts company name, participants, and call type from the content to bootstrap the deal automatically. Users can also manually create a blank deal if they prefer.
+
+**"New Deal from Call" flow:**
+1. User clicks "New Deal" → shown a paste input: "Paste a call transcript or summary to get started"
+2. User pastes transcript → AI extracts: company name, deal name suggestion, participant names, call type
+3. System creates Deal + first DealTimelineEntry + DealParticipants in one step
+4. User lands on the deal detail page, can edit the AI-suggested name/participants
+
+---
+
+## Implementation Staging
+
+### Phase 1: Foundation (shippable)
+1. DB models + migration — Deal, DealParticipant, DealTimelineEntry
+2. Core API — CRUD for deals, entries, participants
+3. Deal list page (`/deals`) — card grid, stage filters, "New Deal" button
+4. Nav — add Deals to SalesNavBar
+
+### Phase 2: Deal Detail + Timeline (shippable)
+5. Deal detail page (`/deals/[id]`) — header with stage/health, timeline view, participants sidebar
+6. Add entry input — unified paste/drop/type component
+7. "New Deal from Call" flow — paste transcript → AI extracts company, participants, call type → creates deal + first entry in one step
+
+### Phase 3: Intelligence (shippable)
+8. Deal analysis — GPT-5.2 with context stuffing (Sales Narrative + Sales Motion)
+9. PDL participant enrichment — reuse existing `src/lib/search/pdl.ts`
+10. Screenshot paste — clipboard image → GPT-4o vision → text entry
+
+### Phase 4: Cross-Feature Integration
+11. "Add to Deal" from Call Recap — button on recap page
+12. "Add to Deal" from Call Review — button on review page
+13. "Chat About This Deal" — Chatbase conversation with deal context
+14. Link to Projects — optional projectId association
 9. **Cross-feature integration** — "Add to Deal" from call recap, call review, chat
 10. **Nav integration** — add Deals to SalesNavBar
 
