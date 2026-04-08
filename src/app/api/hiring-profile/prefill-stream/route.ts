@@ -203,11 +203,15 @@ export async function POST(request: NextRequest) {
           // Fire one LLM call per question — all in parallel
           const promises = questions.map(async (q) => {
             const help = q.helpText ? `\nHint: ${q.helpText}` : "";
-            const prompt = `You are helping a founder pre-fill a questionnaire about their current state of sales, so we can build an AE hiring profile. Based on their existing Sales Narrative answers and GTM Assessment answers below, answer this question.
+            const prompt = `You are helping a founder pre-fill a questionnaire about their current state of sales, so we can build an AE hiring profile. Based on their existing data below, answer this question.
+
+The data comes from multiple sources: Sales Narrative, GTM Assessment, GTM Readiness Progression, and Coaching Sessions. When information conflicts or has evolved over time, PREFER MORE RECENT information — coaching session notes and recent readiness progress reflect the founder's current state better than older narrative or assessment answers.
 
 Make reasonable inferences from what's available — for example, if the Sales Narrative describes selling to "VP Engineering at mid-market SaaS companies", you can infer the primary buyer title and function.
 
 CRITICAL: Only use information that is actually present in or directly inferable from the data below. Do NOT fabricate specific numbers, company names, metrics, dollar amounts, or percentages that aren't in the source data. If the data says nothing relevant, leave the answer empty rather than inventing details.
+
+RECENCY: Data is organized with dates where available. Coaching sessions are listed newest-first. When you see contradictions (e.g., an older narrative says one thing but a recent coaching goal suggests something different), go with the more recent source.
 
 ## QUESTION
 Q${q.globalOrder} [${q.category}]: ${q.question}${help}
