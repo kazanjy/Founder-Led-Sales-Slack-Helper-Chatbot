@@ -260,7 +260,7 @@ function HiringProfileEditContent() {
     if (hasExisting) {
       const confirmed = await showConfirm({
         title: "Overwrite Existing Answers?",
-        message: "Pre-filling will replace all current answers with new ones generated from your Sales Narrative and GTM Assessment. Continue?",
+        message: "Pre-filling will replace all current answers with new ones generated from your Sales Narrative, GTM Assessment, GTM Readiness, and Coaching Sessions. Continue?",
         variant: "warning",
         confirmLabel: "Overwrite & Pre-Fill",
         cancelLabel: "Cancel",
