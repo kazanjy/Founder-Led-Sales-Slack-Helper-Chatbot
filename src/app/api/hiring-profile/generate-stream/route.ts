@@ -57,11 +57,81 @@ export async function POST(request: Request) {
       }
     }
 
+    // Fetch additional context: Sales Narrative, GTM Assessment, GTM Readiness
+    let additionalContext = "";
+
+    // Sales Narrative
+    try {
+      const narrativeVersion = await prisma.salesNarrativeVersion.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        select: { narrative: true },
+      });
+      if (narrativeVersion?.narrative) {
+        additionalContext += "\n\n---\n\n## SALES NARRATIVE (for additional context)\n\n" +
+          narrativeVersion.narrative.substring(0, 3000);
+      }
+    } catch { /* ignore */ }
+
+    // GTM Assessment answers
+    try {
+      const maturityQuestions = await prisma.maturityQuestion.findMany({
+        where: { enabled: true },
+        orderBy: { globalOrder: "asc" },
+        select: { id: true, category: true, globalOrder: true, question: true },
+      });
+      const maturityAnswers = await prisma.$queryRaw<
+        Array<{ questionId: string; answer: string }>
+      >`
+        SELECT DISTINCT ON ("questionId") "questionId", "answer"
+        FROM "maturity_answers"
+        WHERE "userId" = ${user.id}
+        ORDER BY "questionId", "createdAt" DESC
+      `;
+      const maturityMap = new Map(maturityAnswers.map((a: { questionId: string; answer: string }) => [a.questionId, a.answer]));
+      const answeredMaturity = maturityQuestions.filter((q) => maturityMap.has(q.id));
+      if (answeredMaturity.length > 0) {
+        additionalContext += "\n\n---\n\n## GTM ASSESSMENT ANSWERS (for additional context)\n\n";
+        for (const q of answeredMaturity) {
+          additionalContext += `**Q${q.globalOrder} [${q.category}]: ${q.question}**\n${maturityMap.get(q.id)}\n\n`;
+        }
+      }
+    } catch { /* ignore */ }
+
+    // GTM Readiness Progression
+    if (user.accountId) {
+      try {
+        const readinessItems = await prisma.salesReadinessItem.findMany({
+          orderBy: [{ maturityStage: "asc" }, { capabilityCategory: "asc" }, { order: "asc" }],
+        });
+        const accountItems = await prisma.salesReadinessAccountItem.findMany({
+          where: { accountId: user.accountId },
+        });
+        const progressMap = new Map(accountItems.map((ai: { itemId: string; status: string; notes: string | null; evidenceUrl: string | null }) => [ai.itemId, ai]));
+        const nonTodoItems = readinessItems.filter((item: { id: string }) => {
+          const progress = progressMap.get(item.id);
+          return progress && progress.status !== "to_do";
+        });
+        if (nonTodoItems.length > 0) {
+          additionalContext += "\n\n---\n\n## GTM READINESS PROGRESSION (for additional context)\n\n";
+          for (const item of nonTodoItems) {
+            const progress = progressMap.get(item.id);
+            if (!progress) continue;
+            additionalContext += `- [${progress.status.toUpperCase()}] ${(item as { maturityStage: string }).maturityStage} > ${(item as { capabilityCategory: string }).capabilityCategory} > ${(item as { title: string }).title}`;
+            if (progress.evidenceUrl) additionalContext += ` — Evidence: ${progress.evidenceUrl}`;
+            additionalContext += "\n";
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
     const prompt = `You are an expert sales hiring consultant helping a founder define their ideal first (or next) Account Executive hire. Based on the founder's answers below, generate a comprehensive AE Hiring Profile report.
 
 ## QUESTIONNAIRE ANSWERS:
 
 ${answersSummary}
+
+${additionalContext}
 
 ---
 

@@ -49,9 +49,38 @@ export async function POST(request: NextRequest) {
       ORDER BY "questionId", "createdAt" DESC
     `;
 
-    if (latestNarrativeAnswers.length === 0 && latestMaturityAnswers.length === 0) {
+    // Load GTM Readiness Progression data
+    let readinessContext = "";
+    if (user.accountId) {
+      const readinessItems = await prisma.salesReadinessItem.findMany({
+        orderBy: [{ maturityStage: "asc" }, { capabilityCategory: "asc" }, { order: "asc" }],
+      });
+      const accountItems = await prisma.salesReadinessAccountItem.findMany({
+        where: { accountId: user.accountId },
+      });
+      const progressMap = new Map(accountItems.map((ai: { itemId: string; status: string; notes: string | null; evidenceUrl: string | null }) => [ai.itemId, ai]));
+
+      const nonTodoItems = readinessItems.filter((item: { id: string }) => {
+        const progress = progressMap.get(item.id);
+        return progress && progress.status !== "to_do";
+      });
+
+      if (nonTodoItems.length > 0) {
+        readinessContext = "## GTM READINESS PROGRESSION\n\n";
+        for (const item of nonTodoItems) {
+          const progress = progressMap.get(item.id);
+          if (!progress) continue;
+          readinessContext += `- [${progress.status.toUpperCase()}] ${(item as { maturityStage: string }).maturityStage} > ${(item as { capabilityCategory: string }).capabilityCategory} > ${(item as { title: string }).title}`;
+          if (progress.evidenceUrl) readinessContext += ` — Evidence: ${progress.evidenceUrl}`;
+          if (progress.notes) readinessContext += ` — Notes: ${progress.notes}`;
+          readinessContext += "\n";
+        }
+      }
+    }
+
+    if (latestNarrativeAnswers.length === 0 && latestMaturityAnswers.length === 0 && !readinessContext) {
       return new Response(
-        JSON.stringify({ error: "No existing data found. Please complete the Sales Narrative or GTM Assessment first." }),
+        JSON.stringify({ error: "No existing data found. Please complete the Sales Narrative, GTM Assessment, or GTM Readiness Progression first." }),
         { status: 400 }
       );
     }
@@ -104,6 +133,13 @@ export async function POST(request: NextRequest) {
       }
       contextParts.push(maturityContext);
       dataSources.push(`GTM Assessment (${answeredMaturityQuestions.length} answers)`);
+    }
+
+    // GTM Readiness context
+    if (readinessContext) {
+      contextParts.push(readinessContext);
+      const nonTodoCount = readinessContext.split("\n").filter((l: string) => l.startsWith("- [")).length;
+      dataSources.push(`GTM Readiness (${nonTodoCount} items with progress)`);
     }
 
     const combinedContext = contextParts.join("\n\n---\n\n");
