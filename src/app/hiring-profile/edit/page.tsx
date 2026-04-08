@@ -24,6 +24,7 @@ const PREFILL_MESSAGES = [
   "Analyzing your Sales Narrative",
   "Reviewing your GTM Assessment",
   "Scanning your GTM Readiness Progression",
+  "Reviewing your Coaching Sessions",
   "Identifying sales motion patterns",
   "Mapping buyer profiles",
   "Drafting your answers",
@@ -87,6 +88,7 @@ function HiringProfileEditContent() {
   const [narrativeDate, setNarrativeDate] = useState<string | null>(null);
   const [assessmentDate, setAssessmentDate] = useState<string | null>(null);
   const [readinessDate, setReadinessDate] = useState<string | null>(null);
+  const [coachingDate, setCoachingDate] = useState<string | null>(null);
 
   // Set browser tab title
   useEffect(() => {
@@ -161,9 +163,19 @@ function HiringProfileEditContent() {
           if (readinessRes.ok) {
             const readinessData = await readinessRes.json();
             if (readinessData.overall && readinessData.overall.total > 0 && readinessData.overall.done > 0) {
-              setReadinessDate(new Date().toISOString()); // Use current date as "last updated"
+              setReadinessDate(new Date().toISOString());
             }
           }
+          // Coaching sessions
+          try {
+            const coachRes = await fetch("/api/coaching-sessions");
+            if (coachRes.ok) {
+              const coachData = await coachRes.json();
+              if (coachData.sessions?.length > 0) {
+                setCoachingDate(coachData.sessions[0].sessionDate);
+              }
+            }
+          } catch { /* ignore */ }
         } catch { /* ignore */ }
       } catch (error) {
         console.error("Error loading data:", error);
@@ -481,8 +493,10 @@ function HiringProfileEditContent() {
                   <a href="/sales-narrative" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">Sales Narrative</a>
                   {", "}
                   <a href="/assessment/bulk" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">GTM Assessment</a>
-                  {", and "}
+                  {", "}
                   <a href="/sales-readiness" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">GTM Readiness</a>
+                  {", and "}
+                  <a href="/coaching-history" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">Coaching</a>
                 </p>
               </div>
             </div>
@@ -517,7 +531,7 @@ function HiringProfileEditContent() {
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600">
-                    We&apos;ll use your existing Sales Narrative, GTM Assessment, and GTM Readiness Progression to automatically fill in answers.
+                    We&apos;ll use your existing Sales Narrative, GTM Assessment, GTM Readiness, and Coaching Sessions to automatically fill in answers.
                     You can review and edit everything after.
                   </p>
 
@@ -570,6 +584,24 @@ function HiringProfileEditContent() {
                       </div>
                       <a href="/sales-readiness" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
                         {readinessDate ? "Update" : "Start"}
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {coachingDate ? (
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        )}
+                        <span className="text-sm text-gray-700">Coaching Sessions</span>
+                        {coachingDate && (
+                          <span className="text-xs text-gray-400">
+                            {new Date(coachingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                      <a href="/coaching-history" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
+                        {coachingDate ? "Update" : "Start"}
                       </a>
                     </div>
                     <p className="text-xs text-gray-400 pt-1">
@@ -753,6 +785,20 @@ function HiringProfileEditContent() {
                 </div>
                 <a href="/sales-readiness" target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
                   {readinessDate ? "Update" : "Start"}
+                </a>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {coachingDate ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  )}
+                  <span className="text-sm text-gray-700">Coaching Sessions</span>
+                  {coachingDate && <span className="text-xs text-gray-400">{new Date(coachingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
+                </div>
+                <a href="/coaching-history" target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
+                  {coachingDate ? "Update" : "Start"}
                 </a>
               </div>
             </div>

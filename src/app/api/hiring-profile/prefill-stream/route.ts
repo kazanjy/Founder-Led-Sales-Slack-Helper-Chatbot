@@ -142,6 +142,43 @@ export async function POST(request: NextRequest) {
       dataSources.push(`GTM Readiness (${nonTodoCount} items with progress)`);
     }
 
+    // Coaching Sessions context (goals, tasks, notes — no transcripts)
+    const coachingSessions = await prisma.coachingSession.findMany({
+      where: { userId: user.id },
+      orderBy: { sessionDate: "desc" },
+      include: {
+        goals: { include: { tasks: true } },
+      },
+    });
+
+    if (coachingSessions.length > 0) {
+      let coachingContext = "## COACHING SESSIONS\n\n";
+      for (const session of coachingSessions) {
+        const sessionDate = session.sessionDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        coachingContext += `### ${session.title} (${sessionDate})\n`;
+        if (session.notes) {
+          const notesTruncated = session.notes.length > 1500
+            ? session.notes.substring(0, 1500) + "...[truncated]"
+            : session.notes;
+          coachingContext += `Notes: ${notesTruncated}\n`;
+        }
+        if (session.goals.length > 0) {
+          coachingContext += "Goals:\n";
+          for (const goal of session.goals) {
+            coachingContext += `- [${goal.status.toUpperCase()}] ${goal.title}`;
+            if (goal.description) coachingContext += `: ${goal.description}`;
+            coachingContext += "\n";
+            for (const task of goal.tasks) {
+              coachingContext += `  - [${task.status.toUpperCase()}] ${task.title}\n`;
+            }
+          }
+        }
+        coachingContext += "\n";
+      }
+      contextParts.push(coachingContext);
+      dataSources.push(`Coaching (${coachingSessions.length} sessions)`);
+    }
+
     const combinedContext = contextParts.join("\n\n---\n\n");
 
     const MAX_CONTEXT_CHARS = 120000;

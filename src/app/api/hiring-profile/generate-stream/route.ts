@@ -125,6 +125,39 @@ export async function POST(request: Request) {
       } catch { /* ignore */ }
     }
 
+    // Coaching Sessions (goals, tasks, notes — no transcripts)
+    try {
+      const coachingSessions = await prisma.coachingSession.findMany({
+        where: { userId: user.id },
+        orderBy: { sessionDate: "desc" },
+        include: {
+          goals: { include: { tasks: true } },
+        },
+      });
+      if (coachingSessions.length > 0) {
+        additionalContext += "\n\n---\n\n## COACHING SESSIONS (for additional context)\n\n";
+        for (const session of coachingSessions) {
+          const sessionDate = session.sessionDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          additionalContext += `### ${session.title} (${sessionDate})\n`;
+          if (session.notes) {
+            additionalContext += session.notes.substring(0, 1500) + "\n";
+          }
+          if (session.goals.length > 0) {
+            additionalContext += "Goals:\n";
+            for (const goal of session.goals) {
+              additionalContext += `- [${goal.status.toUpperCase()}] ${goal.title}`;
+              if (goal.description) additionalContext += `: ${goal.description}`;
+              additionalContext += "\n";
+              for (const task of goal.tasks) {
+                additionalContext += `  - [${task.status.toUpperCase()}] ${task.title}\n`;
+              }
+            }
+          }
+          additionalContext += "\n";
+        }
+      }
+    } catch { /* ignore */ }
+
     const prompt = `You are an expert sales hiring consultant helping a founder define their ideal first (or next) Account Executive hire. Based on the founder's answers below, generate a comprehensive AE Hiring Profile report.
 
 ## QUESTIONNAIRE ANSWERS:
