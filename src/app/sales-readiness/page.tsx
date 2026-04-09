@@ -580,37 +580,65 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
   const handleWhatNext = async () => {
     setWhatNextLoading(true);
     try {
-      // Build readiness state context from current stages data
+      // Determine current stage index for filtering
+      const stageOrder = MATURITY_STAGES.map((s) => s.value);
+      const currentStageIdx = currentMaturityStage ? stageOrder.indexOf(currentMaturityStage) : 0;
+      const currentStageInfo = MATURITY_STAGES[currentStageIdx];
+      const nextStageInfo = MATURITY_STAGES[currentStageIdx + 1] || null;
+
       let context = "## Current GTM Readiness Progression State\n\n";
 
-      if (currentMaturityStage) {
-        const stageInfo = MATURITY_STAGES.find((s) => s.value === currentMaturityStage);
-        context += `**Current Maturity Stage:** ${stageInfo?.short || currentMaturityStage}\n\n`;
+      if (currentStageInfo) {
+        context += `**Current Maturity Stage:** ${currentStageInfo.short} — "${currentStageInfo.label}"\n`;
+        if (nextStageInfo) {
+          context += `**Next Stage:** ${nextStageInfo.short} — "${nextStageInfo.label}"\n`;
+        }
+        context += "\n";
       }
 
       if (overall) {
         context += `**Overall Progress:** ${overall.done}/${overall.total} done, ${overall.inProgress} in progress, ${overall.upNext} up next, ${overall.toDo} to do\n\n`;
       }
 
-      for (const stage of stages) {
-        context += `### ${stage.label}\n`;
-        context += `${stage.doneCount}/${stage.totalCount} complete\n\n`;
+      // Prior stages — summary only (don't itemize)
+      const priorStages = stages.filter((s) => stageOrder.indexOf(s.key) < currentStageIdx);
+      if (priorStages.length > 0) {
+        context += "### Prior Stages (completed — summary only)\n\n";
+        for (const stage of priorStages) {
+          context += `- ${stage.label}: ${stage.doneCount}/${stage.totalCount} done\n`;
+        }
+        context += "\n";
+      }
 
-        for (const cat of stage.categories) {
-          const nonTodoItems = cat.items.filter((i) => i.status !== "to_do");
-          if (nonTodoItems.length > 0) {
-            context += `**${cat.name}** (${cat.doneCount}/${cat.totalCount})\n`;
-            for (const item of nonTodoItems) {
-              const statusLabel = STATUS_OPTIONS.find((s) => s.value === item.status)?.label || item.status;
-              context += `- [${statusLabel}] ${item.title}`;
-              if (item.evidenceUrl) context += ` — Evidence: ${item.evidenceUrl}`;
-              if (item.notes) context += ` — Notes: ${item.notes}`;
-              context += "\n";
-            }
+      // Current stage — full detail with all items
+      const currentStageData = stages.find((s) => s.key === currentMaturityStage);
+      if (currentStageData) {
+        context += `### CURRENT STAGE: ${currentStageData.label} (${currentStageData.doneCount}/${currentStageData.totalCount} done)\n\n`;
+        for (const cat of currentStageData.categories) {
+          context += `**${cat.name}** (${cat.doneCount}/${cat.totalCount})\n`;
+          for (const item of cat.items) {
+            const statusLabel = STATUS_OPTIONS.find((s) => s.value === item.status)?.label || item.status;
+            context += `- [${statusLabel}] ${item.title}`;
+            if (item.evidenceUrl) context += ` — Evidence: ${item.evidenceUrl}`;
+            if (item.notes) context += ` — Notes: ${item.notes}`;
             context += "\n";
-          } else {
-            context += `**${cat.name}** (${cat.doneCount}/${cat.totalCount}) — all to do\n\n`;
           }
+          context += "\n";
+        }
+      }
+
+      // Next stage — full detail so GPT can preview what's coming
+      const nextStageKey = stageOrder[currentStageIdx + 1];
+      const nextStageData = nextStageKey ? stages.find((s) => s.key === nextStageKey) : null;
+      if (nextStageData) {
+        context += `### NEXT STAGE: ${nextStageData.label} (${nextStageData.doneCount}/${nextStageData.totalCount} done)\n\n`;
+        for (const cat of nextStageData.categories) {
+          context += `**${cat.name}** (${cat.doneCount}/${cat.totalCount})\n`;
+          for (const item of cat.items) {
+            const statusLabel = STATUS_OPTIONS.find((s) => s.value === item.status)?.label || item.status;
+            context += `- [${statusLabel}] ${item.title}\n`;
+          }
+          context += "\n";
         }
       }
 
@@ -663,12 +691,19 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       } catch { /* no coaching data */ }
 
       context += "\n---\n\n## Your Request\n\n";
-      context += "Based on my current GTM Readiness Progression state and recent coaching sessions above, what should I focus on next? ";
-      context += "Please recommend the top 3-5 specific actions I should take, considering:\n";
-      context += "1. What capabilities I'm missing or have in progress at my current maturity stage\n";
-      context += "2. What my coaching goals and tasks suggest I should prioritize\n";
-      context += "3. What would have the highest impact on moving to the next maturity stage\n\n";
-      context += "For each recommendation, explain WHY it matters and link it to specific readiness items or coaching goals.";
+      context += `I'm currently at the "${currentStageInfo?.short || "Unknown"}" maturity stage. `;
+      context += "Based on my current GTM Readiness Progression and recent coaching sessions above, what should I focus on next?\n\n";
+      context += "IMPORTANT GUIDANCE:\n";
+      context += "- Focus on GAPS in my CURRENT maturity stage. These are the capabilities I need to complete before advancing.\n";
+      context += "- Do NOT recommend going back to prior stage items. If I'm at First Revenue, I don't need advice about customer research decks or problem validation — that's already proven by the fact that I have customers taking meetings and closing.\n";
+      context += "- Briefly preview 1-2 items from the NEXT stage that I should start preparing for, but keep the focus on current stage gaps.\n";
+      context += "- Weight my recent coaching goals and tasks heavily — they reflect what I'm actively working on right now.\n";
+      context += "- Be specific and actionable. Name the exact readiness items I should tackle.\n\n";
+      context += "Please recommend the top 3-5 specific actions, organized as:\n";
+      context += "1. **Current stage gaps** (highest priority) — what's missing or in-progress at my current stage\n";
+      context += "2. **Coaching alignment** — how my coaching goals connect to these gaps\n";
+      context += "3. **Next stage preview** — 1-2 things to start thinking about for the next stage\n\n";
+      context += "For each recommendation, explain WHY it matters for where I am right now.";
 
       // Create conversation and open chat
       const res = await fetch("/api/conversations/from-context", {
