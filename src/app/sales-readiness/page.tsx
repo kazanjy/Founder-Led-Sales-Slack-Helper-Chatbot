@@ -677,7 +677,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       context += "You can see the previous stage, current stage, and next stage above. ";
       context += "Focus your recommendations on gaps across these three stages — particularly unfinished items in my current stage, any loose ends from the previous stage, and early preparation for the next stage.\n\n";
       context += "Weight my recent coaching goals and tasks heavily — they reflect what I'm actively working on right now.\n\n";
-      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items. For each, explain WHY it matters for where I am right now.";
+      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items. For each, explain WHY it matters for where I am right now.\n\n";
+      context += "IMPORTANT: When you reference a specific readiness item, include a link to the GTM Readiness Progression page so I can go update it. Use this markdown format: [Item Title](/sales-readiness). ";
+      context += "For example: \"You should complete your [Pre-Call Planning Checklist](/sales-readiness) — this will...\" ";
+      context += "This lets me click through to update the status if I've already done it.";
 
       // Create conversation and open chat
       const res = await fetch("/api/conversations/from-context", {
