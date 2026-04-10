@@ -176,6 +176,7 @@ function getMessageFiles(
 
 interface Conversation {
   id: string;
+  userId?: string;
   source: "SLACK" | "WEB";
   title: string | null;
   firstMessagePreview: string | null;
@@ -184,9 +185,10 @@ interface Conversation {
   lastMessageAt: string;
   archived?: boolean;
   attachmentsIncluded?: string[] | null;
-  imagesIncluded?: AttachedFile[] | StoredFileRef[] | null; // Base64 (session) or storage refs (from DB)
+  imagesIncluded?: AttachedFile[] | StoredFileRef[] | null;
   mode?: "CHATBASE" | "DIRECT";
   projectId?: string | null;
+  user?: { id: string; name: string | null; email: string | null; slackUserName: string | null };
 }
 
 interface SearchResult {
@@ -208,6 +210,7 @@ export default function ChatPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [teamConversations, setTeamConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(conversationIdFromUrl);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -1398,6 +1401,7 @@ export default function ChatPage() {
         const convsRes = await fetch("/api/conversations");
         const convsData = await convsRes.json();
         setConversations(convsData.conversations || []);
+        setTeamConversations(convsData.teamConversations || []);
 
         // Get projects
         try {
@@ -3087,6 +3091,41 @@ export default function ChatPage() {
             ))
           )}
 
+          {/* Team conversations section */}
+          {teamConversations.length > 0 && (
+            <div className="mt-4 border-t border-gray-300 dark:border-gray-600 pt-2">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                Team
+              </div>
+              {teamConversations.slice(0, 15).map((conv) => (
+                <a
+                  key={`team-${conv.id}`}
+                  href={`/chat/${conv.id}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                    e.preventDefault();
+                    selectConversation(conv.id);
+                  }}
+                  className={`block p-4 border-b border-gray-200 dark:border-gray-700 transition-colors ${
+                    selectedConversation === conv.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[13px] text-purple-600">
+                      {conv.user?.name || conv.user?.slackUserName || conv.user?.email?.split("@")[0] || "Teammate"}
+                    </span>
+                    <span className="text-[13px] text-gray-400">
+                      {formatRelativeTime(conv.lastMessageAt)}
+                    </span>
+                  </div>
+                  <p className="text-[15px] text-gray-900 dark:text-gray-100 truncate">
+                    {conv.title || conv.firstMessagePreview || "Untitled Chat"}
+                  </p>
+                </a>
+              ))}
+            </div>
+          )}
+
           {/* Shared with me section */}
           {sharedWithMeChats.length > 0 && (
             <div className="mt-4 border-t border-gray-300 dark:border-gray-600 pt-2">
@@ -3365,6 +3404,23 @@ export default function ChatPage() {
                 Upgrade
               </a>
             )}
+            {/* Creator badge for teammate chats */}
+            {(() => {
+              const conv = conversations.find((c) => c.id === selectedConversation) || teamConversations.find((c) => c.id === selectedConversation);
+              if (conv?.user && conv.userId && conv.userId !== user?.id) {
+                const creatorName = conv.user.name || conv.user.slackUserName || conv.user.email?.split("@")[0] || "Teammate";
+                return (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-purple-600 bg-purple-50 rounded-full font-medium">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    {creatorName}&apos;s chat
+                  </span>
+                );
+              }
+              return null;
+            })()}
+
             {/* Copy/Share buttons - only show when messages exist and not viewing shared chat */}
             {messages.length > 0 && !isViewingSharedChat && (
               <>
