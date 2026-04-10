@@ -121,6 +121,7 @@ model User {
   sharedDocuments            SharedDocument[]
   chatSharesSent             ChatShare[]                 @relation("ChatSharesSent")
   chatSharesReceived         ChatShare[]                 @relation("ChatSharesReceived")
+  chatViews                  ChatView[]
   sessions                   Session[]
   savedPrompts               SavedPrompt[]
   dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
@@ -364,9 +365,16 @@ model Conversation {
   // Archived conversations (hidden from list but not deleted)
   archived Boolean @default(false)
 
+  // Private conversations are only visible to the owner (not account-visible)
+  isPrivate Boolean @default(false)
+
+  // Whether this chat is shared with the entire account
+  sharedWithAccount Boolean @default(false)
+
   messages                Message[]
   sharedLinks             SharedConversation[]
   chatShares              ChatShare[]
+  chatViews               ChatView[]
   maturityAssessments     MaturityAssessment[]
   salesMetricsAssessments SalesMetricsAssessment[]
 
@@ -493,6 +501,22 @@ model ChatShare {
   @@index([sharedToUserId])
   @@index([sharedByUserId])
   @@map("chat_shares")
+}
+
+// Tracks when a user views a teammate's chat (for "recently viewed" feature)
+model ChatView {
+  id String @id @default(cuid())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, conversationId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@map("chat_views")
 }
 
 // Shared sales document link (public read-only)

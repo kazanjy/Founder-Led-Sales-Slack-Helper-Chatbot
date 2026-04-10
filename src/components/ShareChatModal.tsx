@@ -40,6 +40,8 @@ export function ShareChatModal({
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [sharedWithAccount, setSharedWithAccount] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +77,18 @@ export function ShareChatModal({
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      Promise.all([fetchShares(), fetchRecentRecipients()]).finally(() =>
+      Promise.all([
+        fetchShares(),
+        fetchRecentRecipients(),
+        // Load conversation privacy/sharing state
+        fetch(`/api/conversations/${conversationId}`).then(async (r) => {
+          if (r.ok) {
+            const data = await r.json();
+            setIsPrivate(data.conversation?.isPrivate || false);
+            setSharedWithAccount(data.conversation?.sharedWithAccount || false);
+          }
+        }).catch(() => {}),
+      ]).finally(() =>
         setLoading(false)
       );
       // Focus input after modal opens
@@ -87,7 +100,7 @@ export function ShareChatModal({
       setSuccessMessage(null);
       setShowSuggestions(false);
     }
-  }, [isOpen, fetchShares, fetchRecentRecipients]);
+  }, [isOpen, fetchShares, fetchRecentRecipients, conversationId]);
 
   // Update suggestions as user types
   useEffect(() => {
@@ -344,6 +357,62 @@ export function ShareChatModal({
             <p className="mt-2 text-sm text-green-600">{successMessage}</p>
           )}
 
+          {/* Account sharing & privacy toggles */}
+          <div className="mt-4 space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Share with entire account</p>
+                <p className="text-xs text-gray-500">All team members can view this chat</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !sharedWithAccount;
+                  setSharedWithAccount(newValue);
+                  if (newValue) setIsPrivate(false);
+                  await fetch(`/api/conversations/${conversationId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ sharedWithAccount: newValue, ...(newValue ? { isPrivate: false } : {}) }),
+                  });
+                }}
+                disabled={isPrivate}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  sharedWithAccount ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"
+                } ${isPrivate ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  sharedWithAccount ? "translate-x-6" : "translate-x-1"
+                }`} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Private</p>
+                <p className="text-xs text-gray-500">Only you can see this chat (not visible to account members)</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !isPrivate;
+                  setIsPrivate(newValue);
+                  if (newValue) setSharedWithAccount(false);
+                  await fetch(`/api/conversations/${conversationId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ isPrivate: newValue, ...(newValue ? { sharedWithAccount: false } : {}) }),
+                  });
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  isPrivate ? "bg-red-500" : "bg-gray-300 dark:bg-gray-600"
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  isPrivate ? "translate-x-6" : "translate-x-1"
+                }`} />
+              </button>
+            </div>
+          </div>
+
           {/* Current shares */}
           {loading ? (
             <div className="mt-4 text-center text-gray-500">Loading...</div>
@@ -409,7 +478,7 @@ export function ShareChatModal({
         {/* Footer */}
         <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800 rounded-b-lg border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500">
-            Shared chats are read-only. Recipients can clone them to continue the conversation.
+            Account members can view chats via direct URL. Shared chats are read-only — recipients can clone to continue.
           </p>
         </div>
       </div>

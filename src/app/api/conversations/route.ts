@@ -37,6 +37,8 @@ export async function GET(request: Request) {
       imagesIncluded: true,
       mode: true,
       projectId: true,
+      isPrivate: true,
+      sharedWithAccount: true,
     },
   });
 
