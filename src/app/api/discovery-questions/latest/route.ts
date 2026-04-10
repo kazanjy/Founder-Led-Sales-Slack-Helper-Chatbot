@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const latestVersion = await prisma.discoveryQuestionsVersion.findFirst({
+    let latestVersion = await prisma.discoveryQuestionsVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
@@ -22,10 +22,22 @@ export async function GET() {
           },
         },
         user: {
-          select: { name: true, email: true, slackUserName: true },
+          select: { id: true, name: true, email: true, slackUserName: true },
         },
       },
     });
+
+    // Fall back to account teammate's latest
+    if (!latestVersion && user.accountId) {
+      latestVersion = await prisma.discoveryQuestionsVersion.findFirst({
+        where: { user: { accountId: user.accountId } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          salesNarrativeVersion: { select: { id: true, narrative: true, createdAt: true } },
+          user: { select: { id: true, name: true, email: true, slackUserName: true } },
+        },
+      });
+    }
 
     if (!latestVersion) {
       // Check if user has a sales narrative to generate from

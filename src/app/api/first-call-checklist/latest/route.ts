@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const latestVersion = await prisma.firstCallChecklistVersion.findFirst({
+    let latestVersion = await prisma.firstCallChecklistVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
@@ -19,18 +19,29 @@ export async function GET() {
             id: true,
             createdAt: true,
             salesNarrativeVersion: {
-              select: {
-                id: true,
-                createdAt: true,
-              },
+              select: { id: true, createdAt: true },
             },
           },
         },
         user: {
-          select: { name: true, email: true, slackUserName: true },
+          select: { id: true, name: true, email: true, slackUserName: true },
         },
       },
     });
+
+    // Fall back to account teammate's latest
+    if (!latestVersion && user.accountId) {
+      latestVersion = await prisma.firstCallChecklistVersion.findFirst({
+        where: { user: { accountId: user.accountId } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          discoveryQuestionsVersion: {
+            select: { id: true, createdAt: true, salesNarrativeVersion: { select: { id: true, createdAt: true } } },
+          },
+          user: { select: { id: true, name: true, email: true, slackUserName: true } },
+        },
+      });
+    }
 
     if (!latestVersion) {
       // Check if user has discovery questions to generate from

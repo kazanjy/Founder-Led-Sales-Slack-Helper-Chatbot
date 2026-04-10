@@ -10,33 +10,32 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const latestVersion = await prisma.preCallPlanningVersion.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        firstCallChecklistVersion: {
-          select: {
-            id: true,
-            createdAt: true,
-            discoveryQuestionsVersion: {
-              select: {
-                id: true,
-                createdAt: true,
-                salesNarrativeVersion: {
-                  select: {
-                    id: true,
-                    createdAt: true,
-                  },
-                },
-              },
-            },
+    const includeRelations = {
+      firstCallChecklistVersion: {
+        select: {
+          id: true, createdAt: true,
+          discoveryQuestionsVersion: {
+            select: { id: true, createdAt: true, salesNarrativeVersion: { select: { id: true, createdAt: true } } },
           },
         },
-        user: {
-          select: { name: true, email: true, slackUserName: true },
-        },
       },
+      user: { select: { id: true, name: true, email: true, slackUserName: true } },
+    };
+
+    let latestVersion = await prisma.preCallPlanningVersion.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      include: includeRelations,
     });
+
+    // Fall back to account teammate's latest
+    if (!latestVersion && user.accountId) {
+      latestVersion = await prisma.preCallPlanningVersion.findFirst({
+        where: { user: { accountId: user.accountId } },
+        orderBy: { createdAt: "desc" },
+        include: includeRelations,
+      });
+    }
 
     if (!latestVersion) {
       // Check if user has a first call checklist to generate from

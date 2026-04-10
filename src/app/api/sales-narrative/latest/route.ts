@@ -25,7 +25,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ hasNarrative: !!accountNarrative });
     }
 
-    const latestVersion = await prisma.salesNarrativeVersion.findFirst({
+    // Try user's own, then fall back to account teammate's
+    let latestVersion = await prisma.salesNarrativeVersion.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
@@ -51,6 +52,25 @@ export async function GET(request: Request) {
         },
       },
     });
+
+    // Fall back to account teammate's latest version
+    if (!latestVersion && user.accountId) {
+      latestVersion = await prisma.salesNarrativeVersion.findFirst({
+        where: { user: { accountId: user.accountId } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          answers: {
+            include: {
+              question: {
+                select: { id: true, category: true, globalOrder: true, question: true },
+              },
+            },
+            orderBy: { question: { globalOrder: "asc" } },
+          },
+          user: { select: { id: true, name: true, email: true, slackUserName: true } },
+        },
+      });
+    }
 
     if (!latestVersion) {
       return NextResponse.json({
