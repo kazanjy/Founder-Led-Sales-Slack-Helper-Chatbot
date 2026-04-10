@@ -17,32 +17,57 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const showArchived = searchParams.get("archived") === "true";
 
-  const conversations = await prisma.conversation.findMany({
+  const selectFields = {
+    id: true,
+    userId: true,
+    source: true,
+    title: true,
+    firstMessagePreview: true,
+    messageCount: true,
+    createdAt: true,
+    lastMessageAt: true,
+    slackChannelId: true,
+    archived: true,
+    attachmentsIncluded: true,
+    imagesIncluded: true,
+    mode: true,
+    projectId: true,
+    isPrivate: true,
+    sharedWithAccount: true,
+    user: { select: { id: true, name: true, email: true, slackUserName: true } },
+  };
+
+  // User's own conversations
+  const ownConversations = await prisma.conversation.findMany({
     where: {
       userId: user.id,
       archived: showArchived,
     },
     orderBy: { lastMessageAt: "desc" },
-    select: {
-      id: true,
-      source: true,
-      title: true,
-      firstMessagePreview: true,
-      messageCount: true,
-      createdAt: true,
-      lastMessageAt: true,
-      slackChannelId: true,
-      archived: true,
-      attachmentsIncluded: true,
-      imagesIncluded: true,
-      mode: true,
-      projectId: true,
-      isPrivate: true,
-      sharedWithAccount: true,
-    },
+    select: selectFields,
   });
 
-  return NextResponse.json({ conversations });
+  // Account teammates' conversations shared with account
+  let teamConversations: typeof ownConversations = [];
+  if (user.accountId && !showArchived) {
+    teamConversations = await prisma.conversation.findMany({
+      where: {
+        user: { accountId: user.accountId },
+        userId: { not: user.id },
+        sharedWithAccount: true,
+        isPrivate: false,
+        archived: false,
+      },
+      orderBy: { lastMessageAt: "desc" },
+      take: 50,
+      select: selectFields,
+    });
+  }
+
+  return NextResponse.json({
+    conversations: ownConversations,
+    teamConversations,
+  });
 }
 
 /**

@@ -1,6 +1,6 @@
 -- AlterTable: Add privacy and account sharing flags
 ALTER TABLE "conversations" ADD COLUMN "isPrivate" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "conversations" ADD COLUMN "sharedWithAccount" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "conversations" ADD COLUMN "sharedWithAccount" BOOLEAN NOT NULL DEFAULT true;
 
 -- CreateTable: Track chat views for "recently viewed" feature
 CREATE TABLE "chat_views" (

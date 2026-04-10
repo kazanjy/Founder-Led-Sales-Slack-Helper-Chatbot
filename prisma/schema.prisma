@@ -369,7 +369,7 @@ model Conversation {
   isPrivate Boolean @default(false)
 
   // Whether this chat is shared with the entire account
-  sharedWithAccount Boolean @default(false)
+  sharedWithAccount Boolean @default(true)
 
   messages                Message[]
   sharedLinks             SharedConversation[]
