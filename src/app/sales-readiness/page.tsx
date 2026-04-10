@@ -589,7 +589,19 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       windowStageKeys.add(stageOrder[currentStageIdx]);
       if (currentStageIdx < stageOrder.length - 1) windowStageKeys.add(stageOrder[currentStageIdx + 1]);
 
-      let context = "## Current GTM Readiness Progression State\n\n";
+      // Build the request first so GPT reads it before the data
+      let context = "## Your Request\n\n";
+      context += `I'm currently at the "${currentStageInfo?.short || "Unknown"}" maturity stage. `;
+      context += "Based on the readiness data and coaching sessions that follow below, what should I focus on next?\n\n";
+      context += "You'll see the previous stage, current stage, and next stage below. ";
+      context += "Focus your recommendations on gaps across these three stages — particularly unfinished items in my current stage, any loose ends from the previous stage, and early preparation for the next stage.\n\n";
+      context += "Weight my recent coaching goals and tasks heavily — they reflect what I'm actively working on right now.\n\n";
+      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items. For each, explain WHY it matters for where I am right now.\n\n";
+      context += "IMPORTANT: When you reference a specific readiness item, include a link to the GTM Readiness Progression page so I can go update it. Use this markdown format: [Item Title](/sales-readiness). ";
+      context += "For example: \"You should complete your [Pre-Call Planning Checklist](/sales-readiness) — this will...\" ";
+      context += "This lets me click through to update the status if I've already done it.";
+
+      context += "\n\n---\n\n## Current GTM Readiness Progression State\n\n";
 
       if (currentStageInfo) {
         context += `**Current Maturity Stage:** ${currentStageInfo.short} — "${currentStageInfo.label}"\n\n`;
@@ -670,17 +682,6 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           }
         }
       } catch { /* no coaching data */ }
-
-      context += "\n---\n\n## Your Request\n\n";
-      context += `I'm currently at the "${currentStageInfo?.short || "Unknown"}" maturity stage. `;
-      context += "Based on the readiness data and coaching sessions above, what should I focus on next?\n\n";
-      context += "You can see the previous stage, current stage, and next stage above. ";
-      context += "Focus your recommendations on gaps across these three stages — particularly unfinished items in my current stage, any loose ends from the previous stage, and early preparation for the next stage.\n\n";
-      context += "Weight my recent coaching goals and tasks heavily — they reflect what I'm actively working on right now.\n\n";
-      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items. For each, explain WHY it matters for where I am right now.\n\n";
-      context += "IMPORTANT: When you reference a specific readiness item, include a link to the GTM Readiness Progression page so I can go update it. Use this markdown format: [Item Title](/sales-readiness). ";
-      context += "For example: \"You should complete your [Pre-Call Planning Checklist](/sales-readiness) — this will...\" ";
-      context += "This lets me click through to update the status if I've already done it.";
 
       // Create conversation and open chat
       const res = await fetch("/api/conversations/from-context", {
