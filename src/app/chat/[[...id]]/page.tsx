@@ -395,9 +395,16 @@ export default function ChatPage() {
           const snData = await snRes.json();
           const answered = snData.questions?.filter((q: { latestAnswer: unknown }) => q.latestAnswer).length || 0;
           const total = snData.questions?.length || 0;
-          // Check if user has ever generated a narrative
+          // Check if user (or any account teammate) has ever generated a narrative
           const latestRes = await fetch("/api/sales-narrative/latest");
-          const hasGenerated = latestRes.ok && (await latestRes.json()).hasNarrative;
+          let hasGenerated = latestRes.ok && (await latestRes.json()).hasNarrative;
+          // Also check account-level narrative
+          if (!hasGenerated) {
+            try {
+              const accountNarRes = await fetch("/api/sales-narrative/latest?account=true");
+              hasGenerated = accountNarRes.ok && (await accountNarRes.json()).hasNarrative;
+            } catch { /* ignore */ }
+          }
           setAppProgress(prev => ({
             ...prev,
             salesNarrative: { answered, total, hasGenerated: !!hasGenerated }

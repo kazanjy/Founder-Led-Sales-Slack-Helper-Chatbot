@@ -3,11 +3,26 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 // GET - Get the latest sales narrative version (for merge variables display)
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const checkAccount = searchParams.get("account") === "true";
+
+    // If checking account-level, look for any narrative from account teammates
+    if (checkAccount && user.accountId) {
+      const accountNarrative = await prisma.salesNarrativeVersion.findFirst({
+        where: {
+          user: { accountId: user.accountId },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      return NextResponse.json({ hasNarrative: !!accountNarrative });
     }
 
     const latestVersion = await prisma.salesNarrativeVersion.findFirst({
