@@ -2800,12 +2800,10 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Recents label */}
-        {projects.length > 0 && (
-          <div className="px-4 pt-1 pb-1">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recents</span>
-          </div>
-        )}
+        {/* My Chats label */}
+        <div className="px-4 pt-1 pb-1">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My Chats</span>
+        </div>
 
         {/* Conversations List - this part scrolls independently */}
         <div className="flex-1 overflow-y-auto">
@@ -3090,74 +3088,66 @@ export default function ChatPage() {
               </div>
             ))
           )}
-
-          {/* Team conversations section */}
-          {teamConversations.length > 0 && (
-            <div className="mt-4 border-t border-gray-300 dark:border-gray-600 pt-2">
-              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Team
-              </div>
-              {teamConversations.slice(0, 15).map((conv) => (
-                <a
-                  key={`team-${conv.id}`}
-                  href={`/chat/${conv.id}`}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-                    e.preventDefault();
-                    selectConversation(conv.id);
-                  }}
-                  className={`block p-4 border-b border-gray-200 dark:border-gray-700 transition-colors ${
-                    selectedConversation === conv.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[13px] text-purple-600">
-                      {conv.user?.name || conv.user?.slackUserName || conv.user?.email?.split("@")[0] || "Teammate"}
-                    </span>
-                    <span className="text-[13px] text-gray-400">
-                      {formatRelativeTime(conv.lastMessageAt)}
-                    </span>
-                  </div>
-                  <p className="text-[15px] text-gray-900 dark:text-gray-100 truncate">
-                    {conv.title || conv.firstMessagePreview || "Untitled Chat"}
-                  </p>
-                </a>
-              ))}
-            </div>
-          )}
-
-          {/* Shared with me section */}
-          {sharedWithMeChats.length > 0 && (
-            <div className="mt-4 border-t border-gray-300 dark:border-gray-600 pt-2">
-              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Shared with me
-              </div>
-              {sharedWithMeChats.map((chat) => (
-                <a
-                  key={`shared-${chat.id}`}
-                  href={`/chat/${chat.id}`}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-                    e.preventDefault();
-                    selectConversation(chat.id);
-                  }}
-                  className={`block p-4 border-b border-gray-200 dark:border-gray-700 transition-colors ${
-                    selectedConversation === chat.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[13px] text-blue-600">
-                      From {chat.sharedBy.name || chat.sharedBy.email?.split("@")[0] || "someone"}
-                    </span>
-                  </div>
-                  <p className="text-[15px] text-gray-900 dark:text-gray-100 truncate">
-                    {chat.title || chat.firstMessagePreview || "Untitled Chat"}
-                  </p>
-                </a>
-              ))}
-            </div>
-          )}
         </div>
+
+        {/* Team Chats - sticky bottom section */}
+        {(teamConversations.length > 0 || sharedWithMeChats.length > 0) && (
+          <div className="border-t border-gray-300 dark:border-gray-600 flex-shrink-0 max-h-[35vh] overflow-y-auto">
+            <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0 bg-gray-100 dark:bg-gray-900 z-10">
+              Team Chats
+            </div>
+            {teamConversations.slice(0, 15).map((conv) => (
+              <a
+                key={`team-${conv.id}`}
+                href={`/chat/${conv.id}`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                  e.preventDefault();
+                  selectConversation(conv.id);
+                }}
+                className={`block px-4 py-3 border-b border-gray-200 dark:border-gray-700 transition-colors ${
+                  selectedConversation === conv.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[13px] text-purple-600 font-medium">
+                    {conv.user?.name || conv.user?.slackUserName || conv.user?.email?.split("@")[0] || "Teammate"}
+                  </span>
+                  <span className="text-[13px] text-gray-400">
+                    {formatRelativeTime(conv.lastMessageAt)}
+                  </span>
+                </div>
+                <p className="text-[14px] text-gray-900 dark:text-gray-100 truncate">
+                  {conv.title || conv.firstMessagePreview || "Untitled Chat"}
+                </p>
+              </a>
+            ))}
+            {sharedWithMeChats.map((chat) => (
+              <a
+                key={`shared-${chat.id}`}
+                href={`/chat/${chat.id}`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+                  e.preventDefault();
+                  selectConversation(chat.id);
+                }}
+                className={`block px-4 py-3 border-b border-gray-200 dark:border-gray-700 transition-colors ${
+                  selectedConversation === chat.id ? "bg-white dark:bg-gray-800" : "hover:bg-gray-200 dark:hover:bg-gray-800"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[13px] text-blue-600 font-medium">
+                    {chat.sharedBy.name || chat.sharedBy.email?.split("@")[0] || "someone"}
+                  </span>
+                  <span className="text-[13px] text-gray-400">shared</span>
+                </div>
+                <p className="text-[14px] text-gray-900 dark:text-gray-100 truncate">
+                  {chat.title || chat.firstMessagePreview || "Untitled Chat"}
+                </p>
+              </a>
+            ))}
+          </div>
+        )}
 
         {/* User Info - stays at bottom */}
         <div className="p-4 border-t border-gray-200">
