@@ -145,9 +145,20 @@ export default function NewCallRecap() {
             </p>
 
             {/* Source freshness panel */}
-            {sourcesLoaded && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
-                <h3 className="text-sm font-semibold text-amber-900 mb-3">Context sources for smarter emails</h3>
+            <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+              <h3 className="text-sm font-semibold text-amber-900 mb-3">Context sources for smarter emails</h3>
+              {!sourcesLoaded ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-amber-200 rounded-full animate-pulse" />
+                    <div className="h-4 w-32 bg-amber-100 rounded animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-amber-200 rounded-full animate-pulse" />
+                    <div className="h-4 w-28 bg-amber-100 rounded animate-pulse" />
+                  </div>
+                </div>
+              ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -182,7 +193,8 @@ export default function NewCallRecap() {
                   These assets provide context so Mikey can write strategically-aware follow-up emails with the right next steps for your motion. Works without them too.
                 </p>
               </div>
-            )}
+              )}
+            </div>
 
             <div className="space-y-5">
               {/* Recording URL — first field, required */}
