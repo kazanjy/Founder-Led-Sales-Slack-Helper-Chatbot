@@ -5,14 +5,15 @@ import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./inter
 // OAuth: https://developers.fathom.ai/oauth
 
 const API_BASE = "https://api.fathom.video/v1";
-const AUTH_URL = "https://fathom.video/oauth/authorize";
-const TOKEN_URL = "https://fathom.video/oauth/token";
+const AUTH_URL = "https://fathom.video/external/v1/oauth2/authorize";
+const TOKEN_URL = "https://fathom.video/external/v1/oauth2/token";
 
 export function getFathomAuthUrl(redirectUri: string, state: string): string {
   const params = new URLSearchParams({
     client_id: process.env.FATHOM_CLIENT_ID || "",
     redirect_uri: redirectUri,
     response_type: "code",
+    scope: "public_api",
     state,
   });
   return `${AUTH_URL}?${params.toString()}`;
