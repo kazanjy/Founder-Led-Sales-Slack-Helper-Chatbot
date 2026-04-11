@@ -95,6 +95,10 @@ function CallReviewContent() {
   const extractAttemptedRef = useRef<string | null>(null);
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
+  const [discoveryQuestionsDate, setDiscoveryQuestionsDate] = useState<string | null>(null);
+  const [firstCallChecklistDate, setFirstCallChecklistDate] = useState<string | null>(null);
+  const [salesNarrativeDate, setSalesNarrativeDate] = useState<string | null>(null);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
   const shareUrl = recordingUrl;
   const extractedFrom = detectedVendor;
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -197,6 +201,33 @@ function CallReviewContent() {
     }
     loadData();
   }, [router, versionId]);
+
+  // Fetch context source freshness dates
+  useEffect(() => {
+    async function checkSources() {
+      try {
+        const [dqRes, fccRes, snRes] = await Promise.all([
+          fetch("/api/discovery-questions/latest"),
+          fetch("/api/first-call-checklist/latest"),
+          fetch("/api/sales-narrative/latest"),
+        ]);
+        if (dqRes.ok) {
+          const d = await dqRes.json();
+          if (d.hasDiscoveryQuestions && d.version?.createdAt) setDiscoveryQuestionsDate(d.version.createdAt);
+        }
+        if (fccRes.ok) {
+          const d = await fccRes.json();
+          if (d.hasFirstCallChecklist && d.version?.createdAt) setFirstCallChecklistDate(d.version.createdAt);
+        }
+        if (snRes.ok) {
+          const d = await snRes.json();
+          if (d.hasNarrative && d.version?.createdAt) setSalesNarrativeDate(d.version.createdAt);
+        }
+      } catch { /* ignore */ }
+      setSourcesLoaded(true);
+    }
+    checkSources();
+  }, []);
 
   const handleAnalyze = async () => {
     if (!transcript.trim() || transcript.trim().length < 100) {
@@ -397,6 +428,66 @@ function CallReviewContent() {
                 <p className="text-gray-500 mb-6">
                   Paste a call transcript to get an AI-powered scorecard with actionable feedback.
                 </p>
+
+                {/* Context sources panel */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
+                  <h3 className="text-sm font-semibold text-purple-900 mb-3">Context sources for smarter reviews</h3>
+                  {!sourcesLoaded ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 bg-purple-200 rounded-full animate-pulse" /><div className="h-4 w-36 bg-purple-100 rounded animate-pulse" /></div>
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 bg-purple-200 rounded-full animate-pulse" /><div className="h-4 w-32 bg-purple-100 rounded animate-pulse" /></div>
+                      <div className="flex items-center gap-2"><div className="w-4 h-4 bg-purple-200 rounded-full animate-pulse" /><div className="h-4 w-28 bg-purple-100 rounded animate-pulse" /></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {discoveryQuestionsDate ? (
+                            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          )}
+                          <span className="text-sm text-gray-700">Discovery Questions</span>
+                          {discoveryQuestionsDate && <span className="text-xs text-gray-400">{formatDate(discoveryQuestionsDate)}</span>}
+                        </div>
+                        <a href={discoveryQuestionsDate ? "/discovery-questions" : "/discovery-questions"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
+                          {discoveryQuestionsDate ? "Update" : "Create"}
+                        </a>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {firstCallChecklistDate ? (
+                            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          )}
+                          <span className="text-sm text-gray-700">First Call Checklist</span>
+                          {firstCallChecklistDate && <span className="text-xs text-gray-400">{formatDate(firstCallChecklistDate)}</span>}
+                        </div>
+                        <a href={firstCallChecklistDate ? "/first-call-checklist" : "/first-call-checklist"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
+                          {firstCallChecklistDate ? "Update" : "Create"}
+                        </a>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {salesNarrativeDate ? (
+                            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          )}
+                          <span className="text-sm text-gray-700">Sales Narrative</span>
+                          {salesNarrativeDate && <span className="text-xs text-gray-400">{formatDate(salesNarrativeDate)}</span>}
+                        </div>
+                        <a href={salesNarrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
+                          {salesNarrativeDate ? "Update" : "Create"}
+                        </a>
+                      </div>
+                      <p className="text-xs text-gray-400 pt-1">
+                        Mikey scores your call against your discovery questions and first call checklist. Keep them up to date for better reviews.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-4">
                   {/* ── Recording URL ────────────────────────── */}
