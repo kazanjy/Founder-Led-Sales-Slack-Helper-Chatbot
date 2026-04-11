@@ -30,6 +30,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchingCallId, setFetchingCallId] = useState<string | null>(null);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [showConnectModal, setShowConnectModal] = useState<string | null>(null); // provider slug
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [connecting, setConnecting] = useState(false);
@@ -210,9 +211,18 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {group.calls.map((call) => (
-                    <div
+                    <button
                       key={call.id}
-                      className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-gray-200 hover:border-purple-200 transition-colors"
+                      onClick={() => {
+                        setSelectedCallId(call.id);
+                        handleUseCall(call.id, group.provider);
+                      }}
+                      disabled={fetchingCallId !== null}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left cursor-pointer disabled:cursor-wait ${
+                        selectedCallId === call.id
+                          ? "border-purple-400 bg-purple-50 ring-1 ring-purple-200"
+                          : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
+                      }`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
@@ -224,24 +234,24 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
                         </div>
                         <p className="text-sm text-gray-900 truncate font-medium">{call.title}</p>
                       </div>
-                      <button
-                        onClick={() => handleUseCall(call.id, group.provider)}
-                        disabled={fetchingCallId === call.id}
-                        className="ml-3 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
-                      >
-                        {fetchingCallId === call.id ? (
-                          <span className="flex items-center gap-1">
-                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Loading
-                          </span>
-                        ) : (
-                          "Use This"
-                        )}
-                      </button>
-                    </div>
+                      {fetchingCallId === call.id ? (
+                        <span className="ml-3 flex items-center gap-1 text-xs text-purple-600 flex-shrink-0">
+                          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Loading...
+                        </span>
+                      ) : selectedCallId === call.id ? (
+                        <span className="ml-3 text-xs text-purple-600 font-medium flex-shrink-0">
+                          ✓ Selected
+                        </span>
+                      ) : (
+                        <span className="ml-3 text-xs text-gray-400 group-hover:text-purple-500 flex-shrink-0">
+                          Select →
+                        </span>
+                      )}
+                    </button>
                   ))}
                   {group.calls.length === 0 && (
                     <p className="text-sm text-gray-400 text-center py-4">No recent calls found</p>

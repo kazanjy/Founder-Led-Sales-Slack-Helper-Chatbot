@@ -110,7 +110,7 @@ export const ALL_VENDORS: VendorConfig[] = [
     urlPatterns: [/granola\.(ai|so)\//i],
     extractable: false,
     manualPasteInstructions:
-      "Granola shared links only contain AI-generated summaries — not the full transcript. Open the call in Granola, find the full transcript, and paste it below.",
+      "Connect your Granola account above to import calls automatically, or paste the full transcript below.",
   },
   {
     id: "gong",

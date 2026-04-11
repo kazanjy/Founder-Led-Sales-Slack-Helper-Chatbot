@@ -13,14 +13,10 @@ interface GranolaNoteListItem {
 }
 
 interface GranolaNoteDetail extends GranolaNoteListItem {
-  transcript?: {
-    segments: Array<{
-      speaker: string;
-      text: string;
-      start_time?: number;
-      end_time?: number;
-    }>;
-  };
+  transcript?: Array<{
+    speaker: { source: string; diarization_label?: string };
+    text: string;
+  }> | null;
 }
 
 async function granolaFetch(path: string, apiKey: string): Promise<Response> {
@@ -81,11 +77,14 @@ export const granolaProvider: MeetingRecorderProvider = {
 
     const note: GranolaNoteDetail = await res.json();
 
-    // Build transcript from speaker-attributed segments
+    // Build transcript from speaker-attributed entries
     let transcript = "";
-    if (note.transcript?.segments) {
-      transcript = note.transcript.segments
-        .map((seg) => `${seg.speaker}: ${seg.text}`)
+    if (Array.isArray(note.transcript) && note.transcript.length > 0) {
+      transcript = note.transcript
+        .map((entry) => {
+          const speakerName = entry.speaker?.diarization_label || entry.speaker?.source || "Speaker";
+          return `${speakerName}: ${entry.text}`;
+        })
         .join("\n\n");
     }
 
