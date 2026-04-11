@@ -257,7 +257,17 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
               Connect {providers.find((p) => p.slug === showConnectModal)?.name}
             </h3>
             <p className="text-sm text-gray-500 mb-4">
-              Paste your API key to connect. You can find it in your account settings.
+              Paste your API key to connect.{" "}
+              {showConnectModal === "granola" && (
+                <a
+                  href="https://docs.granola.ai/introduction#obtaining-an-api-key"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 hover:text-purple-800 underline underline-offset-2"
+                >
+                  How to get your Granola API key
+                </a>
+              )}
             </p>
 
             <input
