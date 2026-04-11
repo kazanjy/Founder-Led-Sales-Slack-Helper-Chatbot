@@ -70,25 +70,25 @@ Respond ONLY with valid JSON (no markdown code blocks). The JSON should be a sin
           }
 
           const parsed = JSON.parse(jsonMatch[0]);
-          const newContent = JSON.stringify(parsed);
 
-          // Create new version
-          const newVersion = await prisma.firstCallChecklistVersion.create({
-            data: {
-              userId: user.id,
-              title: version.title,
-              content: newContent,
-              discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
-            },
-          });
-
-          // Upsert GTM variable
+          // Convert JSON to markdown
           const formattedContent = parsed.sections?.map((sec: { title: string; items: string[] }) => {
             let out = `## ${sec.title}\n\n`;
             for (const item of sec.items) out += `- ${item}\n`;
             return out;
           }).join("\n") || "";
 
+          // Store as markdown (not JSON)
+          const newVersion = await prisma.firstCallChecklistVersion.create({
+            data: {
+              userId: user.id,
+              title: version.title,
+              content: formattedContent,
+              discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
+            },
+          });
+
+          // Upsert GTM variable
           await prisma.gtmVariable.upsert({
             where: { userId_mergeField: { userId: user.id, mergeField: "FIRST_CALL_CHECKLIST" } },
             update: { value: formattedContent },
@@ -98,7 +98,7 @@ Respond ONLY with valid JSON (no markdown code blocks). The JSON should be a sin
           send("complete", {
             versionId: newVersion.id,
             title: newVersion.title,
-            content: parsed,
+            content: formattedContent,
             iterationPrompt: feedback.trim(),
           });
         } catch (error) {
