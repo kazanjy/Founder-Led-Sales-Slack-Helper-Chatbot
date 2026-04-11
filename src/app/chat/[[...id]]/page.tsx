@@ -2816,8 +2816,7 @@ export default function ChatPage() {
         </div>
 
         {/* Conversations List - this part scrolls independently */}
-        {myChatsExpanded && (
-        <div className="flex-1 overflow-y-auto">
+        <div className={`overflow-y-auto ${myChatsExpanded ? "flex-1" : "h-0"}`}>
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500 text-sm">
               No conversations yet. Start a new chat!
@@ -3100,7 +3099,6 @@ export default function ChatPage() {
             ))
           )}
         </div>
-        )}
 
         {/* Team Chats - sticky bottom section */}
         {(teamConversations.length > 0 || sharedWithMeChats.length > 0) && (
