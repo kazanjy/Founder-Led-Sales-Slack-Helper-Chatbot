@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 
 export default function NewCallRecap() {
   const router = useRouter();
@@ -195,6 +196,15 @@ export default function NewCallRecap() {
               </div>
               )}
             </div>
+
+            {/* Meeting Recorder Integration */}
+            <MeetingRecorderPanel
+              onSelectCall={(data) => {
+                if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
+                if (data.summary) setCallSummary(data.summary);
+                if (data.transcript) setCallTranscript(data.transcript);
+              }}
+            />
 
             <div className="space-y-5">
               {/* Recording URL — first field, required */}

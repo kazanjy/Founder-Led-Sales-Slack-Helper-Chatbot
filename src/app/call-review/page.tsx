@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -428,6 +429,14 @@ function CallReviewContent() {
                 <p className="text-gray-500 mb-6">
                   Paste a call transcript to get an AI-powered scorecard with actionable feedback.
                 </p>
+
+                {/* Meeting Recorder Integration */}
+                <MeetingRecorderPanel
+                  onSelectCall={(data) => {
+                    if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
+                    if (data.transcript) setTranscript(data.transcript);
+                  }}
+                />
 
                 {/* Context sources panel */}
                 <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">

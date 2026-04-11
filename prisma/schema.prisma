@@ -122,6 +122,7 @@ model User {
   chatSharesSent             ChatShare[]                 @relation("ChatSharesSent")
   chatSharesReceived         ChatShare[]                 @relation("ChatSharesReceived")
   chatViews                  ChatView[]
+  meetingRecorderConnections MeetingRecorderConnection[]
   sessions                   Session[]
   savedPrompts               SavedPrompt[]
   dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
@@ -501,6 +502,30 @@ model ChatShare {
   @@index([sharedToUserId])
   @@index([sharedByUserId])
   @@map("chat_shares")
+}
+
+// Meeting recorder provider connection (Granola, Fireflies, etc.)
+model MeetingRecorderConnection {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider         String   // "granola" | "fireflies" | "fathom" | "gong"
+  accessToken      String   @db.Text // Encrypted API key or OAuth token
+  refreshToken     String?  @db.Text // Encrypted OAuth refresh token (future)
+  tokenExpiresAt   DateTime?
+  providerAccountId String? // Provider's user/account ID
+  status           String   @default("active") // "active" | "expired" | "revoked"
+
+  connectedAt  DateTime @default(now())
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("meeting_recorder_connections")
 }
 
 // Tracks when a user views a teammate's chat (for "recently viewed" feature)
