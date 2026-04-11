@@ -255,3 +255,61 @@ GONG_CLIENT_SECRET=<from Gong developer portal>
 # Fireflies (API key — no OAuth)
 # Users provide their own API key via the UI
 ```
+
+---
+
+## Future: Call Execution Automation
+
+### Phase 6: Calendar Integration + Pre-Call Prep
+
+Integrate with Google Calendar / Outlook to see upcoming meetings and automatically generate pre-call prep briefs.
+
+**How it works:**
+1. User connects their calendar (OAuth — Google Calendar API or Microsoft Graph)
+2. Mikey shows upcoming meetings on a dashboard or in the sidebar
+3. For each upcoming meeting, Mikey identifies the deal/company from the meeting invite (attendees, title)
+4. Generates a pre-call prep brief using:
+   - **Sales Narrative** — positioning and messaging context
+   - **Sales Motion** — expected call flow for this deal stage
+   - **Deal context** — if a Deal exists for this company, pulls timeline entries, participant info, last call summary
+   - **PDL enrichment** — attendee profiles (title, background, company)
+   - **Pre-Call Planning checklist** — the user's existing checklist template
+5. Outputs: suggested agenda, desired outcomes, key questions to ask, attendee profiles, relevant deal history
+6. Optionally: sends a pre-call brief to Slack or email N minutes before the meeting
+
+**Key questions to resolve:**
+- How far in advance to prep? (e.g., meetings in the next 24-48 hours)
+- Auto-match meetings to Deals by company name / attendee email?
+- Push notifications (Slack/email) vs. pull (user checks dashboard)?
+
+### Phase 7: Automated Call Review with Call Type Classification
+
+Use the meeting recorder integration to automatically review calls after they happen, with the right scoring template based on call type.
+
+**How it works:**
+1. When a new call recording is available (via polling or webhook from Fathom/Gong), Mikey auto-ingests the transcript
+2. GPT classifies the call type from the transcript:
+   - **Discovery** — first meeting, exploring pain/need/fit
+   - **Demo** — product walkthrough, showing capabilities
+   - **Proposal** — pricing, packaging, commercial terms
+   - **Negotiation** — working through objections, legal/security
+   - **Closing** — final decision, signature, next steps
+   - **General/Other** — can't classify, use generic template
+3. Based on call type, Mikey selects the appropriate scoring rubric:
+   - Discovery → Discovery Call Rubric (existing)
+   - Demo → Demo Rubric (to be built)
+   - Proposal → Proposal Rubric (to be built)
+   - General → Lightweight generic rubric
+4. Runs the call review analysis against the matched rubric
+5. Results appear in the Call Review page, tagged with call type
+6. If a Deal exists for this company, the review is auto-linked to the deal timeline
+
+**What needs to be built:**
+- Call type classifier (GPT-5.2, from transcript first 2000 chars + title)
+- Additional scoring rubrics beyond Discovery (Demo, Proposal, Negotiation, Closing)
+- Auto-trigger mechanism (poll for new calls, or webhook handler)
+- Auto-link to Deals by matching company/attendee names
+- Notification to user: "Your call with Visana was reviewed — 34/62 (Discovery)"
+
+**Rubric design principle:** Each rubric follows the same structural pattern as the existing Discovery rubric (sections → items → score 0-2 → evidence), but with different sections and criteria appropriate to that call type.
+
