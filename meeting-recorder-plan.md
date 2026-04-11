@@ -10,16 +10,17 @@ Automatically ingest call data from users' call recording systems via API. Users
 
 | Platform | API | Auth | List Calls | Transcript | Summary | Rate Limits | Viability |
 |----------|-----|------|-----------|------------|---------|-------------|-----------|
-| **Fathom** | REST (GA) | OAuth2 + API key | Yes (`/meetings`) | Yes (`/recordings/{id}/transcript`) | Yes (summary + action items) | 60/min/user | **Best candidate** — free plan, full OAuth2, SDKs |
-| **Gong** | REST v2 (GA) | OAuth2 | Yes (`/v2/calls`) | Yes (`/v2/calls/{id}/transcript`) | Yes (brief + highlights) | ~1000/hr | **Strong candidate** — mature, granular scopes, but API may require contract negotiation |
-| **Fireflies** | GraphQL (GA) | API key only | Yes (`transcripts` query) | Yes | Yes (summary, action items) | 50/day (Free/Pro), 60/min (Biz+) | **Good candidate** — requires Business plan ($19/seat/mo) |
-| **Read.ai** | REST (open beta) | API key (OAuth coming) | Yes | Yes | Yes | Undocumented | Possible future — worth watching |
-| **Grain** | REST (beta) | Bearer token | Yes | Yes | Yes | Undocumented | Possible future — requires Business plan |
+| **Granola** | REST (GA) | API key (`grn_*`) | Yes (`GET /notes`) | Yes (`/notes/{id}?include=transcript`) | Yes (AI summary included) | 5/sec sustained, 25 burst | **Starting here** — simple auth, speaker-attributed transcripts, Business plan required |
+| **Fireflies** | GraphQL (GA) | API key only | Yes (`transcripts` query) | Yes | Yes (summary, action items) | 50/day (Free/Pro), 60/min (Biz+) | **Starting here** — requires Business plan ($19/seat/mo) |
+| **Fathom** | REST (GA) | OAuth2 + API key | Yes (`/meetings`) | Yes (`/recordings/{id}/transcript`) | Yes (summary + action items) | 60/min/user | Future — free plan, full OAuth2, SDKs |
+| **Gong** | REST v2 (GA) | OAuth2 | Yes (`/v2/calls`) | Yes (`/v2/calls/{id}/transcript`) | Yes (brief + highlights) | ~1000/hr | Future — mature, granular scopes, may require contract negotiation |
+| **Read.ai** | REST (open beta) | API key (OAuth coming) | Yes | Yes | Yes | Undocumented | Future — worth watching |
+| **Grain** | REST (beta) | Bearer token | Yes | Yes | Yes | Undocumented | Future — requires Business plan |
 | **Chorus/ZoomInfo** | REST (limited) | API token | Yes | Unclear | Unclear | Varies | Not recommended — sparse docs, legacy API being deprecated |
 | **Otter.ai** | Beta | API key | Likely | Likely | Unknown | Undocumented | Not viable — Enterprise only |
 
-**Starting with: Fathom + Gong** — both have full OAuth2, GA APIs, and the broadest user base.
-**Phase 3: Fireflies** — good API but requires Business plan and API key (not OAuth).
+**Starting with: Granola + Fireflies** — both use API key auth (simple), GA APIs.
+**Future: Fathom, Gong** — OAuth2 integrations for broader coverage.
 
 ---
 
@@ -60,9 +61,18 @@ MeetingRecorderConnection
 
 ## OAuth Flow
 
-1. User clicks "Connect Gong" (or Fireflies)
+**API Key providers (Granola, Fireflies):**
+1. User clicks "Connect Granola" (or Fireflies)
+2. Modal appears: "Paste your API key"
+3. User pastes key (e.g., `grn_abc123`)
+4. Server validates key by calling the provider's list endpoint
+5. Stores encrypted key in `MeetingRecorderConnection`
+6. Modal closes, recent calls appear
+
+**OAuth providers (Fathom, Gong — future):**
+1. User clicks "Connect Fathom" (or Gong)
 2. Redirect to provider's OAuth consent page
-3. Provider redirects back to `/api/meeting-recorder/callback?provider=gong&code=xxx`
+3. Provider redirects back to `/api/meeting-recorder/callback?provider=fathom&code=xxx`
 4. Server exchanges code for access/refresh tokens
 5. Stores encrypted tokens in `MeetingRecorderConnection`
 6. Redirects back to the originating page
@@ -117,7 +127,7 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 │  Connect your call recorder to automatically │
 │  import transcripts and summaries.           │
 │                                              │
-│  [🔗 Connect Gong]  [🔗 Connect Fireflies]  │
+│  [🔗 Connect Granola]  [🔗 Connect Fireflies]│
 │                                              │
 │  Or paste a share link below.                │
 └──────────────────────────────────────────────┘
@@ -182,22 +192,23 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 4. OAuth connect/callback endpoints
 5. Connections API (list, disconnect)
 
-### Phase 2: Fathom Integration
-6. Fathom provider implementation (OAuth2, REST API)
-7. Fathom OAuth app registration (env vars: `FATHOM_CLIENT_ID`, `FATHOM_CLIENT_SECRET`)
+### Phase 2: Granola Integration
+6. Granola provider implementation (API key auth, REST)
+7. API: `GET /notes` (list), `GET /notes/{id}?include=transcript` (detail with speaker-attributed transcript)
 8. UI: Meeting Recorder section on Call Recap new page
 9. UI: Meeting Recorder section on Call Review page
 10. "Use This" flow — fetch + populate + auto-trigger
+11. Connection flow: user pastes their `grn_*` API key in a modal
 
-### Phase 3: Gong Integration
-11. Gong provider implementation (OAuth2, REST v2)
-12. Gong OAuth app registration (env vars: `GONG_CLIENT_ID`, `GONG_CLIENT_SECRET`)
-13. Gong-specific scopes: `api:calls:read:basic`, `api:calls:read:transcript`
+### Phase 3: Fireflies Integration
+12. Fireflies provider implementation (API key auth, GraphQL)
+13. Fireflies `transcripts` query (list) + transcript detail (summary, action items, full text)
+14. Connection flow: user pastes their Fireflies API key
 
-### Phase 4: Fireflies Integration
-14. Fireflies provider implementation (API key auth, GraphQL queries)
-15. UI: Fireflies connection flow (API key input modal instead of OAuth redirect)
-16. Fireflies list transcripts + fetch detail
+### Phase 4: Fathom + Gong (future)
+15. Fathom provider (OAuth2 flow, REST API)
+16. Gong provider (OAuth2 flow, REST v2, scope negotiation)
+17. OAuth redirect-based connection flow
 
 ### Phase 5: Polish
 17. Token refresh handling (auto-refresh on 401)
@@ -225,8 +236,10 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 | `prisma/schema.prisma` | MeetingRecorderConnection model |
 | `src/lib/meeting-recorder/interface.ts` | Provider abstraction interface |
 | `src/lib/meeting-recorder/encryption.ts` | Token encryption/decryption |
-| `src/lib/meeting-recorder/gong.ts` | Gong provider implementation |
+| `src/lib/meeting-recorder/granola.ts` | Granola provider implementation |
 | `src/lib/meeting-recorder/fireflies.ts` | Fireflies provider implementation |
+| `src/lib/meeting-recorder/fathom.ts` | Fathom provider implementation (future) |
+| `src/lib/meeting-recorder/gong.ts` | Gong provider implementation (future) |
 | `src/app/api/meeting-recorder/connect/route.ts` | Initiate OAuth |
 | `src/app/api/meeting-recorder/callback/route.ts` | OAuth callback |
 | `src/app/api/meeting-recorder/connections/route.ts` | List connections |
@@ -241,19 +254,20 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 ## Environment Variables
 
 ```
-# Token encryption
+# Token encryption (for storing user API keys securely)
 ENCRYPTION_KEY=<32-byte hex string>
 
-# Fathom OAuth
+# Granola — users provide their own grn_* API key via UI
+# Fireflies — users provide their own API key via UI
+# No server-side keys needed for API-key providers
+
+# Fathom OAuth (future)
 FATHOM_CLIENT_ID=<from Fathom developer portal>
 FATHOM_CLIENT_SECRET=<from Fathom developer portal>
 
-# Gong OAuth
+# Gong OAuth (future)
 GONG_CLIENT_ID=<from Gong developer portal>
 GONG_CLIENT_SECRET=<from Gong developer portal>
-
-# Fireflies (API key — no OAuth)
-# Users provide their own API key via the UI
 ```
 
 ---
