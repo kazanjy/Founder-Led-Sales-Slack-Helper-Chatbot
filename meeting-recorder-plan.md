@@ -8,17 +8,18 @@ Automatically ingest call data from users' call recording systems via API. Users
 
 ## API Availability
 
-| Platform | API | Auth | List Calls | Transcript | Summary | Viability |
-|----------|-----|------|-----------|------------|---------|-----------|
-| **Gong** | REST v2 | OAuth2 | Yes (`/v2/calls`) | Yes (`/v2/calls/{id}/transcript`) | Yes (brief + highlights) | **Best candidate** |
-| **Fireflies** | GraphQL | API key | Yes (`transcripts` query) | Yes | Yes (summary, action items) | **Good candidate** |
-| **Fathom** | Limited/private | No public OAuth | Uncertain | Via share links only | Limited | Not viable for API |
-| **Chorus/ZoomInfo** | Enterprise API | OAuth2 | Yes | Yes | Yes | Enterprise only |
-| **Otter.ai** | No public API | No | No | No | No | Not viable |
-| **Grain** | No public API | No | No | No | No | Not viable |
-| **Read.ai** | Limited | API key | Yes | Yes | Yes | Possible (future) |
+| Platform | API | Auth | List Calls | Transcript | Summary | Rate Limits | Viability |
+|----------|-----|------|-----------|------------|---------|-------------|-----------|
+| **Fathom** | REST (GA) | OAuth2 + API key | Yes (`/meetings`) | Yes (`/recordings/{id}/transcript`) | Yes (summary + action items) | 60/min/user | **Best candidate** — free plan, full OAuth2, SDKs |
+| **Gong** | REST v2 (GA) | OAuth2 | Yes (`/v2/calls`) | Yes (`/v2/calls/{id}/transcript`) | Yes (brief + highlights) | ~1000/hr | **Strong candidate** — mature, granular scopes, but API may require contract negotiation |
+| **Fireflies** | GraphQL (GA) | API key only | Yes (`transcripts` query) | Yes | Yes (summary, action items) | 50/day (Free/Pro), 60/min (Biz+) | **Good candidate** — requires Business plan ($19/seat/mo) |
+| **Read.ai** | REST (open beta) | API key (OAuth coming) | Yes | Yes | Yes | Undocumented | Possible future — worth watching |
+| **Grain** | REST (beta) | Bearer token | Yes | Yes | Yes | Undocumented | Possible future — requires Business plan |
+| **Chorus/ZoomInfo** | REST (limited) | API token | Yes | Unclear | Unclear | Varies | Not recommended — sparse docs, legacy API being deprecated |
+| **Otter.ai** | Beta | API key | Likely | Likely | Unknown | Undocumented | Not viable — Enterprise only |
 
-**Starting with: Gong + Fireflies** — both have robust, documented APIs.
+**Starting with: Fathom + Gong** — both have full OAuth2, GA APIs, and the broadest user base.
+**Phase 3: Fireflies** — good API but requires Business plan and API key (not OAuth).
 
 ---
 
@@ -181,23 +182,28 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 4. OAuth connect/callback endpoints
 5. Connections API (list, disconnect)
 
-### Phase 2: Gong Integration
-6. Gong provider implementation (OAuth, list calls, fetch detail)
-7. Gong OAuth app registration (env vars: `GONG_CLIENT_ID`, `GONG_CLIENT_SECRET`)
+### Phase 2: Fathom Integration
+6. Fathom provider implementation (OAuth2, REST API)
+7. Fathom OAuth app registration (env vars: `FATHOM_CLIENT_ID`, `FATHOM_CLIENT_SECRET`)
 8. UI: Meeting Recorder section on Call Recap new page
 9. UI: Meeting Recorder section on Call Review page
 10. "Use This" flow — fetch + populate + auto-trigger
 
-### Phase 3: Fireflies Integration
-11. Fireflies provider implementation (API key auth, GraphQL queries)
-12. UI: Fireflies connection flow (API key input instead of OAuth)
-13. Fireflies list transcripts + fetch detail
+### Phase 3: Gong Integration
+11. Gong provider implementation (OAuth2, REST v2)
+12. Gong OAuth app registration (env vars: `GONG_CLIENT_ID`, `GONG_CLIENT_SECRET`)
+13. Gong-specific scopes: `api:calls:read:basic`, `api:calls:read:transcript`
 
-### Phase 4: Polish
-14. Token refresh handling (auto-refresh on 401)
-15. Error states (expired tokens, rate limits, API down)
-16. Sync status indicator (last synced timestamp)
-17. Loading skeletons for call list
+### Phase 4: Fireflies Integration
+14. Fireflies provider implementation (API key auth, GraphQL queries)
+15. UI: Fireflies connection flow (API key input modal instead of OAuth redirect)
+16. Fireflies list transcripts + fetch detail
+
+### Phase 5: Polish
+17. Token refresh handling (auto-refresh on 401)
+18. Error states (expired tokens, rate limits, API down)
+19. Sync status indicator (last synced timestamp)
+20. Loading skeletons for call list
 
 ---
 
@@ -238,10 +244,14 @@ Shows on both Call Recap (`/call-recap/new`) and Call Review (`/call-review`) pa
 # Token encryption
 ENCRYPTION_KEY=<32-byte hex string>
 
+# Fathom OAuth
+FATHOM_CLIENT_ID=<from Fathom developer portal>
+FATHOM_CLIENT_SECRET=<from Fathom developer portal>
+
 # Gong OAuth
 GONG_CLIENT_ID=<from Gong developer portal>
 GONG_CLIENT_SECRET=<from Gong developer portal>
 
-# Fireflies
-FIREFLIES_API_KEY=<optional, for server-side if needed>
+# Fireflies (API key — no OAuth)
+# Users provide their own API key via the UI
 ```
