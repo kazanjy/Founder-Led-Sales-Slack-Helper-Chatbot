@@ -3116,7 +3116,7 @@ export default function ChatPage() {
             </div>
             {teamChatsExpanded && (
             <div className="max-h-[35vh] overflow-y-auto">
-            {teamConversations.slice(0, 15).map((conv) => (
+            {teamConversations.map((conv) => (
               <a
                 key={`team-${conv.id}`}
                 href={`/chat/${conv.id}`}

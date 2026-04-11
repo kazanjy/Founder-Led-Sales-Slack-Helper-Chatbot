@@ -59,7 +59,7 @@ export async function GET(request: Request) {
         archived: false,
       },
       orderBy: { lastMessageAt: "desc" },
-      take: 50,
+      take: 200,
       select: selectFields,
     });
   }
