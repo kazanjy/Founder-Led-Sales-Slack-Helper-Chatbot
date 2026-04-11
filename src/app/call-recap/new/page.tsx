@@ -160,6 +160,7 @@ export default function NewCallRecap() {
                   </div>
                 </div>
               ) : (
+                <>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -193,7 +194,7 @@ export default function NewCallRecap() {
                 <p className="text-xs text-gray-400 mt-3">
                   These assets provide context so Mikey can write strategically-aware follow-up emails with the right next steps for your motion. Works without them too.
                 </p>
-              </div>
+                </>
               )}
             </div>
 
