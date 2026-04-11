@@ -99,7 +99,11 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
       "items": {
         "prepared": { "score": 0, "evidence": "..." },
         "rapport": { "score": 0, "evidence": "..." },
-        "timeCheck": { "score": 0, "evidence": "..." }
+        "humor": { "score": 0, "evidence": "..." },
+        "timeCheck": { "score": 0, "evidence": "..." },
+        "agendaSet": { "score": 0, "evidence": "..." },
+        "elevatorPitch": { "score": 0, "evidence": "..." },
+        "transitionToDiscovery": { "score": 0, "evidence": "..." }
       }
     },
     "discoveryExecution": {

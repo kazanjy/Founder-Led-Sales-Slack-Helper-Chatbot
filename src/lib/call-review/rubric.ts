@@ -36,7 +36,7 @@ export const DISCOVERY_CALL_RUBRIC: Rubric = {
     {
       key: "preCallOpening",
       label: "A) Pre-call + Opening",
-      maxScore: 6,
+      maxScore: 14,
       items: [
         {
           key: "prepared",
@@ -49,11 +49,20 @@ export const DISCOVERY_CALL_RUBRIC: Rubric = {
         },
         {
           key: "rapport",
-          label: "Rapport (2-3 min): human + relevant (not weather)",
+          label: "Rapport: targeted, shows planning, not generic small talk",
           scoringGuide: {
             "0": "No rapport building, jumps straight to business",
-            "1": "Generic small talk (weather, weekend)",
-            "2": "Human and relevant connection, shows genuine curiosity",
+            "1": "Generic small talk (weather, weekend, 'how are you')",
+            "2": "Targeted rapport that shows planning — references something personal, specific, or clever about the prospect",
+          },
+        },
+        {
+          key: "humor",
+          label: "Gets a laugh: humor or lightness early in the call",
+          scoringGuide: {
+            "0": "No humor, purely transactional tone",
+            "1": "Attempts humor but it doesn't land or feels forced",
+            "2": "Gets a genuine laugh or warm reaction from the prospect in the first few minutes",
           },
         },
         {
@@ -63,6 +72,33 @@ export const DISCOVERY_CALL_RUBRIC: Rubric = {
             "0": "No mention of time",
             "1": "Vague time reference",
             "2": "Explicit time confirmation ('are we good til :30?')",
+          },
+        },
+        {
+          key: "agendaSet",
+          label: "Agenda set: states what the call will cover and gets buy-in",
+          scoringGuide: {
+            "0": "No agenda, dives right in",
+            "1": "Mentions what they'll cover but doesn't confirm with prospect",
+            "2": "Clear agenda stated and confirmed ('does that work for you?' / 'anything you'd add?')",
+          },
+        },
+        {
+          key: "elevatorPitch",
+          label: "Elevator pitch: concise, compelling 'what we do' (under 60 seconds)",
+          scoringGuide: {
+            "0": "No positioning statement, or rambling multi-minute pitch",
+            "1": "Explains what they do but too long or too vague",
+            "2": "Crisp, compelling positioning in under 60 seconds that connects to the prospect's world",
+          },
+        },
+        {
+          key: "transitionToDiscovery",
+          label: "Smooth transition from opening to discovery questions",
+          scoringGuide: {
+            "0": "Abrupt shift or no clear transition",
+            "1": "Awkward transition",
+            "2": "Natural bridge from pitch/agenda into first discovery question",
           },
         },
       ],
