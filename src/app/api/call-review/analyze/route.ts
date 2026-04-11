@@ -34,28 +34,63 @@ export async function POST(request: NextRequest) {
         try {
           send("progress", { stage: "context", message: "Gathering context...", progress: 10 });
 
-          // Fetch discovery questions if requested
+          // Build account-aware where clause: try user first, fall back to account
+          const userOrAccountWhere = user.accountId
+            ? { user: { accountId: user.accountId } }
+            : { userId: user.id };
+
+          // Fetch discovery questions (user's own first, then account)
           let discoveryQuestions: string | null = null;
           let discoveryQuestionsVersionId: string | null = null;
           if (includeDiscoveryQuestions) {
-            const dqVersion = await prisma.discoveryQuestionsVersion.findFirst({
+            let dqVersion = await prisma.discoveryQuestionsVersion.findFirst({
               where: { userId: user.id },
               orderBy: { createdAt: "desc" },
             });
+            if (!dqVersion) {
+              dqVersion = await prisma.discoveryQuestionsVersion.findFirst({
+                where: userOrAccountWhere,
+                orderBy: { createdAt: "desc" },
+              });
+            }
             if (dqVersion) {
               discoveryQuestions = dqVersion.content;
               discoveryQuestionsVersionId = dqVersion.id;
             }
           }
 
-          // Fetch sales narrative if requested
-          let salesNarrative: string | null = null;
-          let salesNarrativeVersionId: string | null = null;
-          if (includeSalesNarrative) {
-            const snVersion = await prisma.salesNarrativeVersion.findFirst({
+          // Fetch first call checklist (user's own first, then account)
+          let firstCallChecklist: string | null = null;
+          {
+            let fccVersion = await prisma.firstCallChecklistVersion.findFirst({
               where: { userId: user.id },
               orderBy: { createdAt: "desc" },
             });
+            if (!fccVersion) {
+              fccVersion = await prisma.firstCallChecklistVersion.findFirst({
+                where: userOrAccountWhere,
+                orderBy: { createdAt: "desc" },
+              });
+            }
+            if (fccVersion) {
+              firstCallChecklist = fccVersion.content;
+            }
+          }
+
+          // Fetch sales narrative (user's own first, then account)
+          let salesNarrative: string | null = null;
+          let salesNarrativeVersionId: string | null = null;
+          if (includeSalesNarrative) {
+            let snVersion = await prisma.salesNarrativeVersion.findFirst({
+              where: { userId: user.id },
+              orderBy: { createdAt: "desc" },
+            });
+            if (!snVersion) {
+              snVersion = await prisma.salesNarrativeVersion.findFirst({
+                where: userOrAccountWhere,
+                orderBy: { createdAt: "desc" },
+              });
+            }
             if (snVersion) {
               salesNarrative = snVersion.narrative;
               salesNarrativeVersionId = snVersion.id;
@@ -68,6 +103,7 @@ export async function POST(request: NextRequest) {
           const analysis = await analyzeCallTranscript(
             transcript,
             discoveryQuestions,
+            firstCallChecklist,
             salesNarrative,
           );
 

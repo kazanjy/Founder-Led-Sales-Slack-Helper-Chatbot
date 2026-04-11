@@ -38,6 +38,7 @@ export interface AnalysisResult {
 export async function analyzeCallTranscript(
   transcript: string,
   discoveryQuestions?: string | null,
+  firstCallChecklist?: string | null,
   salesNarrative?: string | null,
 ): Promise<AnalysisResult> {
   // Build the rubric description for the prompt
@@ -59,6 +60,9 @@ export async function analyzeCallTranscript(
   if (discoveryQuestions) {
     contextSection += `\n\n## USER'S DISCOVERY QUESTIONS (for reference — check if the rep asked these):\n\n${discoveryQuestions}`;
   }
+  if (firstCallChecklist) {
+    contextSection += `\n\n## USER'S FIRST CALL CHECKLIST (expected call structure and flow):\n\n${firstCallChecklist.substring(0, 5000)}`;
+  }
   if (salesNarrative) {
     contextSection += `\n\n## USER'S SALES NARRATIVE (for context on what they sell):\n\n${salesNarrative.substring(0, 3000)}`;
   }
@@ -72,7 +76,6 @@ ${rubricDescription}
 ## RED FLAGS (auto-dings)
 
 ${redFlagDescription}
-${contextSection}
 
 ## INSTRUCTIONS
 
@@ -84,6 +87,7 @@ ${contextSection}
 6. Identify the top strength and top area for improvement
 7. Extract the sales rep's name and the prospect's company name from the transcript
 8. Analyze talk time: identify all participants, their roles (rep/prospect/other), and estimate each person's percentage of total talk time based on transcript length and speaking turns. Calculate the total rep percentage and total prospect percentage (all prospects combined). Provide a brief assessment of the talk time balance (ideal is rep ~40%, prospects ~60%).
+${contextSection}
 
 ## REQUIRED OUTPUT FORMAT
 
