@@ -306,6 +306,8 @@ Use the meeting recorder integration to automatically review calls after they ha
 
 **What needs to be built:**
 - Call type classifier (GPT-5.2, from transcript first 2000 chars + title)
+- Auto-title generation from call metadata: use provider's participant names, company, and summary to generate a structured title (e.g., "Visana - Discovery - Conrad Smith + Jodi Mazzone") instead of generic "Call Review: 18/62"
+- Participant extraction and characterization: parse participants from recording metadata (names, emails) and from transcript speaker labels, then enrich via PDL to get titles, companies, and roles. Store as structured data alongside the review.
 - Additional scoring rubrics beyond Discovery (Demo, Proposal, Negotiation, Closing)
 - Auto-trigger mechanism (poll for new calls, or webhook handler)
 - Auto-link to Deals by matching company/attendee names
