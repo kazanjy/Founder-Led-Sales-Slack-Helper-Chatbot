@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { decrypt } from "@/lib/meeting-recorder/encryption";
+import { decrypt, encrypt } from "@/lib/meeting-recorder/encryption";
 import { getProvider } from "@/lib/meeting-recorder/providers";
+import { refreshFathomToken } from "@/lib/meeting-recorder/fathom";
 
 // GET — list recent calls from connected provider
 export async function GET(request: NextRequest) {
@@ -35,7 +36,31 @@ export async function GET(request: NextRequest) {
       if (!provider) continue;
 
       try {
-        const apiKey = decrypt(conn.accessToken);
+        let apiKey = decrypt(conn.accessToken);
+
+        // Check if OAuth token needs refresh
+        if (conn.tokenExpiresAt && conn.tokenExpiresAt < new Date() && conn.refreshToken) {
+          try {
+            const refreshed = conn.provider === "fathom"
+              ? await refreshFathomToken(decrypt(conn.refreshToken))
+              : null;
+
+            if (refreshed) {
+              apiKey = refreshed.access_token;
+              await prisma.meetingRecorderConnection.update({
+                where: { id: conn.id },
+                data: {
+                  accessToken: encrypt(refreshed.access_token),
+                  refreshToken: refreshed.refresh_token ? encrypt(refreshed.refresh_token) : conn.refreshToken,
+                  tokenExpiresAt: refreshed.expires_in ? new Date(Date.now() + refreshed.expires_in * 1000) : null,
+                },
+              });
+            }
+          } catch (refreshError) {
+            console.error(`Token refresh failed for ${conn.provider}:`, refreshError);
+          }
+        }
+
         const calls = await provider.listCalls(apiKey, 15);
 
         allCalls.push({

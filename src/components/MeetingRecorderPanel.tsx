@@ -181,9 +181,14 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
                 <button
                   key={p.slug}
                   onClick={() => {
-                    setShowConnectModal(p.slug);
-                    setApiKeyInput("");
-                    setConnectError(null);
+                    if (p.authType === "oauth2") {
+                      // Redirect to OAuth flow
+                      window.location.href = `/api/meeting-recorder/oauth?provider=${p.slug}&returnTo=${encodeURIComponent(window.location.pathname)}`;
+                    } else {
+                      setShowConnectModal(p.slug);
+                      setApiKeyInput("");
+                      setConnectError(null);
+                    }
                   }}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors text-sm font-medium text-gray-700"
                 >
