@@ -767,6 +767,9 @@ model SalesNarrativeVersion {
   sourceUrls     String[] @default([]) // URLs crawled from website
   sourcePdfNames String[] @default([]) // Names of uploaded PDF files
 
+  // Iteration tracking
+  iterationHistory String[] @default([])
+
   // Optional: conversation for follow-up chat about the narrative
   conversationId String?
 
@@ -805,8 +808,11 @@ model DiscoveryQuestionsVersion {
   salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title   String @default("Discovery Questions") // Descriptive title e.g. "ProductName - Discovery Questions"
+  title   String @default("Discovery Questions")
   content String @db.Text
+
+  // Iteration tracking
+  iterationHistory String[] @default([])
 
   // First call checklists generated from these discovery questions
   firstCallChecklistVersions FirstCallChecklistVersion[]
@@ -833,8 +839,11 @@ model FirstCallChecklistVersion {
   discoveryQuestionsVersion   DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
 
   // Generated output
-  title   String @default("First Call Checklist") // Descriptive title e.g. "ProductName - First Call Checklist"
+  title   String @default("First Call Checklist")
   content String @db.Text
+
+  // Iteration tracking
+  iterationHistory String[] @default([]) // Array of user feedback strings
 
   // Pre-call planning versions generated from this checklist
   preCallPlanningVersions PreCallPlanningVersion[]

@@ -98,6 +98,7 @@ Respond ONLY with valid JSON (no markdown code blocks).`;
               description25w: parsed.description25w || version.description25w,
               sourceUrls: version.sourceUrls,
               sourcePdfNames: version.sourcePdfNames,
+              iterationHistory: [...(version.iterationHistory || []), feedback.trim()],
             },
           });
 

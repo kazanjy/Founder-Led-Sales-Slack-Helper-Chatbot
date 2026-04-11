@@ -85,6 +85,7 @@ Respond ONLY with valid JSON (no markdown code blocks). The JSON should be a sin
               title: version.title,
               content: formattedContent,
               discoveryQuestionsVersionId: version.discoveryQuestionsVersionId,
+              iterationHistory: [...(version.iterationHistory || []), feedback.trim()],
             },
           });
 
