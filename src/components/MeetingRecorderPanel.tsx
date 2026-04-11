@@ -268,6 +268,16 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
                   How to get your Granola API key
                 </a>
               )}
+              {showConnectModal === "fireflies" && (
+                <a
+                  href="https://docs.fireflies.ai/fundamentals/authorization#how-to-find-your-api-key"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-600 hover:text-purple-800 underline underline-offset-2"
+                >
+                  How to get your Fireflies API key
+                </a>
+              )}
             </p>
 
             <input
