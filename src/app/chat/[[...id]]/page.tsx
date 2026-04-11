@@ -226,6 +226,8 @@ export default function ChatPage() {
   interface ProjectDetail { id: string; name: string; description: string | null; conversations: Array<{ id: string; title: string | null; firstMessagePreview: string | null; lastMessageAt: string; source: string; mode: string }> }
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [myChatsExpanded, setMyChatsExpanded] = useState(true);
+  const [teamChatsExpanded, setTeamChatsExpanded] = useState(true);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [projectDetail, setProjectDetail] = useState<ProjectDetail | null>(null);
@@ -2802,10 +2804,19 @@ export default function ChatPage() {
 
         {/* My Chats label */}
         <div className="px-4 pt-1 pb-1">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My Chats</span>
+          <button
+            onClick={() => setMyChatsExpanded(!myChatsExpanded)}
+            className="flex items-center justify-between w-full"
+          >
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My Chats</span>
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${myChatsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
 
         {/* Conversations List - this part scrolls independently */}
+        {myChatsExpanded && (
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500 text-sm">
@@ -3089,13 +3100,24 @@ export default function ChatPage() {
             ))
           )}
         </div>
+        )}
 
         {/* Team Chats - sticky bottom section */}
         {(teamConversations.length > 0 || sharedWithMeChats.length > 0) && (
-          <div className="border-t border-gray-300 dark:border-gray-600 flex-shrink-0 max-h-[35vh] overflow-y-auto">
-            <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide sticky top-0 bg-gray-100 dark:bg-gray-900 z-10">
-              Team Chats
+          <div className="border-t border-gray-300 dark:border-gray-600 flex-shrink-0">
+            <div className="px-4 py-2">
+              <button
+                onClick={() => setTeamChatsExpanded(!teamChatsExpanded)}
+                className="flex items-center justify-between w-full"
+              >
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Team Chats</span>
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${teamChatsExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
+            {teamChatsExpanded && (
+            <div className="max-h-[35vh] overflow-y-auto">
             {teamConversations.slice(0, 15).map((conv) => (
               <a
                 key={`team-${conv.id}`}
@@ -3146,6 +3168,8 @@ export default function ChatPage() {
                 </p>
               </a>
             ))}
+            </div>
+            )}
           </div>
         )}
 
