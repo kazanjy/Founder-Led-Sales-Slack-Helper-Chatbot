@@ -116,6 +116,46 @@ The primary input for adding timeline entries supports multiple input methods in
 6. Click "Add" → saved as timeline entry with type `screenshot`
 7. Image itself is NOT stored — only the extracted text (keeps context manageable)
 
+### Call Import Flow (Meeting Recorder Integration)
+
+Reuse the existing `MeetingRecorderPanel` component (already on Call Recap and Call Review pages) to let users import calls directly into a deal timeline.
+
+**How it works on the deal detail page:**
+1. `MeetingRecorderPanel` appears in the deal detail page alongside the unified entry input
+2. Shows connected recording providers (Granola, Fireflies, Fathom) with recent calls
+3. User clicks "Use This" on a call → fetches transcript + summary via `/api/meeting-recorder/calls/[callId]`
+4. Creates a `DealTimelineEntry` with:
+   - `type`: `"call_transcript"`
+   - `title`: call title from provider (e.g., "Discovery Call with Visana")
+   - `content`: full transcript
+   - `sourceUrl`: provider's recording URL
+   - `metadata`: JSON with `{ summary, participants, duration, provider, callType }`
+   - `entryDate`: call date from provider
+5. Participants from the call are auto-added as `DealParticipant` records (matched by name to avoid duplicates)
+
+**Component reuse:**
+- Same `MeetingRecorderPanel` component, same `onSelectCall` callback shape
+- The deal page wraps the callback to create a timeline entry + participants instead of populating form fields
+- No new API endpoints needed — uses existing `/api/meeting-recorder/connections` and `/api/meeting-recorder/calls`
+
+**UI placement:**
+```
+┌──────────────────────────────────────────────────┐
+│  📎 Paste or drop screenshots, emails, or notes  │
+│  [Paste text or Cmd+V an image...]               │
+│  📷 Screenshot  📧 Email  📞 Call  📝 Note       │
+├──────────────────────────────────────────────────┤
+│  🎙 Import from Recording                        │
+│  ┌────────────────────────────────────────────┐  │
+│  │ Apr 6 · Discovery Call                     │  │
+│  │ Visana x Ember · 32m · 3 people [Use This] │  │
+│  ├────────────────────────────────────────────┤  │
+│  │ Apr 4 · Demo                               │  │
+│  │ PartnerCare Review · 45m · 2     [Use This]│  │
+│  └────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────┘
+```
+
 ---
 
 ## Deal Analysis
@@ -271,6 +311,7 @@ The primary way to create a deal is by **pasting a call transcript/summary**. Th
 5. Deal detail page (`/deals/[id]`) — header with stage/health, timeline view, participants sidebar
 6. Add entry input — unified paste/drop/type component
 7. "New Deal from Call" flow — paste transcript → AI extracts company, participants, call type → creates deal + first entry in one step
+8. Call import — reuse `MeetingRecorderPanel` on deal detail page to import calls from connected recorders (Granola, Fireflies, Fathom) as timeline entries with auto-created participants
 
 ### Phase 3: Intelligence (shippable)
 8. Deal analysis — GPT-5.2 with context stuffing (Sales Narrative + Sales Motion)
