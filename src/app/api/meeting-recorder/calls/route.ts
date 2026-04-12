@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        console.log(`[MeetingRecorder] Fetching calls from ${conn.provider} (limit: ${limit})`);
         const calls = await provider.listCalls(apiKey, limit);
+        console.log(`[MeetingRecorder] Got ${calls.length} calls from ${conn.provider}`);
 
         allCalls.push({
           provider: conn.provider,

@@ -109,13 +109,38 @@ export const fathomProvider: MeetingRecorderProvider = {
   async listCalls(accessToken: string, limit = 15): Promise<MeetingCall[]> {
     const res = await fathomFetch(`/meetings?limit=${limit}`, accessToken);
     if (!res.ok) {
+      const text = await res.text();
+      console.error(`[Fathom] listCalls failed: ${res.status} ${text}`);
       throw new Error(`Failed to fetch meetings: ${res.status}`);
     }
 
     const data = await res.json();
-    const meetings: FathomMeeting[] = data.meetings || data.data || data || [];
+    console.log(`[Fathom] listCalls response keys:`, Object.keys(data));
+    console.log(`[Fathom] listCalls raw type:`, typeof data, Array.isArray(data) ? `array(${data.length})` : "");
 
-    return (Array.isArray(meetings) ? meetings : []).map((m) => ({
+    // Handle various response shapes
+    let meetings: FathomMeeting[];
+    if (Array.isArray(data)) {
+      meetings = data;
+    } else if (Array.isArray(data.meetings)) {
+      meetings = data.meetings;
+    } else if (Array.isArray(data.data)) {
+      meetings = data.data;
+    } else if (Array.isArray(data.recordings)) {
+      meetings = data.recordings;
+    } else if (Array.isArray(data.results)) {
+      meetings = data.results;
+    } else {
+      console.error(`[Fathom] Unexpected response shape:`, JSON.stringify(data).substring(0, 500));
+      meetings = [];
+    }
+
+    console.log(`[Fathom] Found ${meetings.length} meetings`);
+    if (meetings.length > 0) {
+      console.log(`[Fathom] First meeting keys:`, Object.keys(meetings[0]));
+    }
+
+    return meetings.map((m) => ({
       id: m.recording_id || m.id,
       title: m.title || "Untitled Meeting",
       date: m.created_at,
