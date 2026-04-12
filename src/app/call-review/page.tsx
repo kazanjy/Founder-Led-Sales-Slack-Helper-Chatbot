@@ -271,6 +271,8 @@ function CallReviewContent() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let receivedComplete = false;
+      let receivedError = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -289,6 +291,7 @@ function CallReviewContent() {
               if (currentEvent === "progress") {
                 setAnalyzeProgress(data.message);
               } else if (currentEvent === "complete") {
+                receivedComplete = true;
                 setVersion(data.version);
                 setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
                 setTranscript("");
@@ -298,18 +301,30 @@ function CallReviewContent() {
                 ]);
                 window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
               } else if (currentEvent === "error") {
-                await showAlert({ title: "Error", message: data.message || "Analysis failed", variant: "danger" });
+                receivedError = true;
+                await showAlert({ title: "Analysis Error", message: data.message || "Analysis failed", variant: "danger" });
               }
             } catch { /* ignore */ }
             currentEvent = "";
           }
         }
       }
+
+      // If stream ended without a complete or error event, show a fallback error
+      if (!receivedComplete && !receivedError) {
+        await showAlert({
+          title: "Analysis Failed",
+          message: "The analysis did not complete. This can happen with very long transcripts or server timeouts. Please try again, or try shortening the transcript.",
+          variant: "danger",
+        });
+      }
     } catch (error) {
       console.error("Error analyzing:", error);
       await showAlert({
-        title: "Error",
-        message: "Failed to analyze transcript. Please try again.",
+        title: "Connection Error",
+        message: error instanceof TypeError && (error as TypeError).message === "Failed to fetch"
+          ? "Network connection lost. Please check your internet and try again."
+          : "Failed to analyze transcript. Please try again.",
         variant: "danger",
       });
     } finally {
