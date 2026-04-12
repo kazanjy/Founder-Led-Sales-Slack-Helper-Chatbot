@@ -302,6 +302,8 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                               {match.recap && (
                                 <a
                                   href={`/call-recap?id=${match.recap.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
                                 >
@@ -311,6 +313,8 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                               {match.review && (
                                 <a
                                   href={`/call-review?version=${match.review.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-800 hover:underline"
                                 >
