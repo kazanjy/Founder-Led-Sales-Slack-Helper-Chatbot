@@ -434,7 +434,12 @@ function CallReviewContent() {
                 <MeetingRecorderPanel
                   onSelectCall={(data) => {
                     if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
-                    if (data.transcript) setTranscript(data.transcript);
+                    if (data.transcript) {
+                      const attendeeLine = data.attendees?.length
+                        ? `Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}\n\n`
+                        : "";
+                      setTranscript(attendeeLine + data.transcript);
+                    }
                   }}
                 />
 

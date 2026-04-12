@@ -202,7 +202,12 @@ export default function NewCallRecap() {
             <MeetingRecorderPanel
               onSelectCall={(data) => {
                 if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
-                if (data.summary) setCallSummary(data.summary);
+                if (data.summary) {
+                  const attendeeLine = data.attendees?.length
+                    ? `Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}\n\n`
+                    : "";
+                  setCallSummary(attendeeLine + data.summary);
+                }
                 if (data.transcript) setCallTranscript(data.transcript);
               }}
             />
