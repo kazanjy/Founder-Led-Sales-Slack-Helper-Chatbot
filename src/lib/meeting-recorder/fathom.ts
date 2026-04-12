@@ -67,10 +67,12 @@ export async function refreshFathomToken(refreshToken: string): Promise<{
   return res.json();
 }
 
-async function fathomFetch(path: string, apiKey: string): Promise<Response> {
+async function fathomFetch(path: string, token: string): Promise<Response> {
+  // Support both OAuth Bearer tokens and API keys
   return fetch(`${API_BASE}${path}`, {
     headers: {
-      "X-Api-Key": apiKey,
+      Authorization: `Bearer ${token}`,
+      "X-Api-Key": token,
       "Content-Type": "application/json",
     },
   });
