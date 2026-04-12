@@ -79,12 +79,35 @@ export const granolaProvider: MeetingRecorderProvider = {
 
     const note: GranolaNoteDetail = await res.json();
 
+    // Build a speaker label map from attendees
+    // Granola uses "microphone" for the note owner and "speaker" / "speaker_N" for others
+    const attendeeNames = note.attendees?.map((a) => a.name) || [];
+    const ownerName = note.owner?.name || null;
+
+    // "microphone" = the person who recorded (note owner)
+    // "speaker" / "speaker_0" / "speaker_1" etc. = other participants
+    // Map speaker_N labels to attendees (excluding the owner)
+    const otherAttendees = attendeeNames.filter((n) => n !== ownerName);
+
+    function resolveSpeaker(speaker: { source: string; diarization_label?: string }): string {
+      if (speaker.diarization_label) return speaker.diarization_label;
+      const src = speaker.source || "Speaker";
+      if (src === "microphone" && ownerName) return ownerName;
+      // "speaker" or "speaker_N" — try to map to an attendee
+      const match = src.match(/^speaker(?:_(\d+))?$/);
+      if (match) {
+        const idx = match[1] !== undefined ? parseInt(match[1], 10) : 0;
+        if (idx < otherAttendees.length) return otherAttendees[idx];
+      }
+      return src;
+    }
+
     // Build transcript from speaker-attributed entries
     let transcript = "";
     if (Array.isArray(note.transcript) && note.transcript.length > 0) {
       transcript = note.transcript
         .map((entry) => {
-          const speakerName = entry.speaker?.diarization_label || entry.speaker?.source || "Speaker";
+          const speakerName = resolveSpeaker(entry.speaker);
           return `${speakerName}: ${entry.text}`;
         })
         .join("\n\n");

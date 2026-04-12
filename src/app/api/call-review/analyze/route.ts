@@ -119,6 +119,9 @@ export async function POST(request: NextRequest) {
           if (repName) titleParts.push(repName);
           if (prospectCompany) titleParts.push(prospectCompany);
           titleParts.push("Discovery Call");
+          // Extract call date from transcript header if present (e.g., "Call Date: Apr 10, 2026")
+          const callDateMatch = transcript.match(/^Call Date:\s*(.+)/m);
+          if (callDateMatch) titleParts.push(callDateMatch[1].trim());
           const title = titleParts.join(" - ");
 
           send("progress", { stage: "saving", message: "Saving results...", progress: 85 });

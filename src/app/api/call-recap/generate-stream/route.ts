@@ -69,7 +69,7 @@ ${callTranscript ? `\n**Call Transcript:**\n${callTranscript.trim()}\n` : ""}${c
 
 Based on the call information above${contextSection ? " and the sales context provided" : ""}, produce the following output in this EXACT plain-text format (NOT JSON):
 
-TITLE: [Account Name] - [Call Type] - [Participant Names joined by " + "]
+TITLE: [Account Name] - [Call Type] - [Participant Names joined by " + "] - [Call Date if available, e.g. "Apr 10, 2026"]
 CALL_TYPE: [one of: discovery, demo, proposal, negotiation, security, closing, other]
 SUBJECT: [Professional email subject line for the follow-up]
 ---EMAIL---
