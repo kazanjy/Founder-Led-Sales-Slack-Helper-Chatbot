@@ -35,8 +35,10 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [callLimit, setCallLimit] = useState(15);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (limit = 15) => {
     setLoading(true);
     try {
       // Fetch connections and available providers
@@ -50,7 +52,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
 
         // If connected, fetch recent calls
         if (hasActive) {
-          const callsRes = await fetch("/api/meeting-recorder/calls");
+          const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${limit}`);
           if (callsRes.ok) {
             const callsData = await callsRes.json();
             setCalls(callsData.calls || []);
@@ -60,6 +62,20 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
+
+  const handleLoadMore = useCallback(async () => {
+    const newLimit = callLimit + 15;
+    setLoadingMore(true);
+    try {
+      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${newLimit}`);
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        setCalls(callsData.calls || []);
+        setCallLimit(newLimit);
+      }
+    } catch { /* ignore */ }
+    setLoadingMore(false);
+  }, [callLimit]);
 
   useEffect(() => {
     loadData();
@@ -270,6 +286,25 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
                     <p className="text-sm text-gray-400 text-center py-4">No recent calls found</p>
                   )}
                 </div>
+                {group.calls.length >= callLimit && (
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="w-full mt-2 py-1.5 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Loading...
+                      </>
+                    ) : (
+                      "Load more calls..."
+                    )}
+                  </button>
+                )}
               </div>
             ))}
             <p className="text-xs text-gray-400 mt-2">Or paste a share link below.</p>
