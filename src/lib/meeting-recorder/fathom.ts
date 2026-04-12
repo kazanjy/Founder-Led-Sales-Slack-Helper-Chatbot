@@ -79,10 +79,13 @@ async function fathomFetch(path: string, accessToken: string): Promise<Response>
 interface FathomMeeting {
   id: string;
   title: string;
+  meeting_title?: string;
   created_at: string;
   duration?: number;
   attendees?: Array<{ name: string; email?: string }>;
-  recording_id?: string;
+  calendar_invitees?: Array<{ name?: string; email?: string }>;
+  recording_id?: string | number;
+  url?: string;
 }
 
 export const fathomProvider: MeetingRecorderProvider = {
@@ -122,6 +125,8 @@ export const fathomProvider: MeetingRecorderProvider = {
     let meetings: FathomMeeting[];
     if (Array.isArray(data)) {
       meetings = data;
+    } else if (Array.isArray(data.items)) {
+      meetings = data.items;
     } else if (Array.isArray(data.meetings)) {
       meetings = data.meetings;
     } else if (Array.isArray(data.data)) {
@@ -140,15 +145,20 @@ export const fathomProvider: MeetingRecorderProvider = {
       console.log(`[Fathom] First meeting keys:`, Object.keys(meetings[0]));
     }
 
-    return meetings.map((m) => ({
-      id: m.recording_id || m.id,
-      title: m.title || "Untitled Meeting",
-      date: m.created_at,
-      duration: m.duration,
-      participants: m.attendees?.map((a: { name: string }) => a.name) || [],
-      attendees: m.attendees?.map((a: { name: string; email?: string }) => ({ name: a.name, email: a.email })) || [],
-      providerUrl: `https://fathom.video/share/${m.recording_id || m.id}`,
-    }));
+    return meetings.map((m) => {
+      const recId = String(m.recording_id || m.id);
+      const title = m.meeting_title || m.title || "Untitled Meeting";
+      const invitees = m.calendar_invitees || m.attendees || [];
+      return {
+        id: recId,
+        title,
+        date: m.created_at,
+        duration: m.duration,
+        participants: invitees.map((a) => a.name || a.email || "Unknown").filter(Boolean),
+        attendees: invitees.map((a) => ({ name: a.name || a.email || "Unknown", email: a.email })),
+        providerUrl: m.url || `https://fathom.video/calls/${recId}`,
+      };
+    });
   },
 
   async getCallDetail(accessToken: string, callId: string): Promise<MeetingCallDetail> {
