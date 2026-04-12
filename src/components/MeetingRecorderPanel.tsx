@@ -39,11 +39,31 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
   const [callLimit, setCallLimit] = useState(15);
   const [loadingMore, setLoadingMore] = useState(false);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [existingMatches, setExistingMatches] = useState<Record<string, {
+    recap?: { id: string; title: string; createdAt: string };
+    review?: { id: string; title: string; overallScore: number | null; maxScore: number | null; createdAt: string };
+  }>>({});
+
+  // Fetch existing recaps/reviews for the current call list
+  const fetchExistingMatches = useCallback(async (callGroups: Array<{ calls: MeetingCall[] }>) => {
+    const urls = callGroups.flatMap((g) => g.calls.map((c) => c.providerUrl).filter(Boolean)) as string[];
+    if (urls.length === 0) return;
+    try {
+      const res = await fetch("/api/meeting-recorder/existing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerUrls: urls }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setExistingMatches(data.matches || {});
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const loadData = useCallback(async (limit = 15) => {
     setLoading(true);
     try {
-      // Fetch connections and available providers
       const connRes = await fetch("/api/meeting-recorder/connections");
       if (connRes.ok) {
         const connData = await connRes.json();
@@ -52,18 +72,19 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
         const hasActive = connData.available?.some((p: ProviderInfo) => p.connected);
         setConnected(hasActive);
 
-        // If connected, fetch recent calls
         if (hasActive) {
           const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${limit}`);
           if (callsRes.ok) {
             const callsData = await callsRes.json();
-            setCalls(callsData.calls || []);
+            const callGroups = callsData.calls || [];
+            setCalls(callGroups);
+            fetchExistingMatches(callGroups);
           }
         }
       }
     } catch { /* ignore */ }
     setLoading(false);
-  }, []);
+  }, [fetchExistingMatches]);
 
   const handleLoadMore = useCallback(async () => {
     const newLimit = callLimit + 15;
@@ -72,12 +93,14 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
       const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${newLimit}`);
       if (callsRes.ok) {
         const callsData = await callsRes.json();
-        setCalls(callsData.calls || []);
+        const callGroups = callsData.calls || [];
+        setCalls(callGroups);
         setCallLimit(newLimit);
+        fetchExistingMatches(callGroups);
       }
     } catch { /* ignore */ }
     setLoadingMore(false);
-  }, [callLimit]);
+  }, [callLimit, fetchExistingMatches]);
 
   useEffect(() => {
     loadData();
@@ -249,49 +272,75 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                   <span className="text-xs text-gray-400">· {group.calls.length} recent calls</span>
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
-                  {group.calls.map((call) => (
-                    <button
-                      key={call.id}
-                      onClick={() => {
-                        setSelectedCallId(call.id);
-                        handleUseCall(call.id, group.provider);
-                      }}
-                      disabled={fetchingCallId !== null}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left cursor-pointer disabled:cursor-wait ${
-                        selectedCallId === call.id
-                          ? "border-purple-400 bg-purple-50 ring-1 ring-purple-200"
-                          : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-xs text-gray-400">{formatDate(call.date)}</span>
-                          {call.duration && <span className="text-xs text-gray-400">· {formatDuration(call.duration)}</span>}
-                          {call.participants.length > 0 && (
-                            <span className="text-xs text-gray-400">· {call.participants.length} people</span>
+                  {group.calls.map((call) => {
+                    const match = call.providerUrl ? existingMatches[call.providerUrl] : undefined;
+                    return (
+                    <div key={call.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedCallId(call.id);
+                          handleUseCall(call.id, group.provider);
+                        }}
+                        disabled={fetchingCallId !== null}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left cursor-pointer disabled:cursor-wait ${
+                          selectedCallId === call.id
+                            ? "border-purple-400 bg-purple-50 ring-1 ring-purple-200"
+                            : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-xs text-gray-400">{formatDate(call.date)}</span>
+                            {call.duration && <span className="text-xs text-gray-400">· {formatDuration(call.duration)}</span>}
+                            {call.participants.length > 0 && (
+                              <span className="text-xs text-gray-400">· {call.participants.length} people</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-900 truncate font-medium">{call.title}</p>
+                          {match && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {match.recap && (
+                                <a
+                                  href={`/call-recap?id=${match.recap.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  <span>✉</span> Recap
+                                </a>
+                              )}
+                              {match.review && (
+                                <a
+                                  href={`/call-review?version=${match.review.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-800 hover:underline"
+                                >
+                                  <span>✓</span> Review {match.review.overallScore !== null && match.review.maxScore !== null ? `${match.review.overallScore}/${match.review.maxScore}` : ""}
+                                </a>
+                              )}
+                            </div>
                           )}
                         </div>
-                        <p className="text-sm text-gray-900 truncate font-medium">{call.title}</p>
-                      </div>
-                      {fetchingCallId === call.id ? (
-                        <span className="ml-3 flex items-center gap-1 text-xs text-purple-600 flex-shrink-0">
-                          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Loading...
-                        </span>
-                      ) : selectedCallId === call.id ? (
-                        <span className="ml-3 text-xs text-purple-600 font-medium flex-shrink-0">
-                          ✓ Selected
-                        </span>
-                      ) : (
-                        <span className="ml-3 text-xs text-gray-400 group-hover:text-purple-500 flex-shrink-0">
-                          Select →
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                        {fetchingCallId === call.id ? (
+                          <span className="ml-3 flex items-center gap-1 text-xs text-purple-600 flex-shrink-0">
+                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Loading...
+                          </span>
+                        ) : selectedCallId === call.id ? (
+                          <span className="ml-3 text-xs text-purple-600 font-medium flex-shrink-0">
+                            ✓ Selected
+                          </span>
+                        ) : (
+                          <span className="ml-3 text-xs text-gray-400 group-hover:text-purple-500 flex-shrink-0">
+                            Select →
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    );
+                  })}
                   {group.calls.length === 0 && (
                     <p className="text-sm text-gray-400 text-center py-4">No recent calls found</p>
                   )}
