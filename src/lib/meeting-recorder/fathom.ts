@@ -120,7 +120,8 @@ export const fathomProvider: MeetingRecorderProvider = {
       title: m.title || "Untitled Meeting",
       date: m.created_at,
       duration: m.duration,
-      participants: m.attendees?.map((a) => a.name) || [],
+      participants: m.attendees?.map((a: { name: string }) => a.name) || [],
+      attendees: m.attendees?.map((a: { name: string; email?: string }) => ({ name: a.name, email: a.email })) || [],
       providerUrl: `https://fathom.video/share/${m.recording_id || m.id}`,
     }));
   },

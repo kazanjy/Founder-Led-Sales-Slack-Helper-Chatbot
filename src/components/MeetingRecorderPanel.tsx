@@ -21,7 +21,7 @@ interface ProviderInfo {
 }
 
 interface MeetingRecorderPanelProps {
-  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string }) => void;
+  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; attendees?: Array<{ name: string; email?: string }> }) => void;
 }
 
 export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPanelProps) {
@@ -138,6 +138,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
           summary,
           recordingUrl: data.call.providerUrl,
           title: data.call.title,
+          attendees: data.call.attendees,
         });
       }
     } catch {

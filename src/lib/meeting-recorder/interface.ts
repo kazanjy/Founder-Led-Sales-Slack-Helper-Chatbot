@@ -1,9 +1,15 @@
+export interface MeetingCallAttendee {
+  name: string;
+  email?: string;
+}
+
 export interface MeetingCall {
   id: string;
   title: string;
   date: string; // ISO date
   duration?: number; // seconds
   participants: string[];
+  attendees?: MeetingCallAttendee[];
   callType?: string;
   providerUrl?: string; // link to call in provider's UI
   summary?: string;
