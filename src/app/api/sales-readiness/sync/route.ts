@@ -89,12 +89,30 @@ RULES:
 - Also recommend the best-fit maturity stage based on the overall picture
 
 MATURITY STAGE DEFINITIONS (use these to determine the best-fit stage):
-- PROBLEM_VALIDATION: "Do we know what problem we're solving?" — Early stage, validating customer pain through research calls, forming initial hypotheses about customer profiles and outbound approaches.
-- VALUE_VALIDATION: "Does the product solve the problem and create value?" — Validating product-market fit with a sales narrative, defined ICP, and proof of value (quantitative & qualitative).
-- FIRST_REVENUE: "Can we get someone to pay for the product?" — Building MVP outbound/inbound motions, demand generation, sales first call capabilities (discovery, demo, pricing, next steps).
-- REPEATABLE_REVENUE: "Can we get many people to pay?" — Scaling what works with repeatable processes, pipeline reporting, structured deal flow, and customer success foundations.
-- FIRST_SALES_HIRE: "Can we get someone other than the founder to sell?" — Documenting the sales playbook, hiring and onboarding first sales reps, building enablement materials.
-- SCALING_SALES: "Can we get many people other than the founder to sell?" — Scaling the team, building sales management infrastructure, advanced reporting, and repeatable hiring/training.
+
+1) PROBLEM_VALIDATION — "Do we know what problem we're solving?"
+   Entry: Hypothesis exists for target persona(s), pain, and why now. Can name 50–200 target accounts.
+   Exit: 20–40+ structured customer interviews completed (users + buyers), synthesized into top pains + current workflows. Clear "who has the problem" + "cost of problem" bullets. Minimum viable feature list / MVP scope agreed.
+
+2) VALUE_VALIDATION — "Does it solve it and create value?"
+   Entry: MVP exists enough to show/deliver a wedge.
+   Exit: 3–5+ design partners using it in real workflow. Documented proof points with at least one quantified KPI (hours saved, reduced data spend, turnaround time). Crisp sales narrative + ICP v1 written. Implementation path is known.
+
+3) FIRST_REVENUE — "Can we get someone to pay?"
+   Entry: Pricing hypothesis + packaging exists. A basic discovery → demo → pricing → next steps flow.
+   Exit: 1–3 paying customers (not pilot-for-free), still believing they get value after onboarding. Can articulate top 3 closed-lost reasons. Baseline funnel metrics exist (meetings held, opps created, wins).
+
+4) REPEATABLE_REVENUE — "Can we get many people to pay?"
+   Entry: Can close deals founder-led with some consistency.
+   Exit: 30–50+ non-friendly prospects run through the process. 10–20 customers closed/won, onboarded, and reaching value. Repeatable lead source(s) identified + tracked in CRM. Basic CS motions exist (kickoff, time-to-value target, renewal owner).
+
+5) FIRST_SALES_HIRE — "Can a non-founder sell this?"
+   Entry: Repeatable revenue signals + stable-ish ICP and pitch.
+   Exit: Sales playbook v1 exists (ICP, discovery questions, demo script, pricing/ROI, objection handling, stages + exit criteria). First AE/SDR ramps to first meetings and at least 1–2 closes with founder support. Call recording + review cadence in place.
+
+6) SCALING_SALES — "Can many non-founders sell this?"
+   Entry: First hire can close; motion is teachable.
+   Exit: Multiple reps consistently hit activity + pipeline creation targets; forecasting becomes meaningful. Sales stages enforced with clear entry/exit criteria in CRM. Repeatable hiring + onboarding (curriculum, certification), plus manager rhythm (1:1s, pipeline reviews).
 
 Return valid JSON with this exact structure:
 {

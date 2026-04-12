@@ -17,12 +17,48 @@ function Linkify({ children }: { children: string }): ReactNode {
 // ── Types ──────────────────────────────────────────────────────────
 
 const MATURITY_STAGES = [
-  { value: "PROBLEM_VALIDATION", label: "Do we know what problem we're solving?", short: "Problem Validation" },
-  { value: "VALUE_VALIDATION", label: "Does the product solve the problem and create value?", short: "Value Validation" },
-  { value: "FIRST_REVENUE", label: "Can we get someone to pay for the product?", short: "First Revenue" },
-  { value: "REPEATABLE_REVENUE", label: "Can we get many people to pay for the product?", short: "Repeatable Revenue" },
-  { value: "FIRST_SALES_HIRE", label: "Can we get someone other than the founder to sell?", short: "First Sales Hire" },
-  { value: "SCALING_SALES", label: "Can we get many people other than the founder to sell?", short: "Scaling Sales" },
+  {
+    value: "PROBLEM_VALIDATION",
+    label: "Do we know what problem we're solving?",
+    short: "Problem Validation",
+    entry: "You have a hypothesis: target persona(s), pain, and why now. You can name 50\u2013200 target accounts you think have the problem.",
+    exit: "20\u201340+ structured customer interviews completed (users + buyers), synthesized into top pains + current workflows. Clear \u201cwho has the problem\u201d + \u201ccost of problem\u201d bullets. Minimum viable feature list / MVP scope agreed.",
+  },
+  {
+    value: "VALUE_VALIDATION",
+    label: "Does it solve it and create value?",
+    short: "Value Validation",
+    entry: "MVP exists enough to show/deliver a wedge.",
+    exit: "3\u20135+ design partners using it in real workflow. Documented proof points with at least one quantified KPI (hours saved, reduced data spend, turnaround time). Crisp sales narrative + ICP v1 written. Implementation path is known.",
+  },
+  {
+    value: "FIRST_REVENUE",
+    label: "Can we get someone to pay?",
+    short: "First Revenue",
+    entry: "Pricing hypothesis + packaging exists. A basic discovery \u2192 demo \u2192 pricing \u2192 next steps flow.",
+    exit: "1\u20133 paying customers (not pilot-for-free), still believing they get value after onboarding. Can articulate top 3 closed-lost reasons. Baseline funnel metrics exist (meetings held, opps created, wins).",
+  },
+  {
+    value: "REPEATABLE_REVENUE",
+    label: "Can we get many people to pay?",
+    short: "Repeatable Revenue",
+    entry: "Can close deals founder-led with some consistency.",
+    exit: "30\u201350+ non-friendly prospects run through the process. 10\u201320 customers closed/won, onboarded, and reaching value. Repeatable lead source(s) identified + tracked in CRM. Basic CS motions exist (kickoff, time-to-value target, renewal owner).",
+  },
+  {
+    value: "FIRST_SALES_HIRE",
+    label: "Can a non-founder sell this?",
+    short: "First Sales Hire",
+    entry: "Repeatable revenue signals + stable-ish ICP and pitch.",
+    exit: "Sales playbook v1 exists (ICP, discovery questions, demo script, pricing/ROI, objection handling, stages + exit criteria). First AE/SDR ramps to first meetings and at least 1\u20132 closes with founder support. Call recording + review cadence in place.",
+  },
+  {
+    value: "SCALING_SALES",
+    label: "Can many non-founders sell this?",
+    short: "Scaling Sales",
+    entry: "First hire can close; motion is teachable.",
+    exit: "Multiple reps consistently hit activity + pipeline creation targets; forecasting becomes meaningful. Sales stages enforced with clear entry/exit criteria in CRM. Repeatable hiring + onboarding (curriculum, certification), plus manager rhythm (1:1s, pipeline reviews).",
+  },
 ];
 
 interface Goal {
@@ -950,6 +986,22 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             </option>
           ))}
         </select>
+        {(() => {
+          const selected = MATURITY_STAGES.find((s) => s.value === maturityStage);
+          if (!selected) return null;
+          return (
+            <div className="mt-3 bg-gray-50 rounded-lg p-4 text-sm space-y-2">
+              <div>
+                <span className="font-semibold text-gray-700">Entry criteria: </span>
+                <span className="text-gray-600">{selected.entry}</span>
+              </div>
+              <div>
+                <span className="font-semibold text-gray-700">Exit criteria: </span>
+                <span className="text-gray-600">{selected.exit}</span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Metrics ─────────────────────────────────────────────── */}
