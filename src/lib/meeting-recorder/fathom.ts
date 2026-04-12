@@ -4,7 +4,7 @@ import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./inter
 // Docs: https://developers.fathom.ai
 // OAuth: https://developers.fathom.ai/oauth
 
-const API_BASE = "https://api.fathom.video/v1";
+const API_BASE = "https://api.fathom.ai/external/v1";
 const AUTH_URL = "https://fathom.video/external/v1/oauth2/authorize";
 const TOKEN_URL = "https://fathom.video/external/v1/oauth2/token";
 
