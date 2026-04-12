@@ -94,6 +94,7 @@ function CallReviewContent() {
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [detectedVendor, setDetectedVendor] = useState<string | null>(null);
   const extractAttemptedRef = useRef<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
   const [discoveryQuestionsDate, setDiscoveryQuestionsDate] = useState<string | null>(null);
@@ -117,11 +118,12 @@ function CallReviewContent() {
     document.title = "Call Coaching - Mikey";
     // Check for prefilled data from Call Recap Email
     try {
-      const prefill = sessionStorage.getItem("callCoachingPrefill");
-      if (prefill) {
-        const data = JSON.parse(prefill);
+      const prefillData = sessionStorage.getItem("callCoachingPrefill");
+      if (prefillData) {
+        const data = JSON.parse(prefillData);
         if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
         if (data.transcript) setTranscript(data.transcript);
+        if (data.recordingUrl || data.transcript) setPrefilled(true);
         sessionStorage.removeItem("callCoachingPrefill");
       }
     } catch { /* ignore */ }
@@ -432,13 +434,19 @@ function CallReviewContent() {
 
                 {/* Meeting Recorder Integration */}
                 <MeetingRecorderPanel
+                  defaultCollapsed={prefilled}
                   onSelectCall={(data) => {
                     if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
                     if (data.transcript) {
-                      const attendeeLine = data.attendees?.length
-                        ? `Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}\n\n`
-                        : "";
-                      setTranscript(attendeeLine + data.transcript);
+                      const headerLines: string[] = [];
+                      if (data.date) {
+                        headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+                      }
+                      if (data.attendees?.length) {
+                        headerLines.push(`Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}`);
+                      }
+                      const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+                      setTranscript(header + data.transcript);
                     }
                   }}
                 />

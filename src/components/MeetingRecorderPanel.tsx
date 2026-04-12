@@ -21,10 +21,11 @@ interface ProviderInfo {
 }
 
 interface MeetingRecorderPanelProps {
-  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; attendees?: Array<{ name: string; email?: string }> }) => void;
+  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; date?: string; attendees?: Array<{ name: string; email?: string }> }) => void;
+  defaultCollapsed?: boolean;
 }
 
-export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPanelProps) {
+export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = false }: MeetingRecorderPanelProps) {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [calls, setCalls] = useState<Array<{ provider: string; providerName: string; calls: MeetingCall[] }>>([]);
   const [connected, setConnected] = useState(false);
@@ -37,6 +38,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
   const [connectError, setConnectError] = useState<string | null>(null);
   const [callLimit, setCallLimit] = useState(15);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const loadData = useCallback(async (limit = 15) => {
     setLoading(true);
@@ -138,6 +140,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
           summary,
           recordingUrl: data.call.providerUrl,
           title: data.call.title,
+          date: data.call.date,
           attendees: data.call.attendees,
         });
       }
@@ -176,13 +179,19 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
     <>
       <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="text-sm font-semibold text-gray-700 flex items-center gap-2 hover:text-gray-900 transition-colors"
+          >
             <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
             Meeting Recorder
-          </h3>
-          {connected && (
+            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${collapsed ? "" : "rotate-180"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {connected && !collapsed && (
             <button
               onClick={() => {
                 const activeConn = providers.find((p) => p.connected);
@@ -201,7 +210,7 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
           )}
         </div>
 
-        {!connected ? (
+        {collapsed ? null : !connected ? (
           /* Not connected state */
           <div>
             <p className="text-sm text-gray-500 mb-3">

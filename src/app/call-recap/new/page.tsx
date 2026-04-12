@@ -203,10 +203,15 @@ export default function NewCallRecap() {
               onSelectCall={(data) => {
                 if (data.recordingUrl) setRecordingUrl(data.recordingUrl);
                 if (data.summary) {
-                  const attendeeLine = data.attendees?.length
-                    ? `Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}\n\n`
-                    : "";
-                  setCallSummary(attendeeLine + data.summary);
+                  const headerLines: string[] = [];
+                  if (data.date) {
+                    headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+                  }
+                  if (data.attendees?.length) {
+                    headerLines.push(`Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}`);
+                  }
+                  const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+                  setCallSummary(header + data.summary);
                 }
                 if (data.transcript) setCallTranscript(data.transcript);
               }}
