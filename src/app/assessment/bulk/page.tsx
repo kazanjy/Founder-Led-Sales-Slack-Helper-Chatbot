@@ -66,6 +66,7 @@ function BulkAssessmentContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [prefilling, setPrefilling] = useState(false);
   const [prefillError, setPrefillError] = useState<string | null>(null);
   const [prefillSuccess, setPrefillSuccess] = useState<string | null>(null);
@@ -386,6 +387,7 @@ function BulkAssessmentContent() {
     await handleSaveAll();
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const response = await fetch("/api/maturity/submit", {
         method: "POST",
@@ -399,6 +401,12 @@ function BulkAssessmentContent() {
       router.push(`/chat/${data.conversation.id}`);
     } catch (error) {
       console.error("Error submitting assessment:", error);
+      const isNetworkError = error instanceof TypeError && (error as TypeError).message === "Failed to fetch";
+      setSubmitError(
+        isNetworkError
+          ? "Network connection lost. Please check your internet and try again."
+          : "Something went wrong submitting your assessment. Please try again."
+      );
       setSubmitting(false);
     }
   };
@@ -952,6 +960,11 @@ function BulkAssessmentContent() {
             You&apos;ve answered {answeredCount} of {totalQuestions} questions.
             {answeredCount < totalQuestions && " Answer more for better recommendations!"}
           </p>
+          {submitError && (
+            <div className="mb-4 mx-auto max-w-md p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
+              {submitError}
+            </div>
+          )}
           <button
             onClick={handleSubmit}
             disabled={saving || submitting || answeredCount === 0}

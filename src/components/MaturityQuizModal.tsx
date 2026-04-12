@@ -56,6 +56,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfMessage, setPdfMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Cycle through loading messages when submitting
   useEffect(() => {
@@ -344,6 +345,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
     }
 
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const response = await fetch("/api/maturity/submit", {
         method: "POST",
@@ -356,6 +358,12 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
       onComplete(data.conversation.id);
     } catch (error) {
       console.error("Error submitting assessment:", error);
+      const isNetworkError = error instanceof TypeError && error.message === "Failed to fetch";
+      setSubmitError(
+        isNetworkError
+          ? "Network connection lost. Please check your internet and try again."
+          : "Something went wrong submitting your assessment. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -535,6 +543,13 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                 </div>
               </div>
 
+              {/* Submit error message */}
+              {submitError && (
+                <div className="mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700 text-left">
+                  {submitError}
+                </div>
+              )}
+
               {/* Big Submit Button */}
               <button
                 onClick={handleSubmit}
@@ -705,6 +720,11 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         {/* Action Footer - hide on submit screen */}
         {!showSubmitScreen && !loading && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+            {submitError && (
+              <div className="mb-3 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
+                {submitError}
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
