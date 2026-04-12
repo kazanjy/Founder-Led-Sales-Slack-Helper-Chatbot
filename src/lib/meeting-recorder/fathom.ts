@@ -1,8 +1,8 @@
 import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./interface";
 
-// Fathom OAuth2 + REST API integration
+// Fathom REST API integration
 // Docs: https://developers.fathom.ai
-// OAuth: https://developers.fathom.ai/oauth
+// API reference: https://api-docs.fathom.global/reference/rest.html
 
 const API_BASE = "https://api.fathom.ai/external/v1";
 const AUTH_URL = "https://fathom.video/external/v1/oauth2/authorize";
@@ -67,26 +67,62 @@ export async function refreshFathomToken(refreshToken: string): Promise<{
   return res.json();
 }
 
-async function fathomFetch(path: string, accessToken: string): Promise<Response> {
+async function fathomFetch(path: string, apiKey: string): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      "X-Api-Key": apiKey,
       "Content-Type": "application/json",
     },
   });
 }
 
+// ── Fathom API types ──────────────────────────────────────────
+
+interface FathomInvitee {
+  name?: string;
+  email?: string;
+  email_domain?: string;
+  is_external?: boolean;
+  matched_speaker_display_name?: string;
+}
+
+interface FathomTranscriptEntry {
+  speaker: {
+    display_name: string;
+    matched_calendar_invitee_email?: string;
+  };
+  text: string;
+  timestamp?: string;
+}
+
+interface FathomActionItem {
+  description: string;
+  completed?: boolean;
+  assignee?: { name?: string; email?: string };
+}
+
 interface FathomMeeting {
-  id: string;
   title: string;
   meeting_title?: string;
-  created_at: string;
-  duration?: number;
-  attendees?: Array<{ name: string; email?: string }>;
-  calendar_invitees?: Array<{ name?: string; email?: string }>;
-  recording_id?: string | number;
+  recording_id: number;
   url?: string;
+  share_url?: string;
+  created_at: string;
+  scheduled_start_time?: string;
+  recording_start_time?: string;
+  recording_end_time?: string;
+  calendar_invitees?: FathomInvitee[];
+  recorded_by?: { name?: string; email?: string };
+  transcript?: FathomTranscriptEntry[];
+  default_summary?: {
+    template_name?: string;
+    markdown_formatted?: string;
+  };
+  action_items?: FathomActionItem[];
 }
+
+// Cache list results so getCallDetail can pull from them
+let cachedMeetings: Map<string, FathomMeeting> = new Map();
 
 export const fathomProvider: MeetingRecorderProvider = {
   name: "Fathom",
@@ -94,14 +130,14 @@ export const fathomProvider: MeetingRecorderProvider = {
   icon: "🎥",
   authType: "oauth2",
 
-  async validateKey(accessToken: string) {
+  async validateKey(apiKey: string) {
     try {
-      const res = await fathomFetch("/meetings?limit=1", accessToken);
+      const res = await fathomFetch("/meetings?limit=1", apiKey);
       if (res.ok) {
         return { valid: true };
       }
       if (res.status === 401 || res.status === 403) {
-        return { valid: false, error: "Invalid or expired token" };
+        return { valid: false, error: "Invalid or expired API key" };
       }
       return { valid: false, error: `API error: ${res.status}` };
     } catch (error) {
@@ -109,103 +145,128 @@ export const fathomProvider: MeetingRecorderProvider = {
     }
   },
 
-  async listCalls(accessToken: string, limit = 15): Promise<MeetingCall[]> {
-    const res = await fathomFetch(`/meetings?limit=${limit}`, accessToken);
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`[Fathom] listCalls failed: ${res.status} ${text}`);
-      throw new Error(`Failed to fetch meetings: ${res.status}`);
+  async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
+    const allMeetings: FathomMeeting[] = [];
+    let cursor: string | undefined;
+
+    // Fathom uses cursor pagination
+    while (allMeetings.length < limit) {
+      const pageSize = Math.min(limit - allMeetings.length, 25);
+      let url = `/meetings?limit=${pageSize}`;
+      if (cursor) url += `&cursor=${cursor}`;
+
+      const res = await fathomFetch(url, apiKey);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[Fathom] listCalls failed: ${res.status} ${text}`);
+        throw new Error(`Failed to fetch meetings: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const meetings: FathomMeeting[] = data.items || [];
+      allMeetings.push(...meetings);
+
+      if (!data.next_cursor || meetings.length === 0) break;
+      cursor = data.next_cursor;
     }
 
-    const data = await res.json();
-    console.log(`[Fathom] listCalls response keys:`, Object.keys(data));
-    console.log(`[Fathom] listCalls raw type:`, typeof data, Array.isArray(data) ? `array(${data.length})` : "");
-
-    // Handle various response shapes
-    let meetings: FathomMeeting[];
-    if (Array.isArray(data)) {
-      meetings = data;
-    } else if (Array.isArray(data.items)) {
-      meetings = data.items;
-    } else if (Array.isArray(data.meetings)) {
-      meetings = data.meetings;
-    } else if (Array.isArray(data.data)) {
-      meetings = data.data;
-    } else if (Array.isArray(data.recordings)) {
-      meetings = data.recordings;
-    } else if (Array.isArray(data.results)) {
-      meetings = data.results;
-    } else {
-      console.error(`[Fathom] Unexpected response shape:`, JSON.stringify(data).substring(0, 500));
-      meetings = [];
+    // Cache for getCallDetail
+    cachedMeetings = new Map();
+    for (const m of allMeetings) {
+      cachedMeetings.set(String(m.recording_id), m);
     }
 
-    console.log(`[Fathom] Found ${meetings.length} meetings`);
-    if (meetings.length > 0) {
-      console.log(`[Fathom] First meeting keys:`, Object.keys(meetings[0]));
-    }
+    console.log(`[Fathom] Found ${allMeetings.length} meetings`);
 
-    return meetings.map((m) => {
-      const recId = String(m.recording_id || m.id);
-      const title = m.meeting_title || m.title || "Untitled Meeting";
-      const invitees = m.calendar_invitees || m.attendees || [];
+    return allMeetings.map((m) => {
+      const recId = String(m.recording_id);
+      const invitees = m.calendar_invitees || [];
       return {
         id: recId,
-        title,
+        title: m.meeting_title || m.title || "Untitled Meeting",
         date: m.created_at,
-        duration: m.duration,
-        participants: invitees.map((a) => a.name || a.email || "Unknown").filter(Boolean),
+        participants: invitees.map((a) => a.name || a.email || "Unknown"),
         attendees: invitees.map((a) => ({ name: a.name || a.email || "Unknown", email: a.email })),
-        providerUrl: m.url || `https://fathom.video/calls/${recId}`,
+        summary: m.default_summary?.markdown_formatted || undefined,
+        providerUrl: m.share_url || m.url || `https://fathom.video/calls/${recId}`,
       };
     });
   },
 
-  async getCallDetail(accessToken: string, callId: string): Promise<MeetingCallDetail> {
-    // Fetch transcript and summary in parallel
-    const [transcriptRes, summaryRes] = await Promise.all([
-      fathomFetch(`/recordings/${callId}/transcript`, accessToken),
-      fathomFetch(`/recordings/${callId}/summary`, accessToken),
-    ]);
-
-    let transcript = "";
-    if (transcriptRes.ok) {
-      const tData = await transcriptRes.json();
-      // Handle various transcript formats
-      if (typeof tData === "string") {
-        transcript = tData;
-      } else if (tData.transcript) {
-        transcript = typeof tData.transcript === "string"
-          ? tData.transcript
-          : (tData.transcript.segments || [])
-              .map((s: { speaker: string; text: string }) => `${s.speaker}: ${s.text}`)
-              .join("\n\n");
-      } else if (Array.isArray(tData)) {
-        transcript = tData
-          .map((s: { speaker?: string; text: string }) => s.speaker ? `${s.speaker}: ${s.text}` : s.text)
-          .join("\n\n");
-      }
+  async getCallDetail(apiKey: string, callId: string): Promise<MeetingCallDetail> {
+    // Check cache first — the list endpoint returns full data including transcript
+    const cached = cachedMeetings.get(callId);
+    if (cached?.transcript && cached.transcript.length > 0) {
+      return buildCallDetail(cached, callId);
     }
 
-    let summary = "";
+    // Fetch transcript and summary from dedicated endpoints
+    const [transcriptRes, summaryRes] = await Promise.all([
+      fathomFetch(`/recordings/${callId}/transcript`, apiKey),
+      fathomFetch(`/recordings/${callId}/summary`, apiKey),
+    ]);
+
+    let transcriptEntries: FathomTranscriptEntry[] = [];
+    if (transcriptRes.ok) {
+      const tData = await transcriptRes.json();
+      transcriptEntries = tData.transcript || [];
+    }
+
+    let summaryText = "";
     let actionItems: string[] | undefined;
     if (summaryRes.ok) {
       const sData = await summaryRes.json();
-      summary = sData.summary || sData.overview || "";
-      if (sData.action_items) {
-        actionItems = Array.isArray(sData.action_items) ? sData.action_items : [sData.action_items];
-      }
+      summaryText = sData.summary?.markdown_formatted || "";
     }
+
+    // Use cached metadata if available, otherwise minimal
+    const meta = cached || null;
+    const invitees = meta?.calendar_invitees || [];
+
+    // Extract action items from cache if available
+    if (meta?.action_items) {
+      actionItems = meta.action_items
+        .filter((a) => a.description)
+        .map((a) => a.description);
+    }
+
+    const transcript = transcriptEntries
+      .map((entry) => `${entry.speaker.display_name}: ${entry.text}`)
+      .join("\n\n");
 
     return {
       id: callId,
-      title: "Fathom Recording",
-      date: new Date().toISOString(),
-      participants: [],
+      title: meta?.meeting_title || meta?.title || "Fathom Recording",
+      date: meta?.created_at || new Date().toISOString(),
+      participants: invitees.map((a) => a.name || a.email || "Unknown"),
+      attendees: invitees.map((a) => ({ name: a.name || a.email || "Unknown", email: a.email })),
       transcript,
-      summary,
+      summary: summaryText,
       actionItems,
-      providerUrl: `https://fathom.video/share/${callId}`,
+      providerUrl: meta?.share_url || meta?.url || `https://fathom.video/calls/${callId}`,
     };
   },
 };
+
+function buildCallDetail(m: FathomMeeting, callId: string): MeetingCallDetail {
+  const transcript = (m.transcript || [])
+    .map((entry) => `${entry.speaker.display_name}: ${entry.text}`)
+    .join("\n\n");
+
+  const invitees = m.calendar_invitees || [];
+  const actionItems = m.action_items
+    ?.filter((a) => a.description)
+    .map((a) => a.description) || undefined;
+
+  return {
+    id: callId,
+    title: m.meeting_title || m.title || "Fathom Recording",
+    date: m.created_at,
+    participants: invitees.map((a) => a.name || a.email || "Unknown"),
+    attendees: invitees.map((a) => ({ name: a.name || a.email || "Unknown", email: a.email })),
+    transcript,
+    summary: m.default_summary?.markdown_formatted || "",
+    actionItems,
+    providerUrl: m.share_url || m.url || `https://fathom.video/calls/${callId}`,
+  };
+}
