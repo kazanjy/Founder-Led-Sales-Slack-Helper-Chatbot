@@ -52,15 +52,30 @@ export const granolaProvider: MeetingRecorderProvider = {
   },
 
   async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
-    const res = await granolaFetch(`/notes?limit=${limit}`, apiKey);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch notes: ${res.status}`);
+    const allNotes: GranolaNoteListItem[] = [];
+    let cursor: string | undefined;
+
+    // Granola's API has a fixed page size — use cursor pagination to fetch more
+    while (allNotes.length < limit) {
+      const pageSize = Math.min(limit - allNotes.length, 25);
+      let url = `/notes?limit=${pageSize}`;
+      if (cursor) url += `&cursor=${cursor}`;
+
+      const res = await granolaFetch(url, apiKey);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch notes: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const notes: GranolaNoteListItem[] = data.notes || data.data || [];
+      allNotes.push(...notes);
+
+      // Check if there are more pages
+      if (!data.hasMore || !data.cursor || notes.length === 0) break;
+      cursor = data.cursor;
     }
 
-    const data = await res.json();
-    const notes: GranolaNoteListItem[] = data.notes || data.data || [];
-
-    return notes.map((note) => ({
+    return allNotes.map((note) => ({
       id: note.id,
       title: note.title || "Untitled Meeting",
       date: note.created_at,
