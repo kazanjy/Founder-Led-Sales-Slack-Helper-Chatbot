@@ -31,7 +31,7 @@ interface SyncReviewOverlayProps {
   source: "assessment" | "coaching";
   proposedChanges: ProposedChange[];
   recommendedStage: RecommendedStage | null;
-  onApply: (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string>) => Promise<void>;
+  onApply: (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string>, stageOverride?: string) => Promise<void>;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -77,6 +77,7 @@ export default function SyncReviewOverlay({
     return initial;
   });
   const [acceptStage, setAcceptStage] = useState(true);
+  const [stageOverride, setStageOverride] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
@@ -112,7 +113,7 @@ export default function SyncReviewOverlay({
   const handleApply = async () => {
     setApplying(true);
     try {
-      await onApply([...selectedIds], acceptStage, statusOverrides);
+      await onApply([...selectedIds], acceptStage, statusOverrides, stageOverride || undefined);
     } finally {
       setApplying(false);
     }
@@ -163,19 +164,36 @@ export default function SyncReviewOverlay({
             <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-purple-900">
-                      Recommended Stage: {STAGE_LABELS[recommendedStage.stage] || recommendedStage.stage}
-                    </p>
-                    <p className="text-xs text-purple-700 mt-0.5">{recommendedStage.reasoning}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-purple-900">Stage:</span>
+                      <select
+                        value={stageOverride || recommendedStage.stage}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStageOverride(val === recommendedStage.stage ? null : val);
+                        }}
+                        className={`text-sm font-semibold text-purple-900 bg-white border border-purple-300 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 ${stageOverride ? "ring-2 ring-purple-400" : ""}`}
+                      >
+                        {stageOrder.map((key) => (
+                          <option key={key} value={key}>{STAGE_LABELS[key] || key}</option>
+                        ))}
+                      </select>
+                      {stageOverride && (
+                        <span className="text-xs text-purple-500 italic">
+                          (suggested: {STAGE_LABELS[recommendedStage.stage] || recommendedStage.stage})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-purple-700 mt-1">{recommendedStage.reasoning}</p>
                   </div>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
                   <input
                     type="checkbox"
                     checked={acceptStage}

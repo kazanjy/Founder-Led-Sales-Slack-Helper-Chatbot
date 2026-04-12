@@ -462,7 +462,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
     }
   };
 
-  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string> = {}) => {
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string> = {}, stageOverride?: string) => {
     if (!syncData) return;
 
     const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
@@ -486,7 +486,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       await fetch("/api/coaching/maturity-stage", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentStage: syncData.recommendedStage.stage }),
+        body: JSON.stringify({ currentStage: stageOverride || syncData.recommendedStage.stage }),
       });
     }
 
