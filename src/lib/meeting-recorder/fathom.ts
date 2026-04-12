@@ -5,7 +5,7 @@ import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./inter
 // API reference: https://api-docs.fathom.global/reference/rest.html
 
 const API_BASE = "https://api.fathom.ai/external/v1";
-const AUTH_URL = "https://api.fathom.ai/external/v1/oauth2/authorize";
+const AUTH_URL = "https://fathom.video/external/v1/oauth2/authorize";
 const TOKEN_URL = "https://api.fathom.ai/external/v1/oauth2/token";
 
 export function getFathomAuthUrl(redirectUri: string, state: string): string {
