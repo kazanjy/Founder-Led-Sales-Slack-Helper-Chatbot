@@ -38,6 +38,7 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
   const [connectError, setConnectError] = useState<string | null>(null);
   const [callLimit, setCallLimit] = useState(15);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [existingMatches, setExistingMatches] = useState<Record<string, {
     recap?: { id: string; title: string; createdAt: string };
@@ -87,6 +88,7 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
   }, [fetchExistingMatches]);
 
   const handleLoadMore = useCallback(async () => {
+    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
     const newLimit = callLimit + 15;
     setLoadingMore(true);
     try {
@@ -94,13 +96,16 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
       if (callsRes.ok) {
         const callsData = await callsRes.json();
         const callGroups = callsData.calls || [];
+        const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
         setCalls(callGroups);
         setCallLimit(newLimit);
         fetchExistingMatches(callGroups);
+        // Hide button if no new calls were returned
+        if (newTotal <= prevTotal) setHasMore(false);
       }
     } catch { /* ignore */ }
     setLoadingMore(false);
-  }, [callLimit, fetchExistingMatches]);
+  }, [callLimit, calls, fetchExistingMatches]);
 
   useEffect(() => {
     loadData();
@@ -366,7 +371,7 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                     <p className="text-sm text-gray-400 text-center py-4">No recent calls found</p>
                   )}
                 </div>
-                {group.calls.length >= callLimit && (
+                {group.calls.length > 0 && hasMore && (
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
