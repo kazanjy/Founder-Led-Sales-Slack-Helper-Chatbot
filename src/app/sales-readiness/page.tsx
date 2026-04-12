@@ -462,7 +462,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
     }
   };
 
-  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean) => {
+  const handleApplySync = async (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string> = {}) => {
     if (!syncData) return;
 
     const changes = syncData.proposedChanges.filter((c: { itemId: string }) =>
@@ -475,7 +475,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            status: change.proposedStatus,
+            status: statusOverrides[change.itemId] || change.proposedStatus,
             evidenceUrl: change.evidenceText,
           }),
         })

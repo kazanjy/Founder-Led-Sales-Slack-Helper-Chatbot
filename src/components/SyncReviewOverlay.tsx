@@ -31,7 +31,7 @@ interface SyncReviewOverlayProps {
   source: "assessment" | "coaching";
   proposedChanges: ProposedChange[];
   recommendedStage: RecommendedStage | null;
-  onApply: (selectedItemIds: string[], acceptStage: boolean) => Promise<void>;
+  onApply: (selectedItemIds: string[], acceptStage: boolean, statusOverrides: Record<string, string>) => Promise<void>;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -79,6 +79,7 @@ export default function SyncReviewOverlay({
   const [acceptStage, setAcceptStage] = useState(true);
   const [applying, setApplying] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
 
   if (!isOpen) return null;
 
@@ -111,7 +112,7 @@ export default function SyncReviewOverlay({
   const handleApply = async () => {
     setApplying(true);
     try {
-      await onApply([...selectedIds], acceptStage);
+      await onApply([...selectedIds], acceptStage, statusOverrides);
     } finally {
       setApplying(false);
     }
@@ -251,9 +252,29 @@ export default function SyncReviewOverlay({
                             <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${proposedSt.color}`}>
-                              {proposedSt.label}
-                            </span>
+                            <select
+                              value={statusOverrides[change.itemId] || change.proposedStatus}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStatusOverrides((prev) => {
+                                  if (val === change.proposedStatus) {
+                                    const next = { ...prev };
+                                    delete next[change.itemId];
+                                    return next;
+                                  }
+                                  return { ...prev, [change.itemId]: val };
+                                });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium border-none cursor-pointer appearance-none pr-5 bg-no-repeat bg-[length:12px] bg-[right_4px_center] ${
+                                (STATUS_LABELS[statusOverrides[change.itemId] || change.proposedStatus] || proposedSt).color
+                              } ${statusOverrides[change.itemId] ? "ring-2 ring-purple-400 ring-offset-1" : ""}`}
+                              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z'/%3E%3C/svg%3E")` }}
+                            >
+                              {Object.entries(STATUS_LABELS).map(([key, { label }]) => (
+                                <option key={key} value={key}>{label}</option>
+                              ))}
+                            </select>
                           </div>
 
                           {/* Confidence badge */}
