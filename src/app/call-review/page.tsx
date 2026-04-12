@@ -276,7 +276,11 @@ function CallReviewContent() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // Flush any remaining data in the buffer
+          buffer += decoder.decode();
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
@@ -291,6 +295,36 @@ function CallReviewContent() {
               if (currentEvent === "progress") {
                 setAnalyzeProgress(data.message);
               } else if (currentEvent === "complete") {
+                receivedComplete = true;
+                setVersion(data.version);
+                setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
+                setTranscript("");
+                setRecentReviews((prev) => [
+                  { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
+                  ...prev,
+                ]);
+                window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
+              } else if (currentEvent === "error") {
+                receivedError = true;
+                await showAlert({ title: "Analysis Error", message: data.message || "Analysis failed", variant: "danger" });
+              }
+            } catch { /* ignore */ }
+            currentEvent = "";
+          }
+        }
+      }
+
+      // Process any remaining lines left in the buffer after stream ends
+      if (buffer.trim()) {
+        const remainingLines = buffer.split("\n");
+        let currentEvent = "";
+        for (const line of remainingLines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (currentEvent === "complete") {
                 receivedComplete = true;
                 setVersion(data.version);
                 setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
