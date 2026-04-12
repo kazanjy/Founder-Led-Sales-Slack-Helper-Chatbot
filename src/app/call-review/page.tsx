@@ -300,6 +300,8 @@ function CallReviewContent() {
                 setVersion(data.version);
                 setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
                 setTranscript("");
+                setRecordingUrl("");
+                setPrefilled(false);
                 setRecentReviews((prev) => [
                   { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
                   ...prev,
@@ -910,6 +912,8 @@ function CallReviewContent() {
                 onClick={() => {
                   setVersion(null);
                   setTranscript("");
+                  setRecordingUrl("");
+                  setPrefilled(false);
                 }}
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm"
               >
