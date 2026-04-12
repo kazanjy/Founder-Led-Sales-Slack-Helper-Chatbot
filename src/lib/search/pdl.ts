@@ -201,6 +201,70 @@ export async function enrichWithPDL(
   };
 }
 
+// ── Email-based Person Lookup (lightweight — name + title only) ──
+
+export interface PDLAttendeeResult {
+  email: string;
+  fullName: string | null;
+  title: string | null;
+  company: string | null;
+  linkedinUrl: string | null;
+}
+
+export async function enrichByEmail(email: string): Promise<PDLAttendeeResult | null> {
+  if (!PDL_API_KEY) return null;
+
+  try {
+    const url = `${PDL_BASE_URL}/person/enrich?email=${encodeURIComponent(email)}`;
+    console.log(`[PDL] Email enrichment: ${email}`);
+
+    const response = await fetch(url, {
+      headers: { "X-Api-Key": PDL_API_KEY },
+    });
+
+    if (!response.ok) {
+      console.log(`[PDL] Email enrichment ${response.status} for ${email}`);
+      return null;
+    }
+
+    const json = await response.json();
+    const p = json.data;
+    if (!p) return null;
+
+    console.log(`[PDL] Email enrichment matched: ${p.full_name} — ${p.job_title} @ ${p.job_company_name}`);
+    return {
+      email,
+      fullName: p.full_name || null,
+      title: p.job_title || null,
+      company: p.job_company_name || null,
+      linkedinUrl: p.linkedin_url || null,
+    };
+  } catch (error) {
+    console.error(`[PDL] Email enrichment failed for ${email}:`, error);
+    return null;
+  }
+}
+
+export async function enrichAttendeesByEmail(
+  attendees: Array<{ name: string; email?: string }>
+): Promise<Array<{ name: string; email?: string; title?: string; company?: string; linkedinUrl?: string }>> {
+  const results = await Promise.all(
+    attendees.map(async (a) => {
+      if (!a.email) return a;
+      const enriched = await enrichByEmail(a.email);
+      if (!enriched) return a;
+      return {
+        name: enriched.fullName || a.name,
+        email: a.email,
+        title: enriched.title || undefined,
+        company: enriched.company || undefined,
+        linkedinUrl: enriched.linkedinUrl || undefined,
+      };
+    })
+  );
+  return results;
+}
+
 // ── Format PDL data as text for synthesis prompt ─────────────────
 
 export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {

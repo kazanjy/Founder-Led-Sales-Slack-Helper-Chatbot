@@ -21,7 +21,7 @@ interface ProviderInfo {
 }
 
 interface MeetingRecorderPanelProps {
-  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; date?: string; attendees?: Array<{ name: string; email?: string }> }) => void;
+  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; date?: string; attendees?: Array<{ name: string; email?: string; title?: string; company?: string }> }) => void;
   defaultCollapsed?: boolean;
 }
 
@@ -158,13 +158,30 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
           }
         }
 
+        // Enrich attendees via PDL if any have email addresses
+        let attendees = data.call.attendees || [];
+        const hasEmails = attendees.some((a: { email?: string }) => a.email);
+        if (hasEmails) {
+          try {
+            const enrichRes = await fetch("/api/meeting-recorder/enrich-attendees", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ attendees }),
+            });
+            if (enrichRes.ok) {
+              const enrichData = await enrichRes.json();
+              attendees = enrichData.attendees || attendees;
+            }
+          } catch { /* use unenriched attendees */ }
+        }
+
         onSelectCall({
           transcript: data.call.transcript,
           summary,
           recordingUrl: data.call.providerUrl,
           title: data.call.title,
           date: data.call.date,
-          attendees: data.call.attendees,
+          attendees,
         });
       }
     } catch {

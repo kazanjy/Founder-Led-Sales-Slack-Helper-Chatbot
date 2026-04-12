@@ -209,7 +209,14 @@ export default function NewCallRecap() {
                     headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
                   }
                   if (data.attendees?.length) {
-                    headerLines.push(`Attendees: ${data.attendees.map((a) => a.email ? `${a.name} (${a.email})` : a.name).join(", ")}`);
+                    const formatted = data.attendees.map((a) => {
+                      const parts = [a.name];
+                      if (a.title) parts[0] += `, ${a.title}`;
+                      if (a.company) parts[0] += ` @ ${a.company}`;
+                      if (a.email) parts.push(a.email);
+                      return parts.join(" — ");
+                    });
+                    headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
                   }
                   const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
                   setCallSummary(header + data.summary);
