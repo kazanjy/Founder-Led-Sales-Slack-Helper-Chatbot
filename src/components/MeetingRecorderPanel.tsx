@@ -104,9 +104,22 @@ export default function MeetingRecorderPanel({ onSelectCall }: MeetingRecorderPa
       const res = await fetch(`/api/meeting-recorder/calls/${callId}?provider=${provider}`);
       if (res.ok) {
         const data = await res.json();
+
+        // Fall back to the summary from the list endpoint if the detail endpoint didn't return one
+        let summary = data.call.summary || "";
+        if (!summary) {
+          for (const group of calls) {
+            const listCall = group.calls.find((c) => c.id === callId);
+            if (listCall?.summary) {
+              summary = listCall.summary;
+              break;
+            }
+          }
+        }
+
         onSelectCall({
           transcript: data.call.transcript,
-          summary: data.call.summary,
+          summary,
           recordingUrl: data.call.providerUrl,
           title: data.call.title,
         });

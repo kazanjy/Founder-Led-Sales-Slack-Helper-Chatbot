@@ -17,6 +17,9 @@ interface GranolaNoteDetail extends GranolaNoteListItem {
     speaker: { source: string; diarization_label?: string };
     text: string;
   }> | null;
+  content?: string;
+  notes_plain?: string;
+  notes_markdown?: string;
 }
 
 async function granolaFetch(path: string, apiKey: string): Promise<Response> {
@@ -77,6 +80,13 @@ export const granolaProvider: MeetingRecorderProvider = {
 
     const note: GranolaNoteDetail = await res.json();
 
+    // Log response keys to debug summary field availability
+    console.log(`[Granola] Note ${callId} response keys:`, Object.keys(note));
+    console.log(`[Granola] summary field:`, note.summary ? `${note.summary.substring(0, 100)}...` : note.summary);
+    if (note.content) console.log(`[Granola] content field present (${note.content.length} chars)`);
+    if (note.notes_plain) console.log(`[Granola] notes_plain field present (${note.notes_plain.length} chars)`);
+    if (note.notes_markdown) console.log(`[Granola] notes_markdown field present (${note.notes_markdown.length} chars)`);
+
     // Build transcript from speaker-attributed entries
     let transcript = "";
     if (Array.isArray(note.transcript) && note.transcript.length > 0) {
@@ -88,12 +98,15 @@ export const granolaProvider: MeetingRecorderProvider = {
         .join("\n\n");
     }
 
+    // Try multiple possible field names for the AI-generated summary
+    const summary = note.summary || note.content || note.notes_plain || note.notes_markdown || "";
+
     return {
       id: note.id,
       title: note.title || "Untitled Meeting",
       date: note.created_at,
       participants: note.attendees?.map((a) => a.name) || [],
-      summary: note.summary || "",
+      summary,
       transcript,
       providerUrl: `https://granola.ai/note/${note.id}`,
     };
