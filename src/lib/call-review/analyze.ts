@@ -170,6 +170,10 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
   }
 }`;
 
+  const systemPromptLen = systemPrompt.length;
+  const userPromptLen = transcript.length + 40; // "Here is the call transcript to review:\n\n"
+  console.log("[CallReview:analyze] Calling GPT-5.2 | system prompt:", systemPromptLen, "chars | user prompt:", userPromptLen, "chars | total:", systemPromptLen + userPromptLen, "chars");
+
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
@@ -180,12 +184,22 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
     response_format: { type: "json_object" },
   });
 
+  console.log("[CallReview:analyze] GPT response received | usage:", JSON.stringify(response.usage || {}));
+
   const content = response.choices[0]?.message?.content;
   if (!content) {
+    console.error("[CallReview:analyze] No content in GPT response | finish_reason:", response.choices[0]?.finish_reason);
     throw new Error("No response from AI");
   }
 
-  const result = JSON.parse(content) as AnalysisResult;
+  console.log("[CallReview:analyze] Parsing JSON response |", content.length, "chars");
+  let result: AnalysisResult;
+  try {
+    result = JSON.parse(content) as AnalysisResult;
+  } catch (parseError) {
+    console.error("[CallReview:analyze] JSON parse failed | first 500 chars:", content.substring(0, 500));
+    throw new Error("AI returned invalid JSON. Please try again.");
+  }
 
   // Add overridden: false to all items
   for (const sectionKey of Object.keys(result.sections)) {

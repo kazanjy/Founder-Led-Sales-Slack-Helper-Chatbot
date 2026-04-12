@@ -10,14 +10,21 @@ export const maxDuration = 120;
 // POST - Analyze a call transcript (SSE streaming)
 export async function POST(request: NextRequest) {
   try {
+    console.log("[CallReview] POST /api/call-review/analyze — request received");
+
     const user = await getCurrentUser();
     if (!user) {
+      console.log("[CallReview] Not authenticated");
       return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401 });
     }
 
-    const { transcript, includeDiscoveryQuestions, includeSalesNarrative, sourceUrl, sourceVendor } = await request.json();
+    const body = await request.json();
+    const { transcript, includeDiscoveryQuestions, includeSalesNarrative, sourceUrl, sourceVendor } = body;
+
+    console.log("[CallReview] User:", user.id, "| Transcript length:", transcript?.length || 0, "| sourceUrl:", sourceUrl || "none");
 
     if (!transcript || transcript.trim().length < 100) {
+      console.log("[CallReview] Transcript too short, rejecting");
       return new Response(
         JSON.stringify({ error: "Please provide a call transcript (at least 100 characters)." }),
         { status: 400 },
@@ -28,6 +35,7 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         function send(event: string, data: unknown) {
+          console.log(`[CallReview] SSE event: ${event}`);
           controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         }
 
@@ -100,12 +108,15 @@ export async function POST(request: NextRequest) {
           send("progress", { stage: "analyzing", message: "Analyzing call transcript with AI...", progress: 25 });
 
           // Run analysis
+          console.log("[CallReview] Starting GPT analysis | transcript:", transcript.length, "chars | discoveryQuestions:", !!discoveryQuestions, "| firstCallChecklist:", !!firstCallChecklist, "| salesNarrative:", !!salesNarrative);
+          const analysisStart = Date.now();
           const analysis = await analyzeCallTranscript(
             transcript,
             discoveryQuestions,
             firstCallChecklist,
             salesNarrative,
           );
+          console.log("[CallReview] GPT analysis complete in", ((Date.now() - analysisStart) / 1000).toFixed(1), "s");
 
           send("progress", { stage: "scoring", message: "Calculating scores...", progress: 75 });
 
@@ -124,6 +135,7 @@ export async function POST(request: NextRequest) {
           if (callDateMatch) titleParts.push(callDateMatch[1].trim());
           const title = titleParts.join(" - ");
 
+          console.log("[CallReview] Score:", overall, "/", max, "| Title:", title);
           send("progress", { stage: "saving", message: "Saving results...", progress: 85 });
 
           // Save to DB
@@ -189,9 +201,14 @@ export async function POST(request: NextRequest) {
             },
           });
         } catch (error) {
-          console.error("Error analyzing call:", error);
-          send("error", { message: error instanceof Error ? error.message : "Failed to analyze call transcript." });
+          console.error("[CallReview] Error in SSE stream:", error);
+          try {
+            send("error", { message: error instanceof Error ? error.message : "Failed to analyze call transcript." });
+          } catch (sendError) {
+            console.error("[CallReview] Failed to send error event:", sendError);
+          }
         } finally {
+          console.log("[CallReview] Closing SSE stream");
           controller.close();
         }
       },
@@ -201,7 +218,7 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
     });
   } catch (error) {
-    console.error("Error in analyze route:", error);
+    console.error("[CallReview] Error in analyze route (outer):", error);
     return new Response(JSON.stringify({ error: "Failed to analyze call transcript." }), { status: 500 });
   }
 }
