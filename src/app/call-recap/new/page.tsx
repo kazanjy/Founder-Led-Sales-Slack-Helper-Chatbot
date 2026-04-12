@@ -20,6 +20,7 @@ export default function NewCallRecap() {
   const [extracting, setExtracting] = useState(false);
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const extractAttemptedRef = useRef<string | null>(null);
+  const callSummaryRef = useRef<HTMLTextAreaElement>(null);
 
   // Source freshness
   const [narrativeDate, setNarrativeDate] = useState<string | null>(null);
@@ -214,6 +215,8 @@ export default function NewCallRecap() {
                   setCallSummary(header + data.summary);
                 }
                 if (data.transcript) setCallTranscript(data.transcript);
+                // Scroll to the content fields so the user can see what was populated
+                setTimeout(() => callSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
               }}
             />
 
@@ -253,6 +256,7 @@ export default function NewCallRecap() {
                   Call Summary <span className="text-red-400">*</span>
                 </label>
                 <textarea
+                  ref={callSummaryRef}
                   value={callSummary}
                   onChange={(e) => setCallSummary(e.target.value)}
                   placeholder="Paste the call summary from your call recorder..."

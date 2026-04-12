@@ -94,6 +94,7 @@ function CallReviewContent() {
   const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
   const [detectedVendor, setDetectedVendor] = useState<string | null>(null);
   const extractAttemptedRef = useRef<string | null>(null);
+  const transcriptRef = useRef<HTMLTextAreaElement>(null);
   const [prefilled, setPrefilled] = useState(false);
   const [includeDiscoveryQuestions, setIncludeDiscoveryQuestions] = useState(true);
   const [includeSalesNarrative, setIncludeSalesNarrative] = useState(true);
@@ -496,6 +497,7 @@ function CallReviewContent() {
                       }
                       const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
                       setTranscript(header + data.transcript);
+                      setTimeout(() => transcriptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
                     }
                   }}
                 />
@@ -604,6 +606,7 @@ function CallReviewContent() {
                       Call Transcript
                     </label>
                     <textarea
+                      ref={transcriptRef}
                       value={transcript}
                       onChange={(e) => setTranscript(e.target.value)}
                       placeholder="Paste your full call transcript here..."
