@@ -68,14 +68,18 @@ export async function refreshFathomToken(refreshToken: string): Promise<{
 }
 
 async function fathomFetch(path: string, token: string): Promise<Response> {
-  // Support both OAuth Bearer tokens and API keys
-  return fetch(`${API_BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "X-Api-Key": token,
-      "Content-Type": "application/json",
-    },
-  });
+  // Detect token type: OAuth tokens are typically longer JWT-style, API keys are shorter
+  const isOAuthToken = token.length > 50 || token.includes(".");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (isOAuthToken) {
+    headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["X-Api-Key"] = token;
+  }
+  console.log(`[Fathom] fetch ${path} | auth: ${isOAuthToken ? "Bearer" : "X-Api-Key"} | token prefix: ${token.substring(0, 10)}...`);
+  return fetch(`${API_BASE}${path}`, { headers });
 }
 
 // ── Fathom API types ──────────────────────────────────────────
