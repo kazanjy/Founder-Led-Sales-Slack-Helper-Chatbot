@@ -208,6 +208,8 @@ export async function POST(request: NextRequest) {
             console.error("[CallReview] Failed to send error event:", sendError);
           }
         } finally {
+          // Send a final comment to ensure the last event is flushed
+          controller.enqueue(encoder.encode(":\n\n"));
           console.log("[CallReview] Closing SSE stream");
           controller.close();
         }
@@ -215,7 +217,12 @@ export async function POST(request: NextRequest) {
     });
 
     return new Response(stream, {
-      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
     });
   } catch (error) {
     console.error("[CallReview] Error in analyze route (outer):", error);
