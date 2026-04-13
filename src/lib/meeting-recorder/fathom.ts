@@ -153,7 +153,7 @@ export const fathomProvider: MeetingRecorderProvider = {
     // Fathom uses cursor pagination
     while (allMeetings.length < limit) {
       const pageSize = Math.min(limit - allMeetings.length, 25);
-      let url = `/meetings?limit=${pageSize}&include_transcript=true`;
+      let url = `/meetings?limit=${pageSize}`;
       if (cursor) url += `&cursor=${cursor}`;
 
       const res = await fathomFetch(url, apiKey);
