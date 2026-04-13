@@ -71,6 +71,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     maturityUpdateStartedAt: session.user.maturityUpdateStartedAt,
     isImpersonating: !!session.impersonatingAdminId,
     impersonatingAdminId: session.impersonatingAdminId,
+    promptGuidance: session.user.promptGuidance ?? null,
   };
 }
 
