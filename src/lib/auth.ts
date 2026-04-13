@@ -22,6 +22,8 @@ export interface AuthUser {
   // Impersonation tracking
   isImpersonating: boolean;
   impersonatingAdminId: string | null;
+  // Custom prompt guidance
+  promptGuidance: string | null;
 }
 
 /**
