@@ -180,7 +180,7 @@ export default function NewSalesMotion() {
               <div className="p-6 space-y-6">
                 {/* Meeting Recorder — import calls directly */}
                 <MeetingRecorderPanel
-                  defaultCollapsed={true}
+                  defaultCollapsed={dealIndex > 0}
                   onSelectCall={(data) => {
                     const headerLines: string[] = [];
                     if (data.date) {

@@ -294,6 +294,10 @@ export default function ChatPage() {
   const [isDraggingImage, setIsDraggingImage] = useState(false); // Drag-drop state
   const [conversationMode, setConversationMode] = useState<"CHATBASE" | "DIRECT">("CHATBASE"); // Chat mode toggle
   const [switchingMode, setSwitchingMode] = useState(false); // Loading state for mode switch
+  const [showPromptGuidance, setShowPromptGuidance] = useState(false);
+  const [promptGuidance, setPromptGuidance] = useState("");
+  const [promptGuidanceDraft, setPromptGuidanceDraft] = useState("");
+  const [savingGuidance, setSavingGuidance] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]); // Lightbox images
   const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
   const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
@@ -1277,6 +1281,27 @@ export default function ChatPage() {
       document.title = "Mikey - New Chat";
     }
   }, [selectedConversation, conversations]);
+
+  // Load prompt guidance on mount
+  useEffect(() => {
+    fetch("/api/prompt-guidance").then((r) => r.json()).then((d) => {
+      setPromptGuidance(d.promptGuidance || "");
+    }).catch(() => {});
+  }, []);
+
+  const savePromptGuidance = async () => {
+    setSavingGuidance(true);
+    try {
+      await fetch("/api/prompt-guidance", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptGuidance: promptGuidanceDraft }),
+      });
+      setPromptGuidance(promptGuidanceDraft);
+      setShowPromptGuidance(false);
+    } catch { /* ignore */ }
+    setSavingGuidance(false);
+  };
 
   // Auto-scroll disabled - user prefers manual scrolling
   useEffect(() => {
@@ -3800,6 +3825,28 @@ export default function ChatPage() {
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                               </div>
                             </div>
+
+                            {/* Prompt Guidance gear icon */}
+                            <div className="relative group">
+                              <button
+                                type="button"
+                                onClick={() => { setPromptGuidanceDraft(promptGuidance); setShowPromptGuidance(true); }}
+                                className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-all border ${
+                                  promptGuidance
+                                    ? "text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100"
+                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                                }`}
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                                <p>Prompt Guidance — customize tone &amp; style</p>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
@@ -5154,6 +5201,64 @@ export default function ChatPage() {
         isOpen={!!shareModalConversationId}
         onClose={() => setShareModalConversationId(null)}
       />
+    )}
+
+    {/* Prompt Guidance Modal */}
+    {showPromptGuidance && (
+      <div
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => { if (e.target === e.currentTarget) setShowPromptGuidance(false); }}
+      >
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900">Prompt Guidance</h3>
+            </div>
+            <button onClick={() => setShowPromptGuidance(false)} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Add custom guidance to shape how Mikey responds to you. This applies to all conversations in both Founding Sales Content and Direct LLM modes.
+          </p>
+          <textarea
+            value={promptGuidanceDraft}
+            onChange={(e) => setPromptGuidanceDraft(e.target.value)}
+            placeholder={"Examples:\n- Keep responses concise, under 200 words\n- Use a casual, direct tone\n- Always include specific examples\n- Format action items as numbered lists\n- When discussing sales, reference SaaS / B2B contexts"}
+            rows={8}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+          />
+          <div className="flex items-center justify-between mt-4">
+            <button
+              onClick={() => { setPromptGuidanceDraft(""); }}
+              className="text-sm text-gray-500 hover:text-red-500 transition-colors"
+            >
+              Clear
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowPromptGuidance(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePromptGuidance}
+                disabled={savingGuidance}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+              >
+                {savingGuidance ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     )}
 
     {ConfirmModalElement}

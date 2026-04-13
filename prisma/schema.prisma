@@ -126,6 +126,7 @@ model User {
   sessions                   Session[]
   savedPrompts               SavedPrompt[]
   dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
+  promptGuidance             String?                     @db.Text // User's custom prompt guidance (tone, style, etc.)
   gtmVariables               GtmVariable[]
   maturityAnswers            MaturityAnswer[]
   maturityAssessments        MaturityAssessment[]

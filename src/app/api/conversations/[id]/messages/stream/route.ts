@@ -165,6 +165,9 @@ export async function POST(
   // Determine conversation mode
   const isDirectMode = conversation.mode === "DIRECT";
 
+  // Fetch user's prompt guidance for injection into AI context
+  const promptGuidance = user.promptGuidance || "";
+
   // Build conversation history
   let chatbaseHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
   let directHistory: Array<{ role: "user" | "assistant" | "system"; content: string }> = [];
@@ -262,6 +265,13 @@ export async function POST(
 
         if (isDirectMode) {
           // ===== DIRECT MODE: Stream from OpenAI GPT =====
+          // If user has prompt guidance, inject it as a system message in history
+          if (promptGuidance) {
+            directHistory.unshift({
+              role: "system",
+              content: `## User's Prompt Guidance\nThe user has provided the following guidance for how you should respond. Follow these instructions:\n\n${promptGuidance}`,
+            });
+          }
           const openaiStream = streamFromOpenAI(expandedMessage, directHistory);
 
           while (true) {
@@ -281,6 +291,13 @@ export async function POST(
           }
         } else {
           // ===== CHATBASE MODE: Stream from Chatbase (existing behavior) =====
+          // If user has prompt guidance, prepend it as a user→assistant exchange in history
+          if (promptGuidance) {
+            chatbaseHistory.unshift(
+              { role: "user", content: `[System: The user has set the following prompt guidance for tone and style. Follow these instructions in all responses:]\n\n${promptGuidance}` },
+              { role: "assistant", content: "Understood — I'll follow your prompt guidance in all my responses." },
+            );
+          }
           const chatbaseStream = streamFromChatbase(
             expandedMessage,
             conversation.chatbaseConversationId || undefined,
