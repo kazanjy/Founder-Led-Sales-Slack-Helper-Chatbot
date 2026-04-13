@@ -271,79 +271,71 @@ function CallReviewContent() {
       // Stream SSE response
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let fullText = "";
       let receivedComplete = false;
       let receivedError = false;
 
+      function handleSSEEvent(eventType: string, eventData: string) {
+        try {
+          const data = JSON.parse(eventData);
+          if (eventType === "progress") {
+            setAnalyzeProgress(data.message);
+          } else if (eventType === "complete") {
+            receivedComplete = true;
+            setVersion(data.version);
+            setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
+            setTranscript("");
+            setRecordingUrl("");
+            setPrefilled(false);
+            setRecentReviews((prev) => [
+              { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
+              ...prev,
+            ]);
+            window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
+          } else if (eventType === "error") {
+            receivedError = true;
+            showAlert({ title: "Analysis Error", message: data.message || "Analysis failed", variant: "danger" });
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
+      // Read stream incrementally for progress updates
+      let buffer = "";
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          // Flush any remaining data in the buffer
-          buffer += decoder.decode();
-          break;
-        }
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        buffer += chunk;
 
-        let currentEvent = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith("data: ") && currentEvent) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (currentEvent === "progress") {
-                setAnalyzeProgress(data.message);
-              } else if (currentEvent === "complete") {
-                receivedComplete = true;
-                setVersion(data.version);
-                setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
-                setTranscript("");
-                setRecordingUrl("");
-                setPrefilled(false);
-                setRecentReviews((prev) => [
-                  { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
-                  ...prev,
-                ]);
-                window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
-              } else if (currentEvent === "error") {
-                receivedError = true;
-                await showAlert({ title: "Analysis Error", message: data.message || "Analysis failed", variant: "danger" });
-              }
-            } catch { /* ignore */ }
-            currentEvent = "";
+        // Try to process complete SSE blocks (separated by \n\n)
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || ""; // keep incomplete last part
+        for (const block of parts) {
+          let eventType = "";
+          let eventData = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+            else if (line.startsWith("data: ")) eventData = line.slice(6);
           }
+          if (eventType && eventData) handleSSEEvent(eventType, eventData);
         }
       }
 
-      // Process any remaining lines left in the buffer after stream ends
-      if (buffer.trim()) {
-        const remainingLines = buffer.split("\n");
-        let currentEvent = "";
-        for (const line of remainingLines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith("data: ") && currentEvent) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (currentEvent === "complete") {
-                receivedComplete = true;
-                setVersion(data.version);
-                setExpandedSections(new Set(DISCOVERY_CALL_RUBRIC.sections.map((s) => s.key)));
-                setTranscript("");
-                setRecentReviews((prev) => [
-                  { id: data.version.id, title: data.version.title, overallScore: data.version.overallScore, maxScore: data.version.maxScore, createdAt: data.version.createdAt },
-                  ...prev,
-                ]);
-                window.history.replaceState({}, "", `/call-review?version=${data.version.id}`);
-              } else if (currentEvent === "error") {
-                receivedError = true;
-                await showAlert({ title: "Analysis Error", message: data.message || "Analysis failed", variant: "danger" });
-              }
-            } catch { /* ignore */ }
-            currentEvent = "";
+      // Flush decoder and process any remaining buffer
+      fullText += decoder.decode();
+      buffer += decoder.decode();
+
+      // Final pass: if we didn't get a complete event, re-parse the full response
+      if (!receivedComplete && !receivedError) {
+        for (const block of fullText.split("\n\n")) {
+          let eventType = "";
+          let eventData = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+            else if (line.startsWith("data: ")) eventData = line.slice(6);
           }
+          if (eventType && eventData) handleSSEEvent(eventType, eventData);
         }
       }
 
