@@ -58,11 +58,11 @@ export const DISCOVERY_CALL_RUBRIC: Rubric = {
         },
         {
           key: "humor",
-          label: "Gets a laugh: humor or lightness early in the call",
+          label: "Brings lightness: humor, warmth, or personality early in the call",
           scoringGuide: {
-            "0": "No humor, purely transactional tone",
-            "1": "Attempts humor but it doesn't land or feels forced",
-            "2": "Gets a genuine laugh or warm reaction from the prospect in the first few minutes",
+            "0": "No humor or warmth, purely transactional tone throughout",
+            "1": "Some attempt at lightness but feels forced or one-note",
+            "2": "Genuine humor, a playful comment, or warm personality that makes the conversation feel relaxed and human",
           },
         },
         {
