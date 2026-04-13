@@ -20,7 +20,7 @@ const contentItems: NavItem[] = [
 
 const callExecutionItems: NavItem[] = [
   { href: "/pre-call-planning/research", label: "🔬 Pre-Call Research", statusKey: "preCallResearch" },
-  { href: "/call-recap", label: "✉️ Call Recap Email", statusKey: "callRecap" },
+  { href: "/call-recap/new", label: "✉️ Call Recap Email", statusKey: "callRecap" },
   { href: "/call-review", label: "📞 Call Coaching", statusKey: "callReview" },
   { href: "/call-scripts", label: "🎯 Cold Call Scripts", statusKey: "coldCallScript" },
 ];
