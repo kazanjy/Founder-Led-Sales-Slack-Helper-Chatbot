@@ -13,7 +13,7 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const goal = await prisma.coachingNextGoal.findFirst({ where: { id, userId: user.id } });
+    const goal = await prisma.coachingNextGoal.findFirst({ where: user.accountId ? { id, user: { accountId: user.accountId } } : { id, userId: user.id } });
     if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await request.json();
@@ -46,7 +46,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const goal = await prisma.coachingNextGoal.findFirst({ where: { id, userId: user.id } });
+    const goal = await prisma.coachingNextGoal.findFirst({ where: user.accountId ? { id, user: { accountId: user.accountId } } : { id, userId: user.id } });
     if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await prisma.coachingNextGoal.delete({ where: { id } });

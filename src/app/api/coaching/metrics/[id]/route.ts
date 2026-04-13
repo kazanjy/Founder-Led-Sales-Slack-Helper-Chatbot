@@ -25,8 +25,11 @@ export async function PATCH(
       );
     }
 
+    // Allow same-account access
     if (metric.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      const owner = await prisma.user.findFirst({ where: { id: metric.userId, accountId: user.accountId }, select: { id: true } });
+      if (!owner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -78,8 +81,11 @@ export async function DELETE(
       );
     }
 
+    // Allow same-account access
     if (metric.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      const owner = await prisma.user.findFirst({ where: { id: metric.userId, accountId: user.accountId }, select: { id: true } });
+      if (!owner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     await prisma.coachingMetricDefinition.delete({

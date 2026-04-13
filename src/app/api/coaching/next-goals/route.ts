@@ -3,15 +3,27 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
 // GET - List all next goals with tasks
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const targetUserId = request.nextUrl.searchParams.get("userId");
+
+    // Allow viewing another user's next goals if they're in the same account
+    let userId = user.id;
+    if (targetUserId && targetUserId !== user.id && user.accountId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: targetUserId, accountId: user.accountId },
+        select: { id: true },
+      });
+      if (targetUser) userId = targetUser.id;
+    }
+
     const goals = await prisma.coachingNextGoal.findMany({
-      where: { userId: user.id },
+      where: { userId },
       orderBy: { order: "asc" },
       include: {
         tasks: { orderBy: { order: "asc" } },

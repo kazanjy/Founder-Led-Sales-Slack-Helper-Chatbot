@@ -22,8 +22,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
+    // Allow same-account access
     if (goal.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      const goalOwner = await prisma.user.findFirst({ where: { id: goal.userId, accountId: user.accountId }, select: { id: true } });
+      if (!goalOwner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -80,8 +83,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
+    // Allow same-account access
     if (goal.userId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      const goalOwner = await prisma.user.findFirst({ where: { id: goal.userId, accountId: user.accountId }, select: { id: true } });
+      if (!goalOwner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     await prisma.coachingGoal.delete({

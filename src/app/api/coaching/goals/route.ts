@@ -11,8 +11,19 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const targetUserId = searchParams.get("userId");
 
-    const where: { userId: string; status?: string } = { userId: user.id };
+    // Allow viewing another user's goals if they're in the same account
+    let userId = user.id;
+    if (targetUserId && targetUserId !== user.id && user.accountId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: targetUserId, accountId: user.accountId },
+        select: { id: true },
+      });
+      if (targetUser) userId = targetUser.id;
+    }
+
+    const where: { userId: string; status?: string } = { userId };
     if (status) {
       where.status = status;
     }

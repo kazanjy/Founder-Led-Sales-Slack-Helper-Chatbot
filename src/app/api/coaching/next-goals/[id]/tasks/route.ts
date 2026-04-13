@@ -13,7 +13,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const goal = await prisma.coachingNextGoal.findFirst({ where: { id, userId: user.id } });
+    const goal = await prisma.coachingNextGoal.findFirst({ where: user.accountId ? { id, user: { accountId: user.accountId } } : { id, userId: user.id } });
     if (!goal) return NextResponse.json({ error: "Goal not found" }, { status: 404 });
 
     const { title, description } = await request.json();

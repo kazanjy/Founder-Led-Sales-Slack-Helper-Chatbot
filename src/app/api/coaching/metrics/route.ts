@@ -10,10 +10,21 @@ export async function GET(request: NextRequest) {
     }
 
     const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
+    const targetUserId = request.nextUrl.searchParams.get("userId");
+
+    // Allow viewing another user's metrics if they're in the same account
+    let userId = user.id;
+    if (targetUserId && targetUserId !== user.id && user.accountId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: targetUserId, accountId: user.accountId },
+        select: { id: true },
+      });
+      if (targetUser) userId = targetUser.id;
+    }
 
     const metrics = await prisma.coachingMetricDefinition.findMany({
       where: {
-        userId: user.id,
+        userId,
         ...(includeArchived ? {} : { archived: false }),
       },
       orderBy: { order: "asc" },
