@@ -33,6 +33,7 @@ export default function NewSalesMotion() {
   const [deals, setDeals] = useState<DealInput[]>([createDeal(), createDeal()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importingForCall, setImportingForCall] = useState<{ dealId: string; callId: string } | null>(null);
 
   useEffect(() => {
     document.title = "Analyze Sales Motion - Mikey";
@@ -178,42 +179,22 @@ export default function NewSalesMotion() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* Meeting Recorder — import calls directly */}
-                <MeetingRecorderPanel
-                  defaultCollapsed={dealIndex > 0}
-                  onSelectCall={(data) => {
-                    const headerLines: string[] = [];
-                    if (data.date) {
-                      headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
-                    }
-                    if (data.attendees?.length) {
-                      const formatted = data.attendees.map((a) => {
-                        const parts = [a.name];
-                        if (a.title) parts[0] += `, ${a.title}`;
-                        if (a.company) parts[0] += ` @ ${a.company}`;
-                        if (a.email) parts.push(a.email);
-                        return parts.join(" — ");
-                      });
-                      headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
-                    }
-                    const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
-
-                    const newCall: CallInput = {
-                      id: genId(),
-                      summary: data.summary ? header + data.summary : "",
-                      transcript: data.transcript || "",
-                      recordingUrl: data.recordingUrl || "",
-                    };
-                    setDeals((prev) => prev.map((d) =>
-                      d.id === deal.id ? { ...d, calls: [...d.calls, newCall] } : d
-                    ));
-                  }}
-                />
-
                 {deal.calls.map((call, callIndex) => (
                   <div key={call.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-gray-700">Call {callIndex + 1}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-gray-700">Call {callIndex + 1}</h3>
+                        <button
+                          type="button"
+                          onClick={() => setImportingForCall({ dealId: deal.id, callId: call.id })}
+                          className="flex items-center gap-1 px-2 py-0.5 text-xs text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors border border-purple-200"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                          </svg>
+                          Import
+                        </button>
+                      </div>
                       {deal.calls.length > 1 && (
                         <button
                           onClick={() => removeCall(deal.id, call.id)}
@@ -321,6 +302,62 @@ export default function NewSalesMotion() {
           </div>
         </div>
       </div>
+
+      {/* Import from Meeting Recorder Modal */}
+      {importingForCall && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setImportingForCall(null); }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Import from Meeting Recorder</h3>
+              <button onClick={() => setImportingForCall(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <MeetingRecorderPanel
+              onSelectCall={(data) => {
+                const headerLines: string[] = [];
+                if (data.date) {
+                  headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+                }
+                if (data.attendees?.length) {
+                  const formatted = data.attendees.map((a) => {
+                    const parts = [a.name];
+                    if (a.title) parts[0] += `, ${a.title}`;
+                    if (a.company) parts[0] += ` @ ${a.company}`;
+                    if (a.email) parts.push(a.email);
+                    return parts.join(" — ");
+                  });
+                  headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
+                }
+                const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+
+                const { dealId, callId } = importingForCall;
+                setDeals((prev) => prev.map((d) => {
+                  if (d.id !== dealId) return d;
+                  return {
+                    ...d,
+                    calls: d.calls.map((c) => {
+                      if (c.id !== callId) return c;
+                      return {
+                        ...c,
+                        summary: data.summary ? header + data.summary : c.summary,
+                        transcript: data.transcript || c.transcript,
+                        recordingUrl: data.recordingUrl || c.recordingUrl,
+                      };
+                    }),
+                  };
+                }));
+                setImportingForCall(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
