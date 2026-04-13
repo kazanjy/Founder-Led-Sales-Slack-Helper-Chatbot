@@ -3994,107 +3994,51 @@ export default function ChatPage() {
 
                 {/* Apps Section - encourage users to fill out first */}
                 <div className="max-w-[950px] mx-auto w-full mb-6 md:mb-8">
-                  <p className="text-sm text-gray-500 mb-3">Complete your GTM profile for personalized advice:</p>
+                  <p className="text-sm text-gray-500 mb-3">Your applets:</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-                    <a
-                      href={appProgress.gtmAssessment?.hasSubmitted ? "/maturity-history" : "/assessment/bulk"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">📊</span>
-                        {appProgress.gtmAssessment?.hasSubmitted && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
+                    {[
+                      { emoji: "📊", label: "GTM Assessment", href: appProgress.gtmAssessment?.hasSubmitted ? "/maturity-history" : "/assessment/bulk", done: appProgress.gtmAssessment?.hasSubmitted, progress: appProgress.gtmAssessment && appProgress.gtmAssessment.answered > 0 ? `${appProgress.gtmAssessment.answered}/${appProgress.gtmAssessment.total}` : null },
+                      { emoji: "✅", label: "GTM Readiness", href: "/sales-readiness" },
+                      { emoji: "📖", label: "Sales Narrative", href: "/sales-narrative", done: appProgress.salesNarrative?.hasGenerated, progress: appProgress.salesNarrative && appProgress.salesNarrative.answered > 0 ? `${appProgress.salesNarrative.answered}/${appProgress.salesNarrative.total}` : null },
+                      { emoji: "🎯", label: "Ideal Customer Profile", href: "/icp", done: appProgress.icp?.hasGenerated },
+                      { emoji: "🔄", label: "Sales Motion", href: "/sales-motion" },
+                      { emoji: "🔍", label: "Discovery Questions", href: "/discovery-questions", done: appProgress.discoveryQuestions?.hasGenerated },
+                      { emoji: "✅", label: "First Call Checklist", href: "/first-call-checklist", done: appProgress.firstCallChecklist?.hasGenerated },
+                      { emoji: "📋", label: "Pre-Call Checklist", href: "/pre-call-planning", done: appProgress.preCallPlanning?.hasGenerated },
+                      { emoji: "🔬", label: "Pre-Call Research", href: "/pre-call-planning/research", always: true },
+                      { emoji: "✉️", label: "Call Recap Email", href: "/call-recap/new", always: true },
+                      { emoji: "📞", label: "Call Coaching", href: "/call-review", done: appProgress.callReview?.hasGenerated },
+                      { emoji: "🎯", label: "Cold Call Scripts", href: "/call-scripts", done: appProgress.coldCallScript?.hasGenerated },
+                      { emoji: "📧", label: "Email Sequences", href: "/email-sequence", done: appProgress.emailSequence?.hasGenerated },
+                      { emoji: "💼", label: "LinkedIn Outbound", href: "/linkedin-sequence", done: appProgress.linkedInSequence?.hasGenerated },
+                      { emoji: "📱", label: "Social Posts", href: "/social-content", done: appProgress.socialContent?.hasGenerated },
+                      { emoji: "📣", label: "Ads", href: "/ad-creator", done: appProgress.adCreator?.hasGenerated },
+                      { emoji: "📊", label: "Sales Decks", href: "/sales-deck", done: appProgress.salesDeck?.hasGenerated },
+                      { emoji: "🛡️", label: "Objections", href: "/objection-library", done: appProgress.objectionLibrary?.hasGenerated },
+                      { emoji: "📈", label: "Metrics", href: "/sales-metrics", done: appProgress.salesMetrics?.hasGenerated },
+                      { emoji: "🎓", label: "Coaching", href: "/coaching-history", always: true },
+                      { emoji: "👤", label: "AE Profile", href: "/hiring-profile" },
+                      { emoji: "👔", label: "Sales Leader Profile", href: "/sales-leader-profile" },
+                      { emoji: "📋", label: "Pre-Hire Assessment", href: "/pre-hire-assessment" },
+                    ].map((item) => (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        className="flex flex-col items-center gap-1 p-2.5 md:p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
+                      >
+                        <span className="text-2xl">{item.emoji}</span>
+                        <span className="text-xs font-medium text-gray-700 leading-tight">{item.label}</span>
+                        {item.done ? (
+                          <span className="text-[10px] text-green-600">Done</span>
+                        ) : item.progress ? (
+                          <span className="text-[10px] text-orange-600">{item.progress}</span>
+                        ) : item.always ? (
+                          <span className="text-[10px] text-blue-600 group-hover:underline">Open →</span>
+                        ) : (
+                          <span className="text-[10px] text-purple-600 group-hover:underline">Start →</span>
                         )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">GTM Assessment</span>
-                      {appProgress.gtmAssessment?.hasSubmitted ? (
-                        <span className="text-xs text-green-600">Completed</span>
-                      ) : appProgress.gtmAssessment && appProgress.gtmAssessment.answered > 0 ? (
-                        <span className="text-xs text-orange-600">{appProgress.gtmAssessment.answered}/{appProgress.gtmAssessment.total} answered</span>
-                      ) : (
-                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
-                      )}
-                    </a>
-                    <a
-                      href={appProgress.salesNarrative?.hasGenerated ? "/sales-narrative/history" : "/sales-narrative"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">📝</span>
-                        {appProgress.salesNarrative?.hasGenerated && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Sales Narrative</span>
-                      {appProgress.salesNarrative?.hasGenerated ? (
-                        <span className="text-xs text-green-600">Completed</span>
-                      ) : appProgress.salesNarrative && appProgress.salesNarrative.answered > 0 ? (
-                        <span className="text-xs text-orange-600">{appProgress.salesNarrative.answered}/{appProgress.salesNarrative.total} answered</span>
-                      ) : (
-                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
-                      )}
-                    </a>
-                    <a
-                      href={appProgress.discoveryQuestions?.hasGenerated ? "/discovery-questions/history" : "/discovery-questions"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">🔍</span>
-                        {appProgress.discoveryQuestions?.hasGenerated && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Discovery Questions</span>
-                      {appProgress.discoveryQuestions?.hasGenerated ? (
-                        <span className="text-xs text-green-600">Completed</span>
-                      ) : (
-                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
-                      )}
-                    </a>
-                    <a
-                      href={appProgress.firstCallChecklist?.hasGenerated ? "/first-call-checklist/history" : "/first-call-checklist"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">📋</span>
-                        {appProgress.firstCallChecklist?.hasGenerated && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">First Call Checklist</span>
-                      {appProgress.firstCallChecklist?.hasGenerated ? (
-                        <span className="text-xs text-green-600">Completed</span>
-                      ) : (
-                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
-                      )}
-                    </a>
-                    <a
-                      href={appProgress.preCallPlanning?.hasGenerated ? "/pre-call-planning/history" : "/pre-call-planning"}
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">🎯</span>
-                        {appProgress.preCallPlanning?.hasGenerated && (
-                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px]">✓</span>
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Pre-Call Checklist</span>
-                      {appProgress.preCallPlanning?.hasGenerated ? (
-                        <span className="text-xs text-green-600">Completed</span>
-                      ) : (
-                        <span className="text-xs text-purple-600 group-hover:underline">Start →</span>
-                      )}
-                    </a>
-                    <a
-                      href="/pre-call-planning/research"
-                      className="flex flex-col items-center gap-1.5 md:gap-2 p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-300 hover:shadow-md transition-all text-center group"
-                    >
-                      <div className="relative">
-                        <span className="text-3xl">🔍</span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Pre-Call Research</span>
-                      <span className="text-xs text-blue-600 group-hover:underline">Research →</span>
-                    </a>
+                      </a>
+                    ))}
                   </div>
                 </div>
 
