@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 
 interface DealInput {
   id: string;
@@ -177,6 +178,38 @@ export default function NewSalesMotion() {
               </div>
 
               <div className="p-6 space-y-6">
+                {/* Meeting Recorder — import calls directly */}
+                <MeetingRecorderPanel
+                  defaultCollapsed={true}
+                  onSelectCall={(data) => {
+                    const headerLines: string[] = [];
+                    if (data.date) {
+                      headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+                    }
+                    if (data.attendees?.length) {
+                      const formatted = data.attendees.map((a) => {
+                        const parts = [a.name];
+                        if (a.title) parts[0] += `, ${a.title}`;
+                        if (a.company) parts[0] += ` @ ${a.company}`;
+                        if (a.email) parts.push(a.email);
+                        return parts.join(" — ");
+                      });
+                      headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
+                    }
+                    const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+
+                    const newCall: CallInput = {
+                      id: genId(),
+                      summary: data.summary ? header + data.summary : "",
+                      transcript: data.transcript || "",
+                      recordingUrl: data.recordingUrl || "",
+                    };
+                    setDeals((prev) => prev.map((d) =>
+                      d.id === deal.id ? { ...d, calls: [...d.calls, newCall] } : d
+                    ));
+                  }}
+                />
+
                 {deal.calls.map((call, callIndex) => (
                   <div key={call.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">

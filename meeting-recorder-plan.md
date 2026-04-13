@@ -14,6 +14,7 @@ Automatically ingest call data from users' call recording systems via API. Users
 | **Fireflies** | GraphQL (GA) | API key only | Yes (`transcripts` query) | Yes | Yes (summary, action items) | 50/day (Free/Pro), 60/min (Biz+) | **Starting here** — requires Business plan ($19/seat/mo) |
 | **Fathom** | REST (GA) | OAuth2 + API key | Yes (`/meetings`) | Yes (`/recordings/{id}/transcript`) | Yes (summary + action items) | 60/min/user | Future — free plan, full OAuth2, SDKs |
 | **Gong** | REST v2 (GA) | OAuth2 | Yes (`/v2/calls`) | Yes (`/v2/calls/{id}/transcript`) | Yes (brief + highlights) | ~1000/hr | Future — mature, granular scopes, may require contract negotiation |
+| **Sybill** | REST | API key / OAuth | Yes | Yes | Yes (AI summaries, action items) | Undocumented | **Next** — used by Tenor and Meridian, AI-native call recorder |
 | **Read.ai** | REST (open beta) | API key (OAuth coming) | Yes | Yes | Yes | Undocumented | Future — worth watching |
 | **Grain** | REST (beta) | Bearer token | Yes | Yes | Yes | Undocumented | Future — requires Business plan |
 | **Chorus/ZoomInfo** | REST (limited) | API token | Yes | Unclear | Unclear | Varies | Not recommended — sparse docs, legacy API being deprecated |
