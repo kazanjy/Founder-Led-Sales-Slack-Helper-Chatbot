@@ -162,6 +162,7 @@ interface CoachingFrameworkProps {
   sessionStatus: string;
   isOwner: boolean;
   sessionCreatedAt?: string;
+  sessionUpdatedAt?: string;
   sessionUserId?: string; // Pass the session owner's userId for cross-account viewing
 }
 
@@ -172,7 +173,7 @@ const STATUS_OPTIONS = [
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700" },
 ];
 
-export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUserId }: CoachingFrameworkProps) {
+export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
 
@@ -215,9 +216,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const loadData = useCallback(async () => {
     try {
       const userParam = sessionUserId ? `&userId=${sessionUserId}` : "";
+      // For locked sessions, show all goals that existed at the time (any status)
+      // For active sessions, show only active goals
+      const isLockedSession = sessionStatus === "locked";
+      const goalsStatusParam = isLockedSession ? "" : "status=active";
+      const cutoffParam = isLockedSession && sessionUpdatedAt
+        ? `&createdBefore=${sessionUpdatedAt}`
+        : "";
       const [stageRes, goalsRes, metricsRes, nextGoalsRes] = await Promise.all([
         fetch("/api/coaching/maturity-stage"),
-        fetch(`/api/coaching/goals?status=active${userParam}`),
+        fetch(`/api/coaching/goals?${goalsStatusParam}${userParam}${cutoffParam}`),
         fetch(`/api/coaching-sessions/${sessionId}/metrics`),
         fetch(`/api/coaching/next-goals?_=1${userParam}`),
       ]);

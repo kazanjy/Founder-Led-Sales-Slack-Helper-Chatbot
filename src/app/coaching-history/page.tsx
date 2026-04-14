@@ -1081,6 +1081,7 @@ function CoachingHistoryContent() {
                       sessionStatus={selectedSession.sessionStatus || "new"}
                       isOwner={selectedSession.userId === currentUserId}
                       sessionCreatedAt={selectedSession.createdAt}
+                      sessionUpdatedAt={selectedSession.updatedAt}
                       sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
                     />
 

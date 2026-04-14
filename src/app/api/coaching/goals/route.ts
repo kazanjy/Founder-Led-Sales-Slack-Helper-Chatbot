@@ -23,9 +23,13 @@ export async function GET(request: NextRequest) {
       if (targetUser) userId = targetUser.id;
     }
 
-    const where: { userId: string; status?: string } = { userId };
+    const where: { userId: string; status?: string; createdAt?: { lte: Date } } = { userId };
     if (status) {
       where.status = status;
+    }
+    const createdBefore = searchParams.get("createdBefore");
+    if (createdBefore) {
+      where.createdAt = { lte: new Date(createdBefore) };
     }
 
     const goals = await prisma.coachingGoal.findMany({
