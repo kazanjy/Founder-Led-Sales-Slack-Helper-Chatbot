@@ -240,6 +240,9 @@ export default function SalesNavBar() {
               <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   📒 Playbook
+              {playbookCompletedCount > 0 && (
+                <span className="text-xs text-green-600 font-medium">{playbookCompletedCount}/{playbookItems.length}</span>
+              )}
                 </div>
                 {playbookItems.map((item) => {
                   const href = item.statusKey === "assessment" && status[item.statusKey]
@@ -255,7 +258,8 @@ export default function SalesNavBar() {
                       }`}
                     >
                       <span className="flex-1">{item.label}</span>
-                                          </Link>
+                      {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                    </Link>
                   );
                 })}
               </div>
@@ -272,7 +276,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
               {/* Call Execution section */}
@@ -288,7 +293,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
               {/* Other tools */}
@@ -304,7 +310,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
               {/* GTM Maturity */}
@@ -320,7 +327,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
             </div>
@@ -371,7 +379,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
             )}
@@ -388,6 +397,9 @@ export default function SalesNavBar() {
               }`}
             >
               📒 Playbook
+              {playbookCompletedCount > 0 && (
+                <span className="text-xs text-green-600 font-medium">{playbookCompletedCount}/{playbookItems.length}</span>
+              )}
               <svg className={`w-3.5 h-3.5 transition-transform ${playbookOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -412,6 +424,7 @@ export default function SalesNavBar() {
                       }`}
                     >
                       <span className="flex-1">{item.label}</span>
+                      {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
                     </Link>
                   );
                 })}
@@ -449,7 +462,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
             )}
@@ -485,7 +499,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
             )}
@@ -536,7 +551,8 @@ export default function SalesNavBar() {
                     }`}
                   >
                     <span className="flex-1">{item.label}</span>
-                                      </Link>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
                 ))}
               </div>
             )}
