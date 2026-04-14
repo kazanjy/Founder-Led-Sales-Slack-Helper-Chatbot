@@ -194,6 +194,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [focusedMetric, setFocusedMetric] = useState<string | null>(null);
   const [metricInputValue, setMetricInputValue] = useState("");
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
+  const [hideCompletedGlobal, setHideCompletedGlobal] = useState(false);
+  const [hideCompletedPerGoal, setHideCompletedPerGoal] = useState<Record<string, boolean>>({});
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
   const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
@@ -1237,7 +1239,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
             <span>🎯</span> Goals &amp; Tasks
           </h3>
-          {goals.length > 0 && (
+          <div className="flex items-center gap-3">
+            {goals.some((g) => g.tasks.some((t) => t.status === "done")) && (
+              <button
+                onClick={() => setHideCompletedGlobal(!hideCompletedGlobal)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {hideCompletedGlobal ? "Show Completed" : "Hide Completed"}
+              </button>
+            )}
+            {goals.length > 0 && (
             <button
               onClick={copyAllGoalsAsMarkdown}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
@@ -1251,6 +1262,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               {copiedId === "all-goals" ? "Copied!" : "Copy All"}
             </button>
           )}
+          </div>
         </div>
         <div className="space-y-4">
           {goals.map((goal) => (
@@ -1336,7 +1348,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
-                {goal.tasks.map((task) => {
+                {(() => {
+                  const hideForGoal = hideCompletedPerGoal[goal.id] ?? hideCompletedGlobal;
+                  const completedCount = goal.tasks.filter((t) => t.status === "done").length;
+                  const visibleTasks = hideForGoal ? goal.tasks.filter((t) => t.status !== "done") : goal.tasks;
+                  const hiddenCount = goal.tasks.length - visibleTasks.length;
+                  return (<>
+                    {completedCount > 0 && (
+                      <div className="px-4 py-1.5 flex items-center justify-end">
+                        <button
+                          onClick={() => setHideCompletedPerGoal((prev) => ({ ...prev, [goal.id]: !hideForGoal }))}
+                          className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          {hideForGoal ? `Show ${hiddenCount} completed` : "Hide completed"}
+                        </button>
+                      </div>
+                    )}
+                    {visibleTasks.map((task) => {
                   const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
                     <div
@@ -1479,6 +1507,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     </div>
                   );
                 })}
+                  </>);
+                })()}
 
                 {/* Add task */}
                 {canEdit && (
