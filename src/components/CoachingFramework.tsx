@@ -67,6 +67,7 @@ interface Goal {
   description?: string;
   status: string;
   statusChangedAt?: string;
+  createdAt?: string;
   order: number;
   tasks: Task[];
 }
@@ -77,6 +78,7 @@ interface Task {
   description?: string | null;
   status: string;
   statusChangedAt?: string;
+  createdAt?: string;
   order: number;
 }
 
@@ -1380,6 +1382,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   ) : goal.description ? (
                     <span className="text-xs text-gray-600 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
                   ) : null}
+                  {goal.createdAt && (
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  )}
                 </div>
                 <button
                   onClick={() => copyGoalAsMarkdown(goal)}
@@ -1536,6 +1541,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 Add description
                               </button>
                             ) : null}
+                            {task.createdAt && (
+                              <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-1">
