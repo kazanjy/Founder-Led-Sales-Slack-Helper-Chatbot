@@ -195,8 +195,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [focusedMetric, setFocusedMetric] = useState<string | null>(null);
   const [metricInputValue, setMetricInputValue] = useState("");
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
-  const [hideCompletedGlobal, setHideCompletedGlobal] = useState(false);
-  const [hideCompletedPerGoal, setHideCompletedPerGoal] = useState<Record<string, boolean>>({});
+  const [hideCompletedGlobal, setHideCompletedGlobal] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("coaching:hideCompleted") === "true";
+  });
+  const [hideCompletedPerGoal, setHideCompletedPerGoal] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(localStorage.getItem("coaching:hideCompletedPerGoal") || "{}"); } catch { return {}; }
+  });
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
   const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
@@ -1310,7 +1316,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <div className="flex items-center gap-3">
             {goals.some((g) => g.tasks.some((t) => t.status === "done")) && (
               <button
-                onClick={() => setHideCompletedGlobal(!hideCompletedGlobal)}
+                onClick={() => { const next = !hideCompletedGlobal; setHideCompletedGlobal(next); localStorage.setItem("coaching:hideCompleted", String(next)); }}
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {hideCompletedGlobal ? "Show Completed" : "Hide Completed"}
@@ -1425,7 +1431,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {completedCount > 0 && (
                       <div className="px-4 py-1.5 flex items-center justify-end">
                         <button
-                          onClick={() => setHideCompletedPerGoal((prev) => ({ ...prev, [goal.id]: !hideForGoal }))}
+                          onClick={() => setHideCompletedPerGoal((prev) => { const next = { ...prev, [goal.id]: !hideForGoal }; localStorage.setItem("coaching:hideCompletedPerGoal", JSON.stringify(next)); return next; })}
                           className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
                         >
                           {hideForGoal ? `Show ${hiddenCount} completed` : "Hide completed"}
