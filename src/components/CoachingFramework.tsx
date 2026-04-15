@@ -560,9 +560,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
     if (res.ok) {
       const data = await res.json();
-      setGoals((prev) => prev.map((g) =>
-        g.id === goalId ? { ...g, tasks: [...g.tasks, data.task] } : g
-      ));
+      // Prepend new task to top of active tasks (before completed ones)
+      setGoals((prev) => prev.map((g) => {
+        if (g.id !== goalId) return g;
+        const active = g.tasks.filter((t) => t.status !== "done");
+        const done = g.tasks.filter((t) => t.status === "done");
+        return { ...g, tasks: [data.task, ...active, ...done] };
+      }));
     }
   };
 
@@ -1435,6 +1439,27 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 )}
               </div>
 
+              {/* Add task — at top so it's always visible */}
+              {canEdit && (
+                <div className="flex items-center gap-2 px-4 py-2 pl-8 border-b border-gray-100">
+                  <input
+                    type="text"
+                    value={newTaskTitles[goal.id] || ""}
+                    onChange={(e) => setNewTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))}
+                    placeholder="Add a task..."
+                    className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    onKeyDown={(e) => e.key === "Enter" && addTask(goal.id)}
+                  />
+                  <button
+                    onClick={() => addTask(goal.id)}
+                    disabled={!newTaskTitles[goal.id]?.trim()}
+                    className="text-xs text-purple-600 font-medium disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+
               {/* Tasks */}
               <div className="divide-y divide-gray-100">
                 {(() => {
@@ -1602,26 +1627,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   </>);
                 })()}
 
-                {/* Add task */}
-                {canEdit && (
-                  <div className="flex items-center gap-2 px-4 py-2 pl-8">
-                    <input
-                      type="text"
-                      value={newTaskTitles[goal.id] || ""}
-                      onChange={(e) => setNewTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))}
-                      placeholder="Add a task..."
-                      className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      onKeyDown={(e) => e.key === "Enter" && addTask(goal.id)}
-                    />
-                    <button
-                      onClick={() => addTask(goal.id)}
-                      disabled={!newTaskTitles[goal.id]?.trim()}
-                      className="text-xs text-purple-600 font-medium disabled:opacity-50"
-                    >
-                      Add
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           ))}
