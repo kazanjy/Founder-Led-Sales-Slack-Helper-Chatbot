@@ -247,7 +247,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       }
       if (goalsRes.ok) {
         const d = await goalsRes.json();
-        setGoals(d.goals || []);
+        // Sort tasks within each goal: active first, done at bottom (most recently completed on top)
+        const sortedGoals = (d.goals || []).map((g: Goal) => {
+          const active = g.tasks.filter((t: Task) => t.status !== "done");
+          const done = g.tasks.filter((t: Task) => t.status === "done")
+            .sort((a: Task, b: Task) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
+          return { ...g, tasks: [...active, ...done] };
+        });
+        setGoals(sortedGoals);
       }
       if (metricsRes.ok) {
         const d = await metricsRes.json();
@@ -560,11 +567,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   };
 
   const updateTaskStatus = async (taskId: string, status: string) => {
-    // Optimistic update
-    setGoals((prev) => prev.map((g) => ({
-      ...g,
-      tasks: g.tasks.map((t) => t.id === taskId ? { ...t, status } : t),
-    })));
+    // Optimistic update + reorder: active tasks first, done tasks at bottom (most recently completed on top)
+    setGoals((prev) => prev.map((g) => {
+      const updatedTasks = g.tasks.map((t) => t.id === taskId ? { ...t, status, statusChangedAt: new Date().toISOString() } : t);
+      const activeTasks = updatedTasks.filter((t) => t.status !== "done");
+      const doneTasks = updatedTasks.filter((t) => t.status === "done")
+        .sort((a, b) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
+      return { ...g, tasks: [...activeTasks, ...doneTasks] };
+    }));
     await fetch(`/api/coaching/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
