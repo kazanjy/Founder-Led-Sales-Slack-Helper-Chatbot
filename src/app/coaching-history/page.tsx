@@ -772,7 +772,12 @@ function CoachingHistoryContent() {
                           ? "border-purple-300 bg-purple-50"
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                       }`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        // Cmd+click or Ctrl+click: open in new tab
+                        if (e.metaKey || e.ctrlKey) {
+                          window.open(`/coaching-history?session=${session.id}`, "_blank");
+                          return;
+                        }
                         selectSession(session.id);
                         setMode("view");
                       }}
