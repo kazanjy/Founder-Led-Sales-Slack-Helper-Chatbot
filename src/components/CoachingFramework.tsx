@@ -393,6 +393,48 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
   };
 
+  const sendGoalToTop = (goalId: string) => {
+    setGoals((prev) => {
+      const idx = prev.findIndex((g) => g.id === goalId);
+      if (idx <= 0) return prev;
+      const reordered = [prev[idx], ...prev.filter((g) => g.id !== goalId)];
+      persistGoalOrder(reordered);
+      return reordered;
+    });
+  };
+
+  const sendGoalToBottom = (goalId: string) => {
+    setGoals((prev) => {
+      const idx = prev.findIndex((g) => g.id === goalId);
+      if (idx === -1 || idx === prev.length - 1) return prev;
+      const reordered = [...prev.filter((g) => g.id !== goalId), prev[idx]];
+      persistGoalOrder(reordered);
+      return reordered;
+    });
+  };
+
+  const sendTaskToTop = (goalId: string, taskId: string) => {
+    setGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const idx = g.tasks.findIndex((t) => t.id === taskId);
+      if (idx <= 0) return g;
+      const reordered = [g.tasks[idx], ...g.tasks.filter((t) => t.id !== taskId)];
+      persistTaskOrder(reordered);
+      return { ...g, tasks: reordered };
+    }));
+  };
+
+  const sendTaskToBottom = (goalId: string, taskId: string) => {
+    setGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const idx = g.tasks.findIndex((t) => t.id === taskId);
+      if (idx === -1 || idx === g.tasks.length - 1) return g;
+      const reordered = [...g.tasks.filter((t) => t.id !== taskId), g.tasks[idx]];
+      persistTaskOrder(reordered);
+      return { ...g, tasks: reordered };
+    }));
+  };
+
   const handleGoalDrop = (targetGoalId: string) => {
     if (!dragGoal || dragGoal === targetGoalId) return;
     setGoals((prev) => {
@@ -1441,6 +1483,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   )}
                 </div>
+                {canEdit && (
+                  <>
+                    <button onClick={() => sendGoalToTop(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Send to top">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button onClick={() => sendGoalToBottom(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Send to bottom">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => copyGoalAsMarkdown(goal)}
                   className="flex-shrink-0 p-1 text-gray-500 hover:text-gray-700 opacity-0 group-hover/goal:opacity-100 transition-opacity"
@@ -1623,6 +1675,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-1">
+                          {canEdit && (
+                            <>
+                              <button onClick={() => sendTaskToTop(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Send to top">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                              </button>
+                              <button onClick={() => sendTaskToBottom(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Send to bottom">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => copyTaskAsMarkdown(task)}
                             className="p-0.5 text-gray-500 hover:text-gray-700 opacity-0 group-hover/task:opacity-100 transition-opacity"
