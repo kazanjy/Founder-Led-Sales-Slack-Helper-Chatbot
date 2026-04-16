@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import CoachingFramework from "@/components/CoachingFramework";
+import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
@@ -883,6 +884,39 @@ function CoachingHistoryContent() {
                   )}
 
                   <div className="p-6 space-y-5">
+                    {/* Meeting Recorder Integration */}
+                    <MeetingRecorderPanel
+                      defaultCollapsed={!!formTitle || !!formNotes || !!formTranscript}
+                      onSelectCall={(data) => {
+                        if (data.recordingUrl) setFormRecordingUrl(data.recordingUrl);
+                        if (data.date) {
+                          setFormDate(new Date(data.date).toISOString().split("T")[0]);
+                        }
+                        if (data.title && !formTitle) setFormTitle(data.title);
+                        if (data.summary) {
+                          const headerLines: string[] = [];
+                          if (data.date) {
+                            headerLines.push(`Call Date: ${new Date(data.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+                          }
+                          if (data.attendees?.length) {
+                            const formatted = data.attendees.map((a) => {
+                              const parts = [a.name];
+                              if (a.title) parts[0] += `, ${a.title}`;
+                              if (a.company) parts[0] += ` @ ${a.company}`;
+                              if (a.email) parts.push(a.email);
+                              return parts.join(" — ");
+                            });
+                            headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
+                          }
+                          const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+                          // Convert plain text summary to basic HTML for the rich text editor
+                          const summaryHtml = (header + data.summary).split("\n\n").map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+                          setFormNotes((prev) => prev ? prev + summaryHtml : summaryHtml);
+                        }
+                        if (data.transcript) setFormTranscript(data.transcript);
+                      }}
+                    />
+
                     {/* Title */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
