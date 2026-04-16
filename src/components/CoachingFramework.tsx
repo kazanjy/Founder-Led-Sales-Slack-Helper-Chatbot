@@ -359,7 +359,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
     if (res.ok) {
       const data = await res.json();
-      setGoals((prev) => [...prev, { ...data.goal, tasks: [] }]);
+      setGoals((prev) => [{ ...data.goal, tasks: [] }, ...prev]);
     }
   };
 
@@ -1376,6 +1376,26 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           </div>
         </div>
         <div className="space-y-4">
+          {/* Add goal — at top */}
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newGoalTitle}
+                onChange={(e) => setNewGoalTitle(e.target.value)}
+                placeholder="Add a goal..."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                onKeyDown={(e) => e.key === "Enter" && addGoal()}
+              />
+              <button
+                onClick={addGoal}
+                disabled={!newGoalTitle.trim()}
+                className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50"
+              >
+                + Add Goal
+              </button>
+            </div>
+          )}
           {goals.map((goal) => (
             <div
               key={goal.id}
@@ -1651,27 +1671,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               </div>
             </div>
           ))}
-
-          {/* Add goal */}
-          {canEdit && (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newGoalTitle}
-                onChange={(e) => setNewGoalTitle(e.target.value)}
-                placeholder="Add a goal..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                onKeyDown={(e) => e.key === "Enter" && addGoal()}
-              />
-              <button
-                onClick={addGoal}
-                disabled={!newGoalTitle.trim()}
-                className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50"
-              >
-                + Add Goal
-              </button>
-            </div>
-          )}
 
           {goals.length === 0 && !canEdit && (
             <p className="text-sm text-gray-400 text-center py-4">No goals set for this session.</p>
