@@ -570,15 +570,36 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     }
   };
 
+  const [animatingTaskId, setAnimatingTaskId] = useState<string | null>(null);
+
   const updateTaskStatus = async (taskId: string, status: string) => {
-    // Optimistic update + reorder: active tasks first, done tasks at bottom (most recently completed on top)
-    setGoals((prev) => prev.map((g) => {
-      const updatedTasks = g.tasks.map((t) => t.id === taskId ? { ...t, status, statusChangedAt: new Date().toISOString() } : t);
-      const activeTasks = updatedTasks.filter((t) => t.status !== "done");
-      const doneTasks = updatedTasks.filter((t) => t.status === "done")
-        .sort((a, b) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
-      return { ...g, tasks: [...activeTasks, ...doneTasks] };
-    }));
+    if (status === "done") {
+      // Step 1: Mark as done visually (strikethrough, green check) + start fade animation
+      setAnimatingTaskId(taskId);
+      setGoals((prev) => prev.map((g) => ({
+        ...g,
+        tasks: g.tasks.map((t) => t.id === taskId ? { ...t, status, statusChangedAt: new Date().toISOString() } : t),
+      })));
+      // Step 2: After animation, reorder
+      setTimeout(() => {
+        setAnimatingTaskId(null);
+        setGoals((prev) => prev.map((g) => {
+          const activeTasks = g.tasks.filter((t) => t.status !== "done");
+          const doneTasks = g.tasks.filter((t) => t.status === "done")
+            .sort((a, b) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
+          return { ...g, tasks: [...activeTasks, ...doneTasks] };
+        }));
+      }, 600);
+    } else {
+      // Unchecking: reorder immediately (move back to active section)
+      setGoals((prev) => prev.map((g) => {
+        const updatedTasks = g.tasks.map((t) => t.id === taskId ? { ...t, status, statusChangedAt: new Date().toISOString() } : t);
+        const activeTasks = updatedTasks.filter((t) => t.status !== "done");
+        const doneTasks = updatedTasks.filter((t) => t.status === "done")
+          .sort((a, b) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
+        return { ...g, tasks: [...activeTasks, ...doneTasks] };
+      }));
+    }
     await fetch(`/api/coaching/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1490,7 +1511,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       onDragOver={(e) => { if (dragTask && dragTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverTask(task.id); } }}
                       onDragLeave={() => setDragOverTask(null)}
                       onDrop={(e) => { e.stopPropagation(); handleTaskDrop(goal.id, task.id); }}
-                      className={`px-4 py-2.5 pl-8 scroll-mt-24 group/task transition-all ${dragTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
+                      className={`px-4 py-2.5 pl-8 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === task.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""} ${dragTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
