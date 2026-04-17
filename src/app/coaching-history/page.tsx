@@ -767,7 +767,7 @@ function CoachingHistoryContent() {
                   return (
                     <div
                       key={session.id}
-                      className={`group relative rounded-lg border p-3 cursor-pointer transition-colors ${
+                      className={`group relative rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
                         isActive
                           ? "border-purple-300 bg-purple-50"
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
@@ -800,34 +800,9 @@ function CoachingHistoryContent() {
                               <span className="ml-1.5 text-gray-400">· {sessionUserName(session)}</span>
                             )}
                           </div>
-                          <div className="font-medium text-gray-900 text-sm truncate">
+                          <div className="font-medium text-gray-900 text-sm truncate" title={session.title}>
                             {session.title}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {session.notes.substring(0, 120)}
-                            {session.notes.length > 120 ? "..." : ""}
-                          </div>
-                          {(session.transcript || session.recordingUrl) && (
-                            <div className="mt-1 flex items-center gap-1.5">
-                              {session.transcript && (
-                                <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                                  </svg>
-                                  Transcript
-                                </span>
-                              )}
-                              {session.recordingUrl && (
-                                <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
-                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Recording
-                                </span>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
