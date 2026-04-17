@@ -1047,11 +1047,30 @@ function CoachingHistoryContent() {
                       </div>
                     </div>
                     <h2 className="text-lg font-semibold text-gray-900 mb-2">{selectedSession.title}</h2>
-                    <ChatAboutButton
-                      title={`Coaching: ${selectedSession.title}`}
-                      getContext={() => buildEnrichedChatContext([selectedSession])}
-                      label="Chat About This"
-                    />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ChatAboutButton
+                        title={`Coaching: ${selectedSession.title}`}
+                        getContext={() => buildEnrichedChatContext([selectedSession])}
+                        label="Chat About This"
+                      />
+                      {selectedSession.recordingUrl && (
+                        <a
+                          href={selectedSession.recordingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-lg transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Recording
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-6">
@@ -1065,26 +1084,6 @@ function CoachingHistoryContent() {
                       sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
                     />
 
-                    {/* Recording link */}
-                    {selectedSession.recordingUrl && (
-                      <div className="mb-6">
-                        <a
-                          href={selectedSession.recordingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-lg transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Watch Meeting Recording
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      </div>
-                    )}
 
                     {/* Notes */}
                     <div className="mb-8">
