@@ -298,6 +298,8 @@ export default function ChatPage() {
   const [promptGuidance, setPromptGuidance] = useState("");
   const [promptGuidanceDraft, setPromptGuidanceDraft] = useState("");
   const [savingGuidance, setSavingGuidance] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageContent, setEditingMessageContent] = useState("");
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]); // Lightbox images
   const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
   const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
@@ -1934,6 +1936,31 @@ export default function ChatPage() {
     setLightboxImages([]);
     setLightboxIndex(0);
     setLightboxDownloadData(null);
+  };
+
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    if (!newContent.trim() || sending || !selectedConversation) return;
+    setEditingMessageId(null);
+
+    // Optimistic: truncate messages after the edited one and update its content
+    const msgIndex = messages.findIndex((m) => m.id === messageId);
+    if (msgIndex === -1) return;
+    const truncatedMessages = messages.slice(0, msgIndex);
+    setMessages(truncatedMessages);
+
+    // Call API to truncate in DB and update the message
+    try {
+      await fetch(`/api/conversations/${selectedConversation}/messages/edit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, newContent: newContent.trim() }),
+      });
+    } catch (error) {
+      console.error("Error editing message:", error);
+    }
+
+    // Send the edited message through the normal flow
+    await sendMessage(newContent.trim());
   };
 
   const sendMessage = async (messageText: string) => {
@@ -4115,47 +4142,98 @@ export default function ChatPage() {
               {messages.map((msg, msgIndex) => (
                 <div key={msg.id}>
                   {msg.role === "USER" ? (
-                    <div className="flex justify-end">
-                      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 max-w-[90%] md:max-w-[70%]">
-                        {/* Show attached images/PDFs for this specific message */}
-                        {(() => {
-                          const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
-                          if (messageFiles.length === 0) return null;
-                          return (
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {messageFiles.map((file, fileIndex) => (
-                                <div
-                                  key={`${file.name}-${fileIndex}`}
-                                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => openLightboxForLoadedFiles(messageFiles, fileIndex)}
-                                >
-                                  {file.type === "pdf" || file.type === "csv" ? (
-                                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
-                                      <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                                        <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={file.type === "csv" ? "#2E7D32" : "#E53935"}/>
-                                        <path d="M14 2V8H20L14 2Z" fill={file.type === "csv" ? "#C8E6C9" : "#FFCDD2"}/>
-                                        <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{file.type === "csv" ? "CSV" : "PDF"}</text>
-                                      </svg>
-                                      <span className="max-w-[120px] truncate">{file.name}</span>
-                                    </div>
-                                  ) : (
-                                    <img
-                                      src={file.url || ""}
-                                      alt={file.name}
-                                      className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                                    />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                        <TruncatedUserMessage
-                          content={expandMergeFieldsInText(msg.content, gtmVariables)}
-                          maxLines={20}
-                        />
+                    editingMessageId === msg.id ? (
+                      /* Inline edit mode */
+                      <div className="flex justify-end">
+                        <div className="border border-purple-300 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 max-w-[90%] md:max-w-[70%] w-full ring-2 ring-purple-200">
+                          <textarea
+                            value={editingMessageContent}
+                            onChange={(e) => setEditingMessageContent(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y min-h-[80px]"
+                            rows={4}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleEditMessage(msg.id, editingMessageContent);
+                              }
+                              if (e.key === "Escape") setEditingMessageId(null);
+                            }}
+                          />
+                          <div className="flex justify-end gap-2 mt-2">
+                            <button
+                              onClick={() => setEditingMessageId(null)}
+                              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleEditMessage(msg.id, editingMessageContent)}
+                              disabled={!editingMessageContent.trim() || sending}
+                              className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            >
+                              Send
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* Normal user message with edit pencil */
+                      <div className="flex justify-end group/usermsg">
+                        <div className="flex items-start gap-1.5">
+                          {!sending && (
+                            <button
+                              onClick={() => { setEditingMessageId(msg.id); setEditingMessageContent(msg.content); }}
+                              className="mt-3 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover/usermsg:opacity-100 transition-opacity rounded hover:bg-gray-100"
+                              title="Edit message"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          )}
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 max-w-[90%] md:max-w-[70%]">
+                            {/* Show attached images/PDFs for this specific message */}
+                            {(() => {
+                              const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
+                              if (messageFiles.length === 0) return null;
+                              return (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {messageFiles.map((file, fileIndex) => (
+                                    <div
+                                      key={`${file.name}-${fileIndex}`}
+                                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => openLightboxForLoadedFiles(messageFiles, fileIndex)}
+                                    >
+                                      {file.type === "pdf" || file.type === "csv" ? (
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
+                                          <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                                            <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={file.type === "csv" ? "#2E7D32" : "#E53935"}/>
+                                            <path d="M14 2V8H20L14 2Z" fill={file.type === "csv" ? "#C8E6C9" : "#FFCDD2"}/>
+                                            <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{file.type === "csv" ? "CSV" : "PDF"}</text>
+                                          </svg>
+                                          <span className="max-w-[120px] truncate">{file.name}</span>
+                                        </div>
+                                      ) : (
+                                        <img
+                                          src={file.url || ""}
+                                          alt={file.name}
+                                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                            <TruncatedUserMessage
+                              content={expandMergeFieldsInText(msg.content, gtmVariables)}
+                              maxLines={20}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <div>
                       <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
