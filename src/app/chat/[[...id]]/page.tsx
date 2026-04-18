@@ -578,7 +578,9 @@ export default function ChatPage() {
       !hasAutoSelectedRef.current
     ) {
       const currentConversation = conversations.find(c => c.id === selectedConversation);
-      if (!currentConversation?.attachmentsIncluded?.length) {
+      if (currentConversation?.attachmentsIncluded != null) {
+        // Attachments already decided for this conversation — don't auto-suggest
+      } else {
         hasAutoSelectedRef.current = true;
         setSelectedAttachments(["salesNarrative"]);
       }
@@ -2081,7 +2083,7 @@ export default function ChatPage() {
 
     // Check if attachments can be added (only once per conversation)
     const currentConversation = conversations.find(c => c.id === conversationId);
-    const canAddAttachments = !currentConversation?.attachmentsIncluded?.length;
+    const canAddAttachments = currentConversation?.attachmentsIncluded == null;
 
     // Capture attachments before clearing
     const attachmentsToSend = canAddAttachments ? [...selectedAttachments] : [];
@@ -2338,8 +2340,8 @@ export default function ChatPage() {
                 firstMessagePreview: c.firstMessagePreview || userMessage.substring(0, 100),
                 messageCount: c.messageCount + 2,
                 lastMessageAt: new Date().toISOString(),
-                // Mark attachments as included if we sent them
-                ...(attachmentsToSend.length > 0 && { attachmentsIncluded: attachmentsToSend }),
+                // Mark attachments as decided (even if empty) so we don't re-suggest
+                ...(isFirstMessage && { attachmentsIncluded: attachmentsToSend.length > 0 ? attachmentsToSend : [] }),
                 // Mark images as included if we processed them
                 ...(attachedFiles.length > 0 && { imagesIncluded: attachedFiles }),
               }
