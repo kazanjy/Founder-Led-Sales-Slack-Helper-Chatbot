@@ -300,6 +300,8 @@ export default function ChatPage() {
   const [savingGuidance, setSavingGuidance] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageContent, setEditingMessageContent] = useState("");
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]); // Lightbox images
   const [lightboxIndex, setLightboxIndex] = useState(0); // Current lightbox image index
   const [lightboxOpen, setLightboxOpen] = useState(false); // Lightbox open state
@@ -792,6 +794,16 @@ export default function ChatPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setShowExportMenu(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showExportMenu]);
+
   // Sidebar resize handler
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -1012,6 +1024,75 @@ export default function ChatPage() {
     } else {
       showToast("Failed to copy");
     }
+  };
+
+  const getChatTitle = () => {
+    const conv = conversations.find((c) => c.id === selectedConversation);
+    return conv?.title || "Chat Export";
+  };
+
+  const buildMarkdownExport = () => {
+    const title = getChatTitle();
+    let md = `# ${title}\n\n`;
+    for (const msg of messages) {
+      if (msg.role === "USER") {
+        md += `---\n\n**You:**\n\n${msg.content}\n\n`;
+      } else {
+        md += `**Mikey:**\n\n${msg.content}\n\n`;
+      }
+    }
+    return md;
+  };
+
+  const handleExportMarkdown = () => {
+    const md = buildMarkdownExport();
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${getChatTitle().replace(/[/\\?%*:|"<>]/g, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+    showToast("Exported as Markdown");
+  };
+
+  const handleExportPDF = () => {
+    const title = getChatTitle();
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    let html = `<!DOCTYPE html><html><head><title>${title}</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.6; }
+      h1 { font-size: 24px; margin-bottom: 8px; }
+      .meta { color: #666; font-size: 14px; margin-bottom: 32px; }
+      .message { margin-bottom: 24px; }
+      .user-label { font-weight: 600; color: #333; margin-bottom: 4px; }
+      .assistant-label { font-weight: 600; color: #6b21a8; margin-bottom: 4px; }
+      .content { white-space: pre-wrap; }
+      hr { border: none; border-top: 1px solid #e5e5e5; margin: 24px 0; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+    <h1>${title}</h1>
+    <div class="meta">Exported from Mikey &mdash; ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>`;
+
+    for (const msg of messages) {
+      html += `<div class="message">`;
+      if (msg.role === "USER") {
+        html += `<div class="user-label">You</div><hr>`;
+      } else {
+        html += `<div class="assistant-label">Mikey</div>`;
+      }
+      const escaped = msg.content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html += `<div class="content">${escaped}</div></div>`;
+    }
+
+    html += `</body></html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => { printWindow.print(); };
+    setShowExportMenu(false);
   };
 
   // Share conversation (header button)
@@ -3578,6 +3659,42 @@ export default function ChatPage() {
                   </svg>
                   <span className="hidden sm:inline">Copy</span>
                 </button>
+                {/* Export dropdown */}
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                  {showExportMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60]">
+                      <button
+                        onClick={handleExportMarkdown}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Markdown (.md)
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none">
+                          <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
+                          <path d="M14 2V8H20L14 2Z" fill="#FFCDD2"/>
+                          <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">PDF</text>
+                        </svg>
+                        PDF (Print)
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={async () => {
                     try {
