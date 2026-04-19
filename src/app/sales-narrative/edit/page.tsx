@@ -107,6 +107,7 @@ function SalesNarrativeEditContent() {
   const precrawlFiredRef = useRef<string | null>(null);
   const precrawlResultRef = useRef<{ text: string; urls: string[] } | null>(null);
   const [precrawlStatus, setPrecrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
+  const [precrawlUrls, setPrecrawlUrls] = useState<string[]>([]);
 
   // Keep prefillUrl ref in sync so handlePrefill always has latest value
   useEffect(() => { prefillUrlRef.current = prefillUrl; }, [prefillUrl]);
@@ -118,9 +119,11 @@ function SalesNarrativeEditContent() {
     try {
       const stored = sessionStorage.getItem("precrawlResult");
       if (stored) {
-        precrawlResultRef.current = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        precrawlResultRef.current = parsed;
         sessionStorage.removeItem("precrawlResult");
         setPrecrawlStatus("ready");
+        setPrecrawlUrls(parsed.urls || []);
       }
     } catch { /* ignore */ }
   }, []);
@@ -147,10 +150,13 @@ function SalesNarrativeEditContent() {
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data?.crawlText && precrawlFiredRef.current === url) {
-          precrawlResultRef.current = { text: data.crawlText, urls: data.crawlUrls || [] };
+          const urls = data.crawlUrls || [];
+          precrawlResultRef.current = { text: data.crawlText, urls };
           setPrecrawlStatus("ready");
+          setPrecrawlUrls(urls);
         } else {
           setPrecrawlStatus("idle");
+          setPrecrawlUrls([]);
         }
       })
       .catch(() => { setPrecrawlStatus("idle"); });
@@ -161,6 +167,7 @@ function SalesNarrativeEditContent() {
     const url = prefillUrl.trim();
     if (precrawlFiredRef.current && precrawlFiredRef.current !== url) {
       setPrecrawlStatus("idle");
+      setPrecrawlUrls([]);
       precrawlFiredRef.current = null;
       precrawlResultRef.current = null;
     }
@@ -747,18 +754,30 @@ function SalesNarrativeEditContent() {
                   )}
                   {precrawlStatus === "ready" && (
                     <>
-                      <svg className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-3.5 w-3.5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <p className="text-xs text-green-600 font-medium">Site crawled &mdash; ready to analyze</p>
                     </>
                   )}
-                  {precrawlStatus === "idle" && (
-                    <p className="text-xs text-gray-400">
-                      We&apos;ll crawl your site for product, solution, customer, and pricing pages
-                    </p>
-                  )}
                 </div>
+                {precrawlUrls.length > 0 && (
+                  <div className="mt-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs font-medium text-gray-500 mb-1.5">Pages found ({precrawlUrls.length}):</p>
+                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                      {precrawlUrls.map((u, i) => (
+                        <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 hover:text-blue-800 hover:underline truncate" title={u}>
+                          {u.replace(/^https?:\/\/(www\.)?/, "")}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {precrawlStatus === "idle" && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    We&apos;ll crawl your site for product, solution, customer, and pricing pages
+                  </p>
+                )}
               </div>
 
               {/* Specific Page URLs */}
