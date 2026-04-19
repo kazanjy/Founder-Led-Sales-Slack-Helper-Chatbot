@@ -101,6 +101,7 @@ function SalesDeckContent() {
   const [analyzingBrand, setAnalyzingBrand] = useState(false);
   const [brandAnalysis, setBrandAnalysis] = useState("");
   const [brandScreenshot, setBrandScreenshot] = useState("");
+  const autoAnalyzedUrlRef = useRef<string | null>(null);
   const [gammaDragOver, setGammaDragOver] = useState(false);
   const gammaFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -184,6 +185,23 @@ function SalesDeckContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, showForm, version, hasSalesNarrative]);
+
+  // Auto-analyze brand when URL is set and hasn't been analyzed yet
+  useEffect(() => {
+    const url = prospectUrl.trim();
+    if (!url || analyzingBrand || loading) return;
+    if (autoAnalyzedUrlRef.current === url) return;
+    // Debounce to let the user finish typing
+    const timer = setTimeout(() => {
+      if (autoAnalyzedUrlRef.current === url) return;
+      autoAnalyzedUrlRef.current = url;
+      setBrandAnalysis("");
+      setBrandScreenshot("");
+      handleAnalyzeBrand();
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prospectUrl, analyzingBrand, loading]);
 
   const handlePrefill = async () => {
     setPrefilling(true);
@@ -471,6 +489,9 @@ function SalesDeckContent() {
       if (version.deckMode === "gamma") {
         setProspectUrl(version.prospectUrl || "");
         setBrandAnalysis(version.brandAnalysis || "");
+        if (version.brandAnalysis && version.prospectUrl) {
+          autoAnalyzedUrlRef.current = version.prospectUrl;
+        }
       }
     }
     setShowForm(true);
@@ -842,7 +863,7 @@ function SalesDeckContent() {
                         <input
                           type="text"
                           value={prospectUrl}
-                          onChange={(e) => setProspectUrl(e.target.value)}
+                          onChange={(e) => { setProspectUrl(e.target.value); autoAnalyzedUrlRef.current = null; }}
                           placeholder="e.g. yourcompany.com"
                           disabled={analyzingBrand}
                           className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50"
@@ -861,6 +882,8 @@ function SalesDeckContent() {
                               </svg>
                               Analyzing...
                             </>
+                          ) : brandAnalysis ? (
+                            "Re-analyze"
                           ) : (
                             "Analyze Brand"
                           )}
