@@ -52,6 +52,7 @@ const playbookItems: NavItem[] = [
   { href: "/discovery-questions", label: "🔍 Discovery Questions", statusKey: "discoveryQuestions" },
   { href: "/first-call-checklist", label: "✅ First Call Checklist", statusKey: "firstCallChecklist" },
   { href: "/pre-call-planning", label: "📋 Pre-Call Checklist", statusKey: "preCallPlanning" },
+  { href: "/sales-asset-library", label: "📚 Sales Asset Library", statusKey: "salesAssetLibrary" },
 ];
 
 interface CompletionStatus {
@@ -109,7 +110,7 @@ export default function SalesNavBar() {
           })
           .catch(() => {});
 
-        const [narrativeRes, icpRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes, socialContentRes] = await Promise.all([
+        const [narrativeRes, icpRes, discoveryRes, checklistRes, planningRes, researchRes, assessmentRes, emailSeqRes, linkedInSeqRes, callReviewRes, coldCallRes, salesDeckRes, salesMetricsRes, objectionLibraryRes, socialContentRes, assetLibraryRes] = await Promise.all([
           fetch("/api/sales-narrative/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/icp/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/discovery-questions/latest").then(r => r.ok ? r.json() : null).catch(() => null),
@@ -125,6 +126,7 @@ export default function SalesNavBar() {
           fetch("/api/sales-metrics/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/objection-library/latest").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/social-content/latest").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/sales-asset-library").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -143,6 +145,7 @@ export default function SalesNavBar() {
           salesMetrics: !!salesMetricsRes?.hasSalesMetrics,
           objectionLibrary: !!objectionLibraryRes?.hasObjectionLibrary,
           socialContent: !!socialContentRes?.hasSocialContent,
+          salesAssetLibrary: !!(assetLibraryRes?.assets?.some((a: { currentUrl?: string }) => a.currentUrl)),
         });
       } catch {
         // silently fail - indicators just won't show

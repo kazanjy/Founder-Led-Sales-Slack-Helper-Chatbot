@@ -4151,6 +4151,7 @@ export default function ChatPage() {
                       { emoji: "🔍", label: "Discovery Questions", href: "/discovery-questions", done: appProgress.discoveryQuestions?.hasGenerated },
                       { emoji: "✅", label: "First Call Checklist", href: "/first-call-checklist", done: appProgress.firstCallChecklist?.hasGenerated },
                       { emoji: "📋", label: "Pre-Call Checklist", href: "/pre-call-planning", done: appProgress.preCallPlanning?.hasGenerated },
+                      { emoji: "📚", label: "Sales Asset Library", href: "/sales-asset-library", always: true },
                       { emoji: "🔬", label: "Pre-Call Research", href: "/pre-call-planning/research", always: true },
                       { emoji: "✉️", label: "Call Recap Email", href: "/call-recap/new", always: true },
                       { emoji: "📞", label: "Call Coaching", href: "/call-review", done: appProgress.callReview?.hasGenerated },

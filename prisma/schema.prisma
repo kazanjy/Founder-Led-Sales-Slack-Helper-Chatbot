@@ -18,6 +18,7 @@ model Account {
   users         User[]
   channelClaims ChannelClaim[]
   salesReadinessItems SalesReadinessAccountItem[]
+  salesAssets   SalesAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -125,6 +126,7 @@ model User {
   meetingRecorderConnections MeetingRecorderConnection[]
   sessions                   Session[]
   savedPrompts               SavedPrompt[]
+  salesAssetVersions         SalesAssetVersion[]
   dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
   promptGuidance             String?                     @db.Text // User's custom prompt guidance (tone, style, etc.)
   gtmVariables               GtmVariable[]
@@ -2048,4 +2050,55 @@ model CallRecapVersion {
 
   @@index([userId, createdAt])
   @@map("call_recap_versions")
+}
+
+// ============================================
+// SALES ASSET LIBRARY
+// ============================================
+
+model SalesAsset {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  category    String // "messaging" | "materials" | "process" | "onboarding" | "legal" | "custom"
+  isDefault   Boolean @default(false)
+  slotKey     String? // stable key for defaults: "salesNarrative", "demoScript", etc.
+  order       Int     @default(0)
+
+  // Denormalized latest version for fast rendering
+  currentUrl       String?
+  currentLabel     String?
+  currentVersionId String?
+
+  versions SalesAssetVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, slotKey])
+  @@index([accountId])
+  @@map("sales_assets")
+}
+
+model SalesAssetVersion {
+  id String @id @default(cuid())
+
+  assetId String
+  asset   SalesAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  url   String
+  label String?
+  notes String? @db.Text
+
+  createdByUserId String?
+  createdByUser   User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId, createdAt])
+  @@map("sales_asset_versions")
 }
