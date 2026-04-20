@@ -3900,8 +3900,8 @@ export default function ChatPage() {
                           </div>
                         )}
                         {/* Attachment chips, image previews, and mode selector row */}
-                        <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl">
-                          <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                        <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
                             {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                               <AttachmentChipsReadOnly
                                 attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}
@@ -4553,8 +4553,8 @@ export default function ChatPage() {
                     </div>
                   )}
                   {/* Attachment chips, image previews, and mode selector row */}
-                  <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl">
-                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                  <div className="flex items-center justify-between px-4 pt-3 rounded-t-2xl gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       {conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded?.length ? (
                         <AttachmentChipsReadOnly
                           attachments={conversations.find(c => c.id === selectedConversation)?.attachmentsIncluded as string[]}

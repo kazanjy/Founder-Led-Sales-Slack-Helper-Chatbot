@@ -744,8 +744,8 @@ function CoachingHistoryContent() {
         ) : (
           /* Two-panel layout */
           <div className="flex gap-6">
-            {/* Left panel: Session list */}
-            <div className="w-80 flex-shrink-0">
+            {/* Left panel: Session list — hidden on mobile when viewing a session */}
+            <div className={`w-full md:w-80 flex-shrink-0 ${selectedId && mode === "view" ? "hidden md:block" : ""}`}>
               {sessions.length > 1 && (
                 <div className="mb-2 px-2">
                   <button
@@ -811,8 +811,8 @@ function CoachingHistoryContent() {
               </div>
             </div>
 
-            {/* Right panel: Detail or Form */}
-            <div className="flex-1 min-w-0">
+            {/* Right panel: Detail or Form — full width on mobile */}
+            <div className={`flex-1 min-w-0 ${!selectedId && mode === "view" ? "hidden md:block" : ""}`}>
               {mode === "create" || mode === "edit" ? (
                 creatingDraft ? (
                   <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex items-center justify-center">
@@ -979,8 +979,16 @@ function CoachingHistoryContent() {
               ) : selectedSession ? (
                 /* Session Detail View */
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                  {/* Mobile back button */}
+                  <button
+                    onClick={() => selectSession(null)}
+                    className="md:hidden flex items-center gap-1 px-4 pt-3 text-sm text-purple-600 hover:text-purple-800"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    All Sessions
+                  </button>
                   <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <span>{formatDate(selectedSession.sessionDate)}</span>
                         {sessionUserName(selectedSession) && (
