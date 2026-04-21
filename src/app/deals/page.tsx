@@ -344,23 +344,35 @@ export default function DealsPage() {
                     }
                     return merged;
                   });
-                  // Infer company name from the first call's first external attendee
-                  if (!newDealCompany.trim()) {
-                    for (const data of calls) {
-                      const externalAttendee = data.attendees?.find((a) => inferCompanyFromEmail(a.email) != null);
-                      const inferredCompany = externalAttendee?.company
-                        || inferCompanyFromEmail(externalAttendee?.email)
-                        || "";
-                      if (inferredCompany) {
-                        setNewDealCompany(inferredCompany);
-                        break;
+                  // Use AI to suggest company + deal name (non-blocking)
+                  fetch("/api/deals/suggest-name", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ calls }),
+                  })
+                    .then((r) => r.json())
+                    .then((data) => {
+                      if (data.companyName) setNewDealCompany((prev) => prev.trim() ? prev : data.companyName);
+                      if (data.dealName) setNewDealName((prev) => prev.trim() ? prev : data.dealName);
+                    })
+                    .catch(() => {
+                      // Fallback: infer company from email domain, deal name from call title
+                      if (!newDealCompany.trim()) {
+                        for (const data of calls) {
+                          const externalAttendee = data.attendees?.find((a) => inferCompanyFromEmail(a.email) != null);
+                          const inferredCompany = externalAttendee?.company
+                            || inferCompanyFromEmail(externalAttendee?.email)
+                            || "";
+                          if (inferredCompany) {
+                            setNewDealCompany(inferredCompany);
+                            break;
+                          }
+                        }
                       }
-                    }
-                  }
-                  // Suggest deal name from the first call's title
-                  if (!newDealName.trim() && calls[0]?.title) {
-                    setNewDealName(calls[0].title);
-                  }
+                      if (!newDealName.trim() && calls[0]?.title) {
+                        setNewDealName(calls[0].title);
+                      }
+                    });
                 }}
               />
             </div>
