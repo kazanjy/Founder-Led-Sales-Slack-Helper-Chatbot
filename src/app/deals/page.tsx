@@ -323,6 +323,7 @@ export default function DealsPage() {
             <div className="mb-4">
               <MeetingRecorderPanel
                 defaultCollapsed={false}
+                lazyLoadUpTo={100}
                 onSelectCalls={(calls) => {
                   if (calls.length === 0) return;
                   setImportedCalls((prev) => {
