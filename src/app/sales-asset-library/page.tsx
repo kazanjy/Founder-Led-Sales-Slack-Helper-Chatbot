@@ -73,6 +73,9 @@ export default function SalesAssetLibraryPage() {
   const [dragAssetId, setDragAssetId] = useState<string | null>(null);
   const [dragOverAssetId, setDragOverAssetId] = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+  const [dragSectionKey, setDragSectionKey] = useState<string | null>(null);
+  const [dragOverSectionKey, setDragOverSectionKey] = useState<string | null>(null);
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
 
@@ -88,6 +91,21 @@ export default function SalesAssetLibraryPage() {
         const knownCats = new Set(CATEGORY_ORDER);
         const custom = [...new Set(loadedAssets.map((a) => a.category).filter((c) => !knownCats.has(c)))];
         setCustomCategories(custom);
+        // Initialize section order from localStorage or defaults
+        const allCats = [...CATEGORY_ORDER, ...custom];
+        try {
+          const saved = localStorage.getItem("assetLibrary:sectionOrder");
+          if (saved) {
+            const parsed = JSON.parse(saved) as string[];
+            // Merge: saved order first, then any new categories appended
+            const merged = [...parsed.filter((c: string) => allCats.includes(c)), ...allCats.filter((c) => !parsed.includes(c))];
+            setSectionOrder(merged);
+          } else {
+            setSectionOrder(allCats);
+          }
+        } catch {
+          setSectionOrder(allCats);
+        }
       }
     } catch (error) {
       console.error("Failed to load assets:", error);
@@ -158,6 +176,40 @@ export default function SalesAssetLibraryPage() {
     });
     setDragAssetId(null);
     setDragOverAssetId(null);
+  };
+
+  const saveSectionOrder = (order: string[]) => {
+    setSectionOrder(order);
+    localStorage.setItem("assetLibrary:sectionOrder", JSON.stringify(order));
+  };
+
+  const moveSectionUp = (category: string) => {
+    const idx = sectionOrder.indexOf(category);
+    if (idx <= 0) return;
+    const next = [...sectionOrder];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    saveSectionOrder(next);
+  };
+
+  const moveSectionDown = (category: string) => {
+    const idx = sectionOrder.indexOf(category);
+    if (idx === -1 || idx >= sectionOrder.length - 1) return;
+    const next = [...sectionOrder];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    saveSectionOrder(next);
+  };
+
+  const handleSectionDrop = (targetKey: string) => {
+    if (!dragSectionKey || dragSectionKey === targetKey) return;
+    const fromIdx = sectionOrder.indexOf(dragSectionKey);
+    const toIdx = sectionOrder.indexOf(targetKey);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const next = [...sectionOrder];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    saveSectionOrder(next);
+    setDragSectionKey(null);
+    setDragOverSectionKey(null);
   };
 
   const openEditModal = (asset: SalesAsset) => {
@@ -324,16 +376,35 @@ export default function SalesAssetLibraryPage() {
           </div>
         ) : (
           <>
-            {[...CATEGORY_ORDER, ...customCategories].filter((cat) => grouped[cat]?.length).map((category) => {
+            {sectionOrder.filter((cat) => grouped[cat]?.length).map((category) => {
               const categoryLabel = CATEGORY_LABELS[category] || category;
-              const hasOnlyDefaults = grouped[category].every((a) => a.isDefault);
               return (
-              <div key={category} className="mb-8 group/section">
+              <div
+                key={category}
+                className={`mb-8 group/section ${dragSectionKey === category ? "opacity-40" : ""} ${dragOverSectionKey === category ? "ring-2 ring-purple-300 rounded-xl" : ""}`}
+                draggable
+                onDragStart={(e) => { setDragSectionKey(category); e.dataTransfer.effectAllowed = "move"; }}
+                onDragEnd={() => { setDragSectionKey(null); setDragOverSectionKey(null); }}
+                onDragOver={(e) => { if (dragSectionKey && dragSectionKey !== category && !dragAssetId) { e.preventDefault(); setDragOverSectionKey(category); } }}
+                onDragLeave={() => setDragOverSectionKey(null)}
+                onDrop={() => { if (dragSectionKey) handleSectionDrop(category); }}
+              >
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {categoryLabel}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+                    </div>
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {categoryLabel}
+                    </h2>
+                  </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                    <button onClick={() => moveSectionUp(category)} className="p-1 text-gray-400 hover:text-purple-600" title="Move section up">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button onClick={() => moveSectionDown(category)} className="p-1 text-gray-400 hover:text-purple-600" title="Move section down">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
                     <button
                       onClick={() => archiveSection(category, categoryLabel)}
                       className="text-xs text-gray-400 hover:text-amber-600 px-2 py-0.5 rounded"
@@ -341,15 +412,13 @@ export default function SalesAssetLibraryPage() {
                     >
                       Archive
                     </button>
-                    {!hasOnlyDefaults && (
-                      <button
-                        onClick={() => deleteSection(category, categoryLabel)}
-                        className="text-xs text-gray-400 hover:text-red-600 px-2 py-0.5 rounded"
-                        title="Delete custom assets in this section"
-                      >
-                        Delete
-                      </button>
-                    )}
+                    <button
+                      onClick={() => deleteSection(category, categoryLabel)}
+                      className="text-xs text-gray-400 hover:text-red-600 px-2 py-0.5 rounded"
+                      title="Delete section"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -423,15 +492,13 @@ export default function SalesAssetLibraryPage() {
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                                 </button>
-                                {!asset.isDefault && (
-                                  <button
-                                    onClick={() => deleteAsset(asset)}
-                                    className="p-1 text-gray-400 hover:text-red-600"
-                                    title="Delete permanently"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => asset.isDefault ? archiveAsset(asset) : deleteAsset(asset)}
+                                  className="p-1 text-gray-400 hover:text-red-600"
+                                  title={asset.isDefault ? "Remove (archive)" : "Delete permanently"}
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
                               </div>
                             </div>
 
