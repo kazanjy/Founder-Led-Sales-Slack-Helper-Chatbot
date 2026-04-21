@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import SalesNavBar from "@/components/SalesNavBar";
+import { Linkify } from "@/components/Linkify";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/sales-asset-library/seed-data";
 
 interface AssetUser {
@@ -582,7 +583,7 @@ export default function SalesAssetLibraryPage() {
                               <div className="min-w-0 flex-1">
                                 <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{asset.name}</h3>
                                 {asset.description && (
-                                  <p className="text-xs text-gray-500 mt-0.5">{asset.description}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5"><Linkify>{asset.description}</Linkify></p>
                                 )}
                               </div>
                               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -648,7 +649,7 @@ export default function SalesAssetLibraryPage() {
                                   )}
                                 </div>
                                 {latestVersion?.notes && (
-                                  <p className="text-xs text-gray-500 mt-1 italic">{latestVersion.notes}</p>
+                                  <p className="text-xs text-gray-500 mt-1 italic whitespace-pre-wrap"><Linkify>{latestVersion.notes}</Linkify></p>
                                 )}
                                 <div className="flex items-center justify-between flex-wrap gap-2 mt-1">
                                   <p className="text-xs text-gray-400">
@@ -1002,7 +1003,7 @@ export default function SalesAssetLibraryPage() {
                               <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{v.label}</span>
                             )}
                           </div>
-                          {v.notes && <p className="text-xs text-gray-600 mt-1">{v.notes}</p>}
+                          {v.notes && <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap"><Linkify>{v.notes}</Linkify></p>}
                           <p className="text-xs text-gray-400 mt-1">
                             {formatRelative(v.createdAt)} by {userDisplay(v.createdByUser)}
                           </p>
