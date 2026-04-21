@@ -58,6 +58,8 @@ export default function SalesAssetLibraryPage() {
   const [editUrl, setEditUrl] = useState("");
   const [editLabel, setEditLabel] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
@@ -282,30 +284,49 @@ export default function SalesAssetLibraryPage() {
 
   const openEditModal = (asset: SalesAsset) => {
     setEditingAsset(asset);
+    setEditName(asset.name);
+    setEditDescription(asset.description || "");
     setEditUrl(asset.currentUrl || "");
     setEditLabel("");
     setEditNotes("");
   };
 
   const saveVersion = async () => {
-    if (!editingAsset || !editUrl.trim()) return;
+    if (!editingAsset) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/sales-asset-library/${editingAsset.id}/versions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: editUrl.trim(),
-          label: editLabel.trim() || undefined,
-          notes: editNotes.trim() || undefined,
-        }),
-      });
-      if (res.ok) {
-        setEditingAsset(null);
-        await loadAssets();
+      // 1) Update name/description if changed
+      const nameChanged = editName.trim() !== editingAsset.name;
+      const descChanged = (editDescription.trim() || null) !== (editingAsset.description || null);
+      if (nameChanged || descChanged) {
+        await fetch(`/api/sales-asset-library/${editingAsset.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editName.trim(),
+            description: editDescription.trim() || null,
+          }),
+        });
       }
+
+      // 2) Create a new version if URL changed (or it's a new URL)
+      const urlChanged = editUrl.trim() !== (editingAsset.currentUrl || "");
+      if (editUrl.trim() && urlChanged) {
+        await fetch(`/api/sales-asset-library/${editingAsset.id}/versions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: editUrl.trim(),
+            label: editLabel.trim() || undefined,
+            notes: editNotes.trim() || undefined,
+          }),
+        });
+      }
+
+      setEditingAsset(null);
+      await loadAssets();
     } catch (error) {
-      console.error("Failed to save version:", error);
+      console.error("Failed to save:", error);
     }
     setSaving(false);
   };
@@ -584,9 +605,9 @@ export default function SalesAssetLibraryPage() {
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                 </button>
                                 <button
-                                  onClick={() => openMetaEdit(asset)}
+                                  onClick={() => openEditModal(asset)}
                                   className="p-1 text-gray-400 hover:text-gray-600"
-                                  title="Rename"
+                                  title="Edit"
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                 </button>
@@ -851,9 +872,7 @@ export default function SalesAssetLibraryPage() {
         >
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editingAsset.currentUrl ? "Update" : "Add"} {editingAsset.name}
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900">Edit Asset</h3>
               <button onClick={() => setEditingAsset(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -861,6 +880,31 @@ export default function SalesAssetLibraryPage() {
 
             <div className="space-y-3">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Asset name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Short description of this asset"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div className="border-t border-gray-200 pt-3 mt-2">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-medium">
+                  {editingAsset.currentUrl ? "Update URL (optional — creates a new version)" : "Add URL"}
+                </p>
                 <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
                 <input
                   type="url"
@@ -873,7 +917,7 @@ export default function SalesAssetLibraryPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Label <span className="text-gray-400 font-normal">(optional)</span>
+                  Version Label <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
                   type="text"
@@ -885,7 +929,7 @@ export default function SalesAssetLibraryPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes <span className="text-gray-400 font-normal">(optional)</span>
+                  Version Notes <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
                   value={editNotes}
@@ -906,7 +950,7 @@ export default function SalesAssetLibraryPage() {
               </button>
               <button
                 onClick={saveVersion}
-                disabled={!editUrl.trim() || saving}
+                disabled={!editName.trim() || saving}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save"}
