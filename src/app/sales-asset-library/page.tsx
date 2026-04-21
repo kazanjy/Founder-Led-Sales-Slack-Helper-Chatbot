@@ -437,6 +437,12 @@ export default function SalesAssetLibraryPage() {
                       </div>
                     );
                   })}
+                  <button
+                    onClick={() => { setCustomCategory(category); setShowAddCustom(true); }}
+                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
+                  >
+                    + Add Asset
+                  </button>
                 </div>
               </div>
             ))}
