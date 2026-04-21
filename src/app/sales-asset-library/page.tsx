@@ -155,19 +155,84 @@ export default function SalesAssetLibraryPage() {
     });
   };
 
-  const handleAssetDrop = (targetId: string, category: string) => {
+  const handleAssetDrop = (targetId: string, targetCategory: string) => {
     if (!dragAssetId || dragAssetId === targetId) return;
     setAssets((prev) => {
-      const catAssets = prev.filter((a) => a.category === category);
-      const fromIdx = catAssets.findIndex((a) => a.id === dragAssetId);
-      const toIdx = catAssets.findIndex((a) => a.id === targetId);
-      if (fromIdx === -1 || toIdx === -1) return prev;
-      const [moved] = catAssets.splice(fromIdx, 1);
-      catAssets.splice(toIdx, 0, moved);
-      catAssets.forEach((a, i) => { a.order = i; });
-      persistOrder(category, catAssets.map((a) => a.id));
-      const otherAssets = prev.filter((a) => a.category !== category);
-      return [...otherAssets, ...catAssets];
+      const draggedAsset = prev.find((a) => a.id === dragAssetId);
+      if (!draggedAsset) return prev;
+
+      const sourceCategory = draggedAsset.category;
+
+      if (sourceCategory === targetCategory) {
+        // Same category — reorder within
+        const catAssets = prev.filter((a) => a.category === targetCategory);
+        const fromIdx = catAssets.findIndex((a) => a.id === dragAssetId);
+        const toIdx = catAssets.findIndex((a) => a.id === targetId);
+        if (fromIdx === -1 || toIdx === -1) return prev;
+        const [moved] = catAssets.splice(fromIdx, 1);
+        catAssets.splice(toIdx, 0, moved);
+        catAssets.forEach((a, i) => { a.order = i; });
+        persistOrder(targetCategory, catAssets.map((a) => a.id));
+        const otherAssets = prev.filter((a) => a.category !== targetCategory);
+        return [...otherAssets, ...catAssets];
+      } else {
+        // Cross-category — move asset to target category
+        // Remove from source
+        const sourceCatAssets = prev.filter((a) => a.category === sourceCategory && a.id !== dragAssetId);
+        sourceCatAssets.forEach((a, i) => { a.order = i; });
+        persistOrder(sourceCategory, sourceCatAssets.map((a) => a.id));
+
+        // Insert into target at the drop position
+        const targetCatAssets = prev.filter((a) => a.category === targetCategory);
+        const toIdx = targetCatAssets.findIndex((a) => a.id === targetId);
+        draggedAsset.category = targetCategory;
+        targetCatAssets.splice(toIdx >= 0 ? toIdx : targetCatAssets.length, 0, draggedAsset);
+        targetCatAssets.forEach((a, i) => { a.order = i; });
+        persistOrder(targetCategory, targetCatAssets.map((a) => a.id));
+
+        // Update category on the server
+        fetch(`/api/sales-asset-library/${dragAssetId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: targetCategory, order: toIdx >= 0 ? toIdx : targetCatAssets.length - 1 }),
+        });
+
+        const otherAssets = prev.filter((a) => a.category !== sourceCategory && a.category !== targetCategory);
+        return [...otherAssets, ...sourceCatAssets, ...targetCatAssets];
+      }
+    });
+    setDragAssetId(null);
+    setDragOverAssetId(null);
+  };
+
+  const handleAssetDropOnSection = (targetCategory: string) => {
+    if (!dragAssetId) return;
+    setAssets((prev) => {
+      const draggedAsset = prev.find((a) => a.id === dragAssetId);
+      if (!draggedAsset || draggedAsset.category === targetCategory) {
+        setDragAssetId(null);
+        return prev;
+      }
+      const sourceCategory = draggedAsset.category;
+      const sourceCatAssets = prev.filter((a) => a.category === sourceCategory && a.id !== dragAssetId);
+      sourceCatAssets.forEach((a, i) => { a.order = i; });
+      persistOrder(sourceCategory, sourceCatAssets.map((a) => a.id));
+
+      const targetCatAssets = prev.filter((a) => a.category === targetCategory);
+      draggedAsset.category = targetCategory;
+      draggedAsset.order = targetCatAssets.length;
+      targetCatAssets.push(draggedAsset);
+      targetCatAssets.forEach((a, i) => { a.order = i; });
+      persistOrder(targetCategory, targetCatAssets.map((a) => a.id));
+
+      fetch(`/api/sales-asset-library/${dragAssetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: targetCategory, order: draggedAsset.order }),
+      });
+
+      const otherAssets = prev.filter((a) => a.category !== sourceCategory && a.category !== targetCategory);
+      return [...otherAssets, ...sourceCatAssets, ...targetCatAssets];
     });
     setDragAssetId(null);
     setDragOverAssetId(null);
@@ -397,9 +462,15 @@ export default function SalesAssetLibraryPage() {
                 draggable
                 onDragStart={(e) => { setDragSectionKey(category); e.dataTransfer.effectAllowed = "move"; }}
                 onDragEnd={() => { setDragSectionKey(null); setDragOverSectionKey(null); }}
-                onDragOver={(e) => { if (dragSectionKey && dragSectionKey !== category && !dragAssetId) { e.preventDefault(); setDragOverSectionKey(category); } }}
+                onDragOver={(e) => {
+                  if (dragSectionKey && dragSectionKey !== category && !dragAssetId) { e.preventDefault(); setDragOverSectionKey(category); }
+                  if (dragAssetId) { e.preventDefault(); }
+                }}
                 onDragLeave={() => setDragOverSectionKey(null)}
-                onDrop={() => { if (dragSectionKey) handleSectionDrop(category); }}
+                onDrop={() => {
+                  if (dragSectionKey) handleSectionDrop(category);
+                  if (dragAssetId) handleAssetDropOnSection(category);
+                }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
