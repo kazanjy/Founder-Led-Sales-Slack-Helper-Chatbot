@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Stats {
@@ -99,6 +100,7 @@ const COMPLETION_KEYS: { key: keyof CompletionUser["completion"]; label: string;
 type CompletionSortKey = "name" | "score" | "createdAt" | "lastActivity";
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<RecentConversation[]>([]);
@@ -120,7 +122,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     document.title = "Admin - Dashboard";
-  }, []);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) router.push("/?error=not_logged_in");
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router]);
 
   useEffect(() => {
     async function fetchStats() {

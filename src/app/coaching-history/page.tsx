@@ -242,6 +242,12 @@ function CoachingHistoryContent() {
 
   const loadSessions = useCallback(async () => {
     try {
+      const authRes = await fetch("/api/auth/me");
+      const authData = await authRes.json();
+      if (!authData.user) {
+        router.push("/?error=not_logged_in");
+        return;
+      }
       const res = await fetch("/api/coaching-sessions");
       if (res.ok) {
         const data = await res.json();

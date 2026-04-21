@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface ChannelClaim {
@@ -46,6 +47,7 @@ interface MigrationStats {
 }
 
 export default function AdminAccountsPage() {
+  const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -94,9 +96,12 @@ export default function AdminAccountsPage() {
   }, []);
 
   useEffect(() => {
-    fetchAccounts();
-    fetchMigrationStats();
-  }, [fetchAccounts, fetchMigrationStats]);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) { router.push("/?error=not_logged_in"); return; }
+      fetchAccounts();
+      fetchMigrationStats();
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router, fetchAccounts, fetchMigrationStats]);
 
   const handleBulkMigrate = async () => {
     if (!confirm(`This will migrate ${migrationStats?.migratable || 0} solo users to accounts. Continue?`)) return;

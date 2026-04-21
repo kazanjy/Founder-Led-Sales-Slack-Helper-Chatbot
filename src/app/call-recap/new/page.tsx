@@ -29,7 +29,10 @@ export default function NewCallRecap() {
 
   useEffect(() => {
     document.title = "Call Recap Email - Mikey";
-  }, []);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) router.push("/?error=not_logged_in");
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router]);
 
   // Load saved tone guidance
   useEffect(() => {

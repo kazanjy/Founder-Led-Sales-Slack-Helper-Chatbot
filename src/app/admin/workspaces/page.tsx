@@ -37,7 +37,10 @@ export default function AdminWorkspacesPage() {
 
   useEffect(() => {
     document.title = "Admin - Workspaces";
-  }, []);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) router.push("/?error=not_logged_in");
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router]);
 
   const fetchWorkspaces = useCallback(async () => {
     setLoading(true);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import { Linkify } from "@/components/Linkify";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/sales-asset-library/seed-data";
@@ -53,6 +54,7 @@ function formatRelative(dateStr: string): string {
 }
 
 export default function SalesAssetLibraryPage() {
+  const router = useRouter();
   const [assets, setAssets] = useState<SalesAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingAsset, setEditingAsset] = useState<SalesAsset | null>(null);
@@ -86,6 +88,12 @@ export default function SalesAssetLibraryPage() {
   const loadAssets = useCallback(async () => {
     setLoading(true);
     try {
+      const authRes = await fetch("/api/auth/me");
+      const authData = await authRes.json();
+      if (!authData.user) {
+        router.push("/?error=not_logged_in");
+        return;
+      }
       const res = await fetch("/api/sales-asset-library");
       if (res.ok) {
         const data = await res.json();

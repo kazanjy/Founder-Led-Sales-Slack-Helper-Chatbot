@@ -73,6 +73,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const loadDeal = useCallback(async () => {
     setLoading(true);
     try {
+      const authRes = await fetch("/api/auth/me");
+      const authData = await authRes.json();
+      if (!authData.user) {
+        router.push("/?error=not_logged_in");
+        return;
+      }
       const res = await fetch(`/api/deals/${id}`);
       if (res.ok) {
         const data = await res.json();

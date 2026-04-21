@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Stats {
@@ -26,13 +27,17 @@ interface License {
 }
 
 export default function AdminBillingPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Admin - Billing";
-  }, []);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) router.push("/?error=not_logged_in");
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router]);
 
   useEffect(() => {
     async function fetchBilling() {

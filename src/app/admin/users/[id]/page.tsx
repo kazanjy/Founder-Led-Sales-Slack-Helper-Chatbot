@@ -246,6 +246,12 @@ export default function AdminUserDetailPage() {
   useEffect(() => {
     async function fetchUser() {
       try {
+        const authRes = await fetch("/api/auth/me");
+        const authData = await authRes.json();
+        if (!authData.user) {
+          router.push("/?error=not_logged_in");
+          return;
+        }
         const res = await fetch(`/api/admin/users/${params.id}`);
         if (res.ok) {
           const data = await res.json();

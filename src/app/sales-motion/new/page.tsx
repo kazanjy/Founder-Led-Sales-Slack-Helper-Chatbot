@@ -37,7 +37,10 @@ export default function NewSalesMotion() {
 
   useEffect(() => {
     document.title = "Analyze Sales Motion - Mikey";
-  }, []);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) router.push("/?error=not_logged_in");
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router]);
 
   const addDeal = () => setDeals([...deals, createDeal()]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface AccountUser {
@@ -113,6 +113,7 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 export default function AdminAccountDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const [account, setAccount] = useState<AccountDetail | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -184,8 +185,11 @@ export default function AdminAccountDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    fetchAccount();
-  }, [fetchAccount]);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) { router.push("/?error=not_logged_in"); return; }
+      fetchAccount();
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router, fetchAccount]);
 
   const searchUsers = async (query: string) => {
     if (query.length < 2) {

@@ -62,6 +62,12 @@ export default function DealsPage() {
   const loadDeals = useCallback(async () => {
     setLoading(true);
     try {
+      const authRes = await fetch("/api/auth/me");
+      const authData = await authRes.json();
+      if (!authData.user) {
+        router.push("/?error=not_logged_in");
+        return;
+      }
       const res = await fetch("/api/deals");
       if (res.ok) {
         const data = await res.json();
