@@ -36,7 +36,7 @@ interface MeetingRecorderPanelProps {
   defaultCollapsed?: boolean;
 }
 
-const DEEP_SEARCH_LIMIT = 200;
+const DEEP_SEARCH_LIMIT = 500;
 
 export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false }: MeetingRecorderPanelProps) {
   const multiSelectMode = !!onSelectCalls;

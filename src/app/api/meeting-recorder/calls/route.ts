@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     const providerSlug = request.nextUrl.searchParams.get("provider");
-    const limit = Math.min(parseInt(request.nextUrl.searchParams.get("limit") || "15", 10) || 15, 100);
+    const limit = Math.min(parseInt(request.nextUrl.searchParams.get("limit") || "15", 10) || 15, 500);
 
     // Find active connection(s)
     const connections = await prisma.meetingRecorderConnection.findMany({
