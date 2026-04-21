@@ -39,14 +39,14 @@ export default function DealsPage() {
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
   const [creating, setCreating] = useState(false);
-  const [importedCall, setImportedCall] = useState<{
+  const [importedCalls, setImportedCalls] = useState<Array<{
     title?: string;
     summary?: string;
     transcript?: string;
     recordingUrl?: string;
     date?: string;
     attendees?: Array<{ name: string; email?: string; title?: string; company?: string }>;
-  } | null>(null);
+  }>>([]);
 
   const inferCompanyFromEmail = (email: string | undefined): string | null => {
     if (!email) return null;
@@ -94,55 +94,75 @@ export default function DealsPage() {
       if (!res.ok) throw new Error("Failed to create deal");
       const { deal } = await res.json();
 
-      // 2) If there's imported call data, create a timeline entry + participants
-      if (importedCall) {
-        const headerLines: string[] = [];
-        if (importedCall.date) {
-          headerLines.push(`Call Date: ${new Date(importedCall.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
-        }
-        if (importedCall.attendees?.length) {
-          const formatted = importedCall.attendees.map((a) => {
-            const parts = [a.name];
-            if (a.title) parts[0] += `, ${a.title}`;
-            if (a.company) parts[0] += ` @ ${a.company}`;
-            if (a.email) parts.push(a.email);
-            return parts.join(" — ");
-          });
-          headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
-        }
-        const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
-        const summaryPart = importedCall.summary ? `## Summary\n\n${importedCall.summary}\n\n` : "";
-        const transcriptPart = importedCall.transcript ? `## Transcript\n\n${importedCall.transcript}` : "";
-
-        // Create timeline entry
-        await fetch(`/api/deals/${deal.id}/entries`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "call_transcript",
-            title: importedCall.title,
-            content: header + summaryPart + transcriptPart,
-            sourceUrl: importedCall.recordingUrl,
-            entryDate: importedCall.date ? new Date(importedCall.date).toISOString() : undefined,
-          }),
+      // 2) If there are imported calls, create a timeline entry per call + deduped participants
+      if (importedCalls.length > 0) {
+        // Create one timeline entry per call, oldest first so newest shows at top of timeline
+        const sorted = [...importedCalls].sort((a, b) => {
+          const da = a.date ? new Date(a.date).getTime() : 0;
+          const db = b.date ? new Date(b.date).getTime() : 0;
+          return da - db;
         });
-
-        // Create participants from attendees
-        if (importedCall.attendees?.length) {
-          for (const a of importedCall.attendees) {
-            if (!a.name) continue;
-            await fetch(`/api/deals/${deal.id}/participants`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: a.name,
-                title: a.title,
-                company: a.company,
-                email: a.email,
-                role: "unknown",
-              }),
-            });
+        for (const call of sorted) {
+          const headerLines: string[] = [];
+          if (call.date) {
+            headerLines.push(`Call Date: ${new Date(call.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
           }
+          if (call.attendees?.length) {
+            const formatted = call.attendees.map((a) => {
+              const parts = [a.name];
+              if (a.title) parts[0] += `, ${a.title}`;
+              if (a.company) parts[0] += ` @ ${a.company}`;
+              if (a.email) parts.push(a.email);
+              return parts.join(" — ");
+            });
+            headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
+          }
+          const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+          const summaryPart = call.summary ? `## Summary\n\n${call.summary}\n\n` : "";
+          const transcriptPart = call.transcript ? `## Transcript\n\n${call.transcript}` : "";
+
+          await fetch(`/api/deals/${deal.id}/entries`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "call_transcript",
+              title: call.title,
+              content: header + summaryPart + transcriptPart,
+              sourceUrl: call.recordingUrl,
+              entryDate: call.date ? new Date(call.date).toISOString() : undefined,
+            }),
+          });
+        }
+
+        // Dedupe participants across all calls by email (or by name if no email)
+        const participantMap = new Map<string, { name: string; email?: string; title?: string; company?: string }>();
+        for (const call of importedCalls) {
+          for (const a of call.attendees || []) {
+            if (!a.name) continue;
+            const key = (a.email || a.name).toLowerCase();
+            const existing = participantMap.get(key);
+            if (!existing) {
+              participantMap.set(key, { name: a.name, email: a.email, title: a.title, company: a.company });
+            } else {
+              // Fill in any missing fields from later occurrences
+              if (!existing.title && a.title) existing.title = a.title;
+              if (!existing.company && a.company) existing.company = a.company;
+              if (!existing.email && a.email) existing.email = a.email;
+            }
+          }
+        }
+        for (const p of participantMap.values()) {
+          await fetch(`/api/deals/${deal.id}/participants`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: p.name,
+              title: p.title,
+              company: p.company,
+              email: p.email,
+              role: "unknown",
+            }),
+          });
         }
       }
 
@@ -157,7 +177,7 @@ export default function DealsPage() {
     setShowNewDeal(false);
     setNewDealName("");
     setNewDealCompany("");
-    setImportedCall(null);
+    setImportedCalls([]);
   };
 
   const filteredDeals = deals.filter((d) => {
@@ -303,45 +323,75 @@ export default function DealsPage() {
             <div className="mb-4">
               <MeetingRecorderPanel
                 defaultCollapsed={false}
-                onSelectCall={(data) => {
-                  setImportedCall(data);
-                  // Infer company name from attendees (external domain)
+                lazyLoadUpTo={100}
+                onSelectCalls={(calls) => {
+                  if (calls.length === 0) return;
+                  setImportedCalls((prev) => {
+                    // Dedupe by recordingUrl (or title+date fallback)
+                    const seen = new Set(prev.map((c) => c.recordingUrl || `${c.title}|${c.date}`));
+                    const merged = [...prev];
+                    for (const c of calls) {
+                      const key = c.recordingUrl || `${c.title}|${c.date}`;
+                      if (!seen.has(key)) {
+                        merged.push(c);
+                        seen.add(key);
+                      }
+                    }
+                    return merged;
+                  });
+                  // Infer company name from the first call's first external attendee
                   if (!newDealCompany.trim()) {
-                    const externalAttendee = data.attendees?.find((a) => {
-                      const company = inferCompanyFromEmail(a.email);
-                      return company != null;
-                    });
-                    const inferredCompany = externalAttendee?.company
-                      || inferCompanyFromEmail(externalAttendee?.email)
-                      || "";
-                    if (inferredCompany) setNewDealCompany(inferredCompany);
+                    for (const data of calls) {
+                      const externalAttendee = data.attendees?.find((a) => inferCompanyFromEmail(a.email) != null);
+                      const inferredCompany = externalAttendee?.company
+                        || inferCompanyFromEmail(externalAttendee?.email)
+                        || "";
+                      if (inferredCompany) {
+                        setNewDealCompany(inferredCompany);
+                        break;
+                      }
+                    }
                   }
-                  // Suggest deal name from the call title or company + call type
-                  if (!newDealName.trim() && data.title) {
-                    setNewDealName(data.title);
+                  // Suggest deal name from the first call's title
+                  if (!newDealName.trim() && calls[0]?.title) {
+                    setNewDealName(calls[0].title);
                   }
                 }}
               />
             </div>
 
-            {importedCall && (
+            {importedCalls.length > 0 && (
               <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-purple-900">
-                    ✓ Call imported: {importedCall.title || "Untitled"}
+                    ✓ {importedCalls.length} call{importedCalls.length === 1 ? "" : "s"} imported
                   </p>
                   <button
-                    onClick={() => setImportedCall(null)}
+                    onClick={() => setImportedCalls([])}
                     className="text-xs text-purple-600 hover:text-purple-800"
                   >
-                    Remove
+                    Clear all
                   </button>
                 </div>
-                <p className="text-xs text-purple-700">
-                  {importedCall.attendees?.length || 0} attendee{(importedCall.attendees?.length || 0) === 1 ? "" : "s"} · {importedCall.transcript ? `${importedCall.transcript.length.toLocaleString()} char transcript` : "no transcript"}
-                </p>
-                <p className="text-xs text-purple-600 mt-1">
-                  This call will be added as the first timeline entry, and attendees will be added as participants.
+                <ul className="space-y-1">
+                  {importedCalls.map((call, i) => (
+                    <li key={(call.recordingUrl || "") + i} className="flex items-center justify-between gap-2 text-xs text-purple-800">
+                      <span className="truncate">
+                        <span className="font-medium">{call.title || "Untitled"}</span>
+                        <span className="text-purple-600"> · {call.attendees?.length || 0} attendee{(call.attendees?.length || 0) === 1 ? "" : "s"}</span>
+                      </span>
+                      <button
+                        onClick={() => setImportedCalls((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-purple-500 hover:text-purple-800 flex-shrink-0"
+                        aria-label="Remove call"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-purple-600 mt-2">
+                  Each call becomes a timeline entry. Attendees are deduped and added as participants.
                 </p>
               </div>
             )}
@@ -376,7 +426,13 @@ export default function DealsPage() {
                 disabled={!newDealName.trim() || !newDealCompany.trim() || creating}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                {creating ? "Creating..." : importedCall ? "Create Deal from Call" : "Create Deal"}
+                {creating
+                  ? "Creating..."
+                  : importedCalls.length > 1
+                    ? `Create Deal from ${importedCalls.length} Calls`
+                    : importedCalls.length === 1
+                      ? "Create Deal from Call"
+                      : "Create Deal"}
               </button>
             </div>
           </div>

@@ -8,6 +8,7 @@ interface MeetingCall {
   date: string;
   duration?: number;
   participants: string[];
+  attendees?: Array<{ name: string; email?: string }>;
   summary?: string;
   providerUrl?: string;
 }
@@ -20,12 +21,26 @@ interface ProviderInfo {
   connected: boolean;
 }
 
-interface MeetingRecorderPanelProps {
-  onSelectCall: (data: { transcript: string; summary: string; recordingUrl?: string; title?: string; date?: string; attendees?: Array<{ name: string; email?: string; title?: string; company?: string }> }) => void;
-  defaultCollapsed?: boolean;
+export interface SelectedCallData {
+  transcript: string;
+  summary: string;
+  recordingUrl?: string;
+  title?: string;
+  date?: string;
+  attendees?: Array<{ name: string; email?: string; title?: string; company?: string }>;
 }
 
-export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = false }: MeetingRecorderPanelProps) {
+interface MeetingRecorderPanelProps {
+  onSelectCall?: (data: SelectedCallData) => void;
+  onSelectCalls?: (calls: SelectedCallData[]) => void;
+  defaultCollapsed?: boolean;
+  lazyLoadUpTo?: number; // auto-fetch additional calls in background after initial render
+}
+
+const LAZY_BATCH_SIZE = 15;
+
+export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false, lazyLoadUpTo }: MeetingRecorderPanelProps) {
+  const multiSelectMode = !!onSelectCalls;
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [calls, setCalls] = useState<Array<{ provider: string; providerName: string; calls: MeetingCall[] }>>([]);
   const [connected, setConnected] = useState(false);
@@ -44,6 +59,11 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
     recap?: { id: string; title: string; createdAt: string };
     review?: { id: string; title: string; overallScore: number | null; maxScore: number | null; createdAt: string };
   }>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCallIds, setSelectedCallIds] = useState<Set<string>>(new Set());
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [autoLoading, setAutoLoading] = useState(false);
 
   // Fetch existing recaps/reviews for the current call list
   const fetchExistingMatches = useCallback(async (callGroups: Array<{ calls: MeetingCall[] }>) => {
@@ -87,29 +107,64 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
     setLoading(false);
   }, [fetchExistingMatches]);
 
-  const handleLoadMore = useCallback(async () => {
+  const fetchAtLimit = useCallback(async (targetLimit: number): Promise<{ prevTotal: number; newTotal: number } | null> => {
     const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
-    const newLimit = callLimit + 15;
-    setLoadingMore(true);
     try {
-      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${newLimit}`);
-      if (callsRes.ok) {
-        const callsData = await callsRes.json();
-        const callGroups = callsData.calls || [];
-        const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
-        setCalls(callGroups);
-        setCallLimit(newLimit);
-        fetchExistingMatches(callGroups);
-        // Hide button if no new calls were returned
-        if (newTotal <= prevTotal) setHasMore(false);
-      }
-    } catch { /* ignore */ }
+      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${targetLimit}`);
+      if (!callsRes.ok) return null;
+      const callsData = await callsRes.json();
+      const callGroups = callsData.calls || [];
+      const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
+      setCalls(callGroups);
+      setCallLimit(targetLimit);
+      fetchExistingMatches(callGroups);
+      if (newTotal <= prevTotal) setHasMore(false);
+      return { prevTotal, newTotal };
+    } catch {
+      return null;
+    }
+  }, [calls, fetchExistingMatches]);
+
+  const handleLoadMore = useCallback(async () => {
+    setLoadingMore(true);
+    await fetchAtLimit(callLimit + LAZY_BATCH_SIZE);
     setLoadingMore(false);
-  }, [callLimit, calls, fetchExistingMatches]);
+  }, [callLimit, fetchAtLimit]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Background lazy-load: after initial load, keep fetching more calls up to lazyLoadUpTo
+  useEffect(() => {
+    if (!lazyLoadUpTo || loading || !connected || autoLoading) return;
+    const initialTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
+    if (initialTotal === 0 || initialTotal >= lazyLoadUpTo || !hasMore) return;
+
+    let cancelled = false;
+    (async () => {
+      setAutoLoading(true);
+      let nextLimit = callLimit + LAZY_BATCH_SIZE;
+      let lastTotal = initialTotal;
+      while (!cancelled) {
+        const capped = Math.min(nextLimit, lazyLoadUpTo);
+        const result = await fetchAtLimit(capped);
+        if (!result) break;
+        // Detect "no new calls since last iteration" using locally-tracked lastTotal
+        if (result.newTotal <= lastTotal) {
+          setHasMore(false);
+          break;
+        }
+        lastTotal = result.newTotal;
+        if (result.newTotal >= lazyLoadUpTo) break;
+        nextLimit = capped + LAZY_BATCH_SIZE;
+      }
+      if (!cancelled) setAutoLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // Intentionally only reacts to loading/connected changing to avoid refiring on every call update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, connected, lazyLoadUpTo]);
 
   const handleConnect = async () => {
     if (!showConnectModal || !apiKeyInput.trim()) return;
@@ -144,56 +199,94 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
     await loadData();
   };
 
-  const handleUseCall = async (callId: string, provider: string) => {
-    setFetchingCallId(callId);
+  const fetchCallDetail = useCallback(async (callId: string, provider: string): Promise<SelectedCallData | null> => {
     try {
       const res = await fetch(`/api/meeting-recorder/calls/${callId}?provider=${provider}`);
-      if (res.ok) {
-        const data = await res.json();
+      if (!res.ok) return null;
+      const data = await res.json();
 
-        // Fall back to the summary from the list endpoint if the detail endpoint didn't return one
-        let summary = data.call.summary || "";
-        if (!summary) {
-          for (const group of calls) {
-            const listCall = group.calls.find((c) => c.id === callId);
-            if (listCall?.summary) {
-              summary = listCall.summary;
-              break;
-            }
+      // Fall back to the summary from the list endpoint if the detail endpoint didn't return one
+      let summary = data.call.summary || "";
+      if (!summary) {
+        for (const group of calls) {
+          const listCall = group.calls.find((c) => c.id === callId);
+          if (listCall?.summary) {
+            summary = listCall.summary;
+            break;
           }
         }
-
-        // Enrich attendees via PDL if any have email addresses
-        let attendees = data.call.attendees || [];
-        const hasEmails = attendees.some((a: { email?: string }) => a.email);
-        if (hasEmails) {
-          try {
-            const enrichRes = await fetch("/api/meeting-recorder/enrich-attendees", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ attendees }),
-            });
-            if (enrichRes.ok) {
-              const enrichData = await enrichRes.json();
-              attendees = enrichData.attendees || attendees;
-            }
-          } catch { /* use unenriched attendees */ }
-        }
-
-        onSelectCall({
-          transcript: data.call.transcript,
-          summary,
-          recordingUrl: data.call.providerUrl,
-          title: data.call.title,
-          date: data.call.date,
-          attendees,
-        });
       }
+
+      // Enrich attendees via PDL if any have email addresses
+      let attendees = data.call.attendees || [];
+      const hasEmails = attendees.some((a: { email?: string }) => a.email);
+      if (hasEmails) {
+        try {
+          const enrichRes = await fetch("/api/meeting-recorder/enrich-attendees", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ attendees }),
+          });
+          if (enrichRes.ok) {
+            const enrichData = await enrichRes.json();
+            attendees = enrichData.attendees || attendees;
+          }
+        } catch { /* use unenriched attendees */ }
+      }
+
+      return {
+        transcript: data.call.transcript,
+        summary,
+        recordingUrl: data.call.providerUrl,
+        title: data.call.title,
+        date: data.call.date,
+        attendees,
+      };
     } catch {
-      console.error("Failed to fetch call detail");
-    } finally {
-      setFetchingCallId(null);
+      return null;
     }
+  }, [calls]);
+
+  const handleUseCall = async (callId: string, provider: string) => {
+    if (!onSelectCall) return;
+    setFetchingCallId(callId);
+    const detail = await fetchCallDetail(callId, provider);
+    if (detail) onSelectCall(detail);
+    setFetchingCallId(null);
+  };
+
+  const handleBulkImport = async () => {
+    if (!onSelectCalls || selectedCallIds.size === 0) return;
+    // Resolve each selected id to its provider
+    const targets: Array<{ id: string; provider: string }> = [];
+    for (const group of calls) {
+      for (const call of group.calls) {
+        if (selectedCallIds.has(call.id)) {
+          targets.push({ id: call.id, provider: group.provider });
+        }
+      }
+    }
+    setBulkImporting(true);
+    setBulkProgress({ done: 0, total: targets.length });
+    const results: SelectedCallData[] = [];
+    for (let i = 0; i < targets.length; i++) {
+      const detail = await fetchCallDetail(targets[i].id, targets[i].provider);
+      if (detail) results.push(detail);
+      setBulkProgress({ done: i + 1, total: targets.length });
+    }
+    onSelectCalls(results);
+    setBulkImporting(false);
+    setBulkProgress(null);
+    setSelectedCallIds(new Set());
+  };
+
+  const toggleSelection = (callId: string) => {
+    setSelectedCallIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(callId)) next.delete(callId);
+      else next.add(callId);
+      return next;
+    });
   };
 
   const formatDate = (dateStr: string) => {
@@ -287,29 +380,99 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
         ) : (
           /* Connected state — show recent calls */
           <div>
-            {calls.map((group) => (
+            {/* Search input */}
+            {calls.some((g) => g.calls.length > 0) && (
+              <div className="mb-3 relative">
+                <svg className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title, attendee, or email domain…"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
+            {calls.map((group) => {
+              const q = searchQuery.trim().toLowerCase();
+              const filtered = q
+                ? group.calls.filter((call) => {
+                    if (call.title?.toLowerCase().includes(q)) return true;
+                    if (call.participants.some((p) => p.toLowerCase().includes(q))) return true;
+                    if (call.attendees?.some((a) =>
+                      a.name?.toLowerCase().includes(q) ||
+                      a.email?.toLowerCase().includes(q)
+                    )) return true;
+                    return false;
+                  })
+                : group.calls;
+
+              const totalInGroup = group.calls.length;
+              const visibleInGroup = filtered.length;
+
+              return (
               <div key={group.provider}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="text-xs text-green-600 font-medium">✓ {group.providerName}</span>
-                  <span className="text-xs text-gray-400">· {group.calls.length} recent calls</span>
+                  <span className="text-xs text-gray-400">
+                    {q
+                      ? `· ${visibleInGroup} of ${totalInGroup} match`
+                      : `· ${totalInGroup} recent call${totalInGroup === 1 ? "" : "s"}`}
+                  </span>
+                  {autoLoading && (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      · loading more
+                      <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
-                  {group.calls.map((call) => {
+                  {filtered.map((call) => {
                     const match = call.providerUrl ? existingMatches[call.providerUrl] : undefined;
+                    const isChecked = selectedCallIds.has(call.id);
                     return (
                     <div key={call.id}>
                       <button
                         onClick={() => {
-                          setSelectedCallId(call.id);
-                          handleUseCall(call.id, group.provider);
+                          if (multiSelectMode) {
+                            toggleSelection(call.id);
+                          } else {
+                            setSelectedCallId(call.id);
+                            handleUseCall(call.id, group.provider);
+                          }
                         }}
-                        disabled={fetchingCallId !== null}
+                        disabled={!multiSelectMode && fetchingCallId !== null}
                         className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left cursor-pointer disabled:cursor-wait ${
-                          selectedCallId === call.id
+                          (multiSelectMode ? isChecked : selectedCallId === call.id)
                             ? "border-purple-400 bg-purple-50 ring-1 ring-purple-200"
                             : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
                         }`}
                       >
+                        {multiSelectMode && (
+                          <div className="flex-shrink-0 mr-2.5">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? "bg-purple-600 border-purple-600" : "border-gray-300 bg-white"}`}>
+                              {isChecked && (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-xs text-gray-400">{formatDate(call.date)}</span>
@@ -346,32 +509,37 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                             </div>
                           )}
                         </div>
-                        {fetchingCallId === call.id ? (
-                          <span className="ml-3 flex items-center gap-1 text-xs text-purple-600 flex-shrink-0">
-                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Loading...
-                          </span>
-                        ) : selectedCallId === call.id ? (
-                          <span className="ml-3 text-xs text-purple-600 font-medium flex-shrink-0">
-                            ✓ Selected
-                          </span>
-                        ) : (
-                          <span className="ml-3 text-xs text-gray-400 group-hover:text-purple-500 flex-shrink-0">
-                            Select →
-                          </span>
+                        {!multiSelectMode && (
+                          fetchingCallId === call.id ? (
+                            <span className="ml-3 flex items-center gap-1 text-xs text-purple-600 flex-shrink-0">
+                              <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              Loading...
+                            </span>
+                          ) : selectedCallId === call.id ? (
+                            <span className="ml-3 text-xs text-purple-600 font-medium flex-shrink-0">
+                              ✓ Selected
+                            </span>
+                          ) : (
+                            <span className="ml-3 text-xs text-gray-400 group-hover:text-purple-500 flex-shrink-0">
+                              Select →
+                            </span>
+                          )
                         )}
                       </button>
                     </div>
                     );
                   })}
-                  {group.calls.length === 0 && (
+                  {totalInGroup === 0 && (
                     <p className="text-sm text-gray-400 text-center py-4">No recent calls found</p>
                   )}
+                  {totalInGroup > 0 && visibleInGroup === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">No calls match &quot;{searchQuery}&quot;</p>
+                  )}
                 </div>
-                {group.calls.length > 0 && hasMore && (
+                {totalInGroup > 0 && hasMore && !autoLoading && (
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
@@ -391,7 +559,44 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                   </button>
                 )}
               </div>
-            ))}
+              );
+            })}
+
+            {/* Multi-select action bar */}
+            {multiSelectMode && selectedCallIds.size > 0 && (
+              <div className="mt-3 flex items-center justify-between gap-3 p-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+                <span className="text-sm font-medium text-purple-900">
+                  {selectedCallIds.size} call{selectedCallIds.size === 1 ? "" : "s"} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedCallIds(new Set())}
+                    disabled={bulkImporting}
+                    className="text-xs text-purple-700 hover:text-purple-900 px-2 py-1 rounded disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={handleBulkImport}
+                    disabled={bulkImporting}
+                    className="text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {bulkImporting ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Importing {bulkProgress?.done ?? 0}/{bulkProgress?.total ?? 0}…
+                      </>
+                    ) : (
+                      `Import ${selectedCallIds.size} call${selectedCallIds.size === 1 ? "" : "s"}`
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <p className="text-xs text-gray-400 mt-2">Or paste a share link below.</p>
           </div>
         )}
