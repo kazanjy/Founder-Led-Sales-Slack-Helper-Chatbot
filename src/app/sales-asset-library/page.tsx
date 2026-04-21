@@ -119,6 +119,14 @@ export default function SalesAssetLibraryPage() {
     loadAssets();
   }, [loadAssets]);
 
+  // Scroll to anchor after assets load
+  useEffect(() => {
+    if (!loading && assets.length > 0 && window.location.hash) {
+      const el = document.getElementById(window.location.hash.slice(1));
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [loading, assets.length]);
+
   const persistOrder = (category: string, orderedIds: string[]) => {
     orderedIds.forEach((id, i) => {
       fetch(`/api/sales-asset-library/${id}`, {
@@ -458,7 +466,8 @@ export default function SalesAssetLibraryPage() {
               return (
               <div
                 key={category}
-                className={`mb-8 group/section ${dragSectionKey === category ? "opacity-40" : ""} ${dragOverSectionKey === category ? "ring-2 ring-purple-300 rounded-xl" : ""}`}
+                id={`section-${category}`}
+                className={`mb-8 group/section scroll-mt-24 ${dragSectionKey === category ? "opacity-40" : ""} ${dragOverSectionKey === category ? "ring-2 ring-purple-300 rounded-xl" : ""}`}
                 draggable
                 onDragStart={(e) => { setDragSectionKey(category); e.dataTransfer.effectAllowed = "move"; }}
                 onDragEnd={() => { setDragSectionKey(null); setDragOverSectionKey(null); }}
@@ -517,7 +526,8 @@ export default function SalesAssetLibraryPage() {
                         onDragOver={(e) => { if (dragAssetId && dragAssetId !== asset.id) { e.preventDefault(); e.stopPropagation(); setDragOverAssetId(asset.id); } }}
                         onDragLeave={(e) => { e.stopPropagation(); setDragOverAssetId(null); }}
                         onDrop={(e) => { e.stopPropagation(); handleAssetDrop(asset.id, category); }}
-                        className={`bg-white border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group ${
+                        id={`asset-${asset.slotKey || asset.id}`}
+                        className={`bg-white border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
                           dragAssetId === asset.id ? "opacity-40" : ""
                         } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
                       >
@@ -560,6 +570,18 @@ export default function SalesAssetLibraryPage() {
                                 </button>
                                 <button onClick={() => moveAssetDown(asset.id, category)} className="p-1 text-gray-400 hover:text-purple-600" title="Move down">
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const anchor = `asset-${asset.slotKey || asset.id}`;
+                                    const url = `${window.location.origin}/sales-asset-library#${anchor}`;
+                                    navigator.clipboard.writeText(url);
+                                    window.history.replaceState({}, "", `#${anchor}`);
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-purple-600"
+                                  title="Copy link"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                 </button>
                                 <button
                                   onClick={() => openMetaEdit(asset)}
