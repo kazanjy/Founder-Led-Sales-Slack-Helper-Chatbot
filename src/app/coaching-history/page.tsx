@@ -256,6 +256,7 @@ function CoachingHistoryContent() {
   }, []);
 
   useEffect(() => {
+    document.title = "Coaching History - Mikey";
     loadSessions();
   }, [loadSessions]);
 
