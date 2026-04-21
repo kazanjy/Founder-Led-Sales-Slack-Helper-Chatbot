@@ -1219,10 +1219,20 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                                         {/^https?:\/\//.test(item.evidenceUrl) ? (
                                           <>
                                             <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                            <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate">{item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</a>
+                                            <div className="relative group/ev">
+                                              <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 truncate block max-w-[140px]">{item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</a>
+                                              <div className="absolute bottom-full left-0 mb-1 w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words">
+                                                {item.evidenceUrl}
+                                              </div>
+                                            </div>
                                           </>
                                         ) : (
-                                          <span className="text-xs text-gray-600 truncate">{item.evidenceUrl}</span>
+                                          <div className="relative group/ev">
+                                            <span className="text-xs text-gray-600 truncate block max-w-[140px]">{item.evidenceUrl}</span>
+                                            <div className="absolute bottom-full left-0 mb-1 w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words">
+                                              {item.evidenceUrl}
+                                            </div>
+                                          </div>
                                         )}
                                         <button onClick={() => setEditingEvidence(item.id)} className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0 transition-colors" title="Edit">✎</button>
                                         <button onClick={() => updateItemEvidenceUrl(item.id, "")} className="text-xs text-gray-400 hover:text-red-500 flex-shrink-0 transition-colors" title="Remove">✕</button>
