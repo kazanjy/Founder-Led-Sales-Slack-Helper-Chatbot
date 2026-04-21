@@ -135,12 +135,10 @@ export default function SalesAssetLibraryPage() {
       const idx = catAssets.findIndex((a) => a.id === assetId);
       if (idx <= 0) return prev;
       [catAssets[idx - 1], catAssets[idx]] = [catAssets[idx], catAssets[idx - 1]];
+      catAssets.forEach((a, i) => { a.order = i; });
       persistOrder(category, catAssets.map((a) => a.id));
       const otherAssets = prev.filter((a) => a.category !== category);
-      return [...otherAssets, ...catAssets].sort((a, b) => {
-        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
-        return catDiff !== 0 ? catDiff : a.order - b.order;
-      });
+      return [...otherAssets, ...catAssets];
     });
   };
 
@@ -150,12 +148,10 @@ export default function SalesAssetLibraryPage() {
       const idx = catAssets.findIndex((a) => a.id === assetId);
       if (idx === -1 || idx >= catAssets.length - 1) return prev;
       [catAssets[idx], catAssets[idx + 1]] = [catAssets[idx + 1], catAssets[idx]];
+      catAssets.forEach((a, i) => { a.order = i; });
       persistOrder(category, catAssets.map((a) => a.id));
       const otherAssets = prev.filter((a) => a.category !== category);
-      return [...otherAssets, ...catAssets].sort((a, b) => {
-        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
-        return catDiff !== 0 ? catDiff : a.order - b.order;
-      });
+      return [...otherAssets, ...catAssets];
     });
   };
 
@@ -168,12 +164,10 @@ export default function SalesAssetLibraryPage() {
       if (fromIdx === -1 || toIdx === -1) return prev;
       const [moved] = catAssets.splice(fromIdx, 1);
       catAssets.splice(toIdx, 0, moved);
+      catAssets.forEach((a, i) => { a.order = i; });
       persistOrder(category, catAssets.map((a) => a.id));
       const otherAssets = prev.filter((a) => a.category !== category);
-      return [...otherAssets, ...catAssets].sort((a, b) => {
-        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
-        return catDiff !== 0 ? catDiff : a.order - b.order;
-      });
+      return [...otherAssets, ...catAssets];
     });
     setDragAssetId(null);
     setDragOverAssetId(null);
@@ -361,11 +355,14 @@ export default function SalesAssetLibraryPage() {
     await loadAssets();
   };
 
-  // Group assets by category
+  // Group assets by category, sorted by order within each
   const grouped: Record<string, SalesAsset[]> = {};
   for (const asset of assets) {
     if (!grouped[asset.category]) grouped[asset.category] = [];
     grouped[asset.category].push(asset);
+  }
+  for (const cat of Object.keys(grouped)) {
+    grouped[cat].sort((a, b) => a.order - b.order);
   }
 
   return (
