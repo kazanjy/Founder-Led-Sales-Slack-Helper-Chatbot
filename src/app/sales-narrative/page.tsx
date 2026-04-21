@@ -175,6 +175,10 @@ function SalesNarrativeContent() {
             setVersion(data.version);
             setAnswersByCategory(data.answersByCategory || null);
             initEditFields(data.version);
+            // Redirect to versioned URL so the browser URL is shareable/bookmarkable
+            if (data.version?.id) {
+              window.history.replaceState({}, "", `/sales-narrative?version=${data.version.id}`);
+            }
           } else {
             // No narrative yet, redirect to edit
             router.push("/sales-narrative/edit");
