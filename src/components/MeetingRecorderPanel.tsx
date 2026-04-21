@@ -313,7 +313,7 @@ export default function MeetingRecorderPanel({ onSelectCall, defaultCollapsed = 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-xs text-gray-400">{formatDate(call.date)}</span>
-                            {call.duration && <span className="text-xs text-gray-400">· {formatDuration(call.duration)}</span>}
+                            {call.duration != null && call.duration > 0 && <span className="text-xs text-gray-400">· {formatDuration(call.duration)}</span>}
                             {call.participants.length > 0 && (
                               <span className="text-xs text-gray-400">· {call.participants.length} people</span>
                             )}
