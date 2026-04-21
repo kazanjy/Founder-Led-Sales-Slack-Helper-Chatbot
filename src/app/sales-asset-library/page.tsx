@@ -521,7 +521,10 @@ export default function SalesAssetLibraryPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                {latestVersion?.notes && (
+                                  <p className="text-xs text-gray-500 mt-1 italic">{latestVersion.notes}</p>
+                                )}
+                                <div className="flex items-center justify-between flex-wrap gap-2 mt-1">
                                   <p className="text-xs text-gray-400">
                                     {latestVersion && (
                                       <>
