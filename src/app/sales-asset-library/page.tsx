@@ -70,6 +70,11 @@ export default function SalesAssetLibraryPage() {
   const [editingMetaId, setEditingMetaId] = useState<string | null>(null);
   const [metaName, setMetaName] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
+  const [dragAssetId, setDragAssetId] = useState<string | null>(null);
+  const [dragOverAssetId, setDragOverAssetId] = useState<string | null>(null);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
 
   const loadAssets = useCallback(async () => {
     setLoading(true);
@@ -77,7 +82,12 @@ export default function SalesAssetLibraryPage() {
       const res = await fetch("/api/sales-asset-library");
       if (res.ok) {
         const data = await res.json();
-        setAssets(data.assets || []);
+        const loadedAssets: SalesAsset[] = data.assets || [];
+        setAssets(loadedAssets);
+        // Discover custom categories not in the default list
+        const knownCats = new Set(CATEGORY_ORDER);
+        const custom = [...new Set(loadedAssets.map((a) => a.category).filter((c) => !knownCats.has(c)))];
+        setCustomCategories(custom);
       }
     } catch (error) {
       console.error("Failed to load assets:", error);
@@ -89,6 +99,66 @@ export default function SalesAssetLibraryPage() {
     document.title = "Sales Asset Library - Mikey";
     loadAssets();
   }, [loadAssets]);
+
+  const persistOrder = (category: string, orderedIds: string[]) => {
+    orderedIds.forEach((id, i) => {
+      fetch(`/api/sales-asset-library/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: i }),
+      });
+    });
+  };
+
+  const moveAssetUp = (assetId: string, category: string) => {
+    setAssets((prev) => {
+      const catAssets = prev.filter((a) => a.category === category);
+      const idx = catAssets.findIndex((a) => a.id === assetId);
+      if (idx <= 0) return prev;
+      [catAssets[idx - 1], catAssets[idx]] = [catAssets[idx], catAssets[idx - 1]];
+      persistOrder(category, catAssets.map((a) => a.id));
+      const otherAssets = prev.filter((a) => a.category !== category);
+      return [...otherAssets, ...catAssets].sort((a, b) => {
+        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+        return catDiff !== 0 ? catDiff : a.order - b.order;
+      });
+    });
+  };
+
+  const moveAssetDown = (assetId: string, category: string) => {
+    setAssets((prev) => {
+      const catAssets = prev.filter((a) => a.category === category);
+      const idx = catAssets.findIndex((a) => a.id === assetId);
+      if (idx === -1 || idx >= catAssets.length - 1) return prev;
+      [catAssets[idx], catAssets[idx + 1]] = [catAssets[idx + 1], catAssets[idx]];
+      persistOrder(category, catAssets.map((a) => a.id));
+      const otherAssets = prev.filter((a) => a.category !== category);
+      return [...otherAssets, ...catAssets].sort((a, b) => {
+        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+        return catDiff !== 0 ? catDiff : a.order - b.order;
+      });
+    });
+  };
+
+  const handleAssetDrop = (targetId: string, category: string) => {
+    if (!dragAssetId || dragAssetId === targetId) return;
+    setAssets((prev) => {
+      const catAssets = prev.filter((a) => a.category === category);
+      const fromIdx = catAssets.findIndex((a) => a.id === dragAssetId);
+      const toIdx = catAssets.findIndex((a) => a.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const [moved] = catAssets.splice(fromIdx, 1);
+      catAssets.splice(toIdx, 0, moved);
+      persistOrder(category, catAssets.map((a) => a.id));
+      const otherAssets = prev.filter((a) => a.category !== category);
+      return [...otherAssets, ...catAssets].sort((a, b) => {
+        const catDiff = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+        return catDiff !== 0 ? catDiff : a.order - b.order;
+      });
+    });
+    setDragAssetId(null);
+    setDragOverAssetId(null);
+  };
 
   const openEditModal = (asset: SalesAsset) => {
     setEditingAsset(asset);
@@ -227,7 +297,7 @@ export default function SalesAssetLibraryPage() {
           </div>
         ) : (
           <>
-            {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((category) => (
+            {[...CATEGORY_ORDER, ...customCategories].filter((cat) => grouped[cat]?.length).map((category) => (
               <div key={category} className="mb-8">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                   {CATEGORY_LABELS[category] || category}
@@ -239,7 +309,15 @@ export default function SalesAssetLibraryPage() {
                     return (
                       <div
                         key={asset.id}
-                        className="bg-white border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group"
+                        draggable
+                        onDragStart={(e) => { setDragAssetId(asset.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => { setDragAssetId(null); setDragOverAssetId(null); }}
+                        onDragOver={(e) => { if (dragAssetId && dragAssetId !== asset.id) { e.preventDefault(); setDragOverAssetId(asset.id); } }}
+                        onDragLeave={() => setDragOverAssetId(null)}
+                        onDrop={() => handleAssetDrop(asset.id, category)}
+                        className={`bg-white border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group ${
+                          dragAssetId === asset.id ? "opacity-40" : ""
+                        } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
                       >
                         {editingMetaId === asset.id ? (
                           <div className="space-y-2">
@@ -265,13 +343,22 @@ export default function SalesAssetLibraryPage() {
                         ) : (
                           <>
                             <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+                              </div>
                               <div className="min-w-0 flex-1">
                                 <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{asset.name}</h3>
                                 {asset.description && (
                                   <p className="text-xs text-gray-500 mt-0.5">{asset.description}</p>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <button onClick={() => moveAssetUp(asset.id, category)} className="p-1 text-gray-400 hover:text-purple-600" title="Move up">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                </button>
+                                <button onClick={() => moveAssetDown(asset.id, category)} className="p-1 text-gray-400 hover:text-purple-600" title="Move down">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
                                 <button
                                   onClick={() => openMetaEdit(asset)}
                                   className="p-1 text-gray-400 hover:text-gray-600"
@@ -379,7 +466,7 @@ export default function SalesAssetLibraryPage() {
                       onChange={(e) => setCustomCategory(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     >
-                      {CATEGORY_ORDER.map((cat) => (
+                      {[...CATEGORY_ORDER, ...customCategories].map((cat) => (
                         <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
                       ))}
                     </select>
@@ -406,6 +493,58 @@ export default function SalesAssetLibraryPage() {
                   className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
                 >
                   + Add Custom Asset
+                </button>
+              )}
+
+              {showAddSection ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    placeholder="New section name..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newSectionName.trim()) {
+                        const key = newSectionName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+                        if (!customCategories.includes(key)) {
+                          setCustomCategories((prev) => [...prev, key]);
+                          CATEGORY_LABELS[key] = newSectionName.trim();
+                        }
+                        setShowAddSection(false);
+                        setNewSectionName("");
+                        setCustomCategory(key);
+                        setShowAddCustom(true);
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const key = newSectionName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+                      if (!newSectionName.trim()) return;
+                      if (!customCategories.includes(key)) {
+                        setCustomCategories((prev) => [...prev, key]);
+                        CATEGORY_LABELS[key] = newSectionName.trim();
+                      }
+                      setShowAddSection(false);
+                      setNewSectionName("");
+                      setCustomCategory(key);
+                      setShowAddCustom(true);
+                    }}
+                    disabled={!newSectionName.trim()}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    Create
+                  </button>
+                  <button onClick={() => setShowAddSection(false)} className="px-3 py-2 text-gray-600 text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddSection(true)}
+                  className="mt-3 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
+                >
+                  + Add New Section
                 </button>
               )}
             </div>
