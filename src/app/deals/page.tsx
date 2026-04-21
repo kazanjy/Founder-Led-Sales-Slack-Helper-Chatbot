@@ -322,7 +322,7 @@ export default function DealsPage() {
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">New Deal</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Create a deal to track a sales opportunity. Import a call to bootstrap it automatically, or create manually.
+              Select all the calls for a deal to automatically build its timeline, or create one manually.
             </p>
 
             {/* Import from Meeting Recorder */}
