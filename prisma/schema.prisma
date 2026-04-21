@@ -2066,6 +2066,7 @@ model SalesAsset {
   description String? @db.Text
   category    String // "messaging" | "materials" | "process" | "onboarding" | "legal" | "custom"
   isDefault   Boolean @default(false)
+  archived    Boolean @default(false)
   slotKey     String? // stable key for defaults: "salesNarrative", "demoScript", etc.
   order       Int     @default(0)
 

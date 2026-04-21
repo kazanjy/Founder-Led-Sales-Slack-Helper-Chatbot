@@ -262,9 +262,36 @@ export default function SalesAssetLibraryPage() {
     await loadAssets();
   };
 
-  const deleteAsset = async (assetId: string) => {
-    if (!confirm("Delete this custom asset? Its version history will also be deleted.")) return;
-    await fetch(`/api/sales-asset-library/${assetId}`, { method: "DELETE" });
+  const deleteAsset = async (asset: SalesAsset) => {
+    if (!confirm(`Permanently delete "${asset.name}"? Its version history will also be deleted. This cannot be undone.`)) return;
+    await fetch(`/api/sales-asset-library/${asset.id}`, { method: "DELETE" });
+    await loadAssets();
+  };
+
+  const archiveAsset = async (asset: SalesAsset) => {
+    await fetch(`/api/sales-asset-library/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+    await loadAssets();
+  };
+
+  const archiveSection = async (category: string, label: string) => {
+    if (!confirm(`Archive the "${label}" section and all its assets? You can restore it later.`)) return;
+    await fetch(`/api/sales-asset-library/sections/${encodeURIComponent(category)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+    await loadAssets();
+  };
+
+  const deleteSection = async (category: string, label: string) => {
+    if (!confirm(`Permanently delete the "${label}" section and all its custom assets? Default assets will remain. This cannot be undone.`)) return;
+    await fetch(`/api/sales-asset-library/sections/${encodeURIComponent(category)}`, {
+      method: "DELETE",
+    });
     await loadAssets();
   };
 
@@ -297,11 +324,34 @@ export default function SalesAssetLibraryPage() {
           </div>
         ) : (
           <>
-            {[...CATEGORY_ORDER, ...customCategories].filter((cat) => grouped[cat]?.length).map((category) => (
-              <div key={category} className="mb-8">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                  {CATEGORY_LABELS[category] || category}
-                </h2>
+            {[...CATEGORY_ORDER, ...customCategories].filter((cat) => grouped[cat]?.length).map((category) => {
+              const categoryLabel = CATEGORY_LABELS[category] || category;
+              const hasOnlyDefaults = grouped[category].every((a) => a.isDefault);
+              return (
+              <div key={category} className="mb-8 group/section">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {categoryLabel}
+                  </h2>
+                  <div className="flex items-center gap-1 opacity-0 group-hover/section:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => archiveSection(category, categoryLabel)}
+                      className="text-xs text-gray-400 hover:text-amber-600 px-2 py-0.5 rounded"
+                      title="Archive section"
+                    >
+                      Archive
+                    </button>
+                    {!hasOnlyDefaults && (
+                      <button
+                        onClick={() => deleteSection(category, categoryLabel)}
+                        className="text-xs text-gray-400 hover:text-red-600 px-2 py-0.5 rounded"
+                        title="Delete custom assets in this section"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {grouped[category].map((asset) => {
                     const latestVersion = asset.versions[0];
@@ -366,11 +416,18 @@ export default function SalesAssetLibraryPage() {
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                 </button>
+                                <button
+                                  onClick={() => archiveAsset(asset)}
+                                  className="p-1 text-gray-400 hover:text-amber-600"
+                                  title="Archive"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                </button>
                                 {!asset.isDefault && (
                                   <button
-                                    onClick={() => deleteAsset(asset.id)}
+                                    onClick={() => deleteAsset(asset)}
                                     className="p-1 text-gray-400 hover:text-red-600"
-                                    title="Delete"
+                                    title="Delete permanently"
                                   >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                   </button>
@@ -445,7 +502,8 @@ export default function SalesAssetLibraryPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             <div className="mt-8">
               {showAddCustom ? (

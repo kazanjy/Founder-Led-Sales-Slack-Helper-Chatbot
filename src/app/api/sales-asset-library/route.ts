@@ -43,7 +43,7 @@ async function ensureDefaults(accountId: string) {
 }
 
 // GET — list all assets for the user's account (auto-seed defaults)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -53,10 +53,15 @@ export async function GET() {
       return NextResponse.json({ error: "No account" }, { status: 400 });
     }
 
+    const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
+
     await ensureDefaults(user.accountId);
 
     const assets = await prisma.salesAsset.findMany({
-      where: { accountId: user.accountId },
+      where: {
+        accountId: user.accountId,
+        ...(includeArchived ? {} : { archived: false }),
+      },
       orderBy: [{ category: "asc" }, { order: "asc" }, { createdAt: "asc" }],
       include: {
         versions: {

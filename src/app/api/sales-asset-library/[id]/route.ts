@@ -33,6 +33,7 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = body.description?.trim() || null;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.order !== undefined) updateData.order = body.order;
+    if (body.archived !== undefined) updateData.archived = !!body.archived;
 
     const updated = await prisma.salesAsset.update({
       where: { id },
