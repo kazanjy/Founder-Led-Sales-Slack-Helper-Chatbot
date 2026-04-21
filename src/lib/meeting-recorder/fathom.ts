@@ -232,7 +232,10 @@ export const fathomProvider: MeetingRecorderProvider = {
     }
 
     const transcript = transcriptEntries
-      .map((entry) => `${entry.speaker.display_name}: ${entry.text}`)
+      .map((entry) => {
+        const ts = entry.timestamp ? `[${entry.timestamp}] ` : "";
+        return `${ts}${entry.speaker.display_name}: ${entry.text}`;
+      })
       .join("\n\n");
 
     return {
@@ -251,7 +254,10 @@ export const fathomProvider: MeetingRecorderProvider = {
 
 function buildCallDetail(m: FathomMeeting, callId: string): MeetingCallDetail {
   const transcript = (m.transcript || [])
-    .map((entry) => `${entry.speaker.display_name}: ${entry.text}`)
+    .map((entry) => {
+      const ts = entry.timestamp ? `[${entry.timestamp}] ` : "";
+      return `${ts}${entry.speaker.display_name}: ${entry.text}`;
+    })
     .join("\n\n");
 
   const invitees = m.calendar_invitees || [];

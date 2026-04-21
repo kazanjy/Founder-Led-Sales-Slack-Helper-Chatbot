@@ -17,7 +17,20 @@ interface GranolaNoteDetail extends GranolaNoteListItem {
   transcript?: Array<{
     speaker: { source: string; diarization_label?: string };
     text: string;
+    start_time?: number; // seconds from meeting start
+    end_time?: number;
+    timestamp?: string; // alternative format some versions return
   }> | null;
+}
+
+function formatGranolaTimestamp(entry: { start_time?: number; timestamp?: string }): string {
+  if (entry.timestamp) return entry.timestamp;
+  if (entry.start_time != null) {
+    const m = Math.floor(entry.start_time / 60);
+    const s = Math.floor(entry.start_time % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+  return "";
 }
 
 async function granolaFetch(path: string, apiKey: string): Promise<Response> {
@@ -117,13 +130,14 @@ export const granolaProvider: MeetingRecorderProvider = {
       return src;
     }
 
-    // Build transcript from speaker-attributed entries
+    // Build transcript from speaker-attributed entries with timestamps
     let transcript = "";
     if (Array.isArray(note.transcript) && note.transcript.length > 0) {
       transcript = note.transcript
         .map((entry) => {
           const speakerName = resolveSpeaker(entry.speaker);
-          return `${speakerName}: ${entry.text}`;
+          const ts = formatGranolaTimestamp(entry);
+          return ts ? `[${ts}] ${speakerName}: ${entry.text}` : `${speakerName}: ${entry.text}`;
         })
         .join("\n\n");
     }
