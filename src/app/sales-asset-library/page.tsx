@@ -670,7 +670,7 @@ export default function SalesAssetLibraryPage() {
                     </select>
                     <div className="flex gap-2">
                       <button
-                        onClick={addCustomAsset}
+                        onClick={() => addCustomAsset()}
                         disabled={!customName.trim() || addingCustom}
                         className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
                       >
