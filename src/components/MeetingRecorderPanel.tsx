@@ -34,12 +34,11 @@ interface MeetingRecorderPanelProps {
   onSelectCall?: (data: SelectedCallData) => void;
   onSelectCalls?: (calls: SelectedCallData[]) => void;
   defaultCollapsed?: boolean;
-  lazyLoadUpTo?: number; // auto-fetch additional calls in background after initial render
 }
 
-const LOAD_MORE_BATCH_SIZE = 15;
+const DEEP_SEARCH_LIMIT = 200;
 
-export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false, lazyLoadUpTo }: MeetingRecorderPanelProps) {
+export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false }: MeetingRecorderPanelProps) {
   const multiSelectMode = !!onSelectCalls;
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [calls, setCalls] = useState<Array<{ provider: string; providerName: string; calls: MeetingCall[] }>>([]);
@@ -63,7 +62,8 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
   const [selectedCallIds, setSelectedCallIds] = useState<Set<string>>(new Set());
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
-  const [autoLoading, setAutoLoading] = useState(false);
+  const [deepSearching, setDeepSearching] = useState(false);
+  const [deepSearchDone, setDeepSearchDone] = useState(false);
 
   // Fetch existing recaps/reviews for the current call list
   const fetchExistingMatches = useCallback(async (callGroups: Array<{ calls: MeetingCall[] }>) => {
@@ -107,74 +107,54 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
     setLoading(false);
   }, [fetchExistingMatches]);
 
-  // Fetch at a specific limit with failure-safe semantics.
-  // Returns { prevTotal, newTotal } on success, or null on any failure
-  // (network error, non-OK response, or a response that would shrink the visible list).
-  // The visible list is never replaced with fewer calls than we already have —
-  // that almost always indicates a transient provider rate-limit / timeout.
-  const fetchAtLimit = useCallback(async (targetLimit: number): Promise<{ prevTotal: number; newTotal: number } | null> => {
-    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
-    try {
-      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${targetLimit}`);
-      if (!callsRes.ok) return null;
-      const callsData = await callsRes.json();
-      const callGroups = callsData.calls || [];
-      const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
-      if (prevTotal > 0 && newTotal < prevTotal) {
-        console.warn(`[MeetingRecorder] Refusing to replace ${prevTotal} calls with ${newTotal} — keeping existing list`);
-        return null;
-      }
-      setCalls(callGroups);
-      setCallLimit(targetLimit);
-      fetchExistingMatches(callGroups);
-      if (newTotal <= prevTotal) setHasMore(false);
-      return { prevTotal, newTotal };
-    } catch {
-      return null;
-    }
-  }, [calls, fetchExistingMatches]);
-
   const handleLoadMore = useCallback(async () => {
+    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
+    const newLimit = callLimit + 15;
     setLoadingMore(true);
-    await fetchAtLimit(callLimit + LOAD_MORE_BATCH_SIZE);
+    try {
+      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${newLimit}`);
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        const callGroups = callsData.calls || [];
+        const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
+        if (prevTotal > 0 && newTotal < prevTotal) {
+          console.warn(`[MeetingRecorder] Refusing to replace ${prevTotal} calls with ${newTotal}`);
+        } else {
+          setCalls(callGroups);
+          setCallLimit(newLimit);
+          fetchExistingMatches(callGroups);
+          if (newTotal <= prevTotal) setHasMore(false);
+        }
+      }
+    } catch { /* ignore */ }
     setLoadingMore(false);
-  }, [callLimit, fetchAtLimit]);
+  }, [callLimit, calls, fetchExistingMatches]);
+
+  // Deep Search: fetch up to DEEP_SEARCH_LIMIT calls in one shot for full-history search
+  const handleDeepSearch = useCallback(async () => {
+    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
+    setDeepSearching(true);
+    try {
+      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${DEEP_SEARCH_LIMIT}`);
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        const callGroups = callsData.calls || [];
+        const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
+        if (newTotal >= prevTotal) {
+          setCalls(callGroups);
+          setCallLimit(DEEP_SEARCH_LIMIT);
+          fetchExistingMatches(callGroups);
+          setHasMore(false);
+          setDeepSearchDone(true);
+        }
+      }
+    } catch { /* ignore */ }
+    setDeepSearching(false);
+  }, [calls, fetchExistingMatches]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Background lazy-load: after initial load, keep fetching more calls up to lazyLoadUpTo.
-  // Stops immediately on any failure (fetchAtLimit returns null) so we don't hammer a
-  // rate-limited provider — the user can still manually "Load more" later.
-  useEffect(() => {
-    if (!lazyLoadUpTo || loading || !connected || autoLoading) return;
-    const initialTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
-    if (initialTotal === 0 || initialTotal >= lazyLoadUpTo || !hasMore) return;
-
-    let cancelled = false;
-    (async () => {
-      setAutoLoading(true);
-      let nextLimit = callLimit + LOAD_MORE_BATCH_SIZE;
-      let lastTotal = initialTotal;
-      while (!cancelled) {
-        const capped = Math.min(nextLimit, lazyLoadUpTo);
-        const result = await fetchAtLimit(capped);
-        if (!result) break; // failure or shrinkage — back off
-        if (result.newTotal <= lastTotal) {
-          setHasMore(false);
-          break;
-        }
-        lastTotal = result.newTotal;
-        if (result.newTotal >= lazyLoadUpTo) break;
-        nextLimit = capped + LOAD_MORE_BATCH_SIZE;
-      }
-      if (!cancelled) setAutoLoading(false);
-    })();
-    return () => { cancelled = true; };
-    // Intentionally only reacts to loading/connected changing to avoid refiring on every call update
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, connected, lazyLoadUpTo]);
 
   const handleConnect = async () => {
     if (!showConnectModal || !apiKeyInput.trim()) return;
@@ -437,12 +417,12 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   <span className="text-xs text-green-600 font-medium">✓ {group.providerName}</span>
                   <span className="text-xs text-gray-400">
                     {q
-                      ? `· ${visibleInGroup} of ${totalInGroup} match`
-                      : `· ${totalInGroup} recent call${totalInGroup === 1 ? "" : "s"}`}
+                      ? `· ${visibleInGroup} of ${totalInGroup} match${deepSearchDone ? " (full history)" : ""}`
+                      : `· ${totalInGroup} recent call${totalInGroup === 1 ? "" : "s"}${deepSearchDone ? " (full history)" : ""}`}
                   </span>
-                  {autoLoading && (
+                  {deepSearching && (
                     <span className="text-xs text-gray-400 flex items-center gap-1">
-                      · loading more
+                      · searching history
                       <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -549,23 +529,50 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                     <p className="text-sm text-gray-400 text-center py-4">No calls match &quot;{searchQuery}&quot;</p>
                   )}
                 </div>
-                {totalInGroup > 0 && hasMore && !autoLoading && (
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    className="w-full mt-2 py-1.5 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                {/* Load more + Deep Search */}
+                {totalInGroup > 0 && hasMore && !deepSearching && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="flex-1 py-1.5 text-xs text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Loading...
+                        </>
+                      ) : (
+                        "Load more calls..."
+                      )}
+                    </button>
+                    {!deepSearchDone && (
+                      <button
+                        onClick={handleDeepSearch}
+                        disabled={deepSearching}
+                        className="flex-1 py-1.5 text-xs text-purple-700 font-medium hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Loading...
-                      </>
-                    ) : (
-                      "Load more calls..."
+                        Deep Search (full history)
+                      </button>
                     )}
+                  </div>
+                )}
+                {/* Deep Search prompt when search query has no matches and more calls exist */}
+                {q && visibleInGroup === 0 && hasMore && !deepSearchDone && !deepSearching && (
+                  <button
+                    onClick={handleDeepSearch}
+                    className="w-full mt-1 py-2 text-xs text-purple-700 font-medium bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    No matches — search your full call history?
                   </button>
                 )}
               </div>

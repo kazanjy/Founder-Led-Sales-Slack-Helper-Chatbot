@@ -49,25 +49,7 @@ export const firefliesProvider: MeetingRecorderProvider = {
   },
 
   async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
-    const data = await firefliesQuery(apiKey, `
-      query ListTranscripts($limit: Int) {
-        transcripts(limit: $limit) {
-          id
-          title
-          date
-          duration
-          participants
-          transcript_url
-          summary {
-            overview
-          }
-        }
-      }
-    `, { limit });
-
-    const transcripts = data?.transcripts || [];
-
-    return transcripts.map((t: {
+    const allTranscripts: Array<{
       id: string;
       title: string;
       date: string;
@@ -75,7 +57,35 @@ export const firefliesProvider: MeetingRecorderProvider = {
       participants: string[];
       transcript_url: string;
       summary?: { overview?: string };
-    }) => ({
+    }> = [];
+
+    // Fireflies uses skip-based (offset) pagination
+    while (allTranscripts.length < limit) {
+      const pageSize = Math.min(limit - allTranscripts.length, 50);
+      const data = await firefliesQuery(apiKey, `
+        query ListTranscripts($limit: Int, $skip: Int) {
+          transcripts(limit: $limit, skip: $skip) {
+            id
+            title
+            date
+            duration
+            participants
+            transcript_url
+            summary {
+              overview
+            }
+          }
+        }
+      `, { limit: pageSize, skip: allTranscripts.length });
+
+      const transcripts = data?.transcripts || [];
+      allTranscripts.push(...transcripts);
+
+      // If we got fewer than requested, there are no more
+      if (transcripts.length < pageSize) break;
+    }
+
+    return allTranscripts.map((t) => ({
       id: t.id,
       title: t.title || "Untitled Meeting",
       date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
