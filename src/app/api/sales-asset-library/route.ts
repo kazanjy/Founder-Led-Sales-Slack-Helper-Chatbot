@@ -3,32 +3,43 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { DEFAULT_SLOTS } from "@/lib/sales-asset-library/seed-data";
 
-// Ensure the 14 default slots exist for the given account
+// Ensure the 14 default slots exist for the given account and are up to date
 async function ensureDefaults(accountId: string) {
   const existing = await prisma.salesAsset.findMany({
     where: { accountId, isDefault: true },
-    select: { slotKey: true },
+    select: { id: true, slotKey: true, category: true, order: true },
   });
-  const existingKeys = new Set(existing.map((e) => e.slotKey));
+  const existingMap = new Map(existing.map((e) => [e.slotKey, e]));
 
-  const toCreate = DEFAULT_SLOTS
-    .map((slot, idx) => ({ ...slot, order: idx }))
-    .filter((slot) => !existingKeys.has(slot.slotKey));
+  const slotsWithOrder = DEFAULT_SLOTS.map((slot, idx) => ({ ...slot, order: idx }));
 
-  if (toCreate.length === 0) return;
+  const toCreate = slotsWithOrder.filter((slot) => !existingMap.has(slot.slotKey));
 
-  await prisma.salesAsset.createMany({
-    data: toCreate.map((slot) => ({
-      accountId,
-      name: slot.name,
-      description: slot.description || null,
-      category: slot.category,
-      isDefault: true,
-      slotKey: slot.slotKey,
-      order: slot.order,
-    })),
-    skipDuplicates: true,
-  });
+  if (toCreate.length > 0) {
+    await prisma.salesAsset.createMany({
+      data: toCreate.map((slot) => ({
+        accountId,
+        name: slot.name,
+        description: slot.description || null,
+        category: slot.category,
+        isDefault: true,
+        slotKey: slot.slotKey,
+        order: slot.order,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  // Fix category/order for existing slots that may have drifted from seed data
+  for (const slot of slotsWithOrder) {
+    const ex = existingMap.get(slot.slotKey);
+    if (ex && (ex.category !== slot.category || ex.order !== slot.order)) {
+      await prisma.salesAsset.update({
+        where: { id: ex.id },
+        data: { category: slot.category, order: slot.order },
+      });
+    }
+  }
 }
 
 // GET — list all assets for the user's account (auto-seed defaults)

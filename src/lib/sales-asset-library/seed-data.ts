@@ -14,6 +14,7 @@ export const DEFAULT_SLOTS: DefaultSlot[] = [
   { slotKey: "objectionsAndFaqs", name: "Objections and FAQs", category: "messaging", description: "Common objections with handles and FAQ responses" },
 
   // Sales Materials
+  { slotKey: "firstCallChecklistAndDiscovery", name: "First Call Checklist & Discovery Questions", category: "materials", description: "Checklist and question bank for first calls" },
   { slotKey: "salesDeck", name: "Sales Deck", category: "materials", description: "Main pitch deck" },
   { slotKey: "salesDeckScript", name: "Sales Deck Script", category: "materials", description: "Talk track and speaker notes for the deck" },
   { slotKey: "demoScript", name: "Demo Script", category: "materials", description: "Structured demo flow and talking points" },
@@ -24,7 +25,6 @@ export const DEFAULT_SLOTS: DefaultSlot[] = [
 
   // Process
   { slotKey: "salesPlaybook", name: "Sales Playbook", category: "process", description: "End-to-end sales process documentation" },
-  { slotKey: "firstCallChecklistAndDiscovery", name: "First Call Checklist & Discovery Questions", category: "process", description: "Checklist and question bank for first calls" },
 
   // Onboarding
   { slotKey: "onboardingChecklist", name: "Onboarding Checklist", category: "onboarding", description: "Steps for new customer onboarding" },
