@@ -2,6 +2,12 @@ import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./inter
 
 const GRAPHQL_URL = "https://api.fireflies.ai/graphql";
 
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 async function firefliesQuery(apiKey: string, query: string, variables?: Record<string, unknown>) {
   const res = await fetch(GRAPHQL_URL, {
     method: "POST",
@@ -93,6 +99,8 @@ export const firefliesProvider: MeetingRecorderProvider = {
           sentences {
             speaker_name
             text
+            start_time
+            end_time
           }
           summary {
             overview
@@ -105,9 +113,12 @@ export const firefliesProvider: MeetingRecorderProvider = {
     const t = data?.transcript;
     if (!t) throw new Error("Transcript not found");
 
-    // Build transcript from sentences with speaker attribution
+    // Build transcript from sentences with speaker attribution and timestamps
     const transcript = (t.sentences || [])
-      .map((s: { speaker_name: string; text: string }) => `${s.speaker_name}: ${s.text}`)
+      .map((s: { speaker_name: string; text: string; start_time?: number; end_time?: number }) => {
+        const ts = s.start_time != null ? formatTimestamp(s.start_time) : "";
+        return ts ? `[${ts}] ${s.speaker_name}: ${s.text}` : `${s.speaker_name}: ${s.text}`;
+      })
       .join("\n\n");
 
     return {
