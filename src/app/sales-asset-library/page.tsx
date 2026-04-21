@@ -63,6 +63,7 @@ export default function SalesAssetLibraryPage() {
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [addingInCategory, setAddingInCategory] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
   const [customDescription, setCustomDescription] = useState("");
   const [customCategory, setCustomCategory] = useState("custom");
@@ -271,6 +272,8 @@ export default function SalesAssetLibraryPage() {
     await loadAssets();
   };
 
+  const [customUrl, setCustomUrl] = useState("");
+
   const addCustomAsset = async () => {
     if (!customName.trim()) return;
     setAddingCustom(true);
@@ -285,9 +288,20 @@ export default function SalesAssetLibraryPage() {
         }),
       });
       if (res.ok) {
+        const data = await res.json();
+        // If a URL was provided at creation, create the first version
+        if (customUrl.trim() && data.asset?.id) {
+          await fetch(`/api/sales-asset-library/${data.asset.id}/versions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: customUrl.trim() }),
+          });
+        }
         setShowAddCustom(false);
+        setAddingInCategory(null);
         setCustomName("");
         setCustomDescription("");
+        setCustomUrl("");
         setCustomCategory("custom");
         await loadAssets();
       }
@@ -429,11 +443,11 @@ export default function SalesAssetLibraryPage() {
                       <div
                         key={asset.id}
                         draggable
-                        onDragStart={(e) => { setDragAssetId(asset.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragStart={(e) => { e.stopPropagation(); setDragAssetId(asset.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragEnd={() => { setDragAssetId(null); setDragOverAssetId(null); }}
-                        onDragOver={(e) => { if (dragAssetId && dragAssetId !== asset.id) { e.preventDefault(); setDragOverAssetId(asset.id); } }}
-                        onDragLeave={() => setDragOverAssetId(null)}
-                        onDrop={() => handleAssetDrop(asset.id, category)}
+                        onDragOver={(e) => { if (dragAssetId && dragAssetId !== asset.id) { e.preventDefault(); e.stopPropagation(); setDragOverAssetId(asset.id); } }}
+                        onDragLeave={(e) => { e.stopPropagation(); setDragOverAssetId(null); }}
+                        onDrop={(e) => { e.stopPropagation(); handleAssetDrop(asset.id, category); }}
                         className={`bg-white border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group ${
                           dragAssetId === asset.id ? "opacity-40" : ""
                         } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
@@ -564,12 +578,57 @@ export default function SalesAssetLibraryPage() {
                       </div>
                     );
                   })}
-                  <button
-                    onClick={() => { setCustomCategory(category); setShowAddCustom(true); }}
-                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
-                  >
-                    + Add Asset
-                  </button>
+                  {addingInCategory === category ? (
+                    <div className="border border-purple-200 bg-purple-50/30 rounded-xl p-3 space-y-2">
+                      <input
+                        type="text"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                        placeholder="Asset name (e.g., Security Questionnaire)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") { setAddingInCategory(null); setCustomName(""); setCustomDescription(""); setCustomUrl(""); }
+                        }}
+                      />
+                      <input
+                        type="url"
+                        value={customUrl}
+                        onChange={(e) => setCustomUrl(e.target.value)}
+                        placeholder="URL (optional — paste link now or add later)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      />
+                      <input
+                        type="text"
+                        value={customDescription}
+                        onChange={(e) => setCustomDescription(e.target.value)}
+                        placeholder="Description (optional)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setCustomCategory(category); addCustomAsset(); }}
+                          disabled={!customName.trim() || addingCustom}
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {addingCustom ? "Adding..." : "Add"}
+                        </button>
+                        <button
+                          onClick={() => { setAddingInCategory(null); setCustomName(""); setCustomDescription(""); }}
+                          className="px-3 py-1.5 text-gray-600 text-sm hover:bg-gray-100 rounded-lg"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setAddingInCategory(category); setCustomName(""); setCustomDescription(""); }}
+                      className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
+                    >
+                      + Add Asset
+                    </button>
+                  )}
                 </div>
               </div>
               );
@@ -587,6 +646,13 @@ export default function SalesAssetLibraryPage() {
                       placeholder="Asset name (e.g., Security Questionnaire)"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                       autoFocus
+                    />
+                    <input
+                      type="url"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="URL (optional — paste link now or add later)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     />
                     <input
                       type="text"
