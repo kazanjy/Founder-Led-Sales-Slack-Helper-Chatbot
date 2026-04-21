@@ -29,7 +29,7 @@ export async function GET(
       where: { id },
       include: {
         participants: { orderBy: { createdAt: "asc" } },
-        entries: { orderBy: { entryDate: "desc" } },
+        entries: { orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }] },
         project: { select: { id: true, name: true } },
       },
     });

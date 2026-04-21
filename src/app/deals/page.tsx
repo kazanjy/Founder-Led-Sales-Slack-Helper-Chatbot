@@ -374,14 +374,27 @@ export default function DealsPage() {
                   </button>
                 </div>
                 <ul className="space-y-1">
-                  {importedCalls.map((call, i) => (
-                    <li key={(call.recordingUrl || "") + i} className="flex items-center justify-between gap-2 text-xs text-purple-800">
+                  {[...importedCalls]
+                    .map((call, origIdx) => ({ call, origIdx }))
+                    .sort((a, b) => {
+                      // Newest first — matches timeline display order
+                      const da = a.call.date ? new Date(a.call.date).getTime() : 0;
+                      const db = b.call.date ? new Date(b.call.date).getTime() : 0;
+                      return db - da;
+                    })
+                    .map(({ call, origIdx }) => (
+                    <li key={(call.recordingUrl || "") + origIdx} className="flex items-center justify-between gap-2 text-xs text-purple-800">
                       <span className="truncate">
+                        {call.date && (
+                          <span className="text-purple-500 mr-1.5">
+                            {new Date(call.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        )}
                         <span className="font-medium">{call.title || "Untitled"}</span>
                         <span className="text-purple-600"> · {call.attendees?.length || 0} attendee{(call.attendees?.length || 0) === 1 ? "" : "s"}</span>
                       </span>
                       <button
-                        onClick={() => setImportedCalls((prev) => prev.filter((_, idx) => idx !== i))}
+                        onClick={() => setImportedCalls((prev) => prev.filter((_, idx) => idx !== origIdx))}
                         className="text-purple-500 hover:text-purple-800 flex-shrink-0"
                         aria-label="Remove call"
                       >
