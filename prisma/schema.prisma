@@ -127,6 +127,7 @@ model User {
   sessions                   Session[]
   savedPrompts               SavedPrompt[]
   salesAssetVersions         SalesAssetVersion[]
+  deals                      Deal[]
   dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
   promptGuidance             String?                     @db.Text // User's custom prompt guidance (tone, style, etc.)
   gtmVariables               GtmVariable[]
@@ -324,6 +325,7 @@ model Project {
   order       Int     @default(0)
 
   conversations Conversation[]
+  deals         Deal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2102,4 +2104,90 @@ model SalesAssetVersion {
 
   @@index([assetId, createdAt])
   @@map("sales_asset_versions")
+}
+
+// ============================================
+// DEALS
+// ============================================
+
+model Deal {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String // "Visana - Enterprise Deal"
+  companyName String // "Visana Health"
+  companyUrl  String? // for PDL company enrichment
+
+  stage  String @default("prospecting") // "prospecting" | "discovery" | "demo" | "proposal" | "negotiation" | "closing" | "won" | "lost"
+  status String @default("active") // "active" | "stalled" | "closed_won" | "closed_lost"
+
+  notes String? @db.Text
+
+  // Latest AI state assessment (JSON)
+  lastAnalysis   String?   @db.Text
+  lastAnalyzedAt DateTime?
+
+  // Optional link to a Project (chat folder)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  participants DealParticipant[]
+  entries      DealTimelineEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([projectId])
+  @@map("deals")
+}
+
+model DealParticipant {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  name        String
+  title       String?
+  company     String?
+  email       String?
+  linkedinUrl String?
+
+  role String @default("unknown") // "champion" | "decision_maker" | "influencer" | "blocker" | "end_user" | "unknown"
+
+  // Cached PDL enrichment
+  pdlData        String?   @db.Text
+  pdlEnrichedAt  DateTime?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+  @@map("deal_participants")
+}
+
+model DealTimelineEntry {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  type String // "call_transcript" | "call_summary" | "email" | "screenshot" | "note" | "linkedin" | "document"
+
+  title     String?
+  content   String  @db.Text
+  sourceUrl String?
+  metadata  String? @db.Text // JSON: { callType?, participants?, extractedFrom?, imageDescription?, etc. }
+
+  order     Int      @default(0)
+  entryDate DateTime @default(now()) // when this engagement happened
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, entryDate(sort: Desc)])
+  @@map("deal_timeline_entries")
 }
