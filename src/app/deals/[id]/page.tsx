@@ -69,6 +69,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaName, setMetaName] = useState("");
   const [metaCompanyName, setMetaCompanyName] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [enrichingPid, setEnrichingPid] = useState<string | null>(null);
+  const [processingScreenshot, setProcessingScreenshot] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -192,6 +196,77 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     await loadDeal();
   };
 
+  const analyzeDeal = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/analyze`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setDeal((prev) => prev ? { ...prev, lastAnalysis: data.analysis, lastAnalyzedAt: new Date().toISOString() } : prev);
+        setShowAnalysis(true);
+      }
+    } catch (error) {
+      console.error("Failed to analyze deal:", error);
+    }
+    setAnalyzing(false);
+  };
+
+  const enrichParticipant = async (pid: string) => {
+    setEnrichingPid(pid);
+    try {
+      const res = await fetch(`/api/deals/${id}/participants/${pid}/enrich`, { method: "POST" });
+      if (res.ok) {
+        await loadDeal();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Enrichment failed");
+      }
+    } catch {
+      alert("Enrichment failed");
+    }
+    setEnrichingPid(null);
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+        setProcessingScreenshot(true);
+        try {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => {
+              const result = reader.result as string;
+              resolve(result.split(",")[1]);
+            };
+            reader.readAsDataURL(file);
+          });
+          const res = await fetch(`/api/deals/${id}/screenshot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            await addEntry({
+              type: "screenshot",
+              title: data.title,
+              content: data.content,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to process screenshot:", error);
+        }
+        setProcessingScreenshot(false);
+        return;
+      }
+    }
+  };
+
   if (loading && !deal) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -289,6 +364,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 {DEAL_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
               <button
+                onClick={analyzeDeal}
+                disabled={analyzing || deal.entries.length === 0}
+                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-xs font-medium shadow hover:shadow-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {analyzing ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                    Analyzing...
+                  </>
+                ) : "🧠 Analyze Deal"}
+              </button>
+              <button
                 onClick={deleteDeal}
                 className="text-xs text-gray-400 hover:text-red-600 px-2 py-1"
                 title="Delete deal"
@@ -298,6 +385,44 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
         </div>
+
+        {/* Analysis panel */}
+        {deal.lastAnalysis && (
+          <div className="bg-white border border-purple-200 rounded-xl mb-5">
+            <button
+              onClick={() => setShowAnalysis(!showAnalysis)}
+              className="w-full flex items-center justify-between px-5 py-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-purple-900">🧠 Deal Analysis</span>
+                {deal.lastAnalyzedAt && (
+                  <span className="text-xs text-gray-400">
+                    · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                )}
+              </div>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform ${showAnalysis ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showAnalysis && (
+              <div className="px-5 pb-5 border-t border-purple-100">
+                <div className="prose prose-sm max-w-none text-gray-700 mt-3 whitespace-pre-wrap">
+                  {deal.lastAnalysis}
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    onClick={analyzeDeal}
+                    disabled={analyzing}
+                    className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1"
+                  >
+                    {analyzing ? "Analyzing..." : "↻ Re-analyze"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
           {/* Participants sidebar */}
@@ -339,21 +464,46 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     <div key={p.id} className="border border-gray-200 rounded-lg p-2.5 group/p">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm text-gray-900 truncate">{p.name}</div>
-                          {p.title && <div className="text-xs text-gray-500 truncate">{p.title}</div>}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-sm text-gray-900 truncate">{p.name}</span>
+                            {p.linkedinUrl && (
+                              <a href={p.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 flex-shrink-0" title="LinkedIn">
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+                              </a>
+                            )}
+                          </div>
+                          {p.title && <div className="text-xs text-gray-500 truncate">{p.title}{p.company ? ` @ ${p.company}` : ""}</div>}
+                          {!p.title && p.company && <div className="text-xs text-gray-500 truncate">{p.company}</div>}
                           {p.email && <div className="text-xs text-gray-400 truncate">{p.email}</div>}
                         </div>
                         <button onClick={() => deleteParticipant(p.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover/p:opacity-100" title="Remove">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
-                      <select
-                        value={p.role}
-                        onChange={(e) => updateParticipantRole(p.id, e.target.value)}
-                        className={`mt-1.5 text-xs font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${roleInfo.color}`}
-                      >
-                        {PARTICIPANT_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <select
+                          value={p.role}
+                          onChange={(e) => updateParticipantRole(p.id, e.target.value)}
+                          className={`text-xs font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${roleInfo.color}`}
+                        >
+                          {PARTICIPANT_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                        {p.email && !p.pdlEnrichedAt && (
+                          <button
+                            onClick={() => enrichParticipant(p.id)}
+                            disabled={enrichingPid === p.id}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 flex items-center gap-0.5"
+                            title="Enrich via People Data Labs"
+                          >
+                            {enrichingPid === p.id ? (
+                              <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                            ) : "Enrich"}
+                          </button>
+                        )}
+                        {p.pdlEnrichedAt && (
+                          <span className="text-xs text-green-600" title={`Enriched ${new Date(p.pdlEnrichedAt).toLocaleDateString()}`}>✓</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -387,10 +537,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               <textarea
                 value={newEntryContent}
                 onChange={(e) => setNewEntryContent(e.target.value)}
-                placeholder="Paste content — call transcript, email, notes..."
+                onPaste={handlePaste}
+                placeholder="Paste content — call transcript, email, notes, or Cmd+V a screenshot..."
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y mb-2"
               />
+              {processingScreenshot && (
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                  <span className="text-xs text-purple-600">Extracting text from screenshot...</span>
+                </div>
+              )}
               <input
                 type="url"
                 value={newEntryUrl}
