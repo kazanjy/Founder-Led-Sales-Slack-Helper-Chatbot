@@ -268,8 +268,9 @@ export default function SalesAssetLibraryPage() {
 
   const [customUrl, setCustomUrl] = useState("");
 
-  const addCustomAsset = async () => {
+  const addCustomAsset = async (categoryOverride?: string) => {
     if (!customName.trim()) return;
+    const cat = categoryOverride || customCategory;
     setAddingCustom(true);
     try {
       const res = await fetch("/api/sales-asset-library", {
@@ -278,7 +279,7 @@ export default function SalesAssetLibraryPage() {
         body: JSON.stringify({
           name: customName.trim(),
           description: customDescription.trim() || undefined,
-          category: customCategory,
+          category: cat,
         }),
       });
       if (res.ok) {
@@ -604,7 +605,7 @@ export default function SalesAssetLibraryPage() {
                       />
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { setCustomCategory(category); addCustomAsset(); }}
+                          onClick={() => addCustomAsset(category)}
                           disabled={!customName.trim() || addingCustom}
                           className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
                         >
