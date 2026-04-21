@@ -435,6 +435,52 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     }));
   };
 
+  const moveGoalUp = (goalId: string) => {
+    setGoals((prev) => {
+      const idx = prev.findIndex((g) => g.id === goalId);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      persistGoalOrder(next);
+      return next;
+    });
+  };
+
+  const moveGoalDown = (goalId: string) => {
+    setGoals((prev) => {
+      const idx = prev.findIndex((g) => g.id === goalId);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      persistGoalOrder(next);
+      return next;
+    });
+  };
+
+  const moveTaskUp = (goalId: string, taskId: string) => {
+    setGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const idx = g.tasks.findIndex((t) => t.id === taskId);
+      if (idx <= 0) return g;
+      const next = [...g.tasks];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      persistTaskOrder(next);
+      return { ...g, tasks: next };
+    }));
+  };
+
+  const moveTaskDown = (goalId: string, taskId: string) => {
+    setGoals((prev) => prev.map((g) => {
+      if (g.id !== goalId) return g;
+      const idx = g.tasks.findIndex((t) => t.id === taskId);
+      if (idx === -1 || idx >= g.tasks.length - 1) return g;
+      const next = [...g.tasks];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      persistTaskOrder(next);
+      return { ...g, tasks: next };
+    }));
+  };
+
   const handleGoalDrop = (targetGoalId: string) => {
     if (!dragGoal || dragGoal === targetGoalId) return;
     setGoals((prev) => {
@@ -1485,10 +1531,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </div>
                 {canEdit && (
                   <>
-                    <button onClick={() => sendGoalToTop(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Send to top">
+                    <button onClick={() => moveGoalUp(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Move up">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                     </button>
-                    <button onClick={() => sendGoalToBottom(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Send to bottom">
+                    <button onClick={() => moveGoalDown(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Move down">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                   </>
@@ -1677,10 +1723,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         <div className="flex-shrink-0 flex items-center gap-1">
                           {canEdit && (
                             <>
-                              <button onClick={() => sendTaskToTop(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Send to top">
+                              <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Move up">
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                               </button>
-                              <button onClick={() => sendTaskToBottom(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Send to bottom">
+                              <button onClick={() => moveTaskDown(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Move down">
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                               </button>
                             </>
