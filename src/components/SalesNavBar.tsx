@@ -23,7 +23,6 @@ const callExecutionItems: NavItem[] = [
   { href: "/call-recap/new", label: "✉️ Call Recap Email", statusKey: "callRecap" },
   { href: "/call-review", label: "📞 Call Coaching", statusKey: "callReview" },
   { href: "/call-scripts", label: "🎯 Cold Call Scripts", statusKey: "coldCallScript" },
-  { href: "/deals", label: "💼 Deals", statusKey: "deals" },
 ];
 
 const standaloneItems: NavItem[] = [
@@ -223,7 +222,7 @@ export default function SalesNavBar() {
           </button>
           <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
             {(() => {
-              const activeItem = [...allNavItems, ...playbookItems, { href: "/chat", label: "💬 Chat", statusKey: "chat" }].find(item => isActive(item.href));
+              const activeItem = [...allNavItems, ...playbookItems, { href: "/chat", label: "💬 Chat", statusKey: "chat" }, { href: "/deals", label: "💼 Deals", statusKey: "deals" }].find(item => isActive(item.href));
               return activeItem?.label || "💬 Chat";
             })()}
           </span>
@@ -241,6 +240,15 @@ export default function SalesNavBar() {
                 }`}
               >
                 💬 Chat
+              </Link>
+              <Link
+                href="/deals"
+                onClick={closeMenus}
+                className={`block px-4 py-3 text-sm font-medium transition-colors ${
+                  isActive("/deals") ? "bg-purple-50 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+              >
+                💼 Deals
               </Link>
               {/* Playbook section */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
@@ -353,6 +361,18 @@ export default function SalesNavBar() {
             }`}
           >
             💬 Chat
+          </Link>
+
+          {/* Deals */}
+          <Link
+            href="/deals"
+            className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+              isActive("/deals")
+                ? "border-purple-600 text-purple-600"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+            }`}
+          >
+            💼 Deals
           </Link>
 
           {/* GTM Maturity dropdown */}
