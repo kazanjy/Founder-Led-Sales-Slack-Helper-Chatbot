@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { sendToChatbase } from "@/lib/chatbase/client";
+import { openai } from "@/lib/openai";
 import { extractProductName } from "@/lib/extract-product-name";
 
 // Allow up to 120s for Chatbase AI generation
@@ -208,20 +208,27 @@ ${narrative?.narrative ?? "No sales narrative available."}
 
 ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${icpSection}` : ""}`;
 
-    console.log(`Sending first call checklist prompt: ${mainPrompt.length} chars (+ ${example1.length} + ${example2.length} chars in history)`);
+    const totalChars = mainPrompt.length + example1.length + example2.length;
+    console.log(`Sending first call checklist prompt: ${mainPrompt.length} chars (+ ${example1.length} + ${example2.length} chars in history, ${totalChars} total) via GPT-5.2`);
 
-    // Call Chatbase with examples as conversation history to stay within per-message limits
+    // Use GPT-5.2 directly — the prompt is too large for Chatbase's 7.5K char limit
     let aiResponse = "";
     try {
-      const chatbaseResult = await sendToChatbase(mainPrompt, undefined, [
-        { role: "user" as const, content: example1 },
-        { role: "assistant" as const, content: "I've studied Example 1 (Julius). I see the structure: Persona Reference Library with org + individual persona tables, Pre-Call Planning with research steps and persona selection template, Rapport & Introduction with credibility framing and agenda set, Discovery with must-ask questions and follow-ups, and closing scripts. Ready for Example 2." },
-        { role: "user" as const, content: example2 },
-        { role: "assistant" as const, content: "I've studied Example 2 (Synthesis). I see the additional depth: background modifiers, persona-specific intro scripts, 'why we ask this' for each question, signal check framework, disqualification script, narrative positioning with bridge language table, and strategic framing rules. I'm ready to generate a First Call Checklist with this level of detail." },
-      ]);
-      aiResponse = chatbaseResult.response;
-    } catch (chatbaseError) {
-      console.error("Chatbase API error:", chatbaseError);
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: "You are an expert sales coach specializing in founder-led sales. Generate detailed, actionable first call checklists with verbatim scripts — not generic advice. Return raw markdown (no code blocks)." },
+          { role: "user", content: example1 },
+          { role: "assistant", content: "I've studied Example 1 (Julius). I see the structure: Persona Reference Library with org + individual persona tables, Pre-Call Planning with research steps and persona selection template, Rapport & Introduction with credibility framing and agenda set, Discovery with must-ask questions and follow-ups, and closing scripts. Ready for Example 2." },
+          { role: "user", content: example2 },
+          { role: "assistant", content: "I've studied Example 2 (Synthesis). I see the additional depth: background modifiers, persona-specific intro scripts, 'why we ask this' for each question, signal check framework, disqualification script, narrative positioning with bridge language table, and strategic framing rules. I'm ready to generate a First Call Checklist with this level of detail." },
+          { role: "user", content: mainPrompt },
+        ],
+        temperature: 0.7,
+      });
+      aiResponse = response.choices[0]?.message?.content || "";
+    } catch (aiError) {
+      console.error("GPT API error:", aiError);
       return NextResponse.json(
         { error: "Failed to generate first call checklist. Please try again." },
         { status: 500 }
