@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { DEAL_STAGES, DEAL_STATUSES, getStageInfo, getStatusInfo } from "@/lib/deals/constants";
 
 interface Deal {
@@ -38,6 +39,25 @@ export default function DealsPage() {
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
   const [creating, setCreating] = useState(false);
+  const [importedCall, setImportedCall] = useState<{
+    title?: string;
+    summary?: string;
+    transcript?: string;
+    recordingUrl?: string;
+    date?: string;
+    attendees?: Array<{ name: string; email?: string; title?: string; company?: string }>;
+  } | null>(null);
+
+  const inferCompanyFromEmail = (email: string | undefined): string | null => {
+    if (!email) return null;
+    const domain = email.split("@")[1]?.toLowerCase();
+    if (!domain) return null;
+    const commonDomains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "mail.com"];
+    if (commonDomains.includes(domain)) return null;
+    // Extract the main part, capitalize
+    const core = domain.split(".")[0];
+    return core.charAt(0).toUpperCase() + core.slice(1);
+  };
 
   const loadDeals = useCallback(async () => {
     setLoading(true);
@@ -62,6 +82,7 @@ export default function DealsPage() {
     if (!newDealName.trim() || !newDealCompany.trim()) return;
     setCreating(true);
     try {
+      // 1) Create the deal
       const res = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,14 +91,73 @@ export default function DealsPage() {
           companyName: newDealCompany.trim(),
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/deals/${data.deal.id}`);
+      if (!res.ok) throw new Error("Failed to create deal");
+      const { deal } = await res.json();
+
+      // 2) If there's imported call data, create a timeline entry + participants
+      if (importedCall) {
+        const headerLines: string[] = [];
+        if (importedCall.date) {
+          headerLines.push(`Call Date: ${new Date(importedCall.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
+        }
+        if (importedCall.attendees?.length) {
+          const formatted = importedCall.attendees.map((a) => {
+            const parts = [a.name];
+            if (a.title) parts[0] += `, ${a.title}`;
+            if (a.company) parts[0] += ` @ ${a.company}`;
+            if (a.email) parts.push(a.email);
+            return parts.join(" — ");
+          });
+          headerLines.push(`Attendees:\n${formatted.map((f) => `  - ${f}`).join("\n")}`);
+        }
+        const header = headerLines.length ? headerLines.join("\n") + "\n\n" : "";
+        const summaryPart = importedCall.summary ? `## Summary\n\n${importedCall.summary}\n\n` : "";
+        const transcriptPart = importedCall.transcript ? `## Transcript\n\n${importedCall.transcript}` : "";
+
+        // Create timeline entry
+        await fetch(`/api/deals/${deal.id}/entries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "call_transcript",
+            title: importedCall.title,
+            content: header + summaryPart + transcriptPart,
+            sourceUrl: importedCall.recordingUrl,
+            entryDate: importedCall.date ? new Date(importedCall.date).toISOString() : undefined,
+          }),
+        });
+
+        // Create participants from attendees
+        if (importedCall.attendees?.length) {
+          for (const a of importedCall.attendees) {
+            if (!a.name) continue;
+            await fetch(`/api/deals/${deal.id}/participants`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: a.name,
+                title: a.title,
+                company: a.company,
+                email: a.email,
+                role: "unknown",
+              }),
+            });
+          }
+        }
       }
+
+      router.push(`/deals/${deal.id}`);
     } catch (error) {
       console.error("Failed to create deal:", error);
       setCreating(false);
     }
+  };
+
+  const resetNewDealForm = () => {
+    setShowNewDeal(false);
+    setNewDealName("");
+    setNewDealCompany("");
+    setImportedCall(null);
   };
 
   const filteredDeals = deals.filter((d) => {
@@ -211,13 +291,61 @@ export default function DealsPage() {
       {showNewDeal && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowNewDeal(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) resetNewDealForm(); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">New Deal</h3>
             <p className="text-sm text-gray-500 mb-4">
-              Create a deal to track a specific sales opportunity. You can add calls, emails, and notes as engagement happens.
+              Create a deal to track a sales opportunity. Import a call to bootstrap it automatically, or create manually.
             </p>
+
+            {/* Import from Meeting Recorder */}
+            <div className="mb-4">
+              <MeetingRecorderPanel
+                defaultCollapsed={false}
+                onSelectCall={(data) => {
+                  setImportedCall(data);
+                  // Infer company name from attendees (external domain)
+                  if (!newDealCompany.trim()) {
+                    const externalAttendee = data.attendees?.find((a) => {
+                      const company = inferCompanyFromEmail(a.email);
+                      return company != null;
+                    });
+                    const inferredCompany = externalAttendee?.company
+                      || inferCompanyFromEmail(externalAttendee?.email)
+                      || "";
+                    if (inferredCompany) setNewDealCompany(inferredCompany);
+                  }
+                  // Suggest deal name from the call title or company + call type
+                  if (!newDealName.trim() && data.title) {
+                    setNewDealName(data.title);
+                  }
+                }}
+              />
+            </div>
+
+            {importedCall && (
+              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium text-purple-900">
+                    ✓ Call imported: {importedCall.title || "Untitled"}
+                  </p>
+                  <button
+                    onClick={() => setImportedCall(null)}
+                    className="text-xs text-purple-600 hover:text-purple-800"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <p className="text-xs text-purple-700">
+                  {importedCall.attendees?.length || 0} attendee{(importedCall.attendees?.length || 0) === 1 ? "" : "s"} · {importedCall.transcript ? `${importedCall.transcript.length.toLocaleString()} char transcript` : "no transcript"}
+                </p>
+                <p className="text-xs text-purple-600 mt-1">
+                  This call will be added as the first timeline entry, and attendees will be added as participants.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
@@ -227,7 +355,6 @@ export default function DealsPage() {
                   onChange={(e) => setNewDealCompany(e.target.value)}
                   placeholder="e.g., Visana Health"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                  autoFocus
                 />
               </div>
               <div>
@@ -243,13 +370,13 @@ export default function DealsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowNewDeal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={resetNewDealForm} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
               <button
                 onClick={createDeal}
                 disabled={!newDealName.trim() || !newDealCompany.trim() || creating}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                {creating ? "Creating..." : "Create Deal"}
+                {creating ? "Creating..." : importedCall ? "Create Deal from Call" : "Create Deal"}
               </button>
             </div>
           </div>
