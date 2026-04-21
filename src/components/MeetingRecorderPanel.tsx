@@ -34,12 +34,11 @@ interface MeetingRecorderPanelProps {
   onSelectCall?: (data: SelectedCallData) => void;
   onSelectCalls?: (calls: SelectedCallData[]) => void;
   defaultCollapsed?: boolean;
-  lazyLoadUpTo?: number; // auto-fetch additional calls in background after initial render
 }
 
-const LAZY_BATCH_SIZE = 15;
+const LOAD_MORE_BATCH_SIZE = 15;
 
-export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false, lazyLoadUpTo }: MeetingRecorderPanelProps) {
+export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false }: MeetingRecorderPanelProps) {
   const multiSelectMode = !!onSelectCalls;
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [calls, setCalls] = useState<Array<{ provider: string; providerName: string; calls: MeetingCall[] }>>([]);
@@ -63,7 +62,6 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
   const [selectedCallIds, setSelectedCallIds] = useState<Set<string>>(new Set());
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
-  const [autoLoading, setAutoLoading] = useState(false);
 
   // Fetch existing recaps/reviews for the current call list
   const fetchExistingMatches = useCallback(async (callGroups: Array<{ calls: MeetingCall[] }>) => {
@@ -107,64 +105,33 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
     setLoading(false);
   }, [fetchExistingMatches]);
 
-  const fetchAtLimit = useCallback(async (targetLimit: number): Promise<{ prevTotal: number; newTotal: number } | null> => {
-    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
-    try {
-      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${targetLimit}`);
-      if (!callsRes.ok) return null;
-      const callsData = await callsRes.json();
-      const callGroups = callsData.calls || [];
-      const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
-      setCalls(callGroups);
-      setCallLimit(targetLimit);
-      fetchExistingMatches(callGroups);
-      if (newTotal <= prevTotal) setHasMore(false);
-      return { prevTotal, newTotal };
-    } catch {
-      return null;
-    }
-  }, [calls, fetchExistingMatches]);
-
   const handleLoadMore = useCallback(async () => {
+    const prevTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
+    const newLimit = callLimit + LOAD_MORE_BATCH_SIZE;
     setLoadingMore(true);
-    await fetchAtLimit(callLimit + LAZY_BATCH_SIZE);
+    try {
+      const callsRes = await fetch(`/api/meeting-recorder/calls?limit=${newLimit}`);
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        const callGroups = callsData.calls || [];
+        const newTotal = callGroups.reduce((sum: number, g: { calls: unknown[] }) => sum + g.calls.length, 0);
+        // Guard: never overwrite the visible list with fewer calls — usually a provider rate-limit or timeout
+        if (prevTotal > 0 && newTotal < prevTotal) {
+          console.warn(`[MeetingRecorder] Refusing to replace ${prevTotal} calls with ${newTotal} — keeping existing list`);
+        } else {
+          setCalls(callGroups);
+          setCallLimit(newLimit);
+          fetchExistingMatches(callGroups);
+          if (newTotal <= prevTotal) setHasMore(false);
+        }
+      }
+    } catch { /* ignore */ }
     setLoadingMore(false);
-  }, [callLimit, fetchAtLimit]);
+  }, [callLimit, calls, fetchExistingMatches]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Background lazy-load: after initial load, keep fetching more calls up to lazyLoadUpTo
-  useEffect(() => {
-    if (!lazyLoadUpTo || loading || !connected || autoLoading) return;
-    const initialTotal = calls.reduce((sum, g) => sum + g.calls.length, 0);
-    if (initialTotal === 0 || initialTotal >= lazyLoadUpTo || !hasMore) return;
-
-    let cancelled = false;
-    (async () => {
-      setAutoLoading(true);
-      let nextLimit = callLimit + LAZY_BATCH_SIZE;
-      let lastTotal = initialTotal;
-      while (!cancelled) {
-        const capped = Math.min(nextLimit, lazyLoadUpTo);
-        const result = await fetchAtLimit(capped);
-        if (!result) break;
-        // Detect "no new calls since last iteration" using locally-tracked lastTotal
-        if (result.newTotal <= lastTotal) {
-          setHasMore(false);
-          break;
-        }
-        lastTotal = result.newTotal;
-        if (result.newTotal >= lazyLoadUpTo) break;
-        nextLimit = capped + LAZY_BATCH_SIZE;
-      }
-      if (!cancelled) setAutoLoading(false);
-    })();
-    return () => { cancelled = true; };
-    // Intentionally only reacts to loading/connected changing to avoid refiring on every call update
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, connected, lazyLoadUpTo]);
 
   const handleConnect = async () => {
     if (!showConnectModal || !apiKeyInput.trim()) return;
@@ -430,15 +397,6 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                       ? `· ${visibleInGroup} of ${totalInGroup} match`
                       : `· ${totalInGroup} recent call${totalInGroup === 1 ? "" : "s"}`}
                   </span>
-                  {autoLoading && (
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      · loading more
-                      <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                    </span>
-                  )}
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {filtered.map((call) => {
@@ -539,7 +497,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                     <p className="text-sm text-gray-400 text-center py-4">No calls match &quot;{searchQuery}&quot;</p>
                   )}
                 </div>
-                {totalInGroup > 0 && hasMore && !autoLoading && (
+                {totalInGroup > 0 && hasMore && (
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
