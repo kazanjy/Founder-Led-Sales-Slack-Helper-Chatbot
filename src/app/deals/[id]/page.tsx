@@ -156,13 +156,13 @@ function CopyLinkButton({ id, label }: { id: string; label: string }) {
       onClick={onClick}
       title={`Copy link to ${label}`}
       aria-label={`Copy link to ${label}`}
-      className="inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 no-underline"
+      className="inline-flex items-center gap-1 text-gray-400 hover:text-purple-600 no-underline"
     >
       {copied ? (
-        <span className="text-xs font-medium">Copied!</span>
+        <span className="text-xs font-medium text-purple-600">Copied!</span>
       ) : (
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-3.535 3.536a4 4 0 01-5.657 0l-1.414-1.415m-2.829-2.828a4 4 0 010-5.657l3.536-3.535a4 4 0 015.657 0l1.414 1.414" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
       )}
     </a>
