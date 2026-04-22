@@ -97,6 +97,14 @@ function splitCallContent(entry: { type: string; content: string }): { summary: 
   return { summary, transcript };
 }
 
+// Pulls the body of the "## Deal Summary" section out of an analysis
+// markdown blob. Returns null if the section can't be found — caller should
+// fall back to rendering the full markdown.
+function extractDealSummary(markdown: string): string | null {
+  const match = markdown.match(/^##\s+Deal Summary\s*\n([\s\S]*?)(?=\n##\s+|$)/m);
+  return match ? match[1].trim() : null;
+}
+
 function formatEntryDate(dateStr: string): string {
   const d = new Date(dateStr);
   const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
@@ -1100,34 +1108,40 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Analysis panel */}
-        {deal.lastAnalysis && (
-          <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
-            <button
-              onClick={() => setShowAnalysis(!showAnalysis)}
-              className="w-full flex items-center justify-between px-5 py-3 text-left"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-purple-900">🧠 Deal Analysis</span>
-                {analyzing ? (
-                  <span className="flex items-center gap-1.5 text-xs text-purple-600">
-                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                    Re-analyzing...
-                  </span>
-                ) : (
-                  deal.lastAnalyzedAt && (
-                    <span className="text-xs text-gray-400">
-                      · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        {deal.lastAnalysis && (() => {
+          const summaryBody = extractDealSummary(deal.lastAnalysis);
+          // If we couldn't locate the Deal Summary section, fall back to
+          // showing the whole analysis so we never strand the user with an
+          // empty panel.
+          const hasSummary = Boolean(summaryBody);
+          return (
+            <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
+              <div className="flex items-center justify-between px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-purple-900">🧠 Deal Analysis</span>
+                  {analyzing ? (
+                    <span className="flex items-center gap-1.5 text-xs text-purple-600">
+                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      Re-analyzing...
                     </span>
-                  )
-                )}
+                  ) : (
+                    deal.lastAnalyzedAt && (
+                      <span className="text-xs text-gray-400">
+                        · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
-              <svg className={`w-4 h-4 text-gray-400 transition-transform ${showAnalysis ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showAnalysis && (
               <div className="px-5 pb-5 border-t border-purple-100">
-                <div className="mt-3 flex items-center gap-4">
+                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
+                  {showAnalysis || !hasSummary ? (
+                    <ReactMarkdown components={analysisMarkdownComponents}>{deal.lastAnalysis}</ReactMarkdown>
+                  ) : (
+                    <ReactMarkdown components={analysisMarkdownComponents}>{summaryBody!}</ReactMarkdown>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center gap-4 flex-wrap">
                   <button
                     onClick={() => analyzeDeal()}
                     disabled={analyzing}
@@ -1144,9 +1158,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       <span className="text-gray-400">({analysisHistory.length - 1} previous)</span>
                     )}
                   </button>
-                </div>
-                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
-                  <ReactMarkdown components={analysisMarkdownComponents}>{deal.lastAnalysis}</ReactMarkdown>
+                  {hasSummary && (
+                    <button
+                      onClick={() => setShowAnalysis(!showAnalysis)}
+                      className="text-xs text-purple-600 hover:text-purple-800 font-medium ml-auto flex items-center gap-1"
+                    >
+                      {showAnalysis ? "Show less ↑" : "Show more ↓"}
+                    </button>
+                  )}
                 </div>
 
                 {showHistory && (
@@ -1200,9 +1219,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
           {/* Participants sidebar */}
