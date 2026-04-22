@@ -213,6 +213,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [showChatOverlay, setShowChatOverlay] = useState(false);
   const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
+  const [timelineFilter, setTimelineFilter] = useState<string>("all");
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -1480,17 +1481,76 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
             {/* Timeline */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Timeline ({deal.entries.length})</h3>
-              {deal.entries.length === 0 ? (
-                <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center">
-                  <p className="text-sm text-gray-500">No entries yet. Add one above or import a call from your meeting recorder.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {deal.entries.map((entry) => {
-                    const typeInfo = getEntryTypeInfo(entry.type);
-                    return (
-                      <div key={entry.id} className="bg-white border border-gray-200 rounded-xl p-4 group/e">
+              {(() => {
+                // Count entries per type, and only show filter chips for types that actually occur.
+                const typeCounts = new Map<string, number>();
+                for (const e of deal.entries) {
+                  typeCounts.set(e.type, (typeCounts.get(e.type) ?? 0) + 1);
+                }
+                const visibleTypes = ENTRY_TYPES.filter((t) => typeCounts.has(t.value));
+                const filteredEntries = timelineFilter === "all"
+                  ? deal.entries
+                  : deal.entries.filter((e) => e.type === timelineFilter);
+                return (
+                  <>
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Timeline ({filteredEntries.length}
+                        {timelineFilter !== "all" && deal.entries.length !== filteredEntries.length
+                          ? ` of ${deal.entries.length}`
+                          : ""}
+                        )
+                      </h3>
+                      {deal.entries.length > 0 && visibleTypes.length > 1 && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setTimelineFilter("all")}
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                              timelineFilter === "all"
+                                ? "bg-gray-900 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            All ({deal.entries.length})
+                          </button>
+                          {visibleTypes.map((t) => {
+                            const count = typeCounts.get(t.value) ?? 0;
+                            const active = timelineFilter === t.value;
+                            return (
+                              <button
+                                key={t.value}
+                                onClick={() => setTimelineFilter(active ? "all" : t.value)}
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors inline-flex items-center gap-1 ${
+                                  active
+                                    ? "bg-purple-600 text-white"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                }`}
+                              >
+                                <span aria-hidden="true">{t.emoji}</span>
+                                {t.label} ({count})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {deal.entries.length === 0 ? (
+                      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center">
+                        <p className="text-sm text-gray-500">No entries yet. Add one above or import a call from your meeting recorder.</p>
+                      </div>
+                    ) : filteredEntries.length === 0 ? (
+                      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-6 text-center">
+                        <p className="text-sm text-gray-500">
+                          No {getEntryTypeInfo(timelineFilter).label.toLowerCase()} entries yet.{" "}
+                          <button onClick={() => setTimelineFilter("all")} className="text-purple-600 hover:underline">Clear filter</button>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredEntries.map((entry) => {
+                          const typeInfo = getEntryTypeInfo(entry.type);
+                          return (
+                            <div key={entry.id} className="bg-white border border-gray-200 rounded-xl p-4 group/e">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -1546,9 +1606,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         )}
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
             </div>
           </div>
         </div>
