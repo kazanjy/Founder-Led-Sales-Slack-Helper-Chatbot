@@ -87,10 +87,22 @@ function DealsPageContent() {
         router.push("/?error=not_logged_in");
         return;
       }
-      const res = await fetch("/api/deals");
-      if (res.ok) {
-        const data = await res.json();
-        setDeals(data.deals || []);
+      const [dealsRes, connRes] = await Promise.all([
+        fetch("/api/deals"),
+        fetch("/api/meeting-recorder/connections"),
+      ]);
+      const loadedDeals: Deal[] = dealsRes.ok ? (await dealsRes.json()).deals || [] : [];
+      setDeals(loadedDeals);
+
+      // First-run nudge: if the user has no deals yet AND hasn't connected
+      // any meeting recorder, open the New Deal modal straight away. The
+      // embedded MeetingRecorderPanel will surface the Connect CTAs for each
+      // provider so the user lands on the integration prompt by default.
+      if (loadedDeals.length === 0 && connRes.ok) {
+        const connData = await connRes.json();
+        const hasConnected = Array.isArray(connData.available)
+          && connData.available.some((p: { connected?: boolean }) => p.connected);
+        if (!hasConnected) setShowNewDeal(true);
       }
     } catch (error) {
       console.error("Failed to load deals:", error);
