@@ -2129,6 +2129,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       <DealChatPanel
         open={chatPanelOpen}
         onClose={closeChatPanel}
+        onOpen={startDealChat}
         dealName={deal.name}
         buildContext={(question) => {
           const focused = focusedEntryId ? deal.entries.find((e) => e.id === focusedEntryId) : undefined;

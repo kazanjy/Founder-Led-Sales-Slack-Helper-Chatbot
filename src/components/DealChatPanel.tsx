@@ -14,6 +14,7 @@ interface Message {
 interface DealChatPanelProps {
   open: boolean;
   onClose: () => void;
+  onOpen: () => void;
   dealName: string;
   buildContext: (question: string) => string;
   conversationId: string | null;
@@ -23,6 +24,7 @@ interface DealChatPanelProps {
 export default function DealChatPanel({
   open,
   onClose,
+  onOpen,
   dealName,
   buildContext,
   conversationId,
@@ -254,7 +256,31 @@ export default function DealChatPanel({
     }
   }, [sending, messages.length, buildContext, conversationId, dealName, onConversationCreated]);
 
-  if (!open) return null;
+  // When closed, show a narrow rail pinned to the right edge as a persistent
+  // entry point back into the panel. Clicking the rail opens the panel with
+  // whatever conversation is currently in state.
+  if (!open) {
+    const hasMessages = messages.length > 0;
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="fixed right-0 top-1/3 z-30 flex flex-col items-center gap-2 px-2 py-3 bg-white border border-gray-200 border-r-0 rounded-l-lg shadow-md hover:bg-purple-50 hover:border-purple-200 transition-colors"
+        aria-label="Open Deal Chat"
+        title="Open Deal Chat"
+      >
+        <span className="text-lg leading-none">🌊</span>
+        {hasMessages && (
+          <span className="text-[10px] font-medium text-purple-700 bg-purple-100 rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+            {messages.length}
+          </span>
+        )}
+        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <>
