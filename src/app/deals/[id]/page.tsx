@@ -618,7 +618,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       } as Partial<TimelineEntry>);
     }
 
-    const chatUrl = `/chat/${data.conversationId}`;
+    // Hand the context off to the chat page via the established autoSend
+    // mechanism (same pattern sales-readiness / coaching-history use):
+    // sessionStorage key `autoSend-{id}` holds the first message, URL gets
+    // `?autoSend=true`, and the chat page's useEffect picks both up and
+    // sends the message on load. Without this, /chat/{id} shows the default
+    // welcome screen and the prompt is lost.
+    const autoSendPayload = typeof data.autoSendContext === "string" && data.autoSendContext
+      ? data.autoSendContext
+      : context;
+    try {
+      sessionStorage.setItem(`autoSend-${data.conversationId}`, autoSendPayload);
+    } catch { /* quota / privacy modes — best-effort */ }
+
+    const chatUrl = `/chat/${data.conversationId}?autoSend=true`;
     if (opts?.openInNewTab) {
       window.open(chatUrl, "_blank");
     } else {
