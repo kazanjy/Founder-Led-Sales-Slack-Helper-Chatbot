@@ -77,12 +77,24 @@ export default function DealChatPanel({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Keep the scroll pinned to the bottom as messages stream in.
+  // Keep the scroll pinned to the bottom only during active sending/streaming.
+  // On initial history load (sending=false) the browser leaves the scroll at
+  // the top, so the user's opening prompt is visible first.
   useEffect(() => {
+    if (!sending && !streamingMessage) return;
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, streamingMessage]);
+  }, [messages, streamingMessage, sending]);
+
+  // The first user message is the full deal-context blob (the backend saves
+  // whatever we send to /messages/stream). Extract just the user's actual
+  // prompt for display; leave other messages untouched.
+  const displayContent = (m: Message, idx: number): string => {
+    if (m.role !== "USER" || idx !== 0) return m.content;
+    const match = m.content.match(/^My specific prompt is: "([\s\S]*?)"$/m);
+    return match ? match[1] : m.content;
+  };
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -187,6 +199,10 @@ export default function DealChatPanel({
   if (!open) return null;
 
   return (
+    <>
+      {/* Transparent backdrop — clicks anywhere outside the panel dismiss it.
+          No dim so the deal timeline behind the panel stays visible. */}
+      <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden="true" />
     <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-[420px] bg-white shadow-2xl border-l border-gray-200 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <div className="flex items-center gap-2 min-w-0">
@@ -214,7 +230,7 @@ export default function DealChatPanel({
             Ask Mikey anything about this deal. Mikey has the timeline, participants, latest analysis, and your sales narrative.
           </div>
         )}
-        {messages.map((m) => (
+        {messages.map((m, idx) => (
           <div key={m.id} className={m.role === "USER" ? "flex justify-end" : "flex justify-start"}>
             <div
               className={
@@ -224,7 +240,7 @@ export default function DealChatPanel({
               }
             >
               {m.role === "USER" ? (
-                m.content
+                displayContent(m, idx)
               ) : (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -298,5 +314,6 @@ export default function DealChatPanel({
         <div className="mt-1 text-[10px] text-gray-400">Enter to send · Shift+Enter for newline</div>
       </div>
     </div>
+    </>
   );
 }
