@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
@@ -216,6 +216,8 @@ function titleCase(str: string): string {
 export default function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [newEntryType, setNewEntryType] = useState<string>("note");
@@ -648,8 +650,45 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     return data.conversationId as string;
   };
 
+  // Sync the active chat conversation into the URL as ?chat=<convId> so
+  // reloads preserve the panel and breadcrumbs can deep-link back in.
+  // The empty-panel state (open with no conversation yet) is intentionally
+  // not persisted — it's ephemeral until the first message is sent.
+  const syncChatUrl = useCallback((convId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (convId) params.set("chat", convId);
+    else params.delete("chat");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [router, pathname, searchParams]);
+
+  const openChatPanelForConversation = useCallback((convId: string) => {
+    setPanelConversationId(convId);
+    setChatPanelOpen(true);
+    syncChatUrl(convId);
+  }, [syncChatUrl]);
+
+  // Hydrate panel state from the URL on first load so a refresh / deep link
+  // reopens the right conversation.
+  const chatHydratedRef = useRef(false);
+  useEffect(() => {
+    if (chatHydratedRef.current) return;
+    const chat = searchParams.get("chat");
+    if (chat) {
+      setPanelConversationId(chat);
+      setChatPanelOpen(true);
+    }
+    chatHydratedRef.current = true;
+  }, [searchParams]);
+
   const startDealChat = () => {
     setChatPanelOpen(true);
+    if (panelConversationId) syncChatUrl(panelConversationId);
+  };
+
+  const closeChatPanel = () => {
+    setChatPanelOpen(false);
+    syncChatUrl(null);
   };
 
   const updateEntryDate = async (entryId: string, dateStr: string) => {
@@ -1766,11 +1805,28 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           <div className="flex items-center gap-2">
                             <CopyLinkButton id={`entry-${entry.id}`} label={entry.title || typeInfo.label} />
                             <div className="flex items-center gap-2 opacity-0 group-hover/e:opacity-100 transition-opacity">
-                              {entry.sourceUrl && (
-                                <a href={entry.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Open source">
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                </a>
-                              )}
+                              {entry.sourceUrl && (() => {
+                                const chatMatch = entry.type === "chat" ? entry.sourceUrl.match(/^\/chat\/([^/?#]+)/) : null;
+                                const linkTitle = chatMatch ? "Reopen this Deal Chat" : "Open source";
+                                return (
+                                  <a
+                                    href={entry.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-400 hover:text-blue-600"
+                                    title={linkTitle}
+                                    onClick={chatMatch ? (e) => {
+                                      // Plain click reopens in the inline panel; cmd/ctrl/middle
+                                      // click still go to /chat/{id} in a new tab naturally.
+                                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                                      e.preventDefault();
+                                      openChatPanelForConversation(chatMatch[1]);
+                                    } : undefined}
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                  </a>
+                                );
+                              })()}
                               <button onClick={() => deleteEntry(entry.id)} className="text-gray-400 hover:text-red-600" title="Delete">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
@@ -1869,12 +1925,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
       <DealChatPanel
         open={chatPanelOpen}
-        onClose={() => setChatPanelOpen(false)}
+        onClose={closeChatPanel}
         dealName={deal.name}
         buildContext={(question) => buildDealChatContext({ question })}
         conversationId={panelConversationId}
         onConversationCreated={(convId, firstQuestion) => {
           setPanelConversationId(convId);
+          syncChatUrl(convId);
           // Leave a timeline breadcrumb so the deal history shows the chat
           // was started, matching the previous new-tab flow's behavior.
           addEntry({
