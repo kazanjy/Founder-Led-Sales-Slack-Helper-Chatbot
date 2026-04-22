@@ -3,6 +3,18 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 
+interface MatchedParticipant {
+  id: string;
+  name: string;
+}
+
+interface SuggestedPerson {
+  name: string;
+  title?: string;
+  email?: string;
+  reason?: string;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -15,7 +27,15 @@ export async function POST(
 
     const { id } = await params;
 
-    const deal = await prisma.deal.findUnique({ where: { id } });
+    const deal = await prisma.deal.findUnique({
+      where: { id },
+      include: {
+        participants: {
+          select: { id: true, name: true, title: true, email: true, company: true },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
     if (!deal || deal.userId !== user.id) {
       return NextResponse.json({ error: "Deal not found" }, { status: 404 });
     }
@@ -29,26 +49,59 @@ export async function POST(
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
+    // Build a compact participant roster the model can use to resolve speakers.
+    const userLabel = user.name || user.email || "Deal Owner";
+    const participantRoster = deal.participants.length
+      ? deal.participants
+          .map((p) => {
+            const bits: string[] = [`- id=${p.id} name="${p.name}"`];
+            if (p.title) bits.push(`title="${p.title}"`);
+            if (p.email) bits.push(`email="${p.email}"`);
+            if (p.company) bits.push(`company="${p.company}"`);
+            return bits.join(" ");
+          })
+          .join("\n")
+      : "(no participants on this deal yet)";
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are extracting text content from a screenshot related to a B2B sales deal. The image might be an email, Slack message, LinkedIn conversation, CRM screenshot, proposal, or contract excerpt.
+          content: `You are extracting text content from a screenshot related to a B2B sales deal — typically an iMessage, WhatsApp, Slack, LinkedIn, or email conversation, or a CRM/doc excerpt. Your job is BOTH to extract the text AND to attribute each message to the correct person.
 
-Extract ALL readable text from the image. Preserve the structure (sender, timestamps, message content). If it's a conversation, format it clearly with speaker attribution. If it's a document, preserve headings and sections.
+## Deal context
 
-Your response must start with a JSON metadata line, then the extracted content:
-Line 1: {"title": "...", "date": "YYYY-MM-DD" or null}
-- title: A one-line label (e.g., "Email from John Smith — Pricing Discussion")
-- date: The date of the interaction if visible in the screenshot (email date, message timestamp, etc.), in YYYY-MM-DD format. null if no date is visible.
+The person who captured this screenshot (the deal owner, referred to below as "OWNER") is:
+${userLabel}${user.email ? ` <${user.email}>` : ""}
 
-Then a blank line, then the full extracted text content.`,
+Known participants already on this deal — match conversation speakers to these when possible:
+${participantRoster}
+
+## Attribution rules
+
+- In iMessage/WhatsApp/Slack screenshots: the blue/right-aligned bubbles belong to OWNER (the person whose phone this is). The gray/left-aligned bubbles belong to the other party, whose name is usually in the header of the thread.
+- If you can tell who the other party is (thread header, email "From:" line, Slack name prefix, etc.), try to match them to one of the known participants above by name or email. Use fuzzy matching — first-name-only is fine if unambiguous.
+- In emails: attribute based on "From:", "To:", and signature blocks.
+- Use canonical names in the output: "You" for OWNER's messages, and the full participant name (from the roster) for messages from known people. For unknown speakers, use the name as shown in the screenshot.
+
+## Response format
+
+Your response MUST start with one line of JSON and nothing else on that line, then a blank line, then the extracted text:
+
+Line 1: {"title": "...", "date": "YYYY-MM-DD" or null, "matchedParticipantIds": ["..."], "newPeople": [{"name": "...", "email": "..." or null, "reason": "..."}]}
+
+- title: a concise one-line label (e.g. "iMessage thread with Deepa — procurement sync"). Under 80 chars.
+- date: the date of the interaction if visible, in YYYY-MM-DD. null if no date is visible.
+- matchedParticipantIds: array of ids (from the roster above) that appear as speakers/recipients in the screenshot. Empty array if none match.
+- newPeople: array of people who are NOT in the roster but clearly appear as speakers, recipients, or named participants in the conversation. Do NOT include OWNER. Each entry: {name, email (if visible), reason (short phrase explaining where they appeared, e.g. "recipient of iMessage thread", "cc'd on email")}. Empty array if none.
+
+Then a blank line, then the full attributed transcript. Format each message as "Speaker: message" on its own line or paragraph. Preserve timestamps where visible.`,
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Extract all text from this screenshot:" },
+            { type: "text", text: "Extract and attribute all text from this screenshot:" },
             {
               type: "image_url",
               image_url: {
@@ -58,30 +111,49 @@ Then a blank line, then the full extracted text content.`,
           ],
         },
       ],
-      max_completion_tokens: 2000,
+      max_completion_tokens: 2500,
       temperature: 0.2,
     });
 
     const extractedText = response.choices[0]?.message?.content?.trim() || "";
-
     if (!extractedText) {
       return NextResponse.json({ error: "Could not extract text from image" }, { status: 422 });
     }
 
-    // Try to parse JSON metadata from the first line
+    // Parse the JSON metadata line
     const lines = extractedText.split("\n");
     let title = "Screenshot";
     let date: string | null = null;
+    let matchedParticipantIds: string[] = [];
+    let newPeople: SuggestedPerson[] = [];
     let contentStartIndex = 0;
 
     try {
       const firstLine = lines[0]?.trim();
       if (firstLine?.startsWith("{")) {
         const meta = JSON.parse(firstLine);
-        title = meta.title || "Screenshot";
+        title = typeof meta.title === "string" ? meta.title : "Screenshot";
         date = meta.date || null;
+        if (Array.isArray(meta.matchedParticipantIds)) {
+          matchedParticipantIds = meta.matchedParticipantIds.filter(
+            (pid: unknown): pid is string =>
+              typeof pid === "string" && deal.participants.some((p) => p.id === pid),
+          );
+        }
+        if (Array.isArray(meta.newPeople)) {
+          newPeople = meta.newPeople
+            .filter(
+              (p: unknown): p is Record<string, unknown> =>
+                !!p && typeof p === "object" && typeof (p as { name?: unknown }).name === "string",
+            )
+            .map((p) => ({
+              name: String((p as { name: string }).name).trim(),
+              email: typeof p.email === "string" ? p.email : undefined,
+              reason: typeof p.reason === "string" ? p.reason : undefined,
+            }))
+            .filter((p) => p.name.length > 0);
+        }
         contentStartIndex = 1;
-        // Skip blank line after JSON
         if (lines[contentStartIndex]?.trim() === "") contentStartIndex++;
       } else {
         title = firstLine?.replace(/^#+\s*/, "").trim() || "Screenshot";
@@ -92,9 +164,26 @@ Then a blank line, then the full extracted text content.`,
       contentStartIndex = 1;
     }
 
+    // Drop any suggested person whose name matches an existing participant
+    // (case-insensitive), in case the model missed the match.
+    const existingNames = new Set(
+      deal.participants.map((p) => p.name.trim().toLowerCase()),
+    );
+    newPeople = newPeople.filter((p) => !existingNames.has(p.name.toLowerCase()));
+
+    const matched: MatchedParticipant[] = deal.participants
+      .filter((p) => matchedParticipantIds.includes(p.id))
+      .map((p) => ({ id: p.id, name: p.name }));
+
     const content = lines.slice(contentStartIndex).join("\n").trim() || extractedText;
 
-    return NextResponse.json({ title, content, date });
+    return NextResponse.json({
+      title,
+      content,
+      date,
+      matchedParticipants: matched,
+      suggestedParticipants: newPeople,
+    });
   } catch (error) {
     console.error("Error processing screenshot:", error);
     return NextResponse.json({ error: "Failed to process screenshot" }, { status: 500 });

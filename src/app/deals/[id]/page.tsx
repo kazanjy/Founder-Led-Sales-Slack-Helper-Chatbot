@@ -118,6 +118,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [entryFromScreenshot, setEntryFromScreenshot] = useState(false);
   const [processingPdf, setProcessingPdf] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [screenshotMatched, setScreenshotMatched] = useState<{ id: string; name: string }[]>([]);
+  const [screenshotSuggestions, setScreenshotSuggestions] = useState<{ name: string; email?: string; reason?: string }[]>([]);
+  const [acceptedSuggestionNames, setAcceptedSuggestionNames] = useState<Set<string>>(new Set());
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -218,6 +221,39 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     if (!content?.trim()) return;
     setAddingEntry(true);
     try {
+      // If this entry came from a screenshot with accepted new people, create
+      // them first so we can include their IDs in the entry metadata.
+      const createdIds: string[] = [];
+      if (!entryData && acceptedSuggestionNames.size > 0) {
+        const toCreate = screenshotSuggestions.filter((s) => acceptedSuggestionNames.has(s.name));
+        for (const person of toCreate) {
+          try {
+            const pRes = await fetch(`/api/deals/${id}/participants`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: person.name,
+                email: person.email || undefined,
+                role: "unknown",
+              }),
+            });
+            if (pRes.ok) {
+              const data = await pRes.json();
+              if (data?.participant?.id) createdIds.push(data.participant.id);
+            }
+          } catch (err) {
+            console.error("Failed to add suggested participant:", err);
+          }
+        }
+      }
+
+      // Assemble metadata — link matched + newly-created participant IDs so
+      // downstream analysis knows who this entry references.
+      const linkedIds = !entryData
+        ? [...screenshotMatched.map((p) => p.id), ...createdIds]
+        : [];
+      const metadata = linkedIds.length > 0 ? { linkedParticipantIds: linkedIds } : undefined;
+
       const res = await fetch(`/api/deals/${id}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,6 +263,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           content,
           sourceUrl: sourceUrl || undefined,
           entryDate: entryDate || undefined,
+          metadata,
         }),
       });
       if (res.ok) {
@@ -236,6 +273,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setNewEntryDate("");
         setNewEntryType("note");
         setEntryFromScreenshot(false);
+        setScreenshotMatched([]);
+        setScreenshotSuggestions([]);
+        setAcceptedSuggestionNames(new Set());
         await loadDeal();
         // Re-run analysis in the background now that the timeline has new data.
         // Skip if already analyzing; the running pass will include fresh data anyway.
@@ -483,6 +523,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setNewEntryContent(data.content || "");
         setEntryFromScreenshot(true);
         setNewEntryDate(data.date || "");
+        setScreenshotMatched(Array.isArray(data.matchedParticipants) ? data.matchedParticipants : []);
+        const suggestions = Array.isArray(data.suggestedParticipants) ? data.suggestedParticipants : [];
+        setScreenshotSuggestions(suggestions);
+        // Default: pre-accept every suggestion. User can unselect before saving.
+        setAcceptedSuggestionNames(new Set(suggestions.map((s: { name: string }) => s.name)));
       }
     } catch (error) {
       console.error("Failed to process screenshot:", error);
@@ -1081,6 +1126,57 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                 )}
               </div>
+
+              {/* Participant attribution from screenshot */}
+              {(screenshotMatched.length > 0 || screenshotSuggestions.length > 0) && (
+                <div className="mb-2 p-2.5 rounded-lg bg-purple-50/50 border border-purple-100">
+                  {screenshotMatched.length > 0 && (
+                    <div className="flex items-start gap-2 flex-wrap mb-1.5 last:mb-0">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-purple-700 mt-0.5">Linked:</span>
+                      {screenshotMatched.map((p) => (
+                        <span
+                          key={p.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-purple-200 text-xs text-purple-800"
+                        >
+                          {titleCase(p.name)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {screenshotSuggestions.length > 0 && (
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-purple-700 mt-0.5">Add new:</span>
+                      {screenshotSuggestions.map((p) => {
+                        const accepted = acceptedSuggestionNames.has(p.name);
+                        return (
+                          <button
+                            key={p.name}
+                            type="button"
+                            onClick={() => {
+                              setAcceptedSuggestionNames((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(p.name)) next.delete(p.name);
+                                else next.add(p.name);
+                                return next;
+                              });
+                            }}
+                            title={p.reason || (accepted ? "Will be added as a participant" : "Click to add")}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                              accepted
+                                ? "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
+                                : "bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-700"
+                            }`}
+                          >
+                            {accepted ? "✓" : "+"} {titleCase(p.name)}
+                            {p.email && <span className="opacity-70"> · {p.email}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <input
                 type="url"
                 value={newEntryUrl}
