@@ -104,17 +104,39 @@ export async function POST(
 
     const dealContext = sections.join("\n") + narrativeContext;
 
-    // Send to GPT for analysis
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, and optionally the seller's sales narrative, provide a comprehensive analysis.
+    const isReanalysis = Boolean(deal.lastAnalysis?.trim());
 
-Your analysis MUST include these sections:
+    const priorAnalysisBlock = isReanalysis
+      ? `\n## Previous Analysis (${deal.lastAnalyzedAt ? new Date(deal.lastAnalyzedAt).toISOString() : "earlier"})\n${deal.lastAnalysis!.substring(0, 3000)}\n`
+      : "";
+
+    // Entries created after the last analysis are "new" context to focus on.
+    const newEntryCount = isReanalysis && deal.lastAnalyzedAt
+      ? deal.entries.filter((e) => new Date(e.createdAt) > deal.lastAnalyzedAt!).length
+      : 0;
+
+    const sectionRequirements = isReanalysis
+      ? `## What's Changed
+A tight bullet list of what's new or shifted since the previous analysis. Focus on: ${newEntryCount > 0 ? `the ${newEntryCount} new timeline ${newEntryCount === 1 ? "entry" : "entries"} added, ` : ""}new participants, stage movement, new risks or positive signals, and anything from the prior analysis that is now resolved or obsolete. If nothing meaningful has changed, say so in one line.
+
+## What's Next
+3-5 specific, prioritized next steps the founder should take in the next 1-2 weeks. Be concrete — name specific people, topics, and timeframes. This replaces the old "Recommended Next Steps" section; do not repeat it later.
 
 ## Deal Summary
+A 2-3 sentence overview of where this deal stands now.
+
+## Strengths
+What's going well — champion engagement, urgency signals, technical fit, etc.
+
+## Risks & Gaps
+What could derail this deal — missing stakeholders, stalled momentum, unaddressed objections, competitive threats.
+
+## Stakeholder Map
+For each participant, assess their likely role (champion, decision maker, blocker, influencer) and engagement level based on the evidence.
+
+## Suggested Stage
+Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`
+      : `## Deal Summary
 A 2-3 sentence overview of where this deal stands.
 
 ## Strengths
@@ -130,18 +152,32 @@ For each participant, assess their likely role (champion, decision maker, blocke
 3-5 specific, actionable next steps ranked by priority. Be concrete — name specific people, topics, and timelines.
 
 ## Suggested Stage
-Based on the evidence, recommend what pipeline stage this deal should be in and explain why.
+Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`;
+
+    const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
+${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}
+Your analysis MUST include these sections, in this exact order:
+
+${sectionRequirements}
 
 Be direct and specific. Reference actual conversations and participants by name. Don't hedge or use generic advice.
 
 After the markdown analysis above, output ONE final line in this exact format so it can be machine-parsed:
 SUGGESTED_STAGE: <stage>
 
-<stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.`,
+<stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.`;
+
+    // Send to GPT for analysis
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
         },
         {
           role: "user",
-          content: dealContext.substring(0, 30000),
+          content: (dealContext + priorAnalysisBlock).substring(0, 30000),
         },
       ],
       max_completion_tokens: 2000,

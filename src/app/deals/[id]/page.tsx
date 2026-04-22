@@ -793,10 +793,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             </button>
             {showAnalysis && (
               <div className="px-5 pb-5 border-t border-purple-100">
-                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
-                  <ReactMarkdown>{deal.lastAnalysis}</ReactMarkdown>
-                </div>
-                <div className="mt-4 flex items-center gap-4">
+                <div className="mt-3 flex items-center gap-4">
                   <button
                     onClick={() => analyzeDeal()}
                     disabled={analyzing}
@@ -813,6 +810,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       <span className="text-gray-400">({analysisHistory.length - 1} previous)</span>
                     )}
                   </button>
+                </div>
+                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
+                  <ReactMarkdown>{deal.lastAnalysis}</ReactMarkdown>
                 </div>
 
                 {showHistory && (
