@@ -3,6 +3,29 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 
+const VALID_STAGES = [
+  "prospecting",
+  "discovery",
+  "demo",
+  "proposal",
+  "negotiation",
+  "closing",
+  "won",
+  "lost",
+] as const;
+type DealStage = (typeof VALID_STAGES)[number];
+
+// Pulls "SUGGESTED_STAGE: <stage>" out of the analysis text. Returns the
+// matched stage (if recognized) and the analysis with the marker line removed.
+function extractSuggestedStage(text: string): { stage: DealStage | null; cleaned: string } {
+  const match = text.match(/^\s*SUGGESTED_STAGE:\s*([a-z_]+)\s*$/im);
+  if (!match) return { stage: null, cleaned: text };
+  const candidate = match[1].trim().toLowerCase();
+  const stage = (VALID_STAGES as readonly string[]).includes(candidate) ? (candidate as DealStage) : null;
+  const cleaned = text.replace(match[0], "").replace(/\n{3,}$/, "\n\n").trimEnd();
+  return { stage, cleaned };
+}
+
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -109,7 +132,12 @@ For each participant, assess their likely role (champion, decision maker, blocke
 ## Suggested Stage
 Based on the evidence, recommend what pipeline stage this deal should be in and explain why.
 
-Be direct and specific. Reference actual conversations and participants by name. Don't hedge or use generic advice.`,
+Be direct and specific. Reference actual conversations and participants by name. Don't hedge or use generic advice.
+
+After the markdown analysis above, output ONE final line in this exact format so it can be machine-parsed:
+SUGGESTED_STAGE: <stage>
+
+<stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.`,
         },
         {
           role: "user",
@@ -120,18 +148,32 @@ Be direct and specific. Reference actual conversations and participants by name.
       temperature: 0.4,
     });
 
-    const analysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
+    const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
+    const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(rawAnalysis);
 
-    // Store analysis on the deal
-    await prisma.deal.update({
+    // Only overwrite stage if GPT returned a recognized one AND the deal isn't already closed.
+    const shouldUpdateStage =
+      suggestedStage !== null &&
+      suggestedStage !== deal.stage &&
+      deal.status !== "closed_won" &&
+      deal.status !== "closed_lost";
+
+    const updated = await prisma.deal.update({
       where: { id },
       data: {
         lastAnalysis: analysis,
         lastAnalyzedAt: new Date(),
+        ...(shouldUpdateStage ? { stage: suggestedStage } : {}),
       },
+      select: { stage: true, lastAnalyzedAt: true },
     });
 
-    return NextResponse.json({ analysis });
+    return NextResponse.json({
+      analysis,
+      stage: updated.stage,
+      stageUpdated: shouldUpdateStage,
+      lastAnalyzedAt: updated.lastAnalyzedAt,
+    });
   } catch (error) {
     console.error("Error analyzing deal:", error);
     return NextResponse.json({ error: "Failed to analyze deal" }, { status: 500 });

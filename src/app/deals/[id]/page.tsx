@@ -114,6 +114,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editDateValue, setEditDateValue] = useState("");
   const [enrichingAll, setEnrichingAll] = useState(false);
   const autoEnrichAttempted = useRef(false);
+  const autoAnalyzeAttempted = useRef(false);
   const [startingChat, setStartingChat] = useState(false);
 
   const loadDeal = useCallback(async () => {
@@ -159,6 +160,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         .catch(() => {});
     }
   }, [deal, id, loadDeal]);
+
+  // Auto-analyze on first load when the deal has entries but no prior analysis.
+  // This covers the "new deal from call" flow where the user lands here with a
+  // timeline already populated but analysis hasn't run yet.
+  useEffect(() => {
+    if (!deal || autoAnalyzeAttempted.current) return;
+    if (deal.entries.length > 0 && !deal.lastAnalyzedAt) {
+      autoAnalyzeAttempted.current = true;
+      analyzeDeal({ silent: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal]);
 
   const updateDeal = async (updates: Partial<Deal>) => {
     const res = await fetch(`/api/deals/${id}`, {
@@ -207,6 +220,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setNewEntryType("note");
         setEntryFromScreenshot(false);
         await loadDeal();
+        // Re-run analysis in the background now that the timeline has new data.
+        // Skip if already analyzing; the running pass will include fresh data anyway.
+        if (!analyzing) analyzeDeal({ silent: true });
       }
     } catch (error) {
       console.error("Failed to add entry:", error);
@@ -360,14 +376,24 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     await loadDeal();
   };
 
-  const analyzeDeal = async () => {
+  const analyzeDeal = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
     setAnalyzing(true);
     try {
       const res = await fetch(`/api/deals/${id}/analyze`, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        setDeal((prev) => prev ? { ...prev, lastAnalysis: data.analysis, lastAnalyzedAt: new Date().toISOString() } : prev);
-        setShowAnalysis(true);
+        setDeal((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastAnalysis: data.analysis,
+                lastAnalyzedAt: data.lastAnalyzedAt ?? new Date().toISOString(),
+                stage: data.stage ?? prev.stage,
+              }
+            : prev,
+        );
+        if (!silent) setShowAnalysis(true);
       }
     } catch (error) {
       console.error("Failed to analyze deal:", error);
