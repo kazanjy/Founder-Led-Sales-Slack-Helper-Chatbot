@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
+import DealChatPanel from "@/components/DealChatPanel";
 import { DEAL_STAGES, DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStageInfo, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
 
 interface Participant {
@@ -255,9 +256,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [enrichingAll, setEnrichingAll] = useState(false);
   const autoEnrichAttempted = useRef(false);
   const autoAnalyzeAttempted = useRef(false);
-  const [startingChat, setStartingChat] = useState(false);
-  const [showChatOverlay, setShowChatOverlay] = useState(false);
-  const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
+  const [chatPanelOpen, setChatPanelOpen] = useState(false);
+  const [panelConversationId, setPanelConversationId] = useState<string | null>(null);
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
@@ -648,32 +648,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     return data.conversationId as string;
   };
 
-  const startDealChat = async () => {
-    // Now just opens the question overlay. The actual conversation creation
-    // happens in submitChatOverlay() once the user has entered a question.
-    setChatOverlayQuestion("");
-    setShowChatOverlay(true);
-  };
-
-  const submitChatOverlay = async () => {
-    if (!chatOverlayQuestion.trim()) return;
-    setStartingChat(true);
-    try {
-      const convId = await openDealChat({
-        question: chatOverlayQuestion,
-        leaveBreadcrumb: true,
-      });
-      if (convId) {
-        setShowChatOverlay(false);
-        setChatOverlayQuestion("");
-      } else {
-        alert("Failed to start chat. Please try again.");
-      }
-    } catch (error) {
-      console.error("Failed to start deal chat:", error);
-      alert(error instanceof Error ? error.message : "Failed to start chat");
-    }
-    setStartingChat(false);
+  const startDealChat = () => {
+    setChatPanelOpen(true);
   };
 
   const updateEntryDate = async (entryId: string, dateStr: string) => {
@@ -1029,15 +1005,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               </button>
               <button
                 onClick={startDealChat}
-                disabled={startingChat}
-                className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
               >
-                {startingChat ? (
-                  <>
-                    <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                    Opening...
-                  </>
-                ) : "🌊 Deal Chat"}
+                🌊 Deal Chat
               </button>
               <button
                 onClick={deleteDeal}
@@ -1897,79 +1867,28 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Chat overlay — asks for a first question before creating the conversation */}
-      {showChatOverlay && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-          onClick={() => !startingChat && setShowChatOverlay(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl shadow-xl max-w-xl w-full p-5"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">🌊 Deal Chat</h3>
-              <button
-                type="button"
-                onClick={() => setShowChatOverlay(false)}
-                disabled={startingChat}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Close"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">
-              Mikey will have full context of this deal — timeline, participants, latest analysis, and your sales narrative.
-            </p>
-            <textarea
-              autoFocus
-              value={chatOverlayQuestion}
-              onChange={(e) => setChatOverlayQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  submitChatOverlay();
-                }
-              }}
-              placeholder="What do you want to ask? (e.g. 'What are the biggest risks right now?', 'Draft a follow-up email to Deepa')"
-              rows={4}
-              disabled={startingChat}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
-            />
-            <div className="flex items-center justify-between gap-3 mt-3">
-              <span className="text-[11px] text-gray-400">⌘↵ to send</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowChatOverlay(false)}
-                  disabled={startingChat}
-                  className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={submitChatOverlay}
-                  disabled={!chatOverlayQuestion.trim() || startingChat}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {startingChat ? (
-                    <>
-                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                      Starting chat...
-                    </>
-                  ) : (
-                    "Ask Mikey →"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DealChatPanel
+        open={chatPanelOpen}
+        onClose={() => setChatPanelOpen(false)}
+        dealName={deal.name}
+        buildContext={(question) => buildDealChatContext({ question })}
+        conversationId={panelConversationId}
+        onConversationCreated={(convId, firstQuestion) => {
+          setPanelConversationId(convId);
+          // Leave a timeline breadcrumb so the deal history shows the chat
+          // was started, matching the previous new-tab flow's behavior.
+          addEntry({
+            type: "chat",
+            title: `Chat: ${deal.name}`,
+            content: firstQuestion
+              ? `Started a conversation: "${firstQuestion}"`
+              : `Started a conversation about this deal.`,
+            sourceUrl: `/chat/${convId}`,
+          } as Partial<TimelineEntry>).catch((err) =>
+            console.error("Failed to leave chat breadcrumb:", err)
+          );
+        }}
+      />
     </div>
   );
 }
