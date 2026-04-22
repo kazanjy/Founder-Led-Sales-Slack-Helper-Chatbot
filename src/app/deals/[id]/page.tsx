@@ -444,6 +444,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             extraEntry: snapshotEntry,
             question: mikeyQuestion,
             openInNewTab: true,
+            leaveBreadcrumb: true,
           }).catch((err) => console.error("Failed to open Ask Mikey chat:", err));
         }
 
@@ -660,6 +661,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     try {
       const convId = await openDealChat({
         question: chatOverlayQuestion,
+        leaveBreadcrumb: true,
       });
       if (convId) {
         setShowChatOverlay(false);
