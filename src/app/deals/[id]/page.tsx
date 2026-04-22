@@ -72,6 +72,50 @@ function nameFromEmail(email: string): string | null {
   return null;
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function buildHeading(level: 2 | 3) {
+  const Tag = level === 2 ? "h2" : "h3";
+  const sizeClass = level === 2 ? "text-base" : "text-sm";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function HeadingWithAnchor({ children }: { children?: any }) {
+    const text = typeof children === "string" ? children : Array.isArray(children) ? children.map((c) => (typeof c === "string" ? c : "")).join("") : "";
+    const id = `analysis-${slugify(text)}`;
+    const onCopy = () => {
+      const url = `${window.location.origin}${window.location.pathname}#${id}`;
+      navigator.clipboard.writeText(url).catch(() => {});
+    };
+    return (
+      <Tag id={id} className={`group scroll-mt-20 ${sizeClass} font-semibold text-gray-900 flex items-center gap-1.5`}>
+        <a href={`#${id}`} className="hover:underline">{children}</a>
+        <button
+          type="button"
+          onClick={onCopy}
+          title="Copy link to this section"
+          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-purple-600 transition-opacity"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-3.535 3.536a4 4 0 01-5.657 0l-1.414-1.415m-2.829-2.828a4 4 0 010-5.657l3.536-3.535a4 4 0 015.657 0l1.414 1.414" />
+          </svg>
+        </button>
+      </Tag>
+    );
+  };
+}
+
+const analysisMarkdownComponents = {
+  h1: buildHeading(2),
+  h2: buildHeading(2),
+  h3: buildHeading(3),
+};
+
 function displayName(name: string, email?: string | null): string {
   if (!name.includes("@")) return titleCase(name);
   // Name IS an email — try to extract a real name from the pattern
@@ -193,6 +237,19 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deal]);
+
+  // If the URL has a #analysis-* hash, expand the card and scroll to the
+  // section once it's rendered.
+  useEffect(() => {
+    if (!deal?.lastAnalysis) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#analysis-")) return;
+    setShowAnalysis(true);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(hash.slice(1));
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [deal?.lastAnalysis]);
 
   const updateDeal = async (updates: Partial<Deal>) => {
     const res = await fetch(`/api/deals/${id}`, {
@@ -844,7 +901,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                 </div>
                 <div className="prose prose-sm max-w-none text-gray-700 mt-3">
-                  <ReactMarkdown>{deal.lastAnalysis}</ReactMarkdown>
+                  <ReactMarkdown components={analysisMarkdownComponents}>{deal.lastAnalysis}</ReactMarkdown>
                 </div>
 
                 {showHistory && (
