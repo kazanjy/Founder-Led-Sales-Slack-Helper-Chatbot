@@ -59,6 +59,8 @@ export default function DealsPage() {
     return core.charAt(0).toUpperCase() + core.slice(1);
   };
 
+  const titleCase = (s: string) => s.replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
   const loadDeals = useCallback(async () => {
     setLoading(true);
     try {
@@ -115,9 +117,10 @@ export default function DealsPage() {
           }
           if (call.attendees?.length) {
             const formatted = call.attendees.map((a) => {
-              const parts = [a.name];
-              if (a.title) parts[0] += `, ${a.title}`;
-              if (a.company) parts[0] += ` @ ${a.company}`;
+              const name = a.name.includes("@") ? a.name : titleCase(a.name);
+              const parts = [name];
+              if (a.title) parts[0] += `, ${titleCase(a.title)}`;
+              if (a.company) parts[0] += ` @ ${titleCase(a.company)}`;
               if (a.email) parts.push(a.email);
               return parts.join(" — ");
             });

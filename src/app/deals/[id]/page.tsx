@@ -692,9 +692,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   }
                   if (data.attendees?.length) {
                     const formatted = data.attendees.map((a) => {
-                      const parts = [a.name];
-                      if (a.title) parts[0] += `, ${a.title}`;
-                      if (a.company) parts[0] += ` @ ${a.company}`;
+                      const name = a.name.includes("@") ? a.name : titleCase(a.name);
+                      const parts = [name];
+                      if (a.title) parts[0] += `, ${titleCase(a.title)}`;
+                      if (a.company) parts[0] += ` @ ${titleCase(a.company)}`;
                       if (a.email) parts.push(a.email);
                       return parts.join(" — ");
                     });
