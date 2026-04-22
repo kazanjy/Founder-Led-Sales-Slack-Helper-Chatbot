@@ -121,15 +121,26 @@ export default function DealChatPanel({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Keep the scroll pinned to the bottom only during active sending/streaming.
-  // On initial history load (sending=false) the browser leaves the scroll at
-  // the top, so the user's opening prompt is visible first.
+  // When the user sends a new message, snap the just-added user bubble to
+  // the top of the scroll area so the prompt stays visible while the
+  // assistant's reply streams in below it. We deliberately don't follow the
+  // bottom of the stream — that would scroll the user's own prompt off-screen.
+  // Initial history loads (messages.length going 0 → N on mount) don't match
+  // this, so they land at scroll-top naturally.
+  const prevMessagesLengthRef = useRef(0);
   useEffect(() => {
-    if (!sending && !streamingMessage) return;
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, streamingMessage, sending]);
+    const prev = prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+    if (messages.length <= prev || prev === 0) return;
+    const last = messages[messages.length - 1];
+    if (last?.role !== "USER") return;
+    requestAnimationFrame(() => {
+      const userEl = el.querySelector(`[data-msg-id="${CSS.escape(last.id)}"]`) as HTMLElement | null;
+      if (userEl) el.scrollTop = Math.max(0, userEl.offsetTop - 8);
+    });
+  }, [messages]);
 
   // The first user message is the full deal-context blob (the backend saves
   // whatever we send to /messages/stream). Extract just the user's actual
@@ -291,7 +302,7 @@ export default function DealChatPanel({
           </div>
         )}
         {messages.map((m, idx) => (
-          <div key={m.id} className={m.role === "USER" ? "flex justify-end" : "flex justify-start"}>
+          <div key={m.id} data-msg-id={m.id} className={m.role === "USER" ? "flex justify-end" : "flex justify-start"}>
             <div
               className={
                 m.role === "USER"
