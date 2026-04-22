@@ -33,8 +33,52 @@ export default function DealChatPanel({
   const [sending, setSending] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [width, setWidth] = useState<number>(420);
+  const [isDragging, setIsDragging] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Restore the user's saved panel width on mount, clamped to the current
+  // viewport so a narrow screen doesn't get a 1200px panel.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("dealChatPanelWidth");
+    const parsed = saved ? parseInt(saved, 10) : NaN;
+    const initial = Number.isFinite(parsed) ? parsed : 420;
+    const max = Math.max(320, window.innerWidth - 80);
+    setWidth(Math.min(Math.max(320, initial), max));
+  }, []);
+
+  // Track pointer while the user drags the left edge of the panel. Listeners
+  // live on window so drags keep working when the pointer leaves the handle.
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: PointerEvent) => {
+      const next = window.innerWidth - e.clientX;
+      const clamped = Math.min(Math.max(320, next), window.innerWidth - 80);
+      setWidth(clamped);
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    // Keep the ew-resize cursor + suppress text selection during the drag.
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+    };
+  }, [isDragging]);
+
+  // Persist width changes so the next mount restores the user's preference.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("dealChatPanelWidth", String(Math.round(width)));
+  }, [width]);
 
   // Load prior messages when (re)opening with an existing conversation.
   useEffect(() => {
@@ -203,7 +247,23 @@ export default function DealChatPanel({
       {/* Transparent backdrop — clicks anywhere outside the panel dismiss it.
           No dim so the deal timeline behind the panel stays visible. */}
       <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden="true" />
-    <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-[420px] bg-white shadow-2xl border-l border-gray-200 flex flex-col">
+    <div
+      className="fixed inset-y-0 right-0 z-40 bg-white shadow-2xl border-l border-gray-200 flex flex-col"
+      style={{ width: `${width}px`, maxWidth: "100vw" }}
+    >
+      {/* Drag handle on the left edge — drag to resize, double-click to reset. */}
+      <div
+        onPointerDown={(e) => {
+          e.preventDefault();
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+          setIsDragging(true);
+        }}
+        onDoubleClick={() => setWidth(420)}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Drag to resize Deal Chat panel"
+        className={`absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize z-10 transition-colors ${isDragging ? "bg-purple-400" : "hover:bg-purple-300"}`}
+      />
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">🌊</span>
