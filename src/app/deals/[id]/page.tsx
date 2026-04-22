@@ -90,32 +90,39 @@ function extractText(node: unknown): string {
   return "";
 }
 
+function CopyLinkButton({ id, label }: { id: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const onClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const url = `${window.location.origin}${window.location.pathname}#${id}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <a
+      href={`#${id}`}
+      onClick={onClick}
+      title={`Copy link to ${label}`}
+      className="text-xs font-medium text-purple-600 hover:text-purple-800 underline underline-offset-2 decoration-purple-300 hover:decoration-purple-600"
+    >
+      {copied ? "Copied!" : "Link"}
+    </a>
+  );
+}
+
 function buildHeading(level: 2 | 3) {
   const Tag = level === 2 ? "h2" : "h3";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function HeadingWithAnchor({ children }: { children?: any }) {
     const text = extractText(children).trim();
     const id = `analysis-${slugify(text || "section")}`;
-    const onCopy = () => {
-      const url = `${window.location.origin}${window.location.pathname}#${id}`;
-      navigator.clipboard.writeText(url).catch(() => {});
-    };
     return (
       <Tag id={id} className="scroll-mt-20 not-prose flex items-baseline gap-2 mt-6 mb-2 first:mt-0">
         <span className={level === 2 ? "text-lg font-bold text-gray-900" : "text-base font-semibold text-gray-900"}>
           {children}
         </span>
-        <a
-          href={`#${id}`}
-          onClick={onCopy}
-          title="Copy link to this section"
-          aria-label={`Copy link to ${text || "this section"}`}
-          className="text-gray-300 hover:text-purple-600 transition-colors no-underline shrink-0"
-        >
-          <svg className="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-3.535 3.536a4 4 0 01-5.657 0l-1.414-1.415m-2.829-2.828a4 4 0 010-5.657l3.536-3.535a4 4 0 015.657 0l1.414 1.414" />
-          </svg>
-        </a>
+        <CopyLinkButton id={id} label={text || "this section"} />
       </Tag>
     );
   };
