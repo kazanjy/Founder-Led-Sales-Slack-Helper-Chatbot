@@ -299,11 +299,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           });
           if (res.ok) {
             const data = await res.json();
-            await addEntry({
-              type: "screenshot",
-              title: data.title,
-              content: data.content,
-            });
+            setNewEntryType("screenshot");
+            setNewEntryTitle(data.title || "");
+            setNewEntryContent(data.content || "");
+            if (data.date) setNewEntryDate(data.date);
           }
         } catch (error) {
           console.error("Failed to process screenshot:", error);

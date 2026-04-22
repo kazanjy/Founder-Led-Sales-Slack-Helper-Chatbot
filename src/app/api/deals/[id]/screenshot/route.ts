@@ -38,7 +38,12 @@ export async function POST(
 
 Extract ALL readable text from the image. Preserve the structure (sender, timestamps, message content). If it's a conversation, format it clearly with speaker attribution. If it's a document, preserve headings and sections.
 
-At the top, add a one-line label describing what this screenshot shows (e.g., "Email from John Smith — Pricing Discussion", "Slack thread — Technical Requirements", "LinkedIn message — Introduction").`,
+Your response must start with a JSON metadata line, then the extracted content:
+Line 1: {"title": "...", "date": "YYYY-MM-DD" or null}
+- title: A one-line label (e.g., "Email from John Smith — Pricing Discussion")
+- date: The date of the interaction if visible in the screenshot (email date, message timestamp, etc.), in YYYY-MM-DD format. null if no date is visible.
+
+Then a blank line, then the full extracted text content.`,
         },
         {
           role: "user",
@@ -63,12 +68,33 @@ At the top, add a one-line label describing what this screenshot shows (e.g., "E
       return NextResponse.json({ error: "Could not extract text from image" }, { status: 422 });
     }
 
-    // Parse the first line as the title
+    // Try to parse JSON metadata from the first line
     const lines = extractedText.split("\n");
-    const title = lines[0]?.replace(/^#+\s*/, "").trim() || "Screenshot";
-    const content = lines.slice(1).join("\n").trim() || extractedText;
+    let title = "Screenshot";
+    let date: string | null = null;
+    let contentStartIndex = 0;
 
-    return NextResponse.json({ title, content });
+    try {
+      const firstLine = lines[0]?.trim();
+      if (firstLine?.startsWith("{")) {
+        const meta = JSON.parse(firstLine);
+        title = meta.title || "Screenshot";
+        date = meta.date || null;
+        contentStartIndex = 1;
+        // Skip blank line after JSON
+        if (lines[contentStartIndex]?.trim() === "") contentStartIndex++;
+      } else {
+        title = firstLine?.replace(/^#+\s*/, "").trim() || "Screenshot";
+        contentStartIndex = 1;
+      }
+    } catch {
+      title = lines[0]?.replace(/^#+\s*/, "").trim() || "Screenshot";
+      contentStartIndex = 1;
+    }
+
+    const content = lines.slice(contentStartIndex).join("\n").trim() || extractedText;
+
+    return NextResponse.json({ title, content, date });
   } catch (error) {
     console.error("Error processing screenshot:", error);
     return NextResponse.json({ error: "Failed to process screenshot" }, { status: 500 });
