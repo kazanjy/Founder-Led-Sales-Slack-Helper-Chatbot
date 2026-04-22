@@ -93,10 +93,15 @@ ${participantRoster}
 
 Your response MUST start with one line of JSON and nothing else on that line, then a blank line, then the extracted text:
 
-Line 1: {"title": "...", "date": "YYYY-MM-DD" or null, "matchedParticipantIds": ["..."], "newPeople": [{"name": "...", "email": "..." or null, "reason": "..."}]}
+Line 1: {"title": "...", "date": "YYYY-MM-DD" or null, "entryType": "email|chat|linkedin|screenshot", "matchedParticipantIds": ["..."], "newPeople": [{"name": "...", "email": "..." or null, "reason": "..."}]}
 
 - title: a concise one-line label (e.g. "iMessage thread with Deepa — procurement sync"). Under 80 chars.
 - date: the date of the interaction if visible, in YYYY-MM-DD. null if no date is visible.
+- entryType: pick the single best classification of what this screenshot shows:
+  * "email" — an email client (Gmail, Outlook, Apple Mail, etc.) or email thread with subject + From/To.
+  * "chat" — a text-message / direct-message conversation: iMessage, SMS/MMS, WhatsApp, Slack DM, Telegram, Signal, Teams, Messenger, etc.
+  * "linkedin" — anything happening inside LinkedIn (messages, posts, profile view, InMail).
+  * "screenshot" — fallback when it clearly isn't one of the above (dashboards, CRM UI, contracts, misc docs).
 - matchedParticipantIds: array of ids (from the roster above) that appear as speakers/recipients in the screenshot. Empty array if none match.
 - newPeople: array of people who are NOT in the roster but clearly appear as speakers, recipients, or named participants in the conversation. Do NOT include OWNER. Each entry: {name, email (if visible), reason (short phrase explaining where they appeared, e.g. "recipient of iMessage thread", "cc'd on email")}. Empty array if none.
 
@@ -128,9 +133,12 @@ Then a blank line, then the full attributed transcript. Format each message as "
     const lines = extractedText.split("\n");
     let title = "Screenshot";
     let date: string | null = null;
+    let entryType: "email" | "chat" | "linkedin" | "screenshot" = "screenshot";
     let matchedParticipantIds: string[] = [];
     let newPeople: SuggestedPerson[] = [];
     let contentStartIndex = 0;
+
+    const ALLOWED_TYPES = new Set(["email", "chat", "linkedin", "screenshot"]);
 
     try {
       const firstLine = lines[0]?.trim();
@@ -138,6 +146,9 @@ Then a blank line, then the full attributed transcript. Format each message as "
         const meta = JSON.parse(firstLine);
         title = typeof meta.title === "string" ? meta.title : "Screenshot";
         date = meta.date || null;
+        if (typeof meta.entryType === "string" && ALLOWED_TYPES.has(meta.entryType)) {
+          entryType = meta.entryType as typeof entryType;
+        }
         if (Array.isArray(meta.matchedParticipantIds)) {
           matchedParticipantIds = meta.matchedParticipantIds.filter(
             (pid: unknown): pid is string =>
@@ -185,6 +196,7 @@ Then a blank line, then the full attributed transcript. Format each message as "
       title,
       content,
       date,
+      entryType,
       matchedParticipants: matched,
       suggestedParticipants: newPeople,
     });

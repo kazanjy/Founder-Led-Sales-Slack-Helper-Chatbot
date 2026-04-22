@@ -221,6 +221,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
+  const [timelineQuery, setTimelineQuery] = useState<string>("");
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -721,7 +722,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       });
       if (res.ok) {
         const data = await res.json();
-        setNewEntryType("screenshot");
+        const ALLOWED_DETECTED = new Set(["email", "chat", "linkedin", "screenshot"]);
+        const detected =
+          typeof data.entryType === "string" && ALLOWED_DETECTED.has(data.entryType)
+            ? data.entryType
+            : "screenshot";
+        setNewEntryType(detected);
         setNewEntryTitle(data.title || "");
         setNewEntryContent(data.content || "");
         setEntryFromScreenshot(true);
@@ -1495,10 +1501,40 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   typeCounts.set(e.type, (typeCounts.get(e.type) ?? 0) + 1);
                 }
                 const visibleTypes = ENTRY_TYPES.filter((t) => typeCounts.has(t.value));
-                const hasFilter = timelineTypeFilter.size > 0;
-                const filteredEntries = hasFilter
-                  ? deal.entries.filter((e) => timelineTypeFilter.has(e.type))
-                  : deal.entries;
+                const hasTypeFilter = timelineTypeFilter.size > 0;
+                const query = timelineQuery.trim().toLowerCase();
+                const hasQuery = query.length > 0;
+                const participantsById = new Map(deal.participants.map((p) => [p.id, p]));
+
+                const entryMatchesQuery = (e: TimelineEntry): boolean => {
+                  if (!hasQuery) return true;
+                  if ((e.title || "").toLowerCase().includes(query)) return true;
+                  const typeLabel = getEntryTypeInfo(e.type).label.toLowerCase();
+                  if (typeLabel.includes(query)) return true;
+                  if (e.type.toLowerCase().includes(query)) return true;
+                  // Linked participants (from metadata.linkedParticipantIds)
+                  let linkedIds: string[] = [];
+                  if (e.metadata) {
+                    try {
+                      const parsed = JSON.parse(e.metadata);
+                      if (Array.isArray(parsed?.linkedParticipantIds)) {
+                        linkedIds = parsed.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+                      }
+                    } catch { /* ignore */ }
+                  }
+                  for (const pid of linkedIds) {
+                    const p = participantsById.get(pid);
+                    if (p && p.name.toLowerCase().includes(query)) return true;
+                  }
+                  return false;
+                };
+
+                const filteredEntries = deal.entries.filter((e) => {
+                  if (hasTypeFilter && !timelineTypeFilter.has(e.type)) return false;
+                  if (!entryMatchesQuery(e)) return false;
+                  return true;
+                });
+                const hasFilter = hasTypeFilter || hasQuery;
                 const toggleType = (value: string) => {
                   setTimelineTypeFilter((prev) => {
                     const next = new Set(prev);
@@ -1522,7 +1558,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           <button
                             onClick={() => setTimelineTypeFilter(new Set())}
                             className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
-                              !hasFilter
+                              !hasTypeFilter
                                 ? "bg-gray-900 text-white"
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
@@ -1551,6 +1587,32 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         </div>
                       )}
                     </div>
+                    {deal.entries.length > 0 && (
+                      <div className="relative mb-3">
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                          type="search"
+                          value={timelineQuery}
+                          onChange={(e) => setTimelineQuery(e.target.value)}
+                          placeholder="Search timeline — title, type, or person..."
+                          className="w-full pl-8 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                        />
+                        {timelineQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setTimelineQuery("")}
+                            aria-label="Clear search"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {deal.entries.length === 0 ? (
                       <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center">
                         <p className="text-sm text-gray-500">No entries yet. Add one above or import a call from your meeting recorder.</p>
@@ -1558,8 +1620,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     ) : filteredEntries.length === 0 ? (
                       <div className="bg-white border border-dashed border-gray-300 rounded-xl p-6 text-center">
                         <p className="text-sm text-gray-500">
-                          No entries match the selected filters.{" "}
-                          <button onClick={() => setTimelineTypeFilter(new Set())} className="text-purple-600 hover:underline">Clear filters</button>
+                          No entries match the current filters.{" "}
+                          <button
+                            onClick={() => { setTimelineTypeFilter(new Set()); setTimelineQuery(""); }}
+                            className="text-purple-600 hover:underline"
+                          >
+                            Clear {hasFilter ? "filters" : "filter"}
+                          </button>
                         </p>
                       </div>
                     ) : (
