@@ -106,6 +106,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [analyzing, setAnalyzing] = useState(false);
   const [enrichingPid, setEnrichingPid] = useState<string | null>(null);
   const [processingScreenshot, setProcessingScreenshot] = useState(false);
+  const [entryFromScreenshot, setEntryFromScreenshot] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -186,6 +187,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setNewEntryUrl("");
         setNewEntryDate("");
         setNewEntryType("note");
+        setEntryFromScreenshot(false);
         await loadDeal();
       }
     } catch (error) {
@@ -315,7 +317,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             setNewEntryType("screenshot");
             setNewEntryTitle(data.title || "");
             setNewEntryContent(data.content || "");
-            if (data.date) setNewEntryDate(data.date);
+            setEntryFromScreenshot(true);
+            if (data.date) {
+              setNewEntryDate(data.date);
+            } else {
+              setNewEntryDate("");
+            }
           }
         } catch (error) {
           console.error("Failed to process screenshot:", error);
@@ -681,13 +688,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     type="date"
                     value={newEntryDate}
                     onChange={(e) => setNewEntryDate(e.target.value)}
-                    className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 focus:ring-2 focus:ring-purple-500"
+                    className={`px-2 py-1.5 border rounded-lg text-xs text-gray-600 focus:ring-2 focus:ring-purple-500 ${entryFromScreenshot && !newEntryDate ? "border-red-400 ring-1 ring-red-200" : "border-gray-200"}`}
                   />
-                  {!newEntryDate && <span className="text-xs text-gray-400">defaults to today</span>}
+                  {entryFromScreenshot && !newEntryDate ? (
+                    <span className="text-xs text-red-500 font-medium">date required</span>
+                  ) : !newEntryDate ? (
+                    <span className="text-xs text-gray-400">defaults to today</span>
+                  ) : null}
                 </div>
                 <button
                   onClick={() => addEntry()}
-                  disabled={!newEntryContent.trim() || addingEntry}
+                  disabled={!newEntryContent.trim() || addingEntry || (entryFromScreenshot && !newEntryDate)}
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
                 >
                   {addingEntry ? "Adding..." : "+ Add Entry"}
