@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 interface Message {
   id: string;
@@ -292,6 +293,23 @@ export default function DealChatPanel({
     sendMessage(autoSendQuestion);
   }, [open, autoSendNonce, autoSendQuestion, historyLoaded, sending, sendMessage]);
 
+  // If the URL hash points at a specific message (#msg-<id>), scroll that
+  // message into view once history has loaded. Lets a copied per-message
+  // anchor link deep-link straight to the right reply.
+  const scrolledToHashRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !historyLoaded) return;
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (!hash.startsWith("#msg-")) return;
+    if (scrolledToHashRef.current === hash) return;
+    scrolledToHashRef.current = hash;
+    const msgId = hash.slice(5);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`msg-${msgId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [open, historyLoaded, messages.length]);
+
   // When closed, show a narrow rail pinned to the right edge as a persistent
   // entry point back into the panel. Clicking the rail opens the panel with
   // whatever conversation is currently in state.
@@ -380,32 +398,42 @@ export default function DealChatPanel({
             Ask Mikey anything about this deal. Mikey has the timeline, participants, latest analysis, and your sales narrative.
           </div>
         )}
-        {messages.map((m, idx) => (
-          <div key={m.id} data-msg-id={m.id} className={m.role === "USER" ? "flex justify-end" : "flex justify-start"}>
+        {messages.map((m, idx) => {
+          const wrapClass = m.role === "USER"
+            ? "flex justify-end"
+            : "flex flex-col items-start";
+          const bubbleClass = m.role === "USER"
+            ? "max-w-[85%] bg-purple-600 text-white rounded-2xl rounded-br-md px-3 py-2 text-sm whitespace-pre-wrap"
+            : "max-w-[90%] bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-3 py-2 text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1";
+          return (
             <div
-              className={
-                m.role === "USER"
-                  ? "max-w-[85%] bg-purple-600 text-white rounded-2xl rounded-br-md px-3 py-2 text-sm whitespace-pre-wrap"
-                  : "max-w-[90%] bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-3 py-2 text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1"
-              }
+              key={m.id}
+              data-msg-id={m.id}
+              id={m.role === "ASSISTANT" ? `msg-${m.id}` : undefined}
+              className={wrapClass}
             >
-              {m.role === "USER" ? (
-                displayContent(m, idx)
-              ) : (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a>
-                    ),
-                  }}
-                >
-                  {m.content}
-                </ReactMarkdown>
+              <div className={bubbleClass}>
+                {m.role === "USER" ? (
+                  displayContent(m, idx)
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a>
+                      ),
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                )}
+              </div>
+              {m.role === "ASSISTANT" && (
+                <AssistantMessageToolbar message={m} conversationId={conversationId} />
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {streamingMessage && (
           <div className="flex justify-start">
             <div className="max-w-[90%] bg-gray-100 text-gray-900 rounded-2xl rounded-bl-md px-3 py-2 text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1">
@@ -465,6 +493,70 @@ export default function DealChatPanel({
       </div>
     </div>
     </>
+  );
+}
+
+function AssistantMessageToolbar({
+  message,
+  conversationId,
+}: {
+  message: Message;
+  conversationId: string | null;
+}) {
+  const [copied, setCopied] = useState<"text" | "link" | null>(null);
+
+  const handleCopyText = async () => {
+    const ok = await copyMarkdownAsRichText(message.content);
+    if (ok) {
+      setCopied("text");
+      window.setTimeout(() => setCopied(null), 1500);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (conversationId) url.searchParams.set("chat", conversationId);
+    url.hash = `msg-${message.id}`;
+    navigator.clipboard.writeText(url.toString()).catch(() => {});
+    setCopied("link");
+    window.setTimeout(() => setCopied(null), 1500);
+  };
+
+  return (
+    <div className="flex items-center gap-1 mt-1 ml-1">
+      <button
+        type="button"
+        onClick={handleCopyText}
+        title="Copy this response"
+        aria-label="Copy this response"
+        className="p-1 text-gray-400 hover:text-purple-600 rounded transition-colors"
+      >
+        {copied === "text" ? (
+          <span className="text-[10px] font-medium text-purple-600 px-0.5">Copied!</span>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={handleCopyLink}
+        title="Copy link to this response"
+        aria-label="Copy link to this response"
+        className="p-1 text-gray-400 hover:text-purple-600 rounded transition-colors"
+      >
+        {copied === "link" ? (
+          <span className="text-[10px] font-medium text-purple-600 px-0.5">Copied!</span>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        )}
+      </button>
+    </div>
   );
 }
 
