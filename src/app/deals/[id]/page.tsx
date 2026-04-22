@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { DEAL_STAGES, DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStageInfo, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
@@ -69,6 +70,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [newEntryContent, setNewEntryContent] = useState("");
   const [newEntryTitle, setNewEntryTitle] = useState("");
   const [newEntryUrl, setNewEntryUrl] = useState("");
+  const [newEntryDate, setNewEntryDate] = useState("");
   const [addingEntry, setAddingEntry] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState("");
@@ -135,7 +137,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     const type = entryData?.type ?? newEntryType;
     const title = entryData?.title ?? newEntryTitle;
     const sourceUrl = entryData?.sourceUrl ?? newEntryUrl;
-    const entryDate = entryData?.entryDate;
+    const entryDate = entryData?.entryDate ?? (newEntryDate ? new Date(newEntryDate).toISOString() : undefined);
 
     if (!content?.trim()) return;
     setAddingEntry(true);
@@ -155,6 +157,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setNewEntryContent("");
         setNewEntryTitle("");
         setNewEntryUrl("");
+        setNewEntryDate("");
         setNewEntryType("note");
         await loadDeal();
       }
@@ -438,8 +441,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             </button>
             {showAnalysis && (
               <div className="px-5 pb-5 border-t border-purple-100">
-                <div className="prose prose-sm max-w-none text-gray-700 mt-3 whitespace-pre-wrap">
-                  {deal.lastAnalysis}
+                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
+                  <ReactMarkdown>{deal.lastAnalysis}</ReactMarkdown>
                 </div>
                 <div className="mt-4 flex items-center gap-3">
                   <button
@@ -596,7 +599,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 placeholder="Source URL (optional)"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">Date:</label>
+                  <input
+                    type="date"
+                    value={newEntryDate}
+                    onChange={(e) => setNewEntryDate(e.target.value)}
+                    className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 focus:ring-2 focus:ring-purple-500"
+                  />
+                  {!newEntryDate && <span className="text-xs text-gray-400">defaults to today</span>}
+                </div>
                 <button
                   onClick={() => addEntry()}
                   disabled={!newEntryContent.trim() || addingEntry}
