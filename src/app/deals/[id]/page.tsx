@@ -633,7 +633,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           ) : (
                             <button
                               onClick={() => { setEditingTitlePid(p.id); setEditTitleValue(p.title || ""); }}
-                              className="text-left mt-0.5 group/title"
+                              className="text-left mt-0.5 w-full min-w-0 group/title"
                             >
                               {p.title ? (
                                 <div className="text-xs text-gray-500 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
