@@ -57,6 +57,45 @@ interface Deal {
   project: { id: string; name: string } | null;
 }
 
+function splitCallContent(entry: { type: string; content: string }): { summary: string; transcript: string } {
+  const content = entry.content || "";
+  // Content is assembled as:
+  //   Call Date: ...
+  //   Attendees: ...
+  //
+  //   ## Summary
+  //   ...
+  //
+  //   ## Transcript
+  //   ...
+  const transcriptIdx = content.search(/^\s*##\s+Transcript\s*$/im);
+  const summaryIdx = content.search(/^\s*##\s+Summary\s*$/im);
+
+  let summary = "";
+  let transcript = "";
+
+  if (summaryIdx !== -1) {
+    const afterSummary = content.slice(summaryIdx).replace(/^\s*##\s+Summary\s*\n/i, "");
+    summary = transcriptIdx > summaryIdx
+      ? afterSummary.slice(0, afterSummary.search(/^\s*##\s+Transcript\s*$/im)).trim()
+      : afterSummary.trim();
+  }
+  if (transcriptIdx !== -1) {
+    transcript = content
+      .slice(transcriptIdx)
+      .replace(/^\s*##\s+Transcript\s*\n/i, "")
+      .trim();
+  }
+
+  // Fallbacks when the content doesn't carry the section headers (older
+  // entries, or call_summary entries that are just plain summary text).
+  if (!summary && !transcript) {
+    if (entry.type === "call_summary") summary = content.trim();
+    else transcript = content.trim();
+  }
+  return { summary, transcript };
+}
+
 function formatEntryDate(dateStr: string): string {
   const d = new Date(dateStr);
   const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
@@ -1718,6 +1757,52 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </button>
                           </div>
                         </div>
+                        {(entry.type === "call_transcript" || entry.type === "call_summary") && (() => {
+                          const { summary, transcript } = splitCallContent(entry);
+                          const openRecapEmail = () => {
+                            try {
+                              sessionStorage.setItem("callRecapInput", JSON.stringify({
+                                recordingUrl: entry.sourceUrl || "",
+                                callSummary: summary || transcript,
+                                callTranscript: transcript,
+                              }));
+                            } catch { /* ignore quota errors */ }
+                            window.open("/call-recap?generating=true", "_blank");
+                          };
+                          const openAnalyzeCall = () => {
+                            try {
+                              sessionStorage.setItem("callCoachingPrefill", JSON.stringify({
+                                recordingUrl: entry.sourceUrl || undefined,
+                                transcript: transcript || summary,
+                              }));
+                            } catch { /* ignore quota errors */ }
+                            window.open("/call-review", "_blank");
+                          };
+                          const canRecap = Boolean(summary || transcript);
+                          const canAnalyze = Boolean(transcript || summary);
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                              <button
+                                type="button"
+                                onClick={openRecapEmail}
+                                disabled={!canRecap}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Draft a recap email for this call in a new tab"
+                              >
+                                📧 Recap Email
+                              </button>
+                              <button
+                                type="button"
+                                onClick={openAnalyzeCall}
+                                disabled={!canAnalyze}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Analyze this call in a new tab"
+                              >
+                                🧠 Analyze Call
+                              </button>
+                            </div>
+                          );
+                        })()}
                         <details>
                           <summary className="text-xs text-purple-600 cursor-pointer hover:text-purple-800">
                             {entry.content.length > 200 ? `Show full content (${entry.content.length.toLocaleString()} chars)` : "Show content"}
