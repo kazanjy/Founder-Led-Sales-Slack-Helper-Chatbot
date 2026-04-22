@@ -11,6 +11,12 @@ interface Message {
   createdAt: string;
 }
 
+export interface DealChatThread {
+  conversationId: string;
+  label: string;
+  timestamp: string; // ISO
+}
+
 interface DealChatPanelProps {
   open: boolean;
   onClose: () => void;
@@ -24,6 +30,11 @@ interface DealChatPanelProps {
   // message. Used by the entry-form "Ask Mikey about this" flow.
   autoSendQuestion?: string;
   autoSendNonce?: number;
+  // All Deal Chat conversations for this deal, plus a selector callback.
+  // When the user picks a different thread (or "+ New thread"), the parent
+  // swaps conversationId in state.
+  threads?: DealChatThread[];
+  onSelectThread?: (conversationId: string | null) => void;
 }
 
 export default function DealChatPanel({
@@ -36,6 +47,8 @@ export default function DealChatPanel({
   onConversationCreated,
   autoSendQuestion,
   autoSendNonce,
+  threads,
+  onSelectThread,
 }: DealChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -347,6 +360,14 @@ export default function DealChatPanel({
         </button>
       </div>
 
+      {threads && threads.length > 0 && onSelectThread && (
+        <ThreadSwitcher
+          threads={threads}
+          activeConversationId={conversationId}
+          onSelect={onSelectThread}
+        />
+      )}
+
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && !streamingMessage && (
           <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -438,5 +459,88 @@ export default function DealChatPanel({
       </div>
     </div>
     </>
+  );
+}
+
+function ThreadSwitcher({
+  threads,
+  activeConversationId,
+  onSelect,
+}: {
+  threads: DealChatThread[];
+  activeConversationId: string | null;
+  onSelect: (conversationId: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const active = threads.find((t) => t.conversationId === activeConversationId);
+  const currentLabel = active ? active.label : "New thread";
+
+  const formatRel = (iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (days < 1) return "today";
+    if (days === 1) return "yesterday";
+    if (days < 7) return `${days}d ago`;
+    if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  return (
+    <div ref={rootRef} className="relative border-b border-gray-200 bg-gray-50">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-700 hover:bg-gray-100 transition-colors"
+      >
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="text-gray-400">Thread:</span>
+          <span className="font-medium truncate">{currentLabel}</span>
+        </span>
+        <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-10 bg-white border-b border-x border-gray-200 shadow-lg max-h-72 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => { onSelect(null); setOpen(false); }}
+            className={`w-full text-left px-4 py-2 text-xs flex items-center gap-2 hover:bg-purple-50 ${!active ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"}`}
+          >
+            <span className="text-gray-400">＋</span>
+            New thread
+          </button>
+          <div className="border-t border-gray-100" />
+          {threads.map((t) => {
+            const isActive = t.conversationId === activeConversationId;
+            return (
+              <button
+                key={t.conversationId}
+                type="button"
+                onClick={() => { onSelect(t.conversationId); setOpen(false); }}
+                className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between gap-2 hover:bg-purple-50 ${isActive ? "bg-purple-50 text-purple-700 font-medium" : "text-gray-700"}`}
+              >
+                <span className="truncate flex-1 min-w-0">{t.label}</span>
+                <span className="text-[10px] text-gray-400 flex-shrink-0">{formatRel(t.timestamp)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

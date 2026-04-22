@@ -2079,6 +2079,35 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         onOpen={startDealChat}
         autoSendQuestion={autoSendQuestion}
         autoSendNonce={autoSendNonce}
+        threads={deal.entries
+          .filter((e) => e.type === "chat" && e.sourceUrl)
+          .map((e) => {
+            const match = e.sourceUrl!.match(/^\/chat\/([^/?#]+)/);
+            if (!match) return null;
+            // The breadcrumb content is typically
+            //   Started a conversation: "What should I do next?"
+            // Pull the question out; fall back to the first line of content.
+            const qMatch = e.content.match(/Started a conversation:\s*"([\s\S]*?)"/);
+            const label = qMatch
+              ? qMatch[1]
+              : (e.content.split("\n")[0] || "Deal Chat").slice(0, 60);
+            return {
+              conversationId: match[1],
+              label,
+              timestamp: e.entryDate,
+            };
+          })
+          .filter((t): t is { conversationId: string; label: string; timestamp: string } => t !== null)
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())}
+        onSelectThread={(convId) => {
+          if (convId) {
+            openChatPanelForConversation(convId);
+          } else {
+            setFocusedEntryId(null);
+            setPanelConversationId(null);
+            syncChatUrl(null);
+          }
+        }}
         dealName={deal.name}
         buildContext={(question) => {
           const focused = focusedEntryId ? deal.entries.find((e) => e.id === focusedEntryId) : undefined;
