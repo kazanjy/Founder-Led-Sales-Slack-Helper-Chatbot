@@ -1977,18 +1977,33 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                           );
                         })()}
-                        {(entry.type === "email" || entry.type === "chat") && (
-                          <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
-                            <button
-                              type="button"
-                              onClick={() => startChatWithEntry(entry.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
-                              title={`Chat with Mikey focused on this ${entry.type === "email" ? "email" : "conversation"}, with the rest of the deal as background`}
-                            >
-                              🌊 Chat With This
-                            </button>
-                          </div>
-                        )}
+                        {(entry.type === "email" || entry.type === "chat") && (() => {
+                          // For chat breadcrumbs, "Chat With This" reopens the
+                          // past conversation stored at sourceUrl = /chat/<id>.
+                          // For emails, it starts a fresh focused chat.
+                          const chatMatch = entry.type === "chat" && entry.sourceUrl
+                            ? entry.sourceUrl.match(/^\/chat\/([^/?#]+)/)
+                            : null;
+                          const label = chatMatch ? "🌊 Reopen This Chat" : "🌊 Chat With This";
+                          const onClickAction = chatMatch
+                            ? () => openChatPanelForConversation(chatMatch[1])
+                            : () => startChatWithEntry(entry.id);
+                          const titleText = chatMatch
+                            ? "Reopen this past Deal Chat in the side panel"
+                            : `Chat with Mikey focused on this ${entry.type === "email" ? "email" : "conversation"}, with the rest of the deal as background`;
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                              <button
+                                type="button"
+                                onClick={onClickAction}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                                title={titleText}
+                              >
+                                {label}
+                              </button>
+                            </div>
+                          );
+                        })()}
                         {(() => {
                           const isExpanded = expandedEntries.has(entry.id);
                           const isShort = entry.content.length <= 200;
