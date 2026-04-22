@@ -283,9 +283,22 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         // completes so the user lands on the fresh result.
         // Skip if already analyzing; the running pass will include fresh data anyway.
         if (!analyzing) analyzeDeal({ scrollToResult: true });
+      } else {
+        // Surface server errors instead of silently swallowing them.
+        const errText = await res.text().catch(() => "");
+        let message = `Failed to save entry (HTTP ${res.status})`;
+        try {
+          const parsed = errText ? JSON.parse(errText) : null;
+          if (parsed?.error) message = parsed.error;
+        } catch {
+          if (errText) message = errText;
+        }
+        console.error("Failed to save entry:", res.status, errText);
+        alert(message);
       }
     } catch (error) {
       console.error("Failed to add entry:", error);
+      alert(error instanceof Error ? `Failed to save entry: ${error.message}` : "Failed to save entry");
     }
     setAddingEntry(false);
   };
