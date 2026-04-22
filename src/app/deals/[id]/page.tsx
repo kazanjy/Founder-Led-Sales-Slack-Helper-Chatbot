@@ -260,6 +260,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const autoAnalyzeAttempted = useRef(false);
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [panelConversationId, setPanelConversationId] = useState<string | null>(null);
+  const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null);
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
@@ -528,10 +529,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const buildDealChatContext = (opts?: {
     extraEntry?: { type: string; title?: string | null; content: string; entryDate?: string | null };
     question?: string;
+    focusedEntry?: TimelineEntry;
   }): string => {
     if (!deal) return "";
     const sections: string[] = [];
     const trimmedQuestion = opts?.question?.trim() || "";
+    const focused = opts?.focusedEntry;
 
     sections.push(`I want to discuss the "${deal.name}" deal with ${deal.companyName}.`);
     sections.push("");
@@ -539,6 +542,23 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       sections.push(`My specific prompt is: "${trimmedQuestion}"`);
       sections.push("");
     }
+
+    if (focused) {
+      const typeInfo = getEntryTypeInfo(focused.type);
+      const when = formatEntryDate(focused.entryDate);
+      sections.push(`## The ${typeInfo.label.toLowerCase()} I want to focus on`);
+      sections.push(`### ${when} — ${typeInfo.label}${focused.title ? `: ${focused.title}` : ""}`);
+      const focusedContent = focused.content.length > 6000
+        ? focused.content.substring(0, 6000) + "\n[...truncated]"
+        : focused.content;
+      sections.push(focusedContent);
+      sections.push("");
+      sections.push("---");
+      sections.push("");
+      sections.push("The rest of the deal context follows as background.");
+      sections.push("");
+    }
+
     sections.push(`Current stage: ${deal.stage} | Status: ${deal.status}`);
     if (deal.notes) sections.push(`Deal notes: ${deal.notes}`);
     sections.push("");
@@ -555,9 +575,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       sections.push("");
     }
 
-    if (deal.entries.length > 0) {
-      sections.push("## Timeline of Interactions");
-      for (const entry of deal.entries.slice(0, 15)) {
+    // Skip the focused entry in the timeline — it's already rendered in full
+    // above, so re-including it just wastes tokens.
+    const timelineEntries = focused
+      ? deal.entries.filter((e) => e.id !== focused.id)
+      : deal.entries;
+    if (timelineEntries.length > 0) {
+      sections.push(focused ? "## Timeline of Interactions (other entries)" : "## Timeline of Interactions");
+      for (const entry of timelineEntries.slice(0, 15)) {
         const date = formatEntryDate(entry.entryDate);
         const typeInfo = getEntryTypeInfo(entry.type);
         sections.push(`### ${date} — ${typeInfo.label}${entry.title ? `: ${entry.title}` : ""}`);
@@ -663,9 +688,21 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   }, [router, pathname, searchParams]);
 
   const openChatPanelForConversation = useCallback((convId: string) => {
+    // Resuming an existing conversation — any focus is already baked into
+    // the stored first message, so clear it to avoid double-emphasis on
+    // subsequent turns.
+    setFocusedEntryId(null);
     setPanelConversationId(convId);
     setChatPanelOpen(true);
     syncChatUrl(convId);
+  }, [syncChatUrl]);
+
+  const startChatWithEntry = useCallback((entryId: string) => {
+    // Start a fresh conversation focused on a specific timeline entry.
+    setFocusedEntryId(entryId);
+    setPanelConversationId(null);
+    setChatPanelOpen(true);
+    syncChatUrl(null);
   }, [syncChatUrl]);
 
   // Hydrate panel state from the URL on first load so a refresh / deep link
@@ -682,12 +719,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   }, [searchParams]);
 
   const startDealChat = () => {
+    // "Chat With Deal Timeline" — whole-deal chat, no specific focus.
+    setFocusedEntryId(null);
     setChatPanelOpen(true);
     if (panelConversationId) syncChatUrl(panelConversationId);
   };
 
   const closeChatPanel = () => {
     setChatPanelOpen(false);
+    setFocusedEntryId(null);
     syncChatUrl(null);
   };
 
@@ -1632,13 +1672,25 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 return (
                   <>
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                      <h3 className="text-sm font-semibold text-gray-700">
-                        Timeline ({filteredEntries.length}
-                        {hasFilter && deal.entries.length !== filteredEntries.length
-                          ? ` of ${deal.entries.length}`
-                          : ""}
-                        )
-                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-semibold text-gray-700">
+                          Timeline ({filteredEntries.length}
+                          {hasFilter && deal.entries.length !== filteredEntries.length
+                            ? ` of ${deal.entries.length}`
+                            : ""}
+                          )
+                        </h3>
+                        {deal.entries.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={startDealChat}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                            title="Chat with Mikey about the whole deal timeline"
+                          >
+                            🌊 Chat With Deal Timeline
+                          </button>
+                        )}
+                      </div>
                       {deal.entries.length > 0 && visibleTypes.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
@@ -1876,9 +1928,29 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               >
                                 🧠 Analyze Call
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => startChatWithEntry(entry.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                                title="Chat with Mikey focused on this call, with the rest of the deal as background"
+                              >
+                                🌊 Chat With This
+                              </button>
                             </div>
                           );
                         })()}
+                        {(entry.type === "email" || entry.type === "chat") && (
+                          <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => startChatWithEntry(entry.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                              title={`Chat with Mikey focused on this ${entry.type === "email" ? "email" : "conversation"}, with the rest of the deal as background`}
+                            >
+                              🌊 Chat With This
+                            </button>
+                          </div>
+                        )}
                         {(() => {
                           const isExpanded = expandedEntries.has(entry.id);
                           const isShort = entry.content.length <= 200;
@@ -1927,7 +1999,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         open={chatPanelOpen}
         onClose={closeChatPanel}
         dealName={deal.name}
-        buildContext={(question) => buildDealChatContext({ question })}
+        buildContext={(question) => {
+          const focused = focusedEntryId ? deal.entries.find((e) => e.id === focusedEntryId) : undefined;
+          return buildDealChatContext({ question, focusedEntry: focused });
+        }}
         conversationId={panelConversationId}
         onConversationCreated={(convId, firstQuestion) => {
           setPanelConversationId(convId);
