@@ -613,7 +613,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 {DEAL_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
               <button
-                onClick={analyzeDeal}
+                onClick={() => analyzeDeal()}
                 disabled={analyzing || deal.entries.length === 0}
                 className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-xs font-medium shadow hover:shadow-md disabled:opacity-50 flex items-center gap-1.5"
               >
@@ -673,7 +673,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="mt-4 flex items-center gap-3">
                   <button
-                    onClick={analyzeDeal}
+                    onClick={() => analyzeDeal()}
                     disabled={analyzing}
                     className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1"
                   >
