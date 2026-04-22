@@ -301,17 +301,23 @@ export default function DealChatPanel({
       <button
         type="button"
         onClick={onOpen}
-        className="fixed right-0 top-1/3 z-30 flex flex-col items-center gap-2 px-2 py-3 bg-white border border-gray-200 border-r-0 rounded-l-lg shadow-md hover:bg-purple-50 hover:border-purple-200 transition-colors"
+        className="fixed right-0 top-1/3 z-30 flex flex-col items-center gap-3 px-3 py-5 bg-white border border-gray-200 border-r-0 rounded-l-xl shadow-lg hover:bg-purple-50 hover:border-purple-200 transition-colors group/rail"
         aria-label="Open Deal Chat"
         title="Open Deal Chat"
       >
-        <span className="text-lg leading-none">🌊</span>
+        <span className="text-3xl leading-none">🌊</span>
+        <span
+          className="text-[11px] font-semibold tracking-wider text-gray-600 group-hover/rail:text-purple-700 uppercase"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          Deal Chat
+        </span>
         {hasMessages && (
-          <span className="text-[10px] font-medium text-purple-700 bg-purple-100 rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+          <span className="text-xs font-semibold text-purple-700 bg-purple-100 rounded-full px-2 py-0.5 min-w-[24px] text-center">
             {messages.length}
           </span>
         )}
-        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <svg className="w-5 h-5 text-gray-400 group-hover/rail:text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
