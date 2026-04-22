@@ -177,7 +177,62 @@ function CopyLinkButton({ id, label }: { id: string; label: string }) {
   );
 }
 
-function buildHeading(level: 2 | 3) {
+function CopyMarkdownButton({ getMarkdown, label }: { getMarkdown: () => string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const onClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Prevent the click from bubbling into the analysis-card header toggle
+    // or any other click-to-expand wrapper the button is nested inside.
+    e.stopPropagation();
+    const text = getMarkdown();
+    if (!text) return;
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`Copy ${label}`}
+      aria-label={`Copy ${label}`}
+      className="inline-flex items-center gap-1 text-gray-400 hover:text-purple-600"
+    >
+      {copied ? (
+        <span className="text-xs font-medium text-purple-600">Copied!</span>
+      ) : (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// Slice a single section ("## Heading" through the next ##/### heading) out of
+// the full analysis markdown. Used by the per-section Copy buttons so each
+// one copies only its own section, not the whole analysis.
+function extractAnalysisSection(markdown: string, headingText: string): string {
+  if (!markdown || !headingText) return "";
+  const lines = markdown.split("\n");
+  const target = headingText.trim().toLowerCase();
+  let startIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^#{2,3}\s+(.*?)\s*$/);
+    if (m && m[1].trim().toLowerCase() === target) {
+      startIdx = i;
+      break;
+    }
+  }
+  if (startIdx === -1) return "";
+  let endIdx = lines.length;
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    if (/^#{1,3}\s+/.test(lines[i])) { endIdx = i; break; }
+  }
+  return lines.slice(startIdx, endIdx).join("\n").trim();
+}
+
+function buildHeading(level: 2 | 3, fullMarkdown: string) {
   const Tag = level === 2 ? "h2" : "h3";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function HeadingWithAnchor({ children }: { children?: any }) {
@@ -189,16 +244,22 @@ function buildHeading(level: 2 | 3) {
           {children}
         </span>
         <CopyLinkButton id={id} label={text || "this section"} />
+        <CopyMarkdownButton
+          getMarkdown={() => extractAnalysisSection(fullMarkdown, text)}
+          label={`${text || "section"} markdown`}
+        />
       </Tag>
     );
   };
 }
 
-const analysisMarkdownComponents = {
-  h1: buildHeading(2),
-  h2: buildHeading(2),
-  h3: buildHeading(3),
-};
+function buildAnalysisMarkdownComponents(fullMarkdown: string) {
+  return {
+    h1: buildHeading(2, fullMarkdown),
+    h2: buildHeading(2, fullMarkdown),
+    h3: buildHeading(3, fullMarkdown),
+  };
+}
 
 function displayName(name: string, email?: string | null): string {
   if (!name.includes("@")) return titleCase(name);
@@ -1114,6 +1175,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           // showing the whole analysis so we never strand the user with an
           // empty panel.
           const hasSummary = Boolean(summaryBody);
+          const analysisMarkdownComponents = buildAnalysisMarkdownComponents(deal.lastAnalysis);
           return (
             <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
               <div
@@ -1144,6 +1206,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     )
                   )}
                 </div>
+                <CopyMarkdownButton
+                  getMarkdown={() => deal.lastAnalysis || ""}
+                  label="full deal analysis"
+                />
               </div>
               <div className="px-5 pb-5 border-t border-purple-100">
                 <div className="prose prose-sm max-w-none text-gray-700 mt-3">
