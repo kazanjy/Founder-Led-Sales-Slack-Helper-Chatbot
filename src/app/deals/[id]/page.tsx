@@ -117,7 +117,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [processingScreenshot, setProcessingScreenshot] = useState(false);
   const [entryFromScreenshot, setEntryFromScreenshot] = useState(false);
   const [processingPdf, setProcessingPdf] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -454,55 +456,41 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     setEnrichingPid(null);
   };
 
-  const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    for (const item of Array.from(items)) {
-      if (item.type.startsWith("image/")) {
-        e.preventDefault();
-        const file = item.getAsFile();
-        if (!file) return;
-        setProcessingScreenshot(true);
-        try {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onload = () => {
-              const result = reader.result as string;
-              resolve(result.split(",")[1]);
-            };
-            reader.readAsDataURL(file);
-          });
-          const res = await fetch(`/api/deals/${id}/screenshot`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setNewEntryType("screenshot");
-            setNewEntryTitle(data.title || "");
-            setNewEntryContent(data.content || "");
-            setEntryFromScreenshot(true);
-            if (data.date) {
-              setNewEntryDate(data.date);
-            } else {
-              setNewEntryDate("");
-            }
-          }
-        } catch (error) {
-          console.error("Failed to process screenshot:", error);
-        }
-        setProcessingScreenshot(false);
-        return;
+  const isPdfFile = (file: File) =>
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  const isImageFile = (file: File) => file.type.startsWith("image/");
+
+  const processImageFile = async (file: File) => {
+    setProcessingScreenshot(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/deals/${id}/screenshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewEntryType("screenshot");
+        setNewEntryTitle(data.title || "");
+        setNewEntryContent(data.content || "");
+        setEntryFromScreenshot(true);
+        setNewEntryDate(data.date || "");
       }
+    } catch (error) {
+      console.error("Failed to process screenshot:", error);
     }
+    setProcessingScreenshot(false);
   };
 
-  const handlePdfUpload = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
-      alert("Please select a PDF file.");
-      return;
-    }
+  const processPdfFile = async (file: File) => {
     setProcessingPdf(true);
     try {
       const formData = new FormData();
@@ -526,6 +514,56 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       alert("Failed to upload PDF");
     }
     setProcessingPdf(false);
+  };
+
+  const handleFile = (file: File) => {
+    if (isImageFile(file)) return processImageFile(file);
+    if (isPdfFile(file)) return processPdfFile(file);
+    alert("Only images and PDFs are supported.");
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file") continue;
+      if (item.type.startsWith("image/") || item.type === "application/pdf") {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) handleFile(file);
+        return;
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (!dragActive) setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear when leaving the drop zone itself, not a child element
+    if (e.currentTarget === e.target) setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleImageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const handlePdfInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
     if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
@@ -975,46 +1013,73 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 placeholder="Title (optional)"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
               />
-              <textarea
-                value={newEntryContent}
-                onChange={(e) => setNewEntryContent(e.target.value)}
-                onPaste={handlePaste}
-                placeholder="Paste content — call transcript, email, notes, or Cmd+V a screenshot..."
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y mb-2"
-              />
-              {processingScreenshot && (
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                  <span className="text-xs text-purple-600">Extracting text from screenshot...</span>
-                </div>
-              )}
-              {processingPdf && (
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                  <span className="text-xs text-purple-600">Extracting text from PDF...</span>
-                </div>
-              )}
-              <div className="mb-2">
-                <input
-                  ref={pdfInputRef}
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handlePdfUpload(file);
-                  }}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative rounded-lg mb-2 transition-colors ${dragActive ? "ring-2 ring-purple-400 ring-offset-1" : ""}`}
+              >
+                <textarea
+                  value={newEntryContent}
+                  onChange={(e) => setNewEntryContent(e.target.value)}
+                  onPaste={handlePaste}
+                  placeholder="Paste, drop, or type content — call transcript, email, notes, screenshots, PDFs..."
+                  rows={4}
+                  className="w-full px-3 py-2 pr-3 pb-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
                 />
-                <button
-                  type="button"
-                  onClick={() => pdfInputRef.current?.click()}
-                  disabled={processingPdf}
-                  className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-purple-600 disabled:opacity-50"
-                >
-                  <span>📎</span>
-                  <span className="underline decoration-dotted underline-offset-2">Upload PDF</span>
-                </button>
+                {/* Attachment CTA row — image + PDF icons, chat-style */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-1">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageInputChange}
+                  />
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={handlePdfInputChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={processingScreenshot || processingPdf}
+                    title="Attach image (screenshot)"
+                    className="p-1.5 rounded-md text-gray-400 hover:text-purple-600 hover:bg-purple-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pdfInputRef.current?.click()}
+                    disabled={processingScreenshot || processingPdf}
+                    title="Attach PDF"
+                    className="p-1.5 rounded-md text-gray-400 hover:text-purple-600 hover:bg-purple-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 3v5a1 1 0 001 1h5" />
+                    </svg>
+                  </button>
+                  {(processingScreenshot || processingPdf) && (
+                    <div className="flex items-center gap-1.5 ml-1">
+                      <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      <span className="text-xs text-purple-600">
+                        {processingPdf ? "Extracting text from PDF..." : "Extracting text from screenshot..."}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {dragActive && (
+                  <div className="pointer-events-none absolute inset-0 rounded-lg bg-purple-50/70 border-2 border-dashed border-purple-400 flex items-center justify-center">
+                    <span className="text-xs font-medium text-purple-700">Drop image or PDF to attach</span>
+                  </div>
+                )}
               </div>
               <input
                 type="url"

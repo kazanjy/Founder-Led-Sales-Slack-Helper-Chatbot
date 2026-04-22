@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
@@ -30,6 +30,20 @@ function formatRelative(dateStr: string): string {
 }
 
 export default function DealsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <SalesNavBar />
+        </div>
+      }
+    >
+      <DealsPageContent />
+    </Suspense>
+  );
+}
+
+function DealsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<Deal[]>([]);
