@@ -96,7 +96,10 @@ export default function DealChatPanel({
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
-        const loaded: Message[] = (data.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+        // The /api/conversations/[id] route nests messages under
+        // data.conversation.messages, not at the top level.
+        const rawMessages = data.conversation?.messages || data.messages || [];
+        const loaded: Message[] = rawMessages.map((m: { id: string; role: string; content: string; createdAt: string }) => ({
           id: m.id,
           role: m.role === "USER" ? "USER" : "ASSISTANT",
           content: m.content,
