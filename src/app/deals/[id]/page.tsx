@@ -294,6 +294,19 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const stageInfo = getStageInfo(deal.stage);
   const statusInfo = getStatusInfo(deal.status);
 
+  // Sort participants by how frequently they appear in timeline entries
+  const sortedParticipants = [...deal.participants].sort((a, b) => {
+    const countMentions = (p: Participant) => {
+      const terms = [p.name.toLowerCase()];
+      if (p.email) terms.push(p.email.toLowerCase());
+      return deal.entries.reduce((count, entry) => {
+        const text = (entry.content + " " + (entry.title || "")).toLowerCase();
+        return count + (terms.some((t) => text.includes(t)) ? 1 : 0);
+      }, 0);
+    };
+    return countMentions(b) - countMentions(a);
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
@@ -429,7 +442,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           <div>
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Participants ({deal.participants.length})</h3>
+                <h3 className="text-sm font-semibold text-gray-700">Participants ({sortedParticipants.length})</h3>
                 <button
                   onClick={() => setShowAddParticipant(true)}
                   className="text-xs text-purple-600 hover:text-purple-800 font-medium"
@@ -453,12 +466,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               )}
 
-              {deal.participants.length === 0 && !showAddParticipant && (
+              {sortedParticipants.length === 0 && !showAddParticipant && (
                 <p className="text-xs text-gray-400">No participants yet.</p>
               )}
 
               <div className="space-y-2">
-                {deal.participants.map((p) => {
+                {sortedParticipants.map((p) => {
                   const roleInfo = getRoleInfo(p.role);
                   return (
                     <div key={p.id} className="border border-gray-200 rounded-lg p-2.5 group/p">
