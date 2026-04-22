@@ -318,18 +318,25 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deal]);
 
-  // If the URL has a #analysis-* hash, expand the card and scroll to the
-  // section once it's rendered.
+  // If the URL has a deep-link hash (#analysis-* or #entry-*), scroll to the
+  // target once the deal is rendered. Analysis hashes also expand the
+  // analysis card so the target is visible.
   useEffect(() => {
-    if (!deal?.lastAnalysis) return;
+    if (!deal) return;
     const hash = window.location.hash;
-    if (!hash.startsWith("#analysis-")) return;
-    setShowAnalysis(true);
+    if (!hash) return;
+    const isAnalysis = hash.startsWith("#analysis-");
+    const isEntry = hash.startsWith("#entry-");
+    if (!isAnalysis && !isEntry) return;
+    if (isAnalysis) {
+      if (!deal.lastAnalysis) return;
+      setShowAnalysis(true);
+    }
     requestAnimationFrame(() => {
       const el = document.getElementById(hash.slice(1));
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [deal?.lastAnalysis]);
+  }, [deal]);
 
   const updateDeal = async (updates: Partial<Deal>) => {
     const res = await fetch(`/api/deals/${id}`, {
@@ -1681,7 +1688,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         {filteredEntries.map((entry) => {
                           const typeInfo = getEntryTypeInfo(entry.type);
                           return (
-                            <div key={entry.id} className="bg-white border border-gray-200 rounded-xl p-4 group/e">
+                            <div
+                              key={entry.id}
+                              id={`entry-${entry.id}`}
+                              className="bg-white border border-gray-200 rounded-xl p-4 group/e scroll-mt-20"
+                            >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -1746,15 +1757,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               );
                             })()}
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover/e:opacity-100 transition-opacity">
-                            {entry.sourceUrl && (
-                              <a href={entry.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Open source">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                              </a>
-                            )}
-                            <button onClick={() => deleteEntry(entry.id)} className="text-gray-400 hover:text-red-600" title="Delete">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
+                          <div className="flex items-center gap-2">
+                            <CopyLinkButton id={`entry-${entry.id}`} label={entry.title || typeInfo.label} />
+                            <div className="flex items-center gap-2 opacity-0 group-hover/e:opacity-100 transition-opacity">
+                              {entry.sourceUrl && (
+                                <a href={entry.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600" title="Open source">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                </a>
+                              )}
+                              <button onClick={() => deleteEntry(entry.id)} className="text-gray-400 hover:text-red-600" title="Delete">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                         {(entry.type === "call_transcript" || entry.type === "call_summary") && (() => {
