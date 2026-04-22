@@ -114,6 +114,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editDateValue, setEditDateValue] = useState("");
   const [enrichingAll, setEnrichingAll] = useState(false);
   const autoEnrichAttempted = useRef(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -261,6 +262,81 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       await loadDeal();
     } catch { /* ignore */ }
     setEnrichingAll(false);
+  };
+
+  const startDealChat = async () => {
+    if (!deal) return;
+    setStartingChat(true);
+    try {
+      // Build context from deal data
+      const sections: string[] = [];
+      sections.push(`I want to discuss the "${deal.name}" deal with ${deal.companyName}.`);
+      sections.push(`Current stage: ${deal.stage} | Status: ${deal.status}`);
+      if (deal.notes) sections.push(`Deal notes: ${deal.notes}`);
+      sections.push("");
+
+      if (deal.participants.length > 0) {
+        sections.push("## Participants");
+        for (const p of deal.participants) {
+          const parts = [titleCase(p.name)];
+          if (p.title) parts.push(titleCase(p.title));
+          if (p.company) parts.push(`@ ${titleCase(p.company)}`);
+          if (p.role && p.role !== "unknown") parts.push(`(${p.role})`);
+          sections.push(`- ${parts.join(", ")}`);
+        }
+        sections.push("");
+      }
+
+      if (deal.entries.length > 0) {
+        sections.push("## Timeline of Interactions");
+        for (const entry of deal.entries.slice(0, 15)) {
+          const date = formatEntryDate(entry.entryDate);
+          const typeInfo = getEntryTypeInfo(entry.type);
+          sections.push(`### ${date} — ${typeInfo.label}${entry.title ? `: ${entry.title}` : ""}`);
+          const content = entry.content.length > 2000
+            ? entry.content.substring(0, 2000) + "\n[...truncated]"
+            : entry.content;
+          sections.push(content);
+          sections.push("");
+        }
+      }
+
+      if (deal.lastAnalysis) {
+        sections.push("## Latest Deal Analysis");
+        sections.push(deal.lastAnalysis);
+        sections.push("");
+      }
+
+      sections.push("{{SALES_NARRATIVE}}");
+      sections.push("");
+      sections.push("Based on all this context, help me think through this deal. What questions do you have?");
+
+      const context = sections.join("\n");
+
+      const res = await fetch("/api/conversations/from-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Deal: ${deal.name}`,
+          context,
+        }),
+      });
+      const data = await res.json();
+      if (data.conversationId) {
+        // Create a timeline entry linking to the chat
+        await addEntry({
+          type: "chat" as string,
+          title: `Chat: ${deal.name}`,
+          content: `Started a conversation about this deal.`,
+          sourceUrl: `/chat/${data.conversationId}`,
+        } as Partial<TimelineEntry>);
+
+        window.open(`/chat/${data.conversationId}`, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to start deal chat:", error);
+    }
+    setStartingChat(false);
   };
 
   const updateEntryDate = async (entryId: string, dateStr: string) => {
@@ -490,6 +566,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 ) : "🧠 Analyze Deal"}
               </button>
               <button
+                onClick={startDealChat}
+                disabled={startingChat}
+                className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {startingChat ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                    Opening...
+                  </>
+                ) : "💬 Chat About Deal"}
+              </button>
+              <button
                 onClick={deleteDeal}
                 className="text-xs text-gray-400 hover:text-red-600 px-2 py-1"
                 title="Delete deal"
@@ -535,6 +623,30 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Deal Chats breadcrumbs */}
+        {deal.entries.some((e) => e.type === "chat") && (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">💬 Deal Conversations</h3>
+            <div className="flex flex-wrap gap-2">
+              {deal.entries.filter((e) => e.type === "chat").map((e) => (
+                <a
+                  key={e.id}
+                  href={e.sourceUrl || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <span className="font-medium">{e.title || "Deal Chat"}</span>
+                  <span className="text-xs text-purple-500">{formatEntryDate(e.entryDate)}</span>
+                </a>
+              ))}
+            </div>
           </div>
         )}
 
