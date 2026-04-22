@@ -598,11 +598,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     entryDate: data.date ? new Date(data.date).toISOString() : undefined,
                   });
 
-                  // Also add attendees as participants (deduplicated by name)
+                  // Also add attendees as participants (deduplicated by email then name)
                   if (data.attendees?.length) {
+                    const existingEmails = new Set(deal.participants.filter((p) => p.email).map((p) => p.email!.toLowerCase()));
                     const existingNames = new Set(deal.participants.map((p) => p.name.toLowerCase()));
                     for (const a of data.attendees) {
-                      if (!a.name || existingNames.has(a.name.toLowerCase())) continue;
+                      if (!a.name) continue;
+                      if (a.email && existingEmails.has(a.email.toLowerCase())) continue;
+                      if (existingNames.has(a.name.toLowerCase())) continue;
                       await fetch(`/api/deals/${id}/participants`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -614,6 +617,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           role: "unknown",
                         }),
                       });
+                      // Track newly added to prevent duplicates within the same batch
+                      if (a.email) existingEmails.add(a.email.toLowerCase());
+                      existingNames.add(a.name.toLowerCase());
                     }
                     await loadDeal();
                   }

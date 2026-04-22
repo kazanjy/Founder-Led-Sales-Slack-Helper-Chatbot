@@ -87,13 +87,18 @@ export const firefliesProvider: MeetingRecorderProvider = {
 
     return allTranscripts.map((t) => {
       const participantStrs: string[] = t.participants || [];
+      // Fireflies can pack multiple emails in a single comma-separated string — split them
+      const individualParticipants = participantStrs.flatMap((p) =>
+        p.includes(",") ? p.split(",").map((s) => s.trim()).filter(Boolean) : [p]
+      );
+      const uniqueParticipants = [...new Set(individualParticipants)];
       return {
         id: t.id,
         title: t.title || "Untitled Meeting",
         date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
         duration: t.duration ? Math.round(t.duration / 1000) : undefined,
-        participants: participantStrs,
-        attendees: participantStrs.map((p) => ({
+        participants: uniqueParticipants,
+        attendees: uniqueParticipants.map((p) => ({
           name: p,
           email: p.includes("@") ? p : undefined,
         })),
@@ -139,14 +144,18 @@ export const firefliesProvider: MeetingRecorderProvider = {
       .join("\n\n");
 
     const participantStrs: string[] = t.participants || [];
+    const individualParticipants = participantStrs.flatMap((p: string) =>
+      p.includes(",") ? p.split(",").map((s: string) => s.trim()).filter(Boolean) : [p]
+    );
+    const uniqueParticipants = [...new Set(individualParticipants)];
 
     return {
       id: t.id,
       title: t.title || "Untitled Meeting",
       date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
       duration: t.duration ? Math.round(t.duration / 1000) : undefined,
-      participants: participantStrs,
-      attendees: participantStrs.map((p: string) => ({
+      participants: uniqueParticipants,
+      attendees: uniqueParticipants.map((p: string) => ({
         name: p,
         email: p.includes("@") ? p : undefined,
       })),
