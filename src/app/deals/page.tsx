@@ -55,6 +55,7 @@ function DealsPageContent() {
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
   const [creating, setCreating] = useState(false);
+  const [suggestingName, setSuggestingName] = useState(false);
   const [importedCalls, setImportedCalls] = useState<Array<{
     title?: string;
     summary?: string;
@@ -422,10 +423,11 @@ function DealsPageContent() {
                       break;
                     }
                   }
-                  if (calls[0]?.title) {
-                    setNewDealName((prev) => prev.trim() ? prev : calls[0].title!);
-                  }
-                  // AI override: replace with better suggestions when ready
+                  // Deliberately NOT pre-filling with calls[0].title — call
+                  // titles make bad deal names ("[HOLD] inDrive <> Mesh -
+                  // Check-In"). Show a loading state and let the AI suggest
+                  // a proper opportunity name.
+                  setSuggestingName(true);
                   fetch("/api/deals/suggest-name", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -433,10 +435,11 @@ function DealsPageContent() {
                   })
                     .then((r) => r.json())
                     .then((data) => {
-                      if (data.companyName) setNewDealCompany(data.companyName);
-                      if (data.dealName) setNewDealName(data.dealName);
+                      if (data.companyName) setNewDealCompany((prev) => prev.trim() ? prev : data.companyName);
+                      if (data.dealName) setNewDealName((prev) => prev.trim() ? prev : data.dealName);
                     })
-                    .catch(() => {});
+                    .catch(() => {})
+                    .finally(() => setSuggestingName(false));
                 }}
               />
             </div>
@@ -502,15 +505,24 @@ function DealsPageContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deal Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                  Deal Name
+                  {suggestingName && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-normal text-purple-600">
+                      <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      suggesting...
+                    </span>
+                  )}
+                </label>
                 <input
                   type="text"
                   value={newDealName}
                   onChange={(e) => setNewDealName(e.target.value)}
-                  placeholder="e.g., Visana - Enterprise Deal"
+                  placeholder={suggestingName ? "Mikey is naming the deal..." : "e.g., Visana — Enterprise Pilot"}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   onKeyDown={(e) => { if (e.key === "Enter") createDeal(); }}
                 />
+                <p className="text-[11px] text-gray-400 mt-1">Name the opportunity, not the meeting — e.g. &quot;Acme — Platform Rollout&quot;, not &quot;Acme &lt;&gt; Mesh Weekly Sync&quot;.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

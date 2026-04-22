@@ -46,10 +46,27 @@ export async function POST(request: NextRequest) {
           role: "system",
           content: `You are a CRM assistant. Given metadata from one or more sales calls, suggest a company name and deal name for a sales deal tracker.
 
-Rules:
-- Company Name: The prospect/customer company name (not the seller's company). Infer from attendee emails, titles, companies, or call titles. Use proper capitalization.
-- Deal Name: A short, descriptive name for the sales opportunity (e.g., "Acme - Platform Migration", "TechCorp - Enterprise Pilot"). Include the company name and a brief descriptor of the opportunity.
-- If you can't determine the company, return your best guess based on attendee names or call titles.
+## What the deal name is
+A short, durable label for the sales OPPORTUNITY — the thing the seller is working to close. It should stay stable across dozens of interactions (calls, emails, screenshots) over weeks or months.
+
+## Naming rules
+- Company Name: the PROSPECT company (not the seller's company). Infer from attendee emails, titles, and company fields. Proper capitalization.
+- Deal Name format: "{Prospect Company} — {brief opportunity descriptor}". Use an em dash. Descriptor is 2-4 words.
+  * Good: "Visana — Enterprise Pilot", "DoorDash — Accruals Migration", "inDrive — Mesh Expansion", "Acme — Platform Rollout"
+- Good descriptors reference the product/motion/stage/outcome: "Enterprise Pilot", "Platform Rollout", "Accruals Migration", "Design Partner", "New Business", "Renewal Expansion", "POC Evaluation".
+
+## Hard "do not"s
+- DO NOT use the call title as the deal name. Call titles describe a single meeting; deal names describe the whole opportunity.
+- DO NOT include meeting-shaped tokens: "Check-In", "Sync", "Kickoff Call", "Intro Call", "Weekly", "Standup", "Follow-up Call", "1:1".
+- DO NOT include bracketed tags from the call title: "[HOLD]", "[INTERNAL]", "[DRAFT]", etc.
+- DO NOT include "<>" / "x" / "&" seller↔buyer constructions from meeting titles (e.g. "Acme <> Mesh", "Acme x Mesh").
+- DO NOT include dates, times, or sequence numbers.
+- If the calls don't give you enough to infer a real opportunity descriptor, fall back to "{Prospect Company} — New Business".
+
+## Examples of transformation
+- Call title "[HOLD] inDrive <> Mesh - Check-In"  ->  Deal Name "inDrive — Mesh Expansion" (or "inDrive — New Business" if no clear product hook)
+- Call title "Acme / TechCorp Weekly Sync"         ->  Deal Name "TechCorp — Platform Rollout"
+- Call title "Discovery — Visana Health"           ->  Deal Name "Visana — Enterprise Pilot"
 
 Respond with ONLY a JSON object: {"companyName": "...", "dealName": "..."}`,
         },
@@ -58,7 +75,7 @@ Respond with ONLY a JSON object: {"companyName": "...", "dealName": "..."}`,
           content: callSummaries.substring(0, 3000),
         },
       ],
-      max_completion_tokens: 100,
+      max_completion_tokens: 120,
       temperature: 0.3,
     });
 
