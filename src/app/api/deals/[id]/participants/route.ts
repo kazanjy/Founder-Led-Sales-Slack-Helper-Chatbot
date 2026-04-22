@@ -32,6 +32,42 @@ export async function POST(
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
+    const cleanEmail = email?.trim()?.toLowerCase() || null;
+    const cleanName = name.trim();
+
+    // Deduplicate: check for existing participant with the same email or name
+    if (cleanEmail || cleanName) {
+      const existing = await prisma.dealParticipant.findFirst({
+        where: {
+          dealId: id,
+          OR: [
+            ...(cleanEmail ? [{ email: { equals: cleanEmail, mode: "insensitive" as const } }] : []),
+            { name: { equals: cleanName, mode: "insensitive" as const } },
+          ],
+        },
+      });
+
+      if (existing) {
+        // Merge: fill in any empty fields from the new data
+        const updates: Record<string, string> = {};
+        if (!existing.title && title?.trim()) updates.title = title.trim();
+        if (!existing.company && company?.trim()) updates.company = company.trim();
+        if (!existing.email && cleanEmail) updates.email = cleanEmail;
+        if (!existing.linkedinUrl && linkedinUrl?.trim()) updates.linkedinUrl = linkedinUrl.trim();
+        // Prefer a real name over an email-as-name
+        if (existing.name.includes("@") && !cleanName.includes("@")) updates.name = cleanName;
+
+        if (Object.keys(updates).length > 0) {
+          const updated = await prisma.dealParticipant.update({
+            where: { id: existing.id },
+            data: updates,
+          });
+          return NextResponse.json({ participant: updated, merged: true });
+        }
+        return NextResponse.json({ participant: existing, merged: true });
+      }
+    }
+
     const participant = await prisma.dealParticipant.create({
       data: {
         dealId: id,
