@@ -107,6 +107,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [enrichingPid, setEnrichingPid] = useState<string | null>(null);
   const [processingScreenshot, setProcessingScreenshot] = useState(false);
   const [entryFromScreenshot, setEntryFromScreenshot] = useState(false);
+  const [processingPdf, setProcessingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -459,6 +461,37 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         return;
       }
     }
+  };
+
+  const handlePdfUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
+      alert("Please select a PDF file.");
+      return;
+    }
+    setProcessingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/deals/${id}/extract-pdf`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewEntryType("document");
+        setNewEntryTitle(data.title || file.name.replace(/\.pdf$/i, ""));
+        setNewEntryContent(data.content || "");
+        if (data.date) setNewEntryDate(data.date);
+      } else {
+        const { error } = await res.json().catch(() => ({ error: "Failed to extract PDF" }));
+        alert(error || "Failed to extract PDF");
+      }
+    } catch (error) {
+      console.error("Failed to upload PDF:", error);
+      alert("Failed to upload PDF");
+    }
+    setProcessingPdf(false);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
   if (loading && !deal) {
@@ -854,6 +887,33 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   <span className="text-xs text-purple-600">Extracting text from screenshot...</span>
                 </div>
               )}
+              {processingPdf && (
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                  <span className="text-xs text-purple-600">Extracting text from PDF...</span>
+                </div>
+              )}
+              <div className="mb-2">
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePdfUpload(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={processingPdf}
+                  className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-purple-600 disabled:opacity-50"
+                >
+                  <span>📎</span>
+                  <span className="underline decoration-dotted underline-offset-2">Upload PDF</span>
+                </button>
+              </div>
               <input
                 type="url"
                 value={newEntryUrl}
