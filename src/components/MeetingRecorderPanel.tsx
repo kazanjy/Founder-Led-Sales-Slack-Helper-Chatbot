@@ -207,8 +207,26 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
         }
       }
 
-      // Enrich attendees via PDL if any have email addresses
+      // Filter out internal attendees (same domain as the logged-in user's account)
       let attendees = data.call.attendees || [];
+      try {
+        const meRes = await fetch("/api/auth/me");
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const userEmail = meData.user?.email || meData.user?.slackEmail;
+          const accountDomain = meData.user?.accountDomain;
+          const internalDomain = accountDomain || (userEmail ? userEmail.split("@")[1]?.toLowerCase() : null);
+          const FREE_DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "live.com", "me.com"];
+          if (internalDomain && !FREE_DOMAINS.includes(internalDomain)) {
+            attendees = attendees.filter((a: { email?: string }) => {
+              if (!a.email) return true;
+              return a.email.split("@")[1]?.toLowerCase() !== internalDomain;
+            });
+          }
+        }
+      } catch { /* proceed without filtering */ }
+
+      // Enrich attendees via PDL if any have email addresses
       const hasEmails = attendees.some((a: { email?: string }) => a.email);
       if (hasEmails) {
         try {

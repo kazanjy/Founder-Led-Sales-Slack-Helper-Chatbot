@@ -36,14 +36,30 @@ export async function POST(
     const cleanName = name.trim();
 
     // Filter out participants from the seller's own domain (internal team)
-    if (cleanEmail && user.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: user.accountId },
-        select: { emailDomain: true },
-      });
-      if (account?.emailDomain) {
-        const participantDomain = cleanEmail.split("@")[1];
-        if (participantDomain === account.emailDomain) {
+    if (cleanEmail) {
+      const participantDomain = cleanEmail.split("@")[1];
+      if (participantDomain) {
+        // Check against account emailDomain
+        let internalDomain: string | null = null;
+        if (user.accountId) {
+          const account = await prisma.account.findUnique({
+            where: { id: user.accountId },
+            select: { emailDomain: true },
+          });
+          internalDomain = account?.emailDomain || null;
+        }
+        // Fallback: derive from user's own email
+        if (!internalDomain) {
+          const userEmail = user.email || user.slackEmail;
+          if (userEmail) {
+            const userDomain = userEmail.split("@")[1]?.toLowerCase();
+            const FREE_DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "live.com", "me.com"];
+            if (userDomain && !FREE_DOMAINS.includes(userDomain)) {
+              internalDomain = userDomain;
+            }
+          }
+        }
+        if (internalDomain && participantDomain === internalDomain) {
           return NextResponse.json({ participant: null, skipped: true, reason: "internal" });
         }
       }

@@ -29,6 +29,16 @@ export async function GET() {
 
   const chatStatus = canUserChat(user);
 
+  // Get account domain for internal filtering
+  let accountDomain: string | null = null;
+  if (user.accountId) {
+    const account = await prisma.account.findUnique({
+      where: { id: user.accountId },
+      select: { emailDomain: true },
+    });
+    accountDomain = account?.emailDomain || null;
+  }
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -40,14 +50,12 @@ export async function GET() {
       trialDaysRemaining,
       canChat: chatStatus.allowed,
       chatBlockedMessage: chatStatus.message,
-      // Auth provider info
       isGoogleUser: !!user.googleId,
       isSlackUser: !!user.slackUserId,
-      // Profile completion flags - true if the main field is missing (not just falling back to Slack)
       missingName: !user.name && !user.slackUserName,
       missingEmail: !user.email && !user.slackEmail,
-      // Impersonation info
       isImpersonating: user.isImpersonating,
+      accountDomain,
     },
   });
 }
