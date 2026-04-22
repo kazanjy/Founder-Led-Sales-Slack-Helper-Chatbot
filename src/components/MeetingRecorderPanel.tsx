@@ -38,6 +38,34 @@ interface MeetingRecorderPanelProps {
 
 const DEEP_SEARCH_LIMIT = 500;
 
+// Build a lowercased string that concatenates several common renderings of
+// an ISO date so a substring check against the user's query hits the formats
+// people actually type: "3/30", "03/30/2026", "March 30", "Mar 30, 2026",
+// "2026-03-30". Returns empty if the ISO doesn't parse.
+function dateSearchBlob(iso: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear();
+  const mm = String(m).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  const longMonth = d.toLocaleString("en-US", { month: "long" });
+  const shortMonth = d.toLocaleString("en-US", { month: "short" });
+  return [
+    iso.slice(0, 10),
+    `${m}/${day}`,
+    `${m}/${day}/${year}`,
+    `${mm}/${dd}`,
+    `${mm}/${dd}/${year}`,
+    `${longMonth} ${day}`,
+    `${longMonth} ${day}, ${year}`,
+    `${shortMonth} ${day}`,
+    `${shortMonth} ${day}, ${year}`,
+  ].join(" ").toLowerCase();
+}
+
 export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defaultCollapsed = false }: MeetingRecorderPanelProps) {
   const multiSelectMode = !!onSelectCalls;
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -423,6 +451,8 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                       a.name?.toLowerCase().includes(q) ||
                       a.email?.toLowerCase().includes(q)
                     )) return true;
+                    if (call.summary?.toLowerCase().includes(q)) return true;
+                    if (dateSearchBlob(call.date).includes(q)) return true;
                     return false;
                   })
                 : group.calls;
