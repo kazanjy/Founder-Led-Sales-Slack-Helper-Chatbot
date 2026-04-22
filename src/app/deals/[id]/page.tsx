@@ -584,7 +584,6 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     try {
       const convId = await openDealChat({
         question: chatOverlayQuestion,
-        leaveBreadcrumb: true,
       });
       if (convId) {
         setShowChatOverlay(false);
@@ -1070,30 +1069,6 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Deal Chats breadcrumbs */}
-        {deal.entries.some((e) => e.type === "chat") && (
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">💬 Deal Conversations</h3>
-            <div className="flex flex-wrap gap-2">
-              {deal.entries.filter((e) => e.type === "chat").map((e) => (
-                <a
-                  key={e.id}
-                  href={e.sourceUrl || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <span className="font-medium">{e.title || "Deal Chat"}</span>
-                  <span className="text-xs text-purple-500">{formatEntryDate(e.entryDate)}</span>
-                </a>
-              ))}
-            </div>
           </div>
         )}
 
