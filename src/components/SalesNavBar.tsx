@@ -201,7 +201,7 @@ export default function SalesNavBar() {
     {impersonating.active && (
       <ImpersonationBanner userName={impersonating.userName} />
     )}
-    <nav className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ${impersonating.active ? "mt-10" : ""}`}>
+    <nav className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ${impersonating.active ? "mt-5" : ""}`}>
       <div className="max-w-7xl mx-auto px-4 md:px-6">
         {/* Mobile: hamburger + current page indicator */}
         <div className="flex items-center md:hidden py-2 gap-2">
