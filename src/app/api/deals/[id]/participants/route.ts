@@ -35,6 +35,20 @@ export async function POST(
     const cleanEmail = email?.trim()?.toLowerCase() || null;
     const cleanName = name.trim();
 
+    // Filter out participants from the seller's own domain (internal team)
+    if (cleanEmail && user.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: user.accountId },
+        select: { emailDomain: true },
+      });
+      if (account?.emailDomain) {
+        const participantDomain = cleanEmail.split("@")[1];
+        if (participantDomain === account.emailDomain) {
+          return NextResponse.json({ participant: null, skipped: true, reason: "internal" });
+        }
+      }
+    }
+
     // Deduplicate: check for existing participant with the same email or name
     if (cleanEmail || cleanName) {
       const existing = await prisma.dealParticipant.findFirst({
