@@ -289,6 +289,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const searchParams = useSearchParams();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
+  const [dealSearchQuery, setDealSearchQuery] = useState("");
+  const [dealSearchOpen, setDealSearchOpen] = useState(false);
+  const dealSearchRef = useRef<HTMLDivElement>(null);
   const [newEntryType, setNewEntryType] = useState<string>("note");
   const [newEntryContent, setNewEntryContent] = useState("");
   const [newEntryTitle, setNewEntryTitle] = useState("");
@@ -361,6 +365,30 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     document.title = "Deal - Mikey";
     loadDeal();
   }, [loadDeal]);
+
+  // Load the user's deal list for the top-of-page switcher. One fetch on
+  // mount — small payload (summary fields only), used for typeahead jumping
+  // between deals without going back to /deals.
+  useEffect(() => {
+    fetch("/api/deals")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.deals) setAllDeals(data.deals);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close the deal-search dropdown on outside clicks.
+  useEffect(() => {
+    if (!dealSearchOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (dealSearchRef.current && !dealSearchRef.current.contains(e.target as Node)) {
+        setDealSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [dealSearchOpen]);
 
   useEffect(() => {
     if (deal?.name) document.title = `${deal.name} - Mikey`;
@@ -1014,14 +1042,62 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <Link href="/deals" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
+        <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <Link href="/deals" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             All Deals
           </Link>
+          {(() => {
+            const q = dealSearchQuery.trim().toLowerCase();
+            const matches = q
+              ? allDeals
+                  .filter((d) => d.id !== id)
+                  .filter((d) => d.name.toLowerCase().includes(q) || d.companyName.toLowerCase().includes(q))
+                  .slice(0, 8)
+              : allDeals.filter((d) => d.id !== id).slice(0, 8);
+            return (
+              <div ref={dealSearchRef} className="relative flex-1 min-w-[220px] max-w-md">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="search"
+                  value={dealSearchQuery}
+                  onChange={(e) => { setDealSearchQuery(e.target.value); setDealSearchOpen(true); }}
+                  onFocus={() => setDealSearchOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setDealSearchOpen(false); (e.target as HTMLInputElement).blur(); }
+                    if (e.key === "Enter" && matches[0]) { router.push(`/deals/${matches[0].id}`); }
+                  }}
+                  placeholder="Jump to another deal..."
+                  className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                {dealSearchOpen && matches.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-80 overflow-y-auto">
+                    {matches.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => { setDealSearchOpen(false); setDealSearchQuery(""); router.push(`/deals/${d.id}`); }}
+                        className="w-full text-left px-3 py-2 hover:bg-purple-50 flex flex-col gap-0.5 border-b border-gray-100 last:border-b-0"
+                      >
+                        <span className="text-xs font-medium text-gray-900 truncate">{d.name}</span>
+                        <span className="text-[11px] text-gray-500 truncate">{d.companyName}{d.stage ? ` · ${d.stage}` : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {dealSearchOpen && q && matches.length === 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 px-3 py-2 text-xs text-gray-500">
+                    No deals match &ldquo;{dealSearchQuery}&rdquo;
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <Link
             href="/deals?new=1"
-            className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-xs font-medium shadow hover:shadow-md transition-all inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-xs font-medium shadow hover:shadow-md transition-all inline-flex items-center gap-1.5 flex-shrink-0"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             New Deal
