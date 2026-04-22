@@ -81,30 +81,41 @@ function slugify(text: string): string {
     .replace(/-+/g, "-");
 }
 
+function extractText(node: unknown): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const props = (node as any)?.props;
+  if (props?.children) return extractText(props.children);
+  return "";
+}
+
 function buildHeading(level: 2 | 3) {
   const Tag = level === 2 ? "h2" : "h3";
-  const sizeClass = level === 2 ? "text-base" : "text-sm";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return function HeadingWithAnchor({ children }: { children?: any }) {
-    const text = typeof children === "string" ? children : Array.isArray(children) ? children.map((c) => (typeof c === "string" ? c : "")).join("") : "";
-    const id = `analysis-${slugify(text)}`;
+    const text = extractText(children).trim();
+    const id = `analysis-${slugify(text || "section")}`;
     const onCopy = () => {
       const url = `${window.location.origin}${window.location.pathname}#${id}`;
       navigator.clipboard.writeText(url).catch(() => {});
     };
     return (
-      <Tag id={id} className={`group scroll-mt-20 ${sizeClass} font-semibold text-gray-900 flex items-center gap-1.5`}>
-        <a href={`#${id}`} className="hover:underline">{children}</a>
-        <button
-          type="button"
+      <Tag id={id} className="scroll-mt-20 not-prose flex items-baseline gap-2 mt-6 mb-2 first:mt-0">
+        <span className={level === 2 ? "text-lg font-bold text-gray-900" : "text-base font-semibold text-gray-900"}>
+          {children}
+        </span>
+        <a
+          href={`#${id}`}
           onClick={onCopy}
           title="Copy link to this section"
-          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-purple-600 transition-opacity"
+          aria-label={`Copy link to ${text || "this section"}`}
+          className="text-gray-300 hover:text-purple-600 transition-colors no-underline shrink-0"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-3.535 3.536a4 4 0 01-5.657 0l-1.414-1.415m-2.829-2.828a4 4 0 010-5.657l3.536-3.535a4 4 0 015.657 0l1.414 1.414" />
           </svg>
-        </button>
+        </a>
       </Tag>
     );
   };
