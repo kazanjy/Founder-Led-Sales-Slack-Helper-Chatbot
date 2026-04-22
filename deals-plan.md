@@ -341,6 +341,48 @@ Today "Chat About This Deal" opens a new Chatbase conversation in a separate tab
 
 **Smaller intermediate step:** an overlay modal (not a side panel) on the deal page that shows just the chat thread — less layout work than a resizable panel, but loses the "glance between analysis and reply" benefit. Probably skip and go straight to the side panel.
 
+### Phase 6: Background Meeting Scanner + Slack Notifications
+
+Today new-call detection only runs when the user opens Mikey — the "catch me up" happens on visits to `/deals` or when they hit Deep Search in the meeting recorder panel. If a call happens overnight or between visits, there's no push. We want a recurring, user-passive loop that notices new calls in connected recorders, matches them to existing deals or flags them as new-deal candidates, and pings the user in Slack with actionable buttons.
+
+**Hourly meeting scanner → Slack DM:**
+- Vercel Cron job (`vercel.json` schedule) runs every hour, hitting `POST /api/cron/scan-meetings` with a shared `CRON_SECRET` header for auth.
+- Handler iterates every active `MeetingRecorderConnection`, fetches calls newer than `lastSyncedAt` via the existing `provider.listCalls(apiKey, ...)` with `created_after` filter where supported, and matches each new call against the user's deals.
+- Matches are scored by: (a) any attendee email-domain matching `deal.participants.company` or the inferred deal company domain, (b) attendee names matching existing `DealParticipant.name` (case-insensitive, tolerant of first-name-only vs full-name), (c) attendee appearing on a prior call already in the deal.
+- For each new call:
+  - **Match found → "New call for &lt;Deal&gt;" DM** with Slack blocks showing call title + date + attendees, plus buttons: `Add to <Deal>` · `Ignore`.
+  - **External attendees, no deal match → "New call — create a deal?" DM** with buttons: `Create deal from this call` · `Ignore`.
+- After the scan completes for a connection, bump `lastSyncedAt` so the next tick starts where we left off.
+- Notify-only by default — no auto-writes to the timeline. The user taps the Slack button to commit. Revisit auto-commit once we see how the confidence scoring behaves in practice.
+
+**Data model additions:**
+```
+NotifiedMeetingCall
+├── id (cuid)
+├── userId (FK → User)
+├── provider (String) — "granola" | "fireflies" | "fathom"
+├── providerCallId (String) — the recorder's call id, unique per provider
+├── notifiedAt (DateTime)
+├── action (String?, nullable) — "added_to_deal" | "created_deal" | "ignored" | null (pending)
+├── dealId (String?, FK → Deal) — set when actioned
+├── slackChannelId (String?, nullable)
+├── slackMessageTs (String?, nullable) — so we can update/delete the DM after action
+└── @@unique([userId, provider, providerCallId])
+```
+The unique constraint is the idempotency key — a call that stays unactioned across multiple hourly runs doesn't re-DM.
+
+**Slack interaction handler:**
+- Buttons POST to the existing Slack interactions endpoint (new `action_id` prefixes like `deal_scan_add`, `deal_scan_create`, `deal_scan_ignore`).
+- Handler: verify signature, look up the `NotifiedMeetingCall` row via embedded metadata, fetch the call detail with the existing `provider.getCallDetail`, create the timeline entry (or the deal), update the row's `action` + `dealId`, update the original DM to show "Added to &lt;Deal&gt; ✓" instead of the buttons.
+
+**Why phase 6, not baked into phase 2:** the matching + Slack roundtrip is its own UX loop and a second deployment surface (cron + interaction handler). Worth shipping after deal creation + timeline flows have settled so the "what's worth notifying about" bar is clear.
+
+**Known open decisions:**
+- **Confidence threshold for auto-commit**: start notify-only; if users overwhelmingly tap "Add to X" and never "Ignore" on high-confidence matches (domain + 2+ name hits), add an auto-commit path that still sends a "Added &lt;call&gt; to &lt;Deal&gt; — undo?" DM.
+- **Delivery channel**: Slack DM first (we already have the infra). Email fallback for users without Slack is a follow-up.
+- **Cadence**: hourly is the default. Recorders typically finish summaries ~10 min after a call ends, so hourly feels near-real-time. If quota costs bite or users complain of noise, drop to every 2–3 hours or make it user-configurable.
+- **Quiet hours**: probably worth respecting user timezone and a default 10pm–8am quiet window before we ship — batch overnight notifications into a single morning digest.
+
 ---
 
 ## Key Files
@@ -359,3 +401,6 @@ Today "Chat About This Deal" opens a new Chatbase conversation in a separate tab
 | `src/app/api/deals/[id]/analyze/route.ts` | GPT-5.2 deal analysis |
 | `src/lib/search/pdl.ts` | Existing PDL integration (reuse) |
 | `src/app/api/vision/extract/route.ts` | Existing vision extraction (reuse) |
+| `vercel.json` | Cron schedule for `/api/cron/scan-meetings` (phase 6) |
+| `src/app/api/cron/scan-meetings/route.ts` | Hourly scanner → Slack DM (phase 6) |
+| `src/lib/slack/client.ts` | Existing Slack poster (reuse for notification blocks) |
