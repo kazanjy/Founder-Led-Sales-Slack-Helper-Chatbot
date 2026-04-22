@@ -528,7 +528,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   }): string => {
     if (!deal) return "";
     const sections: string[] = [];
+    const trimmedQuestion = opts?.question?.trim() || "";
+
     sections.push(`I want to discuss the "${deal.name}" deal with ${deal.companyName}.`);
+    sections.push("");
+    if (trimmedQuestion) {
+      sections.push(`My specific prompt is: "${trimmedQuestion}"`);
+      sections.push("");
+    }
     sections.push(`Current stage: ${deal.stage} | Status: ${deal.status}`);
     if (deal.notes) sections.push(`Deal notes: ${deal.notes}`);
     sections.push("");
@@ -577,9 +584,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
     sections.push("{{SALES_NARRATIVE}}");
     sections.push("");
-    if (opts?.question && opts.question.trim()) {
-      sections.push(opts.question.trim());
-    } else {
+    if (!trimmedQuestion) {
+      // No user-supplied prompt — close with a generic ask so the assistant
+      // has something to react to.
       sections.push("Based on all this context, help me think through this deal. What questions do you have?");
     }
     return sections.join("\n");
