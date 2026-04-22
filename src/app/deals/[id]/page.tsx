@@ -109,6 +109,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
+  const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
+  const [editDateValue, setEditDateValue] = useState("");
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -230,6 +232,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
     });
+    await loadDeal();
+  };
+
+  const updateEntryDate = async (entryId: string, dateStr: string) => {
+    if (!dateStr) return;
+    await fetch(`/api/deals/${id}/entries/${entryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryDate: new Date(dateStr).toISOString() }),
+    });
+    setEditingDateEntryId(null);
     await loadDeal();
   };
 
@@ -760,7 +773,28 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                              <span className="text-xs text-gray-400 font-medium">{formatEntryDate(entry.entryDate)}</span>
+                              {editingDateEntryId === entry.id ? (
+                                <input
+                                  type="date"
+                                  value={editDateValue}
+                                  onChange={(e) => setEditDateValue(e.target.value)}
+                                  onBlur={() => { if (editDateValue) updateEntryDate(entry.id, editDateValue); else setEditingDateEntryId(null); }}
+                                  onKeyDown={(e) => { if (e.key === "Enter" && editDateValue) updateEntryDate(entry.id, editDateValue); if (e.key === "Escape") setEditingDateEntryId(null); }}
+                                  className="text-xs px-1.5 py-0.5 border border-purple-300 rounded focus:ring-1 focus:ring-purple-500"
+                                  autoFocus
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingDateEntryId(entry.id);
+                                    setEditDateValue(new Date(entry.entryDate).toISOString().split("T")[0]);
+                                  }}
+                                  className="text-xs text-gray-400 font-medium hover:text-purple-600 transition-colors"
+                                  title="Click to change date"
+                                >
+                                  {formatEntryDate(entry.entryDate)}
+                                </button>
+                              )}
                               <span className="text-xs font-medium">{typeInfo.emoji} {typeInfo.label}</span>
                             </div>
                             {entry.title && <div className="font-semibold text-gray-900 text-sm">{entry.title}</div>}
