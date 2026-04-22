@@ -141,13 +141,13 @@ Then a blank line, then the full attributed transcript. Format each message as "
           );
         }
         if (Array.isArray(meta.newPeople)) {
-          newPeople = meta.newPeople
+          newPeople = (meta.newPeople as unknown[])
             .filter(
-              (p: unknown): p is Record<string, unknown> =>
+              (p): p is Record<string, unknown> =>
                 !!p && typeof p === "object" && typeof (p as { name?: unknown }).name === "string",
             )
-            .map((p) => ({
-              name: String((p as { name: string }).name).trim(),
+            .map((p: Record<string, unknown>) => ({
+              name: String(p.name).trim(),
               email: typeof p.email === "string" ? p.email : undefined,
               reason: typeof p.reason === "string" ? p.reason : undefined,
             }))
