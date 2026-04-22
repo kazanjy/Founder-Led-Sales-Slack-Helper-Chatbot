@@ -52,8 +52,31 @@ function formatEntryDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function nameFromEmail(email: string): string | null {
+  const local = email.split("@")[0];
+  if (!local) return null;
+  // Match patterns like "first.last", "first_last", "first-last"
+  const parts = local.split(/[._-]/).filter(Boolean);
+  if (parts.length >= 2 && parts.every((p) => /^[a-z]+$/i.test(p))) {
+    return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(" ");
+  }
+  return null;
+}
+
+function displayName(name: string, email?: string | null): string {
+  if (!name.includes("@")) return titleCase(name);
+  // Name IS an email — try to extract a real name from the pattern
+  const extracted = nameFromEmail(name);
+  if (extracted) return extracted;
+  // If we have a separate email field with a parseable pattern, try that
+  if (email) {
+    const fromEmail = nameFromEmail(email);
+    if (fromEmail) return fromEmail;
+  }
+  return name;
+}
+
 function titleCase(str: string): string {
-  if (str.includes("@")) return str;
   return str.replace(/\b\w+/g, (word) => {
     const lower = word.toLowerCase();
     if (["and", "or", "the", "of", "in", "at", "to", "for", "a", "an"].includes(lower) && word !== str.split(/\s+/)[0]) return lower;
@@ -84,6 +107,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [enrichingPid, setEnrichingPid] = useState<string | null>(null);
   const [processingScreenshot, setProcessingScreenshot] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
+  const [editTitleValue, setEditTitleValue] = useState("");
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -205,6 +230,16 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role }),
     });
+    await loadDeal();
+  };
+
+  const updateParticipantTitle = async (pid: string, title: string) => {
+    await fetch(`/api/deals/${id}/participants/${pid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title.trim() || null }),
+    });
+    setEditingTitlePid(null);
     await loadDeal();
   };
 
@@ -499,13 +534,16 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-sm text-gray-900 truncate">{titleCase(p.name)}</span>
+                            <span className="font-medium text-sm text-gray-900 truncate">{displayName(p.name, p.email)}</span>
                             {(() => {
                               const mentions = mentionCounts.get(p.id) || 0;
                               if (mentions === 0) return null;
                               const intensity = mentions >= 4 ? "bg-purple-100 text-purple-700" : mentions >= 2 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600";
                               return (
-                                <span className={`flex-shrink-0 text-[10px] font-medium rounded-full px-1.5 py-0.5 leading-none ${intensity}`} title={`Mentioned in ${mentions} timeline ${mentions === 1 ? "entry" : "entries"}`}>
+                                <span
+                                  className={`flex-shrink-0 text-[10px] font-medium rounded-full px-1.5 py-0.5 leading-none cursor-help ${intensity}`}
+                                  title={`Appeared in ${mentions} call${mentions === 1 ? "" : "s"} / interaction${mentions === 1 ? "" : "s"}`}
+                                >
                                   {mentions}
                                 </span>
                               );
@@ -516,8 +554,31 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               </a>
                             )}
                           </div>
-                          {p.title && <div className="text-xs text-gray-500 truncate">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>}
-                          {!p.title && p.company && <div className="text-xs text-gray-500 truncate">{titleCase(p.company)}</div>}
+                          {editingTitlePid === p.id ? (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <input
+                                type="text"
+                                value={editTitleValue}
+                                onChange={(e) => setEditTitleValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") updateParticipantTitle(p.id, editTitleValue); if (e.key === "Escape") setEditingTitlePid(null); }}
+                                placeholder="Title"
+                                className="flex-1 min-w-0 px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500"
+                                autoFocus
+                              />
+                              <button onClick={() => updateParticipantTitle(p.id, editTitleValue)} className="text-xs text-purple-600 font-medium">Save</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingTitlePid(p.id); setEditTitleValue(p.title || ""); }}
+                              className="text-left mt-0.5 group/title"
+                            >
+                              {p.title ? (
+                                <div className="text-xs text-gray-500 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
+                              ) : (
+                                <div className="text-xs text-gray-300 group-hover/title:text-purple-500 transition-colors italic">+ Add title</div>
+                              )}
+                            </button>
+                          )}
                           {p.email && <div className="text-xs text-gray-400 truncate">{p.email}</div>}
                         </div>
                         <button onClick={() => deleteParticipant(p.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover/p:opacity-100" title="Remove">
