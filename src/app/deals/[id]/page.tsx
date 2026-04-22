@@ -1181,10 +1181,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           ) : (
                             <button
                               onClick={() => { setEditingTitlePid(p.id); setEditTitleValue(p.title || ""); }}
-                              className="text-left mt-0.5 w-full min-w-0 group/title"
+                              className="relative text-left mt-0.5 w-full min-w-0 group/title"
                             >
                               {p.title ? (
-                                <div className="text-xs text-gray-500 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
+                                <>
+                                  <div className="text-xs text-gray-500 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
+                                  <div
+                                    role="tooltip"
+                                    className="pointer-events-none absolute left-0 top-full mt-1 z-20 hidden group-hover/title:block max-w-xs w-max whitespace-normal break-words rounded-md bg-gray-900 text-white text-[11px] leading-snug px-2 py-1.5 shadow-lg"
+                                  >
+                                    {titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}
+                                  </div>
+                                </>
                               ) : (
                                 <div className="text-xs text-gray-300 group-hover/title:text-purple-500 transition-colors italic">+ Add title</div>
                               )}
