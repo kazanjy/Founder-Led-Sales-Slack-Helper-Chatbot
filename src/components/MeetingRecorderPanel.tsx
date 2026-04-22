@@ -380,6 +380,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && hasMore && !deepSearchDone && !deepSearching) handleDeepSearch(); }}
                   placeholder="Search by title, attendee, or email domain…"
                   className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
