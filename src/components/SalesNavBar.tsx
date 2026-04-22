@@ -363,18 +363,6 @@ export default function SalesNavBar() {
             💬 Chat
           </Link>
 
-          {/* Deals */}
-          <Link
-            href="/deals"
-            className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
-              isActive("/deals")
-                ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
-            }`}
-          >
-            💼 Deals
-          </Link>
-
           {/* GTM Maturity dropdown */}
           <div className="relative" ref={gtmMaturityDropdownRef}>
             <button
@@ -457,6 +445,18 @@ export default function SalesNavBar() {
               </div>
             )}
           </div>
+
+          {/* Deals */}
+          <Link
+            href="/deals"
+            className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+              isActive("/deals")
+                ? "border-purple-600 text-purple-600"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300"
+            }`}
+          >
+            💼 Deals
+          </Link>
 
           {/* Content dropdown */}
           <div className="relative" ref={contentDropdownRef}>
