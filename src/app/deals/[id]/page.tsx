@@ -123,6 +123,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [acceptedSuggestionNames, setAcceptedSuggestionNames] = useState<Set<string>>(new Set());
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const analysisCardRef = useRef<HTMLDivElement | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -277,9 +278,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setScreenshotSuggestions([]);
         setAcceptedSuggestionNames(new Set());
         await loadDeal();
-        // Re-run analysis in the background now that the timeline has new data.
+        // Re-run analysis now that the timeline has new data. Show the
+        // analysis card with its spinner, and scroll to it when the run
+        // completes so the user lands on the fresh result.
         // Skip if already analyzing; the running pass will include fresh data anyway.
-        if (!analyzing) analyzeDeal({ silent: true });
+        if (!analyzing) analyzeDeal({ scrollToResult: true });
       }
     } catch (error) {
       console.error("Failed to add entry:", error);
@@ -433,8 +436,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     await loadDeal();
   };
 
-  const analyzeDeal = async (opts?: { silent?: boolean }) => {
+  const analyzeDeal = async (opts?: { silent?: boolean; scrollToResult?: boolean }) => {
     const silent = opts?.silent ?? false;
+    const scrollToResult = opts?.scrollToResult ?? false;
     setAnalyzing(true);
     try {
       const res = await fetch(`/api/deals/${id}/analyze`, { method: "POST" });
@@ -453,6 +457,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         // Invalidate cached history so the next open re-fetches with the new run.
         setAnalysisHistory(null);
         if (!silent) setShowAnalysis(true);
+        if (scrollToResult) {
+          // Expand first so the scroll target is rendered, then scroll on the
+          // next frame so layout has settled.
+          setShowAnalysis(true);
+          requestAnimationFrame(() => {
+            analysisCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to analyze deal:", error);
@@ -774,17 +786,24 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Analysis panel */}
         {deal.lastAnalysis && (
-          <div className="bg-white border border-purple-200 rounded-xl mb-5">
+          <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
             <button
               onClick={() => setShowAnalysis(!showAnalysis)}
               className="w-full flex items-center justify-between px-5 py-3 text-left"
             >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-purple-900">🧠 Deal Analysis</span>
-                {deal.lastAnalyzedAt && (
-                  <span className="text-xs text-gray-400">
-                    · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {analyzing ? (
+                  <span className="flex items-center gap-1.5 text-xs text-purple-600">
+                    <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                    Re-analyzing...
                   </span>
+                ) : (
+                  deal.lastAnalyzedAt && (
+                    <span className="text-xs text-gray-400">
+                      · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  )
                 )}
               </div>
               <svg className={`w-4 h-4 text-gray-400 transition-transform ${showAnalysis ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
