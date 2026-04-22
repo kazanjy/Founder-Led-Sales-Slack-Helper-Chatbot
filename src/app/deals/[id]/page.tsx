@@ -1117,15 +1117,16 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           return (
             <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
               <div
-                className={`flex items-center justify-between px-5 py-3 ${hasSummary && !showAnalysis ? "cursor-pointer hover:bg-purple-50/60 transition-colors rounded-t-xl" : ""}`}
-                {...(hasSummary && !showAnalysis ? {
-                  onClick: () => setShowAnalysis(true),
+                className={`flex items-center justify-between px-5 py-3 ${hasSummary ? "cursor-pointer hover:bg-purple-50/60 transition-colors rounded-t-xl" : ""}`}
+                {...(hasSummary ? {
+                  onClick: () => setShowAnalysis(!showAnalysis),
                   onKeyDown: (e: React.KeyboardEvent) => {
-                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowAnalysis(true); }
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowAnalysis(!showAnalysis); }
                   },
                   role: "button",
                   tabIndex: 0,
-                  "aria-label": "Expand full deal analysis",
+                  "aria-expanded": showAnalysis,
+                  "aria-label": showAnalysis ? "Collapse to deal summary" : "Expand full deal analysis",
                 } : {})}
               >
                 <div className="flex items-center gap-2">
