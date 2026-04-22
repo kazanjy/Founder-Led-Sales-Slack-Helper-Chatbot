@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -113,6 +113,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
   const [editDateValue, setEditDateValue] = useState("");
   const [enrichingAll, setEnrichingAll] = useState(false);
+  const autoEnrichAttempted = useRef(false);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -142,6 +143,21 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     if (deal?.name) document.title = `${deal.name} - Mikey`;
   }, [deal?.name]);
+
+  // Auto-enrich participants missing titles on first load
+  useEffect(() => {
+    if (!deal || autoEnrichAttempted.current) return;
+    const hasUnenriched = deal.participants.some((p) => p.email && !p.title);
+    if (hasUnenriched) {
+      autoEnrichAttempted.current = true;
+      fetch(`/api/deals/${id}/participants/enrich-all`, { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.enriched > 0) loadDeal();
+        })
+        .catch(() => {});
+    }
+  }, [deal, id, loadDeal]);
 
   const updateDeal = async (updates: Partial<Deal>) => {
     const res = await fetch(`/api/deals/${id}`, {
