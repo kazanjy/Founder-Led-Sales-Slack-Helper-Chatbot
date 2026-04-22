@@ -2135,6 +2135,7 @@ model Deal {
 
   participants DealParticipant[]
   entries      DealTimelineEntry[]
+  analyses     DealAnalysis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2190,4 +2191,23 @@ model DealTimelineEntry {
 
   @@index([dealId, entryDate(sort: Desc)])
   @@map("deal_timeline_entries")
+}
+
+model DealAnalysis {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  analysis String  @db.Text
+  stage    String? // suggested stage extracted from the analysis (if any)
+
+  // Snapshot counts so we can show "after N entries" in the history without loading relations
+  entryCount       Int @default(0)
+  participantCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, createdAt(sort: Desc)])
+  @@map("deal_analyses")
 }

@@ -33,6 +33,15 @@ interface TimelineEntry {
   createdAt: string;
 }
 
+interface AnalysisHistoryItem {
+  id: string;
+  analysis: string;
+  stage: string | null;
+  entryCount: number;
+  participantCount: number;
+  createdAt: string;
+}
+
 interface Deal {
   id: string;
   name: string;
@@ -110,6 +119,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [processingPdf, setProcessingPdf] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
@@ -395,12 +408,34 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               }
             : prev,
         );
+        // Invalidate cached history so the next open re-fetches with the new run.
+        setAnalysisHistory(null);
         if (!silent) setShowAnalysis(true);
       }
     } catch (error) {
       console.error("Failed to analyze deal:", error);
     }
     setAnalyzing(false);
+  };
+
+  const loadAnalysisHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/analyses`);
+      if (res.ok) {
+        const data = await res.json();
+        setAnalysisHistory(data.analyses || []);
+      }
+    } catch (error) {
+      console.error("Failed to load analysis history:", error);
+    }
+    setHistoryLoading(false);
+  };
+
+  const toggleAnalysisHistory = () => {
+    const next = !showHistory;
+    setShowHistory(next);
+    if (next && analysisHistory === null) loadAnalysisHistory();
   };
 
   const enrichParticipant = async (pid: string) => {
@@ -547,10 +582,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <Link href="/deals" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             All Deals
+          </Link>
+          <Link
+            href="/deals?new=1"
+            className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-xs font-medium shadow hover:shadow-md transition-all inline-flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            New Deal
           </Link>
         </div>
 
@@ -671,7 +713,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 <div className="prose prose-sm max-w-none text-gray-700 mt-3">
                   <ReactMarkdown>{deal.lastAnalysis}</ReactMarkdown>
                 </div>
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-4 flex items-center gap-4">
                   <button
                     onClick={() => analyzeDeal()}
                     disabled={analyzing}
@@ -679,7 +721,67 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   >
                     {analyzing ? "Analyzing..." : "↻ Re-analyze"}
                   </button>
+                  <button
+                    onClick={toggleAnalysisHistory}
+                    className="text-xs text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1"
+                  >
+                    {showHistory ? "Hide history" : "View history"}
+                    {analysisHistory && analysisHistory.length > 1 && (
+                      <span className="text-gray-400">({analysisHistory.length - 1} previous)</span>
+                    )}
+                  </button>
                 </div>
+
+                {showHistory && (
+                  <div className="mt-4 border-t border-purple-100 pt-4 space-y-2">
+                    {historyLoading ? (
+                      <div className="text-xs text-gray-400">Loading history...</div>
+                    ) : !analysisHistory || analysisHistory.length <= 1 ? (
+                      <div className="text-xs text-gray-400">No previous analyses yet.</div>
+                    ) : (
+                      analysisHistory.slice(1).map((item) => {
+                        const isOpen = expandedHistoryId === item.id;
+                        const when = new Date(item.createdAt).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        });
+                        return (
+                          <div key={item.id} className="border border-gray-200 rounded-lg">
+                            <button
+                              onClick={() => setExpandedHistoryId(isOpen ? null : item.id)}
+                              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50"
+                            >
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-gray-700 font-medium">{when}</span>
+                                {item.stage && (
+                                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                    Stage: {item.stage}
+                                  </span>
+                                )}
+                                <span className="text-gray-400">
+                                  {item.entryCount} {item.entryCount === 1 ? "entry" : "entries"} · {item.participantCount} {item.participantCount === 1 ? "participant" : "participants"}
+                                </span>
+                              </div>
+                              <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {isOpen && (
+                              <div className="px-3 pb-3 border-t border-gray-100">
+                                <div className="prose prose-sm max-w-none text-gray-700 mt-2">
+                                  <ReactMarkdown>{item.analysis}</ReactMarkdown>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -158,21 +158,34 @@ SUGGESTED_STAGE: <stage>
       deal.status !== "closed_won" &&
       deal.status !== "closed_lost";
 
-    const updated = await prisma.deal.update({
-      where: { id },
-      data: {
-        lastAnalysis: analysis,
-        lastAnalyzedAt: new Date(),
-        ...(shouldUpdateStage ? { stage: suggestedStage } : {}),
-      },
-      select: { stage: true, lastAnalyzedAt: true },
-    });
+    const [updated, history] = await prisma.$transaction([
+      prisma.deal.update({
+        where: { id },
+        data: {
+          lastAnalysis: analysis,
+          lastAnalyzedAt: new Date(),
+          ...(shouldUpdateStage ? { stage: suggestedStage } : {}),
+        },
+        select: { stage: true, lastAnalyzedAt: true },
+      }),
+      prisma.dealAnalysis.create({
+        data: {
+          dealId: id,
+          analysis,
+          stage: suggestedStage,
+          entryCount: deal.entries.length,
+          participantCount: deal.participants.length,
+        },
+        select: { id: true, createdAt: true },
+      }),
+    ]);
 
     return NextResponse.json({
       analysis,
       stage: updated.stage,
       stageUpdated: shouldUpdateStage,
       lastAnalyzedAt: updated.lastAnalyzedAt,
+      historyId: history.id,
     });
   } catch (error) {
     console.error("Error analyzing deal:", error);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { DEAL_STAGES, DEAL_STATUSES, getStageInfo, getStatusInfo } from "@/lib/deals/constants";
@@ -31,10 +31,12 @@ function formatRelative(dateStr: string): string {
 
 export default function DealsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -85,6 +87,16 @@ export default function DealsPage() {
     document.title = "Deals - Mikey";
     loadDeals();
   }, [loadDeals]);
+
+  // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
+  // "New Deal" CTA on the detail page).
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowNewDeal(true);
+      // Clean the URL so refreshes don't keep re-opening the modal.
+      router.replace("/deals");
+    }
+  }, [searchParams, router]);
 
   const createDeal = async () => {
     if (!newDealName.trim() || !newDealCompany.trim()) return;
@@ -195,6 +207,10 @@ export default function DealsPage() {
   const filteredDeals = deals.filter((d) => {
     if (stageFilter !== "all" && d.stage !== stageFilter) return false;
     if (statusFilter !== "all" && d.status !== statusFilter) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (q && !d.name.toLowerCase().includes(q) && !d.companyName.toLowerCase().includes(q)) {
+      return false;
+    }
     return true;
   });
 
@@ -216,6 +232,38 @@ export default function DealsPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             New Deal
           </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search deals by name or company..."
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Filters */}
