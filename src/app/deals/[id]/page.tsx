@@ -1116,7 +1116,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           const hasSummary = Boolean(summaryBody);
           return (
             <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
-              <div className="flex items-center justify-between px-5 py-3">
+              <div
+                className={`flex items-center justify-between px-5 py-3 ${hasSummary && !showAnalysis ? "cursor-pointer hover:bg-purple-50/60 transition-colors rounded-t-xl" : ""}`}
+                {...(hasSummary && !showAnalysis ? {
+                  onClick: () => setShowAnalysis(true),
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowAnalysis(true); }
+                  },
+                  role: "button",
+                  tabIndex: 0,
+                  "aria-label": "Expand full deal analysis",
+                } : {})}
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-purple-900">🧠 Deal Analysis</span>
                   {analyzing ? (
@@ -1141,7 +1152,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     <ReactMarkdown components={analysisMarkdownComponents}>{summaryBody!}</ReactMarkdown>
                   )}
                 </div>
-                <div className="mt-3 flex items-center gap-4 flex-wrap">
+                <div
+                  className={`mt-3 flex items-center gap-4 flex-wrap ${hasSummary && !showAnalysis ? "cursor-pointer" : ""}`}
+                  onClick={hasSummary && !showAnalysis ? (e) => {
+                    // Only expand on clicks in the empty gap — clicks on
+                    // Re-analyze / View history / Show more already have
+                    // their own handlers.
+                    if (e.target === e.currentTarget) setShowAnalysis(true);
+                  } : undefined}
+                >
                   <button
                     onClick={() => analyzeDeal()}
                     disabled={analyzing}
