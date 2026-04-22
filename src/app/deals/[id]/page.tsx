@@ -58,7 +58,18 @@ interface Deal {
 }
 
 function formatEntryDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const d = new Date(dateStr);
+  const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+  // Entries whose time component is exactly midnight UTC almost always came
+  // from the <input type="date"> picker (which stores date-only) — rendering
+  // "12:00 AM" on those is noisy and often misleading due to timezone shift,
+  // so skip the time portion for them.
+  const isDateOnlyUtc =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (isDateOnlyUtc) {
+    return d.toLocaleDateString("en-US", dateOpts);
+  }
+  return d.toLocaleString("en-US", { ...dateOpts, hour: "numeric", minute: "2-digit" });
 }
 
 function nameFromEmail(email: string): string | null {
