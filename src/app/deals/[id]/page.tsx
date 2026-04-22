@@ -220,7 +220,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [showChatOverlay, setShowChatOverlay] = useState(false);
   const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
-  const [timelineFilter, setTimelineFilter] = useState<string>("all");
+  const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -1495,15 +1495,24 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   typeCounts.set(e.type, (typeCounts.get(e.type) ?? 0) + 1);
                 }
                 const visibleTypes = ENTRY_TYPES.filter((t) => typeCounts.has(t.value));
-                const filteredEntries = timelineFilter === "all"
-                  ? deal.entries
-                  : deal.entries.filter((e) => e.type === timelineFilter);
+                const hasFilter = timelineTypeFilter.size > 0;
+                const filteredEntries = hasFilter
+                  ? deal.entries.filter((e) => timelineTypeFilter.has(e.type))
+                  : deal.entries;
+                const toggleType = (value: string) => {
+                  setTimelineTypeFilter((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(value)) next.delete(value);
+                    else next.add(value);
+                    return next;
+                  });
+                };
                 return (
                   <>
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
                       <h3 className="text-sm font-semibold text-gray-700">
                         Timeline ({filteredEntries.length}
-                        {timelineFilter !== "all" && deal.entries.length !== filteredEntries.length
+                        {hasFilter && deal.entries.length !== filteredEntries.length
                           ? ` of ${deal.entries.length}`
                           : ""}
                         )
@@ -1511,9 +1520,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       {deal.entries.length > 0 && visibleTypes.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
-                            onClick={() => setTimelineFilter("all")}
+                            onClick={() => setTimelineTypeFilter(new Set())}
                             className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
-                              timelineFilter === "all"
+                              !hasFilter
                                 ? "bg-gray-900 text-white"
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
@@ -1522,11 +1531,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           </button>
                           {visibleTypes.map((t) => {
                             const count = typeCounts.get(t.value) ?? 0;
-                            const active = timelineFilter === t.value;
+                            const active = timelineTypeFilter.has(t.value);
                             return (
                               <button
                                 key={t.value}
-                                onClick={() => setTimelineFilter(active ? "all" : t.value)}
+                                onClick={() => toggleType(t.value)}
+                                aria-pressed={active}
                                 className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors inline-flex items-center gap-1 ${
                                   active
                                     ? "bg-purple-600 text-white"
@@ -1548,8 +1558,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     ) : filteredEntries.length === 0 ? (
                       <div className="bg-white border border-dashed border-gray-300 rounded-xl p-6 text-center">
                         <p className="text-sm text-gray-500">
-                          No {getEntryTypeInfo(timelineFilter).label.toLowerCase()} entries yet.{" "}
-                          <button onClick={() => setTimelineFilter("all")} className="text-purple-600 hover:underline">Clear filter</button>
+                          No entries match the selected filters.{" "}
+                          <button onClick={() => setTimelineTypeFilter(new Set())} className="text-purple-600 hover:underline">Clear filters</button>
                         </p>
                       </div>
                     ) : (
