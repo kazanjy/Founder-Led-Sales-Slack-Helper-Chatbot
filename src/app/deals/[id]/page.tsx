@@ -259,6 +259,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [showChatOverlay, setShowChatOverlay] = useState(false);
   const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
+  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
   const [timelineQuery, setTimelineQuery] = useState<string>("");
 
@@ -1691,7 +1692,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             <div
                               key={entry.id}
                               id={`entry-${entry.id}`}
-                              className="bg-white border border-gray-200 rounded-xl p-4 group/e scroll-mt-20"
+                              onClick={(e) => {
+                                // Skip the toggle if the click came from any
+                                // interactive element inside the card (icons,
+                                // chips, CTAs, inputs, anchors).
+                                const target = e.target as HTMLElement;
+                                if (target.closest("button, a, input, select, textarea, summary, [data-no-toggle]")) return;
+                                setExpandedEntries((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(entry.id)) next.delete(entry.id);
+                                  else next.add(entry.id);
+                                  return next;
+                                });
+                              }}
+                              className="bg-white border border-gray-200 rounded-xl p-4 group/e scroll-mt-20 cursor-pointer hover:border-gray-300 transition-colors"
                             >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
@@ -1817,19 +1831,37 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                           );
                         })()}
-                        <details>
-                          <summary className="text-xs text-purple-600 cursor-pointer hover:text-purple-800">
-                            {entry.content.length > 200 ? `Show full content (${entry.content.length.toLocaleString()} chars)` : "Show content"}
-                          </summary>
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap mt-2 pt-2 border-t border-gray-100">
-                            {entry.content}
-                          </div>
-                        </details>
-                        {entry.content.length <= 200 && (
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
-                            {entry.content}
-                          </div>
-                        )}
+                        {(() => {
+                          const isExpanded = expandedEntries.has(entry.id);
+                          const isShort = entry.content.length <= 200;
+                          if (isShort) {
+                            return (
+                              <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
+                                {entry.content}
+                              </div>
+                            );
+                          }
+                          return (
+                            <>
+                              <div className="text-xs text-purple-600 inline-flex items-center gap-1 select-none">
+                                <svg
+                                  className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                {isExpanded ? "Hide content" : `Show full content (${entry.content.length.toLocaleString()} chars)`}
+                              </div>
+                              {isExpanded && (
+                                <div className="text-sm text-gray-700 whitespace-pre-wrap mt-2 pt-2 border-t border-gray-100">
+                                  {entry.content}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     );
                           })}
