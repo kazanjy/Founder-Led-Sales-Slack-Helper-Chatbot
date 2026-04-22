@@ -326,6 +326,21 @@ The primary way to create a deal is by **pasting a call transcript/summary**. Th
 9. **Cross-feature integration** — "Add to Deal" from call recap, call review, chat
 10. **Nav integration** — add Deals to SalesNavBar
 
+### Phase 5: Inline Deal Chat (v2)
+
+Today "Chat About This Deal" opens a new Chatbase conversation in a separate tab, and the "Ask Mikey about this" field on the entry form also opens a new tab for the resulting conversation. That's functional but noisy — the user bounces between the deal page and the chat tab to reconcile analysis + conversation.
+
+**Right-side chat panel on the deal detail page:**
+- Collapsible right panel on `/deals/[id]` (slides in from the right edge, user can drag-resize the divider).
+- Shows a full chat UI streaming Chatbase responses, pinned to the current deal's context.
+- "Chat About This Deal" and the "Ask Mikey about this" field on entry commits open the panel instead of a new tab, with the user's question pre-filled as the first message.
+- Panel persists across page navigation within the deal (collapsed state + conversation ID stored in URL query or local storage).
+- Each deal can have multiple conversations; small dropdown at the top of the panel lets the user switch or start a new thread.
+
+**Why v2, not v1:** requires lifting/embedding the existing chat streaming UI out of `/chat/[[...id]]/page.tsx` into a reusable component, plus state management for the panel, resize handle, and per-deal conversation list. Worth doing after we see whether users actually want the side-by-side view or are fine with tab-switching.
+
+**Smaller intermediate step:** an overlay modal (not a side panel) on the deal page that shows just the chat thread — less layout work than a resizable panel, but loses the "glance between analysis and reply" benefit. Probably skip and go straight to the side panel.
+
 ---
 
 ## Key Files
