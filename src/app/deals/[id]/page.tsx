@@ -199,6 +199,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const autoEnrichAttempted = useRef(false);
   const autoAnalyzeAttempted = useRef(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [showChatOverlay, setShowChatOverlay] = useState(false);
+  const [chatOverlayQuestion, setChatOverlayQuestion] = useState("");
+  const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -343,6 +346,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         }),
       });
       if (res.ok) {
+        // Snapshot Ask Mikey fields before clearing form state.
+        const mikeyQuestion = !entryData ? askMikeyPrompt.trim() : "";
+        const snapshotEntry = !entryData && mikeyQuestion
+          ? {
+              type,
+              title: title || null,
+              content,
+              entryDate: entryDate ?? undefined,
+            }
+          : null;
+
         setNewEntryContent("");
         setNewEntryTitle("");
         setNewEntryUrl("");
@@ -352,7 +366,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setScreenshotMatched([]);
         setScreenshotSuggestions([]);
         setAcceptedSuggestionNames(new Set());
+        setAskMikeyPrompt("");
         await loadDeal();
+
+        // If the user typed an Ask Mikey prompt alongside the entry, fire off
+        // a chat conversation in a new tab with the just-added entry + their
+        // question as the first message. Runs in parallel with re-analysis.
+        if (snapshotEntry && mikeyQuestion) {
+          openDealChat({
+            extraEntry: snapshotEntry,
+            question: mikeyQuestion,
+            openInNewTab: true,
+          }).catch((err) => console.error("Failed to open Ask Mikey chat:", err));
+        }
+
         // Re-run analysis now that the timeline has new data. Show the
         // analysis card with its spinner, and scroll to it when the run
         // completes so the user lands on the fresh result.
@@ -428,77 +455,135 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     setEnrichingAll(false);
   };
 
+  const buildDealChatContext = (opts?: {
+    extraEntry?: { type: string; title?: string | null; content: string; entryDate?: string | null };
+    question?: string;
+  }): string => {
+    if (!deal) return "";
+    const sections: string[] = [];
+    sections.push(`I want to discuss the "${deal.name}" deal with ${deal.companyName}.`);
+    sections.push(`Current stage: ${deal.stage} | Status: ${deal.status}`);
+    if (deal.notes) sections.push(`Deal notes: ${deal.notes}`);
+    sections.push("");
+
+    if (deal.participants.length > 0) {
+      sections.push("## Participants");
+      for (const p of deal.participants) {
+        const parts = [titleCase(p.name)];
+        if (p.title) parts.push(titleCase(p.title));
+        if (p.company) parts.push(`@ ${titleCase(p.company)}`);
+        if (p.role && p.role !== "unknown") parts.push(`(${p.role})`);
+        sections.push(`- ${parts.join(", ")}`);
+      }
+      sections.push("");
+    }
+
+    if (deal.entries.length > 0) {
+      sections.push("## Timeline of Interactions");
+      for (const entry of deal.entries.slice(0, 15)) {
+        const date = formatEntryDate(entry.entryDate);
+        const typeInfo = getEntryTypeInfo(entry.type);
+        sections.push(`### ${date} — ${typeInfo.label}${entry.title ? `: ${entry.title}` : ""}`);
+        const content = entry.content.length > 2000
+          ? entry.content.substring(0, 2000) + "\n[...truncated]"
+          : entry.content;
+        sections.push(content);
+        sections.push("");
+      }
+    }
+
+    if (opts?.extraEntry) {
+      const ex = opts.extraEntry;
+      const typeInfo = getEntryTypeInfo(ex.type);
+      const when = ex.entryDate ? formatEntryDate(ex.entryDate) : formatEntryDate(new Date().toISOString());
+      sections.push("## Just Added");
+      sections.push(`### ${when} — ${typeInfo.label}${ex.title ? `: ${ex.title}` : ""}`);
+      sections.push(ex.content.length > 3000 ? ex.content.substring(0, 3000) + "\n[...truncated]" : ex.content);
+      sections.push("");
+    }
+
+    if (deal.lastAnalysis) {
+      sections.push("## Latest Deal Analysis");
+      sections.push(deal.lastAnalysis);
+      sections.push("");
+    }
+
+    sections.push("{{SALES_NARRATIVE}}");
+    sections.push("");
+    if (opts?.question && opts.question.trim()) {
+      sections.push(opts.question.trim());
+    } else {
+      sections.push("Based on all this context, help me think through this deal. What questions do you have?");
+    }
+    return sections.join("\n");
+  };
+
+  const openDealChat = async (opts?: {
+    question?: string;
+    extraEntry?: { type: string; title?: string | null; content: string; entryDate?: string | null };
+    leaveBreadcrumb?: boolean;
+    openInNewTab?: boolean;
+  }): Promise<string | null> => {
+    if (!deal) return null;
+    const context = buildDealChatContext({ extraEntry: opts?.extraEntry, question: opts?.question });
+    const res = await fetch("/api/conversations/from-context", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `Deal: ${deal.name}`,
+        context,
+        autoSend: true,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.conversationId) return null;
+
+    if (opts?.leaveBreadcrumb) {
+      // Best-effort: timeline entry pointing back to the conversation.
+      await addEntry({
+        type: "chat",
+        title: `Chat: ${deal.name}`,
+        content: opts.question?.trim()
+          ? `Started a conversation: "${opts.question.trim()}"`
+          : `Started a conversation about this deal.`,
+        sourceUrl: `/chat/${data.conversationId}`,
+      } as Partial<TimelineEntry>);
+    }
+
+    const chatUrl = `/chat/${data.conversationId}`;
+    if (opts?.openInNewTab) {
+      window.open(chatUrl, "_blank");
+    } else {
+      router.push(chatUrl);
+    }
+    return data.conversationId as string;
+  };
+
   const startDealChat = async () => {
-    if (!deal) return;
+    // Now just opens the question overlay. The actual conversation creation
+    // happens in submitChatOverlay() once the user has entered a question.
+    setChatOverlayQuestion("");
+    setShowChatOverlay(true);
+  };
+
+  const submitChatOverlay = async () => {
+    if (!chatOverlayQuestion.trim()) return;
     setStartingChat(true);
     try {
-      // Build context from deal data
-      const sections: string[] = [];
-      sections.push(`I want to discuss the "${deal.name}" deal with ${deal.companyName}.`);
-      sections.push(`Current stage: ${deal.stage} | Status: ${deal.status}`);
-      if (deal.notes) sections.push(`Deal notes: ${deal.notes}`);
-      sections.push("");
-
-      if (deal.participants.length > 0) {
-        sections.push("## Participants");
-        for (const p of deal.participants) {
-          const parts = [titleCase(p.name)];
-          if (p.title) parts.push(titleCase(p.title));
-          if (p.company) parts.push(`@ ${titleCase(p.company)}`);
-          if (p.role && p.role !== "unknown") parts.push(`(${p.role})`);
-          sections.push(`- ${parts.join(", ")}`);
-        }
-        sections.push("");
-      }
-
-      if (deal.entries.length > 0) {
-        sections.push("## Timeline of Interactions");
-        for (const entry of deal.entries.slice(0, 15)) {
-          const date = formatEntryDate(entry.entryDate);
-          const typeInfo = getEntryTypeInfo(entry.type);
-          sections.push(`### ${date} — ${typeInfo.label}${entry.title ? `: ${entry.title}` : ""}`);
-          const content = entry.content.length > 2000
-            ? entry.content.substring(0, 2000) + "\n[...truncated]"
-            : entry.content;
-          sections.push(content);
-          sections.push("");
-        }
-      }
-
-      if (deal.lastAnalysis) {
-        sections.push("## Latest Deal Analysis");
-        sections.push(deal.lastAnalysis);
-        sections.push("");
-      }
-
-      sections.push("{{SALES_NARRATIVE}}");
-      sections.push("");
-      sections.push("Based on all this context, help me think through this deal. What questions do you have?");
-
-      const context = sections.join("\n");
-
-      const res = await fetch("/api/conversations/from-context", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `Deal: ${deal.name}`,
-          context,
-        }),
+      const convId = await openDealChat({
+        question: chatOverlayQuestion,
+        leaveBreadcrumb: true,
       });
-      const data = await res.json();
-      if (data.conversationId) {
-        // Create a timeline entry linking to the chat
-        await addEntry({
-          type: "chat" as string,
-          title: `Chat: ${deal.name}`,
-          content: `Started a conversation about this deal.`,
-          sourceUrl: `/chat/${data.conversationId}`,
-        } as Partial<TimelineEntry>);
-
-        window.open(`/chat/${data.conversationId}`, "_blank");
+      if (convId) {
+        setShowChatOverlay(false);
+        setChatOverlayQuestion("");
+      } else {
+        alert("Failed to start chat. Please try again.");
       }
     } catch (error) {
       console.error("Failed to start deal chat:", error);
+      alert(error instanceof Error ? error.message : "Failed to start chat");
     }
     setStartingChat(false);
   };
@@ -1291,6 +1376,21 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 placeholder="Source URL (optional)"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
               />
+              <div className="relative mb-2">
+                <textarea
+                  value={askMikeyPrompt}
+                  onChange={(e) => setAskMikeyPrompt(e.target.value)}
+                  placeholder="Ask Mikey about this (optional) — e.g., 'What should I reply?' or 'Is this a green or yellow flag?'"
+                  rows={2}
+                  className="w-full px-3 py-2 pl-9 border border-purple-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y bg-purple-50/30 placeholder:text-gray-400"
+                />
+                <span className="absolute left-2.5 top-2.5 text-base" aria-hidden="true">💬</span>
+                {askMikeyPrompt.trim() && (
+                  <span className="absolute right-2.5 top-2.5 text-[10px] font-medium text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                    opens chat in new tab
+                  </span>
+                )}
+              </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-500">Date:</label>
@@ -1467,6 +1567,80 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       </div>
+
+      {/* Chat overlay — asks for a first question before creating the conversation */}
+      {showChatOverlay && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => !startingChat && setShowChatOverlay(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-xl max-w-xl w-full p-5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">💬 Chat about this deal</h3>
+              <button
+                type="button"
+                onClick={() => setShowChatOverlay(false)}
+                disabled={startingChat}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Mikey will have full context of this deal — timeline, participants, latest analysis, and your sales narrative.
+            </p>
+            <textarea
+              autoFocus
+              value={chatOverlayQuestion}
+              onChange={(e) => setChatOverlayQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  submitChatOverlay();
+                }
+              }}
+              placeholder="What do you want to ask? (e.g. 'What are the biggest risks right now?', 'Draft a follow-up email to Deepa')"
+              rows={4}
+              disabled={startingChat}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
+            />
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <span className="text-[11px] text-gray-400">⌘↵ to send</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChatOverlay(false)}
+                  disabled={startingChat}
+                  className="px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitChatOverlay}
+                  disabled={!chatOverlayQuestion.trim() || startingChat}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {startingChat ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      Starting chat...
+                    </>
+                  ) : (
+                    "Ask Mikey →"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
