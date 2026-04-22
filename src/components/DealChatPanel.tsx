@@ -19,6 +19,11 @@ interface DealChatPanelProps {
   buildContext: (question: string) => string;
   conversationId: string | null;
   onConversationCreated: (id: string, firstQuestion: string) => void;
+  // An auto-send request from the parent: when autoSendNonce changes to a
+  // value we haven't processed, the panel sends autoSendQuestion as the next
+  // message. Used by the entry-form "Ask Mikey about this" flow.
+  autoSendQuestion?: string;
+  autoSendNonce?: number;
 }
 
 export default function DealChatPanel({
@@ -29,6 +34,8 @@ export default function DealChatPanel({
   buildContext,
   conversationId,
   onConversationCreated,
+  autoSendQuestion,
+  autoSendNonce,
 }: DealChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -255,6 +262,22 @@ export default function DealChatPanel({
       setSending(false);
     }
   }, [sending, messages.length, buildContext, conversationId, dealName, onConversationCreated]);
+
+  // Auto-send a question the parent hands us (used by the entry-form
+  // "Ask Mikey about this" flow). We key on a monotonically-increasing
+  // nonce so the same question text can trigger another send later if the
+  // parent decides to; we also wait until history has loaded so we don't
+  // race with a hydration that might appear to make the conversation "new".
+  const lastAutoSendNonceRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!open) return;
+    if (autoSendNonce === undefined || !autoSendQuestion) return;
+    if (lastAutoSendNonceRef.current === autoSendNonce) return;
+    if (!historyLoaded) return;
+    if (sending) return;
+    lastAutoSendNonceRef.current = autoSendNonce;
+    sendMessage(autoSendQuestion);
+  }, [open, autoSendNonce, autoSendQuestion, historyLoaded, sending, sendMessage]);
 
   // When closed, show a narrow rail pinned to the right edge as a persistent
   // entry point back into the panel. Clicking the rail opens the panel with

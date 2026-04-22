@@ -330,6 +330,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [panelConversationId, setPanelConversationId] = useState<string | null>(null);
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null);
+  const [autoSendQuestion, setAutoSendQuestion] = useState<string | undefined>(undefined);
+  const [autoSendNonce, setAutoSendNonce] = useState(0);
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
@@ -485,16 +487,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         }),
       });
       if (res.ok) {
+        // Grab the created entry's id so Ask Mikey can focus the chat on it.
+        const createdEntryId: string | null = await res
+          .clone()
+          .json()
+          .then((d) => d?.entry?.id ?? null)
+          .catch(() => null);
+
         // Snapshot Ask Mikey fields before clearing form state.
         const mikeyQuestion = !entryData ? askMikeyPrompt.trim() : "";
-        const snapshotEntry = !entryData && mikeyQuestion
-          ? {
-              type,
-              title: title || null,
-              content,
-              entryDate: entryDate ?? undefined,
-            }
-          : null;
 
         setNewEntryContent("");
         setNewEntryTitle("");
@@ -508,16 +509,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setAskMikeyPrompt("");
         await loadDeal();
 
-        // If the user typed an Ask Mikey prompt alongside the entry, fire off
-        // a chat conversation in a new tab with the just-added entry + their
-        // question as the first message. Runs in parallel with re-analysis.
-        if (snapshotEntry && mikeyQuestion) {
-          openDealChat({
-            extraEntry: snapshotEntry,
-            question: mikeyQuestion,
-            openInNewTab: true,
-            leaveBreadcrumb: true,
-          }).catch((err) => console.error("Failed to open Ask Mikey chat:", err));
+        // If the user typed an Ask Mikey prompt alongside the entry, open
+        // the inline Deal Chat panel focused on the just-created entry and
+        // auto-send the prompt as the first message. Starts a fresh
+        // conversation so the focus applies cleanly.
+        if (mikeyQuestion && createdEntryId) {
+          setFocusedEntryId(createdEntryId);
+          setPanelConversationId(null);
+          syncChatUrl(null);
+          setChatPanelOpen(true);
+          setAutoSendQuestion(mikeyQuestion);
+          setAutoSendNonce((n) => n + 1);
         }
 
         // Re-run analysis now that the timeline has new data. Show the
@@ -687,61 +689,6 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       sections.push("Based on all this context, help me think through this deal. What questions do you have?");
     }
     return sections.join("\n");
-  };
-
-  const openDealChat = async (opts?: {
-    question?: string;
-    extraEntry?: { type: string; title?: string | null; content: string; entryDate?: string | null };
-    leaveBreadcrumb?: boolean;
-    openInNewTab?: boolean;
-  }): Promise<string | null> => {
-    if (!deal) return null;
-    const context = buildDealChatContext({ extraEntry: opts?.extraEntry, question: opts?.question });
-    const res = await fetch("/api/conversations/from-context", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: `Deal: ${deal.name}`,
-        context,
-        autoSend: true,
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data?.conversationId) return null;
-
-    if (opts?.leaveBreadcrumb) {
-      // Best-effort: timeline entry pointing back to the conversation.
-      await addEntry({
-        type: "chat",
-        title: `Deal Chat: ${deal.name}`,
-        content: opts.question?.trim()
-          ? `Started a conversation: "${opts.question.trim()}"`
-          : `Started a conversation about this deal.`,
-        sourceUrl: `/chat/${data.conversationId}`,
-      } as Partial<TimelineEntry>);
-    }
-
-    // Hand the context off to the chat page via the established autoSend
-    // mechanism (same pattern sales-readiness / coaching-history use):
-    // sessionStorage key `autoSend-{id}` holds the first message, URL gets
-    // `?autoSend=true`, and the chat page's useEffect picks both up and
-    // sends the message on load. Without this, /chat/{id} shows the default
-    // welcome screen and the prompt is lost.
-    const autoSendPayload = typeof data.autoSendContext === "string" && data.autoSendContext
-      ? data.autoSendContext
-      : context;
-    try {
-      sessionStorage.setItem(`autoSend-${data.conversationId}`, autoSendPayload);
-    } catch { /* quota / privacy modes — best-effort */ }
-
-    const chatUrl = `/chat/${data.conversationId}?autoSend=true`;
-    if (opts?.openInNewTab) {
-      window.open(chatUrl, "_blank");
-    } else {
-      router.push(chatUrl);
-    }
-    return data.conversationId as string;
   };
 
   // Sync the active chat conversation into the URL as ?chat=<convId> so
@@ -2130,6 +2077,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         open={chatPanelOpen}
         onClose={closeChatPanel}
         onOpen={startDealChat}
+        autoSendQuestion={autoSendQuestion}
+        autoSendNonce={autoSendNonce}
         dealName={deal.name}
         buildContext={(question) => {
           const focused = focusedEntryId ? deal.entries.find((e) => e.id === focusedEntryId) : undefined;
