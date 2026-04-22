@@ -539,11 +539,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               if (mentions === 0) return null;
                               const intensity = mentions >= 4 ? "bg-purple-100 text-purple-700" : mentions >= 2 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600";
                               return (
-                                <span
-                                  className={`flex-shrink-0 text-[10px] font-medium rounded-full px-1.5 py-0.5 leading-none cursor-help ${intensity}`}
-                                  title={`Appeared in ${mentions} call${mentions === 1 ? "" : "s"} / interaction${mentions === 1 ? "" : "s"}`}
-                                >
-                                  {mentions}
+                                <span className="relative group/badge flex-shrink-0">
+                                  <span className={`text-[10px] font-medium rounded-full px-1.5 py-0.5 leading-none cursor-help ${intensity}`}>
+                                    {mentions}
+                                  </span>
+                                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/badge:opacity-100 transition-opacity pointer-events-none z-10">
+                                    {mentions} interaction{mentions === 1 ? "" : "s"} on record
+                                  </span>
                                 </span>
                               );
                             })()}
