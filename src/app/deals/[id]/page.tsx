@@ -653,7 +653,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       // Best-effort: timeline entry pointing back to the conversation.
       await addEntry({
         type: "chat",
-        title: `Chat: ${deal.name}`,
+        title: `Deal Chat: ${deal.name}`,
         content: opts.question?.trim()
           ? `Started a conversation: "${opts.question.trim()}"`
           : `Started a conversation about this deal.`,
@@ -1815,11 +1815,22 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               key={entry.id}
                               id={`entry-${entry.id}`}
                               onClick={(e) => {
-                                // Skip the toggle if the click came from any
-                                // interactive element inside the card (icons,
-                                // chips, CTAs, inputs, anchors).
+                                // Skip if the click came from any interactive
+                                // element inside the card (icons, chips, CTAs,
+                                // inputs, anchors).
                                 const target = e.target as HTMLElement;
                                 if (target.closest("button, a, input, select, textarea, summary, [data-no-toggle]")) return;
+                                // Deal Chat breadcrumbs reopen the side panel
+                                // rather than toggling expansion — the card IS
+                                // a conversation, so clicking it should take
+                                // you back into it.
+                                const chatMatch = entry.type === "chat" && entry.sourceUrl
+                                  ? entry.sourceUrl.match(/^\/chat\/([^/?#]+)/)
+                                  : null;
+                                if (chatMatch) {
+                                  openChatPanelForConversation(chatMatch[1]);
+                                  return;
+                                }
                                 setExpandedEntries((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(entry.id)) next.delete(entry.id);
@@ -2065,7 +2076,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           // was started, matching the previous new-tab flow's behavior.
           addEntry({
             type: "chat",
-            title: `Chat: ${deal.name}`,
+            title: `Deal Chat: ${deal.name}`,
             content: firstQuestion
               ? `Started a conversation: "${firstQuestion}"`
               : `Started a conversation about this deal.`,

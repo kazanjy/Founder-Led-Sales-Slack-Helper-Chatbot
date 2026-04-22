@@ -33,7 +33,7 @@ export const ENTRY_TYPES = [
   { value: "note", label: "Note", emoji: "📝" },
   { value: "linkedin", label: "LinkedIn", emoji: "💼" },
   { value: "document", label: "Document", emoji: "📄" },
-  { value: "chat", label: "Chat", emoji: "🌊" },
+  { value: "chat", label: "Deal Chat", emoji: "🌊" },
 ] as const;
 
 export function getStageInfo(stage: string) {
