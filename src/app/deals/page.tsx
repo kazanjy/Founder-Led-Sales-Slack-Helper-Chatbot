@@ -175,6 +175,9 @@ export default function DealsPage() {
         }
       }
 
+      // Auto-enrich all participants missing titles (non-blocking)
+      fetch(`/api/deals/${deal.id}/participants/enrich-all`, { method: "POST" }).catch(() => {});
+
       router.push(`/deals/${deal.id}`);
     } catch (error) {
       console.error("Failed to create deal:", error);

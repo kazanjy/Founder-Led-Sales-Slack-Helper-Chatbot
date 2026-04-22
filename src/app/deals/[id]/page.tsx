@@ -112,6 +112,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editTitleValue, setEditTitleValue] = useState("");
   const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
   const [editDateValue, setEditDateValue] = useState("");
+  const [enrichingAll, setEnrichingAll] = useState(false);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -235,6 +236,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       body: JSON.stringify({ role }),
     });
     await loadDeal();
+  };
+
+  const enrichAllParticipants = async () => {
+    setEnrichingAll(true);
+    try {
+      await fetch(`/api/deals/${id}/participants/enrich-all`, { method: "POST" });
+      await loadDeal();
+    } catch { /* ignore */ }
+    setEnrichingAll(false);
   };
 
   const updateEntryDate = async (entryId: string, dateStr: string) => {
@@ -518,12 +528,28 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-700">Participants ({sortedParticipants.length})</h3>
-                <button
-                  onClick={() => setShowAddParticipant(true)}
-                  className="text-xs text-purple-600 hover:text-purple-800 font-medium"
-                >
-                  + Add
-                </button>
+                <div className="flex items-center gap-2">
+                  {sortedParticipants.some((p) => p.email && !p.title) && (
+                    <button
+                      onClick={enrichAllParticipants}
+                      disabled={enrichingAll}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {enrichingAll ? (
+                        <>
+                          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                          Enriching...
+                        </>
+                      ) : "Enrich All"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowAddParticipant(true)}
+                    className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                  >
+                    + Add
+                  </button>
+                </div>
               </div>
 
               {showAddParticipant && (
@@ -762,6 +788,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       if (a.email) existingEmails.add(a.email.toLowerCase());
                       existingNames.add(a.name.toLowerCase());
                     }
+                    // Auto-enrich any participants missing titles
+                    fetch(`/api/deals/${id}/participants/enrich-all`, { method: "POST" })
+                      .then(() => loadDeal())
+                      .catch(() => {});
+                  } else {
                     await loadDeal();
                   }
                 }}
