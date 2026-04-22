@@ -332,7 +332,6 @@ export default function DealsPage() {
                 onSelectCalls={(calls) => {
                   if (calls.length === 0) return;
                   setImportedCalls((prev) => {
-                    // Dedupe by recordingUrl (or title+date fallback)
                     const seen = new Set(prev.map((c) => c.recordingUrl || `${c.title}|${c.date}`));
                     const merged = [...prev];
                     for (const c of calls) {
@@ -344,7 +343,21 @@ export default function DealsPage() {
                     }
                     return merged;
                   });
-                  // Use AI to suggest company + deal name (non-blocking)
+                  // Instant fallback: infer from email domain + call title
+                  for (const data of calls) {
+                    const externalAttendee = data.attendees?.find((a) => inferCompanyFromEmail(a.email) != null);
+                    const inferredCompany = externalAttendee?.company
+                      || inferCompanyFromEmail(externalAttendee?.email)
+                      || "";
+                    if (inferredCompany) {
+                      setNewDealCompany((prev) => prev.trim() ? prev : inferredCompany);
+                      break;
+                    }
+                  }
+                  if (calls[0]?.title) {
+                    setNewDealName((prev) => prev.trim() ? prev : calls[0].title!);
+                  }
+                  // AI override: replace with better suggestions when ready
                   fetch("/api/deals/suggest-name", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -352,27 +365,10 @@ export default function DealsPage() {
                   })
                     .then((r) => r.json())
                     .then((data) => {
-                      if (data.companyName) setNewDealCompany((prev) => prev.trim() ? prev : data.companyName);
-                      if (data.dealName) setNewDealName((prev) => prev.trim() ? prev : data.dealName);
+                      if (data.companyName) setNewDealCompany(data.companyName);
+                      if (data.dealName) setNewDealName(data.dealName);
                     })
-                    .catch(() => {
-                      // Fallback: infer company from email domain, deal name from call title
-                      if (!newDealCompany.trim()) {
-                        for (const data of calls) {
-                          const externalAttendee = data.attendees?.find((a) => inferCompanyFromEmail(a.email) != null);
-                          const inferredCompany = externalAttendee?.company
-                            || inferCompanyFromEmail(externalAttendee?.email)
-                            || "";
-                          if (inferredCompany) {
-                            setNewDealCompany(inferredCompany);
-                            break;
-                          }
-                        }
-                      }
-                      if (!newDealName.trim() && calls[0]?.title) {
-                        setNewDealName(calls[0].title);
-                      }
-                    });
+                    .catch(() => {});
                 }}
               />
             </div>
