@@ -85,15 +85,22 @@ export const firefliesProvider: MeetingRecorderProvider = {
       if (transcripts.length < pageSize) break;
     }
 
-    return allTranscripts.map((t) => ({
-      id: t.id,
-      title: t.title || "Untitled Meeting",
-      date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
-      duration: t.duration ? Math.round(t.duration / 1000) : undefined,
-      participants: t.participants || [],
-      summary: t.summary?.overview || undefined,
-      providerUrl: t.transcript_url || `https://app.fireflies.ai/view/${t.id}`,
-    }));
+    return allTranscripts.map((t) => {
+      const participantStrs: string[] = t.participants || [];
+      return {
+        id: t.id,
+        title: t.title || "Untitled Meeting",
+        date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
+        duration: t.duration ? Math.round(t.duration / 1000) : undefined,
+        participants: participantStrs,
+        attendees: participantStrs.map((p) => ({
+          name: p,
+          email: p.includes("@") ? p : undefined,
+        })),
+        summary: t.summary?.overview || undefined,
+        providerUrl: t.transcript_url || `https://app.fireflies.ai/view/${t.id}`,
+      };
+    });
   },
 
   async getCallDetail(apiKey: string, callId: string): Promise<MeetingCallDetail> {
@@ -131,12 +138,18 @@ export const firefliesProvider: MeetingRecorderProvider = {
       })
       .join("\n\n");
 
+    const participantStrs: string[] = t.participants || [];
+
     return {
       id: t.id,
       title: t.title || "Untitled Meeting",
       date: t.date ? new Date(Number(t.date)).toISOString() : new Date().toISOString(),
       duration: t.duration ? Math.round(t.duration / 1000) : undefined,
-      participants: t.participants || [],
+      participants: participantStrs,
+      attendees: participantStrs.map((p: string) => ({
+        name: p,
+        email: p.includes("@") ? p : undefined,
+      })),
       summary: t.summary?.overview || "",
       transcript,
       actionItems: t.summary?.action_items ? [t.summary.action_items].flat() : undefined,
