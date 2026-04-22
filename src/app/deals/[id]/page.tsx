@@ -968,7 +968,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
                     Opening...
                   </>
-                ) : "💬 Chat About Deal"}
+                ) : "👋 Deal Chat"}
               </button>
               <button
                 onClick={deleteDeal}
@@ -1384,10 +1384,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   rows={2}
                   className="w-full px-3 py-2 pl-9 border border-purple-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y bg-purple-50/30 placeholder:text-gray-400"
                 />
-                <span className="absolute left-2.5 top-2.5 text-base" aria-hidden="true">💬</span>
+                <span className="absolute left-2.5 top-2.5 text-base" aria-hidden="true">👋</span>
                 {askMikeyPrompt.trim() && (
                   <span className="absolute right-2.5 top-2.5 text-[10px] font-medium text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
-                    opens chat in new tab
+                    opens Deal Chat in new tab
                   </span>
                 )}
               </div>
@@ -1663,6 +1663,41 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               <span className="text-xs font-medium">{typeInfo.emoji} {typeInfo.label}</span>
                             </div>
                             {entry.title && <div className="font-semibold text-gray-900 text-sm">{entry.title}</div>}
+                            {(() => {
+                              // Resolve linkedParticipantIds from the entry's metadata JSON.
+                              let ids: string[] = [];
+                              if (entry.metadata) {
+                                try {
+                                  const parsed = JSON.parse(entry.metadata);
+                                  if (Array.isArray(parsed?.linkedParticipantIds)) {
+                                    ids = parsed.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+                                  }
+                                } catch { /* ignore */ }
+                              }
+                              const linked = ids
+                                .map((pid) => participantsById.get(pid))
+                                .filter((p): p is NonNullable<typeof p> => !!p);
+                              if (linked.length === 0) return null;
+                              return (
+                                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium">With</span>
+                                  {linked.map((p) => {
+                                    const nameLabel = p.name.includes("@") ? (nameFromEmail(p.name) || p.name) : titleCase(p.name);
+                                    return (
+                                      <button
+                                        key={p.id}
+                                        type="button"
+                                        onClick={() => setTimelineQuery(nameLabel)}
+                                        title={`Filter timeline to ${nameLabel}`}
+                                        className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-[11px] text-purple-700 hover:bg-purple-100"
+                                      >
+                                        {nameLabel}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover/e:opacity-100 transition-opacity">
                             {entry.sourceUrl && (
@@ -1712,7 +1747,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             className="bg-white rounded-xl shadow-xl max-w-xl w-full p-5"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">💬 Chat about this deal</h3>
+              <h3 className="text-lg font-semibold text-gray-900">👋 Deal Chat</h3>
               <button
                 type="button"
                 onClick={() => setShowChatOverlay(false)}
