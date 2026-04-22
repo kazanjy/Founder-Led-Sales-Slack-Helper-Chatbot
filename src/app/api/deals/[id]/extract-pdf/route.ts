@@ -60,12 +60,16 @@ export async function POST(
     let title = fileBaseName;
     let date: string | null = null;
     try {
+      const today = new Date();
+      const todayIso = today.toISOString().slice(0, 10);
       const metadataPrompt = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
             content: `You extract metadata from the opening pages of a sales-related PDF (proposal, contract, one-pager, deck export, etc.).
+
+Today's date is ${todayIso}. If a date in the document shows only a month and day with no year, assume the current year (${today.getFullYear()}). Only use a different year if the document clearly shows one. Never default to a year before ${today.getFullYear() - 1} unless explicitly stated.
 
 Return ONE line of JSON and nothing else:
 {"title": "...", "date": "YYYY-MM-DD" or null}

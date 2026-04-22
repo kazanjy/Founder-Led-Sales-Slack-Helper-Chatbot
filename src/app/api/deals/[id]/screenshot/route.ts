@@ -51,6 +51,8 @@ export async function POST(
 
     // Build a compact participant roster the model can use to resolve speakers.
     const userLabel = user.name || user.email || "Deal Owner";
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0, 10); // YYYY-MM-DD
     const participantRoster = deal.participants.length
       ? deal.participants
           .map((p) => {
@@ -69,6 +71,8 @@ export async function POST(
         {
           role: "system",
           content: `You are extracting text content from a screenshot related to a B2B sales deal — typically an iMessage, WhatsApp, Slack, LinkedIn, or email conversation, or a CRM/doc excerpt. Your job is BOTH to extract the text AND to attribute each message to the correct person.
+
+Today's date is ${todayIso}. If a timestamp shows only a month and day (e.g. "April 20", "Apr 20 at 3:14pm") with no visible year, assume the CURRENT year (${today.getFullYear()}). Only use a different year if the screenshot clearly shows one (e.g. "Apr 20, 2024"). Never default to a year before ${today.getFullYear() - 1} unless the screenshot explicitly says so.
 
 ## Deal context
 
