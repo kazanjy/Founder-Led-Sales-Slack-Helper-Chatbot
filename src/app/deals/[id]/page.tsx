@@ -554,7 +554,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         // analysis card with its spinner, and scroll to it when the run
         // completes so the user lands on the fresh result.
         // Skip if already analyzing; the running pass will include fresh data anyway.
-        if (!analyzing) analyzeDeal({ scrollToResult: true });
+        // Skip for "chat" entries — Deal Chat breadcrumbs are pointers back
+        // to a conversation, not new context about the deal, so there's
+        // nothing for the analyzer to re-read.
+        if (!analyzing && type !== "chat") analyzeDeal({ scrollToResult: true });
       } else {
         // Surface server errors instead of silently swallowing them.
         const errText = await res.text().catch(() => "");
