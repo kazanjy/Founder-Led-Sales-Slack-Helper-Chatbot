@@ -414,6 +414,56 @@ Phase 6 pushes notifications OUT to Slack. Phase 7 lets the conversation come ba
 - **Multi-file uploads**: if a user drops three screenshots in one message shortcut, do we create one entry with three images or three entries? Probably three entries so each gets its own vision extraction + participant attribution, but worth deciding.
 - **Permissions**: a Slack user could theoretically try to add to a deal owned by a colleague. For now the fuzzy resolver is scoped to their own deals only. Shared-account deal access is a later call.
 
+### Phase 8: Onboarding-Driven Deal Bootstrap + Closed-Deal Synthesis
+
+A new user's first 10 minutes with Mikey today are mostly setup — connect things, fill out a sales narrative, then start the deal flow from scratch. They've already had dozens of sales calls recorded by the time they sign up. Phase 8 mines that history during onboarding so by the time they see the `/deals` board for the first time, it's pre-populated with their actual live deals, their sales narrative is filled in, and we've synthesized a sales motion + a "platonic" discovery call + a demo script from their closed-won deals.
+
+**Onboarding wizard (multi-step, gates the first /deals visit):**
+
+1. **Step 1 — Connect a call recorder.** Pull-in of `MeetingRecorderPanel`'s connect flow (Granola / Fireflies / Fathom / Google Meet). Skippable but skipping disables steps 3–5; users see a "you can connect later" link with a clear note that we won't be able to bootstrap their board.
+
+2. **Step 2 — Sales narrative.** Embed the existing `/sales-narrative` flow. We need this for tone + ICP context anyway, and asking now (while the user is in setup mode) gets it done before they hit the deal board where it gets used.
+
+3. **Step 3 — Live-deal detection + instantiation.** Pull the last 60 days of calls from the connected recorder via `provider.listCalls`. Cluster by external attendees' email domains (excluding free/internal domains) and by attendee-name overlap across calls. For each cluster of ≥1 call with external attendees, run an LLM classifier on the call titles + summaries: *"is this a sales conversation about a deal?"*. Surviving clusters are presented as "We found these potential live deals — pick which to import" with a one-tap accept-all. Each accepted cluster instantiates a `Deal` plus one `DealTimelineEntry` per call plus deduped `DealParticipant` records (same machinery the existing "New Deal from calls" flow uses). Auto-runs `analyzeDeal` per imported deal.
+
+4. **Step 4 — Closed-deal detection.** Pull all available history from the recorder (subject to provider limits — Granola's public API only returns notes with summaries, so old un-summarized calls are invisible). Cluster the same way as step 3. For each cluster, two classifiers:
+   - **Outcome classifier** (LLM on summaries): closed_won / closed_lost / stalled / unknown.
+   - **Stage classifier per call** (LLM on title + summary): discovery / demo / proposal / negotiation / kickoff / other.
+   Heuristic guardrails before spending on the model: a cluster needs ≥2 calls and a 30+ day gap between most-recent call and now (otherwise it's likely still a live deal, handled by step 3). Closed-won candidates are confirmed with the user before we write them — present as "We think these N deals closed won, this M closed lost — confirm or fix" with editable status per row. Confirmed closed deals get instantiated as `Deal` rows with `status: "closed_won" | "closed_lost"` and the same timeline + participant import.
+
+5. **Step 5 — Synthesize sales motion + disco template + demo script from closed-won deals.** Three parallel synthesis passes, each fed the closed-won corpus:
+   - **Sales motion** → reuses `/sales-motion/new`'s analyze flow, fed the merged closed-won timeline data instead of asking the user to write one from scratch. Output saved as the user's sales motion.
+   - **Platonic discovery call** → take every call in closed-won deals classified as `discovery` (from step 4's stage classifier), concatenate transcripts, run a synthesis prompt: *"distill the structure these N successful discovery calls share — questions asked in what order, qualification frameworks, common objections + how this seller handled them."* Output: a structured markdown doc the user can edit, saved as a new `Asset` (or in the sales-asset library if a fitting model already exists).
+   - **Demo script** → same as platonic disco but for `demo`-classified calls. Output: a section-by-section demo script (intro, problem framing, capability tour, pricing intro, close).
+
+**Data model additions:**
+- Probably none new for the deals/participants/entries side — reuses existing models.
+- Maybe an `OnboardingProgress` model to track wizard step completion + idempotency on bootstrap (so a refresh mid-step-3 doesn't double-create deals):
+```
+OnboardingProgress
+├── userId (PK, FK → User)
+├── recorderConnected (Bool)
+├── narrativeCompleted (Bool)
+├── liveDealsImported (Bool)
+├── closedDealsImported (Bool)
+├── motionSynthesized (Bool)
+├── discoTemplateSynthesized (Bool)
+├── demoScriptSynthesized (Bool)
+├── completedAt (DateTime?)
+```
+- Generated synthesis docs (platonic disco, demo script) probably belong in the existing sales-asset-library tables — confirm at scoping time.
+
+**Why phase 8, not earlier:** the synthesis passes (steps 3–5) need stable deal models, the analyzer, the meeting-recorder providers, and the sales-narrative + sales-motion features all in place. None of those existed when we started; all do now. Onboarding is the natural moment to leverage them.
+
+**Known open decisions:**
+- **Cluster-grouping signal**: domain-only is too coarse (one customer = one cluster, but enterprise with multiple buying centers should split). Domain + attendee-overlap with a threshold is probably right, but the threshold needs empirical tuning on real call sets.
+- **Classifier model choice**: cheap (haiku-class) is fast and ok for "is this a sales call?"; the disco/demo synthesis needs a deeper model. Spec the cheap classifier as a batched call (one prompt covering N candidate clusters) to keep cost down.
+- **History depth per provider**: Granola only surfaces summarized notes (~last few months for most users); Fireflies/Fathom typically retain longer. Worth surfacing this in step 4's UI: *"Granola only goes back 90 days, so older deals may not appear here"*.
+- **Confirmation UX vs auto-import**: I lean confirm-before-write for both step 3 and 4 — the cost of bad auto-import (deals you have to delete) is higher than the cost of one extra tap. Step 5 outputs are also presented as drafts the user reviews before they're saved.
+- **Re-run path**: the wizard runs once at onboarding. But Phase 6's hourly scanner picks up new calls forever, so phase-8 logic doesn't need to re-run. The closed-deal synthesis (step 5) might benefit from a "regenerate from updated closed-won corpus" button later — out of scope for v1.
+- **Skip path**: a user who doesn't connect a recorder still gets steps 2 (narrative) and a normal empty `/deals` board. Steps 3–5 just don't fire. The board's existing first-run "auto-open New Deal modal" affordance handles the empty state.
+- **Privacy framing**: surfacing all-time call history requires a clear "Mikey will read your calls to build your deal board — here's what we look at, here's what we don't" disclosure on step 1. Probably a separate review with whoever owns the privacy posture.
+
 ---
 
 ## Key Files
@@ -437,3 +487,9 @@ Phase 6 pushes notifications OUT to Slack. Phase 7 lets the conversation come ba
 | `src/lib/slack/client.ts` | Existing Slack poster (reuse for notification blocks) |
 | `src/lib/slack/commands.ts` | Existing slash-command dispatcher — extend with `/mikey deal` (phase 7) |
 | `src/app/api/slack/interactions/route.ts` | Existing Slack interactions handler — extend for message shortcut + modal submit (phase 7) |
+| `src/app/onboarding/page.tsx` | Multi-step wizard (phase 8) |
+| `src/app/api/onboarding/bootstrap-deals/route.ts` | Cluster + classify recent calls → propose live deals (phase 8 step 3) |
+| `src/app/api/onboarding/detect-closed-deals/route.ts` | Cluster + outcome-classify historical calls (phase 8 step 4) |
+| `src/app/api/onboarding/synthesize-templates/route.ts` | Sales motion + platonic disco + demo script generation (phase 8 step 5) |
+| `src/app/sales-motion/new/page.tsx` | Existing sales-motion analyze flow — reused as a synthesis target (phase 8) |
+| `src/app/sales-narrative/page.tsx` | Existing sales-narrative flow — embedded in onboarding step 2 |
