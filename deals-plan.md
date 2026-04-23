@@ -383,6 +383,37 @@ The unique constraint is the idempotency key — a call that stays unactioned ac
 - **Cadence**: hourly is the default. Recorders typically finish summaries ~10 min after a call ends, so hourly feels near-real-time. If quota costs bite or users complain of noise, drop to every 2–3 hours or make it user-configurable.
 - **Quiet hours**: probably worth respecting user timezone and a default 10pm–8am quiet window before we ship — batch overnight notifications into a single morning digest.
 
+### Phase 7: Slack-Side Deal Interactions
+
+Phase 6 pushes notifications OUT to Slack. Phase 7 lets the conversation come back IN from Slack: a user can ask Mikey about a deal or drop a new asset onto one without leaving Slack or opening the web UI. Keeps the founder in-flow when something deal-relevant just landed in their DMs or a channel.
+
+**Ask Mikey about a deal from Slack:**
+- Extend the existing slash-command dispatcher (`src/lib/slack/commands.ts`) with something like `/mikey deal <deal-name-or-fragment> <question>`, or a sub-command under the existing `/mikey` surface if that's how the UX reads best.
+- Deal resolution: fuzzy match `<fragment>` against the user's deals on `name` + `companyName`, case-insensitive substring + token-overlap score.
+  - **Exact or clear single match** → build context server-side (same fields as `buildDealChatContext` — deal, participants, timeline sans chat breadcrumbs, latest analysis, sales narrative), send to Chatbase, post the reply in the thread or DM the command came from.
+  - **Ambiguous (multiple plausible matches)** → reply with a block-kit picker listing the top 3. User taps one; original question re-runs.
+  - **No match** → reply with "no deal matches '<fragment>'" + a "Create a new deal" button that either opens the `/deals` page in a browser or opens a modal to collect name/company inline.
+- Slack user → Mikey user mapping reuses the existing coaching-thread plumbing (`Workspace.slackTeamId` + a Slack user id on `User`), so we already know whose deals to search.
+
+**Add assets to a deal from Slack:**
+- **Message shortcut "Add to Deal"** available on any message in any channel: when invoked, Mikey opens a modal with a deal picker (fuzzy resolver + recent deals at the top). Committing creates a timeline entry on that deal:
+  - Message text → `content`
+  - Message author → surfaced in `metadata` so the timeline entry shows "via Slack from @<author>"
+  - Any attached files (images, PDFs) → downloaded server-side, routed through the existing `/api/vision/extract` for images or the PDF extraction path for PDFs, attached as a `screenshot` / `document` entry
+- **Screenshot paste in DM with Mikey**: user pastes a Slack/SMS/email screenshot into a DM. Mikey replies in-thread with "which deal?" + a block-kit picker of the user's recent/active deals. On confirmation, the image goes through vision extraction and lands as a `screenshot` entry. The DM message itself becomes the entry's `title` context (e.g., "Slack DM from Conrad, Apr 22").
+- **Natural-language shortcut** (v2): user DMs Mikey "add this to the Visana deal" with a screenshot; Mikey resolves the deal name inline (no modal) and creates the entry. Needs light intent classification — skip for v1.
+
+**Data model**: none. Everything reuses existing endpoints and helpers — `/api/deals/[id]/entries`, `buildDealChatContext`, `/api/vision/extract`.
+
+**Why phase 7, not baked into phase 6:** phase 6 is one-way (Mikey → Slack, notify). Phase 7 is two-way (Slack → Mikey, interact). Different Slack surface area entirely — slash commands, message shortcuts, file-upload handling, interaction payload handlers — and different auth surface: we need to authenticate the Slack user as a Mikey user before every action, whereas phase 6 is just sending to a known DM.
+
+**Known open decisions:**
+- **Command shape**: `/mikey deal <fragment> <question>` vs `/deal <fragment> <question>` as a new top-level command. Top-level reads cleaner in Slack but costs a slash-command registration.
+- **Ambiguous match UX**: inline picker (current proposal) vs force the user to re-type with more specificity. Picker is more forgiving but adds block-kit work.
+- **Deal context size**: Slack posts have a 40k-char limit per message (in blocks, smaller). If a deal's timeline is huge, we may need to truncate more aggressively than we do in the web panel, or split replies across messages.
+- **Multi-file uploads**: if a user drops three screenshots in one message shortcut, do we create one entry with three images or three entries? Probably three entries so each gets its own vision extraction + participant attribution, but worth deciding.
+- **Permissions**: a Slack user could theoretically try to add to a deal owned by a colleague. For now the fuzzy resolver is scoped to their own deals only. Shared-account deal access is a later call.
+
 ---
 
 ## Key Files
@@ -404,3 +435,5 @@ The unique constraint is the idempotency key — a call that stays unactioned ac
 | `vercel.json` | Cron schedule for `/api/cron/scan-meetings` (phase 6) |
 | `src/app/api/cron/scan-meetings/route.ts` | Hourly scanner → Slack DM (phase 6) |
 | `src/lib/slack/client.ts` | Existing Slack poster (reuse for notification blocks) |
+| `src/lib/slack/commands.ts` | Existing slash-command dispatcher — extend with `/mikey deal` (phase 7) |
+| `src/app/api/slack/interactions/route.ts` | Existing Slack interactions handler — extend for message shortcut + modal submit (phase 7) |
