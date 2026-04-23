@@ -678,10 +678,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     }
 
     // Skip the focused entry in the timeline — it's already rendered in full
-    // above, so re-including it just wastes tokens.
-    const timelineEntries = focused
-      ? deal.entries.filter((e) => e.id !== focused.id)
-      : deal.entries;
+    // above, so re-including it just wastes tokens. Also skip Deal Chat
+    // breadcrumbs: they're pointers back to past conversations, not new deal
+    // context, and their "Started a conversation: ..." content reads as
+    // engagement activity when rendered as a timeline event.
+    const timelineEntries = deal.entries.filter((e) => {
+      if (e.type === "chat") return false;
+      if (focused && e.id === focused.id) return false;
+      return true;
+    });
     if (timelineEntries.length > 0) {
       sections.push(focused ? "## Timeline of Interactions (other entries)" : "## Timeline of Interactions");
       for (const entry of timelineEntries.slice(0, 15)) {

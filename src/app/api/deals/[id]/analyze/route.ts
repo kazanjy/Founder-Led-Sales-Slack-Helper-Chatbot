@@ -74,10 +74,15 @@ export async function POST(
       sections.push("");
     }
 
-    // Timeline entries (truncate transcript-heavy entries)
-    if (deal.entries.length > 0) {
+    // Timeline entries (truncate transcript-heavy entries).
+    // Filter out chat-type breadcrumbs — they're pointers back to past Deal
+    // Chat conversations, not new deal context, and their short "Started a
+    // conversation: ..." content reads like engagement activity when fed to
+    // the analyzer as timeline events.
+    const analyzableEntries = deal.entries.filter((e) => e.type !== "chat");
+    if (analyzableEntries.length > 0) {
       sections.push("## Timeline");
-      for (const entry of deal.entries) {
+      for (const entry of analyzableEntries) {
         const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
         sections.push(`### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`);
         // Keep summaries full but truncate long transcripts
@@ -111,8 +116,9 @@ export async function POST(
       : "";
 
     // Entries created after the last analysis are "new" context to focus on.
+    // Chat breadcrumbs are excluded — they're not new deal context.
     const newEntryCount = isReanalysis && deal.lastAnalyzedAt
-      ? deal.entries.filter((e) => new Date(e.createdAt) > deal.lastAnalyzedAt!).length
+      ? analyzableEntries.filter((e) => new Date(e.createdAt) > deal.lastAnalyzedAt!).length
       : 0;
 
     const sectionRequirements = isReanalysis
