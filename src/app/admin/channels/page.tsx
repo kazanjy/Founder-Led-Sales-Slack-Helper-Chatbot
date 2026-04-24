@@ -26,6 +26,8 @@ interface Delivery {
   error?: string;
 }
 
+const LAST_WORKSPACE_KEY = "admin_channels:selectedWorkspaceId";
+
 function formatRelative(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -67,7 +69,14 @@ export default function AdminChannelsPage() {
         const res = await fetch("/api/admin/workspaces?limit=500");
         if (!res.ok) return;
         const data = await res.json();
-        setWorkspaces(data.workspaces || []);
+        const list: Workspace[] = data.workspaces || [];
+        setWorkspaces(list);
+        if (typeof window !== "undefined") {
+          const saved = window.localStorage.getItem(LAST_WORKSPACE_KEY);
+          if (saved && list.some((w) => w.id === saved)) {
+            setWorkspaceId(saved);
+          }
+        }
       } catch {
         /* ignore */
       } finally {
@@ -189,7 +198,14 @@ export default function AdminChannelsPage() {
         <label className="text-sm font-medium text-gray-700">Workspace:</label>
         <select
           value={workspaceId}
-          onChange={(e) => setWorkspaceId(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setWorkspaceId(next);
+            if (typeof window !== "undefined") {
+              if (next) window.localStorage.setItem(LAST_WORKSPACE_KEY, next);
+              else window.localStorage.removeItem(LAST_WORKSPACE_KEY);
+            }
+          }}
           disabled={loadingWorkspaces}
           className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[260px]"
         >
