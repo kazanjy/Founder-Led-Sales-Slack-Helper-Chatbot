@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
+import { syncChannelClaim } from "@/lib/slack/channels";
 
 /**
  * POST /api/admin/accounts/[id]/channel-claims
@@ -80,6 +81,10 @@ export async function POST(
         },
       },
     });
+
+    // Fire-and-forget backfill: pull channel name + latest-message ts from
+    // Slack so the admin UI never shows a bare channel ID.
+    void syncChannelClaim(claim.id);
 
     return NextResponse.json({ claim });
   } catch (error) {

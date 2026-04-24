@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
+import { syncChannelClaim } from "@/lib/slack/channels";
 
 // GET /api/admin/channels?workspaceId=<id>
 // Lists every ChannelClaim in a workspace, sorted by most recent activity
@@ -35,6 +36,14 @@ export async function GET(request: NextRequest) {
       claimedBy: { select: { id: true, name: true, email: true } },
     },
   });
+
+  // Fire-and-forget: any row missing a human-readable name was claimed
+  // without one and has never had a message event fire since. Pull fresh
+  // metadata from Slack so the next refresh shows a real name instead of
+  // the raw channel ID.
+  for (const c of channels) {
+    if (!c.slackChannelName) void syncChannelClaim(c.id);
+  }
 
   return NextResponse.json({ channels });
 }
