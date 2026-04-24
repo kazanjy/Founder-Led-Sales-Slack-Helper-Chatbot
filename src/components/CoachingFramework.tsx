@@ -365,7 +365,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
   const updateGoalStatus = async (goalId: string, status: string) => {
     // Optimistic update
-    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, status } : g));
+    setGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, status, statusChangedAt: new Date().toISOString() } : g));
     await fetch(`/api/coaching/goals/${goalId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1528,6 +1528,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   {goal.createdAt && (
                     <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   )}
+                  {goal.status === "done" && goal.statusChangedAt && (
+                    <span className="text-[10px] text-green-600 mt-0.5 block">Completed {new Date(goal.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  )}
                 </div>
                 {canEdit && (
                   <>
@@ -1717,6 +1720,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             ) : null}
                             {task.createdAt && (
                               <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                            )}
+                            {task.status === "done" && task.statusChangedAt && (
+                              <span className="text-[10px] text-green-600 mt-0.5 block">Completed {new Date(task.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             )}
                           </div>
                         </div>
