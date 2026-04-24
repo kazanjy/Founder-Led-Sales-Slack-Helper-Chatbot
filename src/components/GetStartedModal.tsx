@@ -54,6 +54,7 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
           // Store precrawl result so the edit page can use it
           try {
             sessionStorage.setItem("precrawlResult", JSON.stringify({
+              url,
               text: data.crawlText,
               urls: data.crawlUrls || [],
             }));

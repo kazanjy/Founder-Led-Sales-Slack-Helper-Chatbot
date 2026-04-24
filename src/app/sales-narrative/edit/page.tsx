@@ -105,7 +105,7 @@ function SalesNarrativeEditContent() {
   const dragCounterRef = useRef(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
   const precrawlFiredRef = useRef<string | null>(null);
-  const precrawlResultRef = useRef<{ text: string; urls: string[] } | null>(null);
+  const precrawlResultRef = useRef<{ url: string; text: string; urls: string[] } | null>(null);
   const [precrawlStatus, setPrecrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
   const [precrawlUrls, setPrecrawlUrls] = useState<string[]>([]);
 
@@ -120,27 +120,51 @@ function SalesNarrativeEditContent() {
       const stored = sessionStorage.getItem("precrawlResult");
       if (stored) {
         const parsed = JSON.parse(stored);
-        precrawlResultRef.current = parsed;
         sessionStorage.removeItem("precrawlResult");
-        setPrecrawlStatus("ready");
-        setPrecrawlUrls(parsed.urls || []);
+        if (parsed?.url && parsed?.text) {
+          precrawlResultRef.current = { url: parsed.url, text: parsed.text, urls: parsed.urls || [] };
+          precrawlFiredRef.current = parsed.url;
+          setPrecrawlStatus("ready");
+          setPrecrawlUrls(parsed.urls || []);
+        }
       }
     } catch { /* ignore */ }
   }, []);
 
-  // Fire background precrawl as soon as a website URL is populated
+  // Fire (or re-fire) the background precrawl whenever the website URL changes.
   useEffect(() => {
     const url = prefillUrl.trim();
-    if (!url || prefilling || precrawlFiredRef.current === url) return;
-    // Skip if we already have results (e.g. from GetStartedModal via sessionStorage)
-    if (precrawlResultRef.current) {
-      precrawlFiredRef.current = url;
+    if (prefilling) return;
+
+    // URL cleared after we'd claimed one: wipe any visible state.
+    if (!url) {
+      if (precrawlFiredRef.current || precrawlResultRef.current) {
+        setPrecrawlStatus("idle");
+        setPrecrawlUrls([]);
+        precrawlFiredRef.current = null;
+        precrawlResultRef.current = null;
+      }
       return;
     }
-    // Only fire for URLs that look like a domain (not partial typing)
+
+    // Same URL we've already handled (crawling or cached) — nothing to do.
+    if (precrawlFiredRef.current === url) return;
+
+    // Only fire for URLs that look like a domain (not partial typing).
     try { new URL(url.startsWith("http") ? url : `https://${url}`); } catch { return; }
-    precrawlFiredRef.current = url;
+
+    // Reuse a cached result that matches this URL (e.g. sessionStorage handoff).
+    if (precrawlResultRef.current?.url === url) {
+      precrawlFiredRef.current = url;
+      setPrecrawlStatus("ready");
+      setPrecrawlUrls(precrawlResultRef.current.urls);
+      return;
+    }
+
+    // URL changed to something new — invalidate stale cache and crawl fresh.
     precrawlResultRef.current = null;
+    precrawlFiredRef.current = url;
+    setPrecrawlUrls([]);
     setPrecrawlStatus("crawling");
     fetch("/api/sales-narrative/precrawl", {
       method: "POST",
@@ -151,27 +175,18 @@ function SalesNarrativeEditContent() {
       .then((data) => {
         if (data?.crawlText && precrawlFiredRef.current === url) {
           const urls = data.crawlUrls || [];
-          precrawlResultRef.current = { text: data.crawlText, urls };
+          precrawlResultRef.current = { url, text: data.crawlText, urls };
           setPrecrawlStatus("ready");
           setPrecrawlUrls(urls);
-        } else {
+        } else if (precrawlFiredRef.current === url) {
           setPrecrawlStatus("idle");
           setPrecrawlUrls([]);
         }
       })
-      .catch(() => { setPrecrawlStatus("idle"); });
+      .catch(() => {
+        if (precrawlFiredRef.current === url) setPrecrawlStatus("idle");
+      });
   }, [prefillUrl, prefilling]);
-
-  // Reset precrawl status when URL changes
-  useEffect(() => {
-    const url = prefillUrl.trim();
-    if (precrawlFiredRef.current && precrawlFiredRef.current !== url) {
-      setPrecrawlStatus("idle");
-      setPrecrawlUrls([]);
-      precrawlFiredRef.current = null;
-      precrawlResultRef.current = null;
-    }
-  }, [prefillUrl]);
 
 
   // Cycle through pre-fill loading messages
