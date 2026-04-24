@@ -615,11 +615,17 @@ model ChannelClaim {
   claimedByUserId String
   claimedBy       User   @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
 
+  // Most recent non-bot message timestamp in this channel. Fed by the Slack
+  // event handler on every incoming message; used by the admin broadcast
+  // tool to rank channels by recency.
+  lastMessageAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([accountId])
   @@index([workspaceId])
+  @@index([workspaceId, lastMessageAt])
   @@map("channel_claims")
 }
 

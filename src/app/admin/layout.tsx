@@ -169,6 +169,7 @@ export default function AdminLayout({
     { href: "/admin/accounts", label: "Accounts", icon: "🏠" },
     { href: "/admin/users", label: "Users", icon: "👥" },
     { href: "/admin/workspaces", label: "Workspaces", icon: "🏢" },
+    { href: "/admin/channels", label: "Channels", icon: "📣" },
     { href: "/admin/billing", label: "Billing", icon: "💳" },
   ];
 

@@ -308,6 +308,24 @@ export async function handleSlackEvent(payload: SlackEventPayload) {
     return;
   }
 
+  // Fire-and-forget: keep ChannelClaim.lastMessageAt fresh for any non-bot
+  // channel message so the admin broadcast tool can rank channels by
+  // recency. Never block the primary event flow on this.
+  if (event.type === "message" && event.channel && event.channel_type !== "im") {
+    const eventTs = typeof event.ts === "string" ? event.ts : undefined;
+    const when = eventTs ? new Date(parseFloat(eventTs) * 1000) : new Date();
+    prisma.workspace
+      .findUnique({ where: { slackTeamId: team_id }, select: { id: true } })
+      .then((ws) => {
+        if (!ws) return;
+        return prisma.channelClaim.updateMany({
+          where: { workspaceId: ws.id, slackChannelId: event.channel! },
+          data: { lastMessageAt: when },
+        });
+      })
+      .catch((err) => console.error("Failed to update ChannelClaim.lastMessageAt:", err));
+  }
+
   // Handle app_mention events (in channels)
   if (event.type === "app_mention") {
     console.log("Routing to handleMention");
