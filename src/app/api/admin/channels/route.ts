@@ -37,12 +37,11 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // Fire-and-forget: any row missing a human-readable name was claimed
-  // without one and has never had a message event fire since. Pull fresh
-  // metadata from Slack so the next refresh shows a real name instead of
-  // the raw channel ID.
+  // Fire-and-forget: any row missing a name OR a last-activity timestamp
+  // gets a fresh pull from Slack. The sync helper no-ops cheaply when both
+  // fields are already populated, so this is safe to call broadly.
   for (const c of channels) {
-    if (!c.slackChannelName) void syncChannelClaim(c.id);
+    if (!c.slackChannelName || !c.lastMessageAt) void syncChannelClaim(c.id);
   }
 
   return NextResponse.json({ channels });
