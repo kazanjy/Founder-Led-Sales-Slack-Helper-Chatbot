@@ -8,8 +8,8 @@ function Linkify({ children }: { children: string }): ReactNode {
   const parts = children.split(URL_REGEX);
   if (parts.length === 1) return children;
   return parts.map((part, i) =>
-    URL_REGEX.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all">{part}</a>
+    i % 2 === 1 ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all" onClick={(e) => e.stopPropagation()}>{part}</a>
     ) : part
   );
 }
