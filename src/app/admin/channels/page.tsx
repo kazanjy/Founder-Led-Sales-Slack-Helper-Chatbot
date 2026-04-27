@@ -139,6 +139,10 @@ export default function AdminChannelsPage() {
   const [scheduledConfirmation, setScheduledConfirmation] = useState<{ scheduledFor: string; tz: string } | null>(null);
   const [campaigns, setCampaigns] = useState<ScheduledCampaign[]>([]);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [adminConnection, setAdminConnection] = useState<{
+    displayName: string | null;
+    hasUserToken: boolean;
+  } | null>(null);
 
   useEffect(() => {
     document.title = "Admin - Channels";
@@ -173,6 +177,7 @@ export default function AdminChannelsPage() {
       if (!res.ok) return;
       const data = await res.json();
       setCampaigns(data.campaigns || []);
+      if (data.adminConnection) setAdminConnection(data.adminConnection);
     } catch {
       /* ignore */
     }
@@ -258,7 +263,8 @@ export default function AdminChannelsPage() {
   const canSubmit = !!message.trim()
     && selected.size > 0
     && !sending
-    && (scheduledMode === "now" || scheduledIsValidFuture);
+    && (scheduledMode === "now" || scheduledIsValidFuture)
+    && !!adminConnection?.hasUserToken;
 
   const handleSend = async () => {
     if (!canSubmit) return;
@@ -573,6 +579,26 @@ export default function AdminChannelsPage() {
               </div>
             ) : (
               <div>
+                {adminConnection && !adminConnection.hasUserToken ? (
+                  <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start justify-between gap-3">
+                    <div className="text-xs text-amber-900">
+                      <div className="font-medium">Connect Slack to send as yourself.</div>
+                      <div className="mt-0.5 text-amber-800">
+                        Without it, messages would post as MikeyBot. We&rsquo;ll redirect you to Slack to grant the extra permission, then bring you back.
+                      </div>
+                    </div>
+                    <a
+                      href="/api/slack/oauth"
+                      className="flex-shrink-0 text-xs font-medium px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+                    >
+                      Connect Slack
+                    </a>
+                  </div>
+                ) : adminConnection?.hasUserToken ? (
+                  <div className="mb-2 text-[11px] text-gray-500">
+                    Will post as <span className="font-medium text-gray-700">@{adminConnection.displayName || "you"}</span>.
+                  </div>
+                ) : null}
                 <textarea
                   autoFocus
                   value={message}

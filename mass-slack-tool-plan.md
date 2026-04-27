@@ -166,6 +166,46 @@ Same `/api/cron/*` + `CRON_SECRET` pattern as deals-plan.md Phase 6.
 
 ---
 
+## Posting as the user (Path A)
+
+The product's whole frame is "founder-led sales" — messages that read as if they came from the founder. Posting as MikeyBot defeats that entirely (Slack renders the "APP" badge next to the bot name). We post via the admin's *user token* so the message is genuinely from them: their avatar, their name, no APP tag, lands in their own thread history. The cost is that every admin who wants to send must do a one-time Slack OAuth that grants user-scope.
+
+### Mechanics
+
+- **Two tokens, two scopes.** The existing install flow only requests bot scopes and stores `Workspace.botToken`. Send-as-user adds `user_scope=chat:write` to the install URL; on callback Slack returns `authed_user.access_token` (a `xoxp-` token). We persist that on the `User` row.
+- **Send path uses the user token, not the bot token.** `runCampaign` looks up `createdByAdmin.slackUserToken` and uses *that* in the Slack client. The bot token stays the way to read channels / hear events; the user token is only ever used for outbound posting on behalf of that admin.
+- **Hard fail when the user token is missing or revoked.** No silent fallback to the bot — if the admin hasn't connected their Slack as a user, the broadcast endpoint refuses at request time and the cron worker marks scheduled campaigns `status: "failed"` with `error: "user token unavailable"`. Falling back to the bot would be the failure mode we're trying to avoid.
+
+### Schema additions
+
+Two nullable columns on `User`:
+
+```
+slackUserToken  String?  // xoxp-… token from Slack OAuth (authed_user.access_token)
+slackUserScopes String?  // comma-joined scopes granted (e.g., "chat:write")
+```
+
+Plain text at rest for now, matching how `Workspace.botToken` is stored. User tokens are higher-sensitivity than bot tokens (they impersonate a human) — a follow-up to encrypt both types together is filed but out of scope for this slice.
+
+### OAuth changes
+
+- `src/app/api/slack/oauth/route.ts` adds `user_scope=chat:write` alongside existing `BOT_SCOPES`.
+- `src/app/api/slack/oauth/callback/route.ts` reads `tokenData.authed_user.access_token` and `.scope` and writes them onto the resolved `User` row at the end of its existing user-resolution flow.
+
+### Re-auth UX
+
+Every existing installation only granted bot-scope, so no User has a user token yet. Two options:
+1. **Inline prompt in the composer.** When the admin opens compose without a user token, the modal shows "Connect Slack to send as yourself" with a button that kicks off the existing OAuth URL. Slack handles the diff smoothly — only asks for the new permission, not the entire scope list again. **Default.**
+2. **Settings page banner.** Surface it once globally; some admins never open the composer.
+
+Start with #1; add #2 later if discovery is a problem.
+
+### Cron edge case
+
+If Pete schedules a send for Monday and his user token is revoked between Friday and Monday, the cron drainer's first call into `runCampaign` will fail at the Slack API. Catch that failure at the campaign level: mark `status: "failed"`, set `error` on the campaign (or first delivery row), and surface it on the channels page so the admin can re-connect and re-create the send.
+
+---
+
 ## Implementation Staging
 
 ### Milestone 1 — Tags + manual composer (shippable)
@@ -186,6 +226,18 @@ Same `/api/cron/*` + `CRON_SECRET` pattern as deals-plan.md Phase 6.
 4. Per-campaign detail page showing deliveries: sent/failed/suppressed, per-channel status, retry-failed button.
 
 No scheduling, no variants, no recurring, no dormancy yet. Delivers the core "send one message to many channels" loop and the tag vocabulary.
+
+### Milestone 1.5 — Send as the user (not as MikeyBot)
+
+Foundational for the whole tool to be credible. Detail under "Posting as the user (Path A)" above. Net deltas:
+
+1. `User.slackUserToken` + `User.slackUserScopes` (nullable strings) + migration.
+2. `src/app/api/slack/oauth/route.ts`: add `user_scope=chat:write` to the authorize URL.
+3. `src/app/api/slack/oauth/callback/route.ts`: persist `authed_user.access_token` + `.scope` on the resolved `User`.
+4. `runCampaign` (`src/lib/broadcast/send.ts`): use `createdByAdmin.slackUserToken`; throw a typed error when it's missing.
+5. POST `/api/admin/broadcast`: preflight check on the admin's user token before creating the campaign; refuse with a 412 + actionable error message when absent.
+6. Cron `/api/cron/drain-broadcasts`: on the typed missing-token error, mark the campaign `failed` and continue (no retry — admin has to re-connect).
+7. Composer UI: show "Will post as @{name}" badge above the message field when token is present; show a "Connect Slack to send as yourself" prompt with a link to `/api/slack/oauth` when absent. Disable the send button in the absent state.
 
 ### Milestone 2 — Variants + scheduled send
 

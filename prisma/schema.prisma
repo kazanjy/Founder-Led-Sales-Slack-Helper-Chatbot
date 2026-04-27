@@ -75,6 +75,13 @@ model User {
   slackUserName String?
   slackEmail    String?
 
+  // User-scope OAuth token (xoxp-…) granted on Slack install when the
+  // user OK's user_scope. Used by the broadcast tool to post messages
+  // *as this user* instead of as MikeyBot. Plain text at rest for now —
+  // matches Workspace.botToken; encrypting both is a separate cleanup.
+  slackUserToken  String?
+  slackUserScopes String?
+
   // Google identity (optional - null for Slack-only users)
   googleId String? @unique
 

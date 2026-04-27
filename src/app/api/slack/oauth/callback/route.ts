@@ -76,9 +76,20 @@ export async function GET(request: NextRequest) {
     const {
       access_token: botToken,
       team: { id: teamId, name: teamName },
-      authed_user: { id: installedByUserId },
+      authed_user: {
+        id: installedByUserId,
+        access_token: userAccessToken,
+        scope: userScope,
+      },
       bot_user_id: botUserId,
     } = tokenData;
+
+    // Captured here, written onto the resolved User row at the end of
+    // the user-resolution flow below. May be undefined when the
+    // installer didn't grant any user_scope — that's fine, the column
+    // is nullable and the broadcast tool will prompt them to re-auth.
+    const slackUserToken: string | null = userAccessToken || null;
+    const slackUserScopes: string | null = userScope || null;
 
     // Create or update workspace
     const workspace = await prisma.workspace.upsert({
@@ -205,6 +216,17 @@ export async function GET(request: NextRequest) {
       if (installerEmail) {
         user = await findOrCreateAccountForUser(user.id, installerEmail, installerName);
       }
+    }
+
+    // Persist the user-scope token (if granted) onto the resolved User
+    // row. Writing only when present avoids stomping a previously
+    // granted token if the user re-installs through a flow that
+    // happened to drop user_scope from the URL.
+    if (slackUserToken) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { slackUserToken, slackUserScopes },
+      });
     }
 
     // Create session for the user (new session even if they had one)

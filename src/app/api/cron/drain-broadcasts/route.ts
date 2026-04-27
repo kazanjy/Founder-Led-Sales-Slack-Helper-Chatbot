@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { runCampaign } from "@/lib/broadcast/send";
+import { runCampaign, MissingUserTokenError } from "@/lib/broadcast/send";
 
 /**
  * GET /api/cron/drain-broadcasts
@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
       const { sent, failed } = await runCampaign(c.id);
       results.push({ campaignId: c.id, status: "claimed", sent, failed });
     } catch (err) {
+      // Either path marks the campaign failed and stops retrying — the
+      // distinction matters only for the log so an admin scanning cron
+      // output can see "this is a missing-user-token issue" at a glance.
+      const isMissingToken = err instanceof MissingUserTokenError;
       await prisma.broadcastCampaign.update({
         where: { id: c.id },
         data: { status: "failed", completedAt: new Date() },
@@ -72,7 +76,9 @@ export async function GET(request: NextRequest) {
       results.push({
         campaignId: c.id,
         status: "failed",
-        error: err instanceof Error ? err.message : String(err),
+        error: isMissingToken
+          ? "missing_user_token"
+          : err instanceof Error ? err.message : String(err),
       });
     }
   }

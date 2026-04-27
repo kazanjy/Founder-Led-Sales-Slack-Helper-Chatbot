@@ -17,12 +17,21 @@ const BOT_SCOPES = [
   "files:read", // Read file attachments in messages
 ].join(",");
 
+// User-scope tokens (xoxp-…) so the broadcast tool can post on behalf
+// of an admin instead of as MikeyBot — central to the "founder-led
+// sales" frame. Slack returns one in `authed_user.access_token` on the
+// OAuth callback whenever the user grants any user_scope here.
+const USER_SCOPES = [
+  "chat:write",
+].join(",");
+
 export async function GET() {
   const redirectUri = `${APP_URL}/api/slack/oauth/callback`;
 
   const slackAuthUrl = new URL("https://slack.com/oauth/v2/authorize");
   slackAuthUrl.searchParams.set("client_id", SLACK_CLIENT_ID);
   slackAuthUrl.searchParams.set("scope", BOT_SCOPES);
+  slackAuthUrl.searchParams.set("user_scope", USER_SCOPES);
   slackAuthUrl.searchParams.set("redirect_uri", redirectUri);
 
   return NextResponse.redirect(slackAuthUrl.toString());

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
-import { runCampaign } from "@/lib/broadcast/send";
+import { runCampaign, MissingUserTokenError } from "@/lib/broadcast/send";
 
 interface DeliveryResult {
   channelClaimId: string;
@@ -76,6 +76,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "workspace not found" }, { status: 404 });
   }
 
+  // Preflight: posts go out as the admin, not as the bot. If the admin
+  // never granted user_scope (or has revoked it), refuse here with a
+  // 412 + actionable code so the composer can render the
+  // "Connect Slack" prompt rather than letting the cron worker fail
+  // later.
+  const adminRecord = await prisma.user.findUnique({
+    where: { id: admin.id },
+    select: { slackUserToken: true },
+  });
+  if (!adminRecord?.slackUserToken) {
+    return NextResponse.json(
+      {
+        error: "missing_user_token",
+        message: "Connect your Slack with user-scope (Connect Slack on the Channels page) so messages post under your name instead of MikeyBot.",
+      },
+      { status: 412 }
+    );
+  }
+
   // Re-read the claims so the client can't smuggle in IDs from a different
   // workspace.
   const claims = await prisma.channelClaim.findMany({
@@ -120,8 +139,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Run the send loop inline. runCampaign throws only on infrastructure
-  // failure (workspace gone, etc.); per-channel failures are recorded on
-  // the delivery rows.
+  // failure (workspace gone, user token revoked between preflight and
+  // here, etc.); per-channel failures are recorded on the delivery rows.
   try {
     await runCampaign(campaign.id);
   } catch (err) {
@@ -129,6 +148,12 @@ export async function POST(request: NextRequest) {
       where: { id: campaign.id },
       data: { status: "failed", completedAt: new Date() },
     });
+    if (err instanceof MissingUserTokenError) {
+      return NextResponse.json(
+        { error: "missing_user_token", message: err.message },
+        { status: 412 }
+      );
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : String(err) },
       { status: 500 }
@@ -177,26 +202,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
   }
 
-  const campaigns = await prisma.broadcastCampaign.findMany({
-    where: { workspaceId },
-    orderBy: [
-      { scheduledFor: { sort: "asc", nulls: "last" } },
-      { createdAt: "desc" },
-    ],
-    take: 50,
-    select: {
-      id: true,
-      name: true,
-      body: true,
-      scheduledFor: true,
-      status: true,
-      createdAt: true,
-      startedAt: true,
-      completedAt: true,
-      createdByAdmin: { select: { id: true, name: true, email: true } },
-      _count: { select: { deliveries: true } },
-    },
-  });
+  const [campaigns, currentAdmin] = await Promise.all([
+    prisma.broadcastCampaign.findMany({
+      where: { workspaceId },
+      orderBy: [
+        { scheduledFor: { sort: "asc", nulls: "last" } },
+        { createdAt: "desc" },
+      ],
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        body: true,
+        scheduledFor: true,
+        status: true,
+        createdAt: true,
+        startedAt: true,
+        completedAt: true,
+        createdByAdmin: { select: { id: true, name: true, email: true } },
+        _count: { select: { deliveries: true } },
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: admin.id },
+      select: { id: true, name: true, slackUserName: true, slackUserToken: true },
+    }),
+  ]);
 
-  return NextResponse.json({ campaigns });
+  // Expose only "do they have a token" + display name, never the token
+  // itself. The composer uses this to choose between the "Will post as
+  // …" badge and the "Connect Slack" prompt.
+  const adminConnection = {
+    id: currentAdmin?.id ?? null,
+    displayName: currentAdmin?.name || currentAdmin?.slackUserName || null,
+    hasUserToken: !!currentAdmin?.slackUserToken,
+  };
+
+  return NextResponse.json({ campaigns, adminConnection });
 }
