@@ -27,7 +27,81 @@ interface Delivery {
   error?: string;
 }
 
+interface ScheduledCampaign {
+  id: string;
+  name: string | null;
+  body: string;
+  scheduledFor: string | null;
+  status: string;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdByAdmin: { id: string; name: string | null; email: string | null };
+  _count: { deliveries: number };
+}
+
 const LAST_WORKSPACE_KEY = "admin_channels:selectedWorkspaceId";
+
+// A small curated set of timezones — covers the cases I expect to come
+// up most often. Browser TZ is always prepended as the default below.
+const TIMEZONE_OPTIONS = [
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Chicago",
+  "America/New_York",
+  "UTC",
+  "Europe/London",
+  "Europe/Berlin",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+];
+
+/**
+ * Convert a "wall clock" datetime-local string (YYYY-MM-DDTHH:mm,
+ * which carries no timezone) plus an IANA timezone into the absolute
+ * UTC instant. Uses Intl.DateTimeFormat to back-solve the timezone
+ * offset rather than dragging in a date library.
+ */
+function wallClockInTzToUtc(localDateTime: string, tz: string): Date {
+  const [datePart, timePart] = localDateTime.split("T");
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi] = timePart.split(":").map(Number);
+  const wantUtcMs = Date.UTC(y, mo - 1, d, h, mi);
+
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date(wantUtcMs));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+  const gotUtcMs = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"));
+
+  // The difference between the wall-clock we wanted and the wall-clock
+  // we got when we naively used the same numbers in UTC tells us how
+  // far off we are. Adding it back gives us the true UTC instant.
+  const offset = wantUtcMs - gotUtcMs;
+  return new Date(wantUtcMs + offset);
+}
+
+function formatScheduledFor(iso: string | null, tz: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-US", {
+    timeZone: tz,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
 
 function formatRelative(iso: string | null): string {
   if (!iso) return "—";
@@ -58,6 +132,13 @@ export default function AdminChannelsPage() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<Delivery[] | null>(null);
+  const [scheduledMode, setScheduledMode] = useState<"now" | "later">("now");
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
+  const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+  const [scheduleTimezone, setScheduleTimezone] = useState(browserTz);
+  const [scheduledConfirmation, setScheduledConfirmation] = useState<{ scheduledFor: string; tz: string } | null>(null);
+  const [campaigns, setCampaigns] = useState<ScheduledCampaign[]>([]);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Admin - Channels";
@@ -86,14 +167,27 @@ export default function AdminChannelsPage() {
     })();
   }, []);
 
-  // Reload channels when workspace changes.
+  const loadCampaigns = async (wsId: string) => {
+    try {
+      const res = await fetch(`/api/admin/broadcast?workspaceId=${encodeURIComponent(wsId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCampaigns(data.campaigns || []);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Reload channels (and the campaign list) when workspace changes.
   useEffect(() => {
     if (!workspaceId) {
       setChannels([]);
+      setCampaigns([]);
       return;
     }
     setLoadingChannels(true);
     setSelected(new Set());
+    loadCampaigns(workspaceId);
     (async () => {
       try {
         const res = await fetch(`/api/admin/channels?workspaceId=${encodeURIComponent(workspaceId)}`);
@@ -144,6 +238,10 @@ export default function AdminChannelsPage() {
   const openCompose = () => {
     setMessage("");
     setResults(null);
+    setScheduledConfirmation(null);
+    setScheduledMode("now");
+    setScheduleDateTime("");
+    setScheduleTimezone(browserTz);
     setComposeOpen(true);
   };
 
@@ -152,10 +250,21 @@ export default function AdminChannelsPage() {
     setComposeOpen(false);
   };
 
+  // For Schedule-for-later mode, we need a real future timestamp.
+  const scheduledForUtc = scheduledMode === "later" && scheduleDateTime
+    ? wallClockInTzToUtc(scheduleDateTime, scheduleTimezone)
+    : null;
+  const scheduledIsValidFuture = scheduledForUtc !== null && scheduledForUtc.getTime() > Date.now();
+  const canSubmit = !!message.trim()
+    && selected.size > 0
+    && !sending
+    && (scheduledMode === "now" || scheduledIsValidFuture);
+
   const handleSend = async () => {
-    if (!message.trim() || selected.size === 0) return;
+    if (!canSubmit) return;
     setSending(true);
     setResults(null);
+    setScheduledConfirmation(null);
     try {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
@@ -164,6 +273,7 @@ export default function AdminChannelsPage() {
           workspaceId,
           channelClaimIds: Array.from(selected),
           body: message,
+          scheduledFor: scheduledForUtc ? scheduledForUtc.toISOString() : undefined,
         }),
       });
       const data = await res.json();
@@ -171,7 +281,14 @@ export default function AdminChannelsPage() {
         alert(data.error || "Send failed");
         return;
       }
-      setResults(data.deliveries || []);
+      if (data.deliveries) {
+        // Send-now path: fall through to the existing per-channel results UI.
+        setResults(data.deliveries);
+      } else if (data.campaign?.scheduledFor) {
+        // Send-later path: confirmation card; refresh the scheduled list.
+        setScheduledConfirmation({ scheduledFor: data.campaign.scheduledFor, tz: scheduleTimezone });
+      }
+      if (workspaceId) loadCampaigns(workspaceId);
     } catch (err) {
       alert("Send failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -179,7 +296,27 @@ export default function AdminChannelsPage() {
     }
   };
 
-  useCmdEnterToSubmit(handleSend, composeOpen && !!message.trim() && selected.size > 0 && !sending);
+  useCmdEnterToSubmit(handleSend, composeOpen && canSubmit);
+
+  const cancelCampaign = async (campaignId: string) => {
+    if (!confirm("Cancel this scheduled broadcast? This can't be undone.")) return;
+    setCancelingId(campaignId);
+    try {
+      const res = await fetch(`/api/admin/broadcast/${campaignId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Cancel failed");
+        return;
+      }
+      if (workspaceId) loadCampaigns(workspaceId);
+    } finally {
+      setCancelingId(null);
+    }
+  };
 
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId);
   const sentCount = results?.filter((r) => r.status === "sent").length ?? 0;
@@ -231,6 +368,44 @@ export default function AdminChannelsPage() {
       {!workspaceId && !loadingWorkspaces && (
         <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-sm text-gray-500">
           Select a workspace to see its channels.
+        </div>
+      )}
+
+      {workspaceId && campaigns.some((c) => c.status === "scheduled") && (
+        <div className="mb-4 bg-purple-50 border border-purple-100 rounded-xl overflow-hidden">
+          <div className="px-4 py-2 text-xs font-medium text-purple-900 uppercase tracking-wider">
+            Scheduled
+          </div>
+          <div className="divide-y divide-purple-100">
+            {campaigns
+              .filter((c) => c.status === "scheduled")
+              .map((c) => (
+                <div key={c.id} className="px-4 py-2.5 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-gray-900 truncate">{c.body}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      {c._count.deliveries} channel{c._count.deliveries === 1 ? "" : "s"}
+                      {" · "}
+                      {formatScheduledFor(c.scheduledFor, browserTz)}
+                      {c.createdByAdmin?.name || c.createdByAdmin?.email ? (
+                        <>
+                          {" · by "}
+                          {c.createdByAdmin.name || c.createdByAdmin.email}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => cancelCampaign(c.id)}
+                    disabled={cancelingId === c.id}
+                    className="flex-shrink-0 text-xs px-2.5 py-1 rounded-md text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+                  >
+                    {cancelingId === c.id ? "Canceling…" : "Cancel"}
+                  </button>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 
@@ -344,7 +519,26 @@ export default function AdminChannelsPage() {
               </button>
             </div>
 
-            {results ? (
+            {scheduledConfirmation ? (
+              <div>
+                <div className="bg-purple-50 border border-purple-100 rounded-lg p-4 text-sm text-purple-900">
+                  <div className="font-medium">Scheduled.</div>
+                  <div className="text-xs text-purple-800 mt-1">
+                    Sending to {selected.size} channel{selected.size === 1 ? "" : "s"} on{" "}
+                    {formatScheduledFor(scheduledConfirmation.scheduledFor, scheduledConfirmation.tz)}.
+                  </div>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <button
+                    type="button"
+                    onClick={closeCompose}
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : results ? (
               <div>
                 <div className="mb-3 text-sm text-gray-700">
                   <span className="text-green-600 font-medium">{sentCount} sent</span>
@@ -388,6 +582,56 @@ export default function AdminChannelsPage() {
                   disabled={sending}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono disabled:opacity-60"
                 />
+                <div className="mt-3 border-t border-gray-100 pt-3">
+                  <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => setScheduledMode("now")}
+                      disabled={sending}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "now" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      Send now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScheduledMode("later")}
+                      disabled={sending}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "later" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      Schedule for later
+                    </button>
+                  </div>
+                  {scheduledMode === "later" && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <input
+                        type="datetime-local"
+                        value={scheduleDateTime}
+                        onChange={(e) => setScheduleDateTime(e.target.value)}
+                        disabled={sending}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <select
+                        value={scheduleTimezone}
+                        onChange={(e) => setScheduleTimezone(e.target.value)}
+                        disabled={sending}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        {/* Browser TZ first, then the curated list (skip if it's a dup). */}
+                        <option value={browserTz}>{browserTz} (yours)</option>
+                        {TIMEZONE_OPTIONS.filter((tz) => tz !== browserTz).map((tz) => (
+                          <option key={tz} value={tz}>{tz}</option>
+                        ))}
+                      </select>
+                      {scheduleDateTime && scheduledForUtc && (
+                        <span className="text-[11px] text-gray-500">
+                          {scheduledIsValidFuture
+                            ? `→ ${formatScheduledFor(scheduledForUtc.toISOString(), scheduleTimezone)}`
+                            : "Pick a future time"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center justify-between gap-2 mt-3">
                   <span className="text-[11px] text-gray-400">{message.length} chars</span>
                   <div className="flex items-center gap-2">
@@ -402,16 +646,16 @@ export default function AdminChannelsPage() {
                     <button
                       type="button"
                       onClick={handleSend}
-                      disabled={!message.trim() || sending}
+                      disabled={!canSubmit}
                       className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
                       {sending ? (
                         <>
                           <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                          Sending…
+                          {scheduledMode === "later" ? "Scheduling…" : "Sending…"}
                         </>
                       ) : (
-                        `Send to ${selected.size}`
+                        scheduledMode === "later" ? `Schedule for ${selected.size}` : `Send to ${selected.size}`
                       )}
                     </button>
                   </div>

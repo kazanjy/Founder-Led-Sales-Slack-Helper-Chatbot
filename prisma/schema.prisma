@@ -58,6 +58,7 @@ model Workspace {
   users         User[]
   conversations Conversation[]
   channelClaims ChannelClaim[]
+  broadcastCampaigns BroadcastCampaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -179,6 +180,9 @@ model User {
 
   // Activity tracking
   lastActiveAt DateTime?
+
+  // Broadcast campaigns this user (as an admin) created.
+  createdBroadcastCampaigns BroadcastCampaign[] @relation("BroadcastCampaignCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -623,10 +627,75 @@ model ChannelClaim {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  broadcastDeliveries BroadcastDelivery[]
+
   @@index([accountId])
   @@index([workspaceId])
   @@index([workspaceId, lastMessageAt])
   @@map("channel_claims")
+}
+
+// One admin-initiated broadcast send (immediate or scheduled). Each
+// campaign owns one BroadcastDelivery row per targeted channel; the
+// per-channel rows are the source of truth for who-got-what and the
+// idempotency key for retries.
+model BroadcastCampaign {
+  id String @id @default(cuid())
+
+  // Optional admin-facing label so a list of past sends has something to
+  // scan beyond the message body. Null for ad-hoc sends.
+  name String?
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  body String
+
+  // null (or past) = send-now; future = drained by the cron worker.
+  scheduledFor DateTime?
+
+  // "scheduled" | "sending" | "done" | "canceled" | "failed"
+  status String @default("scheduled")
+
+  // Admin who created the campaign — kept for audit even after they leave.
+  createdByAdminId String
+  createdByAdmin   User   @relation("BroadcastCampaignCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  deliveries BroadcastDelivery[]
+
+  @@index([workspaceId, status, scheduledFor])
+  @@index([workspaceId, createdAt])
+  @@map("broadcast_campaigns")
+}
+
+model BroadcastDelivery {
+  id String @id @default(cuid())
+
+  campaignId String
+  campaign   BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  channelClaimId String
+  channelClaim   ChannelClaim @relation(fields: [channelClaimId], references: [id], onDelete: Cascade)
+
+  // "pending" | "sent" | "failed" | "canceled"
+  status String @default("pending")
+
+  // Slack message ts so a future delete/update tool can target the post.
+  slackMessageTs String?
+  error          String?
+  sentAt         DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Idempotency: a worker retry can't double-post to the same channel
+  // within the same campaign.
+  @@unique([campaignId, channelClaimId])
+  @@index([campaignId, status])
+  @@map("broadcast_deliveries")
 }
 
 // Global settings (single row)
