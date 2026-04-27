@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import { useConfirmModal } from "@/components/useConfirmModal";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { OBJECTION_CATEGORIES, CATEGORY_KEYS, getCategoryInfo } from "@/lib/objection-library/categories";
 
@@ -402,6 +403,8 @@ function ObjectionLibraryContent() {
       setSavingEntry(false);
     }
   };
+
+  useCmdEnterToSubmit(handleSaveEntry, showEntryModal && !savingEntry);
 
   const handleDeleteEntry = async (entry: ObjectionEntry) => {
     const confirmed = await confirm({

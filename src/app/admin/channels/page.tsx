@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 
 interface Workspace {
   id: string;
@@ -177,6 +178,8 @@ export default function AdminChannelsPage() {
       setSending(false);
     }
   };
+
+  useCmdEnterToSubmit(handleSend, composeOpen && !!message.trim() && selected.size > 0 && !sending);
 
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId);
   const sentCount = results?.filter((r) => r.status === "sent").length ?? 0;

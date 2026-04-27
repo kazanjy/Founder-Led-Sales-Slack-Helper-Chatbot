@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 
 interface Recipient {
   email: string;
@@ -167,6 +168,8 @@ export function ShareChatModal({
       setSharing(false);
     }
   };
+
+  useCmdEnterToSubmit(handleShare, isOpen && !!email.trim() && !sharing);
 
   const handleUnshare = async (shareEmail: string) => {
     try {

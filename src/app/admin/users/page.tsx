@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useConfirmModal } from "@/components/useConfirmModal";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 
 interface User {
   id: string;
@@ -186,6 +187,11 @@ export default function AdminUsersPage() {
       setCreating(false);
     }
   };
+
+  useCmdEnterToSubmit(
+    () => handleCreateUser({ preventDefault: () => {} } as React.FormEvent),
+    showCreateModal && !!createEmail && !creating,
+  );
 
   const handleImpersonate = async (e: React.MouseEvent, userId: string, userName: string) => {
     e.preventDefault();

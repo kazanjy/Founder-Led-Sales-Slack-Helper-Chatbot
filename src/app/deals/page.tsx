@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, getStageInfo, getStatusInfo } from "@/lib/deals/constants";
 
 interface Deal {
@@ -223,6 +224,8 @@ function DealsPageContent() {
       setCreating(false);
     }
   };
+
+  useCmdEnterToSubmit(createDeal, showNewDeal && !!newDealName.trim() && !!newDealCompany.trim() && !creating);
 
   const resetNewDealForm = () => {
     setShowNewDeal(false);

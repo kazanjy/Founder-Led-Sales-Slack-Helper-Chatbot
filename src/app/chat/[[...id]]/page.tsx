@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DEFAULT_PROMPTS } from "@/lib/default-prompts";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { MaturityQuizModal } from "@/components/MaturityQuizModal";
 import { MaturityAssessmentWidget } from "@/components/MaturityAssessmentWidget";
 import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
@@ -699,6 +700,11 @@ export default function ChatPage() {
     setIsAddingPrompt(false);
   };
 
+  useCmdEnterToSubmit(
+    () => { if (editingPrompt) handleSavePrompt(editingPrompt); },
+    !!editingPrompt && !!editingPrompt.title.trim() && !!editingPrompt.prompt.trim() && !savingPrompt,
+  );
+
   // Clone a prompt
   const handleClonePrompt = async (prompt: SavedPrompt) => {
     try {
@@ -1208,6 +1214,11 @@ export default function ChatPage() {
     }
   };
 
+  useCmdEnterToSubmit(
+    () => handleEmailConversation(emailAddress),
+    showEmailModal && !!emailAddress && !emailSending,
+  );
+
   // Share a specific conversation from the sidebar menu
   const handleShareConversation = async (conversationId: string) => {
     setSharingId(conversationId);
@@ -1270,6 +1281,8 @@ export default function ChatPage() {
       setRenamingSaving(false);
     }
   };
+
+  useCmdEnterToSubmit(handleSaveRename, !!renamingConversation && !renamingSaving);
 
   // Archive a conversation
   const handleArchiveConversation = async (conversationId: string) => {

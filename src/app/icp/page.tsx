@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
@@ -433,6 +434,8 @@ function IcpContent() {
       setImporting(false);
     }
   };
+
+  useCmdEnterToSubmit(handleImportText, showImport && !!importText.trim() && !importing);
 
   const generateSearchCriteriaInBackground = (versionId: string) => {
     setGeneratingCriteria(true);
