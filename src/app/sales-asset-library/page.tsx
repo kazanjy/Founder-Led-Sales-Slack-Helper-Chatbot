@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import { Linkify } from "@/components/Linkify";
+import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/sales-asset-library/seed-data";
 
 interface AssetUser {
@@ -339,6 +340,8 @@ export default function SalesAssetLibraryPage() {
     }
     setSaving(false);
   };
+
+  useCmdEnterToSubmit(saveVersion, !!editingAsset && !!editName.trim() && !saving);
 
   const openHistory = async (assetId: string) => {
     setHistoryAssetId(assetId);
