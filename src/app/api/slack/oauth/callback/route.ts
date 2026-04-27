@@ -251,34 +251,43 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
-    // Send welcome DM to the installer
-    try {
-      const client = getSlackClient(botToken);
+    // Send welcome DM only on fresh installs — re-auth (e.g., an
+    // already-onboarded admin granting user_scope from the channels
+    // page) shouldn't get spammed with the intro every time.
+    if (!loggedInUser) {
+      try {
+        const client = getSlackClient(botToken);
 
-      // Open a DM channel with the installer
-      const dmResult = await client.conversations.open({
-        users: installedByUserId,
-      });
-
-      if (dmResult.channel?.id) {
-        await client.chat.postMessage({
-          channel: dmResult.channel.id,
-          text:
-            "👋 Hey! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
-            "I'm here to help you with everything Pete can help you with - sales strategies, outreach, objection handling, and more.\n\n" +
-            "*How to use me:*\n" +
-            "• Mention me in any channel: `@Mikey how do I handle pricing objections?`\n" +
-            "• Or DM me directly right here!\n\n" +
-            "I'll always respond in a thread to keep conversations organized.\n\n" +
-            "Here's to some founder-led selling success! 🚀",
+        const dmResult = await client.conversations.open({
+          users: installedByUserId,
         });
+
+        if (dmResult.channel?.id) {
+          await client.chat.postMessage({
+            channel: dmResult.channel.id,
+            text:
+              "👋 Hey! I'm Mikey, your 🌊 Founder-Led Sales assistant.\n\n" +
+              "I'm here to help you with everything Pete can help you with - sales strategies, outreach, objection handling, and more.\n\n" +
+              "*How to use me:*\n" +
+              "• Mention me in any channel: `@Mikey how do I handle pricing objections?`\n" +
+              "• Or DM me directly right here!\n\n" +
+              "I'll always respond in a thread to keep conversations organized.\n\n" +
+              "Here's to some founder-led selling success! 🚀",
+          });
+        }
+      } catch (dmError) {
+        // Don't fail installation if DM fails
+        console.error("Error sending welcome DM:", dmError);
       }
-    } catch (dmError) {
-      // Don't fail installation if DM fails
-      console.error("Error sending welcome DM:", dmError);
     }
 
-    // Redirect to setup page for channel selection
+    // Re-auth (admin already had a session before clicking Connect Slack
+    // — the case that fires when they grant user_scope from the channels
+    // page) lands them back where they came from. Fresh installs go
+    // through /setup for default-channel + pricing onboarding.
+    if (loggedInUser) {
+      return NextResponse.redirect(`${APP_URL}/admin/channels`);
+    }
     return NextResponse.redirect(
       `${APP_URL}/setup?workspace=${encodeURIComponent(teamName)}&team_id=${teamId}`
     );
