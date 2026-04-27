@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -25,7 +25,7 @@ const USER_SCOPES = [
   "chat:write",
 ].join(",");
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const redirectUri = `${APP_URL}/api/slack/oauth/callback`;
 
   const slackAuthUrl = new URL("https://slack.com/oauth/v2/authorize");
@@ -33,6 +33,16 @@ export async function GET() {
   slackAuthUrl.searchParams.set("scope", BOT_SCOPES);
   slackAuthUrl.searchParams.set("user_scope", USER_SCOPES);
   slackAuthUrl.searchParams.set("redirect_uri", redirectUri);
+
+  // Optional return_to so callers (e.g., the channels-page "Connect
+  // Slack" button) can land the user back where they came from instead
+  // of /setup. Slack round-trips `state` verbatim, which makes this
+  // independent of cookie behaviour during the cross-site OAuth
+  // redirect — the previous loggedInUser-cookie approach was too
+  // fragile to rely on. The callback validates that the path is
+  // same-origin (starts with `/`, no `//`) before redirecting.
+  const returnTo = request.nextUrl.searchParams.get("return_to");
+  if (returnTo) slackAuthUrl.searchParams.set("state", returnTo);
 
   return NextResponse.redirect(slackAuthUrl.toString());
 }

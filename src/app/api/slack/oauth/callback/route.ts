@@ -253,8 +253,12 @@ export async function GET(request: NextRequest) {
 
     // Send welcome DM only on fresh installs — re-auth (e.g., an
     // already-onboarded admin granting user_scope from the channels
-    // page) shouldn't get spammed with the intro every time.
-    if (!loggedInUser) {
+    // page) shouldn't get spammed with the intro every time. Treat
+    // either an existing session OR an explicit return_to as the
+    // "this is a re-auth" signal.
+    const stateReturnToForGate = searchParams.get("state");
+    const isReAuth = !!loggedInUser || (!!stateReturnToForGate && stateReturnToForGate.startsWith("/"));
+    if (!isReAuth) {
       try {
         const client = getSlackClient(botToken);
 
@@ -281,10 +285,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Re-auth (admin already had a session before clicking Connect Slack
-    // — the case that fires when they grant user_scope from the channels
-    // page) lands them back where they came from. Fresh installs go
-    // through /setup for default-channel + pricing onboarding.
+    // 1. Explicit return_to via Slack's `state` round-trip is the
+    //    deterministic signal — used by the channels-page "Connect
+    //    Slack" button. Restricted to same-origin paths so the
+    //    parameter can't be turned into an open-redirect vector.
+    // 2. Falling back to the loggedInUser branch covers older callers
+    //    that haven't been updated to pass return_to.
+    // 3. Otherwise (fresh install) go through /setup for the
+    //    default-channel + pricing onboarding.
+    const stateReturnTo = searchParams.get("state");
+    if (stateReturnTo && stateReturnTo.startsWith("/") && !stateReturnTo.startsWith("//")) {
+      return NextResponse.redirect(`${APP_URL}${stateReturnTo}`);
+    }
     if (loggedInUser) {
       return NextResponse.redirect(`${APP_URL}/admin/channels`);
     }
