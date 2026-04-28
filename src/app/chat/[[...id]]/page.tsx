@@ -4153,7 +4153,7 @@ export default function ChatPage() {
 
                 {/* Apps Section - encourage users to fill out first */}
                 <div className="max-w-[950px] mx-auto w-full mb-6 md:mb-8">
-                  <p className="text-sm text-gray-500 mb-3">Your applets:</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Your applets:</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                     {[
                       { emoji: "📊", label: "GTM Assessment", href: appProgress.gtmAssessment?.hasSubmitted ? "/maturity-history" : "/assessment/bulk", done: appProgress.gtmAssessment?.hasSubmitted, progress: appProgress.gtmAssessment && appProgress.gtmAssessment.answered > 0 ? `${appProgress.gtmAssessment.answered}/${appProgress.gtmAssessment.total}` : null },
@@ -4188,15 +4188,15 @@ export default function ChatPage() {
                         className="flex flex-col items-center gap-1 p-2.5 md:p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 hover:shadow-md transition-all text-center group"
                       >
                         <span className="text-2xl">{item.emoji}</span>
-                        <span className="text-xs font-medium text-gray-700 leading-tight">{item.label}</span>
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-100 leading-tight">{item.label}</span>
                         {item.done ? (
-                          <span className="text-[10px] text-green-600">Done</span>
+                          <span className="text-[10px] text-green-600 dark:text-green-400">Done</span>
                         ) : item.progress ? (
-                          <span className="text-[10px] text-orange-600">{item.progress}</span>
+                          <span className="text-[10px] text-orange-600 dark:text-orange-400">{item.progress}</span>
                         ) : item.always ? (
-                          <span className="text-[10px] text-blue-600 group-hover:underline">Open →</span>
+                          <span className="text-[10px] text-blue-600 dark:text-blue-400 group-hover:underline">Open →</span>
                         ) : (
-                          <span className="text-[10px] text-purple-600 group-hover:underline">Start →</span>
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 group-hover:underline">Start →</span>
                         )}
                       </a>
                     ))}
@@ -4204,12 +4204,12 @@ export default function ChatPage() {
                 </div>
 
                 <div className="flex items-center justify-between mb-4 max-w-[950px] mx-auto w-full">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Or try one of these:
                   </p>
                   <button
                     onClick={handleAddPrompt}
-                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline"
                   >
                     + Add Prompt
                   </button>
@@ -4223,7 +4223,7 @@ export default function ChatPage() {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, item.id)}
                       onDragEnd={handleDragEnd}
-                      className={`group relative flex items-start gap-3 text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-grab active:cursor-grabbing min-h-[72px] w-full ${
+                      className={`group relative flex items-start gap-3 text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-grab active:cursor-grabbing min-h-[72px] w-full ${
                         draggedPromptId === item.id ? "opacity-50" : ""
                       }`}
                     >
@@ -4232,7 +4232,7 @@ export default function ChatPage() {
                         className="flex items-start gap-3 text-left flex-1 min-w-0"
                       >
                         <span className="text-2xl flex-shrink-0 mt-0.5">{item.emoji}</span>
-                        <span className="text-gray-700 text-sm line-clamp-2">{item.title}</span>
+                        <span className="text-gray-700 dark:text-gray-100 text-sm line-clamp-2">{item.title}</span>
                       </button>
                       {/* Edit/Clone buttons - appear on hover */}
                       <div className="absolute right-1 bottom-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -4242,7 +4242,7 @@ export default function ChatPage() {
                             setEditingPrompt(item);
                             setIsAddingPrompt(false);
                           }}
-                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                           title="Edit"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4255,7 +4255,7 @@ export default function ChatPage() {
                             e.stopPropagation();
                             handleClonePrompt(item);
                           }}
-                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                           title="Clone"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4266,7 +4266,7 @@ export default function ChatPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-3 text-center">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center">
                   Drag prompts to reorder. Hover to edit or clone.
                 </p>
               </div>
