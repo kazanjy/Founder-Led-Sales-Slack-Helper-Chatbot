@@ -191,6 +191,9 @@ model User {
   // Broadcast campaigns this user (as an admin) created.
   createdBroadcastCampaigns BroadcastCampaign[] @relation("BroadcastCampaignCreatedBy")
 
+  // Coaching comments authored by this user.
+  coachingComments CoachingComment[] @relation("CoachingCommentAuthor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1472,8 +1475,33 @@ model CoachingTask {
   createdAt DateTime @default(now())
   order     Int      @default(0)
 
+  comments CoachingComment[]
+
   @@index([goalId])
   @@map("coaching_tasks")
+}
+
+// Inline comment thread on a coaching task. Per-task only for now —
+// goalId is left out of the model intentionally; if/when we extend to
+// per-goal comments, the cleanest path is a new CoachingGoalComment
+// table (or a discriminator on this one) with its own UI affordance.
+model CoachingComment {
+  id String @id @default(cuid())
+
+  taskId String
+  task   CoachingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("CoachingCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  body String @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+
+  @@index([taskId, createdAt])
+  @@map("coaching_comments")
 }
 
 // ============================================

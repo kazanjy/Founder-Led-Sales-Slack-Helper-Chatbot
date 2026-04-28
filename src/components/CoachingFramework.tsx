@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { TaskComments } from "@/components/TaskComments";
 
 // ── Linkify helper ───────────────────────────────────────────────
 const URL_REGEX = /(https?:\/\/[^\s<]+)/g;
@@ -1729,6 +1730,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             {task.status === "done" && task.statusChangedAt && (
                               <span className="text-[10px] text-green-600 mt-0.5 block">Completed {new Date(task.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             )}
+                            <TaskComments taskId={task.id} canEdit={canEdit} currentUserId={sessionUserId} />
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-1">
