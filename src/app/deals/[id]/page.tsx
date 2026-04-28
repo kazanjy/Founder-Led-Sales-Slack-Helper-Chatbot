@@ -1543,7 +1543,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   value={newEntryContent}
                   onChange={(e) => setNewEntryContent(e.target.value)}
                   onPaste={handlePaste}
-                  placeholder="Paste, drop, or type content — call transcript, email, notes, screenshots, PDFs..."
+                  placeholder="Paste, drop, type, or record a voice note — call transcripts, emails, notes, screenshots, PDFs…"
                   rows={4}
                   className="w-full px-3 py-2 pr-3 pb-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
                 />
