@@ -314,10 +314,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const copyAllGoalsAsMarkdown = () => {
     let md = "";
     for (const goal of goals) {
+      // Skip fully-completed goals — Copy All is meant to surface
+      // outstanding work, not the archive of what's already done.
+      if (goal.status === "done") continue;
       md += `## ${goal.title}\n`;
       if (goal.description) md += `${goal.description}\n`;
       md += `\n`;
       for (const task of goal.tasks) {
+        if (task.status === "done") continue;
         md += `- [ ] ${task.title}\n`;
         if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
       }
