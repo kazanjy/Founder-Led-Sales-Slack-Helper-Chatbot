@@ -407,7 +407,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
       tabIndex={-1}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Submission Loading Overlay */}
@@ -453,9 +453,9 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
         )}
 
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {mode === "update" ? "Updating GTM Assessment" : "GTM Maturity Assessment"}
             </h2>
             <button
@@ -471,7 +471,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
           {/* Progress bar */}
           <div className="mb-2">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
+            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
               <span>{displayedProgress} of {totalQuestions} {progressLabel}</span>
               <span>{progressPercent}%</span>
             </div>
@@ -485,7 +485,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
           {/* Category indicator - hide on submit screen */}
           {currentQuestion && !showSubmitScreen && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <span className="font-medium text-blue-600">{currentCategory}</span>
               <span>•</span>
               <span>Question {categoryIndex + 1} of {categoryQuestions.length}</span>
@@ -520,22 +520,22 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 You&apos;re Ready to Submit!
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
                 You&apos;ve answered {answeredCount} of {totalQuestions} questions.
                 Submit now to get your personalized GTM recommendations.
               </p>
 
               {/* Category Summary */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-                <h4 className="font-semibold text-gray-900 mb-3">Summary by Category</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Summary by Category</h4>
                 <div className="space-y-2">
                   {getCategorySummary().map(({ category, answered, total }) => (
                     <div key={category} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{category}</span>
-                      <span className={answered === total ? "text-green-600 font-medium" : "text-gray-500"}>
+                      <span className="text-gray-600 dark:text-gray-300">{category}</span>
+                      <span className={answered === total ? "text-green-600 font-medium" : "text-gray-500 dark:text-gray-400"}>
                         {answered}/{total} answered
                       </span>
                     </div>
@@ -577,17 +577,17 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
               <button
                 onClick={() => setShowSubmitScreen(false)}
-                className="mt-4 text-gray-500 hover:text-gray-700 text-sm"
+                className="mt-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm"
               >
                 ← Go back and review answers
               </button>
             </div>
           ) : currentQuestion ? (
             <div>
-              <div className="mb-2 text-sm text-gray-500">
+              <div className="mb-2 text-sm text-gray-500 dark:text-gray-400">
                 Question {currentIndex + 1} of {totalQuestions}
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 {currentQuestion.question}
               </h3>
 
@@ -596,10 +596,10 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                 <div className="space-y-4">
                   {/* Existing answer (read-only) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Your Previous Answer
                     </label>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-gray-700 text-sm">
+                    <div className="bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-gray-700 dark:text-gray-200 text-sm">
                       {currentQuestion.latestAnswer.answer}
                     </div>
                     <p className="mt-1 text-xs text-gray-400">
@@ -610,8 +610,8 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                   {/* New answer input */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Updated Answer <span className="font-normal text-gray-500">(leave empty to keep previous)</span>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                        Updated Answer <span className="font-normal text-gray-500 dark:text-gray-400">(leave empty to keep previous)</span>
                       </label>
                       <button
                         type="button"
@@ -627,7 +627,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                       value={currentAnswer}
                       onChange={(e) => setCurrentAnswer(e.target.value)}
                       placeholder="Enter your updated answer, or leave blank to keep the previous one..."
-                      className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                      className="w-full h-32 p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                       tabIndex={1}
                     />
                   </div>
@@ -640,10 +640,10 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                     value={currentAnswer}
                     onChange={(e) => setCurrentAnswer(e.target.value)}
                     placeholder="Enter your answer..."
-                    className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    className="w-full h-40 p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                     tabIndex={1}
                   />
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     If you don&apos;t know the answer or the question doesn&apos;t apply to you, just say &quot;Don&apos;t know&quot; or &quot;NA&quot;.
                   </p>
                   {currentQuestion.latestAnswer && (
@@ -655,7 +655,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
               )}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               No questions available.
             </div>
           )}
@@ -663,12 +663,12 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
         {/* Navigation Footer - hide on submit screen */}
         {!showSubmitScreen && !loading && (
-          <div className="px-6 py-4 border-t border-gray-200">
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <button
                 onClick={handleBack}
                 disabled={currentIndex === 0 || saving}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 tabIndex={4}
               >
                 Back
@@ -680,7 +680,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                   <button
                     onClick={handleNoChange}
                     disabled={saving}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     tabIndex={3}
                   >
                     No Change
@@ -689,7 +689,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                   <button
                     onClick={handleSkip}
                     disabled={saving}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     tabIndex={3}
                   >
                     Skip
@@ -719,7 +719,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
         {/* Action Footer - hide on submit screen */}
         {!showSubmitScreen && !loading && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 dark:border-gray-700 rounded-b-xl">
             {submitError && (
               <div className="mb-3 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
                 {submitError}
@@ -730,7 +730,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
                 <button
                   onClick={handleSaveForLater}
                   disabled={saving || submitting}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors"
                   tabIndex={6}
                 >
                   Save for Later
@@ -796,11 +796,11 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
 
         {/* Submit Screen Footer */}
         {showSubmitScreen && !loading && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 dark:border-gray-700 rounded-b-xl">
             <div className="flex items-center justify-between">
               <button
                 onClick={handleBack}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 ← Back to Questions
               </button>
@@ -808,7 +808,7 @@ export function MaturityQuizModal({ isOpen, onClose, onComplete, mode = "continu
               <button
                 onClick={handleSaveForLater}
                 disabled={submitting}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors"
               >
                 Save for Later
               </button>

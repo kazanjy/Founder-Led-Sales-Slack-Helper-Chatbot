@@ -129,7 +129,7 @@ export function AuthButtonsCTA({ variant = "signup" }: { variant?: "signup" | "s
         <SlackIcon className="w-5 h-5" fill="currentColor" />
         {actionText} with Slack
         {lastUsed === "slack" && (
-          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-white text-blue-600 text-[10px] font-medium rounded-full shadow-sm">
+          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-white dark:bg-gray-800 text-blue-600 text-[10px] font-medium rounded-full shadow-sm">
             Last Used
           </span>
         )}

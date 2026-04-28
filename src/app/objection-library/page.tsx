@@ -33,7 +33,7 @@ export default function ObjectionLibraryPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -500,7 +500,7 @@ function ObjectionLibraryContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading objection library...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading objection library...</p>
           </div>
         </div>
       </div>
@@ -515,8 +515,8 @@ function ObjectionLibraryContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">📖</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Narrative Required</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Sales Narrative Required</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               The objection library is generated from your sales narrative. Create a sales narrative first to get started.
             </p>
             <Link
@@ -539,11 +539,11 @@ function ObjectionLibraryContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-lg px-6">
             <div className="text-6xl mb-4">🛡️</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Objection Library</h1>
-            <p className="text-gray-600 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Objection Library</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-2">
               Build a library of objection handles organized by category and persona. Know exactly how to respond when prospects push back.
             </p>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
               Bootstrap will generate 8-10 product-specific objection handles from your sales narrative.
             </p>
             <div className="flex items-center justify-center gap-3">
@@ -558,7 +558,7 @@ function ObjectionLibraryContent() {
               </button>
               <button
                 onClick={handleAddEntry}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
               >
                 Add Manually
               </button>
@@ -591,15 +591,15 @@ function ObjectionLibraryContent() {
         />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="w-full max-w-lg px-6">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-              <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
                 🛡️ Bootstrap Objection Library
               </h1>
-              <p className="text-gray-500 mb-6">Generate 8-10 objection handles tailored to your target persona.</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">Generate 8-10 objection handles tailored to your target persona.</p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Organizational Persona
                   </label>
                   <div className="relative">
@@ -609,7 +609,7 @@ function ObjectionLibraryContent() {
                       placeholder={prefilling ? "AI is thinking..." : "e.g. Series B SaaS company"}
                       disabled={prefilling}
                       rows={3}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
                     />
                     <button
                       onClick={handlePrefill}
@@ -632,7 +632,7 @@ function ObjectionLibraryContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Target Role / Human Persona
                   </label>
                   <textarea
@@ -641,7 +641,7 @@ function ObjectionLibraryContent() {
                     placeholder={prefilling ? "AI is thinking..." : "e.g. VP of Sales"}
                     disabled={prefilling}
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 resize-none"
                   />
                 </div>
 
@@ -649,7 +649,7 @@ function ObjectionLibraryContent() {
                   {entries.length > 0 && (
                     <button
                       onClick={() => setShowBootstrapForm(false)}
-                      className="px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -703,13 +703,13 @@ function ObjectionLibraryContent() {
       />
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -717,8 +717,8 @@ function ObjectionLibraryContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Objection Library</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Objection Library</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {entries.length} objection{entries.length !== 1 ? "s" : ""} across {Object.keys(categoryCounts).length - 1} categories
                   {personaCombos.length > 0 && ` · ${personaCombos.length} persona${personaCombos.length !== 1 ? "s" : ""}`}
                 </p>
@@ -728,7 +728,7 @@ function ObjectionLibraryContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddEntry}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -737,7 +737,7 @@ function ObjectionLibraryContent() {
               </button>
               <Link
                 href="/objection-library/history"
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -759,10 +759,10 @@ function ObjectionLibraryContent() {
       </div>
 
       {/* Objection lookup — primary UX */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="max-w-2xl mx-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               What objection are you hearing?
             </label>
             <div className="relative">
@@ -784,7 +784,7 @@ function ObjectionLibraryContent() {
                 placeholder="Type the objection you're hearing and press Enter..."
                 rows={2}
                 disabled={lookupLoading || generatingNew}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none pr-24 text-[15px]"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none pr-24 text-[15px]"
               />
               <div className="absolute right-2 bottom-2 flex items-center gap-1">
                 {lookupQuery.trim() && (
@@ -826,13 +826,13 @@ function ObjectionLibraryContent() {
             {/* Lookup results */}
             {lookupResults && lookupResults.length > 0 && (
               <div className="mt-4 space-y-3">
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
                   Found {lookupResults.length} matching handle{lookupResults.length !== 1 ? "s" : ""}:
                 </p>
                 {lookupResults.map((match, i) => {
                   const catInfo = getCategoryInfo(match.entry.category);
                   return (
-                    <div key={match.entry.id} className={`p-4 rounded-lg border-2 ${i === 0 ? "border-purple-200 bg-purple-50/50" : "border-gray-200 bg-white"}`}>
+                    <div key={match.entry.id} className={`p-4 rounded-lg border-2 ${i === 0 ? "border-purple-200 bg-purple-50/50" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"}`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${catInfo.color} ${catInfo.textColor} ${catInfo.borderColor} border`}>
                           {catInfo.label}
@@ -841,10 +841,10 @@ function ObjectionLibraryContent() {
                           {match.confidence}% match ({match.method})
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-800 mb-1">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1">
                         &ldquo;{match.entry.objection}&rdquo;
                       </p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
                         {match.entry.handle}
                       </p>
                     </div>
@@ -905,7 +905,7 @@ function ObjectionLibraryContent() {
       </div>
 
       {/* Category filter tabs + search */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1 overflow-x-auto -mb-px py-1">
@@ -914,7 +914,7 @@ function ObjectionLibraryContent() {
                 className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeCategory === "ALL"
                     ? "border-purple-600 text-purple-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
                 All ({categoryCounts.ALL || 0})
@@ -930,7 +930,7 @@ function ObjectionLibraryContent() {
                     className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                       activeCategory === key
                         ? "border-purple-600 text-purple-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
+                        : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     }`}
                   >
                     {info.label.split(" ")[0]} ({count})
@@ -945,7 +945,7 @@ function ObjectionLibraryContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search objections..."
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-48"
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-48"
               />
             </div>
           </div>
@@ -955,7 +955,7 @@ function ObjectionLibraryContent() {
       {/* Entry cards */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         {filteredEntries.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             {searchQuery ? "No matching objections found." : "No objections in this category."}
           </div>
         ) : (
@@ -963,7 +963,7 @@ function ObjectionLibraryContent() {
             {filteredEntries.map((entry) => {
               const catInfo = getCategoryInfo(entry.category);
               return (
-                <div key={entry.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       {/* Category badge + source + persona */}
@@ -971,7 +971,7 @@ function ObjectionLibraryContent() {
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${catInfo.color} ${catInfo.textColor} ${catInfo.borderColor} border`}>
                           {catInfo.label}
                         </span>
-                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:text-gray-300">
                           {sourceLabels[entry.source] || entry.source}
                         </span>
                         <span className="text-xs text-gray-400">
@@ -980,18 +980,18 @@ function ObjectionLibraryContent() {
                       </div>
 
                       {/* Objection text */}
-                      <p className="text-gray-900 font-semibold mb-2 text-[15px]">
+                      <p className="text-gray-900 dark:text-gray-100 font-semibold mb-2 text-[15px]">
                         &ldquo;{entry.objection}&rdquo;
                       </p>
 
                       {/* Handle */}
-                      <div className="text-gray-700 text-sm whitespace-pre-wrap">
+                      <div className="text-gray-700 dark:text-gray-200 text-sm whitespace-pre-wrap">
                         {entry.handle}
                       </div>
 
                       {/* Notes */}
                       {entry.notes && (
-                        <div className="mt-2 text-xs text-gray-500 italic">
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 italic">
                           Notes: {entry.notes}
                         </div>
                       )}
@@ -1001,7 +1001,7 @@ function ObjectionLibraryContent() {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleEditEntry(entry)}
-                        className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         title="Edit"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1041,18 +1041,18 @@ function ObjectionLibraryContent() {
       {/* Iterate Modal */}
       {showIterateModal && iterateEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => !iterating && setShowIterateModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Improve This Handle</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Improve This Handle</h2>
 
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-500 mb-1">Objection:</p>
-              <p className="text-sm font-medium text-gray-800">&ldquo;{iterateEntry.objection}&rdquo;</p>
-              <p className="text-sm text-gray-500 mt-2 mb-1">Current handle:</p>
-              <p className="text-sm text-gray-700">{iterateEntry.handle}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Objection:</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">&ldquo;{iterateEntry.objection}&rdquo;</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-1">Current handle:</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200">{iterateEntry.handle}</p>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 What would you like to improve?
               </label>
               <textarea
@@ -1060,7 +1060,7 @@ function ObjectionLibraryContent() {
                 onChange={(e) => setIterateFeedback(e.target.value)}
                 placeholder="e.g. Make it more empathetic, add a specific case study reference, make it shorter..."
                 rows={3}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
               />
             </div>
 
@@ -1068,7 +1068,7 @@ function ObjectionLibraryContent() {
               <button
                 onClick={() => setShowIterateModal(false)}
                 disabled={iterating}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -1101,29 +1101,29 @@ function ObjectionLibraryContent() {
   function renderEntryModal() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => !savingEntry && setShowEntryModal(false)}>
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
             {editingEntry ? "Edit Objection" : "Add Objection"}
           </h2>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Objection *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Objection *</label>
               <textarea
                 value={entryForm.objection}
                 onChange={(e) => setEntryForm({ ...entryForm, objection: e.target.value })}
                 placeholder="What the prospect actually says..."
                 rows={2}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Category *</label>
               <select
                 value={entryForm.category}
                 onChange={(e) => setEntryForm({ ...entryForm, category: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
                 {CATEGORY_KEYS.map((key) => (
                   <option key={key} value={key}>
@@ -1135,7 +1135,7 @@ function ObjectionLibraryContent() {
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Handle (Response) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Handle (Response) *</label>
                 {!editingEntry && (
                   <button
                     type="button"
@@ -1167,34 +1167,34 @@ function ObjectionLibraryContent() {
                 onChange={(e) => setEntryForm({ ...entryForm, handle: e.target.value })}
                 placeholder="How to respond to this objection..."
                 rows={4}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Org Persona *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Org Persona *</label>
               <input
                 type="text"
                 value={entryForm.orgPersona}
                 onChange={(e) => setEntryForm({ ...entryForm, orgPersona: e.target.value })}
                 placeholder="e.g. Series B SaaS"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Human Persona *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Human Persona *</label>
               <input
                 type="text"
                 value={entryForm.humanPersona}
                 onChange={(e) => setEntryForm({ ...entryForm, humanPersona: e.target.value })}
                 placeholder="e.g. VP of Sales"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Notes <span className="text-gray-400">(optional)</span>
               </label>
               <textarea
@@ -1202,7 +1202,7 @@ function ObjectionLibraryContent() {
                 onChange={(e) => setEntryForm({ ...entryForm, notes: e.target.value })}
                 placeholder="Any additional context..."
                 rows={2}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
               />
             </div>
 
@@ -1210,7 +1210,7 @@ function ObjectionLibraryContent() {
               <button
                 onClick={() => setShowEntryModal(false)}
                 disabled={savingEntry}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

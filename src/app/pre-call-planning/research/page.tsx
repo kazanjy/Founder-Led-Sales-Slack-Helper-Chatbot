@@ -46,7 +46,7 @@ export default function PreCallResearchPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -297,7 +297,7 @@ function ResearchContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
           </div>
         </div>
       </div>
@@ -312,8 +312,8 @@ function ResearchContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">🎯</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Set Up Your Pre-Call Checklist First</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Set Up Your Pre-Call Checklist First</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Before you can research prospects, you need to generate your Pre-Call Checklist. This creates a personalized preparation framework based on your First Call Checklist.
             </p>
             <Link
@@ -353,13 +353,13 @@ function ResearchContent() {
         progress={progress}
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -367,8 +367,8 @@ function ResearchContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Research</h1>
-                <p className="text-sm text-gray-500">Research prospects before every sales call</p>
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pre-Call Research</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Research prospects before every sales call</p>
               </div>
             </div>
             {brief && (
@@ -385,7 +385,7 @@ function ResearchContent() {
               />
               <button
                 onClick={handleCopy}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
               >
                 {copied ? (
                   <>
@@ -414,12 +414,12 @@ function ResearchContent() {
           {/* Left: Research Form + History */}
           <div className="lg:col-span-1 space-y-6">
             {/* Research Form */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">New Research</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Research</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Company *
                   </label>
                   <input
@@ -427,13 +427,13 @@ function ResearchContent() {
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     placeholder="e.g., Acme Corp"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                     disabled={researching}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Name
                   </label>
                   <input
@@ -441,13 +441,13 @@ function ResearchContent() {
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     placeholder="e.g., Jane Doe"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                     disabled={researching}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Title
                   </label>
                   <input
@@ -455,13 +455,13 @@ function ResearchContent() {
                     value={contactTitle}
                     onChange={(e) => setContactTitle(e.target.value)}
                     placeholder="e.g., VP of Engineering"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                     disabled={researching}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     LinkedIn URL
                   </label>
                   <input
@@ -469,13 +469,13 @@ function ResearchContent() {
                     value={contactLinkedIn}
                     onChange={(e) => setContactLinkedIn(e.target.value)}
                     placeholder="https://linkedin.com/in/janedoe"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
                     disabled={researching}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Company Homepage URL
                   </label>
                   <input
@@ -483,7 +483,7 @@ function ResearchContent() {
                     value={urls}
                     onChange={(e) => setUrls(e.target.value)}
                     placeholder="https://acme.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-sm"
                     disabled={researching}
                   />
                 </div>
@@ -516,7 +516,7 @@ function ResearchContent() {
               {progress && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-600">{progress.message}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">{progress.message}</span>
                     <span className="text-sm text-gray-400">{progress.progress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -531,9 +531,9 @@ function ResearchContent() {
 
             {/* History */}
             {history.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Research</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Research</h2>
                   <Link
                     href="/pre-call-planning/history"
                     className="text-sm text-purple-600 hover:text-purple-700 font-medium"
@@ -546,13 +546,13 @@ function ResearchContent() {
                     <button
                       key={item.id}
                       onClick={() => handleLoadBrief(item.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors ${
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
                         brief?.id === item.id ? "bg-purple-50 border border-purple-200" : ""
                       }`}
                     >
-                      <div className="font-medium text-gray-900 text-sm">{item.companyName}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{item.companyName}</div>
                       {item.contactName && (
-                        <div className="text-xs text-gray-500">{item.contactName}{item.contactTitle ? ` - ${item.contactTitle}` : ""}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{item.contactName}{item.contactTitle ? ` - ${item.contactTitle}` : ""}</div>
                       )}
                       <div className="text-xs text-gray-400 mt-0.5">
                         {formatDate(item.createdAt)}
@@ -570,15 +570,15 @@ function ResearchContent() {
           {/* Right: Research Brief Display */}
           <div className="lg:col-span-2">
             {brief ? (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-4 border-b border-gray-100">
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {brief.companyName}
                     {brief.contactName && (
-                      <span className="text-gray-500 font-normal"> — {brief.contactName}{brief.contactTitle ? `, ${brief.contactTitle}` : ""}</span>
+                      <span className="text-gray-500 dark:text-gray-400 font-normal"> — {brief.contactName}{brief.contactTitle ? `, ${brief.contactTitle}` : ""}</span>
                     )}
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Generated {formatDate(brief.createdAt)}
                   </p>
                 </div>
@@ -590,7 +590,7 @@ function ResearchContent() {
               </div>
             ) : streamingContent ? (
               /* Streaming content — brief is being generated token by token */
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                 {researching && (
                   <div className="px-6 py-2 bg-purple-50 border-b border-purple-100 flex items-center gap-2">
                     <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24">
@@ -607,19 +607,19 @@ function ResearchContent() {
                 </div>
               </div>
             ) : researching ? (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
                 <svg className="animate-spin h-12 w-12 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Researching...</h3>
-                <p className="text-gray-500">{progress?.message || "Starting search..."}</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Researching...</h3>
+                <p className="text-gray-500 dark:text-gray-400">{progress?.message || "Starting search..."}</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
                 <div className="text-6xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Research a Prospect</h3>
-                <p className="text-gray-500 max-w-md mx-auto">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Research a Prospect</h3>
+                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                   Enter a company name and optional contact info to generate a comprehensive research brief for your next sales call.
                 </p>
               </div>

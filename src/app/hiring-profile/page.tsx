@@ -31,7 +31,7 @@ export default function HiringProfilePage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -415,7 +415,7 @@ function HiringProfileContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading hiring profile...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading hiring profile...</p>
           </div>
         </div>
       </div>
@@ -434,8 +434,8 @@ function HiringProfileContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">👤</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">No AE Hiring Profile Yet</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No AE Hiring Profile Yet</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Generate an ideal AE hiring profile based on your sales narrative and discovery process to find the right sales talent.
             </p>
             <Link
@@ -468,26 +468,26 @@ function HiringProfileContent() {
       {/* Iterating overlay */}
       {iterating && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center max-w-sm">
             <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-900 font-medium">Iterating on your profile...</p>
-            <p className="text-sm text-gray-500 mt-1">Incorporating your feedback</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">Iterating on your profile...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Incorporating your feedback</p>
           </div>
         </div>
       )}
 
       {/* Header */}
       {!showOverlay && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <Link
                   href="/chat"
-                  className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -495,8 +495,8 @@ function HiringProfileContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900">{version?.title || "AE Hiring Profile"}</h1>
-                  <p className="text-sm text-gray-500">
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version?.title || "AE Hiring Profile"}</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {isStreamingMode ? (
                       <span className="flex items-center gap-2">
                         <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
@@ -524,7 +524,7 @@ function HiringProfileContent() {
                 />
                 <button
                   onClick={handleCopy}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "content" ? (
                     <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -547,7 +547,7 @@ function HiringProfileContent() {
                 )}
                 <Link
                   href="/hiring-profile/history"
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -556,7 +556,7 @@ function HiringProfileContent() {
                 </Link>
                 <button
                   onClick={() => setShowRegenerate(true)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -568,7 +568,7 @@ function HiringProfileContent() {
                     <button
                       onClick={handleCancelEditing}
                       disabled={saving}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -591,7 +591,7 @@ function HiringProfileContent() {
                 ) : (
                   <button
                     onClick={handleStartEditing}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -630,13 +630,13 @@ function HiringProfileContent() {
             <div className="flex-1 min-w-0">
               {/* Tabs */}
               {!isStreamingMode && (
-                <div className="flex gap-1 mb-6 border-b border-gray-200">
+                <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => setActiveTab("profile")}
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                       activeTab === "profile"
                         ? "border-purple-600 text-purple-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                     }`}
                   >
                     Profile
@@ -647,7 +647,7 @@ function HiringProfileContent() {
                       className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === "qa"
                           ? "border-purple-600 text-purple-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       Q&A Inputs
@@ -666,12 +666,12 @@ function HiringProfileContent() {
                   <p className="text-sm text-purple-900">&ldquo;{version.iterationHistory[version.iterationHistory.length - 1]}&rdquo;</p>
                 </div>
               )}
-              <div className="bg-white border border-gray-200 rounded-xl p-8">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8">
                 {isEditing ? (
                   <textarea
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
-                    className="w-full min-h-[600px] p-4 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                    className="w-full min-h-[600px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                   />
                 ) : (
                   <div className="prose prose-gray max-w-none">
@@ -686,17 +686,17 @@ function HiringProfileContent() {
               {activeTab === "qa" && answersByCategory && (
                 <div className="space-y-6">
                   {Object.entries(answersByCategory).map(([category, answers]) => (
-                    <div key={category} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                      <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                        <h3 className="font-semibold text-gray-900">{category}</h3>
+                    <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                      <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{category}</h3>
                       </div>
                       <div className="divide-y divide-gray-100">
                         {(answers as Array<{ questionId: string; globalOrder: number; question: string; answer: string }>).map((qa) => (
                           <div key={qa.questionId} className="px-6 py-4">
-                            <p className="text-sm font-medium text-gray-700 mb-1">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Q{qa.globalOrder}: {qa.question}
                             </p>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
                               {qa.answer || <span className="text-gray-400 italic">Not answered</span>}
                             </p>
                           </div>
@@ -712,7 +712,7 @@ function HiringProfileContent() {
                 <div className="mt-8">
                   <button
                     onClick={() => setHistoryExpanded(!historyExpanded)}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                   >
                     <svg
                       className={`w-4 h-4 transition-transform ${historyExpanded ? "rotate-90" : ""}`}
@@ -729,9 +729,9 @@ function HiringProfileContent() {
                       {version.iterationHistory.map((item, index) => (
                         <div
                           key={index}
-                          className="bg-white border border-gray-200 rounded-lg p-4"
+                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
                         >
-                          <p className="text-sm text-gray-700">&ldquo;{item}&rdquo;</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">&ldquo;{item}&rdquo;</p>
                         </div>
                       ))}
                     </div>
@@ -748,16 +748,16 @@ function HiringProfileContent() {
                 {/* Iterate panel — sticky, follows the user */}
                 {(version || hasStreamingContent) && (
                   <div
-                    className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-opacity ${isStreamingMode ? "opacity-50 pointer-events-none" : ""}`}
+                    className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm transition-opacity ${isStreamingMode ? "opacity-50 pointer-events-none" : ""}`}
                     title={isStreamingMode ? "Available once generation is complete" : undefined}
                   >
-                    <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                       <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                       Iterate
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                       Describe what to change and we&apos;ll revise the profile.
                     </p>
                     <textarea
@@ -766,7 +766,7 @@ function HiringProfileContent() {
                       placeholder="e.g., Put more emphasis on outbound prospecting skills, adjust the comp range to $120-150K OTE..."
                       rows={5}
                       disabled={iterating || isStreamingMode}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                     />
                     <button
                       onClick={handleIterate}
@@ -796,9 +796,9 @@ function HiringProfileContent() {
       {/* Regenerate Modal */}
       {showRegenerate && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowRegenerate(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Regenerate AE Hiring Profile</h3>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Regenerate AE Hiring Profile</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               This will generate a brand new profile from your current Q&amp;A answers. Optionally provide guidance to steer the generation.
             </p>
             <textarea
@@ -806,13 +806,13 @@ function HiringProfileContent() {
               onChange={e => setRegenerateGuidance(e.target.value)}
               placeholder='Optional: e.g., "Focus more on outbound hunting skills" or "Target $50-100K ACV enterprise motion"'
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
               autoFocus
             />
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-4">
               <button
                 onClick={() => setShowRegenerate(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

@@ -92,7 +92,7 @@ export default function SalesReadinessPage() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
           </div>
         </div>
       </div>
@@ -728,14 +728,14 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">GTM Readiness Progression</h1>
-            <p className="text-gray-500 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">GTM Readiness Progression</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Track your go-to-market capabilities and assets across each maturity stage.</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Sync History */}
             <button
               onClick={openSyncHistory}
-              className="px-3 py-2.5 text-sm text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
+              className="px-3 py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors flex items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -804,9 +804,9 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
 
             {showSyncPicker && (
               <div className="absolute right-0 top-full pt-1 w-80 z-50">
-              <div className="bg-white border border-gray-200 rounded-xl shadow-lg py-2">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-2">
                 <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sync from...</p>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sync from...</p>
                 </div>
 
                 {/* Assessment source */}
@@ -821,9 +821,9 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">GTM Maturity Assessment</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">GTM Maturity Assessment</p>
                     {syncSources?.assessment?.available ? (
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         Completed {new Date(syncSources.assessment.date!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
                     ) : (
@@ -844,9 +844,9 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">Coaching Sessions</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Coaching Sessions</p>
                     {syncSources?.coaching?.available ? (
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         {syncSources.coaching.sessionCount} session{syncSources.coaching.sessionCount !== 1 ? "s" : ""} — latest {new Date(syncSources.coaching.date!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
                     ) : (
@@ -862,9 +862,9 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
         </div>
 
         {/* Maturity Stage Selector */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700 flex-shrink-0">Current Stage:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200 flex-shrink-0">Current Stage:</label>
             <select
               value={currentMaturityStage || ""}
               onChange={async (e) => {
@@ -884,7 +884,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                   });
                 }
               }}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800"
             >
               <option value="">Select your current stage...</option>
               {MATURITY_STAGES.map((stage) => (
@@ -898,16 +898,16 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
 
         {/* Overall Progress */}
         {overall && overall.total > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 shadow-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-4 flex-wrap text-sm">
-                <span className="font-semibold text-gray-900">{overall.done}/{overall.total} done</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">{overall.done}/{overall.total} done</span>
                 {overall.inProgress > 0 && <span className="text-blue-600">{overall.inProgress} in progress</span>}
                 {overall.upNext > 0 && <span className="text-purple-600">{overall.upNext} up next</span>}
                 {overall.deferred > 0 && <span className="text-amber-600">{overall.deferred} deferred</span>}
                 {overall.notDoing > 0 && <span className="text-gray-400">{overall.notDoing} not doing</span>}
               </div>
-              <span className="text-sm font-semibold text-gray-900">{progressPercent}%</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{progressPercent}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5">
               <div
@@ -936,7 +936,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 if (e.key === "Enter" && searchResults[searchSelectedIdx]) { e.preventDefault(); jumpToItem(searchResults[searchSelectedIdx]); }
               }}
               placeholder="Search capabilities..."
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800"
             />
             {searchQuery && (
               <button onClick={() => { setSearchQuery(""); setSearchFocused(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -947,7 +947,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
 
           {/* Search results dropdown */}
           {searchFocused && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
               {searchResults.map((result, idx) => {
                 const statusOpt = getStatusOption(result.status);
                 return (
@@ -955,10 +955,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                     key={result.itemId}
                     onClick={() => jumpToItem(result)}
                     onMouseEnter={() => setSearchSelectedIdx(idx)}
-                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 transition-colors ${idx === searchSelectedIdx ? "bg-purple-50" : "hover:bg-gray-50"} ${idx > 0 ? "border-t border-gray-50" : ""}`}
+                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 transition-colors ${idx === searchSelectedIdx ? "bg-purple-50" : "hover:bg-gray-50 dark:hover:bg-gray-700"} ${idx > 0 ? "border-t border-gray-50" : ""}`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-gray-900">{result.title}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{result.title}</div>
                       <div className="text-xs text-gray-400 mt-0.5">{result.stageLabel} → {result.categoryName}</div>
                     </div>
                     <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 flex-shrink-0 ${statusOpt.color}`}>
@@ -970,7 +970,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             </div>
           )}
           {searchFocused && searchQuery.trim() && searchResults.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-4 text-center text-sm text-gray-400">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-4 text-center text-sm text-gray-400">
               No capabilities matching &ldquo;{searchQuery}&rdquo;
             </div>
           )}
@@ -999,7 +999,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                   filter.has(f.value)
                     ? "bg-purple-100 text-purple-700"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
               >
                 {f.label}
@@ -1014,7 +1014,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 setCollapsedCategories(new Set());
                 saveCollapseState(allKeys, new Set());
               }}
-              className="px-3 py-1.5 text-xs text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
             >
               Expand All
             </button>
@@ -1023,7 +1023,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 setExpandedStages(new Set());
                 saveCollapseState(new Set(), collapsedCategories);
               }}
-              className="px-3 py-1.5 text-xs text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
             >
               Collapse All
             </button>
@@ -1032,10 +1032,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
 
         {/* Stages */}
         {stages.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center shadow-sm">
             <div className="text-5xl mb-4">📋</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No checklist items yet</h3>
-            <p className="text-gray-500">Ask your admin to seed the Sales Readiness checklist items.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No checklist items yet</h3>
+            <p className="text-gray-500 dark:text-gray-400">Ask your admin to seed the Sales Readiness checklist items.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1052,7 +1052,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
               if (!filter.has("all") && filteredCategories.length === 0) return null;
 
               return (
-                <div key={stage.key} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${isCurrent ? "border-purple-300 ring-1 ring-purple-100" : "border-gray-200"}`}>
+                <div key={stage.key} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden ${isCurrent ? "border-purple-300 ring-1 ring-purple-100" : "border-gray-200 dark:border-gray-700"}`}>
                   {/* Stage header */}
                   <button
                     onClick={() => toggleStage(stage.key)}
@@ -1062,7 +1062,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                       <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                      <span className="font-semibold text-gray-900">{stage.label}</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{stage.label}</span>
                       {isCurrent && (
                         <span className="text-[10px] font-medium bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Current</span>
                       )}
@@ -1093,7 +1093,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                             <svg className={`w-2.5 h-2.5 text-gray-400 transition-transform ${isCatCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
-                            <span className="flex-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{cat.name}</span>
+                            <span className="flex-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{cat.name}</span>
                             <span className={`text-[11px] font-medium ${cat.doneCount === cat.totalCount && cat.totalCount > 0 ? "text-green-600" : "text-gray-400"}`}>{cat.doneCount}/{cat.totalCount}</span>
                           </button>
 
@@ -1128,7 +1128,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                                   {/* Title + notes — center */}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <span className={`text-sm ${item.status === "done" ? "text-gray-900 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                      <span className={`text-sm ${item.status === "done" ? "text-gray-900 dark:text-gray-100 font-medium" : item.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
                                         {item.title}
                                       </span>
                                       <button
@@ -1157,12 +1157,12 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                                         placeholder="Add notes, proof, links..."
                                         rows={2}
                                         autoFocus
-                                        className="mt-2 w-full px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        className="mt-2 w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-y focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                       />
                                     ) : notesValue ? (
                                       <div
                                         onClick={() => setEditingNotes(item.id)}
-                                        className="mt-1.5 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2 cursor-text hover:bg-gray-100 transition-colors whitespace-pre-wrap"
+                                        className="mt-1.5 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 rounded-lg px-3 py-2 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-pre-wrap"
                                       >
                                         {notesValue}
                                       </div>
@@ -1228,7 +1228,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                                           </>
                                         ) : (
                                           <div className="relative group/ev">
-                                            <span className="text-xs text-gray-600 truncate block max-w-[140px]">{item.evidenceUrl}</span>
+                                            <span className="text-xs text-gray-600 dark:text-gray-300 truncate block max-w-[140px]">{item.evidenceUrl}</span>
                                             <div className="absolute bottom-full left-0 mb-1 w-72 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-50 whitespace-pre-wrap break-words">
                                               {item.evidenceUrl}
                                             </div>
@@ -1277,28 +1277,28 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       {/* Sync History Modal */}
       {showSyncHistory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col mx-4">
-            <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col mx-4">
+            <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {selectedSyncDetail ? "Sync Detail" : "Sync History"}
                 </h2>
                 {!selectedSyncDetail && (
-                  <p className="text-sm text-gray-500 mt-0.5">{syncHistory.length} sync{syncHistory.length !== 1 ? "s" : ""} recorded</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{syncHistory.length} sync{syncHistory.length !== 1 ? "s" : ""} recorded</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 {selectedSyncDetail && (
                   <button
                     onClick={() => setSelectedSyncDetail(null)}
-                    className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Back
                   </button>
                 )}
                 <button
                   onClick={() => { setShowSyncHistory(false); setSelectedSyncDetail(null); }}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1318,7 +1318,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                       <button
                         key={entry.id}
                         onClick={() => viewSyncDetail(entry.id)}
-                        className="w-full text-left p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                        className="w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1334,16 +1334,16 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                               )}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                 {entry.source === "assessment" ? "GTM Assessment" : "Coaching Sessions"} Sync
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} by {entry.userName}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {entry.totalAccepted}/{entry.totalProposed} accepted
                             </p>
                             {entry.stageAccepted && (
@@ -1365,22 +1365,22 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {selectedSyncDetail.source === "assessment" ? "GTM Assessment" : "Coaching"} Sync — {selectedSyncDetail.totalAccepted}/{selectedSyncDetail.totalProposed} accepted
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(selectedSyncDetail.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })} by {selectedSyncDetail.userName}
                       </p>
                     </div>
                   </div>
 
                   {/* Proposed changes */}
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Proposed Changes</h3>
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Proposed Changes</h3>
                   <div className="space-y-2 mb-6">
                     {(selectedSyncDetail.analysisResult?.proposedChanges || []).map((change: { itemId: string; itemTitle: string; capabilityCategory: string; proposedStatus: string; currentStatus: string; confidence: string; evidenceText: string; reasoning: string; supportingExcerpts: Array<{ source: string; text: string }> }, i: number) => {
                       const accepted = (selectedSyncDetail.acceptedItemIds || []).includes(change.itemId);
                       return (
-                        <div key={i} className={`border rounded-lg p-3 ${accepted ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-gray-50/30"}`}>
+                        <div key={i} className={`border rounded-lg p-3 ${accepted ? "border-green-200 bg-green-50/30" : "border-gray-200 dark:border-gray-700 bg-gray-50/30"}`}>
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               {accepted ? (
@@ -1388,18 +1388,18 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                               ) : (
                                 <span className="text-gray-400 text-xs font-medium px-2 py-0.5 bg-gray-100 rounded-full">Skipped</span>
                               )}
-                              <span className="text-sm font-medium text-gray-900">{change.itemTitle}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{change.itemTitle}</span>
                               <span className="text-xs text-gray-400">{change.capabilityCategory}</span>
                             </div>
-                            <span className="text-xs text-gray-500">{change.currentStatus} → {change.proposedStatus}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{change.currentStatus} → {change.proposedStatus}</span>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{change.evidenceText}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{change.evidenceText}</p>
                           {change.supportingExcerpts?.length > 0 && (
                             <div className="mt-2 space-y-1">
                               {change.supportingExcerpts.map((ex: { source: string; text: string }, j: number) => (
-                                <div key={j} className="bg-white rounded p-2 text-xs">
+                                <div key={j} className="bg-white dark:bg-gray-800 rounded p-2 text-xs">
                                   <span className="text-gray-400 font-medium">{ex.source}:</span>{" "}
-                                  <span className="text-gray-600">{ex.text}</span>
+                                  <span className="text-gray-600 dark:text-gray-300">{ex.text}</span>
                                 </div>
                               ))}
                             </div>
@@ -1412,10 +1412,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                   {/* Source content (collapsible) */}
                   {selectedSyncDetail.sourceContent && (
                     <details className="mb-4">
-                      <summary className="text-sm font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700 mb-2">
+                      <summary className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 mb-2">
                         Source Material
                       </summary>
-                      <pre className="text-xs text-gray-600 bg-gray-50 rounded-lg p-4 overflow-auto max-h-60 whitespace-pre-wrap border border-gray-200">
+                      <pre className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 rounded-lg p-4 overflow-auto max-h-60 whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
                         {selectedSyncDetail.sourceContent}
                       </pre>
                     </details>
@@ -1430,7 +1430,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       {/* Reset Confirmation Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                 <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1438,18 +1438,18 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Reset GTM Readiness</h3>
-                <p className="text-sm text-gray-500">This cannot be undone.</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Reset GTM Readiness</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">This cannot be undone.</p>
               </div>
             </div>
 
-            <p className="text-sm text-gray-700 mb-4">
+            <p className="text-sm text-gray-700 dark:text-gray-200 mb-4">
               This will reset all readiness item statuses, notes, and evidence back to &quot;To Do&quot;.
               Template items and sync history will be preserved.
             </p>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Type <span className="font-mono text-red-600 bg-red-50 px-1.5 py-0.5 rounded">RESET</span> to confirm
               </label>
               <input
@@ -1457,7 +1457,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                 value={resetConfirmation}
                 onChange={(e) => setResetConfirmation(e.target.value)}
                 placeholder="RESET"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono"
                 autoFocus
               />
             </div>
@@ -1465,7 +1465,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => { setShowResetModal(false); setResetConfirmation(""); }}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

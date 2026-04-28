@@ -55,7 +55,7 @@ export default function SocialContentPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -692,7 +692,7 @@ function SocialContentContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading social content...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading social content...</p>
           </div>
         </div>
       </div>
@@ -707,8 +707,8 @@ function SocialContentContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">📖</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sales Narrative Required</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Sales Narrative Required</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Social content is generated from your sales narrative. Create one first to get started.
             </p>
             <Link
@@ -742,11 +742,11 @@ function SocialContentContent() {
           ]}
         />
         <div className="max-w-3xl mx-auto px-6 py-8">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
               {version ? "Regenerate" : "Generate"} Social Content
             </h1>
-            <p className="text-gray-500 mb-6">Configure your social content generation.</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Configure your social content generation.</p>
 
             {/* Sales Narrative Info Banner */}
             {hasSalesNarrative && (
@@ -777,7 +777,7 @@ function SocialContentContent() {
             <div className="space-y-6">
               {/* Platform */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Platform</label>
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -785,7 +785,7 @@ function SocialContentContent() {
                     className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-colors ${
                       platform === "linkedin"
                         ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                     }`}
                   >
                     💼 LinkedIn
@@ -796,7 +796,7 @@ function SocialContentContent() {
                     className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-colors ${
                       platform === "twitter"
                         ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                     }`}
                   >
                     𝕏 Twitter/X
@@ -806,7 +806,7 @@ function SocialContentContent() {
 
               {/* Tone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Tone</label>
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { value: "thought-leadership", label: "🎓 Thought Leadership" },
@@ -820,7 +820,7 @@ function SocialContentContent() {
                       className={`py-2 px-4 rounded-lg border-2 text-sm font-medium transition-colors ${
                         tone === opt.value
                           ? "border-purple-600 bg-purple-50 text-purple-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300"
+                          : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       {opt.label}
@@ -833,16 +833,16 @@ function SocialContentContent() {
                     value={customTone}
                     onChange={(e) => setCustomTone(e.target.value)}
                     placeholder="e.g. witty and sarcastic, inspirational, educational..."
-                    className="mt-2 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="mt-2 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 )}
               </div>
 
               {/* Topic Source */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Topic Source</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Topic Source</label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
                     <input
                       type="radio"
                       name="topicSource"
@@ -852,11 +852,11 @@ function SocialContentContent() {
                       className="text-purple-600 focus:ring-purple-500"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Generate from Sales Narrative</span>
-                      <p className="text-xs text-gray-500">AI picks topics from your narrative</p>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Generate from Sales Narrative</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">AI picks topics from your narrative</p>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
                     <input
                       type="radio"
                       name="topicSource"
@@ -866,11 +866,11 @@ function SocialContentContent() {
                       className="text-purple-600 focus:ring-purple-500"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Enter a Topic</span>
-                      <p className="text-xs text-gray-500">Specify what you want to post about</p>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Enter a Topic</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Specify what you want to post about</p>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
                     <input
                       type="radio"
                       name="topicSource"
@@ -880,8 +880,8 @@ function SocialContentContent() {
                       className="text-purple-600 focus:ring-purple-500"
                     />
                     <div>
-                      <span className="text-sm font-medium text-gray-900">Repurpose Content</span>
-                      <p className="text-xs text-gray-500">Paste content to turn into posts</p>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Repurpose Content</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Paste content to turn into posts</p>
                     </div>
                   </label>
                 </div>
@@ -920,7 +920,7 @@ function SocialContentContent() {
                     {topicSuggestions.length > 0 && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs text-gray-500 font-medium">Select topics (multi-select)</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Select topics (multi-select)</span>
                           {selectedTopics.length > 0 && (
                             <span className="text-xs text-purple-600 font-medium">{selectedTopics.length} selected ({selectedTopics.length * 3}+ posts)</span>
                           )}
@@ -929,7 +929,7 @@ function SocialContentContent() {
                           {topicSuggestions.map((topic, i) => (
                             <label
                               key={i}
-                              className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-md cursor-pointer transition-colors ${selectedTopics.includes(topic) ? "bg-purple-50 text-purple-700 border border-purple-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"}`}
+                              className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-md cursor-pointer transition-colors ${selectedTopics.includes(topic) ? "bg-purple-50 text-purple-700 border border-purple-200" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-transparent"}`}
                             >
                               <input
                                 type="checkbox"
@@ -960,14 +960,14 @@ function SocialContentContent() {
                     onChange={(e) => setTopicInput(e.target.value)}
                     placeholder={topicSource === "custom" ? "e.g. Why most founders underinvest in outbound sales..." : "Paste an article, blog post, or any content to repurpose..."}
                     rows={4}
-                    className="mt-3 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                    className="mt-3 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
                   />
                 )}
               </div>
 
               {/* Post Count */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Number of Posts</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Number of Posts</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
@@ -977,7 +977,7 @@ function SocialContentContent() {
                     onChange={(e) => setPostCount(parseInt(e.target.value))}
                     className="flex-1 accent-purple-600"
                   />
-                  <span className="text-sm font-semibold text-gray-900 w-8 text-center">{postCount}</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 w-8 text-center">{postCount}</span>
                 </div>
                 {selectedTopics.length > 0 && (
                   <p className="text-xs text-gray-400 mt-1">Minimum {selectedTopics.length * 3} posts ({selectedTopics.length} topics x 3 posts each)</p>
@@ -987,7 +987,7 @@ function SocialContentContent() {
               {/* Gold Standard Examples */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                     Gold Standard Examples <span className="text-gray-400">(optional)</span>
                   </label>
                   {savedExamples.length > 0 && (
@@ -1002,13 +1002,13 @@ function SocialContentContent() {
                 </div>
 
                 {showSavedExamples && savedExamples.length > 0 && (
-                  <div className="mb-3 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                  <div className="mb-3 border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
                     {savedExamples.map((ex) => (
-                      <div key={ex.id} className="px-3 py-2 flex items-start gap-2 hover:bg-gray-50">
+                      <div key={ex.id} className="px-3 py-2 flex items-start gap-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <button
                           type="button"
                           onClick={() => handleLoadSavedExample(ex.content)}
-                          className="flex-1 text-left text-sm text-gray-700 line-clamp-2"
+                          className="flex-1 text-left text-sm text-gray-700 dark:text-gray-200 line-clamp-2"
                         >
                           {ex.label && <span className="font-medium">{ex.label}: </span>}
                           {ex.content.substring(0, 120)}...
@@ -1029,14 +1029,14 @@ function SocialContentContent() {
                 )}
 
                 {goldExamples.map((ex, i) => (
-                  <div key={i} className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 relative group">
+                  <div key={i} className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 relative group">
                     <div className="pr-16 whitespace-pre-wrap">{ex}</div>
                     <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
                         onClick={() => handleSaveExample(ex)}
                         disabled={savingExample}
-                        className="text-xs text-purple-600 hover:text-purple-700 px-2 py-1 bg-white rounded border border-gray-200"
+                        className="text-xs text-purple-600 hover:text-purple-700 px-2 py-1 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
                         title="Save for later"
                       >
                         Save
@@ -1044,7 +1044,7 @@ function SocialContentContent() {
                       <button
                         type="button"
                         onClick={() => setGoldExamples(goldExamples.filter((_, j) => j !== i))}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1 bg-white rounded border border-gray-200"
+                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
                       >
                         Remove
                       </button>
@@ -1058,13 +1058,13 @@ function SocialContentContent() {
                     onChange={(e) => setNewExample(e.target.value)}
                     placeholder="Paste an example post you love..."
                     rows={3}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y text-sm"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y text-sm"
                   />
                   <button
                     type="button"
                     onClick={handleAddExample}
                     disabled={!newExample.trim()}
-                    className="self-end px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium disabled:opacity-50"
+                    className="self-end px-4 py-2.5 bg-gray-100 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -1072,12 +1072,12 @@ function SocialContentContent() {
               </div>
 
               {hasFirstCallChecklist && (
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeChecklist}
                     onChange={(e) => setIncludeChecklist(e.target.checked)}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    className="rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
                   />
                   Include First Call Checklist context
                 </label>
@@ -1085,7 +1085,7 @@ function SocialContentContent() {
 
               {/* Style Guidance */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Style Guidance <span className="font-normal text-gray-400">(optional)</span>
                 </label>
                 <textarea
@@ -1093,7 +1093,7 @@ function SocialContentContent() {
                   onChange={(e) => setStyleGuidance(e.target.value)}
                   placeholder='e.g. "Write like Paul Graham — short sentences, concrete examples, no jargon" or "Include data points and metrics where possible" or "Keep it conversational, like texting a friend"'
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-sm"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-sm"
                 />
               </div>
 
@@ -1102,7 +1102,7 @@ function SocialContentContent() {
                 {version && (
                   <button
                     onClick={() => setShowForm(false)}
-                    className="px-4 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -1159,13 +1159,13 @@ function SocialContentContent() {
         ]}
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -1173,8 +1173,8 @@ function SocialContentContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{version.title || "Social Content"}</h1>
-                <p className="text-sm text-gray-500 leading-tight">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version.title || "Social Content"}</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
                     <><br />Edited {formatDate(version.updatedAt)}</>
@@ -1186,7 +1186,7 @@ function SocialContentContent() {
             <div className="flex items-center gap-3">
               {isEditing ? (
                 <>
-                  <button onClick={handleCancelEditing} disabled={saving} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button onClick={handleCancelEditing} disabled={saving} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     Cancel
                   </button>
                   <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-50">
@@ -1196,14 +1196,14 @@ function SocialContentContent() {
               ) : (
                 <>
                   <ChatAboutButton title="Chat About Social Content" getContext={() => currentContent} />
-                  <button onClick={handleCopy} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                  <button onClick={handleCopy} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                     {copied ? (
                       <><svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied!</>
                     ) : (
                       <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
                     )}
                   </button>
-                  <button onClick={handleStartEditing} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                  <button onClick={handleStartEditing} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     Edit
                   </button>
@@ -1213,7 +1213,7 @@ function SocialContentContent() {
                     title={`Social Content: ${platformLabel} ${version.tone}`}
                     content={currentContent}
                   />
-                  <Link href="/social-content/history" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                  <Link href="/social-content/history" className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     History
                   </Link>
@@ -1222,7 +1222,7 @@ function SocialContentContent() {
                   <div className="relative" ref={overflowRef}>
                     <button
                       onClick={() => setOverflowOpen(!overflowOpen)}
-                      className="px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       title="More actions"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1230,16 +1230,16 @@ function SocialContentContent() {
                       </svg>
                     </button>
                     {overflowOpen && (
-                      <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
-                        <button onClick={() => { setOverflowOpen(false); setMoreLikeThisCount(5); setShowMoreLikeThis(true); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                      <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[180px]">
+                        <button onClick={() => { setOverflowOpen(false); setMoreLikeThisCount(5); setShowMoreLikeThis(true); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3">
                           <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                           More Like This
                         </button>
-                        <button onClick={() => { setOverflowOpen(false); handleOpenIterate(); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                        <button onClick={() => { setOverflowOpen(false); handleOpenIterate(); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3">
                           <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                           Iterate
                         </button>
-                        <button onClick={() => { setOverflowOpen(false); handleCSVDownload(); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                        <button onClick={() => { setOverflowOpen(false); handleCSVDownload(); }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3">
                           <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                           Download CSV
                         </button>
@@ -1279,21 +1279,21 @@ function SocialContentContent() {
             <div className="px-4 py-2 bg-purple-50 text-purple-800 text-sm rounded-xl border border-purple-100">
               <span className="font-semibold text-purple-600">Tone:</span> {version.tone}
             </div>
-            <div className="px-4 py-2 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
-              <span className="font-semibold text-gray-500">Posts:</span> {version.postCount}
+            <div className="px-4 py-2 bg-gray-50 text-gray-700 dark:text-gray-200 text-sm rounded-xl border border-gray-200 dark:border-gray-700">
+              <span className="font-semibold text-gray-500 dark:text-gray-400">Posts:</span> {version.postCount}
             </div>
-            <div className="px-4 py-2 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
-              <span className="font-semibold text-gray-500">Source:</span> {version.topicSource === "narrative" ? "Sales Narrative" : version.topicSource === "content" ? "Repurposed Content" : "Custom Topic"}
+            <div className="px-4 py-2 bg-gray-50 text-gray-700 dark:text-gray-200 text-sm rounded-xl border border-gray-200 dark:border-gray-700">
+              <span className="font-semibold text-gray-500 dark:text-gray-400">Source:</span> {version.topicSource === "narrative" ? "Sales Narrative" : version.topicSource === "content" ? "Repurposed Content" : "Custom Topic"}
             </div>
             {version.topicInput && (
-              <div className="px-4 py-2 bg-gray-50 text-gray-700 text-sm rounded-xl border border-gray-200">
-                <span className="font-semibold text-gray-500">Topic:</span> {version.topicInput}
+              <div className="px-4 py-2 bg-gray-50 text-gray-700 dark:text-gray-200 text-sm rounded-xl border border-gray-200 dark:border-gray-700">
+                <span className="font-semibold text-gray-500 dark:text-gray-400">Topic:</span> {version.topicInput}
               </div>
             )}
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="p-6">
             {isEditing ? (
               <RichTextEditor value={editedContent} onChange={(val) => setEditedContent(val)} height={600} />
@@ -1323,7 +1323,7 @@ function SocialContentContent() {
                                   setCopiedPostIdx(-1 - idx);
                                   setTimeout(() => setCopiedPostIdx(null), 1500);
                                 }}
-                                className="flex-shrink-0 p-1 text-gray-500 hover:text-purple-600 opacity-0 group-hover/post:opacity-100 transition-opacity"
+                                className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/post:opacity-100 transition-opacity"
                                 title="Copy link to post"
                               >
                                 {copiedPostIdx === -1 - idx ? (
@@ -1353,7 +1353,7 @@ function SocialContentContent() {
                           </div>
                         </div>
                         {(post.timing || post.visual) && (
-                          <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500">
+                          <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400">
                             {post.timing && (
                               <div className="flex items-center gap-1.5">
                                 <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1391,11 +1391,11 @@ function SocialContentContent() {
       {/* More Like This Overlay */}
       {showMoreLikeThis && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowMoreLikeThis(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">More Like This</h3>
-            <p className="text-sm text-gray-500 mb-6">Generate more posts using the same settings.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">More Like This</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Generate more posts using the same settings.</p>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">How many posts?</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">How many posts?</label>
               <div className="flex items-center gap-4">
                 <input
                   type="range"
@@ -1409,7 +1409,7 @@ function SocialContentContent() {
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowMoreLikeThis(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => setShowMoreLikeThis(false)} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
               <button onClick={handleMoreLikeThis} className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">Generate</button>
             </div>
           </div>
@@ -1419,26 +1419,26 @@ function SocialContentContent() {
       {/* Iterate Overlay */}
       {showIterate && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowIterate(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Iterate on This Post</h3>
-            <p className="text-sm text-gray-500 mb-6">Adjust settings and generate a new version.</p>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Iterate on This Post</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Adjust settings and generate a new version.</p>
 
             {/* Platform */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Platform</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Platform</label>
               <div className="flex gap-2">
-                <button onClick={() => setIteratePlatform("linkedin")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "linkedin" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>LinkedIn</button>
-                <button onClick={() => setIteratePlatform("twitter")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "twitter" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Twitter/X</button>
+                <button onClick={() => setIteratePlatform("linkedin")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "linkedin" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>LinkedIn</button>
+                <button onClick={() => setIteratePlatform("twitter")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iteratePlatform === "twitter" ? "bg-blue-100 text-blue-800 border border-blue-200" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>Twitter/X</button>
               </div>
             </div>
 
             {/* Tone */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Tone</label>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => { setIterateTone("thought-leadership"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "thought-leadership" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Thought Leadership</button>
-                <button onClick={() => { setIterateTone("shitposting"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "shitposting" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Shitposting</button>
-                <button onClick={() => setIterateTone("other")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "other" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Other</button>
+                <button onClick={() => { setIterateTone("thought-leadership"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "thought-leadership" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>Thought Leadership</button>
+                <button onClick={() => { setIterateTone("shitposting"); setIterateCustomTone(""); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "shitposting" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>Shitposting</button>
+                <button onClick={() => setIterateTone("other")} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${iterateTone === "other" ? "bg-purple-100 text-purple-800 border border-purple-200" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}>Other</button>
               </div>
               {iterateTone === "other" && (
                 <input
@@ -1446,14 +1446,14 @@ function SocialContentContent() {
                   value={iterateCustomTone}
                   onChange={e => setIterateCustomTone(e.target.value)}
                   placeholder="e.g., witty, provocative, casual"
-                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               )}
             </div>
 
             {/* Number of Posts */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Number of Posts</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Number of Posts</label>
               <div className="flex items-center gap-4">
                 <input
                   type="range"
@@ -1469,19 +1469,19 @@ function SocialContentContent() {
 
             {/* Topic Source */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Topic Source</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Topic Source</label>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={iterateTopicSource === "narrative"} onChange={() => setIterateTopicSource("narrative")} className="accent-purple-600" />
-                  <span className="text-sm text-gray-700">From Sales Narrative</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">From Sales Narrative</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={iterateTopicSource === "custom"} onChange={() => setIterateTopicSource("custom")} className="accent-purple-600" />
-                  <span className="text-sm text-gray-700">Custom Topic</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">Custom Topic</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={iterateTopicSource === "content"} onChange={() => setIterateTopicSource("content")} className="accent-purple-600" />
-                  <span className="text-sm text-gray-700">Repurpose Content</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">Repurpose Content</span>
                 </label>
               </div>
               {(iterateTopicSource === "custom" || iterateTopicSource === "content") && (
@@ -1490,7 +1490,7 @@ function SocialContentContent() {
                   onChange={e => setIterateTopicInput(e.target.value)}
                   placeholder={iterateTopicSource === "custom" ? "Enter your topic..." : "Paste content to repurpose..."}
                   rows={3}
-                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               )}
             </div>
@@ -1500,13 +1500,13 @@ function SocialContentContent() {
               <div className="mb-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={iterateIncludeChecklist} onChange={e => setIterateIncludeChecklist(e.target.checked)} className="accent-purple-600 w-4 h-4" />
-                  <span className="text-sm text-gray-700">Include First Call Checklist context</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">Include First Call Checklist context</span>
                 </label>
               </div>
             )}
 
             <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-              <button onClick={() => setShowIterate(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => setShowIterate(false)} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
               <button onClick={handleIterateGenerate} className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium">Generate</button>
             </div>
           </div>

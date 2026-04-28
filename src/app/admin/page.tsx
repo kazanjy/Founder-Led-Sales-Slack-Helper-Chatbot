@@ -350,7 +350,7 @@ export default function AdminDashboard() {
   }
 
   if (loading) {
-    return <div className="text-gray-500">Loading stats...</div>;
+    return <div className="text-gray-500 dark:text-gray-400">Loading stats...</div>;
   }
 
   if (!stats) {
@@ -411,10 +411,10 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Dashboard</h1>
 
       {/* Tab Bar */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
         <nav className="flex gap-6">
           {([
             { key: "overview" as const, label: "Overview" },
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
               className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
             >
               {tab.label}
@@ -441,27 +441,27 @@ export default function AdminDashboard() {
         {statCards.map((stat) => (
           <div
             key={stat.label}
-            className="bg-white rounded-lg shadow p-4 border border-gray-200"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700"
           >
             {stat.href ? (
-              <Link href={stat.href} className="block hover:bg-gray-50 -m-4 p-4 rounded-lg">
+              <Link href={stat.href} className="block hover:bg-gray-50 dark:hover:bg-gray-700 -m-4 p-4 rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">{stat.icon}</span>
                 </div>
-                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
+                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900 dark:text-gray-100"}`}>
                   {stat.value.toLocaleString()}
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500 mt-1">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">{stat.label}</div>
               </Link>
             ) : (
               <>
                 <div className="flex items-center justify-between">
                   <span className="text-2xl">{stat.icon}</span>
                 </div>
-                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900"}`}>
+                <div className={`text-2xl sm:text-3xl font-bold mt-2 ${stat.color || "text-gray-900 dark:text-gray-100"}`}>
                   {stat.value.toLocaleString()}
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500 mt-1">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">{stat.label}</div>
               </>
             )}
           </div>
@@ -469,13 +469,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Unified Activity Feed */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
-        <div className="px-4 py-4 sm:p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Click row to open in new tab, or click name for admin profile</p>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-8">
+        <div className="px-4 py-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">Click row to open in new tab, or click name for admin profile</p>
         </div>
         {convsLoading && activityLoading ? (
-          <div className="p-6 text-gray-500">Loading activity...</div>
+          <div className="p-6 text-gray-500 dark:text-gray-400">Loading activity...</div>
         ) : (() => {
           // Build unified feed items
           type FeedItem = {
@@ -512,7 +512,7 @@ export default function AdminDashboard() {
                       {conv.user.avatarUrl ? (
                         <img src={conv.user.avatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {userName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -526,16 +526,16 @@ export default function AdminDashboard() {
                         >
                           {userName}
                         </Link>
-                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700"}`}>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700 dark:text-gray-200"}`}>
                           {conv.source === "SLACK" ? "Slack" : "Web"}
                         </span>
                         {conv.user.workspace?.slackTeamName && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
+                          <span className="text-xs bg-gray-100 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
                             {conv.user.workspace.slackTeamName}
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-700 truncate mt-0.5">
+                      <div className="text-sm text-gray-700 dark:text-gray-200 truncate mt-0.5">
                         {conv.title || conv.firstMessagePreview || "New conversation"}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
@@ -579,7 +579,7 @@ export default function AdminDashboard() {
                       {item.userAvatarUrl ? (
                         <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                       ) : (
-                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                           {actUserName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -593,16 +593,16 @@ export default function AdminDashboard() {
                         >
                           {actUserName}
                         </Link>
-                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700 dark:text-gray-200"}`}>
                           {item.label}
                         </span>
                         {item.workspaceName && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
+                          <span className="text-xs bg-gray-100 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded flex-shrink-0 hidden sm:inline">
                             {item.workspaceName}
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-700 truncate mt-0.5">
+                      <div className="text-sm text-gray-700 dark:text-gray-200 truncate mt-0.5">
                         {item.title || ""}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
@@ -687,7 +687,7 @@ export default function AdminDashboard() {
                   value={feedSearch}
                   onChange={(e) => setFeedSearch(e.target.value)}
                   placeholder="Search by name, email, title, workspace..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-400"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm placeholder-gray-400"
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {filterOptions.map((opt) => (
@@ -697,7 +697,7 @@ export default function AdminDashboard() {
                       className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
                         feedFilter === opt.key
                           ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                          : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                     >
                       {opt.label}
@@ -708,7 +708,7 @@ export default function AdminDashboard() {
               </div>
 
               {filteredItems.length === 0 ? (
-                <div className="p-6 text-gray-500 text-center">
+                <div className="p-6 text-gray-500 dark:text-gray-400 text-center">
                   {feedSearch ? "No results matching your search" : "No activity yet"}
                 </div>
               ) : (
@@ -725,17 +725,17 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
                     disabled={activityPage <= 1}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
                     Previous
                   </button>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     Page {activityPage} of {activityTotalPages}
                   </span>
                   <button
                     onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
                     disabled={activityPage >= activityTotalPages}
-                    className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
                     Next
                   </button>
@@ -747,16 +747,16 @@ export default function AdminDashboard() {
       </div>
 
       {/* Identity Breakdown */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">User Identity Types</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">User Identity Types</h2>
         <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span className="text-xl">&#128309;</span>
             </div>
             <div>
-              <div className="text-xl font-bold text-gray-900">{stats.googleUsers}</div>
-              <div className="text-sm text-gray-500">Google Users</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.googleUsers}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Google Users</div>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -764,16 +764,16 @@ export default function AdminDashboard() {
               <span className="text-xl">&#128156;</span>
             </div>
             <div>
-              <div className="text-xl font-bold text-gray-900">{stats.slackUsers}</div>
-              <div className="text-sm text-gray-500">Slack Users</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.slackUsers}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">Slack Users</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/users"
@@ -798,14 +798,14 @@ export default function AdminDashboard() {
       </>)}
 
       {activeTab === "completion" && (
-      <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
-        <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-8">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-3">
           <input
             type="text"
             placeholder="Search by name, email, or workspace..."
             value={completionSearch}
             onChange={(e) => setCompletionSearch(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="flex flex-wrap gap-1.5">
             {[
@@ -820,7 +820,7 @@ export default function AdminDashboard() {
                 className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
                   completionFilter === f.value
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
               >
                 {f.label}
@@ -834,27 +834,27 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50">
                   <th
-                    className="text-left px-4 py-3 font-medium text-gray-600 sticky left-0 bg-gray-50 min-w-[200px] cursor-pointer hover:text-blue-600 select-none"
+                    className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-300 sticky left-0 bg-gray-50 min-w-[200px] cursor-pointer hover:text-blue-600 select-none"
                     onClick={() => toggleCompletionSort("name")}
                   >
                     User{sortIndicator("name")}
                   </th>
                   <th
-                    className="px-2 py-3 font-medium text-gray-600 text-center min-w-[50px] cursor-pointer hover:text-blue-600 select-none"
+                    className="px-2 py-3 font-medium text-gray-600 dark:text-gray-300 text-center min-w-[50px] cursor-pointer hover:text-blue-600 select-none"
                     onClick={() => toggleCompletionSort("score")}
                   >
                     Score{sortIndicator("score")}
                   </th>
                   <th
-                    className="px-3 py-3 font-medium text-gray-600 text-left min-w-[90px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
+                    className="px-3 py-3 font-medium text-gray-600 dark:text-gray-300 text-left min-w-[90px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
                     onClick={() => toggleCompletionSort("createdAt")}
                   >
                     Created{sortIndicator("createdAt")}
                   </th>
                   <th
-                    className="px-3 py-3 font-medium text-gray-600 text-left min-w-[100px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
+                    className="px-3 py-3 font-medium text-gray-600 dark:text-gray-300 text-left min-w-[100px] cursor-pointer hover:text-blue-600 select-none whitespace-nowrap"
                     onClick={() => toggleCompletionSort("lastActivity")}
                   >
                     Last Active{sortIndicator("lastActivity")}
@@ -862,7 +862,7 @@ export default function AdminDashboard() {
                   {COMPLETION_KEYS.map((ck) => (
                     <th
                       key={ck.key}
-                      className="px-2 py-3 font-medium text-gray-500 text-center min-w-[60px] cursor-pointer hover:text-blue-600"
+                      className="px-2 py-3 font-medium text-gray-500 dark:text-gray-400 text-center min-w-[60px] cursor-pointer hover:text-blue-600"
                       title={`Filter: has ${ck.label}`}
                       onClick={() =>
                         setCompletionFilter(
@@ -895,7 +895,7 @@ export default function AdminDashboard() {
                 ) : (
                   filteredCompletionUsers.map((u) => (
                     <tr key={u.id} className="border-b border-gray-100 hover:bg-blue-50/50">
-                      <td className="px-4 py-2.5 sticky left-0 bg-white">
+                      <td className="px-4 py-2.5 sticky left-0 bg-white dark:bg-gray-800">
                         <Link
                           href={`/admin/users/${u.id}`}
                           className="flex items-center gap-2 group"
@@ -903,7 +903,7 @@ export default function AdminDashboard() {
                           {u.avatarUrl ? (
                             <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full" />
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-medium">
+                            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs font-medium">
                               {(u.name || u.email || "?").charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -925,15 +925,15 @@ export default function AdminDashboard() {
                             ? "bg-yellow-100 text-yellow-700"
                             : u.completionCount > 0
                             ? "bg-orange-100 text-orange-700"
-                            : "bg-gray-100 text-gray-500"
+                            : "bg-gray-100 text-gray-500 dark:text-gray-400"
                         }`}>
                           {u.completionCount}/{u.completionTotal}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {formatTimeAgo(u.lastActivity)}
                       </td>
                       {COMPLETION_KEYS.map((ck) => (
@@ -953,7 +953,7 @@ export default function AdminDashboard() {
           </div>
         )}
         {!completionLoading && filteredCompletionUsers.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 text-xs text-gray-400">
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400">
             Showing {filteredCompletionUsers.length} of {completionUsers.length} users
           </div>
         )}

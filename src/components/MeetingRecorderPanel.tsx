@@ -336,7 +336,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
 
   if (loading) {
     return (
-      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-xl">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
           <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
@@ -351,11 +351,11 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
 
   return (
     <>
-      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+      <div className="mb-6 p-4 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-xl">
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-sm font-semibold text-gray-700 flex items-center gap-2 hover:text-gray-900 transition-colors"
+            className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           >
             <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -387,7 +387,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
         {collapsed ? null : !connected ? (
           /* Not connected state */
           <div>
-            <p className="text-sm text-gray-500 mb-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               Connect your meeting recorder to automatically import transcripts and summaries.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -404,7 +404,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                       setConnectError(null);
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors text-sm font-medium text-gray-700"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
                 >
                   <span>{p.icon}</span>
                   Connect {p.name}
@@ -428,7 +428,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && hasMore && !deepSearchDone && !deepSearching) handleDeepSearch(); }}
                   placeholder="Search by title, attendee, or email domain…"
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 {searchQuery && (
                   <button
@@ -498,12 +498,12 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                         className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left cursor-pointer disabled:cursor-wait ${
                           (multiSelectMode ? isChecked : selectedCallId === call.id)
                             ? "border-purple-400 bg-purple-50 ring-1 ring-purple-200"
-                            : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
+                            : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-300 hover:bg-purple-50/50 hover:shadow-sm"
                         }`}
                       >
                         {multiSelectMode && (
                           <div className="flex-shrink-0 mr-2.5">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? "bg-purple-600 border-purple-600" : "border-gray-300 bg-white"}`}>
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? "bg-purple-600 border-purple-600" : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"}`}>
                               {isChecked && (
                                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -520,7 +520,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                               <span className="text-xs text-gray-400">· {call.participants.length} people</span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-900 truncate font-medium">{call.title}</p>
+                          <p className="text-sm text-gray-900 dark:text-gray-100 truncate font-medium">{call.title}</p>
                           {match && (
                             <div className="flex items-center gap-2 mt-1">
                               {match.recap && (
@@ -671,11 +671,11 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
       {/* Connect modal */}
       {showConnectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
               Connect {providers.find((p) => p.slug === showConnectModal)?.name}
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Paste your API key to connect.{" "}
               {showConnectModal === "granola" && (
                 <a
@@ -705,7 +705,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
               onChange={(e) => setApiKeyInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleConnect(); }}
               placeholder="Paste your API key..."
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 font-mono"
+              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 font-mono"
               autoFocus
             />
 
@@ -716,7 +716,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => { setShowConnectModal(null); setApiKeyInput(""); setConnectError(null); }}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

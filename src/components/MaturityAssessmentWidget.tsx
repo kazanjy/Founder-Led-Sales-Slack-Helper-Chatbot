@@ -121,13 +121,13 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
 
           {/* Pulsing dot indicator */}
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white dark:bg-gray-800 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white dark:bg-gray-800"></span>
           </span>
         </button>
 
         {isExpanded && (
-          <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+          <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
             {/* Gradient header */}
             <div
               className="px-4 py-3"
@@ -144,11 +144,11 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
             </div>
 
             <div className="p-4">
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
                 Answer questions about your go-to-market strategy and get <span className="font-semibold text-purple-600">personalized recommendations</span> from Mikey to accelerate your sales.
               </p>
 
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
                 <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -269,7 +269,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
 
       {/* Completed state dropdown */}
       {isExpanded && progress.status === "completed" && (
-        <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+        <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
           <div className="p-4">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -278,8 +278,8 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">GTM Maturity Assessment</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">GTM Maturity Assessment</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Completed {progress.latestAssessment ? formatCompletedDate(progress.latestAssessment.completedAt) : ""}
                 </p>
               </div>
@@ -302,7 +302,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                   setIsExpanded(false);
                   onStartAssessment("update");
                 }}
-                className="flex items-center gap-3 w-full py-2.5 px-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 font-medium text-sm transition-all"
+                className="flex items-center gap-3 w-full py-2.5 px-3 bg-gray-50 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 font-medium text-sm transition-all"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -324,15 +324,15 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               Your business evolves! Update your answers anytime to get fresh recommendations based on where you are now.
             </p>
 
-            <div className="pt-3 border-t border-gray-200">
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
               <a
                 href="/maturity-history"
                 onClick={() => setIsExpanded(false)}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-green-600 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -345,15 +345,15 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
       )}
 
       {isExpanded && progress.status === "in_progress" && (
-        <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+        <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
           <div className="p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">GTM Maturity Assessment</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">GTM Maturity Assessment</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               You&apos;ve answered {progress.answeredCount} of {progress.totalQuestions} questions. Continue to get your recommendations.
             </p>
 
             <div className="mb-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                 <span>Progress</span>
                 <span>{progress.progressPercent}%</span>
               </div>
@@ -388,7 +388,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
 
       {/* Update in progress state dropdown */}
       {isExpanded && progress.status === "update_in_progress" && (
-        <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+        <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50">
           <div className="p-4">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -397,15 +397,15 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Updating Assessment</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Updating Assessment</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Question {(progress.updateProgress?.currentIndex ?? 0) + 1} of {progress.totalQuestions}
                 </p>
               </div>
             </div>
 
             <div className="mb-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                 <span>Review Progress</span>
                 <span>{progress.updateProgress?.progressPercent ?? 0}%</span>
               </div>
@@ -435,17 +435,17 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               Continue in bulk edit mode
             </a>
 
-            <p className="text-xs text-gray-500 text-center mb-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3">
               You can also submit what you have so far
             </p>
 
             {/* Links to previous assessment and history */}
-            <div className="pt-3 border-t border-gray-200 space-y-2">
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
               {progress.latestAssessment?.conversationId && (
                 <a
                   href={`/chat/${progress.latestAssessment.conversationId}`}
                   onClick={() => setIsExpanded(false)}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                  className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-purple-600 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -459,7 +459,7 @@ export function MaturityAssessmentWidget({ onStartAssessment }: MaturityAssessme
               <a
                 href="/maturity-history"
                 onClick={() => setIsExpanded(false)}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-purple-600 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

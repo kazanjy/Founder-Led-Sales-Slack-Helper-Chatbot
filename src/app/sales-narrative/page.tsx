@@ -46,7 +46,7 @@ export default function SalesNarrativePage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -551,7 +551,7 @@ function SalesNarrativeContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading narrative...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading narrative...</p>
           </div>
         </div>
       </div>
@@ -569,8 +569,8 @@ function SalesNarrativeContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">📝</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Narrative Yet</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Narrative Yet</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Answer the sales narrative questionnaire to generate your compelling sales narrative and value propositions.
             </p>
             <Link
@@ -606,13 +606,13 @@ function SalesNarrativeContent() {
         messages={GENERATE_MESSAGES}
       />
       {/* Header */}
-      {!showOverlay && <div className="bg-white border-b border-gray-200">
+      {!showOverlay && <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -622,8 +622,8 @@ function SalesNarrativeContent() {
               <div className="flex-1 min-w-0">
                 {isStreamingMode && !version ? (
                   <>
-                    <h1 className="text-xl font-semibold text-gray-900">Sales Narrative</h1>
-                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Sales Narrative</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                       <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -637,13 +637,13 @@ function SalesNarrativeContent() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Sales Narrative"
                     rows={1}
-                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
+                    className="text-xl font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
                     style={{ minHeight: "2.5rem" }}
                   />
                 ) : (
-                  <h1 className="text-xl font-semibold text-gray-900">{version?.title || "Sales Narrative"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version?.title || "Sales Narrative"}</h1>
                 )}
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
                   {version?.user && <span className="text-sm text-gray-400 ml-2">by {version.user.name || version.user.slackUserName || version.user.email}</span>}
                 </p>
@@ -664,7 +664,7 @@ function SalesNarrativeContent() {
                   <button
                     onClick={handleCancelEditing}
                     disabled={saving}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -732,7 +732,7 @@ function SalesNarrativeContent() {
                   {version?.userId === currentUserId && (
                     <button
                       onClick={handleStartEditing}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -742,7 +742,7 @@ function SalesNarrativeContent() {
                   )}
                   <Link
                     href="/sales-narrative/history"
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -752,7 +752,7 @@ function SalesNarrativeContent() {
                   {version?.userId === currentUserId && (
                     <button
                       onClick={handleClone}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -850,16 +850,16 @@ function SalesNarrativeContent() {
 
         {/* Sources Used */}
         {version && (version.sourceUrls?.length > 0 || version.sourcePdfNames?.length > 0) && (
-          <div className="mb-6 bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
               Sources Used
             </h3>
             {version.sourceUrls?.length > 0 && (
               <div className="mb-2">
-                <p className="text-xs font-medium text-gray-500 mb-1">Website Pages</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Website Pages</p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
                   {[...version.sourceUrls].sort((a, b) => {
                     try {
@@ -888,10 +888,10 @@ function SalesNarrativeContent() {
             )}
             {version.sourcePdfNames?.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1">PDF Files</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">PDF Files</p>
                 <ul className="space-y-1">
                   {version.sourcePdfNames.map((name, i) => (
-                    <li key={i} className="text-sm text-gray-700 flex items-center gap-1.5">
+                    <li key={i} className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
@@ -908,13 +908,13 @@ function SalesNarrativeContent() {
         {/* Left: Main content */}
         <div className="flex-1 min-w-0">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
+        <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => switchTab("qa")}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "qa"
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             Q&A Inputs
@@ -924,7 +924,7 @@ function SalesNarrativeContent() {
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "narrative"
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             Full Narrative
@@ -935,7 +935,7 @@ function SalesNarrativeContent() {
               className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                 activeTab === "1000w"
                   ? "border-purple-600 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               1000 Words
@@ -946,7 +946,7 @@ function SalesNarrativeContent() {
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "100w"
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             100 Words
@@ -956,7 +956,7 @@ function SalesNarrativeContent() {
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "50w"
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             50 Words
@@ -966,7 +966,7 @@ function SalesNarrativeContent() {
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === "25w"
                 ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             25 Words
@@ -975,10 +975,10 @@ function SalesNarrativeContent() {
 
         {/* Content */}
         {activeTab === "qa" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900">Questionnaire Answers</h2>
-              <p className="text-sm text-gray-500">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">Questionnaire Answers</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 The inputs used to generate this narrative
               </p>
             </div>
@@ -996,18 +996,18 @@ function SalesNarrativeContent() {
                     Business: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700" },
                   };
 
-                  const colors = categoryColors[category] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700" };
+                  const colors = categoryColors[category] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
 
                   return (
                     <div key={category} className={`rounded-lg border ${colors.border} ${colors.bg} p-4`}>
                       <h3 className={`font-semibold ${colors.text} mb-3`}>{category}</h3>
                       <div className="space-y-4">
                         {answers.map((qa) => (
-                          <div key={qa.questionId} className="bg-white rounded-lg p-4 border border-gray-100">
-                            <p className="text-sm font-medium text-gray-700 mb-2">
+                          <div key={qa.questionId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                               Q{qa.globalOrder}: {qa.question}
                             </p>
-                            <p className="text-gray-800 whitespace-pre-wrap">
+                            <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
                               {qa.answer || <span className="text-gray-400 italic">Not answered</span>}
                             </p>
                           </div>
@@ -1017,25 +1017,25 @@ function SalesNarrativeContent() {
                   );
                 })
               ) : (
-                <p className="text-gray-500 text-center py-8">No questionnaire data available for this version.</p>
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">No questionnaire data available for this version.</p>
               )}
             </div>
           </div>
         )}
 
         {activeTab === "narrative" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="font-semibold text-gray-900">Full Sales Narrative</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Full Sales Narrative</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getWordCount(currentNarrative)} words - Complete version
                 </p>
               </div>
               {!isEditing && (
                 <button
                   onClick={() => handleCopy(currentNarrative, "narrative")}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "narrative" ? (
                     <>
@@ -1060,7 +1060,7 @@ function SalesNarrativeContent() {
                 <textarea
                   value={editedNarrative}
                   onChange={(e) => setEditedNarrative(e.target.value)}
-                  className="w-full min-h-[400px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 font-normal"
+                  className="w-full min-h-[400px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100 font-normal"
                 />
               ) : (
                 <div className="prose prose-gray max-w-none">
@@ -1072,18 +1072,18 @@ function SalesNarrativeContent() {
         )}
 
         {activeTab === "1000w" && current1000w && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="font-semibold text-gray-900">1000-Word Narrative</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">1000-Word Narrative</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getWordCount(current1000w)} words - Condensed version
                 </p>
               </div>
               {!isEditing && (
                 <button
                   onClick={() => handleCopy(current1000w, "1000w")}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "1000w" ? (
                     <>
@@ -1108,7 +1108,7 @@ function SalesNarrativeContent() {
                 <textarea
                   value={edited1000w}
                   onChange={(e) => setEdited1000w(e.target.value)}
-                  className="w-full min-h-[300px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 font-normal"
+                  className="w-full min-h-[300px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100 font-normal"
                 />
               ) : (
                 <div className="prose prose-gray max-w-none">
@@ -1120,18 +1120,18 @@ function SalesNarrativeContent() {
         )}
 
         {activeTab === "100w" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="font-semibold text-gray-900">100-Word Description</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">100-Word Description</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getWordCount(current100w)} words - Product marketing summary
                 </p>
               </div>
               {!isEditing && (
                 <button
                   onClick={() => handleCopy(current100w, "100w")}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "100w" ? (
                     <>
@@ -1156,7 +1156,7 @@ function SalesNarrativeContent() {
                 <textarea
                   value={edited100w}
                   onChange={(e) => setEdited100w(e.target.value)}
-                  className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                  className="w-full min-h-[150px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
                 <div className="prose prose-lg prose-gray max-w-none">
@@ -1168,18 +1168,18 @@ function SalesNarrativeContent() {
         )}
 
         {activeTab === "50w" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="font-semibold text-gray-900">50-Word Elevator Pitch</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">50-Word Elevator Pitch</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getWordCount(current50w)} words - ~20 second spoken pitch
                 </p>
               </div>
               {!isEditing && (
                 <button
                   onClick={() => handleCopy(current50w, "50w")}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "50w" ? (
                     <>
@@ -1204,7 +1204,7 @@ function SalesNarrativeContent() {
                 <textarea
                   value={edited50w}
                   onChange={(e) => setEdited50w(e.target.value)}
-                  className="w-full min-h-[100px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                  className="w-full min-h-[100px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
                 <div className="prose prose-xl prose-gray max-w-none">
@@ -1216,18 +1216,18 @@ function SalesNarrativeContent() {
         )}
 
         {activeTab === "25w" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="font-semibold text-gray-900">25-Word Tagline</h2>
-                <p className="text-sm text-gray-500">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">25-Word Tagline</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {getWordCount(current25w)} words - One-liner
                 </p>
               </div>
               {!isEditing && (
                 <button
                   onClick={() => handleCopy(current25w, "25w")}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   {copiedField === "25w" ? (
                     <>
@@ -1252,7 +1252,7 @@ function SalesNarrativeContent() {
                 <textarea
                   value={edited25w}
                   onChange={(e) => setEdited25w(e.target.value)}
-                  className="w-full min-h-[80px] p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                  className="w-full min-h-[80px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
                 <div className="prose prose-2xl prose-gray max-w-none font-medium">
@@ -1284,7 +1284,7 @@ function SalesNarrativeContent() {
                   )}
                 </button>
               </div>
-              <p className="text-sm text-gray-700">{current100w}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200">{current100w}</p>
             </div>
 
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
@@ -1305,7 +1305,7 @@ function SalesNarrativeContent() {
                   )}
                 </button>
               </div>
-              <p className="text-sm text-gray-700">{current50w}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200">{current50w}</p>
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
@@ -1326,7 +1326,7 @@ function SalesNarrativeContent() {
                   )}
                 </button>
               </div>
-              <p className="text-sm text-gray-700">{current25w}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200">{current25w}</p>
             </div>
           </div>
         )}
@@ -1339,9 +1339,9 @@ function SalesNarrativeContent() {
             <div className="sticky top-8 space-y-4">
               {/* Iterate widget */}
               {version && (
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Iterate on Narrative</h3>
-                  <p className="text-xs text-gray-500 mb-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Iterate on Narrative</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                     Describe what you&apos;d like to change and we&apos;ll create a new version.
                   </p>
                   {iterationPrompt && (
@@ -1356,7 +1356,7 @@ function SalesNarrativeContent() {
                     disabled={iterating}
                     placeholder='e.g. "Make the problem statement more urgent" or "Add more about our competitive advantage"'
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y disabled:opacity-50"
                   />
                   <button
                     onClick={handleIterate}
@@ -1421,7 +1421,7 @@ function SalesNarrativeContent() {
                     <Link
                       href="/discovery-questions"
                       target="_blank"
-                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Done! View Questions
                     </Link>
@@ -1435,7 +1435,7 @@ function SalesNarrativeContent() {
                     <Link
                       href="/discovery-questions"
                       target="_blank"
-                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Create Questions
                     </Link>

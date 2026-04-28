@@ -237,7 +237,7 @@ export function ShareChatModal({
             </button>
           </div>
           {conversationTitle && (
-            <p className="text-sm text-gray-500 mt-1 truncate">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">
               {conversationTitle}
             </p>
           )}
@@ -297,7 +297,7 @@ export function ShareChatModal({
                                   {teammate.name}
                                 </div>
                               )}
-                              <div className="text-sm text-gray-500 truncate">
+                              <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                 {teammate.email}
                               </div>
                             </div>
@@ -329,7 +329,7 @@ export function ShareChatModal({
                                   {recipient.name}
                                 </div>
                               )}
-                              <div className="text-sm text-gray-500 truncate">
+                              <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                 {recipient.email}
                               </div>
                             </div>
@@ -365,7 +365,7 @@ export function ShareChatModal({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Share with entire account</p>
-                <p className="text-xs text-gray-500">All team members can view this chat</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">All team members can view this chat</p>
               </div>
               <button
                 onClick={async () => {
@@ -383,7 +383,7 @@ export function ShareChatModal({
                   sharedWithAccount ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"
                 } ${isPrivate ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-800 transition-transform ${
                   sharedWithAccount ? "translate-x-6" : "translate-x-1"
                 }`} />
               </button>
@@ -392,7 +392,7 @@ export function ShareChatModal({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Private</p>
-                <p className="text-xs text-gray-500">Only you can see this chat (not visible to account members)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Only you can see this chat (not visible to account members)</p>
               </div>
               <button
                 onClick={async () => {
@@ -409,7 +409,7 @@ export function ShareChatModal({
                   isPrivate ? "bg-red-500" : "bg-gray-300 dark:bg-gray-600"
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-800 transition-transform ${
                   isPrivate ? "translate-x-6" : "translate-x-1"
                 }`} />
               </button>
@@ -418,7 +418,7 @@ export function ShareChatModal({
 
           {/* Current shares */}
           {loading ? (
-            <div className="mt-4 text-center text-gray-500">Loading...</div>
+            <div className="mt-4 text-center text-gray-500 dark:text-gray-400">Loading...</div>
           ) : shares.length > 0 ? (
             <div className="mt-4">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -438,17 +438,17 @@ export function ShareChatModal({
                           className="w-8 h-8 rounded-full"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
                           {share.recipientName?.[0] || share.email[0].toUpperCase()}
                         </div>
                       )}
                       <div className="min-w-0">
                         {share.recipientName && (
-                          <div className="text-sm font-medium text-gray-900 truncate">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                             {share.recipientName}
                           </div>
                         )}
-                        <div className="text-sm text-gray-500 truncate">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                           {share.email}
                         </div>
                         {!share.hasAccount && (
@@ -472,7 +472,7 @@ export function ShareChatModal({
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-gray-500 text-center">
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center">
               This chat isn&apos;t shared with anyone yet
             </p>
           )}
@@ -480,7 +480,7 @@ export function ShareChatModal({
 
         {/* Footer */}
         <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800 rounded-b-lg border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Account members can view chats via direct URL. Shared chats are read-only — recipients can clone to continue.
           </p>
         </div>

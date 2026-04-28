@@ -240,7 +240,7 @@ function buildHeading(level: 2 | 3, fullMarkdown: string) {
     const id = `analysis-${slugify(text || "section")}`;
     return (
       <Tag id={id} className="scroll-mt-20 not-prose flex items-baseline gap-2 mt-6 mb-2 first:mt-0">
-        <span className={level === 2 ? "text-lg font-bold text-gray-900" : "text-base font-semibold text-gray-900"}>
+        <span className={level === 2 ? "text-lg font-bold text-gray-900 dark:text-gray-100" : "text-base font-semibold text-gray-900 dark:text-gray-100"}>
           {children}
         </span>
         <CopyLinkButton id={id} label={text || "this section"} />
@@ -1014,7 +1014,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       <div className="min-h-screen bg-gray-50">
         <SalesNavBar />
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
-          <p className="text-gray-500">Deal not found.</p>
+          <p className="text-gray-500 dark:text-gray-400">Deal not found.</p>
           <Link href="/deals" className="text-purple-600 hover:underline mt-2 inline-block">← Back to Deals</Link>
         </div>
       </div>
@@ -1051,7 +1051,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       <SalesNavBar />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/deals" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 flex-shrink-0">
+          <Link href="/deals" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center gap-1 flex-shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             All Deals
           </Link>
@@ -1078,10 +1078,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     if (e.key === "Enter" && matches[0]) { router.push(`/deals/${matches[0].id}`); }
                   }}
                   placeholder="Jump to another deal..."
-                  className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full pl-8 pr-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 {dealSearchOpen && matches.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-80 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-80 overflow-y-auto">
                     {matches.map((d) => (
                       <button
                         key={d.id}
@@ -1089,14 +1089,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         onClick={() => { setDealSearchOpen(false); setDealSearchQuery(""); router.push(`/deals/${d.id}`); }}
                         className="w-full text-left px-3 py-2 hover:bg-purple-50 flex flex-col gap-0.5 border-b border-gray-100 last:border-b-0"
                       >
-                        <span className="text-xs font-medium text-gray-900 truncate">{d.name}</span>
-                        <span className="text-[11px] text-gray-500 truncate">{d.companyName}{d.stage ? ` · ${d.stage}` : ""}</span>
+                        <span className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{d.name}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{d.companyName}{d.stage ? ` · ${d.stage}` : ""}</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {dealSearchOpen && q && matches.length === 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 px-3 py-2 text-xs text-gray-500">
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
                     No deals match &ldquo;{dealSearchQuery}&rdquo;
                   </div>
                 )}
@@ -1113,7 +1113,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Header */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
               {editingMeta ? (
@@ -1122,14 +1122,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     type="text"
                     value={metaName}
                     onChange={(e) => setMetaName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-lg font-semibold focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-lg font-semibold focus:ring-2 focus:ring-purple-500"
                     placeholder="Deal name"
                   />
                   <input
                     type="text"
                     value={metaCompanyName}
                     onChange={(e) => setMetaCompanyName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     placeholder="Company name"
                   />
                   <div className="flex gap-2">
@@ -1142,7 +1142,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     >
                       Save
                     </button>
-                    <button onClick={() => setEditingMeta(false)} className="px-3 py-1.5 text-gray-600 text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button onClick={() => setEditingMeta(false)} className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
                   </div>
                 </div>
               ) : (
@@ -1150,8 +1150,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   onClick={() => { setMetaName(deal.name); setMetaCompanyName(deal.companyName); setEditingMeta(true); }}
                   className="text-left group/title"
                 >
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 group-hover/title:text-purple-700 transition-colors">{deal.name}</h1>
-                  <p className="text-sm text-gray-500 mt-0.5">{deal.companyName}</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 group-hover/title:text-purple-700 transition-colors">{deal.name}</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{deal.companyName}</p>
                 </button>
               )}
             </div>
@@ -1184,7 +1184,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               </button>
               <button
                 onClick={startDealChat}
-                className="px-3 py-1.5 bg-white border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
               >
                 🌊 Deal Chat
               </button>
@@ -1208,7 +1208,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           const hasSummary = Boolean(summaryBody);
           const analysisMarkdownComponents = buildAnalysisMarkdownComponents(deal.lastAnalysis);
           return (
-            <div ref={analysisCardRef} className="bg-white border border-purple-200 rounded-xl mb-5 scroll-mt-4">
+            <div ref={analysisCardRef} className="bg-white dark:bg-gray-800 border border-purple-200 rounded-xl mb-5 scroll-mt-4">
               <div
                 className={`flex items-center justify-between px-5 py-3 ${hasSummary ? "cursor-pointer hover:bg-purple-50/60 transition-colors rounded-t-xl" : ""}`}
                 {...(hasSummary ? {
@@ -1243,7 +1243,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 />
               </div>
               <div className="px-5 pb-5 border-t border-purple-100">
-                <div className="prose prose-sm max-w-none text-gray-700 mt-3">
+                <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200 mt-3">
                   {showAnalysis || !hasSummary ? (
                     <ReactMarkdown components={analysisMarkdownComponents}>{deal.lastAnalysis}</ReactMarkdown>
                   ) : (
@@ -1268,7 +1268,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                   <button
                     onClick={toggleAnalysisHistory}
-                    className="text-xs text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium flex items-center gap-1"
                   >
                     {showHistory ? "Hide history" : "View history"}
                     {analysisHistory && analysisHistory.length > 1 && (
@@ -1302,15 +1302,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           minute: "2-digit",
                         });
                         return (
-                          <div key={item.id} className="border border-gray-200 rounded-lg">
+                          <div key={item.id} className="border border-gray-200 dark:border-gray-700 rounded-lg">
                             <button
                               onClick={() => setExpandedHistoryId(isOpen ? null : item.id)}
-                              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50"
+                              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700"
                             >
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="text-gray-700 font-medium">{when}</span>
+                                <span className="text-gray-700 dark:text-gray-200 font-medium">{when}</span>
                                 {item.stage && (
-                                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:text-gray-300">
                                     Stage: {item.stage}
                                   </span>
                                 )}
@@ -1324,7 +1324,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </button>
                             {isOpen && (
                               <div className="px-3 pb-3 border-t border-gray-100">
-                                <div className="prose prose-sm max-w-none text-gray-700 mt-2">
+                                <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200 mt-2">
                                   <ReactMarkdown>{item.analysis}</ReactMarkdown>
                                 </div>
                               </div>
@@ -1343,9 +1343,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
           {/* Participants sidebar */}
           <div>
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Participants ({sortedParticipants.length})</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Participants ({sortedParticipants.length})</h3>
                 <div className="flex items-center gap-2">
                   {sortedParticipants.some((p) => p.email && !p.title) && (
                     <button
@@ -1372,15 +1372,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
               {showAddParticipant && (
                 <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-lg space-y-2">
-                  <input type="text" value={newParticipantName} onChange={(e) => setNewParticipantName(e.target.value)} placeholder="Name" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" autoFocus />
-                  <input type="text" value={newParticipantTitle} onChange={(e) => setNewParticipantTitle(e.target.value)} placeholder="Title (optional)" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
-                  <input type="email" value={newParticipantEmail} onChange={(e) => setNewParticipantEmail(e.target.value)} placeholder="Email (optional)" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" />
-                  <select value={newParticipantRole} onChange={(e) => setNewParticipantRole(e.target.value)} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                  <input type="text" value={newParticipantName} onChange={(e) => setNewParticipantName(e.target.value)} placeholder="Name" className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm" autoFocus />
+                  <input type="text" value={newParticipantTitle} onChange={(e) => setNewParticipantTitle(e.target.value)} placeholder="Title (optional)" className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm" />
+                  <input type="email" value={newParticipantEmail} onChange={(e) => setNewParticipantEmail(e.target.value)} placeholder="Email (optional)" className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm" />
+                  <select value={newParticipantRole} onChange={(e) => setNewParticipantRole(e.target.value)} className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm">
                     {PARTICIPANT_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                   <div className="flex gap-2">
                     <button onClick={addParticipant} disabled={!newParticipantName.trim()} className="px-2.5 py-1 bg-purple-600 text-white rounded text-xs font-medium disabled:opacity-50">Add</button>
-                    <button onClick={() => setShowAddParticipant(false)} className="px-2.5 py-1 text-gray-600 text-xs hover:bg-gray-100 rounded">Cancel</button>
+                    <button onClick={() => setShowAddParticipant(false)} className="px-2.5 py-1 text-gray-600 dark:text-gray-300 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 rounded">Cancel</button>
                   </div>
                 </div>
               )}
@@ -1393,15 +1393,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 {sortedParticipants.map((p) => {
                   const roleInfo = getRoleInfo(p.role);
                   return (
-                    <div key={p.id} className="border border-gray-200 rounded-lg p-2.5 group/p">
+                    <div key={p.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 group/p">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-sm text-gray-900 truncate">{displayName(p.name, p.email)}</span>
+                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{displayName(p.name, p.email)}</span>
                             {(() => {
                               const mentions = mentionCounts.get(p.id) || 0;
                               if (mentions === 0) return null;
-                              const intensity = mentions >= 4 ? "bg-purple-100 text-purple-700" : mentions >= 2 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600";
+                              const intensity = mentions >= 4 ? "bg-purple-100 text-purple-700" : mentions >= 2 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600 dark:text-gray-300";
                               return (
                                 <span className="relative group/badge flex-shrink-0">
                                   <span className={`text-[10px] font-medium rounded-full px-1.5 py-0.5 leading-none cursor-help ${intensity}`}>
@@ -1427,7 +1427,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 onChange={(e) => setEditTitleValue(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter") updateParticipantTitle(p.id, editTitleValue); if (e.key === "Escape") setEditingTitlePid(null); }}
                                 placeholder="Title"
-                                className="flex-1 min-w-0 px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-purple-500"
+                                className="flex-1 min-w-0 px-1.5 py-0.5 border border-gray-300 dark:border-gray-700 rounded text-xs focus:ring-1 focus:ring-purple-500"
                                 autoFocus
                               />
                               <button onClick={() => updateParticipantTitle(p.id, editTitleValue)} className="text-xs text-purple-600 font-medium">Save</button>
@@ -1439,7 +1439,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             >
                               {p.title ? (
                                 <>
-                                  <div className="text-xs text-gray-500 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate group-hover/title:text-purple-600 transition-colors">{titleCase(p.title)}{p.company ? ` @ ${titleCase(p.company)}` : ""}</div>
                                   <div
                                     role="tooltip"
                                     className="pointer-events-none absolute left-0 top-full mt-1 z-20 hidden group-hover/title:block max-w-xs w-max whitespace-normal break-words rounded-md bg-gray-900 text-white text-[11px] leading-snug px-2 py-1.5 shadow-lg"
@@ -1492,14 +1492,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           {/* Timeline + add entry */}
           <div>
             {/* Add entry input */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-5">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">New entry:</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">New entry:</span>
                 {ENTRY_TYPES.map((t) => (
                   <button
                     key={t.value}
                     onClick={() => setNewEntryType(t.value)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${newEntryType === t.value ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${newEntryType === t.value ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
                   >
                     {t.emoji} {t.label}
                   </button>
@@ -1510,7 +1510,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 value={newEntryTitle}
                 onChange={(e) => setNewEntryTitle(e.target.value)}
                 placeholder="Title (optional)"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
               />
               <div
                 onDragOver={handleDragOver}
@@ -1524,7 +1524,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   onPaste={handlePaste}
                   placeholder="Paste, drop, or type content — call transcript, email, notes, screenshots, PDFs..."
                   rows={4}
-                  className="w-full px-3 py-2 pr-3 pb-10 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
+                  className="w-full px-3 py-2 pr-3 pb-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
                 />
                 {/* Attachment CTA row — image + PDF icons, chat-style */}
                 <div className="absolute bottom-2 left-2 flex items-center gap-1">
@@ -1590,7 +1590,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       {screenshotMatched.map((p) => (
                         <span
                           key={p.id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-purple-200 text-xs text-purple-800"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border border-purple-200 text-xs text-purple-800"
                         >
                           {titleCase(p.name)}
                         </span>
@@ -1618,7 +1618,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
                               accepted
                                 ? "bg-purple-600 text-white border-purple-600 hover:bg-purple-700"
-                                : "bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-700"
+                                : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:text-purple-700"
                             }`}
                           >
                             {accepted ? "✓" : "+"} {titleCase(p.name)}
@@ -1636,7 +1636,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 value={newEntryUrl}
                 onChange={(e) => setNewEntryUrl(e.target.value)}
                 placeholder="Source URL (optional)"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 mb-2"
               />
               <div className="relative mb-2">
                 <textarea
@@ -1655,12 +1655,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500">Date:</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">Date:</label>
                   <input
                     type="date"
                     value={newEntryDate}
                     onChange={(e) => setNewEntryDate(e.target.value)}
-                    className={`px-2 py-1.5 border rounded-lg text-xs text-gray-600 focus:ring-2 focus:ring-purple-500 ${entryFromScreenshot && !newEntryDate ? "border-red-400 ring-1 ring-red-200" : "border-gray-200"}`}
+                    className={`px-2 py-1.5 border rounded-lg text-xs text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-purple-500 ${entryFromScreenshot && !newEntryDate ? "border-red-400 ring-1 ring-red-200" : "border-gray-200 dark:border-gray-700"}`}
                   />
                   {entryFromScreenshot && !newEntryDate ? (
                     <span className="text-xs text-red-500 font-medium">date required</span>
@@ -1809,7 +1809,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   <>
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold text-gray-700">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                           Timeline ({filteredEntries.length}
                           {hasFilter && deal.entries.length !== filteredEntries.length
                             ? ` of ${deal.entries.length}`
@@ -1834,7 +1834,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
                               !hasTypeFilter
                                 ? "bg-gray-900 text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                             }`}
                           >
                             All ({deal.entries.length})
@@ -1850,7 +1850,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors inline-flex items-center gap-1 ${
                                   active
                                     ? "bg-purple-600 text-white"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                                 }`}
                               >
                                 <span aria-hidden="true">{t.emoji}</span>
@@ -1871,7 +1871,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           value={timelineQuery}
                           onChange={(e) => setTimelineQuery(e.target.value)}
                           placeholder="Search timeline — title, type, or person..."
-                          className="w-full pl-8 pr-8 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                          className="w-full pl-8 pr-8 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800"
                         />
                         {timelineQuery && (
                           <button
@@ -1888,12 +1888,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       </div>
                     )}
                     {deal.entries.length === 0 ? (
-                      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center">
-                        <p className="text-sm text-gray-500">No entries yet. Add one above or import a call from your meeting recorder.</p>
+                      <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No entries yet. Add one above or import a call from your meeting recorder.</p>
                       </div>
                     ) : filteredEntries.length === 0 ? (
-                      <div className="bg-white border border-dashed border-gray-300 rounded-xl p-6 text-center">
-                        <p className="text-sm text-gray-500">
+                      <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           No entries match the current filters.{" "}
                           <button
                             onClick={() => { setTimelineTypeFilter(new Set()); setTimelineQuery(""); }}
@@ -1935,7 +1935,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                   return next;
                                 });
                               }}
-                              className="bg-white border border-gray-200 rounded-xl p-4 group/e scroll-mt-20 cursor-pointer hover:border-gray-300 transition-colors"
+                              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 group/e scroll-mt-20 cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
                             >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0 flex-1">
@@ -1964,7 +1964,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               )}
                               <span className="text-xs font-medium">{typeInfo.emoji} {typeInfo.label}</span>
                             </div>
-                            {entry.title && <div className="font-semibold text-gray-900 text-sm">{entry.title}</div>}
+                            {entry.title && <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{entry.title}</div>}
                             {(() => {
                               // Resolve linkedParticipantIds from the entry's metadata JSON.
                               let ids: string[] = [];
@@ -2118,7 +2118,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           const isShort = entry.content.length <= 200;
                           if (isShort) {
                             return (
-                              <div className="text-sm text-gray-700 whitespace-pre-wrap mt-1">
+                              <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap mt-1">
                                 {entry.content}
                               </div>
                             );
@@ -2137,7 +2137,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 {isExpanded ? "Hide content" : `Show full content (${entry.content.length.toLocaleString()} chars)`}
                               </div>
                               {isExpanded && (
-                                <div className="text-sm text-gray-700 whitespace-pre-wrap mt-2 pt-2 border-t border-gray-100">
+                                <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap mt-2 pt-2 border-t border-gray-100">
                                   {entry.content}
                                 </div>
                               )}

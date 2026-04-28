@@ -48,7 +48,7 @@ export default function FirstCallChecklistPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -490,7 +490,7 @@ function FirstCallChecklistContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading first call checklist...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading first call checklist...</p>
           </div>
         </div>
       </div>
@@ -506,8 +506,8 @@ function FirstCallChecklistContent() {
           <div className="text-center max-w-lg px-6">
             {showImport ? (
               <>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Your First Call Checklist</h1>
-                <p className="text-gray-600 mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Import Your First Call Checklist</h1>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
                   Paste your existing first call checklist or playbook below, or upload a PDF/CSV. We&apos;ll organize it into our format.
                 </p>
                 <div className="text-left space-y-4">
@@ -516,7 +516,7 @@ function FirstCallChecklistContent() {
                     onChange={(e) => setImportText(e.target.value)}
                     placeholder="Paste your first call checklist or playbook here..."
                     rows={10}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-sm"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-sm"
                     disabled={importing}
                   />
                   <div className="flex items-center gap-3">
@@ -539,7 +539,7 @@ function FirstCallChecklistContent() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={importing}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium disabled:opacity-50"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -560,7 +560,7 @@ function FirstCallChecklistContent() {
                   </div>
                   <button
                     onClick={() => { setShowImport(false); setImportText(""); }}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     disabled={importing}
                   >
                     Back
@@ -570,8 +570,8 @@ function FirstCallChecklistContent() {
             ) : (
               <>
                 <div className="text-6xl mb-4">📋</div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">First Call Checklist</h1>
-                <p className="text-gray-600 mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">First Call Checklist</h1>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
                   {hasDiscoveryQuestions
                     ? "Generate a checklist from your discovery questions, or import your own."
                     : "Import your existing first call checklist, or create discovery questions first to auto-generate one."}
@@ -604,7 +604,7 @@ function FirstCallChecklistContent() {
                   <button
                     onClick={() => setShowImport(true)}
                     disabled={generating}
-                    className={`inline-flex items-center gap-2 px-6 py-3 ${hasDiscoveryQuestions ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg"} rounded-lg transition-all font-medium disabled:opacity-50 w-full justify-center`}
+                    className={`inline-flex items-center gap-2 px-6 py-3 ${hasDiscoveryQuestions ? "border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg"} rounded-lg transition-all font-medium disabled:opacity-50 w-full justify-center`}
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -614,7 +614,7 @@ function FirstCallChecklistContent() {
                   {!hasDiscoveryQuestions && (
                     <Link
                       href="/discovery-questions"
-                      className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium w-full justify-center"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium w-full justify-center"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -651,13 +651,13 @@ function FirstCallChecklistContent() {
         ]}
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -671,13 +671,13 @@ function FirstCallChecklistContent() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="First Call Checklist"
                     rows={1}
-                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
+                    className="text-xl font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
                     style={{ minHeight: "2.5rem" }}
                   />
                 ) : (
-                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "First Call Checklist"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version.title || "First Call Checklist"}</h1>
                 )}
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
                     <> · Edited {formatDate(version.updatedAt)}</>
@@ -692,7 +692,7 @@ function FirstCallChecklistContent() {
                   <button
                     onClick={handleCancelEditing}
                     disabled={saving}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -727,7 +727,7 @@ function FirstCallChecklistContent() {
                   />
                   <button
                     onClick={handleCopy}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     {copied ? (
                       <>
@@ -754,7 +754,7 @@ function FirstCallChecklistContent() {
                   {version?.userId === currentUserId && (
                   <button
                     onClick={handleStartEditing}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -764,7 +764,7 @@ function FirstCallChecklistContent() {
                   )}
                   <Link
                     href="/first-call-checklist/history"
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -774,7 +774,7 @@ function FirstCallChecklistContent() {
                   {version?.userId === currentUserId && (
                   <button
                     onClick={handleClone}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -853,7 +853,7 @@ function FirstCallChecklistContent() {
             <p className="text-sm text-purple-900">&ldquo;{iterationPrompt}&rdquo;</p>
           </div>
         )}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="p-6">
             {isEditing ? (
               <RichTextEditor
@@ -871,14 +871,14 @@ function FirstCallChecklistContent() {
 
         {/* Source Info - only show when not editing */}
         {!isEditing && version.discoveryQuestionsVersion && (
-          <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
               Generated From
             </h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-800 font-medium">Discovery Questions</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-gray-800 dark:text-gray-100 font-medium">Discovery Questions</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Created {formatDate(version.discoveryQuestionsVersion.createdAt)}
                 </p>
               </div>
@@ -898,14 +898,14 @@ function FirstCallChecklistContent() {
         {!isEditing && version && (
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-8">
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                   <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   Iterate
                 </h3>
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                   Describe what to change and we&apos;ll create an updated version.
                 </p>
                 <textarea
@@ -914,7 +914,7 @@ function FirstCallChecklistContent() {
                   placeholder="e.g., Add a section on pricing discovery, make the checklist shorter..."
                   rows={4}
                   disabled={iterating}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                 />
                 <button
                   onClick={handleIterate}

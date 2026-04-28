@@ -247,7 +247,7 @@ User's input: ${userMessage}`;
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
           <div className="flex gap-1">
             <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
             <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
@@ -260,15 +260,15 @@ User's input: ${userMessage}`;
   }
 
   return (
-    <div className="h-screen flex bg-white overflow-hidden">
+    <div className="h-screen flex bg-white dark:bg-gray-800 overflow-hidden">
       {/* Left Panel - Variables List */}
-      <div className="w-96 bg-gray-50 border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
+      <div className="w-96 bg-gray-50 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen flex-shrink-0">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => router.push("/chat")}
-              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
               title="Back to Chat"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -276,16 +276,16 @@ User's input: ${userMessage}`;
               </svg>
             </button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">GTM Variables</h1>
-              <p className="text-sm text-gray-500">Configure your sales context</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">GTM Variables</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Configure your sales context</p>
             </div>
           </div>
 
           {/* Progress indicator */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Setup Progress</span>
-              <span className="text-sm text-gray-500">{stats.completed}/{stats.total}</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Setup Progress</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{stats.completed}/{stats.total}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
@@ -294,7 +294,7 @@ User's input: ${userMessage}`;
               />
             </div>
             {stats.remaining > 0 && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 {stats.remaining} variable{stats.remaining !== 1 ? "s" : ""} remaining
               </p>
             )}
@@ -307,29 +307,29 @@ User's input: ${userMessage}`;
             <button
               key={variable.id}
               onClick={() => handleSelectVariable(variable)}
-              className={`w-full p-4 text-left border-b border-gray-200 transition-colors ${
+              className={`w-full p-4 text-left border-b border-gray-200 dark:border-gray-700 transition-colors ${
                 selectedVariable?.id === variable.id
-                  ? "bg-white border-l-4 border-l-blue-600"
-                  : "hover:bg-gray-100"
+                  ? "bg-white dark:bg-gray-800 border-l-4 border-l-blue-600"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">{variable.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{variable.name}</span>
                     {variable.value && variable.value.trim() !== "" ? (
                       <span className="text-green-600 text-xs">✓</span>
                     ) : (
                       <span className="text-orange-500 text-xs">○</span>
                     )}
                   </div>
-                  <code className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                  <code className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
                     {`{{${variable.mergeField}}}`}
                   </code>
                 </div>
               </div>
               {variable.value && (
-                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
                   {variable.value}
                 </p>
               )}
@@ -338,10 +338,10 @@ User's input: ${userMessage}`;
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={() => router.push("/chat")}
-            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            className="w-full py-2 px-4 bg-gray-200 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
           >
             Back to Chat
           </button>
@@ -353,15 +353,15 @@ User's input: ${userMessage}`;
         {selectedVariable ? (
           <>
             {/* Variable Header */}
-            <div className="p-6 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
                 {selectedVariable.name}
               </h2>
-              <code className="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">
+              <code className="text-sm text-gray-500 dark:text-gray-400 bg-gray-200 px-2 py-1 rounded">
                 {`{{${selectedVariable.mergeField}}}`}
               </code>
               {selectedVariable.description && (
-                <p className="text-gray-600 mt-3">{selectedVariable.description}</p>
+                <p className="text-gray-600 dark:text-gray-300 mt-3">{selectedVariable.description}</p>
               )}
             </div>
 
@@ -370,14 +370,14 @@ User's input: ${userMessage}`;
               {/* Left: Value Editor */}
               <div className="w-1/2 flex flex-col p-6 overflow-y-auto">
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Value
                   </label>
                   <textarea
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     placeholder={`Enter your ${selectedVariable.name.toLowerCase()}...`}
-                    className="w-full h-48 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[15px]"
+                    className="w-full h-48 p-4 border border-gray-300 dark:border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[15px]"
                   />
                 </div>
 
@@ -402,13 +402,13 @@ User's input: ${userMessage}`;
 
                 {/* History Section */}
                 {selectedVariable.history.length > 0 && (
-                  <div className="mt-auto pt-6 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">History</h3>
+                  <div className="mt-auto pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">History</h3>
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {selectedVariable.history.map((h) => (
-                        <div key={h.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div key={h.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
                               {formatDate(h.changedAt)}
                             </span>
                             <button
@@ -418,7 +418,7 @@ User's input: ${userMessage}`;
                               Restore
                             </button>
                           </div>
-                          <p className="text-sm text-gray-600 line-clamp-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
                             {h.previousValue}
                           </p>
                         </div>
@@ -429,12 +429,12 @@ User's input: ${userMessage}`;
               </div>
 
               {/* Right: AI Assist */}
-              <div className="w-1/2 border-l border-gray-200 flex flex-col bg-gray-50">
-                <div className="p-4 border-b border-gray-200 bg-white">
-                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <span>🤖</span> AI Assist
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Get help defining your {selectedVariable.name.toLowerCase()}
                   </p>
                 </div>
@@ -443,7 +443,7 @@ User's input: ${userMessage}`;
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {aiMessages.length === 0 ? (
                     <div className="py-4">
-                      <p className="text-gray-500 text-sm mb-4 text-center">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 text-center">
                         Need help? Start a conversation with Mikey to refine your {selectedVariable.name.toLowerCase()}.
                       </p>
                       {starterPrompts.length > 0 && (
@@ -452,10 +452,10 @@ User's input: ${userMessage}`;
                             <button
                               key={idx}
                               onClick={() => handleAiSend(sp.prompt)}
-                              className="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm"
+                              className="w-full text-left px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-sm"
                             >
-                              <span className="font-medium text-gray-900">{sp.label}</span>
-                              <p className="text-gray-500 text-xs mt-1 line-clamp-1">{sp.prompt}</p>
+                              <span className="font-medium text-gray-900 dark:text-gray-100">{sp.label}</span>
+                              <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 line-clamp-1">{sp.prompt}</p>
                             </button>
                           ))}
                         </div>
@@ -481,7 +481,7 @@ User's input: ${userMessage}`;
                           className={`max-w-[85%] rounded-lg px-4 py-2 ${
                             msg.role === "user"
                               ? "bg-blue-600 text-white"
-                              : "bg-white border border-gray-200 text-gray-900"
+                              : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100"
                           }`}
                         >
                           {msg.role === "assistant" ? (
@@ -497,7 +497,7 @@ User's input: ${userMessage}`;
                   )}
                   {aiSending && (
                     <div className="flex justify-start">
-                      <div className="bg-white border border-gray-200 rounded-lg px-4 py-2">
+                      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2">
                         <div className="flex gap-1">
                           <span className="animate-bounce" style={{ animationDelay: "0ms" }}>●</span>
                           <span className="animate-bounce" style={{ animationDelay: "150ms" }}>●</span>
@@ -510,7 +510,7 @@ User's input: ${userMessage}`;
                 </div>
 
                 {/* AI Input */}
-                <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -539,7 +539,7 @@ User's input: ${userMessage}`;
                       disabled={aiSending}
                       rows={1}
                       style={{ height: "auto" }}
-                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[44px] max-h-[150px]"
+                      className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none min-h-[44px] max-h-[150px]"
                     />
                     <button
                       type="submit"
@@ -558,10 +558,10 @@ User's input: ${userMessage}`;
           <div className="flex-1 flex items-center justify-center bg-gray-50">
             <div className="text-center">
               <div className="text-6xl mb-4">⚙️</div>
-              <h2 className="text-xl font-medium text-gray-900 mb-2">
+              <h2 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">
                 Configure Your GTM Variables
               </h2>
-              <p className="text-gray-500 max-w-md">
+              <p className="text-gray-500 dark:text-gray-400 max-w-md">
                 Select a variable from the left to start defining your sales context.
                 These values will be used to personalize your prompts.
               </p>

@@ -69,7 +69,7 @@ export default function CallReviewPage() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
           </div>
         </div>
       }
@@ -454,7 +454,7 @@ function CallReviewContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <p className="text-gray-600">Loading call review...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading call review...</p>
           </div>
         </div>
       </div>
@@ -470,9 +470,9 @@ function CallReviewContent() {
           <div className={`grid ${recentReviews.length > 0 ? "lg:grid-cols-3" : ""} gap-8`}>
             {/* Main input form */}
             <div className={recentReviews.length > 0 ? "lg:col-span-2" : ""}>
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">Discovery Call Review</h1>
-                <p className="text-gray-500 mb-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">Discovery Call Review</h1>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
                   Paste a call transcript to get an AI-powered scorecard with actionable feedback.
                 </p>
 
@@ -521,7 +521,7 @@ function CallReviewContent() {
                           ) : (
                             <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           )}
-                          <span className="text-sm text-gray-700">Discovery Questions</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-200">Discovery Questions</span>
                           {discoveryQuestionsDate && <span className="text-xs text-gray-400">{formatDate(discoveryQuestionsDate)}</span>}
                         </div>
                         <a href={discoveryQuestionsDate ? "/discovery-questions" : "/discovery-questions"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
@@ -535,7 +535,7 @@ function CallReviewContent() {
                           ) : (
                             <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           )}
-                          <span className="text-sm text-gray-700">First Call Checklist</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-200">First Call Checklist</span>
                           {firstCallChecklistDate && <span className="text-xs text-gray-400">{formatDate(firstCallChecklistDate)}</span>}
                         </div>
                         <a href={firstCallChecklistDate ? "/first-call-checklist" : "/first-call-checklist"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
@@ -549,7 +549,7 @@ function CallReviewContent() {
                           ) : (
                             <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           )}
-                          <span className="text-sm text-gray-700">Sales Narrative</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-200">Sales Narrative</span>
                           {salesNarrativeDate && <span className="text-xs text-gray-400">{formatDate(salesNarrativeDate)}</span>}
                         </div>
                         <a href={salesNarrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-700 hover:text-purple-900 font-medium underline underline-offset-2">
@@ -566,7 +566,7 @@ function CallReviewContent() {
                 <div className="space-y-4">
                   {/* ── Recording URL ────────────────────────── */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Call Recording URL <span className="text-red-400">*</span>
                     </label>
                     <input
@@ -575,7 +575,7 @@ function CallReviewContent() {
                       onChange={(e) => setRecordingUrl(e.target.value)}
                       placeholder="https://fathom.video/share/... or Gong/Chorus link"
                       disabled={analyzing}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-50"
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:bg-gray-50"
                     />
                     <div className="flex items-center gap-2 mt-1 min-h-[18px]">
                       {extracting ? (
@@ -603,7 +603,7 @@ function CallReviewContent() {
 
                   {/* ── Paste Transcript ───────────────────────── */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                       Call Transcript
                     </label>
                     <textarea
@@ -611,7 +611,7 @@ function CallReviewContent() {
                       value={transcript}
                       onChange={(e) => setTranscript(e.target.value)}
                       placeholder="Paste your full call transcript here..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono resize-y"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 min-h-[300px] text-sm font-mono resize-y"
                       disabled={analyzing}
                     />
                     <p className="mt-1 text-xs text-gray-400">
@@ -620,10 +620,10 @@ function CallReviewContent() {
 
                     {/* Vendor copy-transcript guidance */}
                     <details className="mt-3">
-                      <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700 font-medium">
+                      <summary className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 font-medium">
                         Where to find your transcript
                       </summary>
-                      <div className="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-1.5">
+                      <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-1.5">
                         {ALL_VENDORS.map((v) => (
                           <div key={v.id}>
                             <strong>{v.name}:</strong> {v.manualPasteInstructions}
@@ -637,21 +637,21 @@ function CallReviewContent() {
                   {transcript.trim() && (
                     <>
                       <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                           <input
                             type="checkbox"
                             checked={includeDiscoveryQuestions}
                             onChange={(e) => setIncludeDiscoveryQuestions(e.target.checked)}
-                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            className="rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
                           />
                           Include my Discovery Questions for comparison
                         </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                           <input
                             type="checkbox"
                             checked={includeSalesNarrative}
                             onChange={(e) => setIncludeSalesNarrative(e.target.checked)}
-                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            className="rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
                           />
                           Include my Sales Narrative for context
                         </label>
@@ -690,9 +690,9 @@ function CallReviewContent() {
             {/* Recent Reviews Sidebar */}
             {recentReviews.length > 0 && (
               <div>
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900">Recent Reviews</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Reviews</h2>
                     <Link
                       href="/call-review/history"
                       className="text-sm text-purple-600 hover:text-purple-700 font-medium"
@@ -705,9 +705,9 @@ function CallReviewContent() {
                       <Link
                         key={review.id}
                         href={`/call-review?version=${review.id}`}
-                        className="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <div className="font-medium text-gray-900 text-sm truncate">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
                           {review.title || "Discovery Call"}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -803,10 +803,10 @@ function CallReviewContent() {
         ]}
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center gap-4 mb-2">
-            <Link href="/chat" className="text-gray-500 hover:text-gray-700 flex items-center gap-1 flex-shrink-0">
+            <Link href="/chat" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 flex-shrink-0">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
@@ -828,11 +828,11 @@ function CallReviewContent() {
               }}
               onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
               placeholder="Discovery Call Review"
-              className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-1 py-0 text-xl font-semibold text-gray-900 flex-1 min-w-0 truncate rounded"
+              className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 px-1 py-0 text-xl font-semibold text-gray-900 dark:text-gray-100 flex-1 min-w-0 truncate rounded"
             />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500 pl-16">
+            <p className="text-sm text-gray-500 dark:text-gray-400 pl-16">
               {formatDate(version.createdAt)} &middot; {version.overallScore}/{version.maxScore} ({Math.round((version.overallScore / version.maxScore) * 100)}%)
             </p>
 
@@ -876,7 +876,7 @@ function CallReviewContent() {
               />
               <Link
                 href="/call-review/history"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -892,7 +892,7 @@ function CallReviewContent() {
               {version.conversationId && (
                 <Link
                   href={`/chat/${version.conversationId}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -920,7 +920,7 @@ function CallReviewContent() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between">
             <nav className="flex gap-6" aria-label="Tabs">
@@ -929,7 +929,7 @@ function CallReviewContent() {
                 className={`py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "scorecard"
                     ? "border-purple-600 text-purple-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
               >
                 Scorecard
@@ -939,7 +939,7 @@ function CallReviewContent() {
                 className={`py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "transcript"
                     ? "border-purple-600 text-purple-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
               >
                 Transcript
@@ -967,14 +967,14 @@ function CallReviewContent() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Transcript Tab */}
         {activeTab === "transcript" && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Call Transcript</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Call Transcript</h2>
             {version.transcript ? (
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed max-h-[70vh] overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200 font-mono leading-relaxed max-h-[70vh] overflow-y-auto">
                 {version.transcript}
               </pre>
             ) : (
-              <p className="text-gray-500 text-sm">Transcript not available for this review.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Transcript not available for this review.</p>
             )}
           </div>
         )}
@@ -982,17 +982,17 @@ function CallReviewContent() {
         {/* Scorecard Tab */}
         {activeTab === "scorecard" && <>
         {/* Overall Score Card */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Overall Score</h2>
-              <p className="text-sm text-gray-500">{version.scores.summary}</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Overall Score</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{version.scores.summary}</p>
             </div>
             <div className="text-right">
               <div className={`text-4xl font-bold ${getScoreColor(version.overallScore, version.maxScore)}`}>
                 {version.overallScore}/{version.maxScore}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 {Math.round((version.overallScore / version.maxScore) * 100)}%
               </div>
             </div>
@@ -1014,8 +1014,8 @@ function CallReviewContent() {
 
           {/* Talk Time Analysis */}
           {version.scores.talkTime && (
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -1037,7 +1037,7 @@ function CallReviewContent() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-4 text-xs text-gray-600 mb-3">
+              <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-300 mb-3">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
                   Rep ({version.scores.talkTime.repPercentage}%)
@@ -1051,9 +1051,9 @@ function CallReviewContent() {
               <div className="space-y-1.5 mb-3">
                 {version.scores.talkTime.participants.map((p: { name: string; role: string; percentage: number }, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="w-24 text-gray-600 truncate font-medium">{p.name}</span>
+                    <span className="w-24 text-gray-600 dark:text-gray-300 truncate font-medium">{p.name}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                      p.role === "rep" ? "bg-blue-100 text-blue-700" : p.role === "prospect" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                      p.role === "rep" ? "bg-blue-100 text-blue-700" : p.role === "prospect" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600 dark:text-gray-300"
                     }`}>
                       {p.role}
                     </span>
@@ -1063,11 +1063,11 @@ function CallReviewContent() {
                         style={{ width: `${p.percentage}%` }}
                       />
                     </div>
-                    <span className="text-gray-500 w-8 text-right">{p.percentage}%</span>
+                    <span className="text-gray-500 dark:text-gray-400 w-8 text-right">{p.percentage}%</span>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 italic">{version.scores.talkTime.assessment}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">{version.scores.talkTime.assessment}</p>
             </div>
           )}
 
@@ -1112,7 +1112,7 @@ function CallReviewContent() {
         {/* Section Scorecards */}
         <div className="space-y-4">
           {DISCOVERY_CALL_RUBRIC.sections.map((section) => {
-            const colors = sectionColors[section.key] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700" };
+            const colors = sectionColors[section.key] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
             const isExpanded = expandedSections.has(section.key);
             const sectionScore = getSectionScore(section.key);
 
@@ -1143,9 +1143,9 @@ function CallReviewContent() {
                       if (!scored) return null;
 
                       return (
-                        <div key={item.key} className="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+                        <div key={item.key} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 shadow-sm">
                           <div className="flex items-start justify-between gap-3 mb-2">
-                            <p className="text-sm text-gray-800 font-medium flex-1">{item.label}</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-100 font-medium flex-1">{item.label}</p>
                             <div className="flex items-center gap-1 flex-shrink-0">
                               {[0, 1, 2].map((s) => (
                                 <button
@@ -1154,7 +1154,7 @@ function CallReviewContent() {
                                   className={`w-7 h-7 rounded-md border text-xs font-bold transition-colors ${
                                     scored.score === s
                                       ? getScoreBgColor(s)
-                                      : "bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100"
+                                      : "bg-gray-50 text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
                                   }`}
                                   title={item.scoringGuide[String(s) as "0" | "1" | "2"]}
                                 >
@@ -1163,7 +1163,7 @@ function CallReviewContent() {
                               ))}
                             </div>
                           </div>
-                          <p className="text-xs text-gray-500 italic">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                             {scored.evidence}
                           </p>
                           {scored.overridden && (
@@ -1183,8 +1183,8 @@ function CallReviewContent() {
 
         {/* Non-triggered red flags (for transparency) */}
         {version.scores.redFlags && (
-          <div className="mt-6 bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
               Red Flag Check
             </h3>
             <div className="space-y-2">
@@ -1199,7 +1199,7 @@ function CallReviewContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
-                    <span className={result?.triggered ? "text-red-700" : "text-gray-600"}>
+                    <span className={result?.triggered ? "text-red-700" : "text-gray-600 dark:text-gray-300"}>
                       {rf.label}
                     </span>
                     {result?.note && (

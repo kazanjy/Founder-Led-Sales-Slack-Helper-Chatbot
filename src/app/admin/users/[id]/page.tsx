@@ -298,7 +298,7 @@ export default function AdminUserDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Loading user...</div>;
+    return <div className="text-gray-500 dark:text-gray-400">Loading user...</div>;
   }
 
   if (!user) {
@@ -315,11 +315,11 @@ export default function AdminUserDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0">
           <Link
             href="/admin/users"
-            className="text-gray-500 hover:text-gray-700 text-sm self-start"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm self-start"
           >
             &larr; Back to Users
           </Link>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
             {displayName || displayEmail || "Unknown User"}
           </h1>
         </div>
@@ -364,8 +364,8 @@ export default function AdminUserDetailPage() {
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Profile Card */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Profile</h2>
             <div className="flex flex-col sm:flex-row items-start gap-4">
               {user.avatarUrl ? (
                 <img
@@ -374,21 +374,21 @@ export default function AdminUserDetailPage() {
                   className="w-14 h-14 sm:w-16 sm:h-16 rounded-full"
                 />
               ) : (
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xl sm:text-2xl">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-xl sm:text-2xl">
                   {(displayName || displayEmail || "?")[0].toUpperCase()}
                 </div>
               )}
               <div className="flex-1 w-full">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm text-gray-500">Name</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Name</label>
                     {editingName ? (
                       <div className="flex items-center space-x-2 mt-1">
                         <input
                           type="text"
                           value={nameValue}
                           onChange={(e) => setNameValue(e.target.value)}
-                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                          className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm"
                           autoFocus
                         />
                         <button
@@ -403,7 +403,7 @@ export default function AdminUserDetailPage() {
                         </button>
                         <button
                           onClick={() => setEditingName(false)}
-                          className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+                          className="px-2 py-1 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800"
                         >
                           Cancel
                         </button>
@@ -424,14 +424,14 @@ export default function AdminUserDetailPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Email</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Email</label>
                     {editingEmail ? (
                       <div className="flex items-center space-x-2 mt-1">
                         <input
                           type="email"
                           value={emailValue}
                           onChange={(e) => setEmailValue(e.target.value)}
-                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                          className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm"
                           autoFocus
                         />
                         <button
@@ -446,7 +446,7 @@ export default function AdminUserDetailPage() {
                         </button>
                         <button
                           onClick={() => setEditingEmail(false)}
-                          className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+                          className="px-2 py-1 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800"
                         >
                           Cancel
                         </button>
@@ -467,11 +467,11 @@ export default function AdminUserDetailPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">User ID</label>
-                    <div className="font-mono text-xs sm:text-sm text-gray-600 break-all">{user.id}</div>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">User ID</label>
+                    <div className="font-mono text-xs sm:text-sm text-gray-600 dark:text-gray-300 break-all">{user.id}</div>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Created</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Created</label>
                     <div>{new Date(user.createdAt).toLocaleString()}</div>
                   </div>
                 </div>
@@ -480,23 +480,23 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* User Health */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Health</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">User Health</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Active Days (7d / 30d)</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Active Days (7d / 30d)</div>
                 <div className="text-lg font-semibold">{user.health.activeDays7} / {user.health.activeDays30}</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">DAU / WAU</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">DAU / WAU</div>
                 <div className="text-lg font-semibold">{Math.round(user.health.dauWau * 100)}%</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">DAU / MAU</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">DAU / MAU</div>
                 <div className="text-lg font-semibold">{Math.round(user.health.dauMau * 100)}%</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Last Active</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Active</div>
                 <div className={`text-lg font-semibold ${
                   user.health.daysSinceLastActive === 0
                     ? "text-green-600"
@@ -508,17 +508,17 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Median Session Gap</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Median Session Gap</div>
                 <div className="text-lg font-semibold">
                   {user.health.medianSessionGap !== null ? `${user.health.medianSessionGap}d` : "-"}
                 </div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Actions / Active Day</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Actions / Active Day</div>
                 <div className="text-lg font-semibold">{user.health.coreActionsPerSession}</div>
               </div>
               <div className="text-center p-3 bg-gray-50 rounded-lg sm:col-span-2">
-                <div className="text-xs text-gray-500 mb-1">Current Streak</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Streak</div>
                 <div className={`text-lg font-semibold ${user.health.currentStreak >= 3 ? "text-green-600" : ""}`}>
                   {user.health.currentStreak}d
                 </div>
@@ -527,8 +527,8 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Identity Providers */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Identity Providers</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Identity Providers</h2>
             <div className="space-y-4">
               {/* Google */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 bg-gray-50 rounded-lg">
@@ -537,7 +537,7 @@ export default function AdminUserDetailPage() {
                   <div>
                     <div className="font-medium">Google</div>
                     {user.googleId ? (
-                      <div className="text-sm text-gray-500 break-all">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 break-all">
                         Connected: {user.email}
                       </div>
                     ) : (
@@ -572,7 +572,7 @@ export default function AdminUserDetailPage() {
                   <div>
                     <div className="font-medium">Slack</div>
                     {user.slackUserId ? (
-                      <div className="text-sm text-gray-500 break-all">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 break-all">
                         Connected: {user.slackUserName} ({user.slackEmail})
                       </div>
                     ) : (
@@ -603,9 +603,9 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Secondary Emails */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Secondary Emails</h2>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Secondary Emails</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Additional emails that can be used to log in to this account (via Google OAuth).
             </p>
 
@@ -642,7 +642,7 @@ export default function AdminUserDetailPage() {
                 value={newSecondaryEmail}
                 onChange={(e) => setNewSecondaryEmail(e.target.value)}
                 placeholder="Add secondary email..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm"
               />
               <button
                 onClick={async () => {
@@ -660,9 +660,9 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Merge Accounts */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Merge Accounts</h2>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Merge Accounts</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Merge another user&apos;s data into this account. All conversations, messages, and app data will be moved here. The source account will be deleted.
             </p>
 
@@ -672,7 +672,7 @@ export default function AdminUserDetailPage() {
                 value={mergeUserId}
                 onChange={(e) => setMergeUserId(e.target.value)}
                 placeholder="User ID to merge from..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-mono"
               />
               <button
                 onClick={async () => {
@@ -709,11 +709,11 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Unified Activity Feed */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
               Recent Activity
             </h2>
-            <p className="text-sm text-gray-500 mb-4">Click to open in a new tab as this user</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Click to open in a new tab as this user</p>
 
             {/* Filter chips */}
             {(() => {
@@ -741,7 +741,7 @@ export default function AdminUserDetailPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 truncate flex-1 mr-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700"}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${conv.source === "SLACK" ? "bg-purple-100 text-purple-700" : "bg-gray-200 text-gray-700 dark:text-gray-200"}`}>
                             {conv.source === "SLACK" ? "Slack Chat" : "Web Chat"}
                           </span>
                           <span className="font-medium text-sm truncate">
@@ -749,13 +749,13 @@ export default function AdminUserDetailPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs text-gray-500">{formatSmartTime(conv.lastMessageAt)}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{formatSmartTime(conv.lastMessageAt)}</span>
                           <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {conv.messageCount} msgs
                       </div>
                     </button>
@@ -778,15 +778,15 @@ export default function AdminUserDetailPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 truncate flex-1 mr-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700 dark:text-gray-200"}`}>
                             {item.label}
                           </span>
-                          <span className="text-sm text-gray-700 truncate">
+                          <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
                             {item.title || ""}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs text-gray-500">{formatSmartTime(item.createdAt)}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{formatSmartTime(item.createdAt)}</span>
                           <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
@@ -851,7 +851,7 @@ export default function AdminUserDetailPage() {
                         className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
                           feedFilter === opt.key
                             ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         }`}
                       >
                         {opt.label}
@@ -867,7 +867,7 @@ export default function AdminUserDetailPage() {
                   </div>
 
                   {filteredItems.length === 0 ? (
-                    <div className="text-gray-500 text-sm py-4 text-center">No activity yet</div>
+                    <div className="text-gray-500 dark:text-gray-400 text-sm py-4 text-center">No activity yet</div>
                   ) : (
                     <div className="space-y-2">
                       {filteredItems.map((item) => (
@@ -884,17 +884,17 @@ export default function AdminUserDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* License Status */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">License</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">License</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-500">Status</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Status</label>
                 <div className="mt-1">
                   <select
                     value={user.licenseStatus}
                     onChange={(e) => updateUser({ licenseStatus: e.target.value })}
                     disabled={saving}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md"
                   >
                     <option value="TRIAL">Trial</option>
                     <option value="ACTIVE">Active</option>
@@ -907,7 +907,7 @@ export default function AdminUserDetailPage() {
               {user.licenseStatus === "TRIAL" && (
                 <>
                   <div>
-                    <label className="text-sm text-gray-500">Trial Started</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Trial Started</label>
                     <div className="font-medium">
                       {user.trialStartedAt
                         ? new Date(user.trialStartedAt).toLocaleDateString()
@@ -915,7 +915,7 @@ export default function AdminUserDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Days Remaining</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Days Remaining</label>
                     <div className="font-medium">
                       {user.trialDaysRemaining !== null
                         ? `${user.trialDaysRemaining} days`
@@ -923,7 +923,7 @@ export default function AdminUserDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Extend Trial</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Extend Trial</label>
                     <div className="flex space-x-2 mt-1">
                       {[7, 14, 30].map((days) => (
                         <button
@@ -941,8 +941,8 @@ export default function AdminUserDetailPage() {
               )}
 
               {user.license && (
-                <div className="pt-4 border-t border-gray-200">
-                  <label className="text-sm text-gray-500">License Details</label>
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <label className="text-sm text-gray-500 dark:text-gray-400">License Details</label>
                   <div className="mt-1 text-sm">
                     <div>Type: {user.license.type}</div>
                     <div>Status: {user.license.status}</div>
@@ -967,7 +967,7 @@ export default function AdminUserDetailPage() {
                       <div className="mt-2 text-yellow-600">
                         Manually granted
                         {user.license.notes && (
-                          <div className="text-gray-500">{user.license.notes}</div>
+                          <div className="text-gray-500 dark:text-gray-400">{user.license.notes}</div>
                         )}
                       </div>
                     )}
@@ -978,12 +978,12 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Account */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Account</h2>
             {user.account ? (
               <div className="space-y-2">
                 <div>
-                  <label className="text-sm text-gray-500">Name</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Name</label>
                   <div className="font-medium">
                     <Link href={`/admin/accounts/${user.account.id}`} className="text-blue-600 hover:underline">
                       {user.account.name}
@@ -992,12 +992,12 @@ export default function AdminUserDetailPage() {
                 </div>
                 {user.account.emailDomain && (
                   <div>
-                    <label className="text-sm text-gray-500">Email Domain</label>
+                    <label className="text-sm text-gray-500 dark:text-gray-400">Email Domain</label>
                     <div className="font-mono text-xs sm:text-sm">{user.account.emailDomain}</div>
                   </div>
                 )}
                 <div>
-                  <label className="text-sm text-gray-500">Role</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Role</label>
                   <div>
                     <select
                       value={user.accountRole}
@@ -1008,7 +1008,7 @@ export default function AdminUserDetailPage() {
                           ? "bg-purple-100 text-purple-700"
                           : user.accountRole === "ADMIN"
                           ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-600"
+                          : "bg-gray-100 text-gray-600 dark:text-gray-300"
                       }`}
                     >
                       <option value="OWNER">Owner</option>
@@ -1018,12 +1018,12 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Created</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Created</label>
                   <div>{new Date(user.account.createdAt).toLocaleDateString()}</div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Account ID</label>
-                  <div className="font-mono text-xs sm:text-sm break-all text-gray-600">{user.account.id}</div>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Account ID</label>
+                  <div className="font-mono text-xs sm:text-sm break-all text-gray-600 dark:text-gray-300">{user.account.id}</div>
                 </div>
                 <button
                   onClick={() => {
@@ -1039,7 +1039,7 @@ export default function AdminUserDetailPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-gray-500">No account assigned</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">No account assigned</p>
                 {!assigningAccount ? (
                   <button
                     onClick={() => setAssigningAccount(true)}
@@ -1048,9 +1048,9 @@ export default function AdminUserDetailPage() {
                     Assign to Account
                   </button>
                 ) : (
-                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 space-y-3">
+                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 dark:border-gray-700 space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                         Search accounts
                       </label>
                       <input
@@ -1073,15 +1073,15 @@ export default function AdminUserDetailPage() {
                           } catch { /* ignore */ }
                           finally { setAccountSearching(false); }
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Role</label>
                       <select
                         value={assignRole}
                         onChange={(e) => setAssignRole(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                       >
                         <option value="MEMBER">Member</option>
                         <option value="ADMIN">Admin</option>
@@ -1089,14 +1089,14 @@ export default function AdminUserDetailPage() {
                       </select>
                     </div>
                     {accountSearching && (
-                      <div className="text-xs text-gray-500">Searching...</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Searching...</div>
                     )}
                     {accountSearchResults.length > 0 && (
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {accountSearchResults.map((acct) => (
                           <div
                             key={acct.id}
-                            className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-100 text-sm"
+                            className="flex items-center justify-between bg-white dark:bg-gray-800 rounded px-2 py-1.5 border border-gray-100 text-sm"
                           >
                             <span className="truncate">
                               {acct.name}
@@ -1130,7 +1130,7 @@ export default function AdminUserDetailPage() {
                         setAccountSearchQuery("");
                         setAccountSearchResults([]);
                       }}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     >
                       Cancel
                     </button>
@@ -1141,20 +1141,20 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Workspace */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Workspace</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Workspace</h2>
             {user.workspace ? (
               <div className="space-y-2">
                 <div>
-                  <label className="text-sm text-gray-500">Name</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Name</label>
                   <div className="font-medium">{user.workspace.slackTeamName}</div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Team ID</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Team ID</label>
                   <div className="font-mono text-xs sm:text-sm break-all">{user.workspace.slackTeamId}</div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Installed</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Installed</label>
                   <div>{new Date(user.workspace.installedAt).toLocaleDateString()}</div>
                 </div>
                 <div className="pt-2">
@@ -1179,7 +1179,7 @@ export default function AdminUserDetailPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-gray-500">No workspace assigned</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">No workspace assigned</p>
                 {!assigningWorkspace ? (
                   <button
                     onClick={() => setAssigningWorkspace(true)}
@@ -1188,9 +1188,9 @@ export default function AdminUserDetailPage() {
                     Assign to Workspace
                   </button>
                 ) : (
-                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 space-y-3">
+                  <div className="bg-gray-50 rounded-md p-3 border border-gray-200 dark:border-gray-700 space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                         Search workspaces
                       </label>
                       <input
@@ -1213,18 +1213,18 @@ export default function AdminUserDetailPage() {
                           } catch { /* ignore */ }
                           finally { setWorkspaceSearching(false); }
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                       />
                     </div>
                     {workspaceSearching && (
-                      <div className="text-xs text-gray-500">Searching...</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Searching...</div>
                     )}
                     {workspaceSearchResults.length > 0 && (
                       <div className="space-y-1 max-h-40 overflow-y-auto">
                         {workspaceSearchResults.map((ws) => (
                           <div
                             key={ws.id}
-                            className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-100 text-sm"
+                            className="flex items-center justify-between bg-white dark:bg-gray-800 rounded px-2 py-1.5 border border-gray-100 text-sm"
                           >
                             <span className="truncate">
                               {ws.slackTeamName}
@@ -1255,7 +1255,7 @@ export default function AdminUserDetailPage() {
                         setWorkspaceSearchQuery("");
                         setWorkspaceSearchResults([]);
                       }}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     >
                       Cancel
                     </button>
@@ -1266,42 +1266,42 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Stats */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Stats</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Stats</h2>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500">Conversations</span>
+                <span className="text-gray-500 dark:text-gray-400">Conversations</span>
                 <span className="font-medium">{user.conversationCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Total Messages</span>
+                <span className="text-gray-500 dark:text-gray-400">Total Messages</span>
                 <span className="font-medium">{user.messageCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Messages Today</span>
+                <span className="text-gray-500 dark:text-gray-400">Messages Today</span>
                 <span className="font-medium">{user.messagesToday}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Referrals Made</span>
+                <span className="text-gray-500 dark:text-gray-400">Referrals Made</span>
                 <span className="font-medium">{user.referralCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Bonus Messages</span>
+                <span className="text-gray-500 dark:text-gray-400">Bonus Messages</span>
                 <span className="font-medium">{user.bonusMessagesEarned}</span>
               </div>
             </div>
           </div>
 
           {/* Feature Completion */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Completion</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Completion</h2>
               <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
                 user.completionCount === user.completionTotal
                   ? "bg-green-100 text-green-700"
                   : user.completionCount >= user.completionTotal / 2
                   ? "bg-yellow-100 text-yellow-700"
-                  : "bg-gray-100 text-gray-600"
+                  : "bg-gray-100 text-gray-600 dark:text-gray-300"
               }`}>
                 {user.completionCount}/{user.completionTotal}
               </span>
@@ -1340,7 +1340,7 @@ export default function AdminUserDetailPage() {
                   ) : (
                     <span className="text-gray-300 flex-shrink-0">&#9675;</span>
                   )}
-                  <span className={user.completion[key] ? "text-gray-900" : "text-gray-400"}>
+                  <span className={user.completion[key] ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}>
                     {label}
                   </span>
                 </div>
@@ -1349,10 +1349,10 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Referral Code */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Referral</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Referral</h2>
             <div>
-              <label className="text-sm text-gray-500">Referral Code</label>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Referral Code</label>
               <div className="font-mono text-xs sm:text-sm bg-gray-100 p-2 rounded mt-1 break-all">
                 {user.referralCode}
               </div>
@@ -1360,16 +1360,16 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Prompt Settings */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Prompt Settings</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Prompt Settings</h2>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Dismissed Defaults</span>
+                <span className="text-gray-500 dark:text-gray-400">Dismissed Defaults</span>
                 <span className="font-medium">{user.dismissedDefaultPromptIds?.length || 0}</span>
               </div>
               {user.dismissedDefaultPromptIds?.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                     This user has dismissed {user.dismissedDefaultPromptIds.length} default prompt(s).
                     Reset to allow them to reappear.
                   </p>
@@ -1391,7 +1391,7 @@ export default function AdminUserDetailPage() {
                 </div>
               )}
               {(!user.dismissedDefaultPromptIds || user.dismissedDefaultPromptIds.length === 0) && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   No default prompts have been dismissed.
                 </p>
               )}
@@ -1399,15 +1399,15 @@ export default function AdminUserDetailPage() {
           </div>
 
           {/* Sessions */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Sessions</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recent Sessions</h2>
             {user.sessions.length === 0 ? (
-              <div className="text-gray-500 text-sm">No active sessions</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">No active sessions</div>
             ) : (
               <div className="space-y-2">
                 {user.sessions.map((session) => (
                   <div key={session.id} className="text-sm">
-                    <div className="text-gray-600">
+                    <div className="text-gray-600 dark:text-gray-300">
                       {formatSmartTime(session.createdAt)}
                     </div>
                     <div className="text-gray-400 text-xs">

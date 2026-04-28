@@ -477,8 +477,8 @@ export default function SalesAssetLibraryPage() {
       <SalesNavBar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">📚 Sales Asset Library</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">📚 Sales Asset Library</h1>
+          <p className="text-gray-600 dark:text-gray-300">
             Your team&apos;s current production GTM assets. Update links here as assets evolve — all changes are tracked in version history.
           </p>
         </div>
@@ -486,7 +486,7 @@ export default function SalesAssetLibraryPage() {
         {loading ? (
           <div className="space-y-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-5">
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <div className="h-5 w-32 bg-gray-100 rounded animate-pulse mb-3" />
                 <div className="h-16 bg-gray-50 rounded animate-pulse" />
               </div>
@@ -519,7 +519,7 @@ export default function SalesAssetLibraryPage() {
                     <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 opacity-0 group-hover/section:opacity-100 transition-opacity">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                     </div>
-                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       {categoryLabel}
                     </h2>
                   </div>
@@ -560,9 +560,9 @@ export default function SalesAssetLibraryPage() {
                         onDragLeave={(e) => { e.stopPropagation(); setDragOverAssetId(null); }}
                         onDrop={(e) => { e.stopPropagation(); handleAssetDrop(asset.id, category); }}
                         id={`asset-${asset.slotKey || asset.id}`}
-                        className={`bg-white border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
+                        className={`bg-white dark:bg-gray-800 border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
                           dragAssetId === asset.id ? "opacity-40" : ""
-                        } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
+                        } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
                       >
                         {editingMetaId === asset.id ? (
                           <div className="space-y-2">
@@ -570,19 +570,19 @@ export default function SalesAssetLibraryPage() {
                               type="text"
                               value={metaName}
                               onChange={(e) => setMetaName(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                               placeholder="Asset name"
                             />
                             <input
                               type="text"
                               value={metaDescription}
                               onChange={(e) => setMetaDescription(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                               placeholder="Description (optional)"
                             />
                             <div className="flex gap-2">
                               <button onClick={saveMeta} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">Save</button>
-                              <button onClick={() => setEditingMetaId(null)} className="px-3 py-1.5 text-gray-600 text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                              <button onClick={() => setEditingMetaId(null)} className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
                             </div>
                           </div>
                         ) : (
@@ -592,9 +592,9 @@ export default function SalesAssetLibraryPage() {
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{asset.name}</h3>
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm sm:text-base">{asset.name}</h3>
                                 {asset.description && (
-                                  <p className="text-xs text-gray-500 mt-0.5"><Linkify>{asset.description}</Linkify></p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5"><Linkify>{asset.description}</Linkify></p>
                                 )}
                               </div>
                               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -660,7 +660,7 @@ export default function SalesAssetLibraryPage() {
                                   )}
                                 </div>
                                 {latestVersion?.notes && (
-                                  <p className="text-xs text-gray-500 mt-1 italic whitespace-pre-wrap"><Linkify>{latestVersion.notes}</Linkify></p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic whitespace-pre-wrap"><Linkify>{latestVersion.notes}</Linkify></p>
                                 )}
                                 <div className="flex items-center justify-between flex-wrap gap-2 mt-1">
                                   <p className="text-xs text-gray-400">
@@ -675,7 +675,7 @@ export default function SalesAssetLibraryPage() {
                                     {asset._count.versions > 1 && (
                                       <button
                                         onClick={() => openHistory(asset.id)}
-                                        className="text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-2 py-1 rounded"
+                                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded"
                                       >
                                         History
                                       </button>
@@ -709,7 +709,7 @@ export default function SalesAssetLibraryPage() {
                         value={customName}
                         onChange={(e) => setCustomName(e.target.value)}
                         placeholder="Asset name (e.g., Security Questionnaire)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Escape") { setAddingInCategory(null); setCustomName(""); setCustomDescription(""); setCustomUrl(""); }
@@ -720,14 +720,14 @@ export default function SalesAssetLibraryPage() {
                         value={customUrl}
                         onChange={(e) => setCustomUrl(e.target.value)}
                         placeholder="URL (optional — paste link now or add later)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                       />
                       <input
                         type="text"
                         value={customDescription}
                         onChange={(e) => setCustomDescription(e.target.value)}
                         placeholder="Description (optional)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                       />
                       <div className="flex gap-2">
                         <button
@@ -739,7 +739,7 @@ export default function SalesAssetLibraryPage() {
                         </button>
                         <button
                           onClick={() => { setAddingInCategory(null); setCustomName(""); setCustomDescription(""); }}
-                          className="px-3 py-1.5 text-gray-600 text-sm hover:bg-gray-100 rounded-lg"
+                          className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                         >
                           Cancel
                         </button>
@@ -748,7 +748,7 @@ export default function SalesAssetLibraryPage() {
                   ) : (
                     <button
                       onClick={() => { setAddingInCategory(category); setCustomName(""); setCustomDescription(""); }}
-                      className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
+                      className="w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
                     >
                       + Add Asset
                     </button>
@@ -760,15 +760,15 @@ export default function SalesAssetLibraryPage() {
 
             <div className="mt-8">
               {showAddCustom ? (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Add Custom Asset</h3>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Custom Asset</h3>
                   <div className="space-y-2">
                     <input
                       type="text"
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
                       placeholder="Asset name (e.g., Security Questionnaire)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                       autoFocus
                     />
                     <input
@@ -776,19 +776,19 @@ export default function SalesAssetLibraryPage() {
                       value={customUrl}
                       onChange={(e) => setCustomUrl(e.target.value)}
                       placeholder="URL (optional — paste link now or add later)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     />
                     <input
                       type="text"
                       value={customDescription}
                       onChange={(e) => setCustomDescription(e.target.value)}
                       placeholder="Description (optional)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     />
                     <select
                       value={customCategory}
                       onChange={(e) => setCustomCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     >
                       {[...CATEGORY_ORDER, ...customCategories].map((cat) => (
                         <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
@@ -804,7 +804,7 @@ export default function SalesAssetLibraryPage() {
                       </button>
                       <button
                         onClick={() => setShowAddCustom(false)}
-                        className="px-4 py-2 text-gray-600 text-sm hover:bg-gray-100 rounded-lg"
+                        className="px-4 py-2 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                       >
                         Cancel
                       </button>
@@ -814,7 +814,7 @@ export default function SalesAssetLibraryPage() {
               ) : (
                 <button
                   onClick={() => setShowAddCustom(true)}
-                  className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
+                  className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
                 >
                   + Add Custom Asset
                 </button>
@@ -827,7 +827,7 @@ export default function SalesAssetLibraryPage() {
                     value={newSectionName}
                     onChange={(e) => setNewSectionName(e.target.value)}
                     placeholder="New section name..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newSectionName.trim()) {
@@ -861,12 +861,12 @@ export default function SalesAssetLibraryPage() {
                   >
                     Create
                   </button>
-                  <button onClick={() => setShowAddSection(false)} className="px-3 py-2 text-gray-600 text-sm hover:bg-gray-100 rounded-lg">Cancel</button>
+                  <button onClick={() => setShowAddSection(false)} className="px-3 py-2 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
                 </div>
               ) : (
                 <button
                   onClick={() => setShowAddSection(true)}
-                  className="mt-3 w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
+                  className="mt-3 w-full py-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-400 hover:border-purple-300 hover:text-purple-500 transition-colors"
                 >
                   + Add New Section
                 </button>
@@ -882,9 +882,9 @@ export default function SalesAssetLibraryPage() {
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setEditingAsset(null); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Edit Asset</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Asset</h3>
               <button onClick={() => setEditingAsset(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -892,17 +892,17 @@ export default function SalesAssetLibraryPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Name</label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="Asset name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Description <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
@@ -910,25 +910,25 @@ export default function SalesAssetLibraryPage() {
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   placeholder="Short description of this asset"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                 />
               </div>
-              <div className="border-t border-gray-200 pt-3 mt-2">
-                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-medium">
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider font-medium">
                   {editingAsset.currentUrl ? "Update URL (optional — creates a new version)" : "Add URL"}
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">URL</label>
                 <input
                   type="url"
                   value={editUrl}
                   onChange={(e) => setEditUrl(e.target.value)}
                   placeholder="https://..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Version Label <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
@@ -936,11 +936,11 @@ export default function SalesAssetLibraryPage() {
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
                   placeholder="e.g., Q4 2026, Post-rebrand"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Version Notes <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
@@ -948,7 +948,7 @@ export default function SalesAssetLibraryPage() {
                   onChange={(e) => setEditNotes(e.target.value)}
                   placeholder="What changed in this version?"
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 resize-y"
                 />
               </div>
             </div>
@@ -956,7 +956,7 @@ export default function SalesAssetLibraryPage() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={() => setEditingAsset(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 Cancel
               </button>
@@ -978,9 +978,9 @@ export default function SalesAssetLibraryPage() {
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setHistoryAssetId(null); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 pb-3 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Version History — {assets.find((a) => a.id === historyAssetId)?.name}
               </h3>
               <button onClick={() => setHistoryAssetId(null)} className="text-gray-400 hover:text-gray-600">
@@ -989,13 +989,13 @@ export default function SalesAssetLibraryPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-6 pt-0">
               {loadingHistory ? (
-                <p className="text-sm text-gray-500 py-8 text-center">Loading...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">Loading...</p>
               ) : historyVersions.length === 0 ? (
-                <p className="text-sm text-gray-500 py-8 text-center">No versions yet.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">No versions yet.</p>
               ) : (
                 <div className="space-y-3">
                   {historyVersions.map((v, idx) => (
-                    <div key={v.id} className={`border rounded-lg p-3 ${idx === 0 ? "border-purple-300 bg-purple-50/50" : "border-gray-200"}`}>
+                    <div key={v.id} className={`border rounded-lg p-3 ${idx === 0 ? "border-purple-300 bg-purple-50/50" : "border-gray-200 dark:border-gray-700"}`}>
                       <div className="flex items-start justify-between gap-3 mb-1">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1011,10 +1011,10 @@ export default function SalesAssetLibraryPage() {
                               <span className="text-xs text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Current</span>
                             )}
                             {v.label && (
-                              <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{v.label}</span>
+                              <span className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 px-2 py-0.5 rounded-full">{v.label}</span>
                             )}
                           </div>
-                          {v.notes && <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap"><Linkify>{v.notes}</Linkify></p>}
+                          {v.notes && <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 whitespace-pre-wrap"><Linkify>{v.notes}</Linkify></p>}
                           <p className="text-xs text-gray-400 mt-1">
                             {formatRelative(v.createdAt)} by {userDisplay(v.createdByUser)}
                           </p>

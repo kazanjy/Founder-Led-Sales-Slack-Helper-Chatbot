@@ -43,7 +43,7 @@ const CALL_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 
 function getCallTypeColor(callType: string) {
   const lower = callType.toLowerCase();
-  return CALL_TYPE_COLORS[lower] || { bg: "bg-gray-100", text: "text-gray-700" };
+  return CALL_TYPE_COLORS[lower] || { bg: "bg-gray-100", text: "text-gray-700 dark:text-gray-200" };
 }
 
 export default function CallRecapPage() {
@@ -55,7 +55,7 @@ export default function CallRecapPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -520,7 +520,7 @@ function CallRecapContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading call recap email...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading call recap email...</p>
           </div>
         </div>
       </div>
@@ -540,8 +540,8 @@ function CallRecapContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">✉️</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Call Recap Emails Yet</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Call Recap Emails Yet</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Generate a professional recap email from your sales call recording to keep prospects engaged and document next steps.
             </p>
             <Link
@@ -576,26 +576,26 @@ function CallRecapContent() {
       {/* Iterating overlay */}
       {iterating && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center max-w-sm">
             <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-900 font-medium">Iterating on your recap email...</p>
-            <p className="text-sm text-gray-500 mt-1">Incorporating your feedback</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">Iterating on your recap email...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Incorporating your feedback</p>
           </div>
         </div>
       )}
 
       {/* Header */}
       {!showOverlay && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <Link
                   href="/chat"
-                  className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -603,7 +603,7 @@ function CallRecapContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900">
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                     <input
                       type="text"
                       defaultValue={version?.title || ""}
@@ -620,12 +620,12 @@ function CallRecapContent() {
                       }}
                       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                       placeholder="Call Recap Email"
-                      className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 px-1 py-0 text-xl font-semibold text-gray-900 w-full truncate rounded"
+                      className="bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 px-1 py-0 text-xl font-semibold text-gray-900 dark:text-gray-100 w-full truncate rounded"
                     />
                   </h1>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {isStreamingMode ? (
-                      <span className="flex items-center gap-2 text-sm text-gray-500">
+                      <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -640,7 +640,7 @@ function CallRecapContent() {
                           </span>
                         )}
                         {version?.createdAt && (
-                          <span className="text-sm text-gray-500">{formatDate(version.createdAt)}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(version.createdAt)}</span>
                         )}
                         {version?.user && (
                           <span className="text-sm text-gray-400">
@@ -670,7 +670,7 @@ function CallRecapContent() {
                 )}
                 <Link
                   href="/call-recap/history"
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -682,7 +682,7 @@ function CallRecapContent() {
                     <button
                       onClick={handleCancelEditing}
                       disabled={saving}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>
@@ -705,7 +705,7 @@ function CallRecapContent() {
                 ) : (
                   <button
                     onClick={handleStartEditing}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -753,14 +753,14 @@ function CallRecapContent() {
             <div className="flex-1 min-w-0">
               {/* Tabs */}
               {!isStreamingMode && version && (
-                <div className="flex items-center justify-between mb-6 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex gap-1">
                     <button
                       onClick={() => setActiveTab("email")}
                       className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === "email"
                           ? "border-purple-600 text-purple-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       Recap Email
@@ -770,7 +770,7 @@ function CallRecapContent() {
                       className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === "source"
                           ? "border-purple-600 text-purple-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       Source Material
@@ -795,17 +795,17 @@ function CallRecapContent() {
 
               {/* Email content tab */}
               {(activeTab === "email" || isStreamingMode || !version) && (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
                 {/* Subject line + Copy button row */}
                 {!isEditing && displaySubject && (
-                  <div className="bg-gray-50 border-b border-gray-200 px-8 py-4 flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900">
-                      <span className="text-gray-500">Subject: </span>
+                  <div className="bg-gray-50 border-b border-gray-200 dark:border-gray-700 px-8 py-4 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <span className="text-gray-500 dark:text-gray-400">Subject: </span>
                       {displaySubject}
                     </p>
                     <button
                       onClick={handleCopy}
-                      className="flex-shrink-0 ml-4 px-3 py-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+                      className="flex-shrink-0 ml-4 px-3 py-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors flex items-center gap-1.5 text-sm"
                     >
                       {copiedField === "content" ? (
                         <>
@@ -826,13 +826,13 @@ function CallRecapContent() {
                   </div>
                 )}
                 {isEditing ? (
-                  <div className="bg-gray-50 border-b border-gray-200 px-8 py-4">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Subject</label>
+                  <div className="bg-gray-50 border-b border-gray-200 dark:border-gray-700 px-8 py-4">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subject</label>
                     <input
                       type="text"
                       value={editedSubject}
                       onChange={(e) => setEditedSubject(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
                   </div>
                 ) : null}
@@ -843,7 +843,7 @@ function CallRecapContent() {
                     <textarea
                       value={editedBody}
                       onChange={(e) => setEditedBody(e.target.value)}
-                      className="w-full min-h-[600px] p-4 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                      className="w-full min-h-[600px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                     />
                   ) : (
                     <div className="prose prose-gray max-w-none">
@@ -859,16 +859,16 @@ function CallRecapContent() {
               {activeTab === "source" && version && (
                 <div className="space-y-6">
                   {/* Call Summary */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Call Summary</h3>
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">{version.callSummary}</div>
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Call Summary</h3>
+                    <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{version.callSummary}</div>
                   </div>
 
                   {/* Transcript */}
                   {version.callTranscript && (
-                    <div className="bg-white border border-gray-200 rounded-xl p-6">
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Full Transcript</h3>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-[600px] overflow-y-auto">{version.callTranscript}</div>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                      <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Full Transcript</h3>
+                      <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap max-h-[600px] overflow-y-auto">{version.callTranscript}</div>
                     </div>
                   )}
                 </div>
@@ -879,7 +879,7 @@ function CallRecapContent() {
                 <div className="mt-8">
                   <button
                     onClick={() => setHistoryExpanded(!historyExpanded)}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                   >
                     <svg
                       className={`w-4 h-4 transition-transform ${historyExpanded ? "rotate-90" : ""}`}
@@ -896,9 +896,9 @@ function CallRecapContent() {
                       {version.iterationHistory.map((item, index) => (
                         <div
                           key={index}
-                          className="bg-white border border-gray-200 rounded-lg p-4"
+                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
                         >
-                          <p className="text-sm text-gray-700">{item.feedback}</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">{item.feedback}</p>
                           <p className="text-xs text-gray-400 mt-2">{formatDate(item.createdAt)}</p>
                         </div>
                       ))}
@@ -934,7 +934,7 @@ function CallRecapContent() {
                     <p className="text-green-100 text-sm mb-4">
                       Grade this call with Mikey&apos;s call coaching scorecard and get actionable feedback.
                     </p>
-                    <span className="block w-full text-center px-4 py-2.5 bg-white text-green-600 rounded-lg font-semibold text-sm">
+                    <span className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-green-600 rounded-lg font-semibold text-sm">
                       Grade This Call
                     </span>
                   </button>
@@ -943,16 +943,16 @@ function CallRecapContent() {
                 {/* Iterate panel */}
                 {(version || hasStreamingContent) && (
                   <div
-                    className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-opacity ${isStreamingMode ? "opacity-50 pointer-events-none" : ""}`}
+                    className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm transition-opacity ${isStreamingMode ? "opacity-50 pointer-events-none" : ""}`}
                     title={isStreamingMode ? "Available once generation is complete" : undefined}
                   >
-                    <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                       <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                       Iterate
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                       Describe what to change and we&apos;ll revise the email.
                     </p>
                     <textarea
@@ -961,7 +961,7 @@ function CallRecapContent() {
                       placeholder="e.g., Make the tone more casual, add a specific next step about scheduling a demo..."
                       rows={5}
                       disabled={iterating || isStreamingMode}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                     />
                     <button
                       onClick={handleIterate}
@@ -984,14 +984,14 @@ function CallRecapContent() {
                 )}
 
                 {/* Tone & Polish panel */}
-                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                     Tone &amp; Polish
                   </h3>
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                     Provide style guidance for all recap emails you generate.
                   </p>
                   <textarea
@@ -1000,7 +1000,7 @@ function CallRecapContent() {
                     onBlur={saveToneGuidance}
                     placeholder='e.g., "Keep it concise — no fluff. Warm but professional tone. Always end with a specific next step and proposed date."'
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
                   />
                   <p className="text-xs text-gray-400 mt-1.5">
                     {toneSaving ? "Saving..." : "Saves automatically. Applies to all future recaps."}

@@ -66,7 +66,7 @@ export default function IcpPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -545,7 +545,7 @@ function IcpContent() {
     "Pain Points & Challenges": { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" },
     "Buying Signals & Triggers": { bg: "bg-green-50", border: "border-green-200", text: "text-green-700" },
     "Qualification Criteria": { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700" },
-    "Red Flags & Disqualifiers": { bg: "bg-gray-50", border: "border-gray-300", text: "text-gray-700" },
+    "Red Flags & Disqualifiers": { bg: "bg-gray-50", border: "border-gray-300 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" },
   };
 
   // Loading state
@@ -559,7 +559,7 @@ function IcpContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
           </div>
         </div>
       </div>
@@ -588,8 +588,8 @@ function IcpContent() {
           <div className="max-w-lg w-full px-6">
             <div className="text-center mb-8">
               <div className="text-5xl mb-4">👤</div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Ideal Customer Profile</h1>
-              <p className="text-gray-600">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Ideal Customer Profile</h1>
+              <p className="text-gray-600 dark:text-gray-300">
                 Define exactly who your best customers are — company traits, personas, pain points, and buying signals.
               </p>
             </div>
@@ -607,8 +607,8 @@ function IcpContent() {
                   Generate from Sales Narrative
                 </button>
               ) : (
-                <div className="text-center py-6 px-6 bg-white rounded-xl border border-gray-200">
-                  <p className="text-gray-600 mb-4">Your Sales Narrative is used to auto-generate your ICP. Complete it first so we can define the right customer profile for you.</p>
+                <div className="text-center py-6 px-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">Your Sales Narrative is used to auto-generate your ICP. Complete it first so we can define the right customer profile for you.</p>
                   <Link
                     href="/sales-narrative/edit"
                     className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
@@ -622,13 +622,13 @@ function IcpContent() {
               )}
 
               <div className="relative">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200 dark:border-gray-700"></div></div>
                 <div className="relative flex justify-center"><span className="bg-gray-50 px-4 text-sm text-gray-400">or</span></div>
               </div>
 
               <button
                 onClick={() => setShowImport(true)}
-                className="w-full py-4 px-6 bg-white text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-lg font-medium flex items-center justify-center gap-3"
+                className="w-full py-4 px-6 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-lg font-medium flex items-center justify-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -642,18 +642,18 @@ function IcpContent() {
         {/* Import Modal */}
         {showImport && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
-            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Import Your ICP</h3>
-              <p className="text-sm text-gray-500 mb-4">Paste your existing ICP documentation and we&apos;ll structure it for you.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Import Your ICP</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Paste your existing ICP documentation and we&apos;ll structure it for you.</p>
               <textarea
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
                 rows={10}
                 placeholder="Paste your ICP here..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none"
               />
               <div className="flex justify-end gap-3 mt-4">
-                <button onClick={() => setShowImport(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                <button onClick={() => setShowImport(false)} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
                 <button
                   onClick={handleImportText}
                   disabled={importing || !importText.trim()}
@@ -705,11 +705,11 @@ function IcpContent() {
       />
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-4">
-              <Link href="/chat" className="text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              <Link href="/chat" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
@@ -721,12 +721,12 @@ function IcpContent() {
                     type="text"
                     value={editTitle}
                     onChange={e => setEditTitle(e.target.value)}
-                    className="text-xl font-semibold text-gray-900 border-b-2 border-purple-300 focus:border-purple-600 outline-none bg-transparent"
+                    className="text-xl font-semibold text-gray-900 dark:text-gray-100 border-b-2 border-purple-300 focus:border-purple-600 outline-none bg-transparent"
                   />
                 ) : (
-                  <h1 className="text-xl font-semibold text-gray-900">{version.title}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version.title}</h1>
                 )}
-                <p className="text-sm text-gray-500 leading-tight">
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-tight">
                   Generated {formatDate(version.createdAt)}
                   {version.updatedAt !== version.createdAt && (
                     <><br />Edited {formatDate(version.updatedAt)}</>
@@ -738,7 +738,7 @@ function IcpContent() {
             <div className="flex items-center gap-3 flex-wrap">
               {isEditing ? (
                 <>
-                  <button onClick={handleCancelEditing} disabled={saving} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                  <button onClick={handleCancelEditing} disabled={saving} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
                   <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
@@ -756,7 +756,7 @@ function IcpContent() {
                         }
                         return md;
                       }} />
-                      <button onClick={handleCopyAll} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                      <button onClick={handleCopyAll} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                         {copied ? (
                           <><svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied!</>
                         ) : (
@@ -777,7 +777,7 @@ function IcpContent() {
                           return md;
                         })()}
                       />
-                      <button onClick={handleStartEditing} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                      <button onClick={handleStartEditing} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         Edit
                       </button>
@@ -803,12 +803,12 @@ function IcpContent() {
                     </button>
                   )}
                   {activeTab === "search-criteria" && version.content.searchCriteria && (
-                    <button onClick={handleGenerateSearchCriteria} disabled={generatingCriteria} className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                    <button onClick={handleGenerateSearchCriteria} disabled={generatingCriteria} className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                       Regenerate
                     </button>
                   )}
-                  <Link href="/icp/history" className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2">
+                  <Link href="/icp/history" className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     History
                   </Link>
@@ -826,7 +826,7 @@ function IcpContent() {
                 className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                   activeTab === "profile"
                     ? "border-purple-600 text-purple-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
                 ICP Profile
@@ -836,7 +836,7 @@ function IcpContent() {
                 className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                   activeTab === "search-criteria"
                     ? "border-purple-600 text-purple-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 }`}
               >
                 Search Criteria
@@ -909,7 +909,7 @@ function IcpContent() {
           <div className="flex-1 min-w-0">
           <div className="space-y-4">
             {contentToRender.sections.map((section, sectionIndex) => {
-              const colors = sectionColors[section.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700" };
+              const colors = sectionColors[section.name] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
               const isExpanded = expandedSections.has(section.name);
 
               return (
@@ -920,7 +920,7 @@ function IcpContent() {
                   >
                     <div className="flex items-center gap-3">
                       <span className={`font-semibold ${colors.text}`}>{section.name}</span>
-                      <span className="text-sm text-gray-500">{section.items.length} items</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{section.items.length} items</span>
                     </div>
                     <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -930,7 +930,7 @@ function IcpContent() {
                   {isExpanded && (
                     <div className="px-6 pb-4">
                       {section.description && (
-                        <p className="text-sm text-gray-500 italic mb-3">{section.description}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-3">{section.description}</p>
                       )}
                       <div className="space-y-2">
                         {section.items.map((item, itemIndex) => (
@@ -941,7 +941,7 @@ function IcpContent() {
                                   value={item}
                                   onChange={e => updateItem(sectionIndex, itemIndex, e.target.value)}
                                   rows={2}
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
                                 />
                                 <button
                                   onClick={() => removeItem(sectionIndex, itemIndex)}
@@ -956,7 +956,7 @@ function IcpContent() {
                             ) : (
                               <>
                                 <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${colors.text.replace("text-", "bg-")}`}></span>
-                                <span className="text-gray-700 text-sm">{item}</span>
+                                <span className="text-gray-700 dark:text-gray-200 text-sm">{item}</span>
                               </>
                             )}
                           </div>
@@ -991,7 +991,7 @@ function IcpContent() {
                     setExpandedSections(new Set((version.content.sections || []).map(s => s.name)));
                   }
                 }}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               >
                 {expandedSections.size === (version.content.sections || []).length ? "Collapse All" : "Expand All"}
               </button>
@@ -1045,7 +1045,7 @@ function IcpContent() {
                       <Link
                         href="/first-call-checklist"
                         target="_blank"
-                        className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                        className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
                         Done! View Checklist
                       </Link>
@@ -1059,7 +1059,7 @@ function IcpContent() {
                       <Link
                         href="/first-call-checklist"
                         target="_blank"
-                        className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                        className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
                         View Checklist
                       </Link>
@@ -1073,7 +1073,7 @@ function IcpContent() {
                       <Link
                         href="/first-call-checklist"
                         target="_blank"
-                        className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                        className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                       >
                         Create Checklist
                       </Link>
@@ -1102,13 +1102,13 @@ function IcpContent() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p className="text-gray-600">Generating search criteria from your ICP...</p>
+                    <p className="text-gray-600 dark:text-gray-300">Generating search criteria from your ICP...</p>
                   </>
                 ) : (
                   <>
                     <div className="text-5xl mb-4">🔍</div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Search Criteria</h2>
-                    <p className="text-gray-600 mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Search Criteria</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-6">
                       Translate your ICP into ready-to-use search filters for LinkedIn Sales Navigator and Apollo.io.
                     </p>
                     <button
@@ -1132,7 +1132,7 @@ function IcpContent() {
                   "LinkedIn Sales Navigator": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", accent: "bg-blue-600" },
                   "Apollo.io": { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-800", accent: "bg-violet-600" },
                 };
-                const pColors = platformColors[platform.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-800", accent: "bg-gray-600" };
+                const pColors = platformColors[platform.name] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-800 dark:text-gray-100", accent: "bg-gray-600" };
 
                 return (
                   <div key={platform.name} className={`rounded-xl border ${pColors.border} overflow-hidden`}>
@@ -1142,14 +1142,14 @@ function IcpContent() {
                     </div>
 
                     {/* Filters */}
-                    <div className="bg-white divide-y divide-gray-100">
+                    <div className="bg-white dark:bg-gray-800 divide-y divide-gray-100">
                       {platform.filters.map((filter) => {
                         const filterKey = `${platform.name}:${filter.facet}`;
                         const isCopied = copiedFilter === filterKey;
                         return (
                           <div key={filter.facet} className="px-6 py-3 flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-700 mb-1">{filter.facet}</div>
+                              <div className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{filter.facet}</div>
                               <div className="flex flex-wrap gap-1.5">
                                 {filter.values.map((value, vi) => (
                                   <span key={vi} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${pColors.bg} ${pColors.text}`}>
@@ -1158,12 +1158,12 @@ function IcpContent() {
                                 ))}
                               </div>
                               {filter.notes && (
-                                <p className="text-xs text-gray-500 mt-1">{filter.notes}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{filter.notes}</p>
                               )}
                             </div>
                             <button
                               onClick={() => copyFilterValue(filterKey, filter.values.join(", "))}
-                              className="flex-shrink-0 mt-0.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                              className="flex-shrink-0 mt-0.5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                               title="Copy values"
                             >
                               {isCopied ? (
@@ -1180,12 +1180,12 @@ function IcpContent() {
                       {platform.booleanSearch && (
                         <div className="px-6 py-4">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                               {platform.name === "Google X-Ray Search" ? "X-Ray Search Strings" : "Boolean Search"}
                             </span>
                             <button
                               onClick={() => copyFilterValue(`${platform.name}:boolean`, platform.booleanSearch!)}
-                              className="text-xs px-3 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+                              className="text-xs px-3 py-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors flex items-center gap-1"
                             >
                               {copiedFilter === `${platform.name}:boolean` ? (
                                 <><svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Copied!</>
@@ -1203,10 +1203,10 @@ function IcpContent() {
                       {/* Tips */}
                       {platform.tips && platform.tips.length > 0 && (
                         <div className="px-6 py-3 bg-gray-50">
-                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Tips</div>
+                          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Tips</div>
                           <ul className="space-y-1">
                             {platform.tips.map((tip, ti) => (
-                              <li key={ti} className="text-sm text-gray-600 flex items-start gap-2">
+                              <li key={ti} className="text-sm text-gray-600 dark:text-gray-300 flex items-start gap-2">
                                 <span className="text-gray-400 mt-0.5 flex-shrink-0">&#8226;</span>
                                 {tip}
                               </li>

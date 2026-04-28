@@ -61,7 +61,7 @@ export default function SalesMetricsPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -366,7 +366,7 @@ function SalesMetricsContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading sales metrics...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading sales metrics...</p>
           </div>
         </div>
       </>
@@ -381,7 +381,7 @@ function SalesMetricsContent() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">Sales Metrics Analyzer</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sales Metrics Analyzer</h1>
               <Link
                 href="/sales-metrics/history"
                 className="text-sm text-purple-600 hover:text-purple-700 font-medium"
@@ -389,7 +389,7 @@ function SalesMetricsContent() {
                 View History
               </Link>
             </div>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-300">
               Upload your CRM data or fill in your metrics manually to get a comprehensive analysis of your sales performance.
             </p>
           </div>
@@ -403,7 +403,7 @@ function SalesMetricsContent() {
                     ? "border-purple-500 bg-purple-50"
                     : csvFileName
                     ? "border-green-300 bg-green-50"
-                    : "border-gray-300 bg-white hover:border-purple-400 hover:bg-purple-50/30"
+                    : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-400 hover:bg-purple-50/30"
                 }`}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -425,7 +425,7 @@ function SalesMetricsContent() {
                     <p className="text-sm text-green-600">
                       {csvRowCount} opportunities analyzed · {prefilledCount} of {totalQuestions} metrics auto-filled
                     </p>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                       Fill in any remaining fields below for a more complete picture, or just hit <span className="font-medium text-purple-600">Analyze My Metrics</span> to work with what we have.
                     </p>
                     <button
@@ -435,7 +435,7 @@ function SalesMetricsContent() {
                         setCsvInsights(null);
                         setPrefilledCount(0);
                       }}
-                      className="mt-2 text-sm text-gray-500 hover:text-gray-700 underline"
+                      className="mt-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
                     >
                       Remove and start fresh
                     </button>
@@ -443,7 +443,7 @@ function SalesMetricsContent() {
                 ) : (
                   <div>
                     <div className="text-gray-400 text-3xl mb-3">📊</div>
-                    <p className="text-gray-700 font-medium mb-1">
+                    <p className="text-gray-700 dark:text-gray-200 font-medium mb-1">
                       Drag & drop your CRM export CSV here, or{" "}
                       <button
                         onClick={() => fileInputRef.current?.click()}
@@ -452,18 +452,18 @@ function SalesMetricsContent() {
                         click to browse
                       </button>
                     </p>
-                    <p className="text-sm text-gray-500 mb-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                       We&apos;ll analyze your opportunities and auto-fill your metrics
                     </p>
 
                     {/* Recommended fields */}
                     <div className="text-left max-w-xl mx-auto bg-gray-50 rounded-lg p-4 text-sm">
-                      <p className="font-medium text-gray-700 mb-2">
+                      <p className="font-medium text-gray-700 dark:text-gray-200 mb-2">
                         Recommended CSV fields (the more the better):
                       </p>
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-gray-600">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-gray-600 dark:text-gray-300">
                         <div>
-                          <p className="font-medium text-gray-700 mt-1 mb-0.5">Deal</p>
+                          <p className="font-medium text-gray-700 dark:text-gray-200 mt-1 mb-0.5">Deal</p>
                           <p>Opportunity ID</p>
                           <p>Account ID</p>
                           <p>Owner ID</p>
@@ -476,11 +476,11 @@ function SalesMetricsContent() {
                           <p>Lead Source</p>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-700 mt-1 mb-0.5">Funnel</p>
+                          <p className="font-medium text-gray-700 dark:text-gray-200 mt-1 mb-0.5">Funnel</p>
                           <p>First Meeting Date</p>
                           <p>Demo Date</p>
                           <p>Proposal Sent Date</p>
-                          <p className="font-medium text-gray-700 mt-2 mb-0.5">Context</p>
+                          <p className="font-medium text-gray-700 dark:text-gray-200 mt-2 mb-0.5">Context</p>
                           <p>Company Size</p>
                           <p>Industry</p>
                           <p>Buyer Role</p>
@@ -489,11 +489,11 @@ function SalesMetricsContent() {
                           <p>Competitor</p>
                         </div>
                       </div>
-                      <div className="mt-1 text-gray-600">
-                        <p className="font-medium text-gray-700 mt-2 mb-0.5">Outcome</p>
+                      <div className="mt-1 text-gray-600 dark:text-gray-300">
+                        <p className="font-medium text-gray-700 dark:text-gray-200 mt-2 mb-0.5">Outcome</p>
                         <p>Won/Lost · Closed Lost Reason · Closed Lost Notes</p>
                       </div>
-                      <p className="mt-3 text-gray-500 italic">
+                      <p className="mt-3 text-gray-500 dark:text-gray-400 italic">
                         Works with any CRM export (Salesforce, HubSpot, Pipedrive, Close, etc.).
                         To analyze a specific time period, just limit the rows in your CSV.
                       </p>
@@ -528,11 +528,11 @@ function SalesMetricsContent() {
               {grouped.map((group) => {
                 const filledInGroup = group.questions.filter((q) => answers[q.id]?.trim()).length;
                 return (
-                  <div key={group.category} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                  <div key={group.category} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                       <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-gray-900">{group.category}</h2>
-                        <span className={`text-sm font-medium ${filledInGroup === group.questions.length ? "text-green-600" : "text-gray-500"}`}>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{group.category}</h2>
+                        <span className={`text-sm font-medium ${filledInGroup === group.questions.length ? "text-green-600" : "text-gray-500 dark:text-gray-400"}`}>
                           {filledInGroup}/{group.questions.length}
                         </span>
                       </div>
@@ -541,7 +541,7 @@ function SalesMetricsContent() {
                       {group.questions.map((q) => (
                         <div key={q.id} className="px-6 py-4">
                           <div className="flex items-start gap-2 mb-2">
-                            <label className="block text-sm font-medium text-gray-800 flex-1">
+                            <label className="block text-sm font-medium text-gray-800 dark:text-gray-100 flex-1">
                               {q.question}
                             </label>
                             {answerSources[q.id] === "csv" && (
@@ -551,7 +551,7 @@ function SalesMetricsContent() {
                             )}
                           </div>
                           {q.helpText && (
-                            <p className="text-xs text-gray-500 mb-2">{q.helpText}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{q.helpText}</p>
                           )}
                           <input
                             type="text"
@@ -563,7 +563,7 @@ function SalesMetricsContent() {
                               }
                             }}
                             placeholder="Enter value or leave blank"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
                       ))}
@@ -576,8 +576,8 @@ function SalesMetricsContent() {
 
           {/* Submit Bar */}
           {!analysisResult && (
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 -mx-6 px-6 py-4 flex items-center justify-between">
-              <div className="text-sm text-gray-500">
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 -mx-6 px-6 py-4 flex items-center justify-between">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 {answeredCount} of {totalQuestions} fields filled
                 {lastSaved && (
                   <span className="ml-3 text-green-600">
@@ -591,7 +591,7 @@ function SalesMetricsContent() {
                 className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-colors ${
                   answeredCount > 0 && !submitting
                     ? "bg-purple-600 text-white hover:bg-purple-700"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-300 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 }`}
               >
                 {submitting ? "Analyzing..." : "Analyze My Metrics"}
@@ -607,8 +607,8 @@ function SalesMetricsContent() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p className="text-lg font-medium text-gray-900 mb-1">{LOADING_MESSAGES[loadingMessageIndex]}...</p>
-                <p className="text-sm text-gray-500">This may take a minute</p>
+                <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">{LOADING_MESSAGES[loadingMessageIndex]}...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">This may take a minute</p>
               </div>
             </div>
           )}
@@ -624,9 +624,9 @@ function SalesMetricsContent() {
                     .map(([key, metric]) => {
                       const q = questions.find((q) => String(q.globalOrder) === key);
                       return (
-                        <div key={key} className="bg-white rounded-xl border border-gray-200 p-4">
-                          <p className="text-xs text-gray-500 mb-1 truncate">{q?.question?.replace(/\?$/, "") || `Metric ${key}`}</p>
-                          <p className="text-xl font-bold text-gray-900">{metric.value || "N/A"}</p>
+                        <div key={key} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 truncate">{q?.question?.replace(/\?$/, "") || `Metric ${key}`}</p>
+                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{metric.value || "N/A"}</p>
                           <p className="text-xs text-gray-400 mt-1">Benchmark: {metric.benchmark}</p>
                         </div>
                       );
@@ -636,7 +636,7 @@ function SalesMetricsContent() {
 
               {/* Top 3 Strengths */}
               {analysisResult.top3Strengths?.length > 0 && (
-                <div className="bg-white rounded-xl border border-green-200 overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-green-200 overflow-hidden">
                   <div className="bg-green-50 px-6 py-3 border-b border-green-200">
                     <h2 className="text-lg font-semibold text-green-800">Top 3 Strengths</h2>
                   </div>
@@ -644,7 +644,7 @@ function SalesMetricsContent() {
                     {analysisResult.top3Strengths.map((s, i) => (
                       <div key={i} className="px-6 py-4">
                         <h3 className="font-medium text-green-700 mb-1">✅ {s.title}</h3>
-                        <p className="text-sm text-gray-600">{s.detail}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{s.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -653,7 +653,7 @@ function SalesMetricsContent() {
 
               {/* Top 3 Improvements */}
               {analysisResult.top3Improvements?.length > 0 && (
-                <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-amber-200 overflow-hidden">
                   <div className="bg-amber-50 px-6 py-3 border-b border-amber-200">
                     <h2 className="text-lg font-semibold text-amber-800">Top 3 Areas for Improvement</h2>
                   </div>
@@ -661,7 +661,7 @@ function SalesMetricsContent() {
                     {analysisResult.top3Improvements.map((s, i) => (
                       <div key={i} className="px-6 py-4">
                         <h3 className="font-medium text-amber-700 mb-1">⚠️ {s.title}</h3>
-                        <p className="text-sm text-gray-600">{s.detail}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{s.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -674,11 +674,11 @@ function SalesMetricsContent() {
                   <h2 className="text-lg font-bold text-purple-900 mb-2">
                     🎯 #1 Priority: {analysisResult.workOnNext.title}
                   </h2>
-                  <p className="text-sm text-gray-700 mb-3">{analysisResult.workOnNext.detail}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200 mb-3">{analysisResult.workOnNext.detail}</p>
                   {analysisResult.workOnNext.actionSteps?.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-purple-800 mb-1">Action Steps:</p>
-                      <ul className="text-sm text-gray-700 space-y-1">
+                      <ul className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
                         {analysisResult.workOnNext.actionSteps.map((step, i) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="text-purple-500 mt-0.5">•</span>
@@ -693,18 +693,18 @@ function SalesMetricsContent() {
 
               {/* All Metrics Table */}
               {analysisResult.metricsTable && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">All Metrics</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">All Metrics</h2>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="text-left px-6 py-2 text-gray-600 font-medium">Metric</th>
-                          <th className="text-left px-4 py-2 text-gray-600 font-medium">Your Value</th>
-                          <th className="text-left px-4 py-2 text-gray-600 font-medium">Benchmark</th>
-                          <th className="text-left px-4 py-2 text-gray-600 font-medium">Rating</th>
+                        <tr className="bg-gray-50 border-b border-gray-200 dark:border-gray-700">
+                          <th className="text-left px-6 py-2 text-gray-600 dark:text-gray-300 font-medium">Metric</th>
+                          <th className="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">Your Value</th>
+                          <th className="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">Benchmark</th>
+                          <th className="text-left px-4 py-2 text-gray-600 dark:text-gray-300 font-medium">Rating</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -715,12 +715,12 @@ function SalesMetricsContent() {
                             ok: "bg-yellow-100 text-yellow-700",
                             needs_work: "bg-red-100 text-red-700",
                           };
-                          const ratingColor = ratingColors[metric.rating as keyof typeof ratingColors] || "bg-gray-100 text-gray-700";
+                          const ratingColor = ratingColors[metric.rating as keyof typeof ratingColors] || "bg-gray-100 text-gray-700 dark:text-gray-200";
                           return (
                             <tr key={key}>
-                              <td className="px-6 py-3 text-gray-800">{q?.question || `Metric ${key}`}</td>
-                              <td className="px-4 py-3 font-medium text-gray-900">{metric.value || "N/A"}</td>
-                              <td className="px-4 py-3 text-gray-500">{metric.benchmark}</td>
+                              <td className="px-6 py-3 text-gray-800 dark:text-gray-100">{q?.question || `Metric ${key}`}</td>
+                              <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{metric.value || "N/A"}</td>
+                              <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{metric.benchmark}</td>
                               <td className="px-4 py-3">
                                 <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${ratingColor}`}>
                                   {metric.rating === "needs_work" ? "Needs Work" : metric.rating === "good" ? "Good" : "OK"}
@@ -737,10 +737,10 @@ function SalesMetricsContent() {
 
               {/* General Analysis */}
               {analysisResult.generalAnalysis && (
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">General Analysis</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">General Analysis</h2>
                   <div
-                    className="prose prose-sm max-w-none text-gray-700"
+                    className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                     dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.generalAnalysis) }}
                   />
                 </div>
@@ -748,52 +748,52 @@ function SalesMetricsContent() {
 
               {/* CSV Deep Dive */}
               {analysisResult.csvDeepDive && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                   <div className="bg-blue-50 px-6 py-3 border-b border-blue-200">
                     <h2 className="text-lg font-semibold text-blue-900">CRM Data Deep Dive</h2>
                   </div>
                   <div className="p-6 space-y-6">
                     {analysisResult.csvDeepDive.winRateBySource && (
                       <div>
-                        <h3 className="font-medium text-gray-800 mb-2">Win Rate by Lead Source</h3>
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Win Rate by Lead Source</h3>
                         <div
-                          className="prose prose-sm max-w-none text-gray-700"
+                          className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.csvDeepDive.winRateBySource) }}
                         />
                       </div>
                     )}
                     {analysisResult.csvDeepDive.trends && (
                       <div>
-                        <h3 className="font-medium text-gray-800 mb-2">Trends Over Time</h3>
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Trends Over Time</h3>
                         <div
-                          className="prose prose-sm max-w-none text-gray-700"
+                          className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.csvDeepDive.trends) }}
                         />
                       </div>
                     )}
                     {analysisResult.csvDeepDive.repPerformance && (
                       <div>
-                        <h3 className="font-medium text-gray-800 mb-2">Rep Performance</h3>
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Rep Performance</h3>
                         <div
-                          className="prose prose-sm max-w-none text-gray-700"
+                          className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.csvDeepDive.repPerformance) }}
                         />
                       </div>
                     )}
                     {analysisResult.csvDeepDive.pipelineHealth && (
                       <div>
-                        <h3 className="font-medium text-gray-800 mb-2">Pipeline Health</h3>
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Pipeline Health</h3>
                         <div
-                          className="prose prose-sm max-w-none text-gray-700"
+                          className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.csvDeepDive.pipelineHealth) }}
                         />
                       </div>
                     )}
                     {analysisResult.csvDeepDive.otherInsights && (
                       <div>
-                        <h3 className="font-medium text-gray-800 mb-2">Other Insights</h3>
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">Other Insights</h3>
                         <div
-                          className="prose prose-sm max-w-none text-gray-700"
+                          className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(analysisResult.csvDeepDive.otherInsights) }}
                         />
                       </div>
@@ -812,7 +812,7 @@ function SalesMetricsContent() {
                 </button>
                 <button
                   onClick={handleReset}
-                  className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   Run New Analysis
                 </button>
@@ -828,9 +828,9 @@ function SalesMetricsContent() {
 // Simple markdown to HTML converter for analysis text
 function markdownToHtml(md: string): string {
   return md
-    .replace(/### (.*)/g, '<h3 class="text-base font-semibold text-gray-800 mt-4 mb-2">$1</h3>')
-    .replace(/## (.*)/g, '<h2 class="text-lg font-semibold text-gray-800 mt-4 mb-2">$1</h2>')
-    .replace(/# (.*)/g, '<h1 class="text-xl font-bold text-gray-900 mt-4 mb-2">$1</h1>')
+    .replace(/### (.*)/g, '<h3 class="text-base font-semibold text-gray-800 dark:text-gray-100 mt-4 mb-2">$1</h3>')
+    .replace(/## (.*)/g, '<h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mt-4 mb-2">$1</h2>')
+    .replace(/# (.*)/g, '<h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-4 mb-2">$1</h1>')
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
     .replace(/^- (.*)/gm, '<li class="ml-4">$1</li>')
@@ -839,10 +839,10 @@ function markdownToHtml(md: string): string {
       const cells = match.split("|").filter((c) => c.trim());
       if (cells.every((c) => c.trim().match(/^-+$/))) return "";
       const tag = "td";
-      const row = cells.map((c) => `<${tag} class="px-3 py-1 border border-gray-200">${c.trim()}</${tag}>`).join("");
+      const row = cells.map((c) => `<${tag} class="px-3 py-1 border border-gray-200 dark:border-gray-700">${c.trim()}</${tag}>`).join("");
       return `<tr>${row}</tr>`;
     })
-    .replace(/(<tr>.*<\/tr>\n?)+/g, '<table class="w-full border-collapse border border-gray-200 my-2 text-sm">$&</table>')
+    .replace(/(<tr>.*<\/tr>\n?)+/g, '<table class="w-full border-collapse border border-gray-200 dark:border-gray-700 my-2 text-sm">$&</table>')
     .replace(/\n\n/g, "<br/><br/>")
     .replace(/\n/g, "<br/>");
 }

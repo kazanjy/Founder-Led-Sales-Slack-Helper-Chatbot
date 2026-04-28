@@ -51,7 +51,7 @@ export default function DiscoveryQuestionsPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -647,7 +647,7 @@ function DiscoveryQuestionsContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading discovery questions...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading discovery questions...</p>
           </div>
         </div>
       </div>
@@ -663,8 +663,8 @@ function DiscoveryQuestionsContent() {
           <div className="text-center max-w-lg px-6">
             {showImport ? (
               <>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Your Discovery Questions</h1>
-                <p className="text-gray-600 mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Import Your Discovery Questions</h1>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
                   Paste your existing discovery questions below or upload a PDF/CSV. We&apos;ll organize them into our format.
                 </p>
                 <div className="text-left space-y-4">
@@ -673,7 +673,7 @@ function DiscoveryQuestionsContent() {
                     onChange={(e) => setImportText(e.target.value)}
                     placeholder="Paste your discovery questions here..."
                     rows={10}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-sm"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-sm"
                     disabled={importing}
                   />
                   <div className="flex items-center gap-3">
@@ -696,7 +696,7 @@ function DiscoveryQuestionsContent() {
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={importing}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium disabled:opacity-50"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium disabled:opacity-50"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -717,7 +717,7 @@ function DiscoveryQuestionsContent() {
                   </div>
                   <button
                     onClick={() => { setShowImport(false); setImportText(""); }}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     disabled={importing}
                   >
                     Back
@@ -727,8 +727,8 @@ function DiscoveryQuestionsContent() {
             ) : (
               <>
                 <div className="text-6xl mb-4">🔍</div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Discovery Questions</h1>
-                <p className="text-gray-600 mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Discovery Questions</h1>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">
                   {hasSalesNarrative
                     ? "Generate discovery questions from your sales narrative, or import your own."
                     : "Import your existing discovery questions, or create a sales narrative first to auto-generate them."}
@@ -761,7 +761,7 @@ function DiscoveryQuestionsContent() {
                   <button
                     onClick={() => setShowImport(true)}
                     disabled={generating}
-                    className={`inline-flex items-center gap-2 px-6 py-3 ${hasSalesNarrative ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg"} rounded-lg transition-all font-medium disabled:opacity-50 w-full justify-center`}
+                    className={`inline-flex items-center gap-2 px-6 py-3 ${hasSalesNarrative ? "border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700" : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 shadow-md hover:shadow-lg"} rounded-lg transition-all font-medium disabled:opacity-50 w-full justify-center`}
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -771,7 +771,7 @@ function DiscoveryQuestionsContent() {
                   {!hasSalesNarrative && (
                     <Link
                       href="/sales-narrative/edit"
-                      className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium w-full justify-center"
+                      className="inline-flex items-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-medium w-full justify-center"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -806,13 +806,13 @@ function DiscoveryQuestionsContent() {
         ]}
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -826,13 +826,13 @@ function DiscoveryQuestionsContent() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Discovery Questions"
                     rows={1}
-                    className="text-xl font-semibold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
+                    className="text-xl font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
                     style={{ minHeight: "2.5rem" }}
                   />
                 ) : (
-                  <h1 className="text-xl font-semibold text-gray-900">{version.title || "Discovery Questions"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version.title || "Discovery Questions"}</h1>
                 )}
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Generated {formatDate(version.createdAt)} · {getTotalQuestions()} questions
                 </p>
               </div>
@@ -843,7 +843,7 @@ function DiscoveryQuestionsContent() {
                 <>
                   <button
                     onClick={handleCancelEditing}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -901,7 +901,7 @@ function DiscoveryQuestionsContent() {
                   {version?.userId === currentUserId && (
                   <button
                     onClick={handleStartEditing}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -911,7 +911,7 @@ function DiscoveryQuestionsContent() {
                   )}
                   <button
                     onClick={handleCopyAll}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     {copiedQuestion === "all" ? (
                       <>
@@ -931,7 +931,7 @@ function DiscoveryQuestionsContent() {
                   </button>
                   <Link
                     href="/discovery-questions/history"
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -941,7 +941,7 @@ function DiscoveryQuestionsContent() {
                   {version?.userId === currentUserId && (
                   <button
                     onClick={handleClone}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1050,7 +1050,7 @@ function DiscoveryQuestionsContent() {
         )}
         <div className="space-y-4">
           {(isEditing && editContent ? editContent.categories : version.content.categories).map((category, catIdx) => {
-            const colors = categoryColors[category.name] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", icon: "text-gray-500" };
+            const colors = categoryColors[category.name] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200", icon: "text-gray-500 dark:text-gray-400" };
             const isExpanded = expandedCategories.has(category.name);
 
             return (
@@ -1061,7 +1061,7 @@ function DiscoveryQuestionsContent() {
                 >
                   <div className="flex items-center gap-3">
                     <span className={`font-semibold ${colors.text}`}>{category.name}</span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       {category.questions.length} questions
                     </span>
                   </div>
@@ -1078,10 +1078,10 @@ function DiscoveryQuestionsContent() {
                 {isExpanded && (
                   <div className="px-6 pb-4 space-y-3">
                     {category.description && (
-                      <p className="text-sm text-gray-600 italic">{category.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 italic">{category.description}</p>
                     )}
                     {category.questions.map((question, idx) => (
-                      <div key={idx} className="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+                      <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 shadow-sm">
                         {isEditing ? (
                           <div className="space-y-3">
                             <div className="flex items-start gap-2">
@@ -1089,7 +1089,7 @@ function DiscoveryQuestionsContent() {
                               <textarea
                                 value={question.primary}
                                 onChange={(e) => updateQuestion(catIdx, idx, "primary", e.target.value)}
-                                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-800 dark:text-gray-100 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                 rows={2}
                               />
                               <button
@@ -1111,7 +1111,7 @@ function DiscoveryQuestionsContent() {
                                     <textarea
                                       value={followUp}
                                       onChange={(e) => updateFollowUp(catIdx, idx, fIdx, e.target.value)}
-                                      className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                      className="flex-1 px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                       rows={1}
                                     />
                                     <button
@@ -1139,13 +1139,13 @@ function DiscoveryQuestionsContent() {
                         ) : (
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
-                              <p className="text-gray-800 font-medium">
+                              <p className="text-gray-800 dark:text-gray-100 font-medium">
                                 {idx + 1}. {question.primary}
                               </p>
                               {question.followUps && question.followUps.length > 0 && (
-                                <div className="mt-2 pl-4 border-l-2 border-gray-200 space-y-1">
+                                <div className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-1">
                                   {question.followUps.map((followUp, fIdx) => (
-                                    <p key={fIdx} className="text-sm text-gray-600">
+                                    <p key={fIdx} className="text-sm text-gray-600 dark:text-gray-300">
                                       → {followUp}
                                     </p>
                                   ))}
@@ -1179,7 +1179,7 @@ function DiscoveryQuestionsContent() {
                     {isEditing && (
                       <button
                         onClick={() => addQuestion(catIdx)}
-                        className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-purple-400 hover:text-purple-600 transition-colors"
+                        className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 transition-colors"
                       >
                         + Add Question
                       </button>
@@ -1193,14 +1193,14 @@ function DiscoveryQuestionsContent() {
 
         {/* Source Info */}
         {version.salesNarrative && (
-          <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
               Generated From
             </h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-800 font-medium">Sales Narrative</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-gray-800 dark:text-gray-100 font-medium">Sales Narrative</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Created {formatDate(version.salesNarrative.createdAt)}
                 </p>
               </div>
@@ -1262,7 +1262,7 @@ function DiscoveryQuestionsContent() {
                     <Link
                       href="/icp"
                       target="_blank"
-                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Done! View ICP
                     </Link>
@@ -1276,7 +1276,7 @@ function DiscoveryQuestionsContent() {
                     <Link
                       href="/icp"
                       target="_blank"
-                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       View ICP
                     </Link>
@@ -1290,7 +1290,7 @@ function DiscoveryQuestionsContent() {
                     <Link
                       href="/icp"
                       target="_blank"
-                      className="block w-full text-center px-4 py-2.5 bg-white text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
+                      className="block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 text-purple-700 rounded-lg hover:bg-purple-50 transition-colors font-semibold text-sm"
                     >
                       Create ICP
                     </Link>
@@ -1300,14 +1300,14 @@ function DiscoveryQuestionsContent() {
 
               {/* Iterate panel — above ICP/ad cards */}
               {version && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Iterate
                   </h3>
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                     Describe what to change and we&apos;ll create an updated version.
                   </p>
                   <textarea
@@ -1316,7 +1316,7 @@ function DiscoveryQuestionsContent() {
                     placeholder="e.g., Add more questions about budget authority, make the pain discovery questions more specific..."
                     rows={4}
                     disabled={iterating}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                   />
                   <button
                     onClick={handleIterate}
