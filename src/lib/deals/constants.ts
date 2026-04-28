@@ -26,14 +26,14 @@ export const PARTICIPANT_ROLES = [
 ] as const;
 
 export const ENTRY_TYPES = [
-  { value: "call_transcript", label: "Call Transcript", emoji: "📞" },
-  { value: "call_summary", label: "Call Summary", emoji: "📋" },
-  { value: "email", label: "Email", emoji: "📧" },
-  { value: "screenshot", label: "Screenshot", emoji: "📷" },
-  { value: "note", label: "Note", emoji: "📝" },
-  { value: "linkedin", label: "LinkedIn", emoji: "💼" },
-  { value: "document", label: "Document", emoji: "📄" },
-  { value: "chat", label: "Deal Chat", emoji: "🌊" },
+  { value: "call_transcript", label: "Call Transcript", emoji: "📞", description: "Paste a full call transcript — Mikey extracts attendees, summary, and action items." },
+  { value: "call_summary", label: "Call Summary", emoji: "📋", description: "A short recap of a call. Use when you don't have the full transcript." },
+  { value: "email", label: "Email", emoji: "📧", description: "Paste an email thread or a single message you sent or received." },
+  { value: "screenshot", label: "Screenshot", emoji: "📷", description: "Drop in a screenshot — Mikey reads the image and pulls out who and what." },
+  { value: "note", label: "Note", emoji: "📝", description: "Free-form notes. Type, paste, or record a voice note that gets synthesized into a written summary." },
+  { value: "linkedin", label: "LinkedIn", emoji: "💼", description: "A LinkedIn message, post, or comment relevant to this deal." },
+  { value: "document", label: "Document", emoji: "📄", description: "Drop in a PDF or paste a doc — proposals, contracts, brief sheets." },
+  { value: "chat", label: "Deal Chat", emoji: "🌊", description: "Saved breadcrumbs from chats with Mikey about this deal." },
 ] as const;
 
 export function getStageInfo(stage: string) {

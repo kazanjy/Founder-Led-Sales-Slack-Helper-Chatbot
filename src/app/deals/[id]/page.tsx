@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
+import { VoiceNoteButton } from "@/components/VoiceNoteButton";
 import DealChatPanel from "@/components/DealChatPanel";
 import { DEAL_STAGES, DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStageInfo, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
 
@@ -294,6 +295,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
   const dealSearchRef = useRef<HTMLDivElement>(null);
   const [newEntryType, setNewEntryType] = useState<string>("note");
+  // Raw whisper transcript that produced the current synthesized note
+  // body. Persisted onto the entry's metadata at submit time so the
+  // timeline can show it behind a "Show transcript" reveal.
+  const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null);
   const [newEntryContent, setNewEntryContent] = useState("");
   const [newEntryTitle, setNewEntryTitle] = useState("");
   const [newEntryUrl, setNewEntryUrl] = useState("");
@@ -338,6 +343,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [autoSendNonce, setAutoSendNonce] = useState(0);
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const [revealedTranscripts, setRevealedTranscripts] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
   const [timelineQuery, setTimelineQuery] = useState<string>("");
 
@@ -496,11 +502,16 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       }
 
       // Assemble metadata — link matched + newly-created participant IDs so
-      // downstream analysis knows who this entry references.
+      // downstream analysis knows who this entry references. Voice-note
+      // raw transcripts ride along here too so the timeline can offer a
+      // "Show transcript" reveal under the synthesized body.
       const linkedIds = !entryData
         ? [...screenshotMatched.map((p) => p.id), ...createdIds]
         : [];
-      const metadata = linkedIds.length > 0 ? { linkedParticipantIds: linkedIds } : undefined;
+      const metadataParts: Record<string, unknown> = {};
+      if (linkedIds.length > 0) metadataParts.linkedParticipantIds = linkedIds;
+      if (pendingVoiceTranscript) metadataParts.rawVoiceTranscript = pendingVoiceTranscript;
+      const metadata = Object.keys(metadataParts).length > 0 ? metadataParts : undefined;
 
       const res = await fetch(`/api/deals/${id}/entries`, {
         method: "POST",
@@ -535,6 +546,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         setScreenshotSuggestions([]);
         setAcceptedSuggestionNames(new Set());
         setAskMikeyPrompt("");
+        setPendingVoiceTranscript(null);
         await loadDeal();
 
         // If the user typed an Ask Mikey prompt alongside the entry, open
@@ -1496,13 +1508,22 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">New entry:</span>
                 {ENTRY_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => setNewEntryType(t.value)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${newEntryType === t.value ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
-                  >
-                    {t.emoji} {t.label}
-                  </button>
+                  <div key={t.value} className="relative group">
+                    <button
+                      onClick={() => setNewEntryType(t.value)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${newEntryType === t.value ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
+                    >
+                      {t.emoji} {t.label}
+                    </button>
+                    {t.description && (
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-20 w-56 px-2.5 py-1.5 rounded-md bg-gray-900 text-white text-[11px] leading-snug shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-75"
+                      >
+                        {t.description}
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
               <input
@@ -1565,6 +1586,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 3v5a1 1 0 001 1h5" />
                     </svg>
                   </button>
+                  <VoiceNoteButton
+                    disabled={processingScreenshot || processingPdf}
+                    onResult={(summary, transcript) => {
+                      // Switch the form into Note mode so the user
+                      // doesn't have to flip the type tab themselves,
+                      // and drop the synthesized text into the body.
+                      setNewEntryType("note");
+                      setNewEntryContent((prev) => (prev ? `${prev}\n\n${summary}` : summary));
+                      setPendingVoiceTranscript(transcript);
+                    }}
+                  />
                   {(processingScreenshot || processingPdf) && (
                     <div className="flex items-center gap-1.5 ml-1">
                       <svg className="animate-spin h-3.5 w-3.5 text-purple-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
@@ -2142,6 +2174,48 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 </div>
                               )}
                             </>
+                          );
+                        })()}
+                        {(() => {
+                          // If this entry was created from a voice
+                          // recording, surface the raw whisper
+                          // transcript behind a click — useful for
+                          // the user to verify the synthesizer didn't
+                          // drop something.
+                          let rawTranscript: string | null = null;
+                          if (entry.metadata) {
+                            try {
+                              const parsed = JSON.parse(entry.metadata);
+                              if (typeof parsed?.rawVoiceTranscript === "string" && parsed.rawVoiceTranscript.trim()) {
+                                rawTranscript = parsed.rawVoiceTranscript.trim();
+                              }
+                            } catch { /* ignore */ }
+                          }
+                          if (!rawTranscript) return null;
+                          const open = revealedTranscripts.has(entry.id);
+                          return (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                onClick={() => setRevealedTranscripts((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(entry.id)) next.delete(entry.id);
+                                  else next.add(entry.id);
+                                  return next;
+                                })}
+                                className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:underline inline-flex items-center gap-1"
+                              >
+                                <svg className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                {open ? "Hide raw transcript" : "Show raw voice transcript"}
+                              </button>
+                              {open && (
+                                <div className="mt-1 p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap font-mono">
+                                  {rawTranscript}
+                                </div>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
