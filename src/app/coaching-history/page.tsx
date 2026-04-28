@@ -227,6 +227,22 @@ function CoachingHistoryContent() {
   const [whatNextLoading, setWhatNextLoading] = useState(false);
   const { confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
+  // Desktop-only collapse for the left history tray. Persisted so the
+  // user's preference survives reloads. Mobile keeps its existing
+  // selectedId-driven view-vs-list behaviour and ignores this state.
+  const [historyOpen, setHistoryOpen] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("coachingHistory:trayOpen");
+    if (saved === "false") setHistoryOpen(false);
+  }, []);
+  const toggleHistory = (next: boolean) => {
+    setHistoryOpen(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("coachingHistory:trayOpen", next ? "true" : "false");
+    }
+  };
+
   // Sync selectedId with URL query param
   const selectSession = useCallback((id: string | null) => {
     setSelectedId(id);
@@ -751,18 +767,46 @@ function CoachingHistoryContent() {
         ) : (
           /* Two-panel layout */
           <div className="flex gap-6">
-            {/* Left panel: Session list — hidden on mobile when viewing a session */}
-            <div className={`w-full md:w-80 flex-shrink-0 ${selectedId && mode === "view" ? "hidden md:block" : ""}`}>
-              {sessions.length > 1 && (
-                <div className="mb-2 px-2">
+            {/* Collapsed-state rail — desktop only, swaps in for the
+                full panel when historyOpen is false. Mobile ignores
+                this state entirely. */}
+            {!historyOpen && (
+              <div className="hidden md:flex flex-shrink-0 items-start pt-1">
+                <button
+                  onClick={() => toggleHistory(true)}
+                  title="Show history"
+                  aria-label="Show history"
+                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {/* Left panel: Session list — hidden on mobile when viewing
+                a session, hidden on desktop when collapsed. */}
+            <div className={`w-full md:w-80 flex-shrink-0 ${selectedId && mode === "view" ? "hidden md:block" : ""} ${!historyOpen ? "md:hidden" : ""}`}>
+              <div className="mb-2 px-2 flex items-center justify-between min-h-[20px]">
+                {sessions.length > 1 ? (
                   <button
                     onClick={toggleCheckAll}
                     className="text-xs text-purple-600 hover:text-purple-800 hover:underline"
                   >
                     {checkedIds.size === sessions.length ? "Deselect all" : "Select all"}
                   </button>
-                </div>
-              )}
+                ) : <span />}
+                <button
+                  onClick={() => toggleHistory(false)}
+                  title="Hide history"
+                  aria-label="Hide history"
+                  className="hidden md:inline-flex p-1 -mr-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              </div>
               <div className="space-y-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
                 {sessions.filter((s) => {
                   // Hide draft sessions from sidebar unless it's the active draft in create mode
