@@ -47,7 +47,7 @@ export function ImpersonationBanner({ userName }: ImpersonationBannerProps) {
         <button
           onClick={handleExit}
           disabled={exiting}
-          className="bg-white text-amber-600 px-1.5 py-0 rounded text-[10px] font-medium hover:bg-amber-50 disabled:opacity-50 leading-tight"
+          className="bg-white dark:bg-gray-800 text-amber-600 px-1.5 py-0 rounded text-[10px] font-medium hover:bg-amber-50 disabled:opacity-50 leading-tight"
         >
           {exiting ? "..." : "Exit"}
         </button>

@@ -53,7 +53,7 @@ export default function SalesMetricsHistoryPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Sales Metrics History</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sales Metrics History</h1>
             <Link
               href="/sales-metrics"
               className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
@@ -68,12 +68,12 @@ export default function SalesMetricsHistoryPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p className="text-gray-500">Loading history...</p>
+              <p className="text-gray-500 dark:text-gray-400">Loading history...</p>
             </div>
           ) : assessments.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
               <div className="text-4xl mb-3">📊</div>
-              <p className="text-gray-600 mb-4">No sales metrics analyses yet.</p>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">No sales metrics analyses yet.</p>
               <Link
                 href="/sales-metrics"
                 className="text-purple-600 hover:text-purple-700 font-medium"
@@ -87,14 +87,14 @@ export default function SalesMetricsHistoryPage() {
                 <div
                   key={a.id}
                   onClick={() => router.push(`/sales-metrics/${a.id}`)}
-                  className="bg-white rounded-xl border border-gray-200 p-5 hover:border-purple-300 transition-colors cursor-pointer"
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-purple-300 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
                         {a.title || "Sales Metrics Analysis"}
                       </h3>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-gray-400">
                         <span>{new Date(a.completedAt).toLocaleDateString()}</span>
                         {a.csvFileName && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">

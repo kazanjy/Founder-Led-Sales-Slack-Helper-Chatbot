@@ -84,7 +84,7 @@ export default function ConfirmModal({
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onCancel || onConfirm}
       />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-6">
           <div className="flex items-start gap-4">
             <div
@@ -101,8 +101,8 @@ export default function ConfirmModal({
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{message}</p>
             </div>
           </div>
         </div>
@@ -111,7 +111,7 @@ export default function ConfirmModal({
           {showCancel && onCancel && (
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               {cancelLabel}
             </button>

@@ -20,7 +20,7 @@ export default async function SignInPage() {
               alt="Mikey"
               className="w-10 h-10 rounded-lg"
             />
-            <span className="font-bold text-xl text-gray-900">Mikey</span>
+            <span className="font-bold text-xl text-gray-900 dark:text-gray-100">Mikey</span>
           </a>
         </div>
       </header>
@@ -28,25 +28,25 @@ export default async function SignInPage() {
       {/* Sign In Form */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 p-8">
             <div className="text-center mb-8">
               <img
                 src="/mikey-avatar.png"
                 alt="Mikey"
                 className="w-20 h-20 mx-auto mb-4 rounded-xl"
               />
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 Sign in to Mikey
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Your AI-powered Founder-Led Sales assistant
               </p>
             </div>
 
             <AuthButtons variant="signin" className="flex-col" />
 
-            <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-500">
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Don&apos;t have an account?{" "}
                 <a href="/" className="text-blue-600 hover:underline font-medium">
                   Sign up
@@ -57,7 +57,7 @@ export default async function SignInPage() {
 
           {/* Add to Slack Workspace option */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500 mb-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               Want to add Mikey to your team&apos;s Slack workspace?
             </p>
             <a

@@ -156,7 +156,7 @@ export function SidebarAdCards({ currentPage }: SidebarAdCardsProps) {
           <Link
             href={card.href}
             target="_blank"
-            className={`block w-full text-center px-4 py-2.5 bg-white ${card.ctaColor} rounded-lg ${card.ctaHover} transition-colors font-semibold text-sm`}
+            className={`block w-full text-center px-4 py-2.5 bg-white dark:bg-gray-800 ${card.ctaColor} rounded-lg ${card.ctaHover} transition-colors font-semibold text-sm`}
           >
             {card.cta}
           </Link>

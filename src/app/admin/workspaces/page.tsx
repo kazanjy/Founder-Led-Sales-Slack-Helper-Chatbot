@@ -89,23 +89,23 @@ export default function AdminWorkspacesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Workspaces</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Workspaces</h1>
         {pagination && (
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {pagination.total.toLocaleString()} total workspaces
           </span>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg shadow p-4 border border-gray-200 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 mb-6">
         <form onSubmit={handleSearch} className="flex gap-4">
           <input
             type="text"
             placeholder="Search by workspace name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
             type="submit"
@@ -120,7 +120,7 @@ export default function AdminWorkspacesPage() {
                 setSearch("");
                 router.push("/admin/workspaces");
               }}
-              className="px-3 py-2 text-gray-600 hover:text-gray-900"
+              className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
             >
               Clear
             </button>
@@ -129,54 +129,54 @@ export default function AdminWorkspacesPage() {
       </div>
 
       {/* Workspaces Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading workspaces...</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading workspaces...</div>
         ) : workspaces.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No workspaces found</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">No workspaces found</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Workspace
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Users
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Conversations
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Trial Config
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Installed
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Bot Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
                 {workspaces.map((ws) => (
-                  <tr key={ws.id} className="hover:bg-gray-50">
+                  <tr key={ws.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
                         {ws.slackTeamName}
                       </div>
-                      <div className="text-sm text-gray-500 font-mono">
+                      <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
                         {ws.slackTeamId}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                       {ws.userCount}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                       {ws.conversationCount}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {ws.trialDays !== null || ws.trialMessages !== null ? (
                         <div>
                           {ws.trialDays !== null && <div>{ws.trialDays} days</div>}
@@ -188,7 +188,7 @@ export default function AdminWorkspacesPage() {
                         <span className="text-gray-400">Default</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {new Date(ws.installedAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">
@@ -211,8 +211,8 @@ export default function AdminWorkspacesPage() {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
+          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
               Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
               {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
               {pagination.total}
@@ -221,14 +221,14 @@ export default function AdminWorkspacesPage() {
               <button
                 onClick={() => updateUrl({ page: String(currentPage - 1) })}
                 disabled={currentPage <= 1}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Previous
               </button>
               <button
                 onClick={() => updateUrl({ page: String(currentPage + 1) })}
                 disabled={currentPage >= pagination.totalPages}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Next
               </button>

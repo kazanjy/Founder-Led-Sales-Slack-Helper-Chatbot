@@ -141,11 +141,11 @@ export default function NewCallRecap() {
       <SalesNavBar />
       <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
         <div className="w-full max-w-3xl px-6 py-8">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
               Generate Call Recap Email
             </h1>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               Paste your call details and Mikey will generate a professional follow-up email with the right next steps for your sales motion.
             </p>
 
@@ -173,7 +173,7 @@ export default function NewCallRecap() {
                       ) : (
                         <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       )}
-                      <span className="text-sm text-gray-700">Sales Narrative</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">Sales Narrative</span>
                       {narrativeDate && <span className="text-xs text-gray-400">{formatDate(narrativeDate)}</span>}
                     </div>
                     <a href={narrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
@@ -187,7 +187,7 @@ export default function NewCallRecap() {
                       ) : (
                         <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       )}
-                      <span className="text-sm text-gray-700">Sales Motion</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">Sales Motion</span>
                       {salesMotionDate && <span className="text-xs text-gray-400">{formatDate(salesMotionDate)}</span>}
                     </div>
                     <a href={salesMotionDate ? "/sales-motion" : "/sales-motion/new"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
@@ -233,7 +233,7 @@ export default function NewCallRecap() {
             <div className="space-y-5">
               {/* Recording URL — first field, required */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Call Recording URL <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -241,7 +241,7 @@ export default function NewCallRecap() {
                   value={recordingUrl}
                   onChange={(e) => setRecordingUrl(e.target.value)}
                   placeholder="https://fathom.video/share/... or Gong/Chorus link"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                 />
                 <div className="flex items-center gap-2 mt-1 min-h-[18px]">
                   {extracting ? (
@@ -262,7 +262,7 @@ export default function NewCallRecap() {
 
               {/* Call Summary — required */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Call Summary <span className="text-red-400">*</span>
                 </label>
                 <textarea
@@ -271,13 +271,13 @@ export default function NewCallRecap() {
                   onChange={(e) => setCallSummary(e.target.value)}
                   placeholder="Paste the call summary from your call recorder..."
                   rows={6}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                 />
               </div>
 
               {/* Transcript — optional */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Full Transcript <span className="text-gray-400 font-normal">(optional but recommended)</span>
                 </label>
                 <textarea
@@ -285,13 +285,13 @@ export default function NewCallRecap() {
                   onChange={(e) => setCallTranscript(e.target.value)}
                   placeholder="Paste the full call transcript for richer detail..."
                   rows={4}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                 />
               </div>
 
               {/* Custom Notes — optional */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Custom Notes <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
@@ -299,14 +299,14 @@ export default function NewCallRecap() {
                   onChange={(e) => setCustomNotes(e.target.value)}
                   placeholder='e.g., "Emphasize the security review timeline" or "CC the CFO on the follow-up"'
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                 />
               </div>
 
               {/* Tone & Polish — persistent, saves on blur */}
               {toneLoaded && (
                 <div className="border-t border-gray-100 pt-5">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Tone &amp; Polish <span className="text-gray-400 font-normal">(saved for all recaps)</span>
                   </label>
                   <textarea
@@ -315,7 +315,7 @@ export default function NewCallRecap() {
                     onBlur={saveToneGuidance}
                     placeholder='e.g., "Keep it concise and direct — no fluff. Use a warm but professional tone. Always end with a specific next step and proposed date."'
                     rows={3}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {toneSaving ? "Saving..." : "This guidance applies to all recap emails you generate. Edit anytime."}

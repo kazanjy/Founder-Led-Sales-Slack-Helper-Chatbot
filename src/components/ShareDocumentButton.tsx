@@ -71,7 +71,7 @@ export function ShareDocumentButton({ documentType, documentId, title, content }
         ref={buttonRef}
         onClick={() => setShowPopover(!showPopover)}
         disabled={sharing}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
       >
         {sharing ? (
           <>
@@ -96,7 +96,7 @@ export function ShareDocumentButton({ documentType, documentId, title, content }
       {showPopover && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+          className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
         >
           <div className="p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -104,9 +104,9 @@ export function ShareDocumentButton({ documentType, documentId, title, content }
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
               </svg>
-              <h3 className="font-semibold text-gray-900">Share public link</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Share public link</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               Create a public link to a snapshot of this document. Anyone with the link can view it &mdash; no login required.
             </p>
             <button

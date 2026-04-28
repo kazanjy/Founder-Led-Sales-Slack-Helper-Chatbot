@@ -92,7 +92,7 @@ export function AttachmentPicker({
         className={`p-2 rounded-lg transition-colors ${
           isOpen || selectedAttachments.length > 0
             ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
         title="Attach context"
       >
@@ -118,16 +118,16 @@ export function AttachmentPicker({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+        <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
           <div className="px-3 py-2 border-b border-gray-100">
-            <h3 className="font-medium text-gray-900 text-sm">Attach Context</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 text-sm">Attach Context</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Include your GTM outputs with this message
             </p>
           </div>
           <div className="py-1">
             {loading ? (
-              <div className="px-3 py-4 text-center text-gray-500 text-sm">
+              <div className="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
                 Loading...
               </div>
             ) : (
@@ -145,14 +145,14 @@ export function AttachmentPicker({
                         window.location.href = attachment.appUrl;
                       }
                     }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
                       <div
                         className={`w-4 h-4 rounded border flex items-center justify-center ${
                           isSelected
                             ? "bg-blue-600 border-blue-600"
-                            : "border-gray-300"
+                            : "border-gray-300 dark:border-gray-700"
                         }`}
                       >
                         {isSelected && (
@@ -173,7 +173,7 @@ export function AttachmentPicker({
                       </div>
                       <span
                         className={`text-sm ${
-                          attachment.isAvailable ? "text-gray-900" : "text-gray-400"
+                          attachment.isAvailable ? "text-gray-900 dark:text-gray-100" : "text-gray-400"
                         }`}
                       >
                         {attachment.name}
@@ -208,7 +208,7 @@ export function AttachmentPicker({
           </div>
           {selectedAttachments.length > 0 && (
             <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 rounded-b-lg">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {selectedAttachments.length} attachment
                 {selectedAttachments.length !== 1 ? "s" : ""} will be included
               </p>

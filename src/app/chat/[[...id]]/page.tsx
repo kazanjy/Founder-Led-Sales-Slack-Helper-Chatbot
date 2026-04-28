@@ -2728,7 +2728,7 @@ export default function ChatPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
           <div className="flex gap-1">
             <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
             <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
@@ -2791,7 +2791,7 @@ export default function ChatPage() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Mikey</h1>
-            <p className="text-sm text-gray-500 truncate">{user?.workspaceName}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user?.workspaceName}</p>
           </div>
           {/* Collapse sidebar button */}
           <button
@@ -2894,7 +2894,7 @@ export default function ChatPage() {
               ) : (
                 <button
                   onClick={() => setCreatingProject(true)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -2966,7 +2966,7 @@ export default function ChatPage() {
         {/* Conversations List - this part scrolls independently */}
         <div className={`overflow-y-auto ${myChatsExpanded ? "flex-1" : "h-0"}`}>
           {conversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 text-sm">
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
               No conversations yet. Start a new chat!
             </div>
           ) : (
@@ -3042,7 +3042,7 @@ export default function ChatPage() {
                       openMenuId === conv.id ? "bg-gray-300" : "opacity-0 group-hover:opacity-100"
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600 dark:text-gray-300">
                       <circle cx="12" cy="5" r="2"></circle>
                       <circle cx="12" cy="12" r="2"></circle>
                       <circle cx="12" cy="19" r="2"></circle>
@@ -3230,7 +3230,7 @@ export default function ChatPage() {
                           e.stopPropagation();
                           handleDeleteConversation(conv.id);
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6"></polyline>
@@ -3320,19 +3320,19 @@ export default function ChatPage() {
         )}
 
         {/* User Info - stays at bottom */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {user?.name || user?.email || "User"}
             </span>
             <button
               onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             >
               Sign Out
             </button>
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
             {user?.licenseStatus === "ACTIVE" ? (
               <div className="flex items-center justify-between">
                 <span className="text-green-600">✓ Licensed</span>
@@ -3456,7 +3456,7 @@ export default function ChatPage() {
                     setSelectedProject(null);
                   }
                 }}
-                className="w-full mb-6 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-500 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors flex items-center justify-center gap-2"
+                className="w-full mb-6 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-900/20 transition-colors flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -3472,7 +3472,7 @@ export default function ChatPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 font-medium">No chats in this project yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">No chats in this project yet</p>
                   <p className="text-sm text-gray-400 mt-1">Add chats using the ⋯ menu on any conversation</p>
                 </div>
               ) : (
@@ -3515,7 +3515,7 @@ export default function ChatPage() {
             {(sidebarCollapsed || isMobile) && (
               <button
                 onClick={toggleSidebar}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
                 title="Open sidebar"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3547,7 +3547,7 @@ export default function ChatPage() {
             {/* Settings button */}
             <a
               href="/settings"
-              className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -3591,7 +3591,7 @@ export default function ChatPage() {
                     className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm rounded-lg transition-colors ${
                       conversations.find((c) => c.id === selectedConversation)?.projectId
                         ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3666,7 +3666,7 @@ export default function ChatPage() {
                 </div>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -3678,7 +3678,7 @@ export default function ChatPage() {
                 <div className="relative" ref={exportMenuRef}>
                   <button
                     onClick={() => setShowExportMenu(!showExportMenu)}
-                    className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3689,7 +3689,7 @@ export default function ChatPage() {
                     <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60]">
                       <button
                         onClick={handleExportMarkdown}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3698,7 +3698,7 @@ export default function ChatPage() {
                       </button>
                       <button
                         onClick={handleExportPDF}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
                         <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none">
                           <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#E53935"/>
@@ -3725,7 +3725,7 @@ export default function ChatPage() {
                       showToast("Failed to clone chat", "bottom");
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 13h6m-3-3v6m5 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"></path>
@@ -3735,7 +3735,7 @@ export default function ChatPage() {
                 <button
                   onClick={handleShare}
                   disabled={sharing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {sharing ? (
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -3752,7 +3752,7 @@ export default function ChatPage() {
                 </button>
                 <button
                   onClick={() => setShareModalConversationId(selectedConversation)}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -3805,7 +3805,7 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-3 md:p-6 dark:text-gray-100">
           {loadingMessages ? (
             <div className="h-full flex items-center justify-center">
-              <div className="flex items-center gap-2 text-gray-500">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <div className="flex gap-1">
                   <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
                   <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
@@ -3851,7 +3851,7 @@ export default function ChatPage() {
                   <form onSubmit={handleSendMessage} className="max-w-[700px] mx-auto w-full mb-8">
                     {/* Merge field preview/warning */}
                     {mergeFieldPreview && (
-                      <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                      <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:border-gray-700 text-sm">
                         {mergeFieldPreview.missing.length > 0 && (
                           <div className="flex items-start gap-2 text-orange-600 mb-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
@@ -3868,10 +3868,10 @@ export default function ChatPage() {
                         {mergeFieldPreview.used.length > 0 && (
                           <div className="space-y-2">
                             {mergeFieldPreview.used.map((v) => (
-                              <div key={v.mergeField} className="text-gray-600">
+                              <div key={v.mergeField} className="text-gray-600 dark:text-gray-300">
                                 <span className="font-medium text-blue-600">{`{{${v.mergeField}}}`}</span>
                                 <span className="text-gray-400 mx-2">→</span>
-                                <span className="text-gray-700">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
+                                <span className="text-gray-700 dark:text-gray-200">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
                               </div>
                             ))}
                           </div>
@@ -3952,7 +3952,7 @@ export default function ChatPage() {
                                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
                                   conversationMode === "CHATBASE"
                                     ? "bg-blue-50 text-blue-700 border-blue-300"
-                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
                               >
                                 <span>🌊</span>
@@ -3973,7 +3973,7 @@ export default function ChatPage() {
                                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
                                   conversationMode === "DIRECT"
                                     ? "bg-orange-50 text-orange-700 border-orange-300"
-                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
                               >
                                 <span>⚡️</span>
@@ -3993,7 +3993,7 @@ export default function ChatPage() {
                                 className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-all border ${
                                   promptGuidance
                                     ? "text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100"
-                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                                    : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                                 }`}
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4043,7 +4043,7 @@ export default function ChatPage() {
                               <button
                                 type="button"
                                 onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                 title="Insert GTM Variable"
                               >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4058,10 +4058,10 @@ export default function ChatPage() {
                                   />
                                   <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 max-h-80 overflow-y-auto">
                                     <div className="p-2 border-b border-gray-100">
-                                      <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Insert Variable</span>
                                     </div>
                                     {gtmVariables.length === 0 ? (
-                                      <div className="p-3 text-sm text-gray-500">
+                                      <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
                                         No variables configured.{" "}
                                         <a href="/settings" className="text-blue-600 hover:underline">
                                           Add in Settings
@@ -4074,10 +4074,10 @@ export default function ChatPage() {
                                             key={v.mergeField}
                                             type="button"
                                             onClick={() => insertVariable(v.mergeField)}
-                                            className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                            className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between gap-2"
                                           >
                                             <div className="min-w-0">
-                                              <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{v.name}</div>
                                               <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
                                             </div>
                                             {v.value ? (
@@ -4092,7 +4092,7 @@ export default function ChatPage() {
                                     <div className="p-2 border-t border-gray-100">
                                       <a
                                         href="/settings"
-                                        className="text-xs text-gray-500 hover:text-blue-600"
+                                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600"
                                       >
                                         Manage variables →
                                       </a>
@@ -4283,7 +4283,7 @@ export default function ChatPage() {
                           <textarea
                             value={editingMessageContent}
                             onChange={(e) => setEditingMessageContent(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y min-h-[80px]"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y min-h-[80px]"
                             rows={4}
                             autoFocus
                             onKeyDown={(e) => {
@@ -4297,7 +4297,7 @@ export default function ChatPage() {
                           <div className="flex justify-end gap-2 mt-2">
                             <button
                               onClick={() => setEditingMessageId(null)}
-                              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             >
                               Cancel
                             </button>
@@ -4318,7 +4318,7 @@ export default function ChatPage() {
                           {!sending && (
                             <button
                               onClick={() => { setEditingMessageId(msg.id); setEditingMessageContent(msg.content); }}
-                              className="mt-3 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover/usermsg:opacity-100 transition-opacity rounded hover:bg-gray-100"
+                              className="mt-3 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover/usermsg:opacity-100 transition-opacity rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                               title="Edit message"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4340,7 +4340,7 @@ export default function ChatPage() {
                                       onClick={() => openLightboxForLoadedFiles(messageFiles, fileIndex)}
                                     >
                                       {file.type === "pdf" || file.type === "csv" ? (
-                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm">
+                                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
                                           <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
                                             <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={file.type === "csv" ? "#2E7D32" : "#E53935"}/>
                                             <path d="M14 2V8H20L14 2Z" fill={file.type === "csv" ? "#C8E6C9" : "#FFCDD2"}/>
@@ -4352,7 +4352,7 @@ export default function ChatPage() {
                                         <img
                                           src={file.url || ""}
                                           alt={file.name}
-                                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                                          className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                                         />
                                       )}
                                     </div>
@@ -4381,7 +4381,7 @@ export default function ChatPage() {
                               const success = await copyMarkdownAsRichText(msg.content);
                               showToast(success ? "Copied to clipboard!" : "Failed to copy", "bottom");
                             }}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -4395,7 +4395,7 @@ export default function ChatPage() {
                         <div className="relative group">
                           <button
                             onClick={() => handleShareMessage(msg.id)}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                             title="Share link to this response"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -4430,7 +4430,7 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   // Show loading indicator while waiting for first chunk
-                  <div className="flex items-center gap-2 text-gray-500 mt-4">
+                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mt-4">
                     <div className="flex gap-1">
                       <span className="animate-bounce" style={{ animationDelay: "0ms" }}>🌊</span>
                       <span className="animate-bounce" style={{ animationDelay: "150ms" }}>🌊</span>
@@ -4476,7 +4476,7 @@ export default function ChatPage() {
             <form onSubmit={handleSendMessage} className="max-w-[800px] w-full mx-auto flex flex-col min-h-0">
               {/* Merge field preview/warning */}
               {mergeFieldPreview && (
-                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 dark:border-gray-700 text-sm">
                   {mergeFieldPreview.missing.length > 0 && (
                     <div className="flex items-start gap-2 text-orange-600 mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
@@ -4493,10 +4493,10 @@ export default function ChatPage() {
                   {mergeFieldPreview.used.length > 0 && (
                     <div className="space-y-2">
                       {mergeFieldPreview.used.map((v) => (
-                        <div key={v.mergeField} className="text-gray-600">
+                        <div key={v.mergeField} className="text-gray-600 dark:text-gray-300">
                           <span className="font-medium text-blue-600">{`{{${v.mergeField}}}`}</span>
                           <span className="text-gray-400 mx-2">→</span>
-                          <span className="text-gray-700">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
+                          <span className="text-gray-700 dark:text-gray-200">{v.value.length > 100 ? v.value.substring(0, 100) + "..." : v.value}</span>
                         </div>
                       ))}
                     </div>
@@ -4506,9 +4506,9 @@ export default function ChatPage() {
               {isViewingSharedChat ? (
                 /* Read-only state for shared chats */
                 <div className="border rounded-2xl bg-gray-50 dark:bg-gray-800 dark:border-gray-700 shadow-sm w-full p-4 text-center">
-                  <div className="text-gray-500 mb-2">
+                  <div className="text-gray-500 dark:text-gray-400 mb-2">
                     This is a read-only shared chat from{" "}
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">
                       {sharedChatInfo?.sharedBy.name || sharedChatInfo?.sharedBy.email?.split("@")[0] || "someone"}
                     </span>
                   </div>
@@ -4607,7 +4607,7 @@ export default function ChatPage() {
                           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
                             conversationMode === "CHATBASE"
                               ? "bg-blue-50 text-blue-700 border-blue-300"
-                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                           } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           <span>🌊</span>
@@ -4628,7 +4628,7 @@ export default function ChatPage() {
                           className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg transition-all border ${
                             conversationMode === "DIRECT"
                               ? "bg-orange-50 text-orange-700 border-orange-300"
-                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+                              : "text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                           } ${switchingMode ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           <span>⚡️</span>
@@ -4677,7 +4677,7 @@ export default function ChatPage() {
                         <button
                           type="button"
                           onClick={() => setShowVariablesDropdown(!showVariablesDropdown)}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                           title="Insert GTM Variable"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4692,10 +4692,10 @@ export default function ChatPage() {
                             />
                             <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 max-h-80 overflow-y-auto">
                               <div className="p-2 border-b border-gray-100">
-                                <span className="text-xs font-medium text-gray-500 uppercase">Insert Variable</span>
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Insert Variable</span>
                               </div>
                               {gtmVariables.length === 0 ? (
-                                <div className="p-3 text-sm text-gray-500">
+                                <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
                                   No variables configured.{" "}
                                   <a href="/settings" className="text-blue-600 hover:underline">
                                     Add in Settings
@@ -4708,10 +4708,10 @@ export default function ChatPage() {
                                       key={v.mergeField}
                                       type="button"
                                       onClick={() => insertVariable(v.mergeField)}
-                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center justify-between gap-2"
+                                      className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between gap-2"
                                     >
                                       <div className="min-w-0">
-                                        <div className="text-sm font-medium text-gray-900 truncate">{v.name}</div>
+                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{v.name}</div>
                                         <div className="text-xs text-blue-600 font-mono">{`{{${v.mergeField}}}`}</div>
                                       </div>
                                       {v.value ? (
@@ -4726,7 +4726,7 @@ export default function ChatPage() {
                               <div className="p-2 border-t border-gray-100">
                                 <a
                                   href="/settings"
-                                  className="text-xs text-gray-500 hover:text-blue-600"
+                                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600"
                                 >
                                   Manage variables →
                                 </a>
@@ -4851,7 +4851,7 @@ export default function ChatPage() {
               <button
                 onClick={handleSearchNewChat}
                 className={`w-full px-5 py-4 transition-colors flex items-center gap-4 text-left border-b border-gray-100 ${
-                  searchSelectedIndex === 0 ? "bg-gray-100" : "hover:bg-gray-50"
+                  searchSelectedIndex === 0 ? "bg-gray-100" : "hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
               >
                 <div className="flex-shrink-0 text-gray-400">
@@ -4860,11 +4860,11 @@ export default function ChatPage() {
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
                 </div>
-                <div className="font-medium text-gray-900">New Chat</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">New Chat</div>
               </button>
 
               {searchLoading ? (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -4874,7 +4874,7 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : searchResults.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400 text-sm">
                   {searchQuery.trim() ? "No conversations found" : "No recent conversations"}
                 </div>
               ) : (
@@ -4884,7 +4884,7 @@ export default function ChatPage() {
                       key={result.id}
                       onClick={() => handleSearchSelect(result.id)}
                       className={`w-full px-5 py-4 transition-colors flex items-start gap-4 text-left border-b border-gray-100 last:border-b-0 ${
-                        searchSelectedIndex === index + 1 ? "bg-gray-100" : "hover:bg-gray-50"
+                        searchSelectedIndex === index + 1 ? "bg-gray-100" : "hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                     >
                       {/* Chat icon */}
@@ -4895,10 +4895,10 @@ export default function ChatPage() {
                       </div>
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {result.title || result.preview?.substring(0, 50) || "Untitled conversation"}
                         </div>
-                        <div className="text-sm text-gray-500 truncate mt-0.5">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
                           {result.matchSnippet
                             ? highlightSearchTerm(result.matchSnippet, searchQuery)
                             : result.preview
@@ -4924,14 +4924,14 @@ export default function ChatPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                 {isAddingPrompt ? "Add New Prompt" : "Edit Prompt"}
               </h2>
 
               <div className="space-y-4">
                 {/* Emoji picker */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Emoji
                   </label>
                   <input
@@ -4940,14 +4940,14 @@ export default function ChatPage() {
                     onChange={(e) =>
                       setEditingPrompt({ ...editingPrompt, emoji: e.target.value.slice(0, 2) })
                     }
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl text-center"
+                    className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-2xl text-center"
                     maxLength={2}
                   />
                 </div>
 
                 {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Button Title
                   </label>
                   <input
@@ -4957,16 +4957,16 @@ export default function ChatPage() {
                       setEditingPrompt({ ...editingPrompt, title: e.target.value })
                     }
                     placeholder="What users see on the button"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     This is what appears on the button tile.
                   </p>
                 </div>
 
                 {/* Prompt */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Actual Prompt
                   </label>
                   <textarea
@@ -4975,22 +4975,22 @@ export default function ChatPage() {
                       setEditingPrompt({ ...editingPrompt, prompt: e.target.value })
                     }
                     placeholder="The actual prompt that gets sent to Mikey"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-y"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-y"
                     rows={4}
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     This is the actual message sent to Mikey. Can be different from the button title to create richer prompts.
                   </p>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex gap-2">
                   {!isAddingPrompt && canResetPrompt(editingPrompt) && (
                     <button
                       onClick={() => handleResetPromptToDefault(editingPrompt.id)}
-                      className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       Reset to Default
                     </button>
@@ -5026,7 +5026,7 @@ export default function ChatPage() {
                       setEditingPrompt(null);
                       setIsAddingPrompt(false);
                     }}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
@@ -5059,12 +5059,12 @@ export default function ChatPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 dark:text-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
                 Rename Conversation
               </h2>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Name
                 </label>
                 <input
@@ -5081,16 +5081,16 @@ export default function ChatPage() {
                     }
                   }}
                   placeholder="Enter conversation name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   autoFocus
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end items-center gap-3 mt-6 pt-4 border-t border-gray-200">
+              <div className="flex justify-end items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setRenamingConversation(null)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -5146,10 +5146,10 @@ export default function ChatPage() {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 text-center mb-2">
                 Email this conversation
               </h2>
-              <p className="text-gray-600 text-center mb-6">
+              <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
                 Send a copy of this conversation to any email address.
               </p>
 
@@ -5201,7 +5201,7 @@ export default function ChatPage() {
                       }
                     }}
                     placeholder="Enter email address"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoFocus={!user?.email}
                   />
                   <button
@@ -5219,7 +5219,7 @@ export default function ChatPage() {
                   setShowEmailModal(false);
                   setEmailAddress("");
                 }}
-                className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                className="w-full mt-4 py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -5240,10 +5240,10 @@ export default function ChatPage() {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 text-center mb-2">
                 Use Mikey in your team&apos;s Slack Workspace
               </h2>
-              <p className="text-gray-600 text-center mb-6">
+              <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
                 Get sales advice right where your team works. Add Mikey to Slack for instant access to founder-led sales guidance.
               </p>
 
@@ -5268,7 +5268,7 @@ export default function ChatPage() {
                     localStorage.setItem("slackModalDismissed", "true");
                     setShowSlackModal(false);
                   }}
-                  className="w-full py-3 px-4 text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                  className="w-full py-3 px-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium transition-colors"
                 >
                   Maybe later
                 </button>
@@ -5365,14 +5365,14 @@ export default function ChatPage() {
         className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
         onClick={(e) => { if (e.target === e.currentTarget) setShowPromptGuidance(false); }}
       >
-        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <h3 className="text-lg font-semibold text-gray-900">Prompt Guidance</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Prompt Guidance</h3>
             </div>
             <button onClick={() => setShowPromptGuidance(false)} className="text-gray-400 hover:text-gray-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -5380,7 +5380,7 @@ export default function ChatPage() {
               </svg>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Add custom guidance to shape how Mikey responds to you. This applies to all conversations in both Founding Sales Content and Direct LLM modes.
           </p>
           <textarea
@@ -5388,19 +5388,19 @@ export default function ChatPage() {
             onChange={(e) => setPromptGuidanceDraft(e.target.value)}
             placeholder={"Examples:\n- Keep responses concise, under 200 words\n- Use a casual, direct tone\n- Always include specific examples\n- Format action items as numbered lists\n- When discussing sales, reference SaaS / B2B contexts"}
             rows={8}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
           />
           <div className="flex items-center justify-between mt-4">
             <button
               onClick={() => { setPromptGuidanceDraft(""); }}
-              className="text-sm text-gray-500 hover:text-red-500 transition-colors"
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors"
             >
               Clear
             </button>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowPromptGuidance(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>

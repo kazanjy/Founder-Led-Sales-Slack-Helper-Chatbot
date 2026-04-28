@@ -81,7 +81,7 @@ export default function UpgradeContent() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-500">Loading...</div>
+        <div className="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
       </main>
     );
   }
@@ -96,10 +96,10 @@ export default function UpgradeContent() {
             alt="Mikey"
             className="w-24 h-24 mx-auto mb-4 rounded-2xl shadow-lg"
           />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {installed ? "Mikey is installed!" : "Upgrade to Mikey Pro"}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             {installed && workspace
               ? `Successfully added to ${workspace}. `
               : ""}
@@ -129,19 +129,19 @@ export default function UpgradeContent() {
             className={`p-6 rounded-xl border-2 text-left transition-all ${
               selectedPlan === "monthly"
                 ? "border-blue-600 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
             }`}
           >
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Monthly</h3>
-                <p className="text-sm text-gray-500">Pay as you go</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Monthly</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pay as you go</p>
               </div>
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   selectedPlan === "monthly"
                     ? "border-blue-600 bg-blue-600"
-                    : "border-gray-300"
+                    : "border-gray-300 dark:border-gray-700"
                 }`}
               >
                 {selectedPlan === "monthly" && (
@@ -160,10 +160,10 @@ export default function UpgradeContent() {
               </div>
             </div>
             <div className="mb-2">
-              <span className="text-3xl font-bold text-gray-900">$99</span>
-              <span className="text-gray-500">/month</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">$99</span>
+              <span className="text-gray-500 dark:text-gray-400">/month</span>
             </div>
-            <p className="text-sm text-gray-500">Cancel anytime</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Cancel anytime</p>
           </button>
 
           {/* Annual Plan */}
@@ -172,7 +172,7 @@ export default function UpgradeContent() {
             className={`p-6 rounded-xl border-2 text-left transition-all relative ${
               selectedPlan === "annual"
                 ? "border-blue-600 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
             }`}
           >
             {/* Save badge */}
@@ -182,14 +182,14 @@ export default function UpgradeContent() {
 
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Annual</h3>
-                <p className="text-sm text-gray-500">Best value</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Annual</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Best value</p>
               </div>
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   selectedPlan === "annual"
                     ? "border-blue-600 bg-blue-600"
-                    : "border-gray-300"
+                    : "border-gray-300 dark:border-gray-700"
                 }`}
               >
                 {selectedPlan === "annual" && (
@@ -208,18 +208,18 @@ export default function UpgradeContent() {
               </div>
             </div>
             <div className="mb-2">
-              <span className="text-3xl font-bold text-gray-900">$69</span>
-              <span className="text-gray-500">/month</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">$69</span>
+              <span className="text-gray-500 dark:text-gray-400">/month</span>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Billed annually ($828/year)
             </p>
           </button>
         </div>
 
         {/* What's included */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-          <h3 className="font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
             What&apos;s included:
           </h3>
           <ul className="space-y-3">
@@ -241,7 +241,7 @@ export default function UpgradeContent() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-gray-700">{feature}</span>
+                <span className="text-gray-700 dark:text-gray-200">{feature}</span>
               </li>
             ))}
           </ul>

@@ -191,7 +191,7 @@ export default function AdminAccountsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading accounts...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading accounts...</div>
       </div>
     );
   }
@@ -199,13 +199,13 @@ export default function AdminAccountsPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Accounts</h1>
         <input
           type="text"
           placeholder="Search accounts..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
+          className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm w-full sm:w-64"
         />
       </div>
 
@@ -242,7 +242,7 @@ export default function AdminAccountsPage() {
       )}
 
       {accounts.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           No accounts found
         </div>
       ) : (
@@ -250,11 +250,11 @@ export default function AdminAccountsPage() {
           {accounts.map((account) => (
             <div
               key={account.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
             >
               {/* Account header */}
               <div
-                className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
                 onClick={() =>
                   setExpandedAccount(
                     expandedAccount === account.id ? null : account.id
@@ -262,7 +262,7 @@ export default function AdminAccountsPage() {
                 }
               >
                 <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                     <Link
                       href={`/admin/accounts/${account.id}`}
                       className="hover:text-blue-600 hover:underline"
@@ -271,7 +271,7 @@ export default function AdminAccountsPage() {
                       {account.name}
                     </Link>
                   </h3>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 mt-1">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {account.emailDomain && (
                       <span>@{account.emailDomain}</span>
                     )}
@@ -286,10 +286,10 @@ export default function AdminAccountsPage() {
 
               {/* Expanded content */}
               {expandedAccount === account.id && (
-                <div className="border-t border-gray-200 px-4 py-4 sm:px-6 space-y-6">
+                <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 sm:px-6 space-y-6">
                   {/* Users */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Members</h4>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Members</h4>
                     <div className="space-y-1">
                       {account.users.map((user) => (
                         <div
@@ -302,7 +302,7 @@ export default function AdminAccountsPage() {
                                 ? "bg-purple-100 text-purple-700"
                                 : user.accountRole === "ADMIN"
                                 ? "bg-blue-100 text-blue-700"
-                                : "bg-gray-100 text-gray-600"
+                                : "bg-gray-100 text-gray-600 dark:text-gray-300"
                             }`}
                           >
                             {user.accountRole}
@@ -326,7 +326,7 @@ export default function AdminAccountsPage() {
                   {/* Channel Claims */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-700">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200">
                         Claimed Channels
                       </h4>
                       <button
@@ -349,13 +349,13 @@ export default function AdminAccountsPage() {
 
                     {/* Claim form */}
                     {claimFormAccount === account.id && (
-                      <div className="bg-gray-50 rounded-md p-3 mb-3 space-y-3 border border-gray-200">
-                        <div className="text-xs text-gray-500 mb-2">
+                      <div className="bg-gray-50 rounded-md p-3 mb-3 space-y-3 border border-gray-200 dark:border-gray-700">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                           To find a channel ID in Slack: right-click the channel &gt; &quot;View channel details&quot; &gt; scroll to the bottom. It starts with &quot;C&quot; (e.g., C0123456789).
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Channel ID *
                             </label>
                             <input
@@ -363,11 +363,11 @@ export default function AdminAccountsPage() {
                               placeholder="C0123456789"
                               value={claimChannelId}
                               onChange={(e) => setClaimChannelId(e.target.value)}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Channel Name (optional)
                             </label>
                             <input
@@ -377,11 +377,11 @@ export default function AdminAccountsPage() {
                               onChange={(e) =>
                                 setClaimChannelName(e.target.value)
                               }
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Workspace *
                             </label>
                             <select
@@ -389,7 +389,7 @@ export default function AdminAccountsPage() {
                               onChange={(e) =>
                                 setClaimWorkspaceId(e.target.value)
                               }
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                             >
                               <option value="">Select workspace</option>
                               {getWorkspacesForAccount(account).map((ws) => (
@@ -400,13 +400,13 @@ export default function AdminAccountsPage() {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                               Channel Owner (User) *
                             </label>
                             <select
                               value={claimUserId}
                               onChange={(e) => setClaimUserId(e.target.value)}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                             >
                               <option value="">Select user</option>
                               {account.users.map((user) => (
@@ -431,7 +431,7 @@ export default function AdminAccountsPage() {
                           </button>
                           <button
                             onClick={() => setClaimFormAccount(null)}
-                            className="px-3 py-1.5 text-gray-600 text-sm hover:text-gray-800"
+                            className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm hover:text-gray-800"
                           >
                             Cancel
                           </button>
@@ -453,7 +453,7 @@ export default function AdminAccountsPage() {
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-sm text-gray-900">
+                                <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
                                   {claim.slackChannelName || claim.slackChannelId}
                                 </span>
                                 {claim.slackChannelName && (
@@ -462,7 +462,7 @@ export default function AdminAccountsPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500 mt-0.5">
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                 Owned by{" "}
                                 <Link
                                   href={`/admin/users/${claim.claimedBy.id}`}

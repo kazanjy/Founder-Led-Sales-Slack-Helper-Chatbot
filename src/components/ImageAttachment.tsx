@@ -114,7 +114,7 @@ export function FileAttachmentButton({
         className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
           isDisabled
             ? "text-gray-400 opacity-50 cursor-not-allowed"
-            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
         }`}
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach image"}
       >
@@ -135,7 +135,7 @@ export function FileAttachmentButton({
         className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
           isDisabled
             ? "text-gray-400 opacity-50 cursor-not-allowed"
-            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
         }`}
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach PDF"}
       >
@@ -156,7 +156,7 @@ export function FileAttachmentButton({
         className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
           isDisabled
             ? "text-gray-400 opacity-50 cursor-not-allowed"
-            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
         }`}
         title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach CSV"}
       >
@@ -212,7 +212,7 @@ export function FilePreviewChips({
           {preview.isPDF || preview.isCSV ? (
             // PDF/CSV preview - show icon and filename
             <div
-              className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 ${processing ? "opacity-50" : "cursor-pointer hover:border-gray-300 hover:bg-gray-100"}`}
+              className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 ${processing ? "opacity-50" : "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
               onClick={() => !processing && onPreview?.(index)}
             >
               <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24" fill="none">
@@ -220,7 +220,7 @@ export function FilePreviewChips({
                 <path d="M14 2V8H20L14 2Z" fill={preview.isCSV ? "#C8E6C9" : "#FFCDD2"}/>
                 <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{preview.isCSV ? "CSV" : "PDF"}</text>
               </svg>
-              <span className="text-sm text-gray-700 max-w-[120px] truncate">{preview.file.name}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-200 max-w-[120px] truncate">{preview.file.name}</span>
               {processing && (
                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               )}
@@ -228,7 +228,7 @@ export function FilePreviewChips({
           ) : (
             // Image preview - show thumbnail
             <div
-              className={`relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 ${processing ? "" : "cursor-pointer hover:border-gray-300"}`}
+              className={`relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 ${processing ? "" : "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600"}`}
               onClick={() => !processing && onPreview?.(index)}
             >
               <img
@@ -326,7 +326,7 @@ export function ImageChipsReadOnly({
         return (
           <div
             key={`${file.name}-${index}`}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 ${onPreview ? "cursor-pointer hover:border-gray-300 hover:bg-gray-100" : ""}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 text-sm text-gray-600 dark:text-gray-300 ${onPreview ? "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" : ""}`}
             onClick={() => onPreview?.(index)}
           >
             {isPDF || isCSV ? (

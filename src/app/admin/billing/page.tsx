@@ -58,58 +58,58 @@ export default function AdminBillingPage() {
   }, []);
 
   if (loading) {
-    return <div className="text-gray-500">Loading billing data...</div>;
+    return <div className="text-gray-500 dark:text-gray-400">Loading billing data...</div>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Billing</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Billing</h1>
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-green-600">
               ${stats.estimatedMRR.toLocaleString()}
             </div>
-            <div className="text-sm text-gray-500">Estimated MRR</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Estimated MRR</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {stats.activeUsers}
             </div>
-            <div className="text-sm text-gray-500">Active Users</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Active Users</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {stats.activeLicenses}
             </div>
-            <div className="text-sm text-gray-500">Active Licenses</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Active Licenses</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-blue-600">
               {stats.stripeLicenses}
             </div>
-            <div className="text-sm text-gray-500">Stripe Subscriptions</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Stripe Subscriptions</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
             <div className="text-2xl font-bold text-yellow-600">
               {stats.manualLicenses}
             </div>
-            <div className="text-sm text-gray-500">Manual Licenses</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Manual Licenses</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 border border-gray-200">
-            <div className="text-2xl font-bold text-gray-600">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+            <div className="text-2xl font-bold text-gray-600 dark:text-gray-300">
               {stats.totalLicenses}
             </div>
-            <div className="text-sm text-gray-500">Total Licenses</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total Licenses</div>
           </div>
         </div>
       )}
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6 border border-gray-200 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <a
             href="https://dashboard.stripe.com/subscriptions"
@@ -131,42 +131,42 @@ export default function AdminBillingPage() {
       </div>
 
       {/* Recent Licenses */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Active Licenses</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Active Licenses</h2>
         </div>
         {licenses.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No active licenses</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">No active licenses</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     License
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     User(s)
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Source
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
                 {licenses.map((license) => (
-                  <tr key={license.id} className="hover:bg-gray-50">
+                  <tr key={license.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-3">
-                      <div className="font-mono text-sm text-gray-600">
+                      <div className="font-mono text-sm text-gray-600 dark:text-gray-300">
                         {license.id.slice(0, 8)}...
                       </div>
                       <div className="text-xs text-gray-400">
@@ -189,14 +189,14 @@ export default function AdminBillingPage() {
                             </div>
                           ))}
                           {license.users.length > 3 && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               +{license.users.length - 3} more
                             </div>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {license.type}
                     </td>
                     <td className="px-4 py-3">
@@ -209,17 +209,17 @@ export default function AdminBillingPage() {
                           Manual
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:text-gray-100">
                           Other
                         </span>
                       )}
                       {license.notes && (
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {license.notes}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {new Date(license.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">

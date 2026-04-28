@@ -136,7 +136,7 @@ export function GeneratingOverlay({
           </div>
           <div className="w-full bg-white/20 rounded-full h-2.5">
             <div
-              className="bg-white h-2.5 rounded-full transition-all duration-500"
+              className="bg-white dark:bg-gray-800 h-2.5 rounded-full transition-all duration-500"
               style={{ width: `${progress.progress}%` }}
             />
           </div>

@@ -119,13 +119,13 @@ export default function FilesPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -133,8 +133,8 @@ export default function FilesPage() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Images & Files</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Images & Files</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {pagination ? `${pagination.totalFiles} file${pagination.totalFiles !== 1 ? "s" : ""} across your conversations` : "Loading..."}
                 </p>
               </div>
@@ -148,8 +148,8 @@ export default function FilesPage() {
                   onClick={() => handleFilterChange(f)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     filter === f
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   }`}
                 >
                   {f === "all" ? "All" : f === "image" ? "Images" : "PDFs"}
@@ -169,7 +169,7 @@ export default function FilesPage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <p className="text-gray-600">Loading files...</p>
+              <p className="text-gray-600 dark:text-gray-300">Loading files...</p>
             </div>
           </div>
         ) : files.length === 0 ? (
@@ -177,10 +177,10 @@ export default function FilesPage() {
             <div className="text-5xl mb-4">
               {filter === "pdf" ? "📄" : filter === "image" ? "🖼️" : "📎"}
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
               {filter === "all" ? "No files yet" : `No ${filter === "image" ? "images" : "PDFs"} yet`}
             </h2>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               Upload images or PDFs in any chat conversation and they&apos;ll appear here.
             </p>
             <Link
@@ -200,7 +200,7 @@ export default function FilesPage() {
               {files.map((file, index) => (
                 <div
                   key={`${file.storagePath}-${index}`}
-                  className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-purple-200 transition-all"
+                  className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:border-purple-200 transition-all"
                 >
                   {/* Thumbnail */}
                   <div
@@ -248,7 +248,7 @@ export default function FilesPage() {
 
                   {/* File Info */}
                   <div className="p-3">
-                    <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={file.name}>
                       {file.name}
                     </p>
                     {file.conversationId ? (
@@ -284,7 +284,7 @@ export default function FilesPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
                 </button>
@@ -308,7 +308,7 @@ export default function FilesPage() {
                         className={`w-9 h-9 text-sm rounded-lg transition-colors ${
                           currentPage === pageNum
                             ? "bg-purple-600 text-white font-medium"
-                            : "text-gray-600 hover:bg-gray-100"
+                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
                         {pageNum}
@@ -319,7 +319,7 @@ export default function FilesPage() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={currentPage === pagination.totalPages}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                 </button>

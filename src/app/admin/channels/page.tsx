@@ -335,13 +335,13 @@ export default function AdminChannelsPage() {
     <div className="max-w-6xl">
       <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Channels</h1>
-          <p className="text-sm text-gray-500 mt-1">Pick a workspace, choose channels, and send a broadcast message.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Channels</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Pick a workspace, choose channels, and send a broadcast message.</p>
         </div>
       </div>
 
       <div className="mb-4 flex items-center gap-3 flex-wrap">
-        <label className="text-sm font-medium text-gray-700">Workspace:</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Workspace:</label>
         <select
           value={workspaceId}
           onChange={(e) => {
@@ -353,7 +353,7 @@ export default function AdminChannelsPage() {
             }
           }}
           disabled={loadingWorkspaces}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[260px]"
+          className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[260px]"
         >
           <option value="">{loadingWorkspaces ? "Loading..." : "— Select workspace —"}</option>
           {workspaces.map((w) => (
@@ -366,13 +366,13 @@ export default function AdminChannelsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter channels..."
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[220px]"
+            className="px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[220px]"
           />
         )}
       </div>
 
       {!workspaceId && !loadingWorkspaces && (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center text-sm text-gray-500">
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-10 text-center text-sm text-gray-500 dark:text-gray-400">
           Select a workspace to see its channels.
         </div>
       )}
@@ -388,8 +388,8 @@ export default function AdminChannelsPage() {
               .map((c) => (
                 <div key={c.id} className="px-4 py-2.5 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-gray-900 truncate">{c.body}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5">
+                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">{c.body}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                       {c._count.deliveries} channel{c._count.deliveries === 1 ? "" : "s"}
                       {" · "}
                       {formatScheduledFor(c.scheduledFor, browserTz)}
@@ -416,9 +416,9 @@ export default function AdminChannelsPage() {
       )}
 
       {workspaceId && (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50 gap-3 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 gap-3 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
               <input
                 type="checkbox"
                 checked={allVisibleSelected}
@@ -443,16 +443,16 @@ export default function AdminChannelsPage() {
           </div>
 
           {loadingChannels ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-500">Loading channels…</div>
+            <div className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading channels…</div>
           ) : filteredChannels.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-500">
+            <div className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
               {channels.length === 0
                 ? "No channels have been claimed in this workspace yet."
                 : `No channels match "${search}".`}
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="text-xs text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-200">
+              <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium w-12"></th>
                   <th className="px-4 py-2 text-left font-medium">Channel</th>
@@ -468,7 +468,7 @@ export default function AdminChannelsPage() {
                     <tr
                       key={c.id}
                       onClick={() => toggleOne(c.id)}
-                      className={`border-b border-gray-100 last:border-b-0 cursor-pointer transition-colors ${isSelected ? "bg-purple-50 hover:bg-purple-100" : "hover:bg-gray-50"}`}
+                      className={`border-b border-gray-100 last:border-b-0 cursor-pointer transition-colors ${isSelected ? "bg-purple-50 hover:bg-purple-100" : "hover:bg-gray-50 dark:hover:bg-gray-700"}`}
                     >
                       <td className="px-4 py-2">
                         <input
@@ -478,12 +478,12 @@ export default function AdminChannelsPage() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       </td>
-                      <td className="px-4 py-2 font-medium text-gray-900">
+                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">
                         {c.slackChannelName ? `#${c.slackChannelName}` : c.slackChannelId}
                       </td>
-                      <td className="px-4 py-2 text-gray-500">{formatRelative(c.lastMessageAt)}</td>
-                      <td className="px-4 py-2 text-gray-600 truncate max-w-xs">{c.account.name}</td>
-                      <td className="px-4 py-2 text-gray-500 truncate max-w-xs">
+                      <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{formatRelative(c.lastMessageAt)}</td>
+                      <td className="px-4 py-2 text-gray-600 dark:text-gray-300 truncate max-w-xs">{c.account.name}</td>
+                      <td className="px-4 py-2 text-gray-500 dark:text-gray-400 truncate max-w-xs">
                         {c.claimedBy.name || c.claimedBy.email || "—"}
                       </td>
                     </tr>
@@ -501,13 +501,13 @@ export default function AdminChannelsPage() {
           onClick={(e) => { if (e.target === e.currentTarget) closeCompose(); }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-xl w-full p-5"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-xl w-full p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Broadcast message</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Broadcast message</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Sending to <strong>{selected.size}</strong> channel{selected.size === 1 ? "" : "s"}
                   {activeWorkspace ? ` in ${activeWorkspace.slackTeamName}` : ""}.
                 </p>
@@ -538,7 +538,7 @@ export default function AdminChannelsPage() {
                   <button
                     type="button"
                     onClick={closeCompose}
-                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg"
                   >
                     Close
                   </button>
@@ -546,7 +546,7 @@ export default function AdminChannelsPage() {
               </div>
             ) : results ? (
               <div>
-                <div className="mb-3 text-sm text-gray-700">
+                <div className="mb-3 text-sm text-gray-700 dark:text-gray-200">
                   <span className="text-green-600 font-medium">{sentCount} sent</span>
                   {failedCount > 0 && (
                     <>
@@ -558,7 +558,7 @@ export default function AdminChannelsPage() {
                 <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
                   {results.map((r, i) => (
                     <div key={`${r.channelClaimId}-${i}`} className="px-3 py-2 text-xs flex items-center justify-between gap-3">
-                      <span className="truncate flex-1 text-gray-700">
+                      <span className="truncate flex-1 text-gray-700 dark:text-gray-200">
                         {r.channelName ? `#${r.channelName}` : r.channelClaimId}
                       </span>
                       <span className={r.status === "sent" ? "text-green-600 font-medium" : "text-red-600"}>
@@ -571,7 +571,7 @@ export default function AdminChannelsPage() {
                   <button
                     type="button"
                     onClick={closeCompose}
-                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+                    className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg"
                   >
                     Close
                   </button>
@@ -595,8 +595,8 @@ export default function AdminChannelsPage() {
                     </a>
                   </div>
                 ) : adminConnection?.hasUserToken ? (
-                  <div className="mb-2 text-[11px] text-gray-500">
-                    Will post as <span className="font-medium text-gray-700">@{adminConnection.displayName || "you"}</span>.
+                  <div className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    Will post as <span className="font-medium text-gray-700 dark:text-gray-200">@{adminConnection.displayName || "you"}</span>.
                   </div>
                 ) : null}
                 <textarea
@@ -606,15 +606,15 @@ export default function AdminChannelsPage() {
                   placeholder="Write the message. Slack *bold* / _italics_ / `code` supported."
                   rows={8}
                   disabled={sending}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono disabled:opacity-60"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono disabled:opacity-60"
                 />
                 <div className="mt-3 border-t border-gray-100 pt-3">
-                  <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                  <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-0.5 bg-gray-50">
                     <button
                       type="button"
                       onClick={() => setScheduledMode("now")}
                       disabled={sending}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "now" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "now" ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                     >
                       Send now
                     </button>
@@ -622,7 +622,7 @@ export default function AdminChannelsPage() {
                       type="button"
                       onClick={() => setScheduledMode("later")}
                       disabled={sending}
-                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "later" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${scheduledMode === "later" ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                     >
                       Schedule for later
                     </button>
@@ -634,13 +634,13 @@ export default function AdminChannelsPage() {
                         value={scheduleDateTime}
                         onChange={(e) => setScheduleDateTime(e.target.value)}
                         disabled={sending}
-                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                       <select
                         value={scheduleTimezone}
                         onChange={(e) => setScheduleTimezone(e.target.value)}
                         disabled={sending}
-                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         {/* Browser TZ first, then the curated list (skip if it's a dup). */}
                         <option value={browserTz}>{browserTz} (yours)</option>
@@ -649,7 +649,7 @@ export default function AdminChannelsPage() {
                         ))}
                       </select>
                       {scheduleDateTime && scheduledForUtc && (
-                        <span className="text-[11px] text-gray-500">
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
                           {scheduledIsValidFuture
                             ? `→ ${formatScheduledFor(scheduledForUtc.toISOString(), scheduleTimezone)}`
                             : "Pick a future time"}
@@ -665,7 +665,7 @@ export default function AdminChannelsPage() {
                       type="button"
                       onClick={closeCompose}
                       disabled={sending}
-                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50"
                     >
                       Cancel
                     </button>

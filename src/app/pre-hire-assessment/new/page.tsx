@@ -58,11 +58,11 @@ export default function NewPreHireAssessment() {
       <SalesNavBar />
       <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
         <div className="w-full max-w-lg px-6">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
               Create Pre-Hire Assessment
             </h1>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               Generate a customized take-home assessment for sales candidates, tailored to your sales motion and ICP.
             </p>
 
@@ -78,7 +78,7 @@ export default function NewPreHireAssessment() {
                       ) : (
                         <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       )}
-                      <span className="text-sm text-gray-700">Sales Narrative</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">Sales Narrative</span>
                       {narrativeDate && <span className="text-xs text-gray-400">{formatDate(narrativeDate)}</span>}
                     </div>
                     <a href={narrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
@@ -92,7 +92,7 @@ export default function NewPreHireAssessment() {
                       ) : (
                         <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       )}
-                      <span className="text-sm text-gray-700">Ideal Customer Profile</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">Ideal Customer Profile</span>
                       {icpDate && <span className="text-xs text-gray-400">{formatDate(icpDate)}</span>}
                     </div>
                     <a href="/icp" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
@@ -107,7 +107,7 @@ export default function NewPreHireAssessment() {
                         ) : (
                           <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         )}
-                        <span className="text-sm text-gray-700">AE Hiring Profile</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">AE Hiring Profile</span>
                         {aeProfileDate && <span className="text-xs text-gray-400">{formatDate(aeProfileDate)}</span>}
                       </div>
                       <a href="/hiring-profile" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
@@ -132,17 +132,17 @@ export default function NewPreHireAssessment() {
             <div className="space-y-5">
               {/* Role Type Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Role Type
                 </label>
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                <div className="flex rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setRoleType("ae")}
                     className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
                       roleType === "ae"
                         ? "bg-purple-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
                     Account Executive
@@ -150,10 +150,10 @@ export default function NewPreHireAssessment() {
                   <button
                     type="button"
                     onClick={() => setRoleType("sdr")}
-                    className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors border-l border-gray-300 ${
+                    className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors border-l border-gray-300 dark:border-gray-700 ${
                       roleType === "sdr"
                         ? "bg-purple-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-50"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
                     SDR / BDR

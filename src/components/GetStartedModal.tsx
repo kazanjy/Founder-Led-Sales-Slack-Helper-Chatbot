@@ -94,7 +94,7 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
         {/* Header with gradient */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 pt-8 pb-6 text-center">
           <img
@@ -112,12 +112,12 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
 
         {/* Body */}
         <div className="px-8 py-6">
-          <p className="text-gray-600 mb-5">
+          <p className="text-gray-600 dark:text-gray-300 mb-5">
             Drop in your website URL and Mikey will crawl it to build your <strong>Sales Narrative</strong> &mdash; your product story, value prop, and elevator pitches. This powers everything else: discovery questions, call prep, outreach sequences, and more.
           </p>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               Your website URL
             </label>
             <input
@@ -125,7 +125,7 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               placeholder="https://yourcompany.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-lg"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-lg"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleGetStarted();
               }}
@@ -188,7 +188,7 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
             </button>
             <button
               onClick={handleSkip}
-              className="w-full px-6 py-2 text-gray-500 hover:text-gray-700 transition-colors text-sm"
+              className="w-full px-6 py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors text-sm"
             >
               Skip for now &mdash; I&apos;ll explore on my own
             </button>

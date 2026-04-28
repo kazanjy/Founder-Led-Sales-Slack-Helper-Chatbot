@@ -43,7 +43,7 @@ const categoryColors: Record<string, { bg: string; text: string; border: string;
   "Product Maturity": { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200", gradient: "from-teal-500 to-teal-600" },
 };
 
-const defaultColors = { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200", gradient: "from-gray-500 to-gray-600" };
+const defaultColors = { bg: "bg-gray-50", text: "text-gray-700 dark:text-gray-200", border: "border-gray-200 dark:border-gray-700", gradient: "from-gray-500 to-gray-600" };
 
 export default function HiringProfileEditPage() {
   return (
@@ -54,7 +54,7 @@ export default function HiringProfileEditPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading questions...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading questions...</p>
         </div>
       </div>
     }>
@@ -378,7 +378,7 @@ function HiringProfileEditContent() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading questions...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading questions...</p>
         </div>
       </div>
     );
@@ -391,7 +391,7 @@ function HiringProfileEditContent() {
       {/* Floating Header */}
       <div
         ref={headerRef}
-        className={`bg-white border-b border-gray-200 transition-all duration-200 ${
+        className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-200 ${
           isHeaderSticky ? "fixed top-0 left-0 right-0 z-40 shadow-md" : ""
         }`}
       >
@@ -400,7 +400,7 @@ function HiringProfileEditContent() {
             <div className="flex items-center gap-4">
               <Link
                 href="/hiring-profile"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -408,10 +408,10 @@ function HiringProfileEditContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   AE Hiring Profile Questionnaire
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {answeredCount} of {totalQuestions} answered ({progressPercent}%)
                 </p>
               </div>
@@ -427,7 +427,7 @@ function HiringProfileEditContent() {
               <button
                 onClick={handleSaveAll}
                 disabled={saving}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 {saving ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -485,10 +485,10 @@ function HiringProfileEditContent() {
                 </svg>
               </div>
               <div className="text-left">
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   Smart Pre-Fill {prefillDone && <span className="text-green-600 text-sm font-normal ml-2">Done!</span>}
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Pre-fill from your{" "}
                   <a href="/sales-narrative" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-amber-700 underline underline-offset-2 hover:text-amber-900 font-medium">Sales Narrative</a>
                   {", "}
@@ -509,7 +509,7 @@ function HiringProfileEditContent() {
           </button>
 
           {prefillPanelOpen && (
-            <div className="mt-2 bg-white border-2 border-amber-200 rounded-xl p-6">
+            <div className="mt-2 bg-white dark:bg-gray-800 border-2 border-amber-200 rounded-xl p-6">
               {prefilling ? (
                 <div className="py-8 text-center">
                   <div className="w-14 h-14 mx-auto mb-4 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl flex items-center justify-center">
@@ -518,10 +518,10 @@ function HiringProfileEditContent() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     Pre-filling your Hiring Profile Q&amp;A
                   </h3>
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                     {PREFILL_MESSAGES[prefillMessageIndex]}...
                   </p>
                   <p className="text-xs text-gray-400">
@@ -530,7 +530,7 @@ function HiringProfileEditContent() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     We&apos;ll use your existing Sales Narrative, GTM Assessment, GTM Readiness, and Coaching Sessions to automatically fill in answers.
                     You can review and edit everything after.
                   </p>
@@ -544,7 +544,7 @@ function HiringProfileEditContent() {
                         ) : (
                           <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         )}
-                        <span className="text-sm text-gray-700">Sales Narrative</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">Sales Narrative</span>
                         {narrativeDate && (
                           <span className="text-xs text-gray-400">
                             {new Date(narrativeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -562,7 +562,7 @@ function HiringProfileEditContent() {
                         ) : (
                           <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         )}
-                        <span className="text-sm text-gray-700">GTM Assessment</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">GTM Assessment</span>
                         {assessmentDate && (
                           <span className="text-xs text-gray-400">
                             {new Date(assessmentDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -580,7 +580,7 @@ function HiringProfileEditContent() {
                         ) : (
                           <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         )}
-                        <span className="text-sm text-gray-700">GTM Readiness</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">GTM Readiness</span>
                       </div>
                       <a href="/sales-readiness" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2">
                         {readinessDate ? "Update" : "Start"}
@@ -593,7 +593,7 @@ function HiringProfileEditContent() {
                         ) : (
                           <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         )}
-                        <span className="text-sm text-gray-700">Coaching Sessions</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">Coaching Sessions</span>
                         {coachingDate && (
                           <span className="text-xs text-gray-400">
                             {new Date(coachingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -650,7 +650,7 @@ function HiringProfileEditContent() {
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors.gradient} flex items-center justify-center text-white font-bold text-lg shadow-md`}>
                   {categoryIndex + 1}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">{category.category}</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{category.category}</h2>
                 <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
                   {category.questions.filter((q) => answers[q.id]?.trim()).length} / {category.questions.length}
                 </span>
@@ -664,25 +664,25 @@ function HiringProfileEditContent() {
                   return (
                     <div
                       key={question.id}
-                      className={`bg-white rounded-xl border-2 transition-colors ${
-                        hasAnswer ? "border-green-200" : "border-gray-200"
+                      className={`bg-white dark:bg-gray-800 rounded-xl border-2 transition-colors ${
+                        hasAnswer ? "border-green-200" : "border-gray-200 dark:border-gray-700"
                       }`}
                     >
                       <div className="flex flex-col md:flex-row">
                         {/* Question Side */}
-                        <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200">
+                        <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
                           <div className="flex items-start gap-3">
                             <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                              hasAnswer ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
+                              hasAnswer ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600 dark:text-gray-300"
                             }`}>
                               {question.globalOrder}
                             </span>
                             <div>
-                              <p className="text-gray-800 font-medium leading-relaxed">
+                              <p className="text-gray-800 dark:text-gray-100 font-medium leading-relaxed">
                                 {question.question}
                               </p>
                               {question.helpText && (
-                                <p className="text-sm text-gray-500 mt-2 italic">
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">
                                   {question.helpText}
                                 </p>
                               )}
@@ -696,7 +696,7 @@ function HiringProfileEditContent() {
                             value={answers[question.id] || ""}
                             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                             placeholder="Enter your answer..."
-                            className="w-full min-h-[240px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                            className="w-full min-h-[240px] p-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                           />
                           {hasAnswer && (
                             <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
@@ -726,7 +726,7 @@ function HiringProfileEditContent() {
           <button
             onClick={handleGenerate}
             disabled={saving || answeredCount === 0}
-            className="px-8 py-4 bg-white text-purple-700 rounded-xl hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-lg shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
+            className="px-8 py-4 bg-white dark:bg-gray-800 text-purple-700 rounded-xl hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-lg shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -738,9 +738,9 @@ function HiringProfileEditContent() {
       {/* Generate Profile Modal — guidance + source freshness */}
       {showGenerateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowGenerateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Generate AE Hiring Profile</h3>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">Generate AE Hiring Profile</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Mikey will use your Q&amp;A answers plus these context sources to generate a tailored hiring profile.
             </p>
 
@@ -753,7 +753,7 @@ function HiringProfileEditContent() {
                   ) : (
                     <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   )}
-                  <span className="text-sm text-gray-700">Sales Narrative</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">Sales Narrative</span>
                   {narrativeDate && <span className="text-xs text-gray-400">{new Date(narrativeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
                 </div>
                 <a href={narrativeDate ? "/sales-narrative" : "/sales-narrative/edit"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
@@ -767,7 +767,7 @@ function HiringProfileEditContent() {
                   ) : (
                     <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   )}
-                  <span className="text-sm text-gray-700">GTM Assessment</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">GTM Assessment</span>
                   {assessmentDate && <span className="text-xs text-gray-400">{new Date(assessmentDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
                 </div>
                 <a href={assessmentDate ? "/assessment/bulk" : "/chat?startAssessment=true"} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
@@ -781,7 +781,7 @@ function HiringProfileEditContent() {
                   ) : (
                     <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   )}
-                  <span className="text-sm text-gray-700">GTM Readiness</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">GTM Readiness</span>
                 </div>
                 <a href="/sales-readiness" target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
                   {readinessDate ? "Update" : "Start"}
@@ -794,7 +794,7 @@ function HiringProfileEditContent() {
                   ) : (
                     <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   )}
-                  <span className="text-sm text-gray-700">Coaching Sessions</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">Coaching Sessions</span>
                   {coachingDate && <span className="text-xs text-gray-400">{new Date(coachingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
                 </div>
                 <a href="/coaching-history" target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:text-purple-800 font-medium underline underline-offset-2">
@@ -805,7 +805,7 @@ function HiringProfileEditContent() {
 
             {/* Optional guidance */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Guidance <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <textarea
@@ -813,14 +813,14 @@ function HiringProfileEditContent() {
                 onChange={e => setGenerateGuidance(e.target.value)}
                 placeholder='e.g., "Focus on outbound hunting skills" or "Target $50-100K ACV enterprise motion" — or leave blank to let Mikey decide'
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
               />
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
               <button
                 onClick={() => setShowGenerateModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
               </button>

@@ -85,7 +85,7 @@ export default function CallReviewHistoryPage() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading history...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading history...</p>
           </div>
         </div>
       </div>
@@ -96,13 +96,13 @@ export default function CallReviewHistoryPage() {
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/call-review"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -110,8 +110,8 @@ export default function CallReviewHistoryPage() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Call Review History</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Call Review History</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {versions.length} review{versions.length !== 1 ? "s" : ""} completed
                 </p>
               </div>
@@ -134,8 +134,8 @@ export default function CallReviewHistoryPage() {
         {versions.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📞</div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Reviews Yet</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Reviews Yet</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Analyze your first call transcript to see history here.
             </p>
             <Link
@@ -154,7 +154,7 @@ export default function CallReviewHistoryPage() {
               <Link
                 key={version.id}
                 href={`/call-review?version=${version.id}`}
-                className="group block bg-white rounded-xl border border-gray-200 p-5 hover:border-purple-300 hover:shadow-md transition-all"
+                className="group block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:border-purple-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -178,10 +178,10 @@ export default function CallReviewHistoryPage() {
                           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingId(null); }}
                           onClick={(e) => e.preventDefault()}
                           autoFocus
-                          className="text-base font-semibold text-gray-900 bg-white border border-purple-300 rounded px-2 py-0.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full"
+                          className="text-base font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-purple-300 rounded px-2 py-0.5 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-full"
                         />
                       ) : (
-                        <span className="text-base font-semibold text-gray-900 truncate">
+                        <span className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
                           {version.title || `Call Review ${versions.length - index}`}
                         </span>
                       )}
@@ -200,7 +200,7 @@ export default function CallReviewHistoryPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                       <span>{formatDate(version.createdAt)}</span>
                       <span className="text-gray-300">&middot;</span>
                       <span className="capitalize">{version.callType} call</span>

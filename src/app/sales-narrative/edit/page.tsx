@@ -62,7 +62,7 @@ export default function SalesNarrativeEditPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading questions...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading questions...</p>
         </div>
       </div>
     }>
@@ -582,7 +582,7 @@ function SalesNarrativeEditContent() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading questions...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading questions...</p>
         </div>
       </div>
     );
@@ -602,7 +602,7 @@ function SalesNarrativeEditContent() {
       {/* Floating Header */}
       <div
         ref={headerRef}
-        className={`bg-white border-b border-gray-200 transition-all duration-200 ${
+        className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-200 ${
           isHeaderSticky ? "fixed top-0 left-0 right-0 z-40 shadow-md" : ""
         }`}
       >
@@ -611,7 +611,7 @@ function SalesNarrativeEditContent() {
             <div className="flex items-center gap-4">
               <Link
                 href="/chat"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -619,10 +619,10 @@ function SalesNarrativeEditContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   Sales Narrative Questionnaire
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {answeredCount} of {totalQuestions} answered ({progressPercent}%)
                 </p>
               </div>
@@ -640,7 +640,7 @@ function SalesNarrativeEditContent() {
               <button
                 onClick={handleSaveAll}
                 disabled={saving || generating}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 {saving ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -699,10 +699,10 @@ function SalesNarrativeEditContent() {
                 </svg>
               </div>
               <div className="text-left">
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   Smart Pre-Fill {prefillDone && <span className="text-green-600 text-sm font-normal ml-2">Done!</span>}
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Provide your website URL and/or sales decks to auto-fill answers
                 </p>
               </div>
@@ -716,7 +716,7 @@ function SalesNarrativeEditContent() {
           </button>
 
           {prefillPanelOpen && (
-            <div className="mt-2 bg-white border-2 border-amber-200 rounded-xl p-6 space-y-5">
+            <div className="mt-2 bg-white dark:bg-gray-800 border-2 border-amber-200 rounded-xl p-6 space-y-5">
               {prefilling ? (
                 /* Clear progress indicator while prefilling */
                 <div className="py-8 text-center">
@@ -726,10 +726,10 @@ function SalesNarrativeEditContent() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     Pre-filling your Sales Narrative Q&amp;A
                   </h3>
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                     {activePrefillMessages[prefillMessageIndex]}...
                   </p>
                   <p className="text-xs text-gray-400">
@@ -745,7 +745,7 @@ function SalesNarrativeEditContent() {
               <>
               {/* Website URL */}
               <div>
-                <label htmlFor="prefill-url" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="prefill-url" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Website URL
                 </label>
                 <input
@@ -755,7 +755,7 @@ function SalesNarrativeEditContent() {
                   onChange={(e) => setPrefillUrl(e.target.value)}
                   placeholder="https://yourcompany.com"
                   disabled={prefilling}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
                 />
                 <div className="flex items-center gap-2 mt-1 min-h-[18px]">
                   {precrawlStatus === "crawling" && (
@@ -777,8 +777,8 @@ function SalesNarrativeEditContent() {
                   )}
                 </div>
                 {precrawlUrls.length > 0 && (
-                  <div className="mt-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-                    <p className="text-xs font-medium text-gray-500 mb-1.5">Pages found ({precrawlUrls.length}):</p>
+                  <div className="mt-2 p-2.5 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Pages found ({precrawlUrls.length}):</p>
                     <div className="space-y-0.5 max-h-32 overflow-y-auto">
                       {precrawlUrls.map((u, i) => (
                         <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 hover:text-blue-800 hover:underline truncate" title={u}>
@@ -797,7 +797,7 @@ function SalesNarrativeEditContent() {
 
               {/* Specific Page URLs */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Specific Page URLs <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <div className="space-y-2">
@@ -817,7 +817,7 @@ function SalesNarrativeEditContent() {
                         }}
                         placeholder={i === 0 ? "https://yourcompany.com/case-study" : "Paste another URL..."}
                         disabled={prefilling}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50 text-sm"
+                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50 text-sm"
                       />
                       {specificUrls.length > 1 && (i < specificUrls.length - 1 || url.trim()) && (
                         <button
@@ -847,7 +847,7 @@ function SalesNarrativeEditContent() {
 
               {/* PDF Upload Drop Zone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   PDF Files <span className="text-gray-400 font-normal">(sales decks, one-pagers, etc.)</span>
                 </label>
                 <input
@@ -866,7 +866,7 @@ function SalesNarrativeEditContent() {
                   className={`relative border-2 border-dashed rounded-lg transition-colors ${
                     isDraggingOver
                       ? "border-amber-400 bg-amber-50"
-                      : "border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                      : "border-gray-300 dark:border-gray-700 hover:border-amber-400 hover:bg-amber-50"
                   } ${prefilling ? "opacity-50 pointer-events-none" : ""}`}
                 >
                   {prefillFiles.length === 0 ? (
@@ -877,7 +877,7 @@ function SalesNarrativeEditContent() {
                       <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <span className="text-sm font-medium text-gray-600">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                         {isDraggingOver ? "Drop PDFs here" : "Click to upload or drag & drop"}
                       </span>
                       <span className="text-xs text-gray-400 mt-1">PDF files only</span>
@@ -943,16 +943,16 @@ function SalesNarrativeEditContent() {
 
         {/* Sources Banner - shown after prefill */}
         {(prefillSourceUrls.length > 0 || prefillSourcePdfNames.length > 0) && (
-          <div className="mb-8 bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
               Sources Used for Pre-Fill
             </h3>
             {prefillSourceUrls.length > 0 && (
               <div className="mb-2">
-                <p className="text-xs font-medium text-gray-500 mb-1">Website Pages Crawled</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Website Pages Crawled</p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
                   {[...prefillSourceUrls].sort((a, b) => {
                     try {
@@ -982,10 +982,10 @@ function SalesNarrativeEditContent() {
             )}
             {prefillSourcePdfNames.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1">PDF Files</p>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">PDF Files</p>
                 <ul className="space-y-1">
                   {prefillSourcePdfNames.map((name, i) => (
-                    <li key={i} className="text-sm text-gray-700 flex items-center gap-1.5">
+                    <li key={i} className="text-sm text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
@@ -1007,8 +1007,8 @@ function SalesNarrativeEditContent() {
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colors.gradient} flex items-center justify-center text-white font-bold text-lg shadow-md`}>
                   {categoryIndex + 1}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">{category.category}</h2>
-                <span className="text-sm text-gray-500 ml-auto">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{category.category}</h2>
+                <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
                   {category.questions.filter((q) => answers[q.id]?.trim()).length} / {category.questions.length} answered
                 </span>
               </div>
@@ -1021,25 +1021,25 @@ function SalesNarrativeEditContent() {
                   return (
                     <div
                       key={question.id}
-                      className={`bg-white rounded-xl border-2 transition-colors ${
-                        hasAnswer ? "border-green-200" : "border-gray-200"
+                      className={`bg-white dark:bg-gray-800 rounded-xl border-2 transition-colors ${
+                        hasAnswer ? "border-green-200" : "border-gray-200 dark:border-gray-700"
                       }`}
                     >
                       <div className="flex flex-col md:flex-row">
                         {/* Question Side */}
-                        <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200">
+                        <div className="md:w-2/5 p-5 bg-gray-50 rounded-l-xl border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
                           <div className="flex items-start gap-3">
                             <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                              hasAnswer ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"
+                              hasAnswer ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600 dark:text-gray-300"
                             }`}>
                               {question.globalOrder}
                             </span>
                             <div>
-                              <p className="text-gray-800 font-medium leading-relaxed">
+                              <p className="text-gray-800 dark:text-gray-100 font-medium leading-relaxed">
                                 {question.question}
                               </p>
                               {question.helpText && (
-                                <p className="text-sm text-gray-500 mt-2 italic">
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">
                                   {question.helpText}
                                 </p>
                               )}
@@ -1053,7 +1053,7 @@ function SalesNarrativeEditContent() {
                             value={answers[question.id] || ""}
                             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                             placeholder="Enter your answer..."
-                            className="w-full min-h-[240px] p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800"
+                            className="w-full min-h-[240px] p-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                           />
                           {hasAnswer && (
                             <div className="mt-2 flex items-center gap-1 text-green-600 text-xs">
@@ -1083,7 +1083,7 @@ function SalesNarrativeEditContent() {
           <button
             onClick={handleGenerate}
             disabled={saving || generating || answeredCount === 0}
-            className="px-8 py-4 bg-white text-purple-700 rounded-xl hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-lg shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
+            className="px-8 py-4 bg-white dark:bg-gray-800 text-purple-700 rounded-xl hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold text-lg shadow-lg hover:shadow-xl flex items-center gap-3 mx-auto"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

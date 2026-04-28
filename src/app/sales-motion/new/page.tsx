@@ -134,9 +134,9 @@ export default function NewSalesMotion() {
       <SalesNavBar />
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Analyze Your Sales Motion</h1>
-          <p className="text-gray-600 mb-4">
-            Provide 3-5 of your best <strong className="text-gray-900">closed-won deals</strong>. For each deal, paste <strong className="text-gray-900">all the calls</strong> from
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Analyze Your Sales Motion</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Provide 3-5 of your best <strong className="text-gray-900 dark:text-gray-100">closed-won deals</strong>. For each deal, paste <strong className="text-gray-900 dark:text-gray-100">all the calls</strong> from
             first touch through close &mdash; summaries and transcripts from your call recorder in chronological order.
           </p>
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
@@ -162,9 +162,9 @@ export default function NewSalesMotion() {
 
         <div className="space-y-8">
           {deals.map((deal, dealIndex) => (
-            <div key={deal.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-b border-gray-200">
-                <h2 className="font-semibold text-gray-900">Deal {dealIndex + 1}</h2>
+            <div key={deal.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+              <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Deal {dealIndex + 1}</h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400">{deal.calls.length} call{deal.calls.length !== 1 ? "s" : ""}</span>
                   {deals.length > 1 && (
@@ -183,10 +183,10 @@ export default function NewSalesMotion() {
 
               <div className="p-6 space-y-6">
                 {deal.calls.map((call, callIndex) => (
-                  <div key={call.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={call.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-gray-700">Call {callIndex + 1}</h3>
+                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Call {callIndex + 1}</h3>
                         <button
                           type="button"
                           onClick={() => setImportingForCall({ dealId: deal.id, callId: call.id })}
@@ -212,7 +212,7 @@ export default function NewSalesMotion() {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                           Call Summary
                         </label>
                         <textarea
@@ -220,11 +220,11 @@ export default function NewSalesMotion() {
                           onChange={(e) => updateCall(deal.id, call.id, "summary", e.target.value)}
                           placeholder="Paste the call summary from your call recorder..."
                           rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                           Full Transcript <span className="text-gray-400">(optional but recommended)</span>
                         </label>
                         <textarea
@@ -232,11 +232,11 @@ export default function NewSalesMotion() {
                           onChange={(e) => updateCall(deal.id, call.id, "transcript", e.target.value)}
                           placeholder="Paste the full call transcript..."
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                           Recording URL <span className="text-gray-400">(optional — Fathom, Gong, Chorus, etc.)</span>
                         </label>
                         <input
@@ -244,7 +244,7 @@ export default function NewSalesMotion() {
                           value={call.recordingUrl}
                           onChange={(e) => updateCall(deal.id, call.id, "recordingUrl", e.target.value)}
                           placeholder="https://fathom.video/share/..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
                       </div>
                     </div>
@@ -253,7 +253,7 @@ export default function NewSalesMotion() {
 
                 <button
                   onClick={() => addCall(deal.id)}
-                  className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-purple-400 hover:text-purple-600 transition-colors"
+                  className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 transition-colors"
                 >
                   + Add Call
                 </button>
@@ -265,7 +265,7 @@ export default function NewSalesMotion() {
         <div className="mt-6 flex items-center gap-4">
           <button
             onClick={addDeal}
-            className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             + Add Deal
           </button>
@@ -293,13 +293,13 @@ export default function NewSalesMotion() {
           </button>
         </div>
 
-        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-start gap-3">
+        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-xl flex items-start gap-3">
           <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <p className="text-sm text-gray-700 font-medium">Best results come from 3-5 complete deals</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm text-gray-700 dark:text-gray-200 font-medium">Best results come from 3-5 complete deals</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Include every call in each deal&apos;s sequence &mdash; from first discovery through close. The more complete the picture, the better Mikey can synthesize your prototypical sales motion and create canonical call scripts.
             </p>
           </div>
@@ -312,9 +312,9 @@ export default function NewSalesMotion() {
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setImportingForCall(null); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Import from Meeting Recorder</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import from Meeting Recorder</h3>
               <button onClick={() => setImportingForCall(null)} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

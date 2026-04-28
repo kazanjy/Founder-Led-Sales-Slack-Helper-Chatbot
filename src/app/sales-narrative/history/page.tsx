@@ -26,7 +26,7 @@ export default function SalesNarrativeHistoryPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading history...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading history...</p>
         </div>
       </div>
     }>
@@ -110,7 +110,7 @@ function SalesNarrativeHistoryContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading history...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading history...</p>
           </div>
         </div>
       </div>
@@ -121,13 +121,13 @@ function SalesNarrativeHistoryContent() {
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/sales-narrative"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -135,8 +135,8 @@ function SalesNarrativeHistoryContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Narrative History</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Narrative History</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {versions.length} version{versions.length !== 1 ? "s" : ""} generated
                 </p>
               </div>
@@ -160,8 +160,8 @@ function SalesNarrativeHistoryContent() {
         {versions.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📝</div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Narratives Yet</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Narratives Yet</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Generate your first sales narrative to see it here.
             </p>
             <Link
@@ -180,7 +180,7 @@ function SalesNarrativeHistoryContent() {
               <Link
                 key={version.id}
                 href={`/sales-narrative?version=${version.id}`}
-                className="block bg-white rounded-xl border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all p-5 group"
+                className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:shadow-md transition-all p-5 group"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -188,22 +188,22 @@ function SalesNarrativeHistoryContent() {
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                         index === 0
                           ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-600"
+                          : "bg-gray-100 text-gray-600 dark:text-gray-300"
                       }`}>
                         {index === 0 ? "Latest" : `v${versions.length - index}`}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
                         {getRelativeTime(version.createdAt)}
                       </span>
                     </div>
 
                     {/* 25w tagline preview */}
-                    <h3 className="font-medium text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2 group-hover:text-purple-700 transition-colors">
                       {version.description25w}
                     </h3>
 
                     {/* Narrative preview */}
-                    <p className="text-sm text-gray-600 line-clamp-2">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                       {version.preview}
                     </p>
                   </div>
@@ -217,8 +217,8 @@ function SalesNarrativeHistoryContent() {
 
                 {/* Quick stats */}
                 <div className="mt-4 pt-4 border-t border-gray-100 flex gap-6">
-                  <div className="text-xs text-gray-500">
-                    <span className="font-medium text-gray-700">100w:</span>{" "}
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">100w:</span>{" "}
                     {version.description100w.substring(0, 50)}...
                   </div>
                 </div>

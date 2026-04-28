@@ -250,8 +250,8 @@ function DealsPageContent() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">💼 Deals</h1>
-            <p className="text-gray-600 text-sm">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">💼 Deals</h1>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
               Track your active sales opportunities — timeline of calls, emails, notes, and AI-powered next actions.
             </p>
           </div>
@@ -280,7 +280,7 @@ function DealsPageContent() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search deals by name or company..."
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800"
           />
           {searchQuery && (
             <button
@@ -298,10 +298,10 @@ function DealsPageContent() {
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-5 flex-wrap text-sm">
-          <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Stage:</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Stage:</span>
           <button
             onClick={() => setStageFilter("all")}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${stageFilter === "all" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${stageFilter === "all" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
           >
             All
           </button>
@@ -316,10 +316,10 @@ function DealsPageContent() {
           ))}
         </div>
         <div className="flex items-center gap-3 mb-6 flex-wrap text-sm">
-          <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Status:</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Status:</span>
           <button
             onClick={() => setStatusFilter("all")}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === "all" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${statusFilter === "all" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"}`}
           >
             All
           </button>
@@ -338,19 +338,19 @@ function DealsPageContent() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+              <div key={i} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
                 <div className="h-5 w-48 bg-gray-100 rounded animate-pulse mb-3" />
                 <div className="h-4 w-32 bg-gray-100 rounded animate-pulse" />
               </div>
             ))}
           </div>
         ) : filteredDeals.length === 0 ? (
-          <div className="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-12 text-center">
             <div className="text-5xl mb-3">💼</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
               {deals.length === 0 ? "No deals yet" : "No deals match these filters"}
             </h3>
-            <p className="text-gray-500 text-sm mb-4">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
               {deals.length === 0 ? "Create your first deal to start tracking engagement artifacts and get AI-powered next actions." : "Try adjusting the stage or status filters above."}
             </p>
             {deals.length === 0 && (
@@ -371,18 +371,18 @@ function DealsPageContent() {
                 <button
                   key={deal.id}
                   onClick={() => router.push(`/deals/${deal.id}`)}
-                  className="text-left bg-white border border-gray-200 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all group"
+                  className="text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all group"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 truncate">{deal.name}</h3>
-                      <p className="text-sm text-gray-500 truncate">{deal.companyName}</p>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</p>
                     </div>
                     <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${stageInfo.color}`}>
                       {stageInfo.label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-3">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-3">
                     <span className={`px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
                     <span>· {deal._count.entries} {deal._count.entries === 1 ? "entry" : "entries"}</span>
                     <span>· {deal._count.participants} {deal._count.participants === 1 ? "person" : "people"}</span>
@@ -403,9 +403,9 @@ function DealsPageContent() {
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) resetNewDealForm(); }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">New Deal</h3>
-            <p className="text-sm text-gray-500 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">New Deal</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Select all the calls for a deal to automatically build its timeline, or create one manually.
             </p>
 
@@ -510,17 +510,17 @@ function DealsPageContent() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Company Name</label>
                 <input
                   type="text"
                   value={newDealCompany}
                   onChange={(e) => setNewDealCompany(e.target.value)}
                   placeholder="e.g., Visana Health"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-1.5">
                   Deal Name
                   {suggestingName && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-normal text-purple-600">
@@ -534,14 +534,14 @@ function DealsPageContent() {
                   value={newDealName}
                   onChange={(e) => setNewDealName(e.target.value)}
                   placeholder={suggestingName ? "Mikey is naming the deal..." : "e.g., Visana — Enterprise Pilot"}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   onKeyDown={(e) => { if (e.key === "Enter") createDeal(); }}
                 />
                 <p className="text-[11px] text-gray-400 mt-1">Name the opportunity, not the meeting — e.g. &quot;Acme — Platform Rollout&quot;, not &quot;Acme &lt;&gt; Mesh Weekly Sync&quot;.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={resetNewDealForm} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button onClick={resetNewDealForm} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
               <button
                 onClick={createDeal}
                 disabled={!newDealName.trim() || !newDealCompany.trim() || creating}

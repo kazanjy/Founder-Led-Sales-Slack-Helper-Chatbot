@@ -60,9 +60,9 @@ export default function ProfileCompletionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,15 +70,15 @@ export default function ProfileCompletionModal({
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Complete Your Profile</h2>
-              <p className="text-sm text-gray-500">Help us personalize your experience</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Complete Your Profile</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Help us personalize your experience</p>
             </div>
           </div>
         </div>
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             Please provide the following information to get the most out of Mikey.
           </p>
 
@@ -91,7 +91,7 @@ export default function ProfileCompletionModal({
           <div className="space-y-4">
             {missingName && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Your Name
                 </label>
                 <input
@@ -100,7 +100,7 @@ export default function ProfileCompletionModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={saving}
                   autoFocus={missingName}
                 />
@@ -109,7 +109,7 @@ export default function ProfileCompletionModal({
 
             {missingEmail && (
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                   Email Address
                 </label>
                 <input
@@ -118,11 +118,11 @@ export default function ProfileCompletionModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={saving}
                   autoFocus={!missingName && missingEmail}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Used for account recovery and important updates
                 </p>
               </div>
@@ -135,7 +135,7 @@ export default function ProfileCompletionModal({
               type="button"
               onClick={handleSkip}
               disabled={saving}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
+              className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 text-sm"
             >
               Skip for now
             </button>

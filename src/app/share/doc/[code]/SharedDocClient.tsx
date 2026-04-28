@@ -107,19 +107,19 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-800">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (error || !doc) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-800">
         <div className="text-center">
           <img src="/mikey-avatar.png" alt="Mikey" className="w-16 h-16 rounded-xl mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Oops!</h1>
-          <p className="text-gray-500">{error || "Document not found"}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Oops!</h1>
+          <p className="text-gray-500 dark:text-gray-400">{error || "Document not found"}</p>
           <a href="/" className="inline-block mt-4 text-blue-600 hover:underline">Go to Mikey</a>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
   // If it's a salesNarrative with structured sections, render the tabbed view
   if (doc.documentType === "salesNarrative" && sections) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-gray-800">
         <SharedHeader typeLabel={typeLabel} />
 
         <main className="max-w-[800px] mx-auto px-6 py-8">
@@ -152,14 +152,14 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
             <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-3">
               {typeLabel}
             </span>
-            <h1 className="text-2xl font-bold text-gray-900">{doc.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{doc.title}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Shared {new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-gray-200">
+          <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
             <TabButton tab="qa" label="Q&A Inputs" activeTab={activeTab} onSwitch={switchTab} />
             <TabButton tab="narrative" label="Full Narrative" activeTab={activeTab} onSwitch={switchTab} />
             {sections.description1000w && (
@@ -172,10 +172,10 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
           {/* Q&A Tab */}
           {activeTab === "qa" && (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="font-semibold text-gray-900">Questionnaire Answers</h2>
-                <p className="text-sm text-gray-500">The inputs used to generate this narrative</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Questionnaire Answers</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">The inputs used to generate this narrative</p>
               </div>
               <div className="p-6 space-y-6">
                 {sections.answersByCategory ? (
@@ -190,16 +190,16 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
                       Proof: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700" },
                       Business: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700" },
                     };
-                    const colors = categoryColors[category] || { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700" };
+                    const colors = categoryColors[category] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
 
                     return (
                       <div key={category} className={`rounded-lg border ${colors.border} ${colors.bg} p-4`}>
                         <h3 className={`font-semibold ${colors.text} mb-3`}>{category}</h3>
                         <div className="space-y-4">
                           {answers.map((qa) => (
-                            <div key={qa.questionId} className="bg-white rounded-lg p-4 border border-gray-100">
-                              <p className="text-sm font-medium text-gray-700 mb-2">Q{qa.globalOrder}: {qa.question}</p>
-                              <p className="text-gray-800 whitespace-pre-wrap">
+                            <div key={qa.questionId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100">
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Q{qa.globalOrder}: {qa.question}</p>
+                              <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
                                 {qa.answer || <span className="text-gray-400 italic">Not answered</span>}
                               </p>
                             </div>
@@ -209,7 +209,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
                     );
                   })
                 ) : (
-                  <p className="text-gray-500 text-center py-8">No questionnaire data available for this version.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">No questionnaire data available for this version.</p>
                 )}
               </div>
             </div>
@@ -275,7 +275,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
   // Default: plain document view (non-narrative types, or legacy narrative shares)
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-800">
       <SharedHeader typeLabel={typeLabel} />
 
       <main className="max-w-[800px] mx-auto px-6 py-8">
@@ -283,8 +283,8 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
           <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-3">
             {typeLabel}
           </span>
-          <h1 className="text-2xl font-bold text-gray-900">{doc.title}</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{doc.title}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Shared {new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </p>
         </div>
@@ -303,13 +303,13 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
 function SharedHeader({ typeLabel }: { typeLabel: string }) {
   return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
+    <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
       <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center justify-between">
         <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 flex-shrink-0">
           <img src="/mikey-avatar.png" alt="Mikey" className="w-8 h-8 rounded-lg" />
-          <span className="font-semibold text-gray-900">Mikey</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Mikey</span>
         </a>
-        <span className="text-sm text-gray-500 text-center hidden sm:block">
+        <span className="text-sm text-gray-500 dark:text-gray-400 text-center hidden sm:block">
           Shared {typeLabel} from Mikey, the Founder-Led Sales assistant.
         </span>
         <a
@@ -328,8 +328,8 @@ function SharedHeader({ typeLabel }: { typeLabel: string }) {
 
 function SharedFooter({ typeLabel }: { typeLabel: string }) {
   return (
-    <div className="mt-12 pt-8 border-t border-gray-200 text-center">
-      <p className="text-sm text-gray-500 mb-4">
+    <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         This {typeLabel.toLowerCase()} was created with Mikey, the Founder-Led Sales assistant.
       </p>
       <a
@@ -352,7 +352,7 @@ function TabButton({ tab, label, activeTab, onSwitch }: { tab: Tab; label: strin
       className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
         activeTab === tab
           ? "border-purple-600 text-purple-600"
-          : "border-transparent text-gray-500 hover:text-gray-700"
+          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
       }`}
     >
       {label}
@@ -376,15 +376,15 @@ function NarrativeSection({
   onCopy: (text: string, field: string) => void;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
         <div>
-          <h2 className="font-semibold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-500">{subtitle}</p>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
         </div>
         <button
           onClick={() => onCopy(content, field)}
-          className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
         >
           {copiedField === field ? (
             <>

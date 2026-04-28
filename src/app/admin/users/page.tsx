@@ -235,7 +235,7 @@ export default function AdminUsersPage() {
       TRIAL: "bg-yellow-100 text-yellow-800",
       ACTIVE: "bg-green-100 text-green-800",
       EXPIRED: "bg-red-100 text-red-800",
-      SUSPENDED: "bg-gray-100 text-gray-800",
+      SUSPENDED: "bg-gray-100 text-gray-800 dark:text-gray-100",
     };
     return (
       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${styles[status] || "bg-gray-100"}`}>
@@ -278,9 +278,9 @@ export default function AdminUsersPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Users</h1>
           {pagination && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               ({pagination.total.toLocaleString()})
             </span>
           )}
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 border border-gray-200 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700 mb-6">
         <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4">
           {/* Search */}
           <form onSubmit={handleSearch} className="w-full sm:flex-1 sm:min-w-[200px]">
@@ -307,7 +307,7 @@ export default function AdminUsersPage() {
                 placeholder="Search by email or name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
               <button
                 type="submit"
@@ -323,7 +323,7 @@ export default function AdminUsersPage() {
             <select
               value={status}
               onChange={(e) => { setStatus(e.target.value); updateUrl({ status: e.target.value }); }}
-              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="">All Statuses</option>
               <option value="TRIAL">Trial</option>
@@ -336,7 +336,7 @@ export default function AdminUsersPage() {
             <select
               value={identityType}
               onChange={(e) => { setIdentityType(e.target.value); updateUrl({ identityType: e.target.value }); }}
-              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="">All Identity</option>
               <option value="google">Google Only</option>
@@ -349,7 +349,7 @@ export default function AdminUsersPage() {
               <select
                 value={workspaceId}
                 onChange={(e) => { setWorkspaceId(e.target.value); updateUrl({ workspaceId: e.target.value }); }}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">All Workspaces</option>
                 {workspaces.map((ws) => (
@@ -368,7 +368,7 @@ export default function AdminUsersPage() {
                   setWorkspaceId("");
                   router.push("/admin/users");
                 }}
-                className="px-3 py-2 text-gray-600 hover:text-gray-900 text-sm"
+                className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 text-sm"
               >
                 Clear
               </button>
@@ -378,11 +378,11 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading users...</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading users...</div>
         ) : users.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No users found</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">No users found</div>
         ) : (
           <>
           {/* Mobile card list */}
@@ -391,25 +391,25 @@ export default function AdminUsersPage() {
               <Link
                 key={user.id}
                 href={`/admin/users/${user.id}`}
-                className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-100"
+                className="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100"
               >
                 <div className="flex items-center gap-3">
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium flex-shrink-0">
                       {(user.name || user.email || "?")[0].toUpperCase()}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 truncate">
+                      <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
                         {user.name || "No name"}
                       </span>
                       {getLicenseStatusBadge(user.licenseStatus)}
                       {getIdentityIcons(user)}
                     </div>
-                    <div className="text-sm text-gray-500 truncate">{user.email || "No email"}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email || "No email"}</div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
                       <span>{user.messageCount} msgs</span>
                       <span>{formatRelativeTime(user.lastActivity)}</span>
@@ -430,7 +430,7 @@ export default function AdminUsersPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     onClick={() => handleSort("name")}
                   >
                     <div className="flex items-center">
@@ -438,11 +438,11 @@ export default function AdminUsersPage() {
                       <SortIcon field="name" />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Identity
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     onClick={() => handleSort("licenseStatus")}
                   >
                     <div className="flex items-center">
@@ -450,11 +450,11 @@ export default function AdminUsersPage() {
                       <SortIcon field="licenseStatus" />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[200px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider max-w-[200px]">
                     Workspace
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     onClick={() => handleSort("messageCount")}
                   >
                     <div className="flex items-center">
@@ -463,7 +463,7 @@ export default function AdminUsersPage() {
                     </div>
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     onClick={() => handleSort("lastActivity")}
                   >
                     <div className="flex items-center">
@@ -472,7 +472,7 @@ export default function AdminUsersPage() {
                     </div>
                   </th>
                   <th
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     onClick={() => handleSort("createdAt")}
                   >
                     <div className="flex items-center">
@@ -480,16 +480,16 @@ export default function AdminUsersPage() {
                       <SortIcon field="createdAt" />
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
                 {users.map((user) => (
                   <tr
                     key={user.id}
-                    className="hover:bg-gray-50"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link href={`/admin/users/${user.id}`} className="flex items-center group">
@@ -500,15 +500,15 @@ export default function AdminUsersPage() {
                             className="w-8 h-8 rounded-full mr-3"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center text-gray-500 text-sm">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
                             {(user.name || user.email || "?")[0].toUpperCase()}
                           </div>
                         )}
                         <div>
-                          <div className="font-medium text-gray-900 group-hover:text-blue-600">
+                          <div className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600">
                             {user.name || "No name"}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             {user.email || "No email"}
                           </div>
                         </div>
@@ -520,17 +520,17 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3 whitespace-nowrap">
                       {getLicenseStatusBadge(user.licenseStatus)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={user.workspace?.name || undefined}>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[200px] truncate" title={user.workspace?.name || undefined}>
                       {user.workspace?.name || "-"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       <div>{user.conversationCount} convos</div>
                       <div>{user.messageCount} msgs</div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {formatRelativeTime(user.lastActivity)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
@@ -567,22 +567,22 @@ export default function AdminUsersPage() {
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="text-xs sm:text-sm text-gray-500">
+          <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </div>
             <div className="flex space-x-2">
               <button
                 onClick={() => updateUrl({ page: String(currentPage - 1) })}
                 disabled={currentPage <= 1}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Previous
               </button>
               <button
                 onClick={() => updateUrl({ page: String(currentPage + 1) })}
                 disabled={currentPage >= pagination.totalPages}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Next
               </button>
@@ -600,12 +600,12 @@ export default function AdminUsersPage() {
             className="absolute inset-0 bg-black/50"
             onClick={() => !creating && setShowCreateModal(false)}
           />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Create New User</h2>
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create New User</h2>
             </div>
             <form onSubmit={handleCreateUser} className="p-6">
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 Create a user with an email address. When they sign in with Google or Slack
                 using this email, their account will be automatically linked.
               </p>
@@ -618,7 +618,7 @@ export default function AdminUsersPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Email <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -628,13 +628,13 @@ export default function AdminUsersPage() {
                     value={createEmail}
                     onChange={(e) => setCreateEmail(e.target.value)}
                     placeholder="user@example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     disabled={creating}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                     Name <span className="text-gray-400">(optional)</span>
                   </label>
                   <input
@@ -643,7 +643,7 @@ export default function AdminUsersPage() {
                     value={createName}
                     onChange={(e) => setCreateName(e.target.value)}
                     placeholder="John Doe"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     disabled={creating}
                   />
                 </div>
@@ -654,7 +654,7 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   disabled={creating}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md disabled:opacity-50"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md disabled:opacity-50"
                 >
                   Cancel
                 </button>

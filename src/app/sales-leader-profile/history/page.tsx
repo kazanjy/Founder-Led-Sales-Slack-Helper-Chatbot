@@ -66,7 +66,7 @@ export default function SalesLeaderProfileHistory() {
           <div className="flex items-center gap-4">
             <Link
               href="/sales-leader-profile"
-              className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -74,8 +74,8 @@ export default function SalesLeaderProfileHistory() {
               Back
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Sales Leader Hiring Profile History</h1>
-              <p className="text-sm text-gray-500">{versions.length} version{versions.length !== 1 ? "s" : ""}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sales Leader Hiring Profile History</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{versions.length} version{versions.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
         </div>
@@ -90,8 +90,8 @@ export default function SalesLeaderProfileHistory() {
         ) : versions.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">👤</div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Versions Yet</h2>
-            <p className="text-gray-600 mb-6">Generate your first Sales Leader Hiring Profile to see it here.</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Versions Yet</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">Generate your first Sales Leader Hiring Profile to see it here.</p>
             <Link
               href="/sales-leader-profile/edit"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium"
@@ -105,19 +105,19 @@ export default function SalesLeaderProfileHistory() {
               <Link
                 key={v.id}
                 href={`/sales-leader-profile?version=${v.id}`}
-                className="block bg-white border border-gray-200 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all"
+                className="block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900 truncate">{v.title}</h3>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{v.title}</h3>
                       {index === 0 && (
                         <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
                           Latest
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       Generated {formatDate(v.createdAt)}
                       {v.updatedAt !== v.createdAt && ` · Updated ${formatDate(v.updatedAt)}`}
                     </p>

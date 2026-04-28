@@ -68,7 +68,7 @@ export default function SalesMotionPage() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
           </div>
         </div>
       }
@@ -96,7 +96,7 @@ const CALL_TYPE_COLORS: Record<string, string> = {
   security: "bg-red-100 text-red-700",
   technical: "bg-indigo-100 text-indigo-700",
   closing: "bg-emerald-100 text-emerald-700",
-  other: "bg-gray-100 text-gray-700",
+  other: "bg-gray-100 text-gray-700 dark:text-gray-200",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ function SalesMotionContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading sales motion...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading sales motion...</p>
           </div>
         </div>
       </div>
@@ -540,8 +540,8 @@ function SalesMotionContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">🔄</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">No Sales Motion Analysis Yet</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Sales Motion Analysis Yet</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Analyze your sales calls to uncover your sales motion, deal patterns, and generate call playbooks.
             </p>
             <Link
@@ -576,26 +576,26 @@ function SalesMotionContent() {
       {/* Iterating overlay */}
       {iterating && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center max-w-sm">
             <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-900 font-medium">Iterating...</p>
-            <p className="text-sm text-gray-500 mt-1">Incorporating your feedback</p>
+            <p className="text-gray-900 dark:text-gray-100 font-medium">Iterating...</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Incorporating your feedback</p>
           </div>
         </div>
       )}
 
       {/* Header */}
       {!showOverlay && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <Link
                   href="/chat"
-                  className="text-gray-500 hover:text-gray-700 flex items-center gap-1 shrink-0"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -603,10 +603,10 @@ function SalesMotionContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900">
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                     {collection?.title || "Sales Motion"}
                   </h1>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {isStreamingMode ? (
                       <span className="flex items-center gap-2">
                         <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
@@ -641,7 +641,7 @@ function SalesMotionContent() {
                 {activeTab !== "deals" && (
                   <button
                     onClick={handleCopy}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     {copiedField === "content" ? (
                       <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -669,7 +669,7 @@ function SalesMotionContent() {
                       router.push(`/sales-motion?analyzing=true&collectionId=${collection.id}`);
                       window.location.reload();
                     }}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -679,7 +679,7 @@ function SalesMotionContent() {
                 )}
                 <Link
                   href="/sales-motion/new"
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -688,7 +688,7 @@ function SalesMotionContent() {
                 </Link>
                 <Link
                   href="/sales-motion/history"
-                  className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -725,7 +725,7 @@ function SalesMotionContent() {
             {/* Left: Main content */}
             <div className="flex-1 min-w-0">
               {/* Tabs */}
-              <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto">
+              <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -737,7 +737,7 @@ function SalesMotionContent() {
                     className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? "border-purple-600 text-purple-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
                     }`}
                   >
                     {tab.label}
@@ -747,7 +747,7 @@ function SalesMotionContent() {
 
               {/* Motion Overview tab */}
               {activeTab === "motion" && (
-                <div className="bg-white border border-gray-200 rounded-xl p-8">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8">
                   {motionContent ? (
                     <div className="prose prose-gray max-w-none">
                       <ReactMarkdown>{motionContent}</ReactMarkdown>
@@ -765,7 +765,7 @@ function SalesMotionContent() {
 
               {/* Script tabs */}
               {activeScript && (
-                <div className="bg-white border border-gray-200 rounded-xl p-8">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8">
                   <div className="flex items-center gap-3 mb-4">
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -774,7 +774,7 @@ function SalesMotionContent() {
                     >
                       {activeScript.callType}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
                       Based on {activeScript.sourceCallCount} call{activeScript.sourceCallCount !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -788,19 +788,19 @@ function SalesMotionContent() {
               {activeTab === "deals" && (
                 <div className="space-y-4">
                   {(collection?.deals || []).length === 0 ? (
-                    <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center text-gray-400">
                       <p>No deals available yet.</p>
                     </div>
                   ) : (
                     collection!.deals.map((deal) => (
                       <div
                         key={deal.id}
-                        className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
                       >
                         {/* Deal header */}
                         <button
                           onClick={() => toggleDeal(deal.id)}
-                          className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                          className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <svg
@@ -814,10 +814,10 @@ function SalesMotionContent() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                             <div className="text-left">
-                              <h3 className="font-semibold text-gray-900">
+                              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                                 {deal.name}
                               </h3>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {deal.calls.length} call{deal.calls.length !== 1 ? "s" : ""}
                               </p>
                             </div>
@@ -830,7 +830,7 @@ function SalesMotionContent() {
                             {deal.calls.map((call) => (
                               <div key={call.id} className="px-6 py-4 pl-14">
                                 <div className="flex items-center gap-3 mb-1">
-                                  <h4 className="font-medium text-gray-800 text-sm">
+                                  <h4 className="font-medium text-gray-800 dark:text-gray-100 text-sm">
                                     {call.name}
                                   </h4>
                                   <span
@@ -856,7 +856,7 @@ function SalesMotionContent() {
                                   )}
                                 </div>
                                 {call.summary && (
-                                  <p className="text-sm text-gray-600 line-clamp-3">{call.summary}</p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">{call.summary}</p>
                                 )}
                               </div>
                             ))}
@@ -877,7 +877,7 @@ function SalesMotionContent() {
                 {/* Iterate panel */}
                 {hasContent && (
                   <div
-                    className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm transition-opacity ${
+                    className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm transition-opacity ${
                       iterateDisabled ? "opacity-50 pointer-events-none" : ""
                     }`}
                     title={
@@ -888,13 +888,13 @@ function SalesMotionContent() {
                           : undefined
                     }
                   >
-                    <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
                       <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                       Iterate
                     </h3>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                       {activeTab === "motion"
                         ? "Describe what to change in the sales motion overview."
                         : activeScript
@@ -911,7 +911,7 @@ function SalesMotionContent() {
                       }
                       rows={5}
                       disabled={iterating || iterateDisabled}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y disabled:opacity-50 disabled:bg-gray-50"
                     />
                     <button
                       onClick={handleIterate}

@@ -37,7 +37,7 @@ export default function PreCallPlanningHistoryPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading history...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading history...</p>
         </div>
       </div>
     }>
@@ -157,7 +157,7 @@ function HistoryContent() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading history...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading history...</p>
           </div>
         </div>
       </div>
@@ -168,13 +168,13 @@ function HistoryContent() {
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 href="/pre-call-planning"
-                className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -182,8 +182,8 @@ function HistoryContent() {
                 Back
               </Link>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Pre-Call Checklist History</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Pre-Call Checklist History</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {history.length} research brief{history.length !== 1 ? "s" : ""}
                 </p>
               </div>
@@ -191,7 +191,7 @@ function HistoryContent() {
             {selectedBrief && (
               <button
                 onClick={handleCopy}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
               >
                 {copied ? (
                   <>
@@ -218,8 +218,8 @@ function HistoryContent() {
         {history.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🔍</div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Research History Yet</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Research History Yet</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Research a prospect to see your history here.
             </p>
             <Link
@@ -236,22 +236,22 @@ function HistoryContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: History List */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100">
                 {history.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleSelectBrief(item.id)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors first:rounded-t-xl last:rounded-b-xl ${
                       selectedBrief?.id === item.id
                         ? "bg-purple-50 border-l-4 border-l-purple-500"
                         : ""
                     }`}
                   >
-                    <div className="font-medium text-gray-900 text-sm">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                       {getBriefTitle(item)}
                     </div>
                     {item.contactTitle && (
-                      <div className="text-xs text-gray-500 mt-0.5">{item.contactTitle}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.contactTitle}</div>
                     )}
                     <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
                       <span>{formatDate(item.createdAt)}</span>
@@ -267,23 +267,23 @@ function HistoryContent() {
             {/* Right: Brief Display */}
             <div className="lg:col-span-2">
               {loadingBrief ? (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
                   <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <p className="text-gray-500">Loading brief...</p>
+                  <p className="text-gray-500 dark:text-gray-400">Loading brief...</p>
                 </div>
               ) : selectedBrief ? (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                   <div className="p-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {selectedBrief.companyName}
                       {selectedBrief.contactName && (
-                        <span className="text-gray-500 font-normal"> — {selectedBrief.contactName}</span>
+                        <span className="text-gray-500 dark:text-gray-400 font-normal"> — {selectedBrief.contactName}</span>
                       )}
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       Generated {formatDate(selectedBrief.createdAt)}
                       {selectedBrief.source === "slack" && " via Slack"}
                     </p>
@@ -295,10 +295,10 @@ function HistoryContent() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
                   <div className="text-6xl mb-4">📋</div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Select a Research Brief</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Select a Research Brief</h3>
+                  <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                     Click on a company from the list to view the full research brief.
                   </p>
                 </div>

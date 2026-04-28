@@ -72,8 +72,8 @@ const activityTypeColors: Record<string, string> = {
   "sales-metrics": "bg-pink-100 text-pink-700",
   "ad-creator": "bg-rose-100 text-rose-700",
   "slack-chat": "bg-purple-100 text-purple-700",
-  "web-chat": "bg-gray-100 text-gray-700",
-  "chat": "bg-gray-100 text-gray-700",
+  "web-chat": "bg-gray-100 text-gray-700 dark:text-gray-200",
+  "chat": "bg-gray-100 text-gray-700 dark:text-gray-200",
   "coaching": "bg-yellow-100 text-yellow-700",
 };
 
@@ -361,7 +361,7 @@ export default function AdminAccountDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-500">Loading account...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading account...</div>
       </div>
     );
   }
@@ -425,20 +425,20 @@ export default function AdminAccountDetailPage() {
           Accounts
         </Link>
         <span className="text-sm text-gray-400 mx-2">/</span>
-        <span className="text-sm text-gray-600">{account.name}</span>
+        <span className="text-sm text-gray-600 dark:text-gray-300">{account.name}</span>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{account.name}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{account.name}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: Account details + Users */}
         <div className="lg:col-span-1 space-y-6">
           {/* Account Details */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Account</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Account</h2>
             <div className="space-y-3">
               <div>
-                <label className="text-sm text-gray-500">Name</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Name</label>
                 {editingName ? (
                   <div className="flex items-center gap-2 mt-0.5">
                     <input
@@ -450,7 +450,7 @@ export default function AdminAccountDetailPage() {
                         if (e.key === "Escape") setEditingName(false);
                       }}
                       autoFocus
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={handleSaveName}
@@ -461,7 +461,7 @@ export default function AdminAccountDetailPage() {
                     </button>
                     <button
                       onClick={() => setEditingName(false)}
-                      className="text-xs px-3 py-1.5 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                      className="text-xs px-3 py-1.5 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       Cancel
                     </button>
@@ -480,12 +480,12 @@ export default function AdminAccountDetailPage() {
               </div>
               {account.emailDomain && (
                 <div>
-                  <label className="text-sm text-gray-500">Email Domain</label>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Email Domain</label>
                   <div className="font-mono text-sm">{account.emailDomain}</div>
                 </div>
               )}
               <div>
-                <label className="text-sm text-gray-500">Owner</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Owner</label>
                 <div>
                   {owner ? (
                     <Link href={`/admin/users/${owner.id}`} className="text-blue-600 hover:underline">
@@ -497,28 +497,28 @@ export default function AdminAccountDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm text-gray-500">Users</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Users</label>
                 <div>{account.users.length}</div>
               </div>
               <div>
-                <label className="text-sm text-gray-500">Channels Claimed</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Channels Claimed</label>
                 <div>{account.channelClaims.length}</div>
               </div>
               <div>
-                <label className="text-sm text-gray-500">Created</label>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Created</label>
                 <div>{new Date(account.createdAt).toLocaleDateString()}</div>
               </div>
               <div>
-                <label className="text-sm text-gray-500">Account ID</label>
-                <div className="font-mono text-xs break-all text-gray-600">{account.id}</div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Account ID</label>
+                <div className="font-mono text-xs break-all text-gray-600 dark:text-gray-300">{account.id}</div>
               </div>
             </div>
           </div>
 
           {/* Users */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Members ({account.users.length})
               </h2>
               <button
@@ -536,9 +536,9 @@ export default function AdminAccountDetailPage() {
 
             {/* Add user form */}
             {showAddUser && (
-              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 space-y-3">
+              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 dark:border-gray-700 space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                     Search users by name or email
                   </label>
                   <input
@@ -549,15 +549,15 @@ export default function AdminAccountDetailPage() {
                       setAddUserSearch(e.target.value);
                       searchUsers(e.target.value);
                     }}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Role</label>
                   <select
                     value={addUserRole}
                     onChange={(e) => setAddUserRole(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                   >
                     <option value="MEMBER">Member</option>
                     <option value="ADMIN">Admin</option>
@@ -565,14 +565,14 @@ export default function AdminAccountDetailPage() {
                   </select>
                 </div>
                 {addUserSearching && (
-                  <div className="text-xs text-gray-500">Searching...</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Searching...</div>
                 )}
                 {addUserResults.length > 0 && (
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {addUserResults.map((u) => (
                       <div
                         key={u.id}
-                        className="flex items-center justify-between bg-white rounded px-2 py-1.5 border border-gray-100 text-sm"
+                        className="flex items-center justify-between bg-white dark:bg-gray-800 rounded px-2 py-1.5 border border-gray-100 text-sm"
                       >
                         <span className="truncate">
                           {u.name || u.email || u.slackUserName || u.id}
@@ -606,7 +606,7 @@ export default function AdminAccountDetailPage() {
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium hover:ring-2 hover:ring-blue-400">
                         {(user.name || user.email || "?").charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -627,7 +627,7 @@ export default function AdminAccountDetailPage() {
                             ? "bg-purple-100 text-purple-700"
                             : user.accountRole === "ADMIN"
                             ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-100 text-gray-600"
+                            : "bg-gray-100 text-gray-600 dark:text-gray-300"
                         }`}
                       >
                         <option value="OWNER">OWNER</option>
@@ -635,7 +635,7 @@ export default function AdminAccountDetailPage() {
                         <option value="MEMBER">MEMBER</option>
                       </select>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {user.email && <span>{user.email}</span>}
                       {user.workspace && (
                         <span className="ml-2 text-gray-400">
@@ -647,7 +647,7 @@ export default function AdminAccountDetailPage() {
                       <span className={`inline-block px-1 py-0 rounded ${
                         user.licenseStatus === "ACTIVE" ? "bg-green-100 text-green-700" :
                         user.licenseStatus === "TRIAL" ? "bg-yellow-100 text-yellow-700" :
-                        "bg-gray-100 text-gray-600"
+                        "bg-gray-100 text-gray-600 dark:text-gray-300"
                       }`}>
                         {user.licenseStatus}
                       </span>
@@ -668,9 +668,9 @@ export default function AdminAccountDetailPage() {
           </div>
 
           {/* Channel Claims */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Claimed Channels ({account.channelClaims.length})
               </h2>
               <button
@@ -690,10 +690,10 @@ export default function AdminAccountDetailPage() {
 
             {/* Claim channel form */}
             {showClaimForm && (
-              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 space-y-3">
+              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 dark:border-gray-700 space-y-3">
                 {/* Workspace selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Workspace</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Workspace</label>
                   <select
                     value={claimWorkspaceId}
                     onChange={(e) => {
@@ -705,7 +705,7 @@ export default function AdminAccountDetailPage() {
                         setClaimSelectedChannel("");
                       }
                     }}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                   >
                     <option value="">Select workspace...</option>
                     {(() => {
@@ -729,14 +729,14 @@ export default function AdminAccountDetailPage() {
                 {/* Channel selector */}
                 {claimWorkspaceId && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Channel</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Channel</label>
                     {claimChannelsLoading ? (
-                      <div className="text-xs text-gray-500">Loading channels...</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Loading channels...</div>
                     ) : (
                       <select
                         value={claimSelectedChannel}
                         onChange={(e) => setClaimSelectedChannel(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                       >
                         <option value="">Select channel...</option>
                         {claimChannels.map((ch) => (
@@ -755,11 +755,11 @@ export default function AdminAccountDetailPage() {
                 {/* Owner selector */}
                 {claimWorkspaceId && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Channel Owner</label>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Channel Owner</label>
                     <select
                       value={claimOwnerId}
                       onChange={(e) => setClaimOwnerId(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
                     >
                       <option value="">Select owner...</option>
                       {account.users.map((u) => (
@@ -796,7 +796,7 @@ export default function AdminAccountDetailPage() {
                   <div key={claim.id} className="bg-gray-50 rounded-md px-3 py-2 border border-gray-100 group">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-gray-900">
+                        <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
                           {claim.slackChannelName || claim.slackChannelId}
                         </span>
                         {claim.slackChannelName && (
@@ -813,7 +813,7 @@ export default function AdminAccountDetailPage() {
                         Remove
                       </button>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       Owned by{" "}
                       <Link href={`/admin/users/${claim.claimedBy.id}`} className="text-blue-600 hover:underline">
                         {claim.claimedBy.name || claim.claimedBy.email || claim.claimedBy.slackUserName}
@@ -830,16 +830,16 @@ export default function AdminAccountDetailPage() {
 
         {/* Right column: Activity Feed */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow border border-gray-200">
-            <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+            <div className="px-4 py-4 sm:px-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-900">Activity Feed</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activity Feed</h2>
                 <input
                   type="text"
                   placeholder="Search activity..."
                   value={feedSearch}
                   onChange={(e) => setFeedSearch(e.target.value)}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
+                  className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm w-48"
                 />
               </div>
               {filterOptions.length > 1 && (
@@ -851,7 +851,7 @@ export default function AdminAccountDetailPage() {
                       className={`text-xs px-2 py-1 rounded-full transition-colors ${
                         feedFilter === opt.key
                           ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                       }`}
                     >
                       {opt.label}
@@ -883,7 +883,7 @@ export default function AdminAccountDetailPage() {
                         {item.userAvatarUrl ? (
                           <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full" />
                         ) : (
-                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium">
                             {actUserName.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -904,12 +904,12 @@ export default function AdminAccountDetailPage() {
                               >
                                 {actUserName}
                               </Link>
-                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700"}`}>
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700 dark:text-gray-200"}`}>
                                 {item.label}
                               </span>
                             </div>
                             {item.title && (
-                              <div className="text-sm text-gray-700 truncate mt-0.5">
+                              <div className="text-sm text-gray-700 dark:text-gray-200 truncate mt-0.5">
                                 {item.title}
                               </div>
                             )}

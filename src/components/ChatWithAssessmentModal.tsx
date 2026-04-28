@@ -63,9 +63,9 @@ export default function ChatWithAssessmentModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
@@ -74,9 +74,9 @@ export default function ChatWithAssessmentModal({
                 </svg>
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Chat with Assessment</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Chat with Assessment</h2>
                 {assessmentTitle && (
-                  <p className="text-sm text-gray-500 truncate max-w-xs">{assessmentTitle}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{assessmentTitle}</p>
                 )}
               </div>
             </div>
@@ -95,7 +95,7 @@ export default function ChatWithAssessmentModal({
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-3">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
               Your assessment answers will be included as context. What would you like to discuss or ask about?
             </p>
             <textarea
@@ -103,14 +103,14 @@ export default function ChatWithAssessmentModal({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="e.g., Help me improve my ICP definition based on my assessment answers..."
-              className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none text-gray-800 placeholder-gray-400"
+              className="w-full h-32 px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none text-gray-800 dark:text-gray-100 placeholder-gray-400"
               disabled={isLoading}
             />
           </div>
 
           {/* Suggestions */}
           <div className="mb-5">
-            <p className="text-xs text-gray-500 mb-2">Quick prompts:</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick prompts:</p>
             <div className="flex flex-wrap gap-2">
               {[
                 "What should I focus on next?",
@@ -122,7 +122,7 @@ export default function ChatWithAssessmentModal({
                   type="button"
                   onClick={() => setPrompt(suggestion)}
                   disabled={isLoading}
-                  className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors disabled:opacity-50"
+                  className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-full transition-colors disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
@@ -136,7 +136,7 @@ export default function ChatWithAssessmentModal({
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

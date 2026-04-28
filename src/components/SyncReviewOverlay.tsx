@@ -134,21 +134,21 @@ export default function SyncReviewOverlay({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col mx-4">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-200 flex-shrink-0">
+        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 Sync from {sourceLabel}
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {proposedChanges.length} proposed update{proposedChanges.length !== 1 ? "s" : ""} found. Review and select which to apply.
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -178,7 +178,7 @@ export default function SyncReviewOverlay({
                           const val = e.target.value;
                           setStageOverride(val === recommendedStage.stage ? null : val);
                         }}
-                        className={`text-sm font-semibold text-purple-900 bg-white border border-purple-300 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 ${stageOverride ? "ring-2 ring-purple-400" : ""}`}
+                        className={`text-sm font-semibold text-purple-900 bg-white dark:bg-gray-800 border border-purple-300 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 ${stageOverride ? "ring-2 ring-purple-400" : ""}`}
                       >
                         {stageOrder.map((key) => (
                           <option key={key} value={key}>{STAGE_LABELS[key] || key}</option>
@@ -198,7 +198,7 @@ export default function SyncReviewOverlay({
                     type="checkbox"
                     checked={acceptStage}
                     onChange={(e) => setAcceptStage(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                    className="w-4 h-4 text-purple-600 rounded border-gray-300 dark:border-gray-700 focus:ring-purple-500"
                   />
                   <span className="text-sm text-purple-700 font-medium">Apply</span>
                 </label>
@@ -217,7 +217,7 @@ export default function SyncReviewOverlay({
                 Select none
               </button>
             </div>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               {selectedCount} of {proposedChanges.length} selected
             </span>
           </div>
@@ -227,7 +227,7 @@ export default function SyncReviewOverlay({
             const changes = groupedByStage.get(stageKey)!;
             return (
               <div key={stageKey} className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                   {STAGE_LABELS[stageKey] || stageKey}
                 </h3>
                 <div className="space-y-2">
@@ -242,7 +242,7 @@ export default function SyncReviewOverlay({
                       <div
                         key={change.itemId}
                         className={`border rounded-xl transition-colors ${
-                          isSelected ? "border-purple-300 bg-purple-50/30" : "border-gray-200 bg-white"
+                          isSelected ? "border-purple-300 bg-purple-50/30" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
                         }`}
                       >
                         {/* Main row */}
@@ -251,15 +251,15 @@ export default function SyncReviewOverlay({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleItem(change.itemId)}
-                            className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500 flex-shrink-0"
+                            className="w-4 h-4 text-purple-600 rounded border-gray-300 dark:border-gray-700 focus:ring-purple-500 flex-shrink-0"
                           />
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-medium text-gray-900">{change.itemTitle}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{change.itemTitle}</span>
                               <span className="text-xs text-gray-400">{change.capabilityCategory}</span>
                             </div>
-                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{change.evidenceText}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{change.evidenceText}</p>
                           </div>
 
                           {/* Status change badge */}
@@ -320,19 +320,19 @@ export default function SyncReviewOverlay({
                             <div className="grid grid-cols-2 gap-4">
                               {/* Left: proposed evidence */}
                               <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Proposed Evidence</p>
-                                <p className="text-sm text-gray-700">{change.evidenceText}</p>
+                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Proposed Evidence</p>
+                                <p className="text-sm text-gray-700 dark:text-gray-200">{change.evidenceText}</p>
                                 <p className="text-xs text-gray-400 mt-2 italic">{change.reasoning}</p>
                               </div>
 
                               {/* Right: supporting excerpts */}
                               <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Supporting Material</p>
+                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Supporting Material</p>
                                 <div className="space-y-2 max-h-40 overflow-y-auto">
                                   {change.supportingExcerpts.map((excerpt, i) => (
                                     <div key={i} className="bg-gray-50 rounded-lg p-2.5">
-                                      <p className="text-xs font-medium text-gray-500 mb-0.5">{excerpt.source}</p>
-                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{excerpt.text}</p>
+                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{excerpt.source}</p>
+                                      <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{excerpt.text}</p>
                                     </div>
                                   ))}
                                   {change.supportingExcerpts.length === 0 && (
@@ -358,17 +358,17 @@ export default function SyncReviewOverlay({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-gray-500 font-medium">No updates found</p>
+              <p className="text-gray-500 dark:text-gray-400 font-medium">No updates found</p>
               <p className="text-sm text-gray-400 mt-1">Your readiness progression is already up to date with your {sourceLabel.toLowerCase()}.</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50 rounded-b-2xl">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0 bg-gray-50 rounded-b-2xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             Cancel
           </button>

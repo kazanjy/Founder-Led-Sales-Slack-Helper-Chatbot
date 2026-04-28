@@ -162,7 +162,7 @@ export default function MaturityHistoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -170,19 +170,19 @@ export default function MaturityHistoryPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/chat"
-              className="text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Chat
             </Link>
-            <h1 className="text-xl font-semibold text-gray-900">GTM Maturity Assessment History</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">GTM Maturity Assessment History</h1>
           </div>
           {(!selectedId || assessments.find(a => a.id === selectedId && (!a.userId || a.userId === currentUserId))) && (
             <Link
@@ -204,8 +204,8 @@ export default function MaturityHistoryPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="text-gray-400 text-6xl mb-4">📊</div>
-              <h2 className="text-xl font-medium text-gray-700 mb-2">No assessments yet</h2>
-              <p className="text-gray-500 mb-6">Complete your first GTM Maturity Assessment to see it here.</p>
+              <h2 className="text-xl font-medium text-gray-700 dark:text-gray-200 mb-2">No assessments yet</h2>
+              <p className="text-gray-500 dark:text-gray-400 mb-6">Complete your first GTM Maturity Assessment to see it here.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Link
                   href="/assessment/bulk"
@@ -218,7 +218,7 @@ export default function MaturityHistoryPage() {
                 </Link>
                 <Link
                   href="/chat"
-                  className="inline-flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="inline-flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   Or go to Chat
                 </Link>
@@ -228,9 +228,9 @@ export default function MaturityHistoryPage() {
         ) : (
           <>
             {/* Left Panel - Assessment List */}
-            <div className="w-1/3 border-r border-gray-200 bg-white overflow-y-auto">
+            <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
               <div className="p-4">
-                <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+                <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
                   Your Assessments
                 </h2>
                 <div className="space-y-2">
@@ -252,11 +252,11 @@ export default function MaturityHistoryPage() {
                               In Progress
                             </span>
                           </div>
-                          <div className="font-medium text-gray-900 mb-2">
+                          <div className="font-medium text-gray-900 dark:text-gray-100 mb-2">
                             GTM Maturity Assessment
                           </div>
                           <div className="mb-2">
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                               <span>{assessment.answerCount} of {totalQuestions} questions</span>
                               <span>{progressPercent}%</span>
                             </div>
@@ -268,7 +268,7 @@ export default function MaturityHistoryPage() {
                             </div>
                           </div>
                           {assessment.user && (assessment.user.name || assessment.user.email) && (
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               by {assessment.user.name || assessment.user.email}
                             </div>
                           )}
@@ -289,18 +289,18 @@ export default function MaturityHistoryPage() {
                         className={`w-full text-left p-4 rounded-lg transition-colors ${
                           selectedId === assessment.id
                             ? "bg-blue-50 border-2 border-blue-500"
-                            : "bg-gray-50 border-2 border-transparent hover:bg-gray-100"
+                            : "bg-gray-50 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {formatDate(assessment.completedAt)}
                           </span>
                           <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                             Completed
                           </span>
                         </div>
-                        <div className="font-medium text-gray-900 line-clamp-2">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 line-clamp-2">
                           {assessment.title || "GTM Maturity Assessment"}
                         </div>
                         <div className="text-xs text-gray-400 mt-1">
@@ -322,16 +322,16 @@ export default function MaturityHistoryPage() {
             <div className="w-2/3 overflow-y-auto">
               {loadingDetail ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-gray-500">Loading assessment...</div>
+                  <div className="text-gray-500 dark:text-gray-400">Loading assessment...</div>
                 </div>
               ) : selectedAssessment ? (
                 <div className="p-6">
                   {/* Assessment Header */}
                   <div className="mb-6">
-                    <div className="text-sm text-gray-500 mb-1">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
                       {formatDate(selectedAssessment.completedAt)}
                     </div>
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                       {selectedAssessment.title || "GTM Maturity Assessment"}
                     </h2>
                     <div className="flex items-center gap-4 flex-wrap">
@@ -381,17 +381,17 @@ export default function MaturityHistoryPage() {
                   ) : (
                     <div className="space-y-8">
                       {selectedAssessment.categories.map((category, categoryIndex) => (
-                        <div key={category.name} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div key={category.name} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                           {/* Category Header */}
-                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 border-b border-gray-200">
+                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm">
                                 {categoryIndex + 1}
                               </div>
-                              <h3 className="text-lg font-semibold text-gray-800">
+                              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                                 {category.name}
                               </h3>
-                              <span className="text-sm text-gray-500 ml-auto">
+                              <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
                                 {category.questions.length} questions
                               </span>
                             </div>
@@ -400,13 +400,13 @@ export default function MaturityHistoryPage() {
                           {/* Questions in this category */}
                           <div className="divide-y divide-gray-100">
                             {category.questions.map((qa) => (
-                              <div key={qa.questionId} className="p-5 hover:bg-gray-50 transition-colors">
+                              <div key={qa.questionId} className="p-5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                                 {/* Question */}
                                 <div className="flex gap-3 mb-3">
-                                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs font-medium flex items-center justify-center">
+                                  <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 text-gray-600 dark:text-gray-300 text-xs font-medium flex items-center justify-center">
                                     {qa.globalOrder}
                                   </span>
-                                  <p className="text-gray-700 font-medium leading-relaxed">
+                                  <p className="text-gray-700 dark:text-gray-200 font-medium leading-relaxed">
                                     {qa.question}
                                   </p>
                                 </div>
@@ -414,7 +414,7 @@ export default function MaturityHistoryPage() {
                                 {/* Answer */}
                                 {qa.answer ? (
                                   <div className="ml-10 pl-4 border-l-2 border-blue-200 bg-blue-50/50 rounded-r-lg py-3 pr-4">
-                                    <div className="text-gray-800 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                                    <div className="text-gray-800 dark:text-gray-100 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
                                       <ReactMarkdown>{qa.answer}</ReactMarkdown>
                                     </div>
                                   </div>
@@ -433,7 +433,7 @@ export default function MaturityHistoryPage() {
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-gray-500">Select an assessment to view details</div>
+                  <div className="text-gray-500 dark:text-gray-400">Select an assessment to view details</div>
                 </div>
               )}
             </div>

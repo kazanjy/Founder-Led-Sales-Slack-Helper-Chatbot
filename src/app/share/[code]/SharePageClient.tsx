@@ -78,23 +78,23 @@ export default function SharePageClient({ code }: SharePageClientProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-800">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-800">
         <div className="text-center">
           <img
             src="/mikey-avatar.png"
             alt="Mikey"
             className="w-16 h-16 rounded-xl mx-auto mb-4"
           />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Oops!</h1>
-          <p className="text-gray-500">{error}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Oops!</h1>
+          <p className="text-gray-500 dark:text-gray-400">{error}</p>
           <a
             href="/"
             className="inline-block mt-4 text-blue-600 hover:underline"
@@ -107,9 +107,9 @@ export default function SharePageClient({ code }: SharePageClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-800">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
+      <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10">
         <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center justify-between">
           <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 flex-shrink-0">
             <img
@@ -117,9 +117,9 @@ export default function SharePageClient({ code }: SharePageClientProps) {
               alt="Mikey"
               className="w-8 h-8 rounded-lg"
             />
-            <span className="font-semibold text-gray-900">Mikey</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Mikey</span>
           </a>
-          <span className="text-sm text-gray-500 text-center hidden sm:block">
+          <span className="text-sm text-gray-500 dark:text-gray-400 text-center hidden sm:block">
             This is a shared conversation from Mikey, the Founder-Led Sales assistant.
           </span>
           <a
@@ -145,7 +145,7 @@ export default function SharePageClient({ code }: SharePageClientProps) {
             <div key={msg.id} id={`msg-${msg.id}`} className="scroll-mt-20">
               {msg.role === "USER" ? (
                 <div className="flex justify-end">
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-w-[70%]">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 max-w-[70%]">
                     <TruncatedUserMessage content={msg.content} />
                   </div>
                 </div>
@@ -158,7 +158,7 @@ export default function SharePageClient({ code }: SharePageClientProps) {
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       onClick={() => copyMessageLink(msg.id)}
-                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                     >
                       {copiedMessageId === msg.id ? (
                         <>
@@ -185,8 +185,8 @@ export default function SharePageClient({ code }: SharePageClientProps) {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-gray-200 text-center">
-          <p className="text-sm text-gray-500 mb-4">
+        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             This is a shared conversation from Mikey, the Founder-Led Sales assistant.
           </p>
           <a

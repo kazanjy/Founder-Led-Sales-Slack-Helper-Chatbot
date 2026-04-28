@@ -148,14 +148,14 @@ export default function AdminLayout({
       case "ACTIVE": return "bg-green-100 text-green-700";
       case "TRIAL": return "bg-blue-100 text-blue-700";
       case "EXPIRED": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-600";
+      default: return "bg-gray-100 text-gray-600 dark:text-gray-300";
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
@@ -180,12 +180,12 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Top nav */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link href="/admin" className="flex items-center">
-                <span className="text-xl font-bold text-gray-900">Mikey Admin</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-gray-100">Mikey Admin</span>
               </Link>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
                 {navItems.map((item) => (
@@ -194,8 +194,8 @@ export default function AdminLayout({
                     href={item.href}
                     className={`px-3 py-2 rounded-md text-sm font-medium ${
                       pathname === item.href
-                        ? "bg-gray-100 text-gray-900"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        ? "bg-gray-100 text-gray-900 dark:text-gray-100"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
                     <span className="mr-1">{item.icon}</span>
@@ -220,7 +220,7 @@ export default function AdminLayout({
                     onFocus={() => { if (searchResults) setSearchOpen(true); }}
                     onKeyDown={handleSearchKeyDown}
                     placeholder="Search users & accounts..."
-                    className="w-56 lg:w-72 pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-56 lg:w-72 pl-8 pr-8 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {searchLoading && (
                     <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -229,7 +229,7 @@ export default function AdminLayout({
                     </svg>
                   )}
                   {!searchLoading && searchQuery.length === 0 && (
-                    <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] text-gray-400 bg-gray-100 border border-gray-200 rounded font-mono">
+                    <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] text-gray-400 bg-gray-100 border border-gray-200 dark:border-gray-700 rounded font-mono">
                       ⌘K
                     </kbd>
                   )}
@@ -237,16 +237,16 @@ export default function AdminLayout({
 
                 {/* Dropdown */}
                 {searchOpen && (hasResults || noResults) && (
-                  <div className="absolute right-0 top-full mt-1 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-y-auto">
                     {noResults && (
-                      <div className="px-4 py-6 text-center text-sm text-gray-500">
+                      <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                         No results for &ldquo;{searchQuery}&rdquo;
                       </div>
                     )}
 
                     {searchResults && searchResults.users.length > 0 && (
                       <div>
-                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
+                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
                           Users
                         </div>
                         {searchResults.users.map((u) => {
@@ -262,13 +262,13 @@ export default function AdminLayout({
                               {u.avatarUrl ? (
                                 <img src={u.avatarUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm flex-shrink-0">
                                   {(u.name || u.email || "?")[0].toUpperCase()}
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium text-gray-900 truncate">{u.name || "—"}</div>
-                                <div className="text-xs text-gray-500 truncate">{u.email || "—"}</div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{u.name || "—"}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{u.email || "—"}</div>
                               </div>
                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusColor(u.licenseStatus)}`}>
                                 {u.licenseStatus}
@@ -281,7 +281,7 @@ export default function AdminLayout({
 
                     {searchResults && searchResults.accounts.length > 0 && (
                       <div>
-                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-t border-gray-100">
+                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-t border-gray-100">
                           Accounts
                         </div>
                         {searchResults.accounts.map((a) => {
@@ -298,9 +298,9 @@ export default function AdminLayout({
                                 {a.name[0].toUpperCase()}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium text-gray-900 truncate">{a.name}</div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{a.name}</div>
                                 {a.emailDomain && (
-                                  <div className="text-xs text-gray-500 truncate">{a.emailDomain}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{a.emailDomain}</div>
                                 )}
                               </div>
                               <span className="text-xs text-gray-400 flex-shrink-0">
@@ -315,7 +315,7 @@ export default function AdminLayout({
                 )}
               </div>
 
-              <span className="text-sm text-gray-500 hidden sm:inline truncate max-w-[150px]">{user.email}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline truncate max-w-[150px]">{user.email}</span>
               <Link
                 href="/chat"
                 className="text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
@@ -328,15 +328,15 @@ export default function AdminLayout({
       </nav>
 
       {/* Mobile nav */}
-      <div className="sm:hidden bg-white border-b border-gray-200 px-4 py-2 flex space-x-2 overflow-x-auto">
+      <div className="sm:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex space-x-2 overflow-x-auto">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap ${
               pathname === item.href
-                ? "bg-gray-100 text-gray-900"
-                : "text-gray-600"
+                ? "bg-gray-100 text-gray-900 dark:text-gray-100"
+                : "text-gray-600 dark:text-gray-300"
             }`}
           >
             {item.icon} {item.label}

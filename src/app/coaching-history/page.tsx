@@ -188,7 +188,7 @@ export default function CoachingHistoryPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     }>
@@ -634,8 +634,8 @@ function CoachingHistoryContent() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Coaching History</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Coaching History</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
               Log coaching sessions with notes and transcripts, then chat with Mikey about your progress.
             </p>
           </div>
@@ -734,8 +734,8 @@ function CoachingHistoryContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">No coaching sessions yet</h2>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No coaching sessions yet</h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
               Log your coaching calls and sessions here. Add notes, paste transcripts, and chat with Mikey about your coaching progress over time.
             </p>
             <button
@@ -777,7 +777,7 @@ function CoachingHistoryContent() {
                       className={`group relative rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
                         isActive
                           ? "border-purple-300 bg-purple-50"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                       onClick={(e) => {
                         // Cmd+click or Ctrl+click: open in new tab
@@ -798,16 +798,16 @@ function CoachingHistoryContent() {
                             toggleCheck(session.id);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="mt-1 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          className="mt-1 rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs text-gray-500 mb-0.5">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
                             {formatDate(session.sessionDate)}
                             {sessionUserName(session) && (
                               <span className="ml-1.5 text-gray-400">· {sessionUserName(session)}</span>
                             )}
                           </div>
-                          <div className="font-medium text-gray-900 text-sm truncate" title={session.title}>
+                          <div className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate" title={session.title}>
                             {session.title}
                           </div>
                         </div>
@@ -822,7 +822,7 @@ function CoachingHistoryContent() {
             <div className={`flex-1 min-w-0 ${!selectedId && mode === "view" ? "hidden md:block" : ""}`}>
               {mode === "create" || mode === "edit" ? (
                 creatingDraft ? (
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 flex items-center justify-center">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 flex items-center justify-center">
                     <div className="flex items-center gap-3 text-gray-400">
                       <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -833,9 +833,9 @@ function CoachingHistoryContent() {
                   </div>
                 ) :
                 /* Create/Edit Form */
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-                  <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-900">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-900 dark:text-gray-100">
                       {mode === "edit" ? "Edit Session" : "New Coaching Session"}
                     </h2>
                     <button
@@ -867,7 +867,7 @@ function CoachingHistoryContent() {
                   <div className="p-6 space-y-5">
                     {/* Title */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
                         Session Title <span className="font-normal text-gray-400">(optional — auto-generated if blank)</span>
                       </label>
                       <input
@@ -875,13 +875,13 @@ function CoachingHistoryContent() {
                         value={formTitle}
                         onChange={(e) => setFormTitle(e.target.value)}
                         placeholder="e.g. Weekly Coaching Call, Pipeline Review"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* Recording URL */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
                         Meeting Recording <span className="font-normal text-gray-400">(optional)</span>
                       </label>
                       <input
@@ -889,26 +889,26 @@ function CoachingHistoryContent() {
                         value={formRecordingUrl}
                         onChange={(e) => setFormRecordingUrl(e.target.value)}
                         placeholder="https://zoom.us/rec/... or any recording link"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* Date */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
                         Session Date <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
                         value={formDate}
                         onChange={(e) => setFormDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* Notes — rich text */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
                         Session Notes <span className="font-normal text-gray-400">(optional)</span>
                       </label>
                       <RichTextEditor
@@ -921,7 +921,7 @@ function CoachingHistoryContent() {
 
                     {/* Transcript */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
                         Call Transcript <span className="font-normal text-gray-400">(optional)</span>
                       </label>
                       <textarea
@@ -929,14 +929,14 @@ function CoachingHistoryContent() {
                         onChange={(e) => setFormTranscript(e.target.value)}
                         placeholder="Paste your call transcript here..."
                         rows={6}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-mono text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-mono text-sm"
                       />
                     </div>
 
                   </div>
 
                   {/* Form actions */}
-                  <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-between">
+                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 rounded-b-xl flex items-center justify-between">
                     <button
                       onClick={async () => {
                         // Delete the draft session if canceling create mode
@@ -951,7 +951,7 @@ function CoachingHistoryContent() {
                           selectSession(firstReal?.id || sessions[0]?.id || null);
                         }
                       }}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                     >
                       Cancel
                     </button>
@@ -985,7 +985,7 @@ function CoachingHistoryContent() {
                 </div>
               ) : selectedSession ? (
                 /* Session Detail View */
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                   {/* Mobile back button */}
                   <button
                     onClick={() => selectSession(null)}
@@ -994,9 +994,9 @@ function CoachingHistoryContent() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     All Sessions
                   </button>
-                  <div className="p-4 border-b border-gray-200">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <span>{formatDate(selectedSession.sessionDate)}</span>
                         {sessionUserName(selectedSession) && (
                           <span className="text-gray-400">· {sessionUserName(selectedSession)}</span>
@@ -1004,7 +1004,7 @@ function CoachingHistoryContent() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           selectedSession.sessionStatus === "new" ? "bg-blue-100 text-blue-700" :
                           selectedSession.sessionStatus === "in_progress" ? "bg-orange-100 text-orange-700" :
-                          "bg-gray-100 text-gray-500"
+                          "bg-gray-100 text-gray-500 dark:text-gray-400"
                         }`}>
                           {selectedSession.sessionStatus === "new" ? "Live Session" :
                            selectedSession.sessionStatus === "in_progress" ? "Live Sprint" :
@@ -1037,7 +1037,7 @@ function CoachingHistoryContent() {
                               });
                               loadSessions();
                             }}
-                            className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+                            className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
                           >
                             Lock Session
                           </button>
@@ -1046,7 +1046,7 @@ function CoachingHistoryContent() {
                           <>
                             <button
                               onClick={() => startEdit(selectedSession)}
-                              className="px-2.5 py-1.5 text-xs text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             >
                               Edit
                             </button>
@@ -1061,7 +1061,7 @@ function CoachingHistoryContent() {
                         )}
                       </div>
                     </div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">{selectedSession.title}</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{selectedSession.title}</h2>
                     <div className="flex items-center gap-2 flex-wrap">
                       <ChatAboutButton
                         title={`Coaching: ${selectedSession.title}`}
@@ -1102,7 +1102,7 @@ function CoachingHistoryContent() {
 
                     {/* Notes */}
                     <div className="mb-8">
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                         Notes
                       </h3>
                       <div className="prose max-w-none prose-sm prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2">
@@ -1121,11 +1121,11 @@ function CoachingHistoryContent() {
                     {/* Transcript */}
                     {selectedSession.transcript && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                           Call Transcript
                         </h3>
                         <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                          <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                          <pre className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono">
                             {selectedSession.transcript}
                           </pre>
                         </div>
@@ -1135,8 +1135,8 @@ function CoachingHistoryContent() {
                 </div>
               ) : (
                 /* No session selected */
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-                  <p className="text-gray-500">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">
                     Select a session from the list or create a new one.
                   </p>
                 </div>
