@@ -171,7 +171,7 @@ interface CoachingFrameworkProps {
 const STATUS_OPTIONS = [
   { value: "active", label: "Active", color: "bg-blue-100 text-blue-700" },
   { value: "done", label: "Done", color: "bg-green-100 text-green-700" },
-  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 line-through" },
+  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:text-gray-400 line-through" },
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700" },
 ];
 
@@ -854,7 +854,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   };
 
   const getStatusColor = (status: string) =>
-    STATUS_OPTIONS.find((s) => s.value === status)?.color || "bg-gray-100 text-gray-600";
+    STATUS_OPTIONS.find((s) => s.value === status)?.color || "bg-gray-100 text-gray-600 dark:text-gray-300";
 
   // ── Up Next handlers ───────────────────────────────────────────
 
@@ -996,7 +996,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     return (
       <div className="space-y-6 mb-8">
         {/* Up Next skeleton */}
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
             <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
@@ -1007,7 +1007,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           </div>
         </div>
         {/* Maturity Stage skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
             <div className="h-4 w-36 bg-gray-200 rounded animate-pulse" />
@@ -1015,7 +1015,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
         </div>
         {/* Metrics skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
             <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
@@ -1027,13 +1027,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           </div>
         </div>
         {/* Goals & Tasks skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
             <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
           </div>
           <div className="space-y-4">
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-4 py-3">
                 <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
               </div>
@@ -1043,7 +1043,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 <div className="px-4 py-2.5 pl-8"><div className="h-4 w-44 bg-gray-100 rounded animate-pulse" /></div>
               </div>
             </div>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-4 py-3">
                 <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
               </div>
@@ -1067,8 +1067,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           ? nextGoals.filter((g) => new Date(g.createdAt || 0) <= new Date(sessionCreatedAt))
           : nextGoals;
         return visibleNextGoals.length > 0 || canEdit ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-5">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
+          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
           </h3>
           <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready.</p>
@@ -1083,7 +1083,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 onDragOver={(e) => { if (dragNextGoal && dragNextGoal !== goal.id) { e.preventDefault(); setDragOverNextGoal(goal.id); } }}
                 onDragLeave={() => setDragOverNextGoal(null)}
                 onDrop={() => handleNextGoalDrop(goal.id)}
-                className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragNextGoal === goal.id ? "opacity-40" : ""} ${dragOverNextGoal === goal.id ? "border-purple-400 shadow-md" : "border-gray-200"}`}
+                className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragNextGoal === goal.id ? "opacity-40" : ""} ${dragOverNextGoal === goal.id ? "border-purple-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
               >
                 <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 gap-2 group/ngoal">
                   {canEdit && (
@@ -1094,17 +1094,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   <div className="flex-1 min-w-0">
                     {canEdit ? (
                       <>
-                        <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
-                        <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
+                        <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
+                        <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
                       </>
                     ) : (
                       <>
-                        <span className="font-medium text-gray-900 text-sm">{goal.title}</span>
-                        {goal.description && <span className="text-xs text-gray-600 block mt-0.5">{goal.description}</span>}
+                        <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{goal.title}</span>
+                        {goal.description && <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5">{goal.description}</span>}
                       </>
                     )}
                   </div>
-                  <button onClick={() => copyAnchorLink(`next-goal-${goal.id}`)} className="flex-shrink-0 p-1 text-gray-500 hover:text-purple-600 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Copy link">
+                  <button onClick={() => copyAnchorLink(`next-goal-${goal.id}`)} className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Copy link">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   </button>
                   {canEdit && (
@@ -1137,14 +1137,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             )}
                             <div className="min-w-0 flex-1">
                               {canEdit ? (
-                                <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
+                                <textarea value={task.title} onChange={(e) => { updateNextTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="text-sm text-gray-700 dark:text-gray-200 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
                               ) : (
-                                <span className="text-sm text-gray-700"><Linkify>{task.title}</Linkify></span>
+                                <span className="text-sm text-gray-700 dark:text-gray-200"><Linkify>{task.title}</Linkify></span>
                               )}
                               {canEdit && editingNextDescTask === task.id ? (
-                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
                               ) : descText ? (
-                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50" : ""} rounded px-1 -mx-1`}><Linkify>{descText}</Linkify></div>
+                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><Linkify>{descText}</Linkify></div>
                               ) : canEdit ? (
                                 <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                               ) : null}
@@ -1161,7 +1161,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   })}
                   {canEdit && (
                   <div className="flex items-center gap-2 px-4 py-2 pl-8">
-                    <input type="text" value={newNextTaskTitles[goal.id] || ""} onChange={(e) => setNewNextTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))} placeholder="Add a future task..." className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextTask(goal.id)} />
+                    <input type="text" value={newNextTaskTitles[goal.id] || ""} onChange={(e) => setNewNextTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))} placeholder="Add a future task..." className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextTask(goal.id)} />
                     <button onClick={() => addNextTask(goal.id)} disabled={!newNextTaskTitles[goal.id]?.trim()} className="text-xs text-purple-600 font-medium disabled:opacity-50">Add</button>
                   </div>
                   )}
@@ -1170,7 +1170,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             ))}
             {canEdit && (
             <div className="flex items-center gap-2">
-              <input type="text" value={newNextGoalTitle} onChange={(e) => setNewNextGoalTitle(e.target.value)} placeholder="Add a future goal..." className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextGoal()} />
+              <input type="text" value={newNextGoalTitle} onChange={(e) => setNewNextGoalTitle(e.target.value)} placeholder="Add a future goal..." className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextGoal()} />
               <button onClick={addNextGoal} disabled={!newNextGoalTitle.trim()} className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50">+ Add Goal</button>
             </div>
             )}
@@ -1180,15 +1180,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       })()}
 
       {/* ── Maturity Stage ──────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>🔄</span> Sales Maturity Stage
         </h3>
         <select
           value={maturityStage || ""}
           onChange={(e) => canEdit && e.target.value && updateMaturityStage(e.target.value)}
           disabled={!canEdit}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white disabled:bg-gray-50 disabled:cursor-default"
+          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800 disabled:bg-gray-50 disabled:cursor-default"
         >
           <option value="">Select your current stage...</option>
           {MATURITY_STAGES.map((stage) => (
@@ -1203,12 +1203,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           return (
             <div className="mt-3 bg-gray-50 rounded-lg p-4 text-sm space-y-2">
               <div>
-                <span className="font-semibold text-gray-700">Entry criteria: </span>
-                <span className="text-gray-600">{selected.entry}</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">Entry criteria: </span>
+                <span className="text-gray-600 dark:text-gray-300">{selected.entry}</span>
               </div>
               <div>
-                <span className="font-semibold text-gray-700">Exit criteria: </span>
-                <span className="text-gray-600">{selected.exit}</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">Exit criteria: </span>
+                <span className="text-gray-600 dark:text-gray-300">{selected.exit}</span>
               </div>
             </div>
           );
@@ -1216,8 +1216,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       </div>
 
       {/* ── Metrics ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>📊</span> Metrics
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1266,10 +1266,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   type="text"
                   value={entry.metricDefinition.name}
                   onChange={(e) => updateMetricName(entry.metricDefinition.id, e.target.value)}
-                  className="text-xs text-gray-500 font-medium mb-1 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
+                  className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
                 />
               ) : (
-                <div className="text-xs text-gray-500 mb-1 font-medium">{entry.metricDefinition.name}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">{entry.metricDefinition.name}</div>
               )}
               {canEdit ? (
                 <input
@@ -1277,7 +1277,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   value={entry.metricDefinition.definition || ""}
                   onChange={(e) => updateMetricDefinition(entry.metricDefinition.id, e.target.value)}
                   placeholder="Add definition..."
-                  className="text-[10px] text-gray-400 mb-1.5 leading-tight bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
+                  className="text-[10px] text-gray-400 mb-1.5 leading-tight bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full text-center px-0 py-0"
                 />
               ) : entry.metricDefinition.definition ? (
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
@@ -1319,18 +1319,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     }
                   }}
                   autoFocus
-                  className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full text-center text-lg font-semibold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
                 ) : (
                 <button
                   onClick={() => { setMetricInputValue(entry.currentValue ? String(entry.currentValue) : ""); setFocusedMetric(entry.id); }}
-                  className="w-full text-center text-lg font-semibold bg-white border border-gray-200 rounded px-2 py-1 hover:border-gray-300 cursor-text"
+                  className="w-full text-center text-lg font-semibold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 hover:border-gray-300 dark:hover:border-gray-600 cursor-text"
                 >
                   {entry.currentValue != null && entry.currentValue !== 0 ? formatMetricValue(entry.currentValue, entry.metricDefinition.format) : <span className="text-gray-300">{entry.metricDefinition.format === "currency" ? "$0" : "0"}</span>}
                 </button>
                 )
               ) : (
-                <div className="text-lg font-semibold text-gray-900">{formatMetricValue(entry.currentValue, entry.metricDefinition.format)}</div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatMetricValue(entry.currentValue, entry.metricDefinition.format)}</div>
               )}
               {entry.addedSinceLastSession !== 0 && (
                 <div className={`text-xs mt-1 font-medium ${entry.addedSinceLastSession > 0 ? "text-green-600" : "text-red-500"}`}>
@@ -1349,7 +1349,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   value={newMetricName}
                   onChange={(e) => setNewMetricName(e.target.value)}
                   placeholder="Metric name (e.g. MRR, Pipeline Value)..."
-                  className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && addMetricDefinition()}
                   autoFocus
                 />
@@ -1358,16 +1358,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   value={newMetricDefinition}
                   onChange={(e) => setNewMetricDefinition(e.target.value)}
                   placeholder="Definition / description (optional)..."
-                  className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-purple-500"
                   onKeyDown={(e) => e.key === "Enter" && addMetricDefinition()}
                 />
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-1 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                     {METRIC_FORMATS.map((fmt) => (
                       <button
                         key={fmt.value}
                         onClick={() => setNewMetricFormat(fmt.value)}
-                        className={`px-2.5 py-1 text-xs font-medium transition-colors ${newMetricFormat === fmt.value ? "bg-purple-100 text-purple-700" : "text-gray-500 hover:text-gray-700"}`}
+                        className={`px-2.5 py-1 text-xs font-medium transition-colors ${newMetricFormat === fmt.value ? "bg-purple-100 text-purple-700" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                         title={fmt.title}
                       >
                         {fmt.title}
@@ -1413,7 +1413,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 {archivedMetrics.map((m) => (
                   <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                     <div>
-                      <span className="text-sm text-gray-500">{m.name}</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{m.name}</span>
                       {m.definition && <span className="text-xs text-gray-400 ml-2">— {m.definition}</span>}
                     </div>
                     {canEdit && (
@@ -1433,9 +1433,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       </div>
 
       {/* ── Goals & Tasks ───────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
             <span>🎯</span> Goals &amp; Tasks
           </h3>
           <div className="flex items-center gap-3">
@@ -1472,7 +1472,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 value={newGoalTitle}
                 onChange={(e) => setNewGoalTitle(e.target.value)}
                 placeholder="Add a goal..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 onKeyDown={(e) => e.key === "Enter" && addGoal()}
               />
               <button
@@ -1494,7 +1494,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               onDragOver={(e) => { if (dragGoal && dragGoal !== goal.id) { e.preventDefault(); setDragOverGoal(goal.id); } if (dragTask) { e.preventDefault(); setDragOverGoal(goal.id); } }}
               onDragLeave={() => setDragOverGoal(null)}
               onDrop={() => { if (dragGoal) handleGoalDrop(goal.id); if (dragTask) handleTaskDropOnGoal(goal.id); }}
-              className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragGoal === goal.id ? "opacity-40" : ""} ${dragOverGoal === goal.id && dragGoal ? "border-purple-400 shadow-md" : dragOverGoal === goal.id && dragTask ? "border-blue-400 shadow-md" : "border-gray-200"}`}
+              className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragGoal === goal.id ? "opacity-40" : ""} ${dragOverGoal === goal.id && dragGoal ? "border-purple-400 shadow-md" : dragOverGoal === goal.id && dragTask ? "border-blue-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
             >
               {/* Goal header */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2 group/goal">
@@ -1509,10 +1509,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       type="text"
                       value={goal.title}
                       onChange={(e) => updateGoalTitle(goal.id, e.target.value)}
-                      className="font-medium text-gray-900 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
+                      className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
                     />
                   ) : (
-                    <span className="font-medium text-gray-900 text-sm"><Linkify>{goal.title}</Linkify></span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100 text-sm"><Linkify>{goal.title}</Linkify></span>
                   )}
                   {canEdit ? (
                     <input
@@ -1520,10 +1520,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       value={goal.description || ""}
                       onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
                       placeholder="Add description..."
-                      className="text-xs text-gray-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
+                      className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
                     />
                   ) : goal.description ? (
-                    <span className="text-xs text-gray-600 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
                   ) : null}
                   {goal.createdAt && (
                     <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
@@ -1544,7 +1544,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 )}
                 <button
                   onClick={() => copyGoalAsMarkdown(goal)}
-                  className="flex-shrink-0 p-1 text-gray-500 hover:text-gray-700 opacity-0 group-hover/goal:opacity-100 transition-opacity"
+                  className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/goal:opacity-100 transition-opacity"
                   title="Copy goal as markdown"
                 >
                   {copiedId === `goal-${goal.id}` ? (
@@ -1555,7 +1555,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </button>
                 <button
                   onClick={() => copyAnchorLink(`goal-${goal.id}`)}
-                  className="flex-shrink-0 p-1 text-gray-500 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity"
+                  className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity"
                   title="Copy link to goal"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
@@ -1589,7 +1589,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     value={newTaskTitles[goal.id] || ""}
                     onChange={(e) => setNewTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))}
                     placeholder="Add a task..."
-                    className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     onKeyDown={(e) => e.key === "Enter" && addTask(goal.id)}
                   />
                   <button
@@ -1650,7 +1650,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                               </svg>
                             ) : (
-                              <div className="w-4 h-4 rounded border-2 border-gray-300" />
+                              <div className="w-4 h-4 rounded border-2 border-gray-300 dark:border-gray-700" />
                             )}
                           </button>
                           <div className="min-w-0 flex-1">
@@ -1660,10 +1660,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 onChange={(e) => { updateTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                                 ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
                                 rows={1}
-                                className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}
+                                className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}
                               />
                             ) : (
-                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
                                 <Linkify>{task.title}</Linkify>
                               </span>
                             )}
@@ -1699,14 +1699,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 }}
                                 placeholder="Add details, links, notes..."
                                 rows={1}
-                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                               />
                             ) : descText ? (
                               <div
                                 onClick={(e) => {
                                   if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
                                 }}
-                                className={`text-sm text-gray-500 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 rounded px-1 -mx-1" : ""}`}
+                                className={`text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                               >
                                 <Linkify>{descText}</Linkify>
                               </div>
@@ -1739,7 +1739,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           )}
                           <button
                             onClick={() => copyTaskAsMarkdown(task)}
-                            className="p-0.5 text-gray-500 hover:text-gray-700 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
                             title="Copy task as markdown"
                           >
                             {copiedId === `task-${task.id}` ? (
@@ -1750,7 +1750,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           </button>
                           <button
                             onClick={() => copyAnchorLink(`task-${task.id}`)}
-                            className="p-0.5 text-gray-500 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
                             title="Copy link to task"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
