@@ -314,14 +314,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const copyAllGoalsAsMarkdown = () => {
     let md = "";
     for (const goal of goals) {
-      // Skip fully-completed goals — Copy All is meant to surface
-      // outstanding work, not the archive of what's already done.
-      if (goal.status === "done") continue;
+      // Copy All is for active to-dos. Skip goals (and their tasks)
+      // marked done or not-doing; deprioritized still counts as
+      // something on the list, just lower priority.
+      if (goal.status === "done" || goal.status === "not_doing") continue;
       md += `## ${goal.title}\n`;
       if (goal.description) md += `${goal.description}\n`;
       md += `\n`;
       for (const task of goal.tasks) {
-        if (task.status === "done") continue;
+        if (task.status === "done" || task.status === "not_doing") continue;
         md += `- [ ] ${task.title}\n`;
         if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
       }
