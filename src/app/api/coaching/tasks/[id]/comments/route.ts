@@ -53,7 +53,12 @@ export async function GET(
     },
   });
 
-  return NextResponse.json({ comments });
+  // Returning the caller's user id alongside the comments so the
+  // client can decide which rows are "own" without needing a
+  // separate /me round-trip — and without depending on an
+  // optional sessionUserId prop that turned out to be undefined
+  // in most cases.
+  return NextResponse.json({ comments, currentUserId: user.id });
 }
 
 /**

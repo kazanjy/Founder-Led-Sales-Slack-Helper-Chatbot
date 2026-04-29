@@ -23,8 +23,11 @@ interface Comment {
 interface TaskCommentsProps {
   taskId: string;
   canEdit: boolean;
-  // Passed in so the component can tell whose comments are
-  // editable/deletable. Defaults to "no" if absent.
+  /**
+   * Optional override. If absent, the component reads the caller's
+   * id from the GET /comments response — that's the authoritative
+   * value and the one to trust.
+   */
   currentUserId?: string | null;
 }
 
@@ -50,8 +53,9 @@ function formatRelative(iso: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function TaskComments({ taskId, canEdit, currentUserId }: TaskCommentsProps) {
+export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp }: TaskCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
+  const [serverCurrentUserId, setServerCurrentUserId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState("");
@@ -63,6 +67,12 @@ export function TaskComments({ taskId, canEdit, currentUserId }: TaskCommentsPro
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // The id we compare to comment.author.id to decide which rows are
+  // "own" (and therefore editable/deletable). Prefer the explicit
+  // prop if a caller provided one; otherwise use what the server
+  // tells us at load time.
+  const currentUserId = currentUserIdProp ?? serverCurrentUserId;
+
   // Initial load
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +83,7 @@ export function TaskComments({ taskId, canEdit, currentUserId }: TaskCommentsPro
         const data = await res.json();
         if (cancelled) return;
         setComments(data.comments || []);
+        if (typeof data.currentUserId === "string") setServerCurrentUserId(data.currentUserId);
       } catch {
         /* ignore */
       } finally {
