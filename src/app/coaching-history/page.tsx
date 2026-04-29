@@ -814,7 +814,10 @@ function CoachingHistoryContent() {
                   if (s.notes === "(draft)" && mode !== "create") return false;
                   return true;
                 }).map((session) => {
-                  const isActive = selectedId === session.id && mode === "view";
+                  const isActive =
+                    mode === "create"
+                      ? session.id === autoSavedId
+                      : selectedId === session.id;
                   return (
                     <div
                       key={session.id}
