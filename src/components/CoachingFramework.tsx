@@ -218,6 +218,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     if (typeof window === "undefined") return {};
     try { return JSON.parse(localStorage.getItem("coaching:hideCompletedPerGoal") || "{}"); } catch { return {}; }
   });
+  const [collapsedGoals, setCollapsedGoals] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const arr = JSON.parse(localStorage.getItem("coaching:collapsedGoals") || "[]");
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch { return new Set(); }
+  });
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
   const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
@@ -1515,6 +1522,24 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             <span>🎯</span> Goals &amp; Tasks
           </h3>
           <div className="flex items-center gap-3">
+            {goals.length > 0 && (() => {
+              const visibleIds = goals
+                .filter((g) => !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing")))
+                .map((g) => g.id);
+              const allCollapsed = visibleIds.length > 0 && visibleIds.every((id) => collapsedGoals.has(id));
+              return (
+                <button
+                  onClick={() => {
+                    const next = allCollapsed ? new Set<string>() : new Set(visibleIds);
+                    setCollapsedGoals(next);
+                    try { localStorage.setItem("coaching:collapsedGoals", JSON.stringify([...next])); } catch {}
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {allCollapsed ? "Show all" : "Collapse all"}
+                </button>
+              );
+            })()}
             {(goals.some((g) => g.status === "done" || g.status === "not_doing") || goals.some((g) => g.tasks.some((t) => t.status === "done" || t.status === "not_doing"))) && (
               <button
                 onClick={() => {
@@ -1595,6 +1620,30 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             >
               {/* Goal header */}
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2 group/goal">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollapsedGoals((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(goal.id)) next.delete(goal.id);
+                      else next.add(goal.id);
+                      try { localStorage.setItem("coaching:collapsedGoals", JSON.stringify([...next])); } catch {}
+                      return next;
+                    });
+                  }}
+                  aria-label={collapsedGoals.has(goal.id) ? "Expand goal" : "Collapse goal"}
+                  aria-expanded={!collapsedGoals.has(goal.id)}
+                  className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-700 transition-colors"
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${collapsedGoals.has(goal.id) ? "" : "rotate-90"}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
                 {canEdit && (
                   <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
@@ -1697,7 +1746,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               </div>
 
               {/* Add task — at top so it's always visible */}
-              {canEdit && (
+              {canEdit && !collapsedGoals.has(goal.id) && (
                 <div className="flex items-center gap-2 px-4 py-2 pl-8 border-b border-gray-100">
                   <input
                     type="text"
@@ -1718,7 +1767,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               )}
 
               {/* Tasks */}
-              <div className="divide-y divide-gray-100">
+              <div className={`divide-y divide-gray-100 ${collapsedGoals.has(goal.id) ? "hidden" : ""}`}>
                 {(() => {
                   const hideForGoal = hideCompletedPerGoal[goal.id] ?? hideCompletedGlobal;
                   // Treat done + not_doing as the same "settled, hide
