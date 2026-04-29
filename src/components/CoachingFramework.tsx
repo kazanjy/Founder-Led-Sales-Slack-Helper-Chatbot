@@ -1450,10 +1450,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <div className="flex items-center gap-3">
             {goals.some((g) => g.tasks.some((t) => t.status === "done")) && (
               <button
-                onClick={() => { const next = !hideCompletedGlobal; setHideCompletedGlobal(next); localStorage.setItem("coaching:hideCompleted", String(next)); }}
+                onClick={() => {
+                  const next = !hideCompletedGlobal;
+                  setHideCompletedGlobal(next);
+                  localStorage.setItem("coaching:hideCompleted", String(next));
+                  // The master toggle is the master — wipe any per-goal
+                  // overrides so every goal honors the new global
+                  // setting. Without this, goals the user previously
+                  // toggled individually would silently ignore this
+                  // click.
+                  setHideCompletedPerGoal({});
+                  localStorage.setItem("coaching:hideCompletedPerGoal", "{}");
+                }}
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
-                {hideCompletedGlobal ? "Show Completed" : "Hide Completed"}
+                {hideCompletedGlobal ? "Show all completed tasks" : "Hide all completed tasks"}
               </button>
             )}
             {goals.length > 0 && (
