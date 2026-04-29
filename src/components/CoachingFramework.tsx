@@ -1448,7 +1448,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             <span>🎯</span> Goals &amp; Tasks
           </h3>
           <div className="flex items-center gap-3">
-            {goals.some((g) => g.tasks.some((t) => t.status === "done")) && (
+            {(goals.some((g) => g.status === "done" || g.status === "not_doing") || goals.some((g) => g.tasks.some((t) => t.status === "done" || t.status === "not_doing"))) && (
               <button
                 onClick={() => {
                   const next = !hideCompletedGlobal;
@@ -1504,7 +1504,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               </button>
             </div>
           )}
-          {goals.map((goal) => (
+          {goals
+            .filter((goal) => {
+              // Master switch hides goals that are done or not_doing
+              // entirely. Per-goal overrides only affect that goal's
+              // task list, not the goal itself.
+              if (hideCompletedGlobal && (goal.status === "done" || goal.status === "not_doing")) return false;
+              return true;
+            })
+            .map((goal) => (
             <div
               key={goal.id}
               id={`goal-${goal.id}`}
@@ -1644,8 +1652,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               <div className="divide-y divide-gray-100">
                 {(() => {
                   const hideForGoal = hideCompletedPerGoal[goal.id] ?? hideCompletedGlobal;
-                  const completedCount = goal.tasks.filter((t) => t.status === "done").length;
-                  const visibleTasks = hideForGoal ? goal.tasks.filter((t) => t.status !== "done") : goal.tasks;
+                  // Treat done + not_doing as the same "settled, hide
+                  // it" bucket — the user thinks of both as "I'm not
+                  // working on this anymore."
+                  const isSettled = (t: Task) => t.status === "done" || t.status === "not_doing";
+                  const completedCount = goal.tasks.filter(isSettled).length;
+                  const visibleTasks = hideForGoal ? goal.tasks.filter((t) => !isSettled(t)) : goal.tasks;
                   const hiddenCount = goal.tasks.length - visibleTasks.length;
                   return (<>
                     {completedCount > 0 && (
