@@ -1108,7 +1108,7 @@ function CoachingHistoryContent() {
                         )}
                       </div>
                     </div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{selectedSession.title}</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate" title={selectedSession.title}>{selectedSession.title}</h2>
                     <div className="flex items-center gap-2 flex-wrap">
                       <ChatAboutButton
                         title={`Coaching: ${selectedSession.title}`}
