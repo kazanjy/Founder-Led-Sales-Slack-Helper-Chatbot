@@ -848,11 +848,22 @@ function CoachingHistoryContent() {
                           className="mt-1 rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">
-                            {formatDate(session.sessionDate)}
-                            {sessionUserName(session) && (
-                              <span className="ml-1.5 text-gray-400">· {sessionUserName(session)}</span>
-                            )}
+                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {formatDate(session.sessionDate)}
+                              {sessionUserName(session) && (
+                                <span className="ml-1.5 text-gray-400">· {sessionUserName(session)}</span>
+                              )}
+                            </div>
+                            <span className={`flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                              session.sessionStatus === "new" ? "bg-blue-100 text-blue-700" :
+                              session.sessionStatus === "in_progress" ? "bg-orange-100 text-orange-700" :
+                              "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                            }`}>
+                              {session.sessionStatus === "new" ? "Live Session" :
+                               session.sessionStatus === "in_progress" ? "Live Sprint" :
+                               "Locked"}
+                            </span>
                           </div>
                           <div className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate" title={session.title}>
                             {session.title}
@@ -1055,7 +1066,7 @@ function CoachingHistoryContent() {
                         }`}>
                           {selectedSession.sessionStatus === "new" ? "Live Session" :
                            selectedSession.sessionStatus === "in_progress" ? "Live Sprint" :
-                           "Archived"}
+                           "Locked"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
