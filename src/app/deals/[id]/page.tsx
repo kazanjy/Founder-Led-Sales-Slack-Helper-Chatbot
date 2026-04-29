@@ -1507,6 +1507,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-5">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">New entry:</span>
+                <VoiceNoteButton
+                  variant="prominent"
+                  disabled={processingScreenshot || processingPdf}
+                  onResult={(summary, transcript) => {
+                    setNewEntryType("note");
+                    setNewEntryContent((prev) => (prev ? `${prev}\n\n${summary}` : summary));
+                    setPendingVoiceTranscript(transcript);
+                  }}
+                />
                 {ENTRY_TYPES.map((t) => (
                   <div key={t.value} className="relative group">
                     <button

@@ -7,6 +7,13 @@ interface VoiceNoteButtonProps {
   onResult: (summary: string, rawTranscript: string) => void;
   /** Disable starting a new recording (e.g. while a parent form is busy). */
   disabled?: boolean;
+  /**
+   * "icon" (default) renders a compact mic glyph for the textarea
+   * action row. "prominent" renders a gradient pill suitable for the
+   * entry-type tab row up top — same logic, different surface, used
+   * to merchandise the feature.
+   */
+  variant?: "icon" | "prominent";
 }
 
 type State = "idle" | "recording" | "transcribing" | "synthesizing";
@@ -22,7 +29,7 @@ type State = "idle" | "recording" | "transcribing" | "synthesizing";
  * component auto-commits on silence, which is wrong for someone
  * dictating a deal memo who may pause to think.
  */
-export function VoiceNoteButton({ onResult, disabled }: VoiceNoteButtonProps) {
+export function VoiceNoteButton({ onResult, disabled, variant = "icon" }: VoiceNoteButtonProps) {
   const [state, setState] = useState<State>("idle");
   const [error, setError] = useState<string | null>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -126,6 +133,55 @@ export function VoiceNoteButton({ onResult, disabled }: VoiceNoteButtonProps) {
     state === "transcribing" ? "Transcribing…" :
     state === "synthesizing" ? "Synthesizing…" :
     "Voice note";
+
+  if (variant === "prominent") {
+    // Tab-row treatment: distinctive gradient pill that sits next to
+    // the entry-type buttons. Same recording machinery, more visible
+    // surface so the feature gets noticed.
+    return (
+      <div className="relative inline-flex items-center">
+        <button
+          type="button"
+          onClick={state === "recording" ? stop : start}
+          disabled={disabled || isBusy}
+          title="Record a voice note — Mikey transcribes and synthesizes it into a deal note"
+          aria-label={label}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all inline-flex items-center gap-1.5 shadow-sm ${
+            state === "recording"
+              ? "bg-red-600 text-white hover:bg-red-700"
+              : isBusy
+              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+              : "bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:from-purple-700 hover:to-pink-600 hover:shadow"
+          } disabled:opacity-50`}
+        >
+          {state === "recording" ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              Stop ({elapsedSec}s)
+            </>
+          ) : isBusy ? (
+            <>
+              <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              {state === "transcribing" ? "Transcribing…" : "Synthesizing…"}
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8m-4-9a3 3 0 01-3-3V5a3 3 0 016 0v5a3 3 0 01-3 3z" />
+              </svg>
+              🎤 Voice Note
+            </>
+          )}
+        </button>
+        {error && (
+          <span className="ml-2 text-[11px] text-red-600 dark:text-red-400">{error}</span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative inline-flex items-center group/voice">
