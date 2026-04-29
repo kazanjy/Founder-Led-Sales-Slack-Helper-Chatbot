@@ -288,6 +288,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const copyAnchorLink = (anchorId: string) => {
     const url = `${window.location.origin}${window.location.pathname}${window.location.search}#${anchorId}`;
     navigator.clipboard.writeText(url);
+    // Use a separate copied-key namespace from copy-as-markdown so the
+    // two buttons on the same row don't share their feedback state.
+    showCopied(`anchor-${anchorId}`);
   };
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1540,32 +1543,50 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </div>
                 {canEdit && (
                   <>
-                    <button onClick={() => moveGoalUp(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Move up">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                    </button>
-                    <button onClick={() => moveGoalDown(goal.id)} className="flex-shrink-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity" title="Move down">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
+                    <div className="relative group/btn flex-shrink-0">
+                      <button onClick={() => moveGoalUp(goal.id)} className="p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                      </button>
+                      <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move up</span>
+                    </div>
+                    <div className="relative group/btn flex-shrink-0">
+                      <button onClick={() => moveGoalDown(goal.id)} className="p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
+                    </div>
                   </>
                 )}
-                <button
-                  onClick={() => copyGoalAsMarkdown(goal)}
-                  className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/goal:opacity-100 transition-opacity"
-                  title="Copy goal as markdown"
-                >
-                  {copiedId === `goal-${goal.id}` ? (
-                    <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                  )}
-                </button>
-                <button
-                  onClick={() => copyAnchorLink(`goal-${goal.id}`)}
-                  className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity"
-                  title="Copy link to goal"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                </button>
+                <div className="relative group/btn flex-shrink-0">
+                  <button
+                    onClick={() => copyGoalAsMarkdown(goal)}
+                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/goal:opacity-100 transition-opacity"
+                  >
+                    {copiedId === `goal-${goal.id}` ? (
+                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    )}
+                  </button>
+                  <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                    {copiedId === `goal-${goal.id}` ? "Copied!" : "Copy goal as markdown"}
+                  </span>
+                </div>
+                <div className="relative group/btn flex-shrink-0">
+                  <button
+                    onClick={() => copyAnchorLink(`goal-${goal.id}`)}
+                    className="p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity"
+                  >
+                    {copiedId === `anchor-goal-${goal.id}` ? (
+                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    )}
+                  </button>
+                  <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                    {copiedId === `anchor-goal-${goal.id}` ? "Copied!" : "Copy link to goal"}
+                  </span>
+                </div>
                 {canEdit ? (
                   <select
                     value={goal.status}
@@ -1736,32 +1757,50 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         <div className="flex-shrink-0 flex items-center gap-1">
                           {canEdit && (
                             <>
-                              <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Move up">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
-                              </button>
-                              <button onClick={() => moveTaskDown(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity" title="Move down">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                              </button>
+                              <div className="relative group/btn">
+                                <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                </button>
+                                <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move up</span>
+                              </div>
+                              <div className="relative group/btn">
+                                <button onClick={() => moveTaskDown(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
+                              </div>
                             </>
                           )}
-                          <button
-                            onClick={() => copyTaskAsMarkdown(task)}
-                            className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
-                            title="Copy task as markdown"
-                          >
-                            {copiedId === `task-${task.id}` ? (
-                              <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                            ) : (
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => copyAnchorLink(`task-${task.id}`)}
-                            className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
-                            title="Copy link to task"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                          </button>
+                          <div className="relative group/btn">
+                            <button
+                              onClick={() => copyTaskAsMarkdown(task)}
+                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            >
+                              {copiedId === `task-${task.id}` ? (
+                                <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                              )}
+                            </button>
+                            <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                              {copiedId === `task-${task.id}` ? "Copied!" : "Copy task as markdown"}
+                            </span>
+                          </div>
+                          <div className="relative group/btn">
+                            <button
+                              onClick={() => copyAnchorLink(`task-${task.id}`)}
+                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            >
+                              {copiedId === `anchor-task-${task.id}` ? (
+                                <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                              )}
+                            </button>
+                            <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                              {copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link to task"}
+                            </span>
+                          </div>
                           {canEdit ? (
                             <select
                               value={task.status}
