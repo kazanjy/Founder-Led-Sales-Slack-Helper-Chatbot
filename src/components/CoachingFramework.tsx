@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment, ReactNode } from "react";
 import { TaskComments } from "@/components/TaskComments";
 
 // ── Linkify helper ───────────────────────────────────────────────
@@ -81,6 +81,9 @@ interface Task {
   statusChangedAt?: string;
   createdAt?: string;
   order: number;
+  // Null for top-level tasks; set to the parent task's id for subtasks.
+  // Capped at one level deep — a subtask cannot have its own subtasks.
+  parentTaskId?: string | null;
 }
 
 interface NextGoal {
@@ -188,6 +191,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [metricEntries, setMetricEntries] = useState<MetricEntry[]>([]);
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
+  // Per-parent draft text for the inline "Add subtask…" input.
+  const [newSubtaskTitles, setNewSubtaskTitles] = useState<Record<string, string>>({});
+  // Set of parent-task IDs whose subtask groups are currently collapsed.
+  // Default: subtasks expanded; toggling adds the id here.
+  const [collapsedSubtaskParents, setCollapsedSubtaskParents] = useState<Set<string>>(new Set());
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
@@ -271,18 +279,39 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Scroll to anchor after data loads
+  // Scroll to anchor after data loads. If the hash targets a subtask,
+  // make sure its parent's subtask group isn't collapsed before we
+  // try to scroll — the target won't be in the DOM otherwise.
   useEffect(() => {
     if (goals.length === 0) return;
     const hash = window.location.hash;
-    if (hash) {
-      const el = document.getElementById(hash.slice(1));
+    if (!hash) return;
+
+    const targetId = hash.slice(1);
+    if (targetId.startsWith("task-")) {
+      const taskId = targetId.slice("task-".length);
+      const parent = goals
+        .flatMap((g) => g.tasks)
+        .find((t) => t.id === taskId);
+      if (parent?.parentTaskId) {
+        setCollapsedSubtaskParents((prev) => {
+          if (!prev.has(parent.parentTaskId!)) return prev;
+          const next = new Set(prev);
+          next.delete(parent.parentTaskId!);
+          return next;
+        });
+      }
+    }
+
+    // Defer the scroll a tick so any expand caused above paints first.
+    setTimeout(() => {
+      const el = document.getElementById(targetId);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.classList.add("ring-2", "ring-purple-400", "ring-offset-2");
         setTimeout(() => el.classList.remove("ring-2", "ring-purple-400", "ring-offset-2"), 3000);
       }
-    }
+    }, 60);
   }, [goals.length]); // only run once after goals load
 
   const copyAnchorLink = (anchorId: string) => {
@@ -325,10 +354,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       md += `## ${goal.title}\n`;
       if (goal.description) md += `${goal.description}\n`;
       md += `\n`;
-      for (const task of goal.tasks) {
+      const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
+      for (const task of topLevel) {
         if (task.status === "done" || task.status === "not_doing") continue;
         md += `- [ ] ${task.title}\n`;
         if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
+        // Nest subtasks as second-level bullets under their parent,
+        // applying the same skip-settled rule recursively.
+        const subs = goal.tasks
+          .filter((t) => t.parentTaskId === task.id && t.status !== "done" && t.status !== "not_doing")
+          .sort((a, b) => a.order - b.order);
+        for (const sub of subs) {
+          md += `  - [ ] ${sub.title}\n`;
+          if (sub.description) md += `    ${sub.description.split("\n").join("\n    ")}\n`;
+        }
       }
       md += `\n`;
     }
@@ -663,6 +702,30 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         const active = g.tasks.filter((t) => t.status !== "done");
         const done = g.tasks.filter((t) => t.status === "done");
         return { ...g, tasks: [data.task, ...active, ...done] };
+      }));
+    }
+  };
+
+  const addSubtask = async (goalId: string, parentTaskId: string) => {
+    const title = newSubtaskTitles[parentTaskId]?.trim();
+    if (!title) return;
+    setNewSubtaskTitles((prev) => ({ ...prev, [parentTaskId]: "" }));
+    const res = await fetch(`/api/coaching/goals/${goalId}/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, parentTaskId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Insert the new subtask immediately after its parent in the
+      // flat goal.tasks array so it appears at the top of the parent's
+      // subtask group when we re-derive subtasksByParent on render.
+      setGoals((prev) => prev.map((g) => {
+        if (g.id !== goalId) return g;
+        const parentIdx = g.tasks.findIndex((t) => t.id === parentTaskId);
+        const updated = [...g.tasks];
+        updated.splice(parentIdx >= 0 ? parentIdx + 1 : updated.length, 0, data.task);
+        return { ...g, tasks: updated };
       }));
     }
   };
@@ -1657,8 +1720,39 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   // working on this anymore."
                   const isSettled = (t: Task) => t.status === "done" || t.status === "not_doing";
                   const completedCount = goal.tasks.filter(isSettled).length;
-                  const visibleTasks = hideForGoal ? goal.tasks.filter((t) => !isSettled(t)) : goal.tasks;
-                  const hiddenCount = goal.tasks.length - visibleTasks.length;
+
+                  // Group tasks: top-level (no parent) vs. subtasks
+                  // keyed by their parent task id. The flat goal.tasks
+                  // array stays the source of truth; this just gives
+                  // us a tree shape to render.
+                  const topLevelTasks = goal.tasks.filter((t) => !t.parentTaskId);
+                  const subtasksByParent: Record<string, Task[]> = {};
+                  for (const t of goal.tasks) {
+                    if (t.parentTaskId) {
+                      (subtasksByParent[t.parentTaskId] ||= []).push(t);
+                    }
+                  }
+                  for (const k of Object.keys(subtasksByParent)) {
+                    subtasksByParent[k].sort((a, b) => a.order - b.order);
+                  }
+
+                  const visibleTopLevel = hideForGoal
+                    ? topLevelTasks.filter((t) => !isSettled(t))
+                    : topLevelTasks;
+                  // Per-parent visible subtasks + hidden count, so the
+                  // (N hidden) badge can render only when there's
+                  // actually something hidden.
+                  const visibleSubsByParent: Record<string, Task[]> = {};
+                  const hiddenSubsByParent: Record<string, number> = {};
+                  for (const parentId of Object.keys(subtasksByParent)) {
+                    const all = subtasksByParent[parentId];
+                    const visible = hideForGoal ? all.filter((t) => !isSettled(t)) : all;
+                    visibleSubsByParent[parentId] = visible;
+                    hiddenSubsByParent[parentId] = all.length - visible.length;
+                  }
+                  const hiddenCount = goal.tasks.length
+                    - visibleTopLevel.length
+                    - Object.values(visibleSubsByParent).reduce((s, v) => s + v.length, 0);
                   return (<>
                     {completedCount > 0 && (
                       <div className="px-4 py-1.5 flex items-center justify-end">
@@ -1670,11 +1764,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         </button>
                       </div>
                     )}
-                    {visibleTasks.map((task) => {
+                    {visibleTopLevel.map((task) => {
                   const descText = editingDescriptions[task.id] ?? task.description ?? "";
+                  const visibleSubs = visibleSubsByParent[task.id] || [];
+                  const hiddenSubs = hiddenSubsByParent[task.id] || 0;
+                  const hasAnySubs = (subtasksByParent[task.id]?.length ?? 0) > 0;
+                  const subsCollapsed = collapsedSubtaskParents.has(task.id);
                   return (
+                    <Fragment key={task.id}>
                     <div
-                      key={task.id}
                       id={`task-${task.id}`}
                       draggable={canEdit}
                       onDragStart={(e) => { e.stopPropagation(); setDragTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; }}
@@ -1846,6 +1944,164 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         </div>
                       </div>
                     </div>
+                    {(hasAnySubs || canEdit) && (
+                      <div className="ml-12 pr-4 border-l-2 border-gray-100 dark:border-gray-700">
+                        {hasAnySubs && (
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedSubtaskParents((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(task.id)) next.delete(task.id);
+                              else next.add(task.id);
+                              return next;
+                            })}
+                            className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 inline-flex items-center gap-1"
+                          >
+                            <svg className={`w-2.5 h-2.5 transition-transform ${subsCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            {subtasksByParent[task.id].length} subtask{subtasksByParent[task.id].length === 1 ? "" : "s"}
+                            {hiddenSubs > 0 && (
+                              <span className="text-gray-400 dark:text-gray-500"> · {hiddenSubs} hidden</span>
+                            )}
+                          </button>
+                        )}
+                        {!subsCollapsed && visibleSubs.map((sub) => {
+                          const subDescText = editingDescriptions[sub.id] ?? sub.description ?? "";
+                          return (
+                            <div
+                              key={sub.id}
+                              id={`task-${sub.id}`}
+                              className={`px-3 py-1.5 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === sub.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""}`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
+                                  <button
+                                    onClick={() => canEdit && updateTaskStatus(sub.id, sub.status === "done" ? "active" : "done")}
+                                    className="mt-0.5 flex-shrink-0"
+                                  >
+                                    {sub.status === "done" ? (
+                                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : (
+                                      <div className="w-3.5 h-3.5 rounded border-2 border-gray-300 dark:border-gray-700" />
+                                    )}
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    {canEdit ? (
+                                      <textarea
+                                        value={sub.title}
+                                        onChange={(e) => { updateTaskTitle(sub.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                                        ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                                        rows={1}
+                                        className={`text-xs bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${sub.status === "done" || sub.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}
+                                      />
+                                    ) : (
+                                      <span className={`text-xs ${sub.status === "done" || sub.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
+                                        <Linkify>{sub.title}</Linkify>
+                                      </span>
+                                    )}
+                                    {editingDescTask === sub.id ? (
+                                      <textarea
+                                        value={subDescText}
+                                        onChange={(e) => { updateTaskDescription(sub.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                                        onBlur={() => setEditingDescTask(null)}
+                                        ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }}
+                                        placeholder="Add details, links, notes..."
+                                        rows={1}
+                                        className="w-full mt-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                      />
+                                    ) : subDescText ? (
+                                      <div
+                                        onClick={(e) => { if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(sub.id); }}
+                                        className={`text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                                      >
+                                        <Linkify>{subDescText}</Linkify>
+                                      </div>
+                                    ) : canEdit ? (
+                                      <button onClick={() => setEditingDescTask(sub.id)} className="text-[10px] text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
+                                    ) : null}
+                                    <TaskComments taskId={sub.id} canEdit={canEdit} currentUserId={sessionUserId} />
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 flex items-center gap-1">
+                                  <div className="relative group/btn">
+                                    <button
+                                      onClick={() => copyTaskAsMarkdown(sub)}
+                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                                    >
+                                      {copiedId === `task-${sub.id}` ? (
+                                        <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                      ) : (
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                      )}
+                                    </button>
+                                    <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                                      {copiedId === `task-${sub.id}` ? "Copied!" : "Copy subtask as markdown"}
+                                    </span>
+                                  </div>
+                                  <div className="relative group/btn">
+                                    <button
+                                      onClick={() => copyAnchorLink(`task-${sub.id}`)}
+                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                                    >
+                                      {copiedId === `anchor-task-${sub.id}` ? (
+                                        <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                      ) : (
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                      )}
+                                    </button>
+                                    <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">
+                                      {copiedId === `anchor-task-${sub.id}` ? "Copied!" : "Copy link to subtask"}
+                                    </span>
+                                  </div>
+                                  {canEdit ? (
+                                    <select
+                                      value={sub.status}
+                                      onChange={(e) => {
+                                        if (e.target.value === "__delete__") { deleteTask(goal.id, sub.id); e.target.value = sub.status; return; }
+                                        updateTaskStatus(sub.id, e.target.value);
+                                      }}
+                                      className={`text-[10px] font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${getStatusColor(sub.status)}`}
+                                    >
+                                      {STATUS_OPTIONS.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                      ))}
+                                      <option value="__delete__" className="text-red-600">🗑 Delete subtask</option>
+                                    </select>
+                                  ) : (
+                                    <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${getStatusColor(sub.status)}`}>
+                                      {STATUS_OPTIONS.find((s) => s.value === sub.status)?.label || sub.status}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {!subsCollapsed && canEdit && (
+                          <div className="px-3 py-1.5 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={newSubtaskTitles[task.id] || ""}
+                              onChange={(e) => setNewSubtaskTitles((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                              placeholder="Add subtask…"
+                              className="flex-1 text-xs px-2 py-1 bg-transparent border-0 border-b border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500"
+                              onKeyDown={(e) => e.key === "Enter" && addSubtask(goal.id, task.id)}
+                            />
+                            <button
+                              onClick={() => addSubtask(goal.id, task.id)}
+                              disabled={!newSubtaskTitles[task.id]?.trim()}
+                              className="text-[10px] text-purple-500 hover:text-purple-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    </Fragment>
                   );
                 })}
                   </>);

@@ -1467,6 +1467,14 @@ model CoachingTask {
   goalId String
   goal   CoachingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
+  // Optional parent task for one-level subtasks. Capped at depth 1
+  // (a subtask cannot have its own subtasks) — enforced at the API
+  // layer, not in the schema, since Postgres has no native way to
+  // express that without recursion checks.
+  parentTaskId String?
+  parentTask   CoachingTask?  @relation("CoachingTaskParent", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     CoachingTask[] @relation("CoachingTaskParent")
+
   title       String
   description String?  @db.Text
   status      String   @default("active") // "active" | "done" | "not_doing" | "deprioritized"
@@ -1478,6 +1486,7 @@ model CoachingTask {
   comments CoachingComment[]
 
   @@index([goalId])
+  @@index([parentTaskId])
   @@map("coaching_tasks")
 }
 

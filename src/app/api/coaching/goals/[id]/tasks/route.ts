@@ -30,10 +30,30 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, description } = body;
+    const { title, description, parentTaskId } = body;
 
+    // If a parentTaskId is provided, this is a subtask. Validate:
+    //  - the parent exists and belongs to the same goal
+    //  - the parent itself has no parent — depth is capped at 1.
+    if (parentTaskId) {
+      const parent = await prisma.coachingTask.findUnique({
+        where: { id: parentTaskId },
+        select: { id: true, goalId: true, parentTaskId: true },
+      });
+      if (!parent || parent.goalId !== id) {
+        return NextResponse.json({ error: "parentTaskId does not belong to this goal" }, { status: 400 });
+      }
+      if (parent.parentTaskId !== null) {
+        return NextResponse.json({ error: "Subtasks cannot have their own subtasks" }, { status: 400 });
+      }
+    }
+
+    // Order within the appropriate sibling group: under a parent task
+    // for subtasks, otherwise across the goal's top-level tasks.
     const maxOrder = await prisma.coachingTask.aggregate({
-      where: { goalId: id },
+      where: parentTaskId
+        ? { parentTaskId }
+        : { goalId: id, parentTaskId: null },
       _max: { order: true },
     });
 
@@ -43,6 +63,7 @@ export async function POST(
       data: {
         userId: user.id,
         goalId: id,
+        parentTaskId: parentTaskId || null,
         title,
         description: description || null,
         order,
