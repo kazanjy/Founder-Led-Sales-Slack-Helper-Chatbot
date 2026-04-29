@@ -139,12 +139,11 @@ export function VoiceNoteButton({ onResult, disabled, variant = "icon" }: VoiceN
     // the entry-type buttons. Same recording machinery, more visible
     // surface so the feature gets noticed.
     return (
-      <div className="relative inline-flex items-center">
+      <div className="relative inline-flex items-center group">
         <button
           type="button"
           onClick={state === "recording" ? stop : start}
           disabled={disabled || isBusy}
-          title="Record a voice note — Mikey transcribes and synthesizes it into a deal note"
           aria-label={label}
           className={`px-3 py-1 rounded-full text-xs font-medium transition-all inline-flex items-center gap-1.5 shadow-sm ${
             state === "recording"
@@ -176,6 +175,18 @@ export function VoiceNoteButton({ onResult, disabled, variant = "icon" }: VoiceN
             </>
           )}
         </button>
+        {/* Match the CSS tooltip pattern used by the other entry-type
+            chips. Hide it once recording / processing has started since
+            the button label is communicating state directly at that
+            point. */}
+        {state === "idle" && (
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-20 w-56 px-2.5 py-1.5 rounded-md bg-gray-900 text-white text-[11px] leading-snug shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-75"
+          >
+            Record a voice note — Mikey transcribes it and synthesizes a clean deal note for you to review.
+          </span>
+        )}
         {error && (
           <span className="ml-2 text-[11px] text-red-600 dark:text-red-400">{error}</span>
         )}
