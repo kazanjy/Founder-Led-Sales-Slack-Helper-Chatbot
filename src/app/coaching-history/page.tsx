@@ -1038,7 +1038,7 @@ function CoachingHistoryContent() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     All Sessions
                   </button>
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 rounded-t-xl p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <span>{formatDate(selectedSession.sessionDate)}</span>
