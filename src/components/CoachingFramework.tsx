@@ -1532,7 +1532,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <div className="flex items-center gap-3">
             {goals.length > 0 && (() => {
               const visibleIds = goals
-                .filter((g) => !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing")))
+                .filter((g) => !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized")))
                 .map((g) => g.id);
               const allCollapsed = visibleIds.length > 0 && visibleIds.every((id) => collapsedGoals.has(id));
               return (
@@ -1548,7 +1548,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </button>
               );
             })()}
-            {(goals.some((g) => g.status === "done" || g.status === "not_doing") || goals.some((g) => g.tasks.some((t) => t.status === "done" || t.status === "not_doing"))) && (
+            {(goals.some((g) => g.status === "done" || g.status === "not_doing" || g.status === "deprioritized") || goals.some((g) => g.tasks.some((t) => t.status === "done" || t.status === "not_doing" || t.status === "deprioritized"))) && (
               <button
                 onClick={() => {
                   const next = !hideCompletedGlobal;
@@ -1611,7 +1611,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               // Master switch hides goals that are done or not_doing
               // entirely. Per-goal overrides only affect that goal's
               // task list, not the goal itself.
-              if (hideCompletedGlobal && (goal.status === "done" || goal.status === "not_doing")) return false;
+              if (hideCompletedGlobal && (goal.status === "done" || goal.status === "not_doing" || goal.status === "deprioritized")) return false;
               return true;
             })
             .map((goal) => (
@@ -1781,7 +1781,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   // Treat done + not_doing as the same "settled, hide
                   // it" bucket — the user thinks of both as "I'm not
                   // working on this anymore."
-                  const isSettled = (t: Task) => t.status === "done" || t.status === "not_doing";
+                  const isSettled = (t: Task) => t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
                   const completedCount = goal.tasks.filter(isSettled).length;
 
                   // Group tasks: top-level (no parent) vs. subtasks
