@@ -4025,7 +4025,7 @@ export default function ChatPage() {
                           onPaste={handlePaste}
                           placeholder="Ask Mikey anything about founder-led sales..."
                           className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[40px] max-h-[200px] text-[16px] rounded-t-2xl dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                          rows={2}
+                          rows={1}
                           style={{ height: 'auto' }}
                           onInput={(e) => {
                             const target = e.target as HTMLTextAreaElement;
@@ -4659,7 +4659,7 @@ export default function ChatPage() {
                     onPaste={handlePaste}
                     placeholder="Ask Mikey anything about founder-led sales..."
                     className="w-full px-4 py-3 border-0 focus:outline-none focus:ring-0 resize-none min-h-[40px] max-h-[200px] text-[16px] rounded-t-2xl dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                    rows={2}
+                    rows={1}
                     style={{ height: 'auto' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
