@@ -196,6 +196,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // Set of parent-task IDs whose subtask groups are currently collapsed.
   // Default: subtasks expanded; toggling adds the id here.
   const [collapsedSubtaskParents, setCollapsedSubtaskParents] = useState<Set<string>>(new Set());
+  // Set of parent-task IDs whose hidden (settled) subtasks have been
+  // explicitly revealed despite the hide-completed filter being on.
+  // Cleared whenever the master Hide/Show All toggle flips.
+  const [revealedHiddenSubsParents, setRevealedHiddenSubsParents] = useState<Set<string>>(new Set());
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
@@ -1518,12 +1522,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   setHideCompletedGlobal(next);
                   localStorage.setItem("coaching:hideCompleted", String(next));
                   // The master toggle is the master — wipe any per-goal
-                  // overrides so every goal honors the new global
-                  // setting. Without this, goals the user previously
-                  // toggled individually would silently ignore this
-                  // click.
+                  // overrides AND any per-parent subtask-reveals so
+                  // every level of the tree honors the new global
+                  // setting. Without this, anything the user
+                  // previously toggled individually would silently
+                  // ignore this click.
                   setHideCompletedPerGoal({});
                   localStorage.setItem("coaching:hideCompletedPerGoal", "{}");
+                  setRevealedHiddenSubsParents(new Set());
                 }}
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -1739,14 +1745,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   const visibleTopLevel = hideForGoal
                     ? topLevelTasks.filter((t) => !isSettled(t))
                     : topLevelTasks;
-                  // Per-parent visible subtasks + hidden count, so the
-                  // (N hidden) badge can render only when there's
-                  // actually something hidden.
+                  // Per-parent visible subtasks, settled count, and a
+                  // currently-hidden count. The user can override the
+                  // filter for a single parent by clicking its
+                  // "Show N hidden" affordance — that adds the parent
+                  // id to revealedHiddenSubsParents and visible flips
+                  // back to "all".
                   const visibleSubsByParent: Record<string, Task[]> = {};
                   const hiddenSubsByParent: Record<string, number> = {};
+                  const settledSubsByParent: Record<string, number> = {};
                   for (const parentId of Object.keys(subtasksByParent)) {
                     const all = subtasksByParent[parentId];
-                    const visible = hideForGoal ? all.filter((t) => !isSettled(t)) : all;
+                    const settled = all.filter(isSettled).length;
+                    settledSubsByParent[parentId] = settled;
+                    const showingHidden = revealedHiddenSubsParents.has(parentId);
+                    const visible = hideForGoal && !showingHidden ? all.filter((t) => !isSettled(t)) : all;
                     visibleSubsByParent[parentId] = visible;
                     hiddenSubsByParent[parentId] = all.length - visible.length;
                   }
@@ -1947,24 +1960,39 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {(hasAnySubs || canEdit) && (
                       <div className="ml-12 pr-4 border-l-2 border-gray-100 dark:border-gray-700">
                         {hasAnySubs && (
-                          <button
-                            type="button"
-                            onClick={() => setCollapsedSubtaskParents((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(task.id)) next.delete(task.id);
-                              else next.add(task.id);
-                              return next;
-                            })}
-                            className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 inline-flex items-center gap-1"
-                          >
-                            <svg className={`w-2.5 h-2.5 transition-transform ${subsCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                            {subtasksByParent[task.id].length} subtask{subtasksByParent[task.id].length === 1 ? "" : "s"}
-                            {hiddenSubs > 0 && (
-                              <span className="text-gray-400 dark:text-gray-500"> · {hiddenSubs} hidden</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCollapsedSubtaskParents((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(task.id)) next.delete(task.id);
+                                else next.add(task.id);
+                                return next;
+                              })}
+                              className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 inline-flex items-center gap-1"
+                            >
+                              <svg className={`w-2.5 h-2.5 transition-transform ${subsCollapsed ? "" : "rotate-90"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              {subtasksByParent[task.id].length} subtask{subtasksByParent[task.id].length === 1 ? "" : "s"}
+                            </button>
+                            {!subsCollapsed && hideForGoal && (settledSubsByParent[task.id] || 0) > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setRevealedHiddenSubsParents((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(task.id)) next.delete(task.id);
+                                  else next.add(task.id);
+                                  return next;
+                                })}
+                                className="text-[10px] text-purple-500 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 hover:underline"
+                              >
+                                {revealedHiddenSubsParents.has(task.id)
+                                  ? `Hide ${settledSubsByParent[task.id]}`
+                                  : `Show ${settledSubsByParent[task.id]} hidden`}
+                              </button>
                             )}
-                          </button>
+                          </div>
                         )}
                         {!subsCollapsed && visibleSubs.map((sub) => {
                           const subDescText = editingDescriptions[sub.id] ?? sub.description ?? "";
