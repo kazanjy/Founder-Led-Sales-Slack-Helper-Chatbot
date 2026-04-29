@@ -40,7 +40,44 @@ export async function GET(
       orderBy: { metricDefinition: { order: "asc" } },
     });
 
-    return NextResponse.json({ entries });
+    // For each entry, look up the most recent prior session's value for
+    // the same metric so the UI can show "Last session: X" alongside the
+    // new input. Prior == any earlier-dated session belonging to this
+    // user, with createdAt as a tiebreaker for same-date sessions.
+    const previousByDefId: Record<string, number> = {};
+    if (entries.length > 0) {
+      const defIds = entries.map((e) => e.metricDefinitionId);
+      const priorEntries = await prisma.coachingMetricEntry.findMany({
+        where: {
+          userId: user.id,
+          metricDefinitionId: { in: defIds },
+          sessionId: { not: id },
+          session: {
+            OR: [
+              { sessionDate: { lt: session.sessionDate } },
+              { sessionDate: session.sessionDate, createdAt: { lt: session.createdAt } },
+            ],
+          },
+        },
+        orderBy: [
+          { session: { sessionDate: "desc" } },
+          { session: { createdAt: "desc" } },
+        ],
+        include: { session: { select: { sessionDate: true, createdAt: true } } },
+      });
+      for (const pe of priorEntries) {
+        if (previousByDefId[pe.metricDefinitionId] === undefined) {
+          previousByDefId[pe.metricDefinitionId] = pe.currentValue;
+        }
+      }
+    }
+
+    const entriesWithPrev = entries.map((e) => ({
+      ...e,
+      previousValue: previousByDefId[e.metricDefinitionId] ?? null,
+    }));
+
+    return NextResponse.json({ entries: entriesWithPrev });
   } catch (error) {
     console.error("Error fetching session metrics:", error);
     return NextResponse.json(

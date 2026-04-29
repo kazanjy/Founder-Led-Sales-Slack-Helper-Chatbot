@@ -106,6 +106,7 @@ interface MetricEntry {
   id: string;
   currentValue: number;
   addedSinceLastSession: number;
+  previousValue: number | null;
   metricDefinition: {
     id: string;
     name: string;
@@ -875,6 +876,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           id: entryData.entry.id,
           currentValue: 0,
           addedSinceLastSession: 0,
+          previousValue: null,
           metricDefinition: { id: data.metric.id, name, definition, format, isDefault: false },
         }]);
       }
@@ -916,6 +918,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           id: entryData.entry.id,
           currentValue: 0,
           addedSinceLastSession: 0,
+          previousValue: null,
           metricDefinition: { id: metricDefId, name: metric.name, definition: metric.definition, isDefault: false },
         }]);
       }
@@ -1365,6 +1368,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               ) : entry.metricDefinition.definition ? (
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
               ) : null}
+              {entry.previousValue != null && (
+                <div className="text-[10px] text-gray-400 mb-1 leading-tight">
+                  Last session: <span className="font-medium text-gray-500 dark:text-gray-300">{formatMetricValue(entry.previousValue, entry.metricDefinition.format)}</span>
+                </div>
+              )}
               {canEdit ? (
                 focusedMetric === entry.id ? (
                 <input
