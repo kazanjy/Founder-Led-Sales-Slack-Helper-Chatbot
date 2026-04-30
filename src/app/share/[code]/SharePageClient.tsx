@@ -145,13 +145,13 @@ export default function SharePageClient({ code }: SharePageClientProps) {
             <div key={msg.id} id={`msg-${msg.id}`} className="scroll-mt-20">
               {msg.role === "USER" ? (
                 <div className="flex justify-end">
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 max-w-[70%]">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-700 max-w-[70%]">
                     <TruncatedUserMessage content={msg.content} />
                   </div>
                 </div>
               ) : (
                 <div className="group relative">
-                  <div className="prose max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
+                  <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
                   {/* Share this response button */}

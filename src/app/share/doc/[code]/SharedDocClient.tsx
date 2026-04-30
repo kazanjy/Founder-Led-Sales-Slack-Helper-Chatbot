@@ -149,7 +149,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
         <main className="max-w-[800px] mx-auto px-6 py-8">
           <div className="mb-6">
-            <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-3">
+            <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium mb-3">
               {typeLabel}
             </span>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{doc.title}</h1>
@@ -184,20 +184,20 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
                     if (!answers || answers.length === 0) return null;
 
                     const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
-                      Product: { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700" },
-                      Problem: { bg: "bg-red-50", border: "border-red-200", text: "text-red-700" },
-                      Solution: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700" },
-                      Proof: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700" },
-                      Business: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700" },
+                      Product: { bg: "bg-indigo-50 dark:bg-indigo-900/30", border: "border-indigo-200 dark:border-indigo-800", text: "text-indigo-700 dark:text-indigo-300" },
+                      Problem: { bg: "bg-red-50 dark:bg-red-900/30", border: "border-red-200 dark:border-red-800", text: "text-red-700 dark:text-red-300" },
+                      Solution: { bg: "bg-blue-50 dark:bg-blue-900/30", border: "border-blue-200 dark:border-blue-800", text: "text-blue-700 dark:text-blue-300" },
+                      Proof: { bg: "bg-green-50 dark:bg-green-900/30", border: "border-green-200 dark:border-green-800", text: "text-green-700 dark:text-green-300" },
+                      Business: { bg: "bg-purple-50 dark:bg-purple-900/30", border: "border-purple-200 dark:border-purple-800", text: "text-purple-700 dark:text-purple-300" },
                     };
-                    const colors = categoryColors[category] || { bg: "bg-gray-50", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
+                    const colors = categoryColors[category] || { bg: "bg-gray-50 dark:bg-gray-700/40", border: "border-gray-200 dark:border-gray-700", text: "text-gray-700 dark:text-gray-200" };
 
                     return (
                       <div key={category} className={`rounded-lg border ${colors.border} ${colors.bg} p-4`}>
                         <h3 className={`font-semibold ${colors.text} mb-3`}>{category}</h3>
                         <div className="space-y-4">
                           {answers.map((qa) => (
-                            <div key={qa.questionId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100">
+                            <div key={qa.questionId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
                               <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Q{qa.globalOrder}: {qa.question}</p>
                               <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
                                 {qa.answer || <span className="text-gray-400 italic">Not answered</span>}
@@ -280,7 +280,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
 
       <main className="max-w-[800px] mx-auto px-6 py-8">
         <div className="mb-6">
-          <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-3">
+          <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium mb-3">
             {typeLabel}
           </span>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{doc.title}</h1>
@@ -289,7 +289,7 @@ export default function SharedDocClient({ code }: SharedDocClientProps) {
           </p>
         </div>
 
-        <div className="prose max-w-none prose-p:my-4 prose-headings:mt-8 prose-headings:mb-4 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-hr:my-8 text-[17px] prose-h2:mt-10 prose-h3:mt-8">
+        <div className="prose dark:prose-invert max-w-none prose-p:my-4 prose-headings:mt-8 prose-headings:mb-4 prose-ul:my-4 prose-ol:my-4 prose-li:my-1 prose-hr:my-8 text-[17px] prose-h2:mt-10 prose-h3:mt-8">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
         </div>
 
