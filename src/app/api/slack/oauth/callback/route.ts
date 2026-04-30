@@ -4,6 +4,7 @@ import { getSlackClient } from "@/lib/slack/client";
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { findOrCreateAccountForUser } from "@/lib/accounts";
+import { isAdminEmail } from "@/lib/admin";
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID!;
 const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET!;
@@ -254,10 +255,13 @@ export async function GET(request: NextRequest) {
     // Send welcome DM only on fresh installs — re-auth (e.g., an
     // already-onboarded admin granting user_scope from the channels
     // page) shouldn't get spammed with the intro every time. Treat
-    // either an existing session OR an explicit return_to as the
-    // "this is a re-auth" signal.
+    // an existing session, an explicit return_to, or a pre-existing
+    // Slack user record as the "this is a re-auth" signal.
     const stateReturnToForGate = searchParams.get("state");
-    const isReAuth = !!loggedInUser || (!!stateReturnToForGate && stateReturnToForGate.startsWith("/"));
+    const isReAuth =
+      !!loggedInUser ||
+      !!existingSlackUser ||
+      (!!stateReturnToForGate && stateReturnToForGate.startsWith("/"));
     if (!isReAuth) {
       try {
         const client = getSlackClient(botToken);
@@ -289,16 +293,24 @@ export async function GET(request: NextRequest) {
     //    deterministic signal — used by the channels-page "Connect
     //    Slack" button. Restricted to same-origin paths so the
     //    parameter can't be turned into an open-redirect vector.
-    // 2. Falling back to the loggedInUser branch covers older callers
-    //    that haven't been updated to pass return_to.
-    // 3. Otherwise (fresh install) go through /setup for the
-    //    default-channel + pricing onboarding.
+    // 2. Any other re-auth signal (an active session cookie OR a
+    //    pre-existing Slack user record) means this person is already
+    //    onboarded. They should not get bounced through /setup and
+    //    /upgrade — that flow assumes a fresh install. Admins land on
+    //    /admin/channels (the page they almost certainly came from);
+    //    everyone else goes to /chat.
+    // 3. Otherwise this is a genuinely fresh install — go through
+    //    /setup for default-channel + pricing onboarding.
     const stateReturnTo = searchParams.get("state");
     if (stateReturnTo && stateReturnTo.startsWith("/") && !stateReturnTo.startsWith("//")) {
       return NextResponse.redirect(`${APP_URL}${stateReturnTo}`);
     }
-    if (loggedInUser) {
-      return NextResponse.redirect(`${APP_URL}/admin/channels`);
+    if (loggedInUser || existingSlackUser) {
+      const resolvedEmail = user.email || user.slackEmail;
+      if (isAdminEmail(resolvedEmail)) {
+        return NextResponse.redirect(`${APP_URL}/admin/channels`);
+      }
+      return NextResponse.redirect(`${APP_URL}/chat`);
     }
     return NextResponse.redirect(
       `${APP_URL}/setup?workspace=${encodeURIComponent(teamName)}&team_id=${teamId}`
