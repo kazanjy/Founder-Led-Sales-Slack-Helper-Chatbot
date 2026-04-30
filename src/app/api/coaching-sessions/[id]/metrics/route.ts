@@ -42,8 +42,12 @@ export async function GET(
 
     // For each entry, look up the most recent prior session's value for
     // the same metric so the UI can show "Last session: X" alongside the
-    // new input. Prior == any earlier-dated session belonging to this
-    // user, with createdAt as a tiebreaker for same-date sessions.
+    // new input. Prior == any earlier-dated non-draft session belonging
+    // to this user (createdAt is the tiebreaker for same-date sessions).
+    // Drafts are excluded because the create-session flow seeds an
+    // auto-saved draft with currentValue=0 for every metric, which
+    // would otherwise be returned as the "prior" value and stomp the
+    // real previous session.
     const previousByDefId: Record<string, number> = {};
     if (entries.length > 0) {
       const defIds = entries.map((e) => e.metricDefinitionId);
@@ -53,9 +57,15 @@ export async function GET(
           metricDefinitionId: { in: defIds },
           sessionId: { not: id },
           session: {
+            notes: { not: "(draft)" },
             OR: [
               { sessionDate: { lt: session.sessionDate } },
-              { sessionDate: session.sessionDate, createdAt: { lt: session.createdAt } },
+              {
+                AND: [
+                  { sessionDate: session.sessionDate },
+                  { createdAt: { lt: session.createdAt } },
+                ],
+              },
             ],
           },
         },
