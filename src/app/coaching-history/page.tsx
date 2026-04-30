@@ -776,20 +776,79 @@ function CoachingHistoryContent() {
           /* Two-panel layout */
           <div className="flex gap-6">
             {/* Collapsed-state rail — desktop only, swaps in for the
-                full panel when historyOpen is false. Mobile ignores
-                this state entirely. */}
+                full panel when historyOpen is false. Shows a narrow
+                column of date-only chips so users still have one-click
+                access to recent sessions without the full sidebar
+                taking up real estate. Mobile ignores this state. */}
             {!historyOpen && (
-              <div className="hidden md:flex flex-shrink-0 items-start pt-1">
+              <div className="hidden md:flex flex-col flex-shrink-0 gap-2 w-16">
                 <button
                   onClick={() => toggleHistory(true)}
                   title="Show history"
                   aria-label="Show history"
-                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 self-start"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
+                <div className="space-y-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-0.5">
+                  {sessions
+                    .filter((s) => {
+                      if (s.notes === "(draft)" && s.id !== autoSavedId) return false;
+                      if (s.notes === "(draft)" && mode !== "create") return false;
+                      return true;
+                    })
+                    .map((session) => {
+                      const isActive =
+                        mode === "create"
+                          ? session.id === autoSavedId
+                          : selectedId === session.id;
+                      const date = new Date(session.sessionDate);
+                      const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+                      const day = date.toLocaleDateString("en-US", { day: "numeric", timeZone: "UTC" });
+                      const dotColor =
+                        session.sessionStatus === "new" ? "bg-blue-500" :
+                        session.sessionStatus === "in_progress" ? "bg-orange-500" :
+                        "bg-gray-400";
+                      const statusLabel =
+                        session.sessionStatus === "new" ? "Live Session" :
+                        session.sessionStatus === "in_progress" ? "Live Sprint" :
+                        "Locked";
+                      return (
+                        <div
+                          key={session.id}
+                          role="button"
+                          tabIndex={0}
+                          title={`${formatDate(session.sessionDate)} · ${statusLabel}\n${session.title}`}
+                          onClick={(e) => {
+                            if (e.metaKey || e.ctrlKey) {
+                              window.open(`/coaching-history?session=${session.id}`, "_blank");
+                              return;
+                            }
+                            selectSession(session.id);
+                            setMode("view");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              selectSession(session.id);
+                              setMode("view");
+                            }
+                          }}
+                          className={`relative w-16 h-16 rounded-lg border cursor-pointer flex flex-col items-center justify-center transition-colors ${
+                            isActive
+                              ? "border-purple-300 bg-purple-50"
+                              : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <span className={`absolute top-1 right-1 inline-block w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                          <div className="text-[10px] uppercase text-gray-500 dark:text-gray-400 leading-none tracking-wide">{month}</div>
+                          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-none mt-1">{day}</div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
             {/* Left panel: Session list — hidden on mobile when viewing
