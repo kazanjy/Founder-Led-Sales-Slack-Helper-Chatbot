@@ -232,6 +232,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [newNextTaskTitles, setNewNextTaskTitles] = useState<Record<string, string>>({});
   const [editingNextDescTask, setEditingNextDescTask] = useState<string | null>(null);
   const [editingNextDescriptions, setEditingNextDescriptions] = useState<Record<string, string>>({});
+  const [editingGoalDescId, setEditingGoalDescId] = useState<string | null>(null);
+  const [editingNextGoalDescId, setEditingNextGoalDescId] = useState<string | null>(null);
   const [dragNextGoal, setDragNextGoal] = useState<string | null>(null);
   const [dragOverNextGoal, setDragOverNextGoal] = useState<string | null>(null);
   const [dragNextTask, setDragNextTask] = useState<{ goalId: string; taskId: string } | null>(null);
@@ -1181,29 +1183,53 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {canEdit ? (
                       <>
                         <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
-                        <textarea
-                          value={goal.description || ""}
-                          onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)}
-                          placeholder="Add description..."
-                          rows={1}
-                          onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = "auto";
-                            target.style.height = target.scrollHeight + "px";
-                          }}
-                          ref={(el) => {
-                            if (el) {
-                              el.style.height = "auto";
-                              el.style.height = el.scrollHeight + "px";
-                            }
-                          }}
-                          className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
-                        />
+                        {editingNextGoalDescId === goal.id ? (
+                          <textarea
+                            value={goal.description || ""}
+                            onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)}
+                            onBlur={() => setEditingNextGoalDescId(null)}
+                            placeholder="Add description..."
+                            rows={1}
+                            onInput={(e) => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                              target.style.height = target.scrollHeight + "px";
+                            }}
+                            ref={(el) => {
+                              if (el) {
+                                el.style.height = "auto";
+                                el.style.height = el.scrollHeight + "px";
+                                if (!el.dataset.focused) {
+                                  el.dataset.focused = "1";
+                                  el.focus();
+                                  el.setSelectionRange(el.value.length, el.value.length);
+                                }
+                              }
+                            }}
+                            className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
+                          />
+                        ) : goal.description ? (
+                          <div
+                            onClick={(e) => {
+                              if (!(e.target instanceof HTMLAnchorElement)) setEditingNextGoalDescId(goal.id);
+                            }}
+                            className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 whitespace-pre-wrap cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1"
+                          >
+                            <Linkify>{goal.description}</Linkify>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingNextGoalDescId(goal.id)}
+                            className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5"
+                          >
+                            Add description
+                          </button>
+                        )}
                       </>
                     ) : (
                       <>
                         <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{goal.title}</span>
-                        {goal.description && <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5">{goal.description}</span>}
+                        {goal.description && <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5"><Linkify>{goal.description}</Linkify></span>}
                       </>
                     )}
                   </div>
@@ -1685,10 +1711,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   ) : (
                     <span className="font-medium text-gray-900 dark:text-gray-100 text-sm"><Linkify>{goal.title}</Linkify></span>
                   )}
-                  {canEdit ? (
+                  {canEdit && editingGoalDescId === goal.id ? (
                     <textarea
                       value={goal.description || ""}
                       onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
+                      onBlur={() => setEditingGoalDescId(null)}
                       placeholder="Add description..."
                       rows={1}
                       onInput={(e) => {
@@ -1700,12 +1727,31 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         if (el) {
                           el.style.height = "auto";
                           el.style.height = el.scrollHeight + "px";
+                          if (!el.dataset.focused) {
+                            el.dataset.focused = "1";
+                            el.focus();
+                            el.setSelectionRange(el.value.length, el.value.length);
+                          }
                         }
                       }}
                       className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
                     />
                   ) : goal.description ? (
-                    <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
+                    <div
+                      onClick={(e) => {
+                        if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingGoalDescId(goal.id);
+                      }}
+                      className={`text-xs text-gray-600 dark:text-gray-300 block mt-0.5 whitespace-pre-wrap ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                    >
+                      <Linkify>{goal.description}</Linkify>
+                    </div>
+                  ) : canEdit ? (
+                    <button
+                      onClick={() => setEditingGoalDescId(goal.id)}
+                      className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5"
+                    >
+                      Add description
+                    </button>
                   ) : null}
                   {goal.createdAt && (
                     <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
