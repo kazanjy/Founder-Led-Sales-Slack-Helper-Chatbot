@@ -1181,7 +1181,24 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {canEdit ? (
                       <>
                         <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
-                        <input type="text" value={goal.description || ""} onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)} placeholder="Add description..." className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5" />
+                        <textarea
+                          value={goal.description || ""}
+                          onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)}
+                          placeholder="Add description..."
+                          rows={1}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = "auto";
+                            target.style.height = target.scrollHeight + "px";
+                          }}
+                          ref={(el) => {
+                            if (el) {
+                              el.style.height = "auto";
+                              el.style.height = el.scrollHeight + "px";
+                            }
+                          }}
+                          className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
+                        />
                       </>
                     ) : (
                       <>
@@ -1669,12 +1686,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <span className="font-medium text-gray-900 dark:text-gray-100 text-sm"><Linkify>{goal.title}</Linkify></span>
                   )}
                   {canEdit ? (
-                    <input
-                      type="text"
+                    <textarea
                       value={goal.description || ""}
                       onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
                       placeholder="Add description..."
-                      className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5"
+                      rows={1}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = "auto";
+                        target.style.height = target.scrollHeight + "px";
+                      }}
+                      ref={(el) => {
+                        if (el) {
+                          el.style.height = "auto";
+                          el.style.height = el.scrollHeight + "px";
+                        }
+                      }}
+                      className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
                     />
                   ) : goal.description ? (
                     <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5"><Linkify>{goal.description}</Linkify></span>
