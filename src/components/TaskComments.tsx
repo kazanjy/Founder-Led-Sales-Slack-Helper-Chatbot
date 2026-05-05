@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Linkify } from "@/components/Linkify";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+const RichTextCommentEditor = dynamic(
+  () => import("@/components/RichTextCommentEditor"),
+  { ssr: false }
+);
 
 interface CommentAuthor {
   id: string;
@@ -64,8 +71,6 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
   const [editingBody, setEditingBody] = useState("");
   const [savingEditId, setSavingEditId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // The id we compare to comment.author.id to decide which rows are
   // "own" (and therefore editable/deletable). Prefer the explicit
@@ -112,14 +117,6 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
       });
     }, 60);
   }, [comments]);
-
-  // Auto-resize the inline edit textarea on mount + edits.
-  useEffect(() => {
-    const el = editTextareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [editingBody]);
 
   const total = comments.length;
 
@@ -204,11 +201,10 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
         <button
           onClick={() => {
             setExpanded(true);
-            // Focus the draft input on the next tick so the user can
-            // start typing immediately when there are no comments yet.
-            if (total === 0) {
-              setTimeout(() => draftTextareaRef.current?.focus(), 30);
-            }
+            // The TipTap editor below picks up focus via its own
+            // internal autofocus when it mounts; the click that
+            // expanded the section is already a user gesture, so the
+            // browser is happy to honor focus().
           }}
           className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:underline inline-flex items-center gap-1"
         >
@@ -297,24 +293,19 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
                 </div>
               </div>
               {isEditing ? (
-                <div>
-                  <textarea
-                    ref={editTextareaRef}
+                <div onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    cancelEdit();
+                  }
+                }}>
+                  <RichTextCommentEditor
                     value={editingBody}
-                    onChange={(e) => setEditingBody(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        saveEdit(c.id);
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        cancelEdit();
-                      }
-                    }}
+                    onChange={setEditingBody}
+                    onSubmit={() => saveEdit(c.id)}
                     autoFocus
-                    rows={2}
-                    className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    minHeight={56}
+                    placeholder="Edit comment…"
                   />
                   <div className="flex items-center gap-2 mt-1">
                     <button
@@ -340,9 +331,27 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
                     if (e.target instanceof HTMLAnchorElement) return;
                     startEdit(c);
                   }}
-                  className={`text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words ${isOwn ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                  className={`text-sm text-gray-700 dark:text-gray-200 break-words prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${isOwn ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                 >
-                  <Linkify>{c.body}</Linkify>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children, ...rest }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-600 hover:text-purple-800 underline break-all"
+                          onClick={(e) => e.stopPropagation()}
+                          {...rest}
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {c.body}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
@@ -352,19 +361,13 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
 
       {canEdit && (
         <div className="pt-1">
-          <textarea
-            ref={draftTextareaRef}
+          <RichTextCommentEditor
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                submitDraft();
-              }
-            }}
+            onChange={setDraft}
+            onSubmit={submitDraft}
             placeholder="Add a comment…"
-            rows={2}
-            className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            minHeight={56}
+            autoFocus={total === 0}
           />
           <div className="flex items-center gap-2 mt-1">
             <button
