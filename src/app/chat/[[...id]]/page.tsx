@@ -1153,6 +1153,17 @@ export default function ChatPage() {
     }
   };
 
+  // Copy a same-origin URL pointing at this response so the user can
+  // jump back to it later (or hand the link to a collaborator who has
+  // access to the chat). Distinct from handleShareMessage below, which
+  // mints a public share token.
+  const handleCopyInternalAnchor = (messageId: string) => {
+    if (!selectedConversation) return;
+    const url = `${window.location.origin}/chat/${selectedConversation}#msg-${messageId}`;
+    navigator.clipboard.writeText(url);
+    showToast("Internal link copied — scrolls to this response.", "bottom");
+  };
+
   // Share specific message (with anchor to scroll to that response)
   const handleShareMessage = async (messageId: string) => {
     if (!selectedConversation || messages.length === 0 || sharing) return;
@@ -1406,6 +1417,24 @@ export default function ChatPage() {
     if (messages.length > 0 && isInitialLoad.current) {
       isInitialLoad.current = false;
     }
+  }, [messages]);
+
+  // If the URL points at a specific message via #msg-<id>, jump there
+  // once the message exists in the DOM. Runs whenever messages land
+  // (the initial fetch resolves, or the user follows an internal anchor
+  // copied from another tab).
+  const lastScrolledHashRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (messages.length === 0) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#msg-")) return;
+    if (lastScrolledHashRef.current === hash) return;
+    const id = hash.slice(1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    lastScrolledHashRef.current = hash;
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   }, [messages]);
 
   // Detect mobile viewport
@@ -3545,24 +3574,34 @@ export default function ChatPage() {
           </div>
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {/* Settings button */}
-            <a
-              href="/settings"
-              className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              <span className="hidden sm:inline">Settings</span>
-            </a>
+            <div className="relative group">
+              <a
+                href="/settings"
+                className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span className="hidden sm:inline">Settings</span>
+              </a>
+              <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                Open settings
+              </span>
+            </div>
             {/* Upgrade button - show for non-active users */}
             {user && user.licenseStatus !== "ACTIVE" && (
-              <a
-                href="/upgrade"
-                className="px-3 md:px-4 py-1.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all shadow-sm text-sm"
-              >
-                Upgrade
-              </a>
+              <div className="relative group">
+                <a
+                  href="/upgrade"
+                  className="px-3 md:px-4 py-1.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all shadow-sm text-sm inline-block"
+                >
+                  Upgrade
+                </a>
+                <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                  Upgrade your plan
+                </span>
+              </div>
             )}
             {/* Creator badge for teammate chats */}
             {(() => {
@@ -3586,24 +3625,29 @@ export default function ChatPage() {
               <>
                 {/* Add to Project dropdown */}
                 <div className="relative">
-                  <button
-                    onClick={() => setMoveToProjectMenu(moveToProjectMenu === "header" ? null : "header")}
-                    className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                      conversations.find((c) => c.id === selectedConversation)?.projectId
-                        ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
-                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <span className="hidden sm:inline">
-                      {(() => {
-                        const proj = projects.find((p) => p.id === conversations.find((c) => c.id === selectedConversation)?.projectId);
-                        return proj ? proj.name : "Project";
-                      })()}
+                  <div className="relative group inline-block">
+                    <button
+                      onClick={() => setMoveToProjectMenu(moveToProjectMenu === "header" ? null : "header")}
+                      className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                        conversations.find((c) => c.id === selectedConversation)?.projectId
+                          ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
+                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      <span className="hidden sm:inline">
+                        {(() => {
+                          const proj = projects.find((p) => p.id === conversations.find((c) => c.id === selectedConversation)?.projectId);
+                          return proj ? proj.name : "Project";
+                        })()}
+                      </span>
+                    </button>
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                      Add this chat to a project
                     </span>
-                  </button>
+                  </div>
                   {moveToProjectMenu === "header" && (
                     <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60] max-h-60 overflow-y-auto">
                       {conversations.find((c) => c.id === selectedConversation)?.projectId && (
@@ -3664,27 +3708,37 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                  <span className="hidden sm:inline">Copy</span>
-                </button>
-                {/* Export dropdown */}
-                <div className="relative" ref={exportMenuRef}>
+                <div className="relative group">
                   <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    onClick={handleCopy}
                     className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
-                    <span className="hidden sm:inline">Export</span>
+                    <span className="hidden sm:inline">Copy</span>
                   </button>
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                    Copy entire chat as Markdown
+                  </span>
+                </div>
+                {/* Export dropdown */}
+                <div className="relative" ref={exportMenuRef}>
+                  <div className="relative group inline-block">
+                    <button
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="hidden sm:inline">Export</span>
+                    </button>
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                      Export chat as Markdown or PDF
+                    </span>
+                  </div>
                   {showExportMenu && (
                     <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 z-[60]">
                       <button
@@ -3710,58 +3764,73 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`/api/chat/${selectedConversation}/clone`, { method: "POST" });
-                      const data = await res.json();
-                      if (data.success && data.conversationId) {
-                        showToast("Chat cloned! Redirecting...", "bottom");
-                        router.push(`/chat/${data.conversationId}`);
-                      } else {
+                <div className="relative group">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/chat/${selectedConversation}/clone`, { method: "POST" });
+                        const data = await res.json();
+                        if (data.success && data.conversationId) {
+                          showToast("Chat cloned! Redirecting...", "bottom");
+                          router.push(`/chat/${data.conversationId}`);
+                        } else {
+                          showToast("Failed to clone chat", "bottom");
+                        }
+                      } catch {
                         showToast("Failed to clone chat", "bottom");
                       }
-                    } catch {
-                      showToast("Failed to clone chat", "bottom");
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 13h6m-3-3v6m5 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"></path>
-                  </svg>
-                  <span className="hidden sm:inline">Clone</span>
-                </button>
-                <button
-                  onClick={handleShare}
-                  disabled={sharing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {sharing ? (
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  ) : (
+                    }}
+                    className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      <path d="M9 13h6m-3-3v6m5 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"></path>
                     </svg>
-                  )}
-                  <span className="hidden sm:inline">{sharing ? "Copying..." : "Link"}</span>
-                </button>
-                <button
-                  onClick={() => setShareModalConversationId(selectedConversation)}
-                  className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="8.5" cy="7" r="4"></circle>
-                    <line x1="20" y1="8" x2="20" y2="14"></line>
-                    <line x1="23" y1="11" x2="17" y2="11"></line>
-                  </svg>
-                  <span className="hidden sm:inline">Share</span>
-                </button>
+                    <span className="hidden sm:inline">Clone</span>
+                  </button>
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                    Clone this chat into a new conversation
+                  </span>
+                </div>
+                <div className="relative group">
+                  <button
+                    onClick={handleShare}
+                    disabled={sharing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {sharing ? (
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                      </svg>
+                    )}
+                    <span className="hidden sm:inline">{sharing ? "Copying..." : "Link"}</span>
+                  </button>
+                  <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                    Create public share link to this chat discussion
+                  </span>
+                </div>
+                <div className="relative group">
+                  <button
+                    onClick={() => setShareModalConversationId(selectedConversation)}
+                    className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="8.5" cy="7" r="4"></circle>
+                      <line x1="20" y1="8" x2="20" y2="14"></line>
+                      <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                  <span className="absolute top-full right-0 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-30">
+                    Share this chat with a teammate by email
+                  </span>
+                </div>
               </>
             )}
             {/* Shared chat badge and clone button */}
@@ -4274,7 +4343,7 @@ export default function ChatPage() {
           ) : (
             <div className="max-w-[800px] mx-auto space-y-6">
               {messages.map((msg, msgIndex) => (
-                <div key={msg.id}>
+                <div key={msg.id} id={`msg-${msg.id}`} className="scroll-mt-20">
                   {msg.role === "USER" ? (
                     editingMessageId === msg.id ? (
                       /* Inline edit mode */
@@ -4369,42 +4438,60 @@ export default function ChatPage() {
                       </div>
                     )
                   ) : (
-                    <div>
-                      <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 mt-4 text-[17px]">
+                    <div className="group/response">
+                      {/* Internal anchor — top-left affordance to copy a
+                          same-origin link that scrolls to this response. */}
+                      <div className="relative inline-block group/anchor mb-1">
+                        <button
+                          onClick={() => handleCopyInternalAnchor(msg.id)}
+                          className="p-1 text-gray-300 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors opacity-0 group-hover/response:opacity-100 focus:opacity-100"
+                          aria-label="Copy internal link to this response"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                          </svg>
+                        </button>
+                        <span className="absolute top-full left-0 mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover/anchor:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+                          Copy internal link to this response
+                        </span>
+                      </div>
+                      <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 text-[17px]">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a> }}>{msg.content}</ReactMarkdown>
                       </div>
                       {/* Copy/Share buttons for this response */}
                       <div className="flex items-center gap-1 mt-2">
-                        <div className="relative group">
+                        <div className="relative group/btn">
                           <button
                             onClick={async () => {
                               const success = await copyMarkdownAsRichText(msg.content);
                               showToast(success ? "Copied to clipboard!" : "Failed to copy", "bottom");
                             }}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            aria-label="Copy this response"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                             </svg>
                           </button>
-                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                            Copy
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+                            Copy this response
                           </span>
                         </div>
-                        <div className="relative group">
+                        <div className="relative group/btn">
                           <button
                             onClick={() => handleShareMessage(msg.id)}
                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                            title="Share link to this response"
+                            aria-label="Create public share link to this answer"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                             </svg>
                           </button>
-                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                            Share this response
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+                            Create public share link to this answer
                           </span>
                         </div>
                       </div>
