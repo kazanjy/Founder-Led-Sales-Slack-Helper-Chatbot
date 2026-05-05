@@ -20,8 +20,15 @@ function buildClient() {
 
   type Row = { id: string; userId: string };
 
+  // Prisma's $extends generates per-model + per-operation arg types
+  // that we can't easily satisfy from a generic factory. The trade-off
+  // here is to type the destructured params as any inside the
+  // interceptor and re-narrow the return value via the format(row)
+  // signature — typesafe at the call site (each formatter has its own
+  // typed Row), loose only inside the wrapper.
   const fireCreate = <T extends Row>(format: (row: T) => BroadcastEventInput) => ({
-    async create({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create: async ({ args, query }: any) => {
       const result = (await query(args)) as T;
       if (result?.userId && result?.id) {
         broadcastActivityFireAndForget(format(result));
@@ -129,8 +136,13 @@ function buildClient() {
 
       // BroadcastCampaign uses createdByAdminId, not userId.
       broadcastCampaign: {
-        async create({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
-          const result = (await query(args)) as { id: string; name: string | null; createdByAdminId: string };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        create: async ({ args, query }: any) => {
+          const result = (await query(args)) as {
+            id: string;
+            name: string | null;
+            createdByAdminId: string;
+          };
           if (result?.id && result?.createdByAdminId) {
             broadcastActivityFireAndForget({
               type: "broadcast",
@@ -149,23 +161,29 @@ function buildClient() {
       // sessionStatus="locked"), not on creation. New + in_progress are
       // still drafts the user is iterating on.
       coachingSession: {
-        async update({
-          args,
-          query,
-        }: {
-          args: { data?: { sessionStatus?: string } };
-          query: (args: unknown) => Promise<unknown>;
-        }) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        update: async ({ args, query }: any) => {
           const result = (await query(args)) as {
             id: string;
             userId: string;
             title: string;
             sessionStatus: string;
           };
+
+          // Prisma update inputs accept either bare values
+          // (sessionStatus: "locked") or operator objects
+          // (sessionStatus: { set: "locked" }) — handle both forms so
+          // we don't miss either flavor coming from API routes.
+          const dataStatus: unknown = args?.data?.sessionStatus;
+          const lockingNow =
+            typeof dataStatus === "string"
+              ? dataStatus === "locked"
+              : (dataStatus as { set?: string } | undefined)?.set === "locked";
+
           if (
             result?.id &&
             result?.userId &&
-            args?.data?.sessionStatus === "locked" &&
+            lockingNow &&
             result.sessionStatus === "locked"
           ) {
             broadcastActivityFireAndForget({
