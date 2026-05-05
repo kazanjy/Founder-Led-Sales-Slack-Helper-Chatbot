@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ActivityBroadcastPanel from "@/components/ActivityBroadcastPanel";
 
 interface Stats {
   totalUsers: number;
@@ -304,6 +305,16 @@ export default function AdminDashboard() {
     "maturity": "bg-green-100 text-green-700",
     "sales-metrics": "bg-pink-100 text-pink-700",
     "ad-creator": "bg-rose-100 text-rose-700",
+    "social-content": "bg-fuchsia-100 text-fuchsia-700",
+    "icp": "bg-lime-100 text-lime-700",
+    "hiring-profile": "bg-yellow-100 text-yellow-800",
+    "sales-leader-profile": "bg-amber-100 text-amber-800",
+    "pre-hire-assessment": "bg-orange-100 text-orange-800",
+    "call-recap": "bg-purple-100 text-purple-700",
+    "coaching-session": "bg-emerald-100 text-emerald-800",
+    "objections": "bg-red-100 text-red-700",
+    "broadcast": "bg-indigo-100 text-indigo-800",
+    "deal": "bg-slate-100 text-slate-700",
   };
 
   function formatTimeAgo(dateStr: string): string {
@@ -467,6 +478,10 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Slack Broadcast — admin-configurable destination for usage
+          digests; sits directly above the Recent Activity feed. */}
+      <ActivityBroadcastPanel />
 
       {/* Unified Activity Feed */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-8">
@@ -650,6 +665,16 @@ export default function AdminDashboard() {
             "maturity": "GTM Assessments",
             "sales-metrics": "Sales Metrics",
             "ad-creator": "Ad Concepts",
+            "social-content": "Social Content",
+            "icp": "ICPs",
+            "hiring-profile": "AE Hiring Profiles",
+            "sales-leader-profile": "Sales Leader Profiles",
+            "pre-hire-assessment": "Pre-Hire Assessments",
+            "call-recap": "Call Recaps",
+            "coaching-session": "Coaching Sessions",
+            "objections": "Objection Libraries",
+            "broadcast": "Broadcasts",
+            "deal": "Deals",
           };
 
           for (const [key, label] of Object.entries(activityTypeLabels)) {

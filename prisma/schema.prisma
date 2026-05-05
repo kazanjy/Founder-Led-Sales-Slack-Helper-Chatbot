@@ -726,6 +726,15 @@ model GlobalSettings {
   // Referral bonus
   referralBonusMessages Int @default(10)
 
+  // Activity broadcast — admin-configured destination for "usage action"
+  // digest reports posted into a Slack channel. All three are nullable;
+  // the broadcast feature is opt-in. activityBroadcastLastSentAt is the
+  // watermark used to slice "since last send" digests.
+  activityBroadcastWorkspaceId  String?
+  activityBroadcastChannelId    String?
+  activityBroadcastChannelName  String?
+  activityBroadcastLastSentAt   DateTime?
+
   updatedAt DateTime @updatedAt
 
   @@map("global_settings")
