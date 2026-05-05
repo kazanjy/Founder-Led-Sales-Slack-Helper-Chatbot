@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import AskAccountQuestion from "@/components/AskAccountQuestion";
 
 interface AccountUser {
   id: string;
@@ -429,6 +430,8 @@ export default function AdminAccountDetailPage() {
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{account.name}</h1>
+
+      <AskAccountQuestion scope="account" targetId={account.id} targetLabel={account.name} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: Account details + Users */}

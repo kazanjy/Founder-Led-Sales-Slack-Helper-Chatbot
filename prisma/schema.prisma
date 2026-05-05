@@ -194,6 +194,9 @@ model User {
   // Coaching comments authored by this user.
   coachingComments CoachingComment[] @relation("CoachingCommentAuthor")
 
+  // Audit trail for admin "Ask This Account" queries this user has run.
+  adminContextQueries AdminContextQuery[] @relation("AdminContextQueryAdmin")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -738,6 +741,33 @@ model GlobalSettings {
   updatedAt DateTime @updatedAt
 
   @@map("global_settings")
+}
+
+// Audit trail for the admin "Ask This Account" feature. Records who
+// queried which account/user with what question (truncated) so the
+// usage of LLM-routed customer-data queries is traceable. The
+// question itself is stored in preview form only — never the answer
+// or the bundled context — so the audit table doesn't itself become a
+// customer-data leak channel.
+model AdminContextQuery {
+  id String @id @default(cuid())
+
+  adminUserId String
+  adminUser   User   @relation("AdminContextQueryAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  scope    String  // "account" | "user"
+  targetId String  // accountId or userId depending on scope
+
+  questionPreview String  @db.Text // first ~200 chars of the question
+  itemCounts      String  @db.Text // JSON of { coachingSessions: N, assets: N, ... }
+  totalChars      Int     @default(0)
+  truncations     String? @db.Text // JSON array of strings naming dropped/truncated sections
+
+  createdAt DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([scope, targetId, createdAt])
+  @@map("admin_context_queries")
 }
 
 // GTM Maturity Assessment Questions

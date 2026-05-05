@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import AskAccountQuestion from "@/components/AskAccountQuestion";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
 interface UserDetail {
@@ -346,6 +347,12 @@ export default function AdminUserDetailPage() {
           )}
         </button>
       </div>
+
+      <AskAccountQuestion
+        scope="user"
+        targetId={user.id}
+        targetLabel={displayName || displayEmail || undefined}
+      />
 
       {/* Message */}
       {message && (
