@@ -198,6 +198,71 @@ function buildClient() {
           return result;
         },
       },
+
+      // Conversations (chats) broadcast once, when a meaningful title
+      // first lands on the row. Reasoning: a brand-new conversation is
+      // created with title=null and gets its title async-filled by
+      // generateChatTitle() right after the first user message. That's
+      // the moment the chat is identifiable enough to be worth a
+      // broadcast — earlier and we'd post "started a chat" with no
+      // useful info; later (renames, message-count bumps,
+      // lastMessageAt updates) we'd over-post.
+      conversation: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        update: async ({ args, query }: any) => {
+          // Detect a title-set update without doing an extra fetch on
+          // the dozens of unrelated update flows (lastMessageAt,
+          // messageCount, archived, etc.).
+          const dataTitle: unknown = args?.data?.title;
+          const titleBeingSet =
+            typeof dataTitle === "string"
+              ? dataTitle
+              : (dataTitle as { set?: string } | undefined)?.set;
+
+          let priorTitle: string | null | undefined;
+          if (titleBeingSet) {
+            try {
+              const prior = await base.conversation.findUnique({
+                where: args.where,
+                select: { title: true },
+              });
+              priorTitle = prior?.title;
+            } catch {
+              // Prior lookup failure shouldn't fail the actual update.
+              // Worst case we miss a broadcast.
+              priorTitle = undefined;
+            }
+          }
+
+          const result = (await query(args)) as {
+            id: string;
+            userId: string;
+            title: string | null;
+            source: string;
+          };
+
+          // Only fire on the *first* meaningful title. Skips renames
+          // (priorTitle was already set) and the placeholder fallback.
+          if (
+            titleBeingSet &&
+            titleBeingSet !== "New Conversation" &&
+            !priorTitle &&
+            result?.id &&
+            result?.userId
+          ) {
+            const isSlack = result.source === "SLACK";
+            broadcastActivityFireAndForget({
+              type: isSlack ? "chat-slack" : "chat-web",
+              id: result.id,
+              label: `Started ${isSlack ? "Slack" : "Web"} chat`,
+              title: titleBeingSet,
+              link: `/chat/${result.id}`,
+              userId: result.userId,
+            });
+          }
+          return result;
+        },
+      },
     },
   });
 }
