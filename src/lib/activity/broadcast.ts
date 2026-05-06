@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
 
@@ -79,9 +80,23 @@ export async function broadcastActivity(input: BroadcastEventInput): Promise<voi
 }
 
 /**
- * Schedule the broadcast without awaiting. Use after a successful
- * commit so the originating request returns promptly.
+ * Schedule the broadcast without making the originating request wait
+ * for it to finish. We use Next 15's `after()` so the serverless
+ * runtime keeps the function alive until the Slack post resolves —
+ * a plain `void promise` gets killed when Vercel terminates the
+ * function on response, so most broadcasts would otherwise silently
+ * drop on quick non-streaming routes.
+ *
+ * `after()` throws when called outside a request scope (e.g. cron
+ * scripts, build-time codepaths that touch Prisma). Fall back to a
+ * plain promise in that case — it's better than crashing the
+ * originating action.
  */
 export function broadcastActivityFireAndForget(input: BroadcastEventInput): void {
-  void broadcastActivity(input);
+  try {
+    after(broadcastActivity(input));
+  } catch (err) {
+    console.warn("[activity-broadcast] after() unavailable, falling back to void promise:", err);
+    void broadcastActivity(input);
+  }
 }
