@@ -67,7 +67,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { title, sessionDate, notes, transcript, recordingUrl } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior } = body;
 
     // Only the creator can update
     const existing = await prisma.coachingSession.findFirst({
@@ -89,6 +89,22 @@ export async function PUT(
         ...(recordingUrl !== undefined && { recordingUrl: recordingUrl?.trim() || null }),
       },
     });
+
+    // When the client explicitly promotes a draft into a real session
+    // ("Create Session" click — autosave doesn't pass this flag), lock
+    // every other still-open session for this user. Mirrors the POST
+    // create flow's carry-forward logic for users who started from an
+    // autosaved draft.
+    if (lockPrior) {
+      await prisma.coachingSession.updateMany({
+        where: {
+          userId: user.id,
+          id: { not: id },
+          sessionStatus: { in: ["new", "in_progress"] },
+        },
+        data: { sessionStatus: "locked" },
+      });
+    }
 
     // Auto-generate title if it's still a draft placeholder and real notes were provided
     const isRealSave = notes?.trim() && notes.trim() !== "(draft)" && notes.trim() !== "";

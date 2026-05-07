@@ -341,12 +341,18 @@ function CoachingHistoryContent() {
 
     setSaving(true);
     try {
+      // lockPrior is set on the explicit "Create Session" click only —
+      // the 3-second autosave below uses the same PUT endpoint without
+      // this flag, so prior sessions don't get locked while the user
+      // is mid-draft.
+      const isPromotingDraft = mode === "create" && !!autoSavedId;
       const payload = {
         title: formTitle,
         sessionDate: formDate,
         notes: formNotes,
         transcript: formTranscript || null,
         recordingUrl: formRecordingUrl || null,
+        ...(isPromotingDraft ? { lockPrior: true } : {}),
       };
 
       // Always update existing session — draft is created on "New Session" click
