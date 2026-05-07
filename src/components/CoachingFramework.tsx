@@ -1695,6 +1695,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
+                {/* Open-task count badge — only visible when the goal
+                    is collapsed, so the user can see at a glance how
+                    much work is hidden under each rolled-up section. */}
+                {collapsedGoals.has(goal.id) && (() => {
+                  const openCount = goal.tasks.filter((t) => t.status === "active").length;
+                  if (openCount === 0) return null;
+                  return (
+                    <span
+                      className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                      title={`${openCount} open task${openCount === 1 ? "" : "s"}`}
+                    >
+                      {openCount} open
+                    </span>
+                  );
+                })()}
                 {canEdit && (
                   <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
