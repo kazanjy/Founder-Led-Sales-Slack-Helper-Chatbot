@@ -1359,7 +1359,7 @@ export default function ChatPage() {
   };
 
   // Update URL when conversation changes (without full page reload)
-  const selectConversation = (conversationId: string | null) => {
+  const selectConversation = (conversationId: string | null, modeOverride?: "CHATBASE" | "DIRECT") => {
     // Reset sending state when switching conversations
     // This allows loading the new conversation even if previous was mid-send
     isSendingRef.current = false;
@@ -1368,9 +1368,19 @@ export default function ChatPage() {
     setSelectedConversation(conversationId);
     setSelectedProject(null); // Clear project view when selecting a conversation
     isInitialLoad.current = true; // Reset for new conversation
-    // Set mode from conversation list data, or default to CHATBASE for new chats
-    const conv = conversations.find(c => c.id === conversationId);
-    setConversationMode(conv?.mode || "CHATBASE");
+    // Mode resolution: explicit override beats cache lookup. The cache
+    // is the local conversations array, which can be stale if the
+    // caller just did setConversations(...) immediately before — React
+    // hasn't applied the update yet, and conv would come back
+    // undefined, which then falls back to CHATBASE and silently
+    // flips the toggle. Callers that already know the mode (e.g., a
+    // fresh-create flow) should pass it through.
+    if (modeOverride) {
+      setConversationMode(modeOverride);
+    } else {
+      const conv = conversations.find(c => c.id === conversationId);
+      setConversationMode(conv?.mode || "CHATBASE");
+    }
     // Use pushState to update URL without triggering Next.js navigation
     const newUrl = conversationId ? `/chat/${conversationId}` : '/chat';
     window.history.pushState({}, '', newUrl);
@@ -2067,6 +2077,16 @@ export default function ChatPage() {
     if (!newContent.trim() || sending || !selectedConversation) return;
     setEditingMessageId(null);
 
+    // Snapshot the mode now and re-anchor it after the resend cycle.
+    // We've seen reports of the toggle flipping back to CHATBASE on
+    // edit of a DIRECT conversation. Even if the actual response
+    // routes correctly server-side (the streaming endpoint reads
+    // conversation.mode from the DB), the visible toggle had been
+    // flipping. This is a defensive restore so any state path that
+    // resets conversationMode mid-flight (title-gen race, stale
+    // conversations cache, etc.) gets corrected.
+    const modeAtEditTime = conversationMode;
+
     // Optimistic: truncate messages after the edited one and update its content
     const msgIndex = messages.findIndex((m) => m.id === messageId);
     if (msgIndex === -1) return;
@@ -2086,6 +2106,10 @@ export default function ChatPage() {
 
     // Send the edited message through the normal flow
     await sendMessage(newContent.trim());
+
+    // Re-anchor the mode. setConversationMode is a no-op when it
+    // already matches.
+    setConversationMode(modeAtEditTime);
   };
 
   const sendMessage = async (messageText: string) => {
@@ -2109,7 +2133,9 @@ export default function ChatPage() {
         if (data.conversation) {
           conversationId = data.conversation.id;
           setConversations([{ ...data.conversation, mode: conversationMode }, ...conversations]);
-          selectConversation(conversationId);
+          // Pass mode explicitly — the conversations array we just
+          // queued doesn't exist in selectConversation's closure yet.
+          selectConversation(conversationId, conversationMode);
           // Re-set since selectConversation resets sending state
           isSendingRef.current = true;
         }
