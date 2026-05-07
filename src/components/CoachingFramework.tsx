@@ -1695,10 +1695,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                {/* Open-task count badge — only visible when the goal
-                    is collapsed, so the user can see at a glance how
-                    much work is hidden under each rolled-up section. */}
-                {collapsedGoals.has(goal.id) && (() => {
+                {/* Open-task count badge — shown on every goal header
+                    (collapsed or expanded) so the user has at-a-glance
+                    progress signal without scanning the task list. */}
+                {(() => {
                   const openCount = goal.tasks.filter((t) => t.status === "active").length;
                   if (openCount === 0) return null;
                   return (
