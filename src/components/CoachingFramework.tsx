@@ -174,10 +174,10 @@ interface CoachingFrameworkProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "active", label: "Active", color: "bg-blue-100 text-blue-700" },
-  { value: "done", label: "Done", color: "bg-green-100 text-green-700" },
-  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:text-gray-400 line-through" },
-  { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700" },
+  { value: "active", label: "Active", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  { value: "done", label: "Done", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 line-through" },
+  { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 ];
 
 export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId }: CoachingFrameworkProps) {
@@ -1173,7 +1173,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 onDrop={() => handleNextGoalDrop(goal.id)}
                 className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragNextGoal === goal.id ? "opacity-40" : ""} ${dragOverNextGoal === goal.id ? "border-purple-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
               >
-                <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 gap-2 group/ngoal">
+                <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 dark:bg-gray-700/30 gap-2 group/ngoal">
                   {canEdit && (
                   <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 mr-1">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
@@ -1330,7 +1330,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           const selected = MATURITY_STAGES.find((s) => s.value === maturityStage);
           if (!selected) return null;
           return (
-            <div className="mt-3 bg-gray-50 rounded-lg p-4 text-sm space-y-2">
+            <div className="mt-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg p-4 text-sm space-y-2">
               <div>
                 <span className="font-semibold text-gray-700 dark:text-gray-200">Entry criteria: </span>
                 <span className="text-gray-600 dark:text-gray-300">{selected.entry}</span>
@@ -1351,7 +1351,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => (
-            <div key={entry.id} className="bg-gray-50 rounded-lg p-3 text-center relative group group/metric">
+            <div key={entry.id} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 text-center relative group group/metric">
               {/* Fast popover tooltip */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/metric:opacity-100 transition-opacity duration-100 pointer-events-none z-10 max-w-xs">
                 <div className="font-medium">{entry.metricDefinition.name}</div>
@@ -1367,7 +1367,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       key={fmt.value}
                       onClick={() => updateMetricFormat(entry.metricDefinition.id, fmt.value)}
                       title={fmt.title}
-                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${entry.metricDefinition.format === fmt.value ? "bg-purple-100 text-purple-600" : "text-gray-400 hover:text-gray-600"}`}
+                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${entry.metricDefinition.format === fmt.value ? "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"}`}
                     >
                       {fmt.label}
                     </button>
@@ -1545,7 +1545,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             ) : (
               <div className="space-y-1.5">
                 {archivedMetrics.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div key={m.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
                     <div>
                       <span className="text-sm text-gray-500 dark:text-gray-400">{m.name}</span>
                       {m.definition && <span className="text-xs text-gray-400 ml-2">— {m.definition}</span>}
@@ -1670,7 +1670,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               className={`border rounded-lg overflow-hidden scroll-mt-24 transition-all ${dragGoal === goal.id ? "opacity-40" : ""} ${dragOverGoal === goal.id && dragGoal ? "border-purple-400 shadow-md" : dragOverGoal === goal.id && dragTask ? "border-blue-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
             >
               {/* Goal header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 gap-2 group/goal">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700/40 gap-2 group/goal">
                 <button
                   type="button"
                   onClick={() => {

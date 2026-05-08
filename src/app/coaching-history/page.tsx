@@ -182,7 +182,7 @@ function formatSessionsForChat(sessions: CoachingSession[]): string {
 export default function CoachingHistoryPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -657,7 +657,7 @@ function CoachingHistoryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <SalesNavBar />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -729,8 +729,8 @@ function CoachingHistoryContent() {
 
         {/* Chat with selected banner */}
         {checkedSessions.length > 1 && (
-          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-purple-700">
+          <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-purple-700 dark:text-purple-300">
               {checkedSessions.length} sessions selected
             </span>
             <div className="flex items-center gap-3">
@@ -759,8 +759,8 @@ function CoachingHistoryContent() {
         ) : sessions.length === 0 && mode !== "create" ? (
           /* Empty state */
           <div className="text-center py-20">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-purple-600 dark:text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
@@ -1237,7 +1237,7 @@ function CoachingHistoryContent() {
                       <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                         Notes
                       </h3>
-                      <div className="prose max-w-none prose-sm prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2">
+                      <div className="prose dark:prose-invert max-w-none prose-sm prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2">
                         <ReactMarkdown
                           components={{
                             a: ({ href, children, ...props }) => (
