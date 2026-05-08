@@ -798,7 +798,7 @@ function CallRecapContent() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
                 {/* Subject line + Copy button row */}
                 {!isEditing && displaySubject && (
-                  <div className="bg-gray-50 border-b border-gray-200 dark:border-gray-700 px-8 py-4 flex items-center justify-between">
+                  <div className="bg-gray-50 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 px-8 py-4 flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       <span className="text-gray-500 dark:text-gray-400">Subject: </span>
                       {displaySubject}
@@ -826,7 +826,7 @@ function CallRecapContent() {
                   </div>
                 )}
                 {isEditing ? (
-                  <div className="bg-gray-50 border-b border-gray-200 dark:border-gray-700 px-8 py-4">
+                  <div className="bg-gray-50 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 px-8 py-4">
                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subject</label>
                     <input
                       type="text"
@@ -846,7 +846,7 @@ function CallRecapContent() {
                       className="w-full min-h-[600px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-y"
                     />
                   ) : (
-                    <div className="prose prose-gray max-w-none">
+                    <div className="prose prose-gray dark:prose-invert max-w-none">
                       <ReactMarkdown>{displayBody}</ReactMarkdown>
                     </div>
                   )}
