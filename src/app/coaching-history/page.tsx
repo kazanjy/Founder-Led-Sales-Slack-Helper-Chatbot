@@ -184,7 +184,7 @@ export default function CoachingHistoryPage() {
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4 dark:text-purple-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -674,7 +674,7 @@ function CoachingHistoryContent() {
               <button
                 onClick={handleSyncCoachingToReadiness}
                 disabled={syncLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50 dark:text-purple-300 dark:bg-purple-900/30"
               >
                 {syncLoading ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -736,7 +736,7 @@ function CoachingHistoryContent() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setCheckedIds(new Set())}
-                className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
+                className="text-sm text-purple-600 hover:text-purple-800 hover:underline dark:text-purple-300"
               >
                 Clear
               </button>
@@ -751,7 +751,7 @@ function CoachingHistoryContent() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <svg className="animate-spin h-8 w-8 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-8 w-8 text-purple-600 dark:text-purple-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -864,7 +864,7 @@ function CoachingHistoryContent() {
                 {sessions.length > 1 ? (
                   <button
                     onClick={toggleCheckAll}
-                    className="text-xs text-purple-600 hover:text-purple-800 hover:underline"
+                    className="text-xs text-purple-600 hover:text-purple-800 hover:underline dark:text-purple-300"
                   >
                     {checkedIds.size === sessions.length ? "Deselect all" : "Select all"}
                   </button>
@@ -918,7 +918,7 @@ function CoachingHistoryContent() {
                             toggleCheck(session.id);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="mt-1 rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
+                          className="mt-1 rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500 dark:text-purple-300"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-0.5">
@@ -1067,7 +1067,7 @@ function CoachingHistoryContent() {
                   </div>
 
                   {/* Form actions */}
-                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 rounded-b-xl flex items-center justify-between">
+                  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 rounded-b-xl flex items-center justify-between dark:bg-gray-900/30">
                     <button
                       onClick={async () => {
                         // Delete the draft session if canceling create mode
@@ -1120,7 +1120,7 @@ function CoachingHistoryContent() {
                   {/* Mobile back button */}
                   <button
                     onClick={() => selectSession(null)}
-                    className="md:hidden flex items-center gap-1 px-4 pt-3 text-sm text-purple-600 hover:text-purple-800"
+                    className="md:hidden flex items-center gap-1 px-4 pt-3 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-300"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     All Sessions
@@ -1153,7 +1153,7 @@ function CoachingHistoryContent() {
                               });
                               loadSessions();
                             }}
-                            className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium"
+                            className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium dark:bg-orange-900/30 dark:text-orange-300"
                           >
                             Start Sprint
                           </button>
@@ -1168,7 +1168,7 @@ function CoachingHistoryContent() {
                               });
                               loadSessions();
                             }}
-                            className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium"
+                            className="px-2.5 py-1.5 text-xs bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors font-medium dark:bg-gray-900/40"
                           >
                             Lock Session
                           </button>
@@ -1256,7 +1256,7 @@ function CoachingHistoryContent() {
                         <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                           Call Transcript
                         </h3>
-                        <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                        <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto dark:bg-gray-900/30">
                           <pre className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-mono">
                             {selectedSession.transcript}
                           </pre>

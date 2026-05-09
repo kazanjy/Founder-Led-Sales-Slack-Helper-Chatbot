@@ -10,7 +10,7 @@ function Linkify({ children }: { children: string }): ReactNode {
   if (parts.length === 1) return children;
   return parts.map((part, i) =>
     i % 2 === 1 ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all" onClick={(e) => e.stopPropagation()}>{part}</a>
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 underline break-all dark:text-purple-300" onClick={(e) => e.stopPropagation()}>{part}</a>
     ) : part
   );
 }
@@ -1086,58 +1086,58 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         {/* Up Next skeleton */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
+            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
           </div>
           <div className="space-y-3">
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-10 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
+            <div className="h-10 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
           </div>
         </div>
         {/* Maturity Stage skeleton */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-36 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
+            <div className="h-4 w-36 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
           </div>
-          <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-10 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
         </div>
         {/* Metrics skeleton */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
+            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-16 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
+            <div className="h-16 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
+            <div className="h-16 bg-gray-100 rounded-lg animate-pulse dark:bg-gray-900/40" />
           </div>
         </div>
         {/* Goals & Tasks skeleton */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
+            <div className="h-4 w-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
+            <div className="h-4 w-28 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
           </div>
           <div className="space-y-4">
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3">
-                <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+              <div className="bg-gray-50 px-4 py-3 dark:bg-gray-900/30">
+                <div className="h-4 w-48 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
               </div>
               <div className="divide-y divide-gray-100">
-                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-64 bg-gray-100 rounded animate-pulse" /></div>
-                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-56 bg-gray-100 rounded animate-pulse" /></div>
-                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-44 bg-gray-100 rounded animate-pulse" /></div>
+                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-64 bg-gray-100 rounded animate-pulse dark:bg-gray-900/40" /></div>
+                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-56 bg-gray-100 rounded animate-pulse dark:bg-gray-900/40" /></div>
+                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-44 bg-gray-100 rounded animate-pulse dark:bg-gray-900/40" /></div>
               </div>
             </div>
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3">
-                <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+              <div className="bg-gray-50 px-4 py-3 dark:bg-gray-900/30">
+                <div className="h-4 w-40 bg-gray-200 rounded animate-pulse dark:bg-gray-800" />
               </div>
               <div className="divide-y divide-gray-100">
-                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-52 bg-gray-100 rounded animate-pulse" /></div>
-                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-60 bg-gray-100 rounded animate-pulse" /></div>
+                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-52 bg-gray-100 rounded animate-pulse dark:bg-gray-900/40" /></div>
+                <div className="px-4 py-2.5 pl-8"><div className="h-4 w-60 bg-gray-100 rounded animate-pulse dark:bg-gray-900/40" /></div>
               </div>
             </div>
           </div>
@@ -1238,7 +1238,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   </button>
                   {canEdit && (
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => promoteNextGoal(goal.id)} className="text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-full transition-colors" title="Promote to active goals">Promote</button>
+                    <button onClick={() => promoteNextGoal(goal.id)} className="text-xs font-medium text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-full transition-colors dark:text-green-300 dark:bg-green-900/30" title="Promote to active goals">Promote</button>
                     <button onClick={() => deleteNextGoal(goal.id)} className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Delete goal">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
@@ -1271,7 +1271,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <span className="text-sm text-gray-700 dark:text-gray-200"><Linkify>{task.title}</Linkify></span>
                               )}
                               {canEdit && editingNextDescTask === task.id ? (
-                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
+                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30" />
                               ) : descText ? (
                                 <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><Linkify>{descText}</Linkify></div>
                               ) : canEdit ? (
@@ -1291,7 +1291,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   {canEdit && (
                   <div className="flex items-center gap-2 px-4 py-2 pl-8">
                     <input type="text" value={newNextTaskTitles[goal.id] || ""} onChange={(e) => setNewNextTaskTitles((prev) => ({ ...prev, [goal.id]: e.target.value }))} placeholder="Add a future task..." className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-700 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextTask(goal.id)} />
-                    <button onClick={() => addNextTask(goal.id)} disabled={!newNextTaskTitles[goal.id]?.trim()} className="text-xs text-purple-600 font-medium disabled:opacity-50">Add</button>
+                    <button onClick={() => addNextTask(goal.id)} disabled={!newNextTaskTitles[goal.id]?.trim()} className="text-xs text-purple-600 font-medium disabled:opacity-50 dark:text-purple-300">Add</button>
                   </div>
                   )}
                 </div>
@@ -1300,7 +1300,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             {canEdit && (
             <div className="flex items-center gap-2">
               <input type="text" value={newNextGoalTitle} onChange={(e) => setNewNextGoalTitle(e.target.value)} placeholder="Add a future goal..." className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500" onKeyDown={(e) => e.key === "Enter" && addNextGoal()} />
-              <button onClick={addNextGoal} disabled={!newNextGoalTitle.trim()} className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50">+ Add Goal</button>
+              <button onClick={addNextGoal} disabled={!newNextGoalTitle.trim()} className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50 dark:text-purple-300">+ Add Goal</button>
             </div>
             )}
           </div>
@@ -1508,7 +1508,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       </button>
                     ))}
                   </div>
-                  <button onClick={addMetricDefinition} disabled={!newMetricName.trim()} className="text-sm text-purple-600 font-medium disabled:opacity-50">Add Metric</button>
+                  <button onClick={addMetricDefinition} disabled={!newMetricName.trim()} className="text-sm text-purple-600 font-medium disabled:opacity-50 dark:text-purple-300">Add Metric</button>
                   <button onClick={() => { setAddingMetric(false); setNewMetricName(""); setNewMetricDefinition(""); setNewMetricFormat("number"); }} className="text-sm text-gray-400">Cancel</button>
                 </div>
               </div>
@@ -1516,7 +1516,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setAddingMetric(true)}
-                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium dark:text-purple-300"
                 >
                   + Add Metric
                 </button>
@@ -1535,7 +1535,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
         {/* Archived metrics */}
         {showArchived && (
-          <div className="mt-4 border-t border-gray-100 pt-3">
+          <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Archived Metrics</h4>
               <button onClick={() => setShowArchived(false)} className="text-xs text-gray-400 hover:text-gray-600">Hide</button>
@@ -1553,7 +1553,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {canEdit && (
                       <button
                         onClick={() => unarchiveMetric(m.id)}
-                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        className="text-xs text-purple-600 hover:text-purple-700 font-medium dark:text-purple-300"
                       >
                         Unarchive
                       </button>
@@ -1643,7 +1643,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               <button
                 onClick={addGoal}
                 disabled={!newGoalTitle.trim()}
-                className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-sm text-purple-600 font-medium hover:bg-purple-50 rounded-lg disabled:opacity-50 dark:text-purple-300"
               >
                 + Add Goal
               </button>
@@ -1772,7 +1772,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   )}
                   {goal.status === "done" && goal.statusChangedAt && (
-                    <span className="text-[10px] text-green-600 mt-0.5 block">Completed {new Date(goal.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(goal.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   )}
                 </div>
                 {canEdit && (
@@ -1833,7 +1833,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
-                    <option value="__delete__" className="text-red-600">🗑 Delete Goal</option>
+                    <option value="__delete__" className="text-red-600 dark:text-red-300">🗑 Delete Goal</option>
                   </select>
                 ) : (
                   <span className={`text-xs font-medium rounded-full px-2.5 py-1 ${getStatusColor(goal.status)}`}>
@@ -1844,7 +1844,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
               {/* Add task — at top so it's always visible */}
               {canEdit && !collapsedGoals.has(goal.id) && (
-                <div className="flex items-center gap-2 px-4 py-2 pl-8 border-b border-gray-100">
+                <div className="flex items-center gap-2 px-4 py-2 pl-8 border-b border-gray-100 dark:border-gray-800">
                   <input
                     type="text"
                     value={newTaskTitles[goal.id] || ""}
@@ -1856,7 +1856,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   <button
                     onClick={() => addTask(goal.id)}
                     disabled={!newTaskTitles[goal.id]?.trim()}
-                    className="text-xs text-purple-600 font-medium disabled:opacity-50"
+                    className="text-xs text-purple-600 font-medium disabled:opacity-50 dark:text-purple-300"
                   >
                     Add
                   </button>
@@ -2006,7 +2006,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 }}
                                 placeholder="Add details, links, notes..."
                                 rows={1}
-                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30"
                               />
                             ) : descText ? (
                               <div
@@ -2029,7 +2029,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             )}
                             {task.status === "done" && task.statusChangedAt && (
-                              <span className="text-[10px] text-green-600 mt-0.5 block">Completed {new Date(task.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                              <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(task.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                             )}
                             <TaskComments taskId={task.id} canEdit={canEdit} currentUserId={sessionUserId} />
                           </div>
@@ -2093,7 +2093,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               {STATUS_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
-                              <option value="__delete__" className="text-red-600">🗑 Delete Task</option>
+                              <option value="__delete__" className="text-red-600 dark:text-red-300">🗑 Delete Task</option>
                             </select>
                           ) : (
                             <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${getStatusColor(task.status)}`}>
@@ -2184,7 +2184,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                         ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }}
                                         placeholder="Add details, links, notes..."
                                         rows={1}
-                                        className="w-full mt-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        className="w-full mt-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30"
                                       />
                                     ) : subDescText ? (
                                       <div
@@ -2242,7 +2242,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                       {STATUS_OPTIONS.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                       ))}
-                                      <option value="__delete__" className="text-red-600">🗑 Delete subtask</option>
+                                      <option value="__delete__" className="text-red-600 dark:text-red-300">🗑 Delete subtask</option>
                                     </select>
                                   ) : (
                                     <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${getStatusColor(sub.status)}`}>
