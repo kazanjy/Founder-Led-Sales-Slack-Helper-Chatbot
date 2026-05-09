@@ -1,7 +1,44 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Fragment, ReactNode } from "react";
+import dynamic from "next/dynamic";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { TaskComments } from "@/components/TaskComments";
+
+// Loaded only on the client — TipTap pulls in a chunk we don't want to
+// pay for on SSR. Same pattern used by TaskComments for its comment
+// editor, reused here for goal / task / subtask descriptions.
+const RichTextCommentEditor = dynamic(
+  () => import("@/components/RichTextCommentEditor"),
+  { ssr: false }
+);
+
+// Shared read-only renderer for description prose. Markdown via
+// remark-gfm, with anchor override that opens links in a new tab.
+function DescriptionMarkdown({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ href, children, ...rest }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-600 hover:text-purple-800 underline break-all dark:text-purple-300 dark:hover:text-purple-200"
+            onClick={(e) => e.stopPropagation()}
+            {...rest}
+          >
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  );
+}
 
 // ── Linkify helper ───────────────────────────────────────────────
 const URL_REGEX = /(https?:\/\/[^\s<]+)/g;
@@ -1184,38 +1221,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       <>
                         <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
                         {editingNextGoalDescId === goal.id ? (
-                          <textarea
-                            value={goal.description || ""}
-                            onChange={(e) => updateNextGoalDescription(goal.id, e.target.value)}
-                            onBlur={() => setEditingNextGoalDescId(null)}
-                            placeholder="Add description..."
-                            rows={1}
-                            onInput={(e) => {
-                              const target = e.target as HTMLTextAreaElement;
-                              target.style.height = "auto";
-                              target.style.height = target.scrollHeight + "px";
-                            }}
-                            ref={(el) => {
-                              if (el) {
-                                el.style.height = "auto";
-                                el.style.height = el.scrollHeight + "px";
-                                if (!el.dataset.focused) {
-                                  el.dataset.focused = "1";
-                                  el.focus();
-                                  el.setSelectionRange(el.value.length, el.value.length);
-                                }
-                              }
-                            }}
-                            className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
-                          />
+                          <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingNextGoalDescId(null); } }}>
+                            <RichTextCommentEditor
+                              value={goal.description || ""}
+                              onChange={(md) => updateNextGoalDescription(goal.id, md)}
+                              onSubmit={() => setEditingNextGoalDescId(null)}
+                              autoFocus
+                              minHeight={48}
+                              placeholder="Add description…"
+                            />
+                            <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                          </div>
                         ) : goal.description ? (
                           <div
                             onClick={(e) => {
                               if (!(e.target instanceof HTMLAnchorElement)) setEditingNextGoalDescId(goal.id);
                             }}
-                            className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 whitespace-pre-wrap cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1"
+                            className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1"
                           >
-                            <Linkify>{goal.description}</Linkify>
+                            <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
                           </div>
                         ) : (
                           <button
@@ -1229,7 +1253,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     ) : (
                       <>
                         <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{goal.title}</span>
-                        {goal.description && <span className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5"><Linkify>{goal.description}</Linkify></span>}
+                        {goal.description && (
+                          <div className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                            <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1271,9 +1299,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <span className="text-sm text-gray-700 dark:text-gray-200"><Linkify>{task.title}</Linkify></span>
                               )}
                               {canEdit && editingNextDescTask === task.id ? (
-                                <textarea value={descText} onChange={(e) => { updateNextTaskDescription(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} onBlur={() => setEditingNextDescTask(null)} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }} placeholder="Add details, links, notes..." rows={1} className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30" />
+                                <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingNextDescTask(null); } }}>
+                                  <RichTextCommentEditor
+                                    value={descText}
+                                    onChange={(md) => updateNextTaskDescription(task.id, md)}
+                                    onSubmit={() => setEditingNextDescTask(null)}
+                                    autoFocus
+                                    minHeight={48}
+                                    placeholder="Add details, links, notes…"
+                                  />
+                                  <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                                </div>
                               ) : descText ? (
-                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><Linkify>{descText}</Linkify></div>
+                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><DescriptionMarkdown>{descText}</DescriptionMarkdown></div>
                               ) : canEdit ? (
                                 <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                               ) : null}
@@ -1727,38 +1765,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <span className="font-medium text-gray-900 dark:text-gray-100 text-sm"><Linkify>{goal.title}</Linkify></span>
                   )}
                   {canEdit && editingGoalDescId === goal.id ? (
-                    <textarea
-                      value={goal.description || ""}
-                      onChange={(e) => updateGoalDescription(goal.id, e.target.value)}
-                      onBlur={() => setEditingGoalDescId(null)}
-                      placeholder="Add description..."
-                      rows={1}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = "auto";
-                        target.style.height = target.scrollHeight + "px";
-                      }}
-                      ref={(el) => {
-                        if (el) {
-                          el.style.height = "auto";
-                          el.style.height = el.scrollHeight + "px";
-                          if (!el.dataset.focused) {
-                            el.dataset.focused = "1";
-                            el.focus();
-                            el.setSelectionRange(el.value.length, el.value.length);
-                          }
-                        }
-                      }}
-                      className="text-xs text-gray-600 dark:text-gray-300 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 mt-0.5 resize-none overflow-hidden"
-                    />
+                    <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingGoalDescId(null); } }}>
+                      <RichTextCommentEditor
+                        value={goal.description || ""}
+                        onChange={(md) => updateGoalDescription(goal.id, md)}
+                        onSubmit={() => setEditingGoalDescId(null)}
+                        autoFocus
+                        minHeight={48}
+                        placeholder="Add description…"
+                      />
+                      <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                    </div>
                   ) : goal.description ? (
                     <div
                       onClick={(e) => {
                         if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingGoalDescId(goal.id);
                       }}
-                      className={`text-xs text-gray-600 dark:text-gray-300 block mt-0.5 whitespace-pre-wrap ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                      className={`text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                     >
-                      <Linkify>{goal.description}</Linkify>
+                      <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
                     </div>
                   ) : canEdit ? (
                     <button
@@ -1976,46 +2001,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             )}
                             {/* Description */}
                             {editingDescTask === task.id ? (
-                              <textarea
-                                value={descText}
-                                onChange={(e) => {
-                                  updateTaskDescription(task.id, e.target.value);
-                                  e.target.style.height = "auto";
-                                  e.target.style.height = e.target.scrollHeight + "px";
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    const el = e.currentTarget;
-                                    requestAnimationFrame(() => {
-                                      el.style.height = "auto";
-                                      el.style.height = el.scrollHeight + "px";
-                                    });
-                                  }
-                                }}
-                                onBlur={() => setEditingDescTask(null)}
-                                ref={(el) => {
-                                  if (el) {
-                                    el.style.height = "auto";
-                                    el.style.height = el.scrollHeight + "px";
-                                    if (!el.dataset.focused) {
-                                      el.dataset.focused = "1";
-                                      el.focus();
-                                      el.setSelectionRange(el.value.length, el.value.length);
-                                    }
-                                  }
-                                }}
-                                placeholder="Add details, links, notes..."
-                                rows={1}
-                                className="w-full mt-1 px-2.5 py-1.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30"
-                              />
+                              <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingDescTask(null); } }}>
+                                <RichTextCommentEditor
+                                  value={descText}
+                                  onChange={(md) => updateTaskDescription(task.id, md)}
+                                  onSubmit={() => setEditingDescTask(null)}
+                                  autoFocus
+                                  minHeight={56}
+                                  placeholder="Add details, links, notes…"
+                                />
+                                <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                              </div>
                             ) : descText ? (
                               <div
                                 onClick={(e) => {
                                   if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
                                 }}
-                                className={`text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                                className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                               >
-                                <Linkify>{descText}</Linkify>
+                                <DescriptionMarkdown>{descText}</DescriptionMarkdown>
                               </div>
                             ) : canEdit ? (
                               <button
@@ -2177,21 +2181,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                       </span>
                                     )}
                                     {editingDescTask === sub.id ? (
-                                      <textarea
-                                        value={subDescText}
-                                        onChange={(e) => { updateTaskDescription(sub.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
-                                        onBlur={() => setEditingDescTask(null)}
-                                        ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; if (!el.dataset.focused) { el.dataset.focused = "1"; el.focus(); el.setSelectionRange(el.value.length, el.value.length); } } }}
-                                        placeholder="Add details, links, notes..."
-                                        rows={1}
-                                        className="w-full mt-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded resize-none overflow-hidden focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-900/30"
-                                      />
+                                      <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingDescTask(null); } }}>
+                                        <RichTextCommentEditor
+                                          value={subDescText}
+                                          onChange={(md) => updateTaskDescription(sub.id, md)}
+                                          onSubmit={() => setEditingDescTask(null)}
+                                          autoFocus
+                                          minHeight={48}
+                                          placeholder="Add details, links, notes…"
+                                        />
+                                        <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                                      </div>
                                     ) : subDescText ? (
                                       <div
                                         onClick={(e) => { if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(sub.id); }}
-                                        className={`text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap mt-0.5 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                                        className={`text-xs text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                                       >
-                                        <Linkify>{subDescText}</Linkify>
+                                        <DescriptionMarkdown>{subDescText}</DescriptionMarkdown>
                                       </div>
                                     ) : canEdit ? (
                                       <button onClick={() => setEditingDescTask(sub.id)} className="text-[10px] text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
