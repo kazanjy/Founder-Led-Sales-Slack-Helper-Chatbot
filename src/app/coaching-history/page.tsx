@@ -547,8 +547,10 @@ function CoachingHistoryContent() {
   const handleWhatNext = async () => {
     setWhatNextLoading(true);
     try {
-      // Build context from readiness state + coaching sessions
-      let context = "";
+      // Build context from readiness state + coaching sessions.
+      // The headline question goes first so the model reads it before
+      // wading through the structured state below.
+      let context = "Based on the most recent coaching discussions, where did we leave off and what's next?\n\n---\n\n";
 
       // Fetch readiness state
       try {

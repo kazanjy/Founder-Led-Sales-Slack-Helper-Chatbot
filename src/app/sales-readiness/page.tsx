@@ -589,8 +589,11 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       windowStageKeys.add(stageOrder[currentStageIdx]);
       if (currentStageIdx < stageOrder.length - 1) windowStageKeys.add(stageOrder[currentStageIdx + 1]);
 
-      // Build the request first so GPT reads it before the data
-      let context = "## Your Request\n\n";
+      // Build the request first so GPT reads it before the data.
+      // Lead with the headline question so the model sees it before
+      // any of the structured context that follows.
+      let context = "Based on the most recent coaching discussions, where did we leave off and what's next?\n\n---\n\n";
+      context += "## Your Request\n\n";
       context += `I'm currently at the "${currentStageInfo?.short || "Unknown"}" maturity stage. `;
       context += "Based on the readiness data and coaching sessions that follow below, what should I focus on next?\n\n";
       context += "You'll see the previous stage, current stage, and next stage below. ";
