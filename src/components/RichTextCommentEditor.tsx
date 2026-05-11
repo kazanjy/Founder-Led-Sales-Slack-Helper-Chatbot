@@ -14,6 +14,11 @@ interface RichTextCommentEditorProps {
   placeholder?: string;
   /** Optional: ⌘/Ctrl-Enter to submit. */
   onSubmit?: () => void;
+  /** Fires when the editor loses focus. Use to commit-and-close on
+   *  click-out. Toolbar buttons preventDefault on mousedown so they
+   *  don't trigger blur — only a genuine click outside the editor
+   *  surface fires this. */
+  onBlur?: () => void;
   autoFocus?: boolean;
   /** Min visible height in px before the editor grows with content. */
   minHeight?: number;
@@ -54,6 +59,7 @@ export default function RichTextCommentEditor({
   onChange,
   placeholder = "Add a comment…",
   onSubmit,
+  onBlur,
   autoFocus = false,
   minHeight = 64,
 }: RichTextCommentEditorProps) {
@@ -97,6 +103,9 @@ export default function RichTextCommentEditor({
     content: value,
     autofocus: autoFocus ? "end" : false,
     onUpdate: handleUpdate,
+    onBlur: () => {
+      onBlur?.();
+    },
     editorProps: {
       attributes: {
         class:

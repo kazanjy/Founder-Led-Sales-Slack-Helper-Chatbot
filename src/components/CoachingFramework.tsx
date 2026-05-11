@@ -1064,6 +1064,70 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     }, 1500);
   };
 
+  // Flush helpers — cancel the pending 1500ms debounce and fire the
+  // PATCH immediately with the latest value already in optimistic
+  // state. Used by description editors on blur so click-out commits
+  // the edit synchronously instead of relying on the debounce timer
+  // (which the user could outrun by navigating away).
+  const flushTaskDescriptionSave = (taskId: string) => {
+    if (descSaveTimers.current[taskId]) {
+      clearTimeout(descSaveTimers.current[taskId]);
+      delete descSaveTimers.current[taskId];
+    }
+    const task = goals.flatMap((g) => g.tasks).find((t) => t.id === taskId);
+    if (!task) return;
+    void fetch(`/api/coaching/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: task.description ?? "" }),
+    });
+  };
+
+  const flushGoalDescriptionSave = (goalId: string) => {
+    const key = `goal-desc-${goalId}`;
+    if (descSaveTimers.current[key]) {
+      clearTimeout(descSaveTimers.current[key]);
+      delete descSaveTimers.current[key];
+    }
+    const goal = goals.find((g) => g.id === goalId);
+    if (!goal) return;
+    void fetch(`/api/coaching/goals/${goalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: goal.description ?? "" }),
+    });
+  };
+
+  const flushNextGoalDescriptionSave = (goalId: string) => {
+    const key = `next-goal-desc-${goalId}`;
+    if (descSaveTimers.current[key]) {
+      clearTimeout(descSaveTimers.current[key]);
+      delete descSaveTimers.current[key];
+    }
+    const goal = nextGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+    void fetch(`/api/coaching/next-goals/${goalId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: goal.description ?? "" }),
+    });
+  };
+
+  const flushNextTaskDescriptionSave = (taskId: string) => {
+    const key = `next-task-desc-${taskId}`;
+    if (descSaveTimers.current[key]) {
+      clearTimeout(descSaveTimers.current[key]);
+      delete descSaveTimers.current[key];
+    }
+    const task = nextGoals.flatMap((g) => g.tasks).find((t) => t.id === taskId);
+    if (!task) return;
+    void fetch(`/api/coaching/next-tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: task.description ?? "" }),
+    });
+  };
+
   const deleteNextGoal = async (goalId: string) => {
     if (!window.confirm("Delete this future goal and all its tasks?")) return;
     setNextGoals((prev) => prev.filter((g) => g.id !== goalId));
@@ -1233,12 +1297,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             <RichTextCommentEditor
                               value={goal.description || ""}
                               onChange={(md) => updateNextGoalDescription(goal.id, md)}
-                              onSubmit={() => setEditingNextGoalDescId(null)}
+                              onSubmit={() => { flushNextGoalDescriptionSave(goal.id); setEditingNextGoalDescId(null); }}
+                              onBlur={() => { flushNextGoalDescriptionSave(goal.id); setEditingNextGoalDescId(null); }}
                               autoFocus
                               minHeight={48}
                               placeholder="Add description…"
                             />
-                            <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                            <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                           </div>
                         ) : goal.description ? (
                           <div
@@ -1311,12 +1376,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                   <RichTextCommentEditor
                                     value={descText}
                                     onChange={(md) => updateNextTaskDescription(task.id, md)}
-                                    onSubmit={() => setEditingNextDescTask(null)}
+                                    onSubmit={() => { flushNextTaskDescriptionSave(task.id); setEditingNextDescTask(null); }}
+                                    onBlur={() => { flushNextTaskDescriptionSave(task.id); setEditingNextDescTask(null); }}
                                     autoFocus
                                     minHeight={48}
                                     placeholder="Add details, links, notes…"
                                   />
-                                  <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                                  <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                                 </div>
                               ) : descText ? (
                                 <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><DescriptionMarkdown>{descText}</DescriptionMarkdown></div>
@@ -1777,12 +1843,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       <RichTextCommentEditor
                         value={goal.description || ""}
                         onChange={(md) => updateGoalDescription(goal.id, md)}
-                        onSubmit={() => setEditingGoalDescId(null)}
+                        onSubmit={() => { flushGoalDescriptionSave(goal.id); setEditingGoalDescId(null); }}
+                        onBlur={() => { flushGoalDescriptionSave(goal.id); setEditingGoalDescId(null); }}
                         autoFocus
                         minHeight={48}
                         placeholder="Add description…"
                       />
-                      <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                      <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                     </div>
                   ) : goal.description ? (
                     <div
@@ -2013,12 +2080,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <RichTextCommentEditor
                                   value={descText}
                                   onChange={(md) => updateTaskDescription(task.id, md)}
-                                  onSubmit={() => setEditingDescTask(null)}
+                                  onSubmit={() => { flushTaskDescriptionSave(task.id); setEditingDescTask(null); }}
+                                  onBlur={() => { flushTaskDescriptionSave(task.id); setEditingDescTask(null); }}
                                   autoFocus
                                   minHeight={56}
                                   placeholder="Add details, links, notes…"
                                 />
-                                <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                                <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                               </div>
                             ) : descText ? (
                               <div
@@ -2193,12 +2261,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                         <RichTextCommentEditor
                                           value={subDescText}
                                           onChange={(md) => updateTaskDescription(sub.id, md)}
-                                          onSubmit={() => setEditingDescTask(null)}
+                                          onSubmit={() => { flushTaskDescriptionSave(sub.id); setEditingDescTask(null); }}
+                                          onBlur={() => { flushTaskDescriptionSave(sub.id); setEditingDescTask(null); }}
                                           autoFocus
                                           minHeight={48}
                                           placeholder="Add details, links, notes…"
                                         />
-                                        <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel</div>
+                                        <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                                       </div>
                                     ) : subDescText ? (
                                       <div
