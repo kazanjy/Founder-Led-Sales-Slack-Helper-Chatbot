@@ -23,13 +23,36 @@ export async function GET(request: NextRequest) {
       if (targetUser) userId = targetUser.id;
     }
 
-    const where: { userId: string; status?: string; createdAt?: { lte: Date } } = { userId };
+    const where: {
+      userId: string;
+      status?: string;
+      sessionId?: string;
+      createdAt?: { lte?: Date; lt?: Date };
+      OR?: Array<{ sessionId?: string; createdAt?: { lt?: Date } }>;
+    } = { userId };
     if (status) {
       where.status = status;
     }
     const createdBefore = searchParams.get("createdBefore");
-    if (createdBefore) {
+    const sessionIdParam = searchParams.get("sessionId");
+
+    // Three filter shapes:
+    //   1. sessionId + createdBefore — non-locked session view. Include
+    //      this session's own goals (sessionId match) OR earlier-created
+    //      active goals (carry-forward from prior sessions). Stops
+    //      goals authored in a NEWER session from polluting this view.
+    //   2. createdBefore only — locked session snapshot (everything
+    //      that existed at lock time).
+    //   3. sessionId only — single-session view (rare).
+    if (sessionIdParam && createdBefore) {
+      where.OR = [
+        { sessionId: sessionIdParam },
+        { createdAt: { lt: new Date(createdBefore) } },
+      ];
+    } else if (createdBefore) {
       where.createdAt = { lte: new Date(createdBefore) };
+    } else if (sessionIdParam) {
+      where.sessionId = sessionIdParam;
     }
 
     const goals = await prisma.coachingGoal.findMany({
@@ -41,6 +64,20 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+
+    // For carry-forward goals (not native to this session) the parent
+    // goal might have had tasks added in a NEWER session that we also
+    // need to clip — otherwise the user would still see tasks-from-the-
+    // future on an older session view. Tasks native to this session's
+    // own goals (sessionId match) are kept regardless of createdAt.
+    if (sessionIdParam && createdBefore) {
+      const cutoff = new Date(createdBefore);
+      for (const goal of goals) {
+        if (goal.sessionId !== sessionIdParam) {
+          goal.tasks = goal.tasks.filter((t) => t.createdAt < cutoff);
+        }
+      }
+    }
 
     return NextResponse.json({ goals });
   } catch (error) {

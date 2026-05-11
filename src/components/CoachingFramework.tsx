@@ -288,15 +288,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     try {
       const userParam = sessionUserId ? `&userId=${sessionUserId}` : "";
       // For locked sessions, show all goals that existed at the time (any status)
-      // For active sessions, show only active goals
+      // For active sessions, show only active goals. Either way, pass
+      // a time cutoff so this session's view stays bounded — locked
+      // uses updatedAt (the lock time), non-locked uses the session's
+      // own createdAt + a sessionId match so own-session goals show
+      // alongside earlier carry-forwards but NEWER sessions' goals
+      // don't pollute this view.
       const isLockedSession = sessionStatus === "locked";
       const goalsStatusParam = isLockedSession ? "" : "status=active";
-      const cutoffParam = isLockedSession && sessionUpdatedAt
-        ? `&createdBefore=${sessionUpdatedAt}`
-        : "";
+      let scopeParams = "";
+      if (isLockedSession && sessionUpdatedAt) {
+        scopeParams = `&createdBefore=${sessionUpdatedAt}`;
+      } else if (!isLockedSession && sessionCreatedAt) {
+        scopeParams = `&sessionId=${sessionId}&createdBefore=${sessionCreatedAt}`;
+      }
       const [stageRes, goalsRes, metricsRes, nextGoalsRes] = await Promise.all([
         fetch("/api/coaching/maturity-stage"),
-        fetch(`/api/coaching/goals?${goalsStatusParam}${userParam}${cutoffParam}`),
+        fetch(`/api/coaching/goals?${goalsStatusParam}${userParam}${scopeParams}`),
         fetch(`/api/coaching-sessions/${sessionId}/metrics`),
         fetch(`/api/coaching/next-goals?_=1${userParam}`),
       ]);
