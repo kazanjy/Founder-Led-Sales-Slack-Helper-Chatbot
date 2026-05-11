@@ -14,13 +14,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { title, context, autoSend } = await request.json();
+    const { title, context, autoSend, mode } = await request.json();
 
     if (!context || typeof context !== "string") {
       return NextResponse.json({ error: "Context is required" }, { status: 400 });
     }
 
     const conversationTitle = title || "Chat About Asset";
+    // Validate mode — defaults to CHATBASE (schema default) so
+    // existing callers don't change behavior. Callers that want
+    // GPT's longer context window — e.g., the "What's Next" coaching
+    // + readiness flow that bundles full transcripts — pass "DIRECT".
+    const conversationMode: "CHATBASE" | "DIRECT" = mode === "DIRECT" ? "DIRECT" : "CHATBASE";
 
     // If autoSend, create empty conversation (message will be sent by chat page)
     // Otherwise, create with user message pre-seeded
@@ -28,6 +33,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         source: "WEB",
+        mode: conversationMode,
         title: conversationTitle,
         firstMessagePreview: context.substring(0, 100),
         messageCount: autoSend ? 0 : 1,

@@ -635,7 +635,7 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
         }
       }
 
-      // Fetch last 3 coaching sessions (without transcripts)
+      // Fetch last 3 coaching sessions (notes + goals + transcript)
       try {
         const sessionsRes = await fetch("/api/coaching-sessions");
         if (sessionsRes.ok) {
@@ -676,6 +676,16 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
                     }
                     context += "\n";
                   }
+
+                  // Include the verbatim transcript alongside notes —
+                  // 30k-char cap per session so 3 sessions stay under
+                  // ~22k tokens, comfortably within GPT's window.
+                  if (session.transcript) {
+                    const transcriptTruncated = session.transcript.length > 30000
+                      ? session.transcript.substring(0, 30000) + "\n...[transcript truncated]"
+                      : session.transcript;
+                    context += `**Transcript:**\n${transcriptTruncated}\n\n`;
+                  }
                 }
               } catch { /* skip this session */ }
             }
@@ -691,6 +701,10 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
           title: "What Next? — GTM Readiness Recommendations",
           context,
           autoSend: true,
+          // GPT direct mode so the model gets the full readiness state
+          // + recent coaching transcripts in a single window instead of
+          // going through Chatbase's RAG pipeline.
+          mode: "DIRECT",
         }),
       });
       const data = await res.json();

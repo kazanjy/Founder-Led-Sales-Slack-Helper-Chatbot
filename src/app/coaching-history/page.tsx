@@ -614,6 +614,17 @@ function CoachingHistoryContent() {
                 }
                 context += "\n";
               }
+              // Transcripts ride alongside notes so the model has the
+              // verbatim record of what was discussed, not just the
+              // post-hoc summary. Cap at 30k chars per transcript so
+              // one long call doesn't dominate; with 3 sessions that's
+              // ~90k chars / ~22k tokens, well within GPT's window.
+              if (session.transcript) {
+                const transcriptTruncated = session.transcript.length > 30000
+                  ? session.transcript.substring(0, 30000) + "\n...[transcript truncated]"
+                  : session.transcript;
+                context += `**Transcript:**\n${transcriptTruncated}\n\n`;
+              }
             }
           } catch { /* skip */ }
         }
@@ -634,6 +645,10 @@ function CoachingHistoryContent() {
           title: "What Next? — Coaching & Readiness Recommendations",
           context,
           autoSend: true,
+          // GPT direct mode so the model gets the full context window
+          // (transcripts + readiness state + coaching goals/tasks)
+          // rather than going through Chatbase's RAG pipeline.
+          mode: "DIRECT",
         }),
       });
       const data = await res.json();
