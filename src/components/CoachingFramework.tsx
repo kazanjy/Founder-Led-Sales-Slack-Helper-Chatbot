@@ -287,6 +287,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [dragTask, setDragTask] = useState<{ goalId: string; taskId: string } | null>(null);
   const [dragOverGoal, setDragOverGoal] = useState<string | null>(null);
   const [dragOverTask, setDragOverTask] = useState<string | null>(null);
+  // Subtask drag — scoped to one parent at a time, since subtasks
+  // can't be moved across parents (the model doesn't reparent on drop).
+  const [dragSubtask, setDragSubtask] = useState<{ parentTaskId: string; subId: string } | null>(null);
+  const [dragOverSubtask, setDragOverSubtask] = useState<string | null>(null);
   // Drag state for metric tiles. Keyed on the metric *definition* id so
   // the persist call hits /api/coaching/metrics/[id] (the definition is
   // the authority on order; per-session entries inherit it).
@@ -696,6 +700,49 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
     setDragTask(null);
     setDragOverTask(null);
+  };
+
+  const handleSubtaskDrop = (parentTaskId: string, targetSubId: string) => {
+    if (!dragSubtask || dragSubtask.parentTaskId !== parentTaskId) {
+      setDragSubtask(null);
+      setDragOverSubtask(null);
+      return;
+    }
+    if (dragSubtask.subId === targetSubId) {
+      setDragSubtask(null);
+      setDragOverSubtask(null);
+      return;
+    }
+    setGoals((prev) =>
+      prev.map((g) => {
+        const hasParent = g.tasks.some((t) => t.id === parentTaskId);
+        if (!hasParent) return g;
+        const siblings = g.tasks
+          .filter((t) => t.parentTaskId === parentTaskId)
+          .sort((a, b) => a.order - b.order);
+        const fromIdx = siblings.findIndex((t) => t.id === dragSubtask.subId);
+        const toIdx = siblings.findIndex((t) => t.id === targetSubId);
+        if (fromIdx === -1 || toIdx === -1) return g;
+        const reordered = [...siblings];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        // Reassign order on the reordered siblings and persist. Top-
+        // level tasks share the order column but live in their own
+        // sort space (subtasksByParent sorts per-parent), so we don't
+        // need to renumber them.
+        const reorderedWithIndex = reordered.map((t, i) => ({ ...t, order: i }));
+        persistTaskOrder(reorderedWithIndex);
+        // Splice the updated subtasks back into the goal's tasks array
+        // in place of the originals.
+        const updatedTasks = g.tasks.map((t) => {
+          if (t.parentTaskId !== parentTaskId) return t;
+          return reorderedWithIndex.find((r) => r.id === t.id) ?? t;
+        });
+        return { ...g, tasks: updatedTasks };
+      })
+    );
+    setDragSubtask(null);
+    setDragOverSubtask(null);
   };
 
   const handleTaskDropOnGoal = (goalId: string) => {
@@ -2302,7 +2349,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             <div
                               key={sub.id}
                               id={`task-${sub.id}`}
-                              className={`px-3 py-1.5 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === sub.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""}`}
+                              draggable={canEdit}
+                              onDragStart={canEdit ? (e) => { e.stopPropagation(); setDragSubtask({ parentTaskId: task.id, subId: sub.id }); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                              onDragEnd={canEdit ? (e) => { e.stopPropagation(); setDragSubtask(null); setDragOverSubtask(null); } : undefined}
+                              onDragOver={canEdit ? (e) => { if (dragSubtask && dragSubtask.parentTaskId === task.id && dragSubtask.subId !== sub.id) { e.preventDefault(); e.stopPropagation(); setDragOverSubtask(sub.id); } } : undefined}
+                              onDragLeave={canEdit ? () => setDragOverSubtask((cur) => (cur === sub.id ? null : cur)) : undefined}
+                              onDrop={canEdit ? (e) => { e.stopPropagation(); handleSubtaskDrop(task.id, sub.id); } : undefined}
+                              className={`px-3 py-1.5 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === sub.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""} ${dragSubtask?.subId === sub.id ? "opacity-40" : ""} ${dragOverSubtask === sub.id && dragSubtask ? "border-t-2 border-purple-400" : ""}`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-start gap-2 min-w-0 flex-1">
