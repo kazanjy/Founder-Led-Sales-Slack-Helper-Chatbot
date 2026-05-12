@@ -42,13 +42,18 @@ export async function GET(
 
     // For each entry, look up the most recent prior session's value for
     // the same metric so the UI can show "Last session: X" alongside the
-    // new input. Prior == any earlier-dated non-draft session belonging
-    // to this user (createdAt is the tiebreaker for same-date sessions).
-    // Drafts are excluded because the create-session flow seeds an
-    // auto-saved draft with currentValue=0 for every metric, which
-    // would otherwise be returned as the "prior" value and stomp the
-    // real previous session.
+    // new input, AND build a longer history list (up to 10 entries per
+    // metric) so a hover popover can show the recent trend.
+    // Prior == any earlier-dated non-draft session belonging to this
+    // user (createdAt is the tiebreaker for same-date sessions). Drafts
+    // are excluded because the create-session flow seeds an auto-saved
+    // draft with currentValue=0 for every metric.
+    const HISTORY_LIMIT = 10;
     const previousByDefId: Record<string, number> = {};
+    const historyByDefId: Record<
+      string,
+      Array<{ sessionId: string; sessionTitle: string; sessionDate: string; value: number }>
+    > = {};
     if (entries.length > 0) {
       const defIds = entries.map((e) => e.metricDefinitionId);
       const priorEntries = await prisma.coachingMetricEntry.findMany({
@@ -73,11 +78,20 @@ export async function GET(
           { session: { sessionDate: "desc" } },
           { session: { createdAt: "desc" } },
         ],
-        include: { session: { select: { sessionDate: true, createdAt: true } } },
+        include: { session: { select: { id: true, title: true, sessionDate: true, createdAt: true } } },
       });
       for (const pe of priorEntries) {
         if (previousByDefId[pe.metricDefinitionId] === undefined) {
           previousByDefId[pe.metricDefinitionId] = pe.currentValue;
+        }
+        const arr = historyByDefId[pe.metricDefinitionId] ?? (historyByDefId[pe.metricDefinitionId] = []);
+        if (arr.length < HISTORY_LIMIT) {
+          arr.push({
+            sessionId: pe.session.id,
+            sessionTitle: pe.session.title,
+            sessionDate: pe.session.sessionDate.toISOString(),
+            value: pe.currentValue,
+          });
         }
       }
     }
@@ -85,6 +99,7 @@ export async function GET(
     const entriesWithPrev = entries.map((e) => ({
       ...e,
       previousValue: previousByDefId[e.metricDefinitionId] ?? null,
+      history: historyByDefId[e.metricDefinitionId] ?? [],
     }));
 
     return NextResponse.json({ entries: entriesWithPrev });
