@@ -553,6 +553,41 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       const fromIdx = prev.findIndex((m) => m.metricDefinition.id === dragMetricDefId);
       const toIdx = prev.findIndex((m) => m.metricDefinition.id === targetDefId);
       if (fromIdx < 0 || toIdx < 0) return prev;
+
+      const dragged = prev[fromIdx];
+      const target = prev[toIdx];
+
+      // Special-case: dragging a metric tile onto a section header
+      // means "add this to that section" — append it to the end of
+      // that section (just before the next section header, or end of
+      // list). Without this, dropping on a section would just swap
+      // their order positions, which is rarely what the user wants
+      // and leaves the section row stranded with empty cells.
+      if (
+        dragged.metricDefinition.kind !== "section" &&
+        target.metricDefinition.kind === "section"
+      ) {
+        // Find the index of the next section header after target.
+        let endOfSectionIdx = prev.length;
+        for (let i = toIdx + 1; i < prev.length; i++) {
+          if (prev[i].metricDefinition.kind === "section") {
+            endOfSectionIdx = i;
+            break;
+          }
+        }
+        const next = [...prev];
+        const [moved] = next.splice(fromIdx, 1);
+        // Splice may have shifted the target end-index by one if the
+        // dragged tile lived before it in the original array.
+        const insertAt = fromIdx < endOfSectionIdx ? endOfSectionIdx - 1 : endOfSectionIdx;
+        next.splice(insertAt, 0, moved);
+        persistMetricOrder(next);
+        return next;
+      }
+
+      // Default: standard reorder — splice the dragged item into the
+      // target's slot. Works for metric→metric, section→section, and
+      // section→metric.
       const next = [...prev];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
