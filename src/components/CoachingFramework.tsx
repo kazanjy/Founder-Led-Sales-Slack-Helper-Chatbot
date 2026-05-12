@@ -1565,6 +1565,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               onDrop={canEdit ? () => handleMetricDrop(entry.metricDefinition.id) : undefined}
               className={`bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 text-center relative group group/metric transition-all ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${dragMetricDefId === entry.metricDefinition.id ? "opacity-40" : ""} ${dragOverMetricDefId === entry.metricDefinition.id && dragMetricDefId ? "ring-2 ring-purple-400 ring-offset-1" : ""}`}
             >
+              {/* Drag handle — six-dot grip in the top-left, fades in
+                  on tile hover. Visible affordance for the
+                  drag-to-reorder behavior wired on the tile div. */}
+              {canEdit && (
+                <div className="absolute top-1 left-1 text-gray-300 dark:text-gray-500 opacity-0 group-hover/metric:opacity-100 transition-opacity pointer-events-none">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                    <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                  </svg>
+                </div>
+              )}
               {/* Fast popover tooltip */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/metric:opacity-100 transition-opacity duration-100 pointer-events-none z-10 max-w-xs">
                 <div className="font-medium">{entry.metricDefinition.name}</div>
