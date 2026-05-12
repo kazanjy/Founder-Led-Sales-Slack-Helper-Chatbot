@@ -290,6 +290,28 @@ function CoachingHistoryContent() {
     loadSessions();
   }, [loadSessions]);
 
+  // Default-select the most recent session on initial nav from the
+  // nav bar (no ?session= in the URL). Runs once after the first
+  // sessions fetch resolves. Drafts are skipped — the autosaved
+  // draft sits at the top of the list whenever the user has clicked
+  // "New Session" but hasn't promoted yet, and landing on a draft
+  // would be confusing.
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    if (loading) return;
+    if (selectedId) {
+      autoSelectedRef.current = true;
+      return;
+    }
+    if (searchParams.get("session")) return;
+    const mostRecent = sessions.find((s) => s.notes !== "(draft)");
+    if (mostRecent) {
+      autoSelectedRef.current = true;
+      selectSession(mostRecent.id);
+    }
+  }, [loading, sessions, selectedId, searchParams, selectSession]);
+
   const selectedSession = sessions.find((s) => s.id === selectedId) || null;
   const checkedSessions = sessions.filter((s) => checkedIds.has(s.id));
 
