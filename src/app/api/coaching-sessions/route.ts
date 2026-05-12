@@ -124,9 +124,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Create empty metric entries for all active (non-archived) metric definitions
+    // 5. Create empty metric entries for all active (non-archived) metric
+    //    definitions. Sections are layout markers, not data — exclude
+    //    them so we don't seed bogus entries for them.
     const allMetrics = await prisma.coachingMetricDefinition.findMany({
-      where: { userId: user.id, archived: false },
+      where: { userId: user.id, archived: false, kind: "metric" },
       orderBy: { order: "asc" },
     });
 

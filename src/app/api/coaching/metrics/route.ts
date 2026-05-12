@@ -48,11 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, definition, format, interval } = body;
+    const { name, definition, format, interval, kind } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
+
+    const safeKind: "metric" | "section" = kind === "section" ? "section" : "metric";
 
     const maxOrder = await prisma.coachingMetricDefinition.aggregate({
       where: { userId: user.id },
@@ -65,10 +67,13 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         name: name.trim(),
-        definition: definition?.trim() || null,
-        format: format || "number",
-        interval: interval || null,
+        // Sections only carry a name + order; format/definition/
+        // interval are unused for them.
+        definition: safeKind === "metric" ? (definition?.trim() || null) : null,
+        format: safeKind === "metric" ? (format || "number") : "number",
+        interval: safeKind === "metric" ? (interval || null) : null,
         order,
+        kind: safeKind,
       },
     });
 

@@ -25,6 +25,14 @@ export async function POST(
       );
     }
 
+    // Sections are layout markers, not data — they never have entries.
+    if (metric.kind === "section") {
+      return NextResponse.json(
+        { error: "Cannot create entries for a section" },
+        { status: 400 }
+      );
+    }
+
     // Allow same-account access
     if (metric.userId !== user.id) {
       if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });

@@ -158,6 +158,11 @@ interface MetricEntry {
     definition?: string;
     format?: string;
     isDefault: boolean;
+    /** "metric" (default) — a value tile.
+     *  "section" — a layout-only header strip used to break the grid
+     *  into named sections. Section items share the entries array but
+     *  their currentValue / previousValue / history fields are unused. */
+    kind?: "metric" | "section";
   };
 }
 
@@ -1021,6 +1026,33 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     }
   };
 
+  // Insert a new section header into the metrics grid. Sections share
+  // the order column with metric tiles; the API picks max(order)+1 so
+  // the new section lands at the end and the user can drag it into
+  // place.
+  const addSection = async () => {
+    const res = await fetch("/api/coaching/metrics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "New section", kind: "section" }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    setMetricEntries((prev) => [...prev, {
+      id: `section-${data.metric.id}`,
+      currentValue: 0,
+      addedSinceLastSession: 0,
+      previousValue: null,
+      history: [],
+      metricDefinition: {
+        id: data.metric.id,
+        name: data.metric.name,
+        isDefault: false,
+        kind: "section",
+      },
+    }]);
+  };
+
   const archiveMetric = async (metricDefId: string) => {
     // Optimistic: remove from active entries
     const archived = metricEntries.find((e) => e.metricDefinition.id === metricDefId);
@@ -1554,7 +1586,58 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           <span>📊</span> Metrics
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {metricEntries.map((entry) => (
+          {metricEntries.map((entry) => {
+            // Section markers render as a full-width header strip so
+            // the next tile starts on a fresh row. They share the same
+            // drag/drop wiring as tiles since order is the only thing
+            // that matters for reordering.
+            if (entry.metricDefinition.kind === "section") {
+              return (
+                <div
+                  key={entry.id}
+                  draggable={canEdit}
+                  onDragStart={canEdit ? (e) => { setDragMetricDefId(entry.metricDefinition.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+                  onDragEnd={canEdit ? () => { setDragMetricDefId(null); setDragOverMetricDefId(null); } : undefined}
+                  onDragOver={canEdit ? (e) => { if (dragMetricDefId && dragMetricDefId !== entry.metricDefinition.id) { e.preventDefault(); setDragOverMetricDefId(entry.metricDefinition.id); } } : undefined}
+                  onDragLeave={canEdit ? () => setDragOverMetricDefId((cur) => (cur === entry.metricDefinition.id ? null : cur)) : undefined}
+                  onDrop={canEdit ? () => handleMetricDrop(entry.metricDefinition.id) : undefined}
+                  className={`col-span-2 sm:col-span-3 px-3 py-2 mt-2 first:mt-0 border-t-2 border-gray-200 dark:border-gray-700 flex items-center gap-2 group group/metric transition-colors ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${dragMetricDefId === entry.metricDefinition.id ? "opacity-40" : ""} ${dragOverMetricDefId === entry.metricDefinition.id && dragMetricDefId ? "ring-2 ring-purple-400 ring-offset-1 rounded" : ""}`}
+                >
+                  {canEdit && (
+                    <div className="flex-shrink-0 text-gray-300 dark:text-gray-500 opacity-0 group-hover/metric:opacity-100 transition-opacity pointer-events-none">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                        <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                      </svg>
+                    </div>
+                  )}
+                  {canEdit ? (
+                    <input
+                      type="text"
+                      value={entry.metricDefinition.name}
+                      onChange={(e) => updateMetricName(entry.metricDefinition.id, e.target.value)}
+                      placeholder="Section name"
+                      className="flex-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 px-0 py-0"
+                    />
+                  ) : (
+                    <span className="flex-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      {entry.metricDefinition.name || "Section"}
+                    </span>
+                  )}
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteMetric(entry.metricDefinition.id)}
+                      title="Delete section"
+                      className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover/metric:opacity-100 transition-opacity rounded"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  )}
+                </div>
+              );
+            }
+            return (
             <div
               key={entry.id}
               draggable={canEdit}
@@ -1719,7 +1802,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
         {canEdit && (
           <div className="mt-3 space-y-2">
@@ -1766,6 +1850,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   className="text-sm text-purple-600 hover:text-purple-700 font-medium dark:text-purple-300"
                 >
                   + Add Metric
+                </button>
+                <button
+                  onClick={addSection}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium dark:text-purple-300"
+                  title="Insert a section header — full-width strip that breaks tiles into a new visual group below it"
+                >
+                  + Add Section
                 </button>
                 {!showArchived && (
                   <button

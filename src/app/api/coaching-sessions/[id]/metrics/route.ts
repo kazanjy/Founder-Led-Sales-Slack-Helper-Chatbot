@@ -102,7 +102,43 @@ export async function GET(
       history: historyByDefId[e.metricDefinitionId] ?? [],
     }));
 
-    return NextResponse.json({ entries: entriesWithPrev });
+    // Pull section markers (kind=section definitions) so the UI can
+    // interleave them in order with the real metric entries. Sections
+    // never have entries — they're rendered as full-width header
+    // strips that visually group the tiles below them.
+    const sections = await prisma.coachingMetricDefinition.findMany({
+      where: { userId: session.userId, kind: "section", archived: false },
+      orderBy: { order: "asc" },
+    });
+
+    // Splice sections into the entries array as pseudo-entries with
+    // metricDefinition.kind="section" so the UI walks one ordered list.
+    // The fake entry id ("section-<defId>") keeps React keys unique
+    // and stable across renders.
+    type Item = (typeof entriesWithPrev)[number] | {
+      id: string;
+      currentValue: number;
+      addedSinceLastSession: number;
+      previousValue: null;
+      history: never[];
+      metricDefinitionId: string;
+      metricDefinition: typeof sections[number];
+    };
+    const sectionItems: Item[] = sections.map((s) => ({
+      id: `section-${s.id}`,
+      currentValue: 0,
+      addedSinceLastSession: 0,
+      previousValue: null,
+      history: [],
+      metricDefinitionId: s.id,
+      metricDefinition: s,
+    }));
+
+    const items: Item[] = [...entriesWithPrev, ...sectionItems].sort(
+      (a, b) => (a.metricDefinition.order ?? 0) - (b.metricDefinition.order ?? 0)
+    );
+
+    return NextResponse.json({ entries: items });
   } catch (error) {
     console.error("Error fetching session metrics:", error);
     return NextResponse.json(

@@ -1571,6 +1571,13 @@ model CoachingMetricDefinition {
   archived   Boolean @default(false) // archived metrics are hidden but preserved
   order      Int     @default(0)
 
+  // "metric" (default) — a normal data tile.
+  // "section" — a full-width header strip used to group following
+  // tiles into a visual section. Sections share the order column with
+  // metrics but never have entries; consumers that walk this table
+  // for value math should filter where { kind: "metric" }.
+  kind String @default("metric")
+
   entries CoachingMetricEntry[]
 
   createdAt DateTime @default(now())
