@@ -287,6 +287,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [dragTask, setDragTask] = useState<{ goalId: string; taskId: string } | null>(null);
   const [dragOverGoal, setDragOverGoal] = useState<string | null>(null);
   const [dragOverTask, setDragOverTask] = useState<string | null>(null);
+  // Drag state for metric tiles. Keyed on the metric *definition* id so
+  // the persist call hits /api/coaching/metrics/[id] (the definition is
+  // the authority on order; per-session entries inherit it).
+  const [dragMetricDefId, setDragMetricDefId] = useState<string | null>(null);
+  const [dragOverMetricDefId, setDragOverMetricDefId] = useState<string | null>(null);
   const metricSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const descSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -496,6 +501,36 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         body: JSON.stringify({ order: i }),
       });
     });
+  };
+
+  // Persist the new metric tile order by PATCHing each definition with
+  // its new index. Order lives on CoachingMetricDefinition, so we patch
+  // the definition (not the per-session entry) and the reorder sticks
+  // across every session that displays this metric.
+  const persistMetricOrder = (reordered: MetricEntry[]) => {
+    reordered.forEach((entry, i) => {
+      fetch(`/api/coaching/metrics/${entry.metricDefinition.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: i }),
+      });
+    });
+  };
+
+  const handleMetricDrop = (targetDefId: string) => {
+    if (!dragMetricDefId || dragMetricDefId === targetDefId) return;
+    setMetricEntries((prev) => {
+      const fromIdx = prev.findIndex((m) => m.metricDefinition.id === dragMetricDefId);
+      const toIdx = prev.findIndex((m) => m.metricDefinition.id === targetDefId);
+      if (fromIdx < 0 || toIdx < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      persistMetricOrder(next);
+      return next;
+    });
+    setDragMetricDefId(null);
+    setDragOverMetricDefId(null);
   };
 
   const persistTaskOrder = (tasks: Task[]) => {
@@ -1473,7 +1508,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => (
-            <div key={entry.id} className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 text-center relative group group/metric">
+            <div
+              key={entry.id}
+              draggable={canEdit}
+              onDragStart={canEdit ? (e) => { setDragMetricDefId(entry.metricDefinition.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+              onDragEnd={canEdit ? () => { setDragMetricDefId(null); setDragOverMetricDefId(null); } : undefined}
+              onDragOver={canEdit ? (e) => { if (dragMetricDefId && dragMetricDefId !== entry.metricDefinition.id) { e.preventDefault(); setDragOverMetricDefId(entry.metricDefinition.id); } } : undefined}
+              onDragLeave={canEdit ? () => setDragOverMetricDefId((cur) => (cur === entry.metricDefinition.id ? null : cur)) : undefined}
+              onDrop={canEdit ? () => handleMetricDrop(entry.metricDefinition.id) : undefined}
+              className={`bg-gray-50 dark:bg-gray-700/40 rounded-lg p-3 text-center relative group group/metric transition-all ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${dragMetricDefId === entry.metricDefinition.id ? "opacity-40" : ""} ${dragOverMetricDefId === entry.metricDefinition.id && dragMetricDefId ? "ring-2 ring-purple-400 ring-offset-1" : ""}`}
+            >
               {/* Fast popover tooltip */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/metric:opacity-100 transition-opacity duration-100 pointer-events-none z-10 max-w-xs">
                 <div className="font-medium">{entry.metricDefinition.name}</div>
