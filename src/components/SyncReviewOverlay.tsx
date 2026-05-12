@@ -245,12 +245,20 @@ export default function SyncReviewOverlay({
                           isSelected ? "border-purple-300 bg-purple-50/30" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
                         }`}
                       >
-                        {/* Main row */}
-                        <div className="flex items-center gap-3 px-4 py-3">
+                        {/* Main row — clicking anywhere on the header
+                            toggles the expanded detail. Interactive
+                            controls inside (checkbox, status select,
+                            chevron) stop propagation so they don't
+                            also trigger the toggle. */}
+                        <div
+                          onClick={() => toggleExpand(change.itemId)}
+                          className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50/60 dark:hover:bg-gray-700/40 rounded-xl"
+                        >
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleItem(change.itemId)}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-4 h-4 text-purple-600 rounded border-gray-300 dark:border-gray-700 focus:ring-purple-500 flex-shrink-0"
                           />
 
@@ -302,7 +310,7 @@ export default function SyncReviewOverlay({
 
                           {/* Expand toggle */}
                           <button
-                            onClick={() => toggleExpand(change.itemId)}
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(change.itemId); }}
                             className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
                           >
                             <svg
