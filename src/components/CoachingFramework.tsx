@@ -296,6 +296,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // can't be moved across parents (the model doesn't reparent on drop).
   const [dragSubtask, setDragSubtask] = useState<{ parentTaskId: string; subId: string } | null>(null);
   const [dragOverSubtask, setDragOverSubtask] = useState<string | null>(null);
+  // Metric history popover — id of the metric whose history popover
+  // is currently "pinned" open via click. Null = no pin (popover only
+  // shows on hover). Click-outside (handled in a useEffect below)
+  // clears the pin so the user can dismiss without finding the
+  // trigger again.
+  const [pinnedHistoryDefId, setPinnedHistoryDefId] = useState<string | null>(null);
   // Drag state for metric tiles. Keyed on the metric *definition* id so
   // the persist call hits /api/coaching/metrics/[id] (the definition is
   // the authority on order; per-session entries inherit it).
@@ -359,6 +365,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   }, [sessionId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Dismiss a pinned metric-history popover when the user clicks
+  // anywhere outside it (or its trigger). Only attached when a pin
+  // is active so we don't pay for a global listener at rest.
+  useEffect(() => {
+    if (!pinnedHistoryDefId) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-history-popover]") || target.closest("[data-history-trigger]")) return;
+      setPinnedHistoryDefId(null);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [pinnedHistoryDefId]);
 
   // Scroll to anchor after data loads. If the hash targets a subtask,
   // make sure its parent's subtask group isn't collapsed before we
@@ -1719,33 +1740,64 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               ) : entry.metricDefinition.definition ? (
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
               ) : null}
-              {entry.previousValue != null && (
-                <div className="relative group/history mb-1">
-                  <div className="text-[10px] text-gray-400 leading-tight cursor-help">
-                    Last session: <span className="font-medium text-gray-500 dark:text-gray-300 underline decoration-dotted underline-offset-2">{formatMetricValue(entry.previousValue, entry.metricDefinition.format)}</span>
-                  </div>
-                  {entry.history.length > 0 && (
+              {entry.previousValue != null && (() => {
+                const isPinned = pinnedHistoryDefId === entry.metricDefinition.id;
+                return (
+                  <div className="relative group/history mb-1">
                     <div
-                      className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-3 py-2 min-w-[200px] bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover/history:opacity-100 transition-opacity"
+                      data-history-trigger="1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinnedHistoryDefId((cur) => (cur === entry.metricDefinition.id ? null : entry.metricDefinition.id));
+                      }}
+                      className="text-[10px] text-gray-400 leading-tight cursor-pointer select-none"
                     >
-                      <div className="font-semibold mb-1.5 text-[11px] text-gray-200">Last {entry.history.length} session{entry.history.length === 1 ? "" : "s"}</div>
-                      <div className="space-y-0.5">
-                        {entry.history.map((h) => {
-                          const d = new Date(h.sessionDate);
-                          const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
-                          return (
-                            <div key={h.sessionId} className="flex items-baseline justify-between gap-3 whitespace-nowrap">
-                              <span className="text-gray-300">{dateStr}</span>
-                              <span className="font-medium tabular-nums">{formatMetricValue(h.value, entry.metricDefinition.format)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-px border-4 border-transparent border-b-gray-900" />
+                      Last session: <span className="font-medium text-gray-500 dark:text-gray-300 underline decoration-dotted underline-offset-2">{formatMetricValue(entry.previousValue, entry.metricDefinition.format)}</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    {entry.history.length > 0 && (
+                      <div
+                        data-history-popover="1"
+                        onClick={(e) => e.stopPropagation()}
+                        className={`absolute left-full top-0 ml-2 z-30 px-3 py-2 min-w-[200px] bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-opacity ${
+                          isPinned
+                            ? "opacity-100 pointer-events-auto"
+                            : "opacity-0 pointer-events-none group-hover/history:opacity-100"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="font-semibold text-[11px] text-gray-200">Last {entry.history.length} session{entry.history.length === 1 ? "" : "s"}</div>
+                          {isPinned && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPinnedHistoryDefId(null); }}
+                              aria-label="Close history"
+                              className="text-gray-400 hover:text-white text-sm leading-none -mr-1"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          {entry.history.map((h) => {
+                            const d = new Date(h.sessionDate);
+                            const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" });
+                            return (
+                              <div key={h.sessionId} className="flex items-baseline justify-between gap-3 whitespace-nowrap">
+                                <span className="text-gray-300">{dateStr}</span>
+                                <span className="font-medium tabular-nums">{formatMetricValue(h.value, entry.metricDefinition.format)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Left-pointing arrow back to the trigger.
+                            border-r-color filled with transparent on the
+                            other three sides renders as a leftward
+                            triangle. */}
+                        <div className="absolute right-full top-3 -mr-px border-4 border-transparent border-r-gray-900" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {canEdit ? (
                 focusedMetric === entry.id ? (
                 <input
