@@ -472,6 +472,52 @@ function CoachingHistoryContent() {
     });
   };
 
+  // Fire the readiness sync silently in the background and open the
+  // review overlay only if the LLM proposed any changes (or a new
+  // maturity stage). Used by the auto-trigger on Start Sprint so the
+  // common "nothing to review" case doesn't pop a modal in the user's
+  // face every time they advance a session.
+  const runReadinessSyncSilentIfEmpty = async () => {
+    try {
+      const res = await fetch("/api/sales-readiness/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "coaching" }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      // Open the review overlay only when the LLM actually proposed
+      // something to review. The endpoint doesn't currently return the
+      // user's current maturity stage, so we don't compare against it
+      // here — recommendedStage alone is rarely the only signal in
+      // practice, and adding a noisy stage-only popup wasn't worth
+      // chasing in this pass.
+      const hasChanges = (data.proposedChanges?.length ?? 0) > 0;
+      if (hasChanges) {
+        setSyncData(data);
+        setShowSyncOverlay(true);
+      }
+    } catch (err) {
+      // Auto-sync failure shouldn't disrupt the originating action.
+      console.error("[readiness-sync] auto-trigger failed:", err);
+    }
+  };
+
+  const handleStartSprint = async (sessionId: string) => {
+    await fetch(`/api/coaching-sessions/${sessionId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "in_progress" }),
+    });
+    loadSessions();
+    // Kick off the readiness sync in the background — Start Sprint is
+    // the moment the user has just locked in their plan from the most
+    // recent coaching, so it's a good time to surface any readiness
+    // moves the LLM has spotted. Don't await — we don't want to block
+    // the click and we don't want to keep a spinner up.
+    void runReadinessSyncSilentIfEmpty();
+  };
+
   const handleSyncCoachingToReadiness = async () => {
     setSyncLoading(true);
     try {
@@ -1162,14 +1208,7 @@ function CoachingHistoryContent() {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "new" && (
                           <button
-                            onClick={async () => {
-                              await fetch(`/api/coaching-sessions/${selectedSession.id}/status`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ status: "in_progress" }),
-                              });
-                              loadSessions();
-                            }}
+                            onClick={() => handleStartSprint(selectedSession.id)}
                             className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium dark:bg-orange-900/30 dark:text-orange-300"
                           >
                             Start Sprint
