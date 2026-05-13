@@ -29,7 +29,7 @@ export function TruncatedUserMessage({ content, maxLines = 20 }: TruncatedUserMe
       <div className={showTruncated ? "relative" : undefined}>
         <p
           ref={contentRef}
-          className={`whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-[17px]${showTruncated ? " overflow-hidden" : ""}`}
+          className={`whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100 text-[17px]${showTruncated ? " overflow-hidden" : ""}`}
           style={showTruncated ? { maxHeight: `${maxHeight}px` } : undefined}
         >
           {content}
