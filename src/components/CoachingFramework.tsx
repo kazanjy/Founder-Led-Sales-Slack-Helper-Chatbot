@@ -302,6 +302,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // clears the pin so the user can dismiss without finding the
   // trigger again.
   const [pinnedHistoryDefId, setPinnedHistoryDefId] = useState<string | null>(null);
+  // Tracks which task/subtask is currently waiting on the Ask-Mikey
+  // context handler. The handler bundles the last 10 sessions
+  // (including transcripts) and creates a Conversation before
+  // window.open()-ing the chat, which takes a couple seconds — without
+  // a spinner the user gets no feedback and may click again.
+  const [askingMikeyFor, setAskingMikeyFor] = useState<string | null>(null);
   // Per-metric placement for the history popover. "right" by default;
   // flips to "left" when the trigger is close enough to the viewport
   // edge that a right-side popover would clip. Set on hover/pin via a
@@ -1343,6 +1349,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // its parent task is included so the model can reason about both
   // levels of context.
   const askMikeyForTaskContext = async (task: Task, parentTask: Task | null) => {
+    if (askingMikeyFor) return; // ignore double-click while one is in flight
+    setAskingMikeyFor(task.id);
+    try {
     const createdStr = task.createdAt
       ? new Date(task.createdAt).toLocaleDateString("en-US", {
           month: "long", day: "numeric", year: "numeric",
@@ -1417,6 +1426,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       }
     } catch (err) {
       console.error("[ask-mikey-task] failed to open chat:", err);
+    }
+    } finally {
+      setAskingMikeyFor(null);
     }
   };
 
@@ -2540,10 +2552,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <div className="relative group/askmikey inline-flex">
                                   <button
                                     onClick={() => askMikeyForTaskContext(task, null)}
+                                    disabled={askingMikeyFor === task.id}
                                     aria-label="Ask Mikey for coaching context on this task"
-                                    className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                    className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity disabled:opacity-100 disabled:cursor-wait"
                                   >
-                                    🌊
+                                    {askingMikeyFor === task.id ? (
+                                      <svg className="animate-spin w-3 h-3 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                    ) : (
+                                      "🌊"
+                                    )}
                                   </button>
                                   <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
                                     Ask Mikey to find the coaching discussion that created this task and summarize what was covered.
@@ -2735,10 +2755,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                         <div className="relative group/askmikey inline-flex">
                                           <button
                                             onClick={() => askMikeyForTaskContext(sub, task)}
+                                            disabled={askingMikeyFor === sub.id}
                                             aria-label="Ask Mikey for coaching context on this subtask"
-                                            className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                            className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity disabled:opacity-100 disabled:cursor-wait"
                                           >
-                                            🌊
+                                            {askingMikeyFor === sub.id ? (
+                                              <svg className="animate-spin w-3 h-3 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                              </svg>
+                                            ) : (
+                                              "🌊"
+                                            )}
                                           </button>
                                           <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
                                             Ask Mikey to find the coaching discussion that created this subtask (and its parent) and summarize what was covered.
