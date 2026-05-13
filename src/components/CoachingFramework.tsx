@@ -720,6 +720,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     reorderSubtasksWithinParent(parentTaskId, fromIdx, siblings.length - 1);
   };
 
+  const moveSubtaskUp = (parentTaskId: string, subId: string) => {
+    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const fromIdx = siblings.findIndex((s) => s.id === subId);
+    if (fromIdx <= 0) return;
+    reorderSubtasksWithinParent(parentTaskId, fromIdx, fromIdx - 1);
+  };
+
+  const moveSubtaskDown = (parentTaskId: string, subId: string) => {
+    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const fromIdx = siblings.findIndex((s) => s.id === subId);
+    if (fromIdx === -1 || fromIdx === siblings.length - 1) return;
+    reorderSubtasksWithinParent(parentTaskId, fromIdx, fromIdx + 1);
+  };
+
   const moveGoalUp = (goalId: string) => {
     setGoals((prev) => {
       const idx = prev.findIndex((g) => g.id === goalId);
@@ -2766,6 +2780,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-start gap-2 min-w-0 flex-1">
+                                  {canEdit && (
+                                    <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 mt-1 mr-0.5">
+                                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                        <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                                        <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                                        <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                                      </svg>
+                                    </div>
+                                  )}
                                   <button
                                     onClick={() => canEdit && updateTaskStatus(sub.id, sub.status === "done" ? "active" : "done")}
                                     className="mt-0.5 flex-shrink-0"
@@ -2855,6 +2878,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
                                         </button>
                                         <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
+                                      </div>
+                                      <div className="relative group/btn">
+                                        <button onClick={() => moveSubtaskUp(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                                        </button>
+                                        <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move up</span>
+                                      </div>
+                                      <div className="relative group/btn">
+                                        <button onClick={() => moveSubtaskDown(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+                                        <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
                                       </div>
                                       <div className="relative group/btn">
                                         <button onClick={() => sendSubtaskToBottom(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
