@@ -1321,9 +1321,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // its parent task is included so the model can reason about both
   // levels of context.
   const askMikeyForTaskContext = async (task: Task, parentTask: Task | null) => {
-    const createdStr = new Date(task.createdAt).toLocaleDateString("en-US", {
-      month: "long", day: "numeric", year: "numeric",
-    });
+    const createdStr = task.createdAt
+      ? new Date(task.createdAt).toLocaleDateString("en-US", {
+          month: "long", day: "numeric", year: "numeric",
+        })
+      : "an unknown date";
     let context = `This is a task that was created on ${createdStr} from a coaching session. Please look through the below context and find the relevant discussion that prompted the creation of the task, and synthesize what the discussion covered and what the outcomes were.\n\n---\n\n`;
 
     context += `## The Task in Question\n\n`;
