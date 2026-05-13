@@ -2781,8 +2781,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-start gap-2 min-w-0 flex-1">
                                   {canEdit && (
-                                    <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400 mt-1 mr-0.5">
-                                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                                    <div
+                                      className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-0.5"
+                                      title="Drag to reorder"
+                                    >
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                                         <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
                                         <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
                                         <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>

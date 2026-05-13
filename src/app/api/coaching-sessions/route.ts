@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, sessionDate, notes, transcript, recordingUrl } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior } = body;
 
     if (!sessionDate) {
       return NextResponse.json(
@@ -80,8 +80,14 @@ export async function POST(request: NextRequest) {
 
     // ── Carry-forward logic ──────────────────────────────────────────
 
-    // 1. Lock any previous NEW or IN_PROGRESS session (only for real sessions, not drafts)
-    if (!isDraft) {
+    // 1. Lock any previous NEW or IN_PROGRESS session. Fires whenever
+    //    the creator isn't a draft (real session being created in one
+    //    shot) OR when the client passed lockPrior=true (startCreate
+    //    in the UI sends this when creating the auto-saved draft, so
+    //    the user's prior sessions lock the moment they click
+    //    "New Session" rather than waiting for the "Create Session"
+    //    promotion click).
+    if (!isDraft || lockPrior) {
       await prisma.coachingSession.updateMany({
         where: {
           userId: user.id,

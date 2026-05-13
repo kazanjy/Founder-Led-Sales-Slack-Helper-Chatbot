@@ -330,19 +330,27 @@ function CoachingHistoryContent() {
     setCreatingDraft(true);
     setMode("create");
 
-    // Immediately create a draft session so CoachingFramework has a sessionId
+    // Immediately create a draft session so CoachingFramework has a
+    // sessionId. lockPrior=true tells the server to lock every other
+    // open session for this user as part of creating the draft —
+    // clicking "New Session" is a strong enough signal that the prior
+    // session is done. handleSave will pass the same flag on the
+    // promotion PUT as a belt-and-suspenders against any abandoned-
+    // draft / out-of-order edge case.
     try {
       const today = new Date().toISOString().split("T")[0];
       const res = await fetch("/api/coaching-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionDate: today, notes: "(draft)" }),
+        body: JSON.stringify({ sessionDate: today, notes: "(draft)", lockPrior: true }),
       });
       if (res.ok) {
         const data = await res.json();
         setAutoSavedId(data.session.id);
         selectSession(data.session.id);
-        setSessions((prev) => [data.session, ...prev]);
+        // Refresh from the server so the now-locked prior sessions
+        // show their updated status pills in the sidebar.
+        await loadSessions();
       }
     } catch { /* will auto-save later */ }
     setCreatingDraft(false);
@@ -499,7 +507,13 @@ function CoachingHistoryContent() {
   // maturity stage). Used by the auto-trigger on Start Sprint so the
   // common "nothing to review" case doesn't pop a modal in the user's
   // face every time they advance a session.
+  //
+  // Flips the same syncLoading flag the manual "Sync to GTM Readiness"
+  // button uses, so the header button shows its spinner while the
+  // LLM call is in flight — gives the user a visible signal that
+  // something is happening without yet committing to the modal.
   const runReadinessSyncSilentIfEmpty = async () => {
+    setSyncLoading(true);
     try {
       const res = await fetch("/api/sales-readiness/sync", {
         method: "POST",
@@ -522,6 +536,8 @@ function CoachingHistoryContent() {
     } catch (err) {
       // Auto-sync failure shouldn't disrupt the originating action.
       console.error("[readiness-sync] auto-trigger failed:", err);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -759,7 +775,8 @@ function CoachingHistoryContent() {
               <button
                 onClick={handleSyncCoachingToReadiness}
                 disabled={syncLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-50 dark:text-purple-300 dark:bg-purple-900/30"
+                title={syncLoading ? "Analyzing coaching sessions for readiness updates…" : undefined}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-70 dark:text-purple-300 dark:bg-purple-900/30"
               >
                 {syncLoading ? (
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -771,7 +788,7 @@ function CoachingHistoryContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 )}
-                Sync to GTM Readiness
+                {syncLoading ? "Syncing to GTM Readiness…" : "Sync to GTM Readiness"}
               </button>
             )}
             {sessions.length > 0 && (
