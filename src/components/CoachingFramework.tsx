@@ -1314,6 +1314,88 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     await fetch(`/api/coaching/next-goals/${goalId}`, { method: "DELETE" });
   };
 
+  // Open a new chat (DIRECT mode) pre-seeded with a question asking
+  // Mikey to find the coaching discussion that created the given task.
+  // Bundles the most recent 10 non-draft sessions (notes + transcripts,
+  // each transcript capped at 30k chars). If the target is a subtask,
+  // its parent task is included so the model can reason about both
+  // levels of context.
+  const askMikeyForTaskContext = async (task: Task, parentTask: Task | null) => {
+    const createdStr = new Date(task.createdAt).toLocaleDateString("en-US", {
+      month: "long", day: "numeric", year: "numeric",
+    });
+    let context = `This is a task that was created on ${createdStr} from a coaching session. Please look through the below context and find the relevant discussion that prompted the creation of the task, and synthesize what the discussion covered and what the outcomes were.\n\n---\n\n`;
+
+    context += `## The Task in Question\n\n`;
+    context += `**Title:** ${task.title}\n`;
+    if (task.description) context += `**Description:** ${task.description}\n`;
+    context += `**Status:** ${task.status}\n`;
+    context += `**Created:** ${createdStr}\n\n`;
+
+    if (parentTask) {
+      context += `### Parent Task (this is a subtask of:)\n\n`;
+      context += `**Title:** ${parentTask.title}\n`;
+      if (parentTask.description) context += `**Description:** ${parentTask.description}\n`;
+      context += `**Status:** ${parentTask.status}\n\n`;
+    }
+
+    try {
+      const res = await fetch("/api/coaching-sessions");
+      if (res.ok) {
+        const data = await res.json();
+        const recent = (data.sessions || [])
+          .filter((s: { notes: string }) => s.notes !== "(draft)")
+          .slice(0, 10);
+        if (recent.length > 0) {
+          context += `\n---\n\n## Recent Coaching Sessions (most recent ${recent.length})\n\n`;
+          for (const session of recent) {
+            const sessionDate = new Date(session.sessionDate).toLocaleDateString("en-US", {
+              month: "short", day: "numeric", year: "numeric",
+            });
+            context += `### ${session.title || "Untitled"} (${sessionDate})\n\n`;
+            if (session.notes) {
+              const notesTruncated = session.notes.length > 4000
+                ? session.notes.substring(0, 4000) + "...[truncated]"
+                : session.notes;
+              context += `**Notes:**\n${notesTruncated}\n\n`;
+            }
+            if (session.transcript) {
+              const transcriptTruncated = session.transcript.length > 30000
+                ? session.transcript.substring(0, 30000) + "\n...[transcript truncated]"
+                : session.transcript;
+              context += `**Transcript:**\n${transcriptTruncated}\n\n`;
+            }
+            context += `---\n\n`;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[ask-mikey-task] failed to load sessions:", err);
+    }
+
+    try {
+      const res = await fetch("/api/conversations/from-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `🌊 Context for: ${task.title.slice(0, 60)}`,
+          context,
+          autoSend: true,
+          // GPT direct mode — full transcripts in one window, no
+          // Chatbase RAG between us and the transcripts.
+          mode: "DIRECT",
+        }),
+      });
+      const data = await res.json();
+      if (data.conversationId) {
+        sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
+        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+      }
+    } catch (err) {
+      console.error("[ask-mikey-task] failed to open chat:", err);
+    }
+  };
+
   const deleteNextTask = async (goalId: string, taskId: string) => {
     if (!window.confirm("Delete this future task?")) return;
     setNextGoals((prev) => prev.map((g) => g.id === goalId ? { ...g, tasks: g.tasks.filter((t) => t.id !== taskId) } : g));
@@ -2419,7 +2501,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               </button>
                             ) : null}
                             {task.createdAt && (
-                              <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-gray-400">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                <button
+                                  onClick={() => askMikeyForTaskContext(task, null)}
+                                  title="Ask Mikey for coaching context on this task"
+                                  className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                >
+                                  🌊
+                                </button>
+                              </div>
                             )}
                             {task.status === "done" && task.statusChangedAt && (
                               <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(task.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
@@ -2599,7 +2690,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                       <button onClick={() => setEditingDescTask(sub.id)} className="text-[10px] text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                                     ) : null}
                                     {sub.createdAt && (
-                                      <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] text-gray-400">Created {new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                        <button
+                                          onClick={() => askMikeyForTaskContext(sub, task)}
+                                          title="Ask Mikey for coaching context on this subtask"
+                                          className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                        >
+                                          🌊
+                                        </button>
+                                      </div>
                                     )}
                                     {sub.status === "done" && sub.statusChangedAt && (
                                       <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(sub.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
