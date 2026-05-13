@@ -4409,11 +4409,11 @@ export default function ChatPage() {
                     ) : (
                       /* Normal user message with edit pencil */
                       <div className="flex justify-end group/usermsg">
-                        <div className="flex items-start gap-1.5">
+                        <div className="flex items-start gap-1.5 max-w-[90%] md:max-w-[70%] min-w-0">
                           {!sending && (
                             <button
                               onClick={() => { setEditingMessageId(msg.id); setEditingMessageContent(msg.content); }}
-                              className="mt-3 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover/usermsg:opacity-100 transition-opacity rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="mt-3 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover/usermsg:opacity-100 transition-opacity rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0"
                               title="Edit message"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4421,7 +4421,7 @@ export default function ChatPage() {
                               </svg>
                             </button>
                           )}
-                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 max-w-[90%] md:max-w-[70%]">
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 min-w-0 flex-1 overflow-hidden">
                             {/* Show attached images/PDFs for this specific message */}
                             {(() => {
                               const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
