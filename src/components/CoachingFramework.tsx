@@ -302,6 +302,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // clears the pin so the user can dismiss without finding the
   // trigger again.
   const [pinnedHistoryDefId, setPinnedHistoryDefId] = useState<string | null>(null);
+  // Per-metric placement for the history popover. "right" by default;
+  // flips to "left" when the trigger is close enough to the viewport
+  // edge that a right-side popover would clip. Set on hover/pin via a
+  // bounding-rect measurement.
+  const [historyPlacement, setHistoryPlacement] = useState<Record<string, "left" | "right">>({});
   // Drag state for metric tiles. Keyed on the metric *definition* id so
   // the persist call hits /api/coaching/metrics/[id] (the definition is
   // the authority on order; per-session entries inherit it).
@@ -380,6 +385,23 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [pinnedHistoryDefId]);
+
+  // Pick "right" or "left" for the history popover based on whether
+  // there's room to its right of the trigger. Called on hover/click
+  // so the measurement reflects the trigger's current viewport
+  // position (tiles can be at the right edge of the grid).
+  const measureHistoryPlacement = (defId: string, triggerEl: HTMLElement | null) => {
+    if (!triggerEl || typeof window === "undefined") return;
+    const POPOVER_WIDTH = 240; // matches min-w-[200px] + padding
+    const SAFETY = 16;
+    const rect = triggerEl.getBoundingClientRect();
+    const fitsRight = rect.right + POPOVER_WIDTH + SAFETY <= window.innerWidth;
+    setHistoryPlacement((prev) => {
+      const next: "left" | "right" = fitsRight ? "right" : "left";
+      if (prev[defId] === next) return prev;
+      return { ...prev, [defId]: next };
+    });
+  };
 
   // Scroll to anchor after data loads. If the hash targets a subtask,
   // make sure its parent's subtask group isn't collapsed before we
@@ -1861,12 +1883,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               ) : null}
               {entry.previousValue != null && (() => {
                 const isPinned = pinnedHistoryDefId === entry.metricDefinition.id;
+                const placement = historyPlacement[entry.metricDefinition.id] ?? "right";
+                const sidePos = placement === "right" ? "left-full ml-2" : "right-full mr-2";
                 return (
                   <div className="relative group/history mb-1">
                     <div
                       data-history-trigger="1"
+                      onMouseEnter={(e) => measureHistoryPlacement(entry.metricDefinition.id, e.currentTarget)}
                       onClick={(e) => {
                         e.stopPropagation();
+                        measureHistoryPlacement(entry.metricDefinition.id, e.currentTarget);
                         setPinnedHistoryDefId((cur) => (cur === entry.metricDefinition.id ? null : entry.metricDefinition.id));
                       }}
                       className="text-[10px] text-gray-400 leading-tight cursor-pointer select-none"
@@ -1877,7 +1903,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       <div
                         data-history-popover="1"
                         onClick={(e) => e.stopPropagation()}
-                        className={`absolute left-full top-0 ml-2 z-30 px-3 py-2 min-w-[200px] bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-opacity ${
+                        className={`absolute ${sidePos} top-0 z-30 px-3 py-2 min-w-[200px] bg-gray-900 text-white text-xs rounded-lg shadow-xl transition-opacity ${
                           isPinned
                             ? "opacity-100 pointer-events-auto"
                             : "opacity-0 pointer-events-none group-hover/history:opacity-100"
@@ -1907,11 +1933,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             );
                           })}
                         </div>
-                        {/* Left-pointing arrow back to the trigger.
-                            border-r-color filled with transparent on the
-                            other three sides renders as a leftward
-                            triangle. */}
-                        <div className="absolute right-full top-3 -mr-px border-4 border-transparent border-r-gray-900" />
+                        {/* Arrow back to the trigger. Right-placed
+                            popovers get a left-pointing arrow on
+                            their left edge (border-r-color); left-
+                            placed popovers get a right-pointing
+                            arrow on their right edge
+                            (border-l-color). */}
+                        {placement === "right" ? (
+                          <div className="absolute right-full top-3 -mr-px border-4 border-transparent border-r-gray-900" />
+                        ) : (
+                          <div className="absolute left-full top-3 -ml-px border-4 border-transparent border-l-gray-900" />
+                        )}
                       </div>
                     )}
                   </div>
