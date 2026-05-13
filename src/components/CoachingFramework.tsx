@@ -2505,13 +2505,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             {task.createdAt && (
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-[10px] text-gray-400">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                                <button
-                                  onClick={() => askMikeyForTaskContext(task, null)}
-                                  title="Ask Mikey for coaching context on this task"
-                                  className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
-                                >
-                                  🌊
-                                </button>
+                                <div className="relative group/askmikey inline-flex">
+                                  <button
+                                    onClick={() => askMikeyForTaskContext(task, null)}
+                                    aria-label="Ask Mikey for coaching context on this task"
+                                    className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                  >
+                                    🌊
+                                  </button>
+                                  <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
+                                    Ask Mikey to find the coaching discussion that created this task and summarize what was covered.
+                                    <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-900" />
+                                  </span>
+                                </div>
                               </div>
                             )}
                             {task.status === "done" && task.statusChangedAt && (
@@ -2694,13 +2700,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                     {sub.createdAt && (
                                       <div className="flex items-center gap-2 mt-0.5">
                                         <span className="text-[10px] text-gray-400">Created {new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                                        <button
-                                          onClick={() => askMikeyForTaskContext(sub, task)}
-                                          title="Ask Mikey for coaching context on this subtask"
-                                          className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
-                                        >
-                                          🌊
-                                        </button>
+                                        <div className="relative group/askmikey inline-flex">
+                                          <button
+                                            onClick={() => askMikeyForTaskContext(sub, task)}
+                                            aria-label="Ask Mikey for coaching context on this subtask"
+                                            className="text-[11px] leading-none opacity-60 hover:opacity-100 transition-opacity"
+                                          >
+                                            🌊
+                                          </button>
+                                          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
+                                            Ask Mikey to find the coaching discussion that created this subtask (and its parent) and summarize what was covered.
+                                            <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-900" />
+                                          </span>
+                                        </div>
                                       </div>
                                     )}
                                     {sub.status === "done" && sub.statusChangedAt && (
