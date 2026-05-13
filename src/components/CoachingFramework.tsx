@@ -678,6 +678,48 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     }));
   };
 
+  // Subtask top/bottom — scoped to siblings sharing the same parent.
+  // The order column is shared with top-level tasks but the render
+  // sorts per-parent (subtasksByParent), so subtasks have their own
+  // independent sort space.
+  const reorderSubtasksWithinParent = (parentTaskId: string, fromIdx: number, toIdx: number) => {
+    setGoals((prev) =>
+      prev.map((g) => {
+        const hasParent = g.tasks.some((t) => t.id === parentTaskId);
+        if (!hasParent) return g;
+        const siblings = g.tasks
+          .filter((t) => t.parentTaskId === parentTaskId)
+          .sort((a, b) => a.order - b.order);
+        if (fromIdx < 0 || fromIdx >= siblings.length) return g;
+        if (toIdx < 0 || toIdx >= siblings.length) return g;
+        const reordered = [...siblings];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const reorderedWithIndex = reordered.map((t, i) => ({ ...t, order: i }));
+        persistTaskOrder(reorderedWithIndex);
+        const updatedTasks = g.tasks.map((t) => {
+          if (t.parentTaskId !== parentTaskId) return t;
+          return reorderedWithIndex.find((r) => r.id === t.id) ?? t;
+        });
+        return { ...g, tasks: updatedTasks };
+      })
+    );
+  };
+
+  const sendSubtaskToTop = (parentTaskId: string, subId: string) => {
+    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const fromIdx = siblings.findIndex((s) => s.id === subId);
+    if (fromIdx <= 0) return;
+    reorderSubtasksWithinParent(parentTaskId, fromIdx, 0);
+  };
+
+  const sendSubtaskToBottom = (parentTaskId: string, subId: string) => {
+    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const fromIdx = siblings.findIndex((s) => s.id === subId);
+    if (fromIdx === -1 || fromIdx === siblings.length - 1) return;
+    reorderSubtasksWithinParent(parentTaskId, fromIdx, siblings.length - 1);
+  };
+
   const moveGoalUp = (goalId: string) => {
     setGoals((prev) => {
       const idx = prev.findIndex((g) => g.id === goalId);
@@ -2319,6 +2361,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 {canEdit && (
                   <>
                     <div className="relative group/btn flex-shrink-0">
+                      <button onClick={() => sendGoalToTop(goal.id)} className="p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
+                      </button>
+                      <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
+                    </div>
+                    <div className="relative group/btn flex-shrink-0">
                       <button onClick={() => moveGoalUp(goal.id)} className="p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                       </button>
@@ -2329,6 +2377,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                       </button>
                       <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
+                    </div>
+                    <div className="relative group/btn flex-shrink-0">
+                      <button onClick={() => sendGoalToBottom(goal.id)} className="p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover/goal:opacity-100 transition-opacity">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" /></svg>
+                      </button>
+                      <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to bottom</span>
                     </div>
                   </>
                 )}
@@ -2582,6 +2636,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           {canEdit && (
                             <>
                               <div className="relative group/btn">
+                                <button onClick={() => sendTaskToTop(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
+                                </button>
+                                <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
+                              </div>
+                              <div className="relative group/btn">
                                 <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                                 </button>
@@ -2592,6 +2652,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </button>
                                 <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
+                              </div>
+                              <div className="relative group/btn">
+                                <button onClick={() => sendTaskToBottom(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" /></svg>
+                                </button>
+                                <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to bottom</span>
                               </div>
                             </>
                           )}
@@ -2782,6 +2848,22 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                   </div>
                                 </div>
                                 <div className="flex-shrink-0 flex items-center gap-1">
+                                  {canEdit && (
+                                    <>
+                                      <div className="relative group/btn">
+                                        <button onClick={() => sendSubtaskToTop(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
+                                        </button>
+                                        <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
+                                      </div>
+                                      <div className="relative group/btn">
+                                        <button onClick={() => sendSubtaskToBottom(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" /></svg>
+                                        </button>
+                                        <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to bottom</span>
+                                      </div>
+                                    </>
+                                  )}
                                   <div className="relative group/btn">
                                     <button
                                       onClick={() => copyTaskAsMarkdown(sub)}
