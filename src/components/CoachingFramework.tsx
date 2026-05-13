@@ -221,6 +221,11 @@ interface CoachingFrameworkProps {
   sessionCreatedAt?: string;
   sessionUpdatedAt?: string;
   sessionUserId?: string; // Pass the session owner's userId for cross-account viewing
+  /** Called when a search result is clicked. Lets the parent page
+   *  switch the selected session and (optionally) scroll-anchor to a
+   *  specific goal/task/subtask. CoachingFramework itself doesn't
+   *  control navigation, so this is the escape hatch. */
+  onNavigateToItem?: (params: { sessionId: string; anchorId: string }) => void;
 }
 
 const STATUS_OPTIONS = [
@@ -230,7 +235,7 @@ const STATUS_OPTIONS = [
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 ];
 
-export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId }: CoachingFrameworkProps) {
+export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
 
@@ -308,6 +313,57 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // window.open()-ing the chat, which takes a couple seconds — without
   // a spinner the user gets no feedback and may click again.
   const [askingMikeyFor, setAskingMikeyFor] = useState<string | null>(null);
+
+  // Goals & Tasks search — debounced typeahead that hits
+  // /api/coaching/search and returns goals + tasks + subtasks across
+  // every session (any status). Results render as a dropdown under
+  // the search input; clicking a row calls onNavigateToItem to jump
+  // to the originating session.
+  interface SearchResult {
+    kind: "goal" | "task" | "subtask";
+    id: string;
+    title: string;
+    snippet: string | null;
+    status: string;
+    completedAt: string | null;
+    createdAt: string;
+    sessionId: string;
+    sessionTitle: string | null;
+    sessionDate: string | null;
+    goalTitle?: string;
+    parentTaskTitle?: string;
+  }
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const userParam = sessionUserId ? `&userId=${sessionUserId}` : "";
+        const res = await fetch(`/api/coaching/search?q=${encodeURIComponent(q)}${userParam}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results || []);
+        }
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [searchQuery, sessionUserId]);
   // Per-metric placement for the history popover. "right" by default;
   // flips to "left" when the trigger is close enough to the viewport
   // edge that a right-side popover would clip. Set on hover/pin via a
@@ -2177,10 +2233,101 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
       {/* ── Goals & Tasks ───────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
             <span>🎯</span> Goals &amp; Tasks
           </h3>
+
+          {/* Cross-session search across goals + tasks + subtasks
+              (any status). Results render in a dropdown below; click
+              a row → onNavigateToItem switches to the source session
+              and scroll-anchors to the item. */}
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                placeholder="Search goals, tasks, subtasks…"
+                className="w-full pl-8 pr-7 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onMouseDown={(e) => { e.preventDefault(); setSearchQuery(""); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm leading-none"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {searchOpen && searchQuery.trim().length >= 2 && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-96 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md shadow-xl">
+                {searchLoading && searchResults.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Searching…</div>
+                ) : searchResults.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No matches</div>
+                ) : (
+                  <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {searchResults.map((r) => {
+                      const statusStyle = STATUS_OPTIONS.find((s) => s.value === r.status)?.color
+                        ?? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+                      const dateStr = r.sessionDate
+                        ? new Date(r.sessionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit", timeZone: "UTC" })
+                        : null;
+                      const anchorId = r.kind === "goal" ? `goal-${r.id}` : `task-${r.id}`;
+                      const kindLabel = r.kind === "goal" ? "Goal" : r.kind === "task" ? "Task" : "Subtask";
+                      const parentContext = r.kind === "subtask" && r.parentTaskTitle
+                        ? r.parentTaskTitle
+                        : r.kind !== "goal" ? r.goalTitle : null;
+                      return (
+                        <li key={`${r.kind}-${r.id}`}>
+                          <button
+                            onMouseDown={(e) => {
+                              e.preventDefault(); // keep input focused long enough to fire onClick
+                            }}
+                            onClick={() => {
+                              if (onNavigateToItem) {
+                                onNavigateToItem({ sessionId: r.sessionId, anchorId });
+                              }
+                              setSearchOpen(false);
+                              setSearchQuery("");
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{kindLabel}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusStyle}`}>
+                                {STATUS_OPTIONS.find((s) => s.value === r.status)?.label || r.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-900 dark:text-gray-100 mt-0.5 truncate">{r.title}</div>
+                            {parentContext && (
+                              <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                                {r.kind === "subtask" ? "Subtask of: " : "In goal: "}{parentContext}
+                              </div>
+                            )}
+                            {r.snippet && (
+                              <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{r.snippet}</div>
+                            )}
+                            <div className="text-[10px] text-gray-400 mt-0.5">
+                              {r.sessionTitle ? `${r.sessionTitle}` : "Session"}{dateStr ? ` · ${dateStr}` : ""}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
             {goals.length > 0 && (() => {
               const visibleIds = goals

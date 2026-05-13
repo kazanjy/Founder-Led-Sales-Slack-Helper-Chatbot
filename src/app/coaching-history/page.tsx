@@ -1324,6 +1324,18 @@ function CoachingHistoryContent() {
                       sessionCreatedAt={selectedSession.createdAt}
                       sessionUpdatedAt={selectedSession.updatedAt}
                       sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
+                      onNavigateToItem={({ sessionId: targetId, anchorId }) => {
+                        // Switch to the target session, then scroll to
+                        // the goal/task/subtask anchor once it's
+                        // rendered. The framework re-mounts on
+                        // sessionId change, so we wait a beat for the
+                        // new render before scrolling.
+                        if (targetId !== selectedSession.id) selectSession(targetId);
+                        setTimeout(() => {
+                          const el = document.getElementById(anchorId);
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, targetId !== selectedSession.id ? 400 : 50);
+                      }}
                     />
 
 
