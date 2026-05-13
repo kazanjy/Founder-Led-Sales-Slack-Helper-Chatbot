@@ -2598,6 +2598,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                     ) : canEdit ? (
                                       <button onClick={() => setEditingDescTask(sub.id)} className="text-[10px] text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                                     ) : null}
+                                    {sub.createdAt && (
+                                      <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(sub.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                    )}
+                                    {sub.status === "done" && sub.statusChangedAt && (
+                                      <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(sub.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                    )}
                                     <TaskComments taskId={sub.id} canEdit={canEdit} currentUserId={sessionUserId} />
                                   </div>
                                 </div>
