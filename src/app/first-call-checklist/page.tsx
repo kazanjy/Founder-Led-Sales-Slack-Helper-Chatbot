@@ -480,6 +480,49 @@ function FirstCallChecklistContent() {
     });
   };
 
+  // Tracks the heading whose anchor link was just copied, so we can
+  // flash a brief "✓" state on the copy affordance without a global
+  // toast system. Cleared after 1.5s.
+  const [copiedHeadingSlug, setCopiedHeadingSlug] = useState<string | null>(null);
+
+  // Deep-link support — if the URL carries a #slug, scroll the
+  // matching heading into view once the markdown has rendered.
+  // Re-runs when the content changes so newly-generated headings
+  // catch links pasted before the regenerate finished.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash || hash.length < 2) return;
+    const id = hash.slice(1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+  }, [version?.content]);
+
+  // Heading parse for the left-side table of contents. MUST live
+  // above any conditional returns so the hooks order stays stable
+  // across renders — React error #310 fires otherwise. Tolerates
+  // null/empty content (returns []) so it's safe to run before the
+  // loading / no-version early-returns below.
+  const currentContent = isEditing ? editedContent : (version?.content ?? "");
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const tocItems = useMemo(() => {
+    if (!currentContent) return [] as Array<{ level: 1 | 2; text: string; slug: string }>;
+    const seen = new Map<string, number>();
+    const items: Array<{ level: 1 | 2; text: string; slug: string }> = [];
+    for (const raw of currentContent.split("\n")) {
+      const m = /^(#{1,2})\s+(.+?)\s*#*\s*$/.exec(raw);
+      if (!m) continue;
+      const level = m[1].length as 1 | 2;
+      const text = m[2].trim();
+      const base = slugify(text) || `heading-${items.length}`;
+      const n = seen.get(base) || 0;
+      seen.set(base, n + 1);
+      items.push({ level, text, slug: n === 0 ? base : `${base}-${n}` });
+    }
+    return items;
+  }, [currentContent]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -630,31 +673,6 @@ function FirstCallChecklistContent() {
       </div>
     );
   }
-
-  const currentContent = isEditing ? editedContent : version.content;
-
-  // Parse the markdown for H1 and H2 headings → drive a left-side
-  // table of contents. The slug counter is shared between the parse
-  // pass below and the render-time counter in the ReactMarkdown
-  // components override so both produce matching ids, even when two
-  // headings share text (second occurrence gets a "-1" suffix, etc.).
-  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  const tocItems = useMemo(() => {
-    if (!currentContent) return [] as Array<{ level: 1 | 2; text: string; slug: string }>;
-    const seen = new Map<string, number>();
-    const items: Array<{ level: 1 | 2; text: string; slug: string }> = [];
-    for (const raw of currentContent.split("\n")) {
-      const m = /^(#{1,2})\s+(.+?)\s*#*\s*$/.exec(raw);
-      if (!m) continue;
-      const level = m[1].length as 1 | 2;
-      const text = m[2].trim();
-      const base = slugify(text) || `heading-${items.length}`;
-      const n = seen.get(base) || 0;
-      seen.set(base, n + 1);
-      items.push({ level, text, slug: n === 0 ? base : `${base}-${n}` });
-    }
-    return items;
-  }, [currentContent]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -942,12 +960,47 @@ function FirstCallChecklistContent() {
                     if (c && c.props && c.props.children) return extractText(c.props.children);
                     return "";
                   };
+                  const copyAnchor = (slug: string) => {
+                    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#${slug}`;
+                    navigator.clipboard.writeText(url);
+                    setCopiedHeadingSlug(slug);
+                    setTimeout(() => {
+                      setCopiedHeadingSlug((cur) => (cur === slug ? null : cur));
+                    }, 1500);
+                  };
+                  const HeadingAnchor = ({ slug }: { slug: string }) => (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); copyAnchor(slug); }}
+                      aria-label="Copy link to this section"
+                      title={copiedHeadingSlug === slug ? "Copied!" : "Copy link to this section"}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 ml-2 text-sm align-middle no-underline transition-opacity text-purple-500 hover:text-purple-700 dark:text-purple-300 dark:hover:text-purple-200"
+                    >
+                      {copiedHeadingSlug === slug ? "✓" : "🔗"}
+                    </button>
+                  );
                   return (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        h1: ({ children, ...props }) => <h1 id={slugFor(extractText(children))} {...props}>{children}</h1>,
-                        h2: ({ children, ...props }) => <h2 id={slugFor(extractText(children))} {...props}>{children}</h2>,
+                        h1: ({ children, ...props }) => {
+                          const slug = slugFor(extractText(children));
+                          return (
+                            <h1 id={slug} {...props} className="group">
+                              {children}
+                              <HeadingAnchor slug={slug} />
+                            </h1>
+                          );
+                        },
+                        h2: ({ children, ...props }) => {
+                          const slug = slugFor(extractText(children));
+                          return (
+                            <h2 id={slug} {...props} className="group">
+                              {children}
+                              <HeadingAnchor slug={slug} />
+                            </h2>
+                          );
+                        },
                       }}
                     >
                       {currentContent}
