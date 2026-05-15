@@ -892,7 +892,7 @@ function FirstCallChecklistContent() {
         {!isEditing && tocItems.length > 0 && (
           <aside className="hidden lg:block w-56 flex-shrink-0">
             <div className="sticky top-8">
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm max-h-[calc(100vh-4rem)] overflow-y-auto">
                 <h3 className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   On this page
                 </h3>
