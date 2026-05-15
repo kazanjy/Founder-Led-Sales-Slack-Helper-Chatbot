@@ -507,13 +507,13 @@ function FirstCallChecklistContent() {
   const currentContent = isEditing ? editedContent : (version?.content ?? "");
   const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   const tocItems = useMemo(() => {
-    if (!currentContent) return [] as Array<{ level: 1 | 2; text: string; slug: string }>;
+    if (!currentContent) return [] as Array<{ level: 1 | 2 | 3; text: string; slug: string }>;
     const seen = new Map<string, number>();
-    const items: Array<{ level: 1 | 2; text: string; slug: string }> = [];
+    const items: Array<{ level: 1 | 2 | 3; text: string; slug: string }> = [];
     for (const raw of currentContent.split("\n")) {
-      const m = /^(#{1,2})\s+(.+?)\s*#*\s*$/.exec(raw);
+      const m = /^(#{1,3})\s+(.+?)\s*#*\s*$/.exec(raw);
       if (!m) continue;
-      const level = m[1].length as 1 | 2;
+      const level = m[1].length as 1 | 2 | 3;
       const text = m[2].trim();
       const base = slugify(text) || `heading-${items.length}`;
       const n = seen.get(base) || 0;
@@ -908,7 +908,9 @@ function FirstCallChecklistContent() {
                           className={`block w-full text-left text-xs leading-snug py-1 hover:text-purple-600 dark:hover:text-purple-300 transition-colors ${
                             item.level === 1
                               ? "text-gray-800 dark:text-gray-200 font-medium"
-                              : "text-gray-600 dark:text-gray-400 pl-3"
+                              : item.level === 2
+                                ? "text-gray-600 dark:text-gray-400 pl-3"
+                                : "text-gray-500 dark:text-gray-500 pl-6"
                           }`}
                           title={item.text}
                         >
@@ -999,6 +1001,15 @@ function FirstCallChecklistContent() {
                               {children}
                               <HeadingAnchor slug={slug} />
                             </h2>
+                          );
+                        },
+                        h3: ({ children, ...props }) => {
+                          const slug = slugFor(extractText(children));
+                          return (
+                            <h3 id={slug} {...props} className="group">
+                              {children}
+                              <HeadingAnchor slug={slug} />
+                            </h3>
                           );
                         },
                       }}
