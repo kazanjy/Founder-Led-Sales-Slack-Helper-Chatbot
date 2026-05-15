@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -633,6 +633,29 @@ function FirstCallChecklistContent() {
 
   const currentContent = isEditing ? editedContent : version.content;
 
+  // Parse the markdown for H1 and H2 headings → drive a left-side
+  // table of contents. The slug counter is shared between the parse
+  // pass below and the render-time counter in the ReactMarkdown
+  // components override so both produce matching ids, even when two
+  // headings share text (second occurrence gets a "-1" suffix, etc.).
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const tocItems = useMemo(() => {
+    if (!currentContent) return [] as Array<{ level: 1 | 2; text: string; slug: string }>;
+    const seen = new Map<string, number>();
+    const items: Array<{ level: 1 | 2; text: string; slug: string }> = [];
+    for (const raw of currentContent.split("\n")) {
+      const m = /^(#{1,2})\s+(.+?)\s*#*\s*$/.exec(raw);
+      if (!m) continue;
+      const level = m[1].length as 1 | 2;
+      const text = m[2].trim();
+      const base = slugify(text) || `heading-${items.length}`;
+      const n = seen.get(base) || 0;
+      seen.set(base, n + 1);
+      items.push({ level, text, slug: n === 0 ? base : `${base}-${n}` });
+    }
+    return items;
+  }, [currentContent]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
@@ -845,6 +868,42 @@ function FirstCallChecklistContent() {
         )}
 
         <div className="flex gap-8">
+        {/* Left: table of contents — H1/H2 quick-jump nav. Hidden on
+            small viewports and while editing (the editor is full-
+            width). Sticky so it stays visible as the user scrolls. */}
+        {!isEditing && tocItems.length > 0 && (
+          <aside className="hidden lg:block w-56 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <h3 className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  On this page
+                </h3>
+                <nav>
+                  <ul className="space-y-0.5">
+                    {tocItems.map((item) => (
+                      <li key={item.slug}>
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById(item.slug);
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className={`block w-full text-left text-xs leading-snug py-1 hover:text-purple-600 dark:hover:text-purple-300 transition-colors ${
+                            item.level === 1
+                              ? "text-gray-800 dark:text-gray-200 font-medium"
+                              : "text-gray-600 dark:text-gray-400 pl-3"
+                          }`}
+                          title={item.text}
+                        >
+                          {item.text}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
+              </div>
+            </div>
+          </aside>
+        )}
         <div className="flex-1 min-w-0">
         {/* Iteration prompt banner */}
         {iterationPrompt && !isEditing && (
@@ -862,8 +921,39 @@ function FirstCallChecklistContent() {
                 height={600}
               />
             ) : (
-              <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
+              <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2 prose-headings:scroll-mt-24">
+                {(() => {
+                  // Fresh slug counter per render — mirrors the parse-
+                  // pass counter that built tocItems so the ids match
+                  // in order even when two headings share text.
+                  const seen = new Map<string, number>();
+                  const slugFor = (text: string) => {
+                    const base = slugify(text) || "heading";
+                    const n = seen.get(base) || 0;
+                    seen.set(base, n + 1);
+                    return n === 0 ? base : `${base}-${n}`;
+                  };
+                  const extractText = (children: React.ReactNode): string => {
+                    if (typeof children === "string") return children;
+                    if (typeof children === "number") return String(children);
+                    if (Array.isArray(children)) return children.map(extractText).join("");
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const c = children as any;
+                    if (c && c.props && c.props.children) return extractText(c.props.children);
+                    return "";
+                  };
+                  return (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ children, ...props }) => <h1 id={slugFor(extractText(children))} {...props}>{children}</h1>,
+                        h2: ({ children, ...props }) => <h2 id={slugFor(extractText(children))} {...props}>{children}</h2>,
+                      }}
+                    >
+                      {currentContent}
+                    </ReactMarkdown>
+                  );
+                })()}
               </div>
             )}
           </div>
