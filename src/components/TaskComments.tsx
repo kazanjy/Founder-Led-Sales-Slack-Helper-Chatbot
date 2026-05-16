@@ -65,6 +65,7 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
   const [serverCurrentUserId, setServerCurrentUserId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [autoExpanded, setAutoExpanded] = useState(false);
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -99,6 +100,15 @@ export function TaskComments({ taskId, canEdit, currentUserId: currentUserIdProp
       cancelled = true;
     };
   }, [taskId]);
+
+  // Auto-expand once after the initial load if the task has any
+  // existing comments. We gate on a one-shot flag so the user can
+  // still collapse the section and it'll stay collapsed.
+  useEffect(() => {
+    if (!loaded || autoExpanded) return;
+    if (comments.length > 0) setExpanded(true);
+    setAutoExpanded(true);
+  }, [loaded, comments.length, autoExpanded]);
 
   // If the page URL points at one of our comments via #comment-X,
   // auto-expand and scroll into view.
