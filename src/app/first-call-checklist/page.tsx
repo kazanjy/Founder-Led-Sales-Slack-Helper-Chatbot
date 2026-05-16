@@ -900,10 +900,15 @@ function FirstCallChecklistContent() {
                   <ul className="space-y-0.5">
                     {tocItems.map((item) => (
                       <li key={item.slug}>
-                        <button
-                          onClick={() => {
+                        <a
+                          href={`#${item.slug}`}
+                          onClick={(e) => {
                             const el = document.getElementById(item.slug);
-                            if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            if (el) {
+                              e.preventDefault();
+                              history.replaceState(null, "", `#${item.slug}`);
+                              el.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
                           }}
                           className={`block w-full text-left text-xs leading-snug py-1 hover:text-purple-600 dark:hover:text-purple-300 transition-colors ${
                             item.level === 1
@@ -915,7 +920,7 @@ function FirstCallChecklistContent() {
                           title={item.text}
                         >
                           {item.text}
-                        </button>
+                        </a>
                       </li>
                     ))}
                   </ul>
