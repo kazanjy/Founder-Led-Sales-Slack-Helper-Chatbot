@@ -11,6 +11,7 @@ import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 interface SalesLeaderProfileVersion {
   id: string;
@@ -699,7 +700,7 @@ function SalesLeaderProfileContent() {
             </div>
 
             {/* Right: Sidebar */}
-            <div className="hidden lg:block w-72 shrink-0">
+            <CollapsibleRightSidebar storageKey="sales-leader-profile" widthClass="w-72">
               <div className="sticky top-8 space-y-4">
                 <SidebarAdCards />
 
@@ -746,7 +747,7 @@ function SalesLeaderProfileContent() {
                   </div>
                 )}
               </div>
-            </div>
+            </CollapsibleRightSidebar>
           </div>
         </div>
       )}

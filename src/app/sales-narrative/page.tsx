@@ -12,6 +12,7 @@ import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 interface NarrativeVersion {
   id: string;
@@ -1335,7 +1336,7 @@ function SalesNarrativeContent() {
 
         {/* Right sidebar: Iterate widget + Next step CTA */}
         {!isEditing && (
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          <CollapsibleRightSidebar storageKey="sales-narrative">
             <div className="sticky top-8 space-y-4">
               {/* Iterate widget */}
               {version && (
@@ -1446,7 +1447,7 @@ function SalesNarrativeContent() {
 
               <SidebarAdCards />
             </div>
-          </div>
+          </CollapsibleRightSidebar>
         )}
         </div>{/* end flex row */}
       </div>}

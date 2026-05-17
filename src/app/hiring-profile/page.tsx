@@ -11,6 +11,7 @@ import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 interface HiringProfileVersion {
   id: string;
@@ -741,7 +742,7 @@ function HiringProfileContent() {
             </div>
 
             {/* Right: Sidebar */}
-            <div className="hidden lg:block w-72 shrink-0">
+            <CollapsibleRightSidebar storageKey="hiring-profile" widthClass="w-72">
               <div className="sticky top-8 space-y-4">
                 <SidebarAdCards />
 
@@ -788,7 +789,7 @@ function HiringProfileContent() {
                   </div>
                 )}
               </div>
-            </div>
+            </CollapsibleRightSidebar>
           </div>
         </div>
       )}

@@ -14,6 +14,7 @@ import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 const RichTextEditor = dynamic(
   () => import("@/components/RichTextEditor"),
@@ -834,7 +835,7 @@ function EmailSequenceContent() {
         </div>
 
       </div>{/* end main content */}
-      <div className="hidden lg:block w-64 flex-shrink-0">
+      <CollapsibleRightSidebar storageKey="email-sequence">
         <div className="sticky top-8 space-y-4">
           {version && !isEditing && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
@@ -875,7 +876,7 @@ function EmailSequenceContent() {
           )}
           <SidebarAdCards currentPage="emailSequence" />
         </div>
-      </div>
+      </CollapsibleRightSidebar>
       </div>{/* end flex row */}
       </div>
       {ConfirmModalElement}

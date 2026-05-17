@@ -13,6 +13,7 @@ import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 // Dynamically import RichTextEditor to avoid SSR issues
 const RichTextEditor = dynamic(
@@ -1055,7 +1056,7 @@ function FirstCallChecklistContent() {
 
         {/* Right: Sidebar with Iterate */}
         {!isEditing && version && (
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          <CollapsibleRightSidebar storageKey="first-call-checklist">
             <div className="sticky top-8">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-2 flex items-center gap-2">
@@ -1094,7 +1095,7 @@ function FirstCallChecklistContent() {
                 </button>
               </div>
             </div>
-          </div>
+          </CollapsibleRightSidebar>
         )}
         </div>{/* end flex row */}
       </div>
