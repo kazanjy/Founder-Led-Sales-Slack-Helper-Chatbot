@@ -11,6 +11,7 @@ import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 interface PreHireAssessmentVersion {
   id: string;
@@ -641,7 +642,7 @@ function PreHireAssessmentContent() {
             </div>
 
             {/* Right: Sidebar */}
-            <div className="hidden lg:block w-72 shrink-0">
+            <CollapsibleRightSidebar storageKey="pre-hire-assessment" widthClass="w-72">
               <div className="sticky top-8 space-y-4">
                 <SidebarAdCards />
 
@@ -688,7 +689,7 @@ function PreHireAssessmentContent() {
                   </div>
                 )}
               </div>
-            </div>
+            </CollapsibleRightSidebar>
           </div>
         </div>
       )}

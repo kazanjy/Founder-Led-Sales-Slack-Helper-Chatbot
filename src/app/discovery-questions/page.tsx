@@ -11,6 +11,7 @@ import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
+import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
 
 interface DiscoveryQuestion {
   primary: string;
@@ -1218,7 +1219,7 @@ function DiscoveryQuestionsContent() {
 
         {/* Right sidebar: ICP status + ad widgets */}
         {!isEditing && (
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          <CollapsibleRightSidebar storageKey="discovery-questions">
             <div className="sticky top-8">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-5 text-white shadow-lg">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-4">
@@ -1340,7 +1341,7 @@ function DiscoveryQuestionsContent() {
 
               <SidebarAdCards />
             </div>
-          </div>
+          </CollapsibleRightSidebar>
         )}
         </div>{/* end flex row */}
       </div>
