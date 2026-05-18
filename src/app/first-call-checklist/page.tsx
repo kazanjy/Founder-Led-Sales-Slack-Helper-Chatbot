@@ -947,7 +947,7 @@ function FirstCallChecklistContent() {
                 height={600}
               />
             ) : (
-              <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2 prose-headings:scroll-mt-24">
+              <div className="prose prose-gray dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-gray-100 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 dark:prose-p:text-gray-200 prose-li:text-gray-700 dark:prose-li:text-gray-200 prose-strong:text-gray-900 dark:prose-strong:text-gray-100 prose-a:text-purple-600 dark:prose-a:text-purple-300 prose-table:text-sm prose-th:bg-gray-100 dark:prose-th:bg-gray-700 dark:prose-th:text-gray-100 prose-th:border prose-th:border-gray-300 dark:prose-th:border-gray-600 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 dark:prose-td:border-gray-700 dark:prose-td:text-gray-200 prose-td:px-3 prose-td:py-2 prose-headings:scroll-mt-24">
                 {(() => {
                   // Fresh slug counter per render — mirrors the parse-
                   // pass counter that built tocItems so the ids match
