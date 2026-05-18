@@ -102,6 +102,18 @@ export async function GET(request: NextRequest) {
 
     let isNewUser = false;
 
+    // Persist the OAuth tokens so we can call Google APIs (Calendar,
+    // etc.) on the user's behalf later. Google only returns a
+    // refresh_token on the first consent OR when prompt=consent is
+    // forced — we set both, so the refresh token should be present.
+    // Fall back to keeping the existing refresh token if Google
+    // omits it on a re-auth.
+    const tokenFields = {
+      googleAccessToken: tokenData.access_token,
+      googleTokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+      googleScopes: tokenData.scope,
+    };
+
     if (!user) {
       // Create new web-only user
       user = await prisma.user.create({
@@ -112,6 +124,8 @@ export async function GET(request: NextRequest) {
           avatarUrl: userInfo.picture,
           trialStartedAt: new Date(),
           licenseStatus: "TRIAL",
+          ...tokenFields,
+          googleRefreshToken: tokenData.refresh_token ?? null,
         },
       });
       isNewUser = true;
@@ -128,6 +142,8 @@ export async function GET(request: NextRequest) {
           email: user.email || userInfo.email,
           name: user.name || userInfo.name,
           avatarUrl: user.avatarUrl || userInfo.picture,
+          ...tokenFields,
+          ...(tokenData.refresh_token ? { googleRefreshToken: tokenData.refresh_token } : {}),
         },
       });
       console.log(`[Google Auth] Existing user logged in: ${userInfo.email}`);

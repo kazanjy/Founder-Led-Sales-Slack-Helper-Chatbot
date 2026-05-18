@@ -85,6 +85,15 @@ model User {
   // Google identity (optional - null for Slack-only users)
   googleId String? @unique
 
+  // Google OAuth tokens for API access (Calendar, etc). Populated when
+  // the user grants extra scopes beyond basic identity. Plain text at
+  // rest for parity with slackUserToken; encrypting the family is a
+  // separate cleanup pass.
+  googleAccessToken     String?
+  googleRefreshToken    String?
+  googleTokenExpiresAt  DateTime?
+  googleScopes          String?
+
   // Email - primary identifier for web-only users
   email           String?  @unique
   secondaryEmails String[] @default([]) // Additional emails that can be used for auth lookup

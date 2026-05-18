@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, canUserChat } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { hasGoogleCalendarScope } from "@/lib/google";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -39,6 +40,20 @@ export async function GET() {
     accountDomain = account?.emailDomain || null;
   }
 
+  // Calendar connection status — true only if we have BOTH a usable
+  // refresh token AND a granted calendar scope. Existing Google users
+  // who logged in before calendar scopes were added will read false
+  // here and the UI can prompt them to reconnect.
+  const googleTokenRow = user.googleId
+    ? await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { googleRefreshToken: true, googleScopes: true },
+      })
+    : null;
+  const googleCalendarConnected =
+    !!googleTokenRow?.googleRefreshToken &&
+    hasGoogleCalendarScope(googleTokenRow.googleScopes);
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -56,6 +71,7 @@ export async function GET() {
       missingEmail: !user.email && !user.slackEmail,
       isImpersonating: user.isImpersonating,
       accountDomain,
+      googleCalendarConnected,
     },
   });
 }
