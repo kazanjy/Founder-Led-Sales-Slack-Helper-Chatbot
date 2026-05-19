@@ -2349,11 +2349,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   value={taskSort}
                   onChange={(e) => updateTaskSort(e.target.value as TaskSort)}
                   className="text-xs bg-transparent border-0 text-gray-500 dark:text-gray-300 focus:ring-0 cursor-pointer hover:text-gray-700 dark:hover:text-gray-100"
-                  title="How to order tasks within each goal"
+                  title="How to order the task view"
                 >
-                  <option value="manual">Manual</option>
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
+                  <option value="manual">Goal &amp; Task</option>
+                  <option value="newest">Created date — newest</option>
+                  <option value="oldest">Created date — oldest</option>
                 </select>
               </label>
             )}
@@ -2433,7 +2433,109 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               </button>
             </div>
           )}
-          {goals
+          {taskSort !== "manual" && goals.length > 0 && (() => {
+            // ── Flat date-sorted view ─────────────────────────────
+            // Pull every task + subtask from every visible goal,
+            // sort by createdAt, and render a single flat list. Each
+            // row keeps a small breadcrumb chip naming the goal
+            // (and parent task for subtasks) so users don't lose
+            // bucket context. Heavier interactions (drag, move,
+            // send-to-top) stay scoped to the grouped view.
+            type FlatRow = { task: Task; goal: Goal; parent: Task | null };
+            const rows: FlatRow[] = [];
+            const isSettledRow = (t: Task) =>
+              t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+            const visibleGoals = goals.filter((g) =>
+              !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
+            );
+            for (const goal of visibleGoals) {
+              const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+              const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
+              for (const t of goal.tasks) {
+                if (hideForGoal && isSettledRow(t)) continue;
+                const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
+                rows.push({ task: t, goal, parent });
+              }
+            }
+            rows.sort((a, b) => {
+              const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
+              const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
+              return taskSort === "newest" ? bMs - aMs : aMs - bMs;
+            });
+
+            if (rows.length === 0) {
+              return (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  No tasks match the current filters.
+                </p>
+              );
+            }
+
+            return (
+              <ul className="space-y-2">
+                {rows.map(({ task, goal, parent }) => {
+                  const settled = isSettledRow(task);
+                  const palette = STATUS_OPTIONS.find((o) => o.value === task.status);
+                  return (
+                    <li
+                      key={task.id}
+                      id={`task-${task.id}`}
+                      className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40"
+                    >
+                      <div className="flex items-baseline gap-2 text-[11px] text-gray-500 dark:text-gray-400 mb-1 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                          🎯 {goal.title}
+                        </span>
+                        {parent && (
+                          <>
+                            <span>›</span>
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                              {parent.title}
+                            </span>
+                          </>
+                        )}
+                        {task.createdAt && (
+                          <span className="ml-auto">
+                            Created {new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-start gap-2">
+                        {canEdit ? (
+                          <input
+                            type="checkbox"
+                            checked={settled}
+                            onChange={() =>
+                              updateTaskStatus(task.id, settled ? "active" : "done")
+                            }
+                            className="mt-0.5 accent-purple-600 flex-shrink-0"
+                          />
+                        ) : (
+                          <span className="mt-0.5 w-3 h-3 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm ${settled ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"}`}>
+                            {task.title}
+                          </div>
+                          {task.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 whitespace-pre-wrap">
+                              {task.description}
+                            </div>
+                          )}
+                        </div>
+                        {palette && (
+                          <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.color} flex-shrink-0`}>
+                            {palette.label}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()}
+          {taskSort === "manual" && goals
             .filter((goal) => {
               // Master switch hides goals that are done or not_doing
               // entirely. Per-goal overrides only affect that goal's
@@ -2661,20 +2763,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   // keyed by their parent task id. The flat goal.tasks
                   // array stays the source of truth; this just gives
                   // us a tree shape to render.
-                  // Comparator honoring the current task-sort
-                  // preference. Manual = drag/drop `order`; newest
-                  // and oldest sort by createdAt (descending /
-                  // ascending). Missing createdAt sinks to the end.
-                  const taskComparator = (a: Task, b: Task) => {
-                    if (taskSort === "manual") return a.order - b.order;
-                    const aMs = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const bMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return taskSort === "newest" ? bMs - aMs : aMs - bMs;
-                  };
-                  const topLevelTasks = goal.tasks
-                    .filter((t) => !t.parentTaskId)
-                    .slice()
-                    .sort(taskComparator);
+                  const topLevelTasks = goal.tasks.filter((t) => !t.parentTaskId);
                   const subtasksByParent: Record<string, Task[]> = {};
                   for (const t of goal.tasks) {
                     if (t.parentTaskId) {
@@ -2682,7 +2771,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     }
                   }
                   for (const k of Object.keys(subtasksByParent)) {
-                    subtasksByParent[k].sort(taskComparator);
+                    subtasksByParent[k].sort((a, b) => a.order - b.order);
                   }
 
                   const visibleTopLevel = hideForGoal
