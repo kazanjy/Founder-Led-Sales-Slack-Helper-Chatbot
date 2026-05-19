@@ -483,17 +483,17 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   {filtered.map((call) => {
                     const match = call.providerUrl ? existingMatches[call.providerUrl] : undefined;
                     const isChecked = selectedCallIds.has(call.id);
-                    // Native tooltip listing who was on the call. Helps
-                    // disambiguate same-titled recurring meetings at a
-                    // glance.
-                    const participantsTooltip =
-                      call.participants.length > 0
-                        ? `${call.title}\n\nAttendees:\n${call.participants.map((p) => `• ${p}`).join("\n")}`
-                        : call.title;
+                    // CSS popover (no native title delay) listing who
+                    // was on the call. Prefer the richer attendees
+                    // list (name + email) when the provider returned
+                    // it; fall back to the bare participant names.
+                    const attendeeRows: Array<{ name: string; email?: string }> =
+                      call.attendees && call.attendees.length > 0
+                        ? call.attendees
+                        : call.participants.map((p) => ({ name: p }));
                     return (
-                    <div key={call.id}>
+                    <div key={call.id} className="relative group">
                       <button
-                        title={participantsTooltip}
                         onClick={() => {
                           if (multiSelectMode) {
                             toggleSelection(call.id);
@@ -576,6 +576,22 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                           )
                         )}
                       </button>
+                      {attendeeRows.length > 0 && (
+                        <div className="pointer-events-none absolute left-3 top-full mt-1 z-20 hidden group-hover:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 min-w-[14rem] max-w-[20rem]">
+                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">{call.title}</div>
+                          <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Attendees</div>
+                          <ul className="space-y-0.5">
+                            {attendeeRows.map((a, idx) => (
+                              <li key={`${a.email || a.name}-${idx}`} className="text-xs">
+                                <div className="text-gray-800 dark:text-gray-100">{a.name}</div>
+                                {a.email && (
+                                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all">{a.email}</div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                     );
                   })}

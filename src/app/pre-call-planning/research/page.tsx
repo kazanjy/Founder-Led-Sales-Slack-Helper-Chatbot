@@ -100,6 +100,10 @@ function ResearchContent() {
   const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
   // Per-tile spinner while we run PDL enrichment on the selected event.
   const [enrichingEventId, setEnrichingEventId] = useState<string | null>(null);
+  // PDL enrichment outcome per event so we can show "Enriched N of M
+  // from PDL" on the tile after a click. Keyed by event.id.
+  interface EnrichmentResult { pdlHits: number; total: number; companyFallback: boolean }
+  const [enrichmentResults, setEnrichmentResults] = useState<Record<string, EnrichmentResult>>({});
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -224,7 +228,17 @@ function ResearchContent() {
           contactLinkedIn: string;
           companyUrl: string;
         } | null;
+        pdlHits?: number;
+        companyFallback?: boolean;
       };
+      setEnrichmentResults((prev) => ({
+        ...prev,
+        [event.id]: {
+          pdlHits: data.pdlHits ?? 0,
+          total: event.attendees.length,
+          companyFallback: !!data.companyFallback,
+        },
+      }));
       if (!data.prefill) return;
       if (data.prefill.companyName) setCompanyName(data.prefill.companyName);
       if (data.prefill.contactName) setContactName(data.prefill.contactName);
@@ -612,6 +626,16 @@ function ResearchContent() {
                                 <> · <span className="text-purple-600 dark:text-purple-300">{event.prefill.companyName}</span></>
                               )}
                             </div>
+                            {enrichmentResults[event.id] && (
+                              <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                                {(() => {
+                                  const r = enrichmentResults[event.id];
+                                  const parts = [`Enriched ${r.pdlHits} of ${r.total} from PDL`];
+                                  if (r.companyFallback) parts.push("company by domain");
+                                  return parts.join(" · ");
+                                })()}
+                              </div>
+                            )}
                           </button>
                         </li>
                       );
