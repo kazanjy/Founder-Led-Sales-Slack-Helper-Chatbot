@@ -1132,6 +1132,22 @@ function ResearchContent() {
               </div>
             )}
 
+            {/* Auto-broadcast briefs: saved title patterns the daily
+                cron uses to research + post matching meetings to Slack
+                ahead of the call. Only useful if the user has Slack
+                connected. */}
+            {calendarConnected && (
+              <RecurringResearchPatternsPanel
+                hasSlackDm={hasSlackDm}
+                preferredChannelId={preferredChannelId}
+                preferredChannelName={preferredChannelName}
+                slackChannels={slackChannels}
+                fetchSlackChannelsIfNeeded={fetchSlackChannelsIfNeeded}
+                slackChannelsLoaded={slackChannelsLoaded}
+                slackChannelsError={slackChannelsError}
+              />
+            )}
+
             {/* Research Form */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Research</h2>
@@ -1393,6 +1409,265 @@ function ResearchContent() {
         </div>
       </div>
       {ConfirmModalElement}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
+// Recurring research patterns panel
+// ---------------------------------------------------------------
+
+interface RecurringPattern {
+  id: string;
+  titlePattern: string;
+  destination: "dm" | "channel";
+  channelId: string | null;
+  channelName: string | null;
+  enabled: boolean;
+  lastRunAt: string | null;
+}
+
+interface RecurringPanelProps {
+  hasSlackDm: boolean;
+  preferredChannelId: string | null;
+  preferredChannelName: string | null;
+  slackChannels: Array<{ id: string; name: string; isPrivate?: boolean }>;
+  fetchSlackChannelsIfNeeded: () => Promise<void>;
+  slackChannelsLoaded: boolean;
+  slackChannelsError: string | null;
+}
+
+function RecurringResearchPatternsPanel({
+  hasSlackDm,
+  preferredChannelId,
+  preferredChannelName,
+  slackChannels,
+  fetchSlackChannelsIfNeeded,
+  slackChannelsLoaded,
+  slackChannelsError,
+}: RecurringPanelProps) {
+  const [patterns, setPatterns] = useState<RecurringPattern[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDest, setNewDest] = useState<"dm" | "channel">(hasSlackDm ? "dm" : "channel");
+  const [newChannelId, setNewChannelId] = useState<string>(preferredChannelId || "");
+  const [newChannelName, setNewChannelName] = useState<string>(preferredChannelName || "");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/recurring-research-patterns");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setPatterns(data.patterns || []);
+      } catch (err) {
+        console.error("[recurring] load failed:", err);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAdd = async () => {
+    const title = newTitle.trim();
+    if (!title) return;
+    if (newDest === "channel" && !newChannelId) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/recurring-research-patterns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titlePattern: title,
+          destination: newDest,
+          channelId: newDest === "channel" ? newChannelId : null,
+          channelName: newDest === "channel" ? newChannelName : null,
+        }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setPatterns((prev) => [data.pattern, ...prev]);
+      setNewTitle("");
+      setAdding(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggle = async (id: string, enabled: boolean) => {
+    setPatterns((prev) => prev.map((p) => (p.id === id ? { ...p, enabled } : p)));
+    try {
+      await fetch(`/api/recurring-research-patterns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (err) {
+      console.error("[recurring] toggle failed:", err);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setPatterns((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await fetch(`/api/recurring-research-patterns/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("[recurring] delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Auto-broadcast briefs
+        </h2>
+        {!adding && (
+          <button
+            onClick={() => {
+              setAdding(true);
+              if (newDest === "channel") fetchSlackChannelsIfNeeded();
+            }}
+            className="text-xs font-medium text-purple-600 dark:text-purple-300 hover:text-purple-700"
+          >
+            + Add
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+        Match calendar event titles. We&apos;ll research matching meetings each morning and post the brief to Slack.
+      </p>
+
+      {loaded && patterns.length === 0 && !adding && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+          No saved patterns yet.
+        </p>
+      )}
+
+      {patterns.length > 0 && (
+        <ul className="space-y-2 mb-3">
+          {patterns.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between gap-2 p-2 rounded-md border border-gray-200 dark:border-gray-700"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                  &ldquo;{p.titlePattern}&rdquo;
+                </div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                  → {p.destination === "dm" ? "MikeyBot DM" : `#${p.channelName || p.channelId}`}
+                  {p.lastRunAt && (
+                    <> · last run {new Date(p.lastRunAt).toLocaleDateString()}</>
+                  )}
+                </div>
+              </div>
+              <label className="text-xs flex items-center gap-1 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={p.enabled}
+                  onChange={(e) => handleToggle(p.id, e.target.checked)}
+                  className="accent-purple-600"
+                />
+                On
+              </label>
+              <button
+                onClick={() => handleDelete(p.id)}
+                className="text-[11px] text-gray-400 hover:text-red-500 flex-shrink-0"
+                title="Delete"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding && (
+        <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Title contains… (e.g. Discovery)"
+            className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <div className="flex items-center gap-2 text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="dest"
+                checked={newDest === "dm"}
+                onChange={() => setNewDest("dm")}
+                disabled={!hasSlackDm}
+              />
+              MikeyBot DM
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="dest"
+                checked={newDest === "channel"}
+                onChange={() => {
+                  setNewDest("channel");
+                  fetchSlackChannelsIfNeeded();
+                }}
+              />
+              Channel
+            </label>
+          </div>
+          {newDest === "channel" && (
+            !slackChannelsLoaded ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400">Loading channels…</p>
+            ) : slackChannelsError ? (
+              <p className="text-xs text-red-600 dark:text-red-400">Failed to load channels.</p>
+            ) : (
+              <select
+                value={newChannelId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setNewChannelId(id);
+                  const ch = slackChannels.find((c) => c.id === id);
+                  setNewChannelName(ch?.name || "");
+                }}
+                className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">Pick a channel…</option>
+                {slackChannels.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.isPrivate ? "🔒 " : "#"}
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )
+          )}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setAdding(false)}
+              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={submitting || !newTitle.trim() || (newDest === "channel" && !newChannelId)}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50"
+            >
+              {submitting ? "Saving…" : "Save pattern"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

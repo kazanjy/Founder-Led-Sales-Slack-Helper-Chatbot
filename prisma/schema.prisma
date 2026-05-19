@@ -163,6 +163,7 @@ model User {
   firstCallChecklistVersions FirstCallChecklistVersion[]
   preCallPlanningVersions    PreCallPlanningVersion[]
   preCallResearch            PreCallResearch[]
+  recurringResearchPatterns  RecurringResearchPattern[]
   pendingResearchRequests    PendingResearchRequest[]
   emailSequenceVersions      EmailSequenceVersion[]
   linkedInSequenceVersions   LinkedInSequenceVersion[]
@@ -1077,6 +1078,50 @@ model PreCallResearch {
   @@index([userId, createdAt])
   @@index([userId, companyName])
   @@map("pre_call_research")
+}
+
+// Saved title-pattern → Slack destination rules that the daily cron
+// uses to auto-generate pre-call research briefs for the user's
+// matching calendar events.
+model RecurringResearchPattern {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Case-insensitive substring matched against the calendar event
+  // title. e.g. "Discovery" matches any event with "discovery" in
+  // its name.
+  titlePattern String
+  // "dm" — post to the user's MikeyBot DM
+  // "channel" — post to a specific Slack channel
+  destination  String
+  channelId    String?
+  channelName  String?
+  enabled      Boolean  @default(true)
+  lastRunAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, enabled])
+  @@map("recurring_research_patterns")
+}
+
+// One row per (pattern, calendar event) the cron has already
+// processed so we never re-post the same brief on later runs.
+model RecurringResearchRun {
+  id              String   @id @default(cuid())
+  userId          String
+  patternId       String
+  calendarEventId String
+  status          String   // "sent" | "enrichment_failed" | "brief_failed" | "post_failed"
+  researchId      String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@unique([patternId, calendarEventId])
+  @@index([userId, createdAt])
+  @@map("recurring_research_runs")
 }
 
 // Tracks multi-turn research intake via Slack

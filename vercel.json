@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/drain-broadcasts",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/daily-research-briefs",
+      "schedule": "0 14 * * *"
     }
   ]
 }
