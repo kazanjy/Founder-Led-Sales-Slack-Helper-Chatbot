@@ -117,6 +117,18 @@ function ResearchContent() {
   interface EnrichmentResult { pdlHits: number; total: number; companyFallback: boolean }
   const [enrichmentResults, setEnrichmentResults] = useState<Record<string, EnrichmentResult>>({});
 
+  // Slack send-to-channel state. Lists are fetched lazily the first
+  // time the dropdown opens so we don't make every brief view do a
+  // Slack API call.
+  interface SlackChannel { id: string; name: string; isMember?: boolean; isPrivate?: boolean }
+  const [slackPickerOpen, setSlackPickerOpen] = useState(false);
+  const [slackChannels, setSlackChannels] = useState<SlackChannel[]>([]);
+  const [slackChannelsLoaded, setSlackChannelsLoaded] = useState(false);
+  const [slackChannelsError, setSlackChannelsError] = useState<string | null>(null);
+  const [slackChannelFilter, setSlackChannelFilter] = useState("");
+  const [sendingToSlack, setSendingToSlack] = useState(false);
+  const [slackSentChannelId, setSlackSentChannelId] = useState<string | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
 
   const loadBriefById = useCallback(async (id: string) => {
@@ -435,6 +447,67 @@ function ResearchContent() {
     }
   };
 
+  // Toggle the Slack channel picker. First open lazily fetches the
+  // workspace's channel list.
+  const openSlackPicker = async () => {
+    setSlackPickerOpen((prev) => !prev);
+    setSlackSentChannelId(null);
+    if (slackChannelsLoaded) return;
+    try {
+      const res = await fetch("/api/slack/my-channels");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSlackChannelsError(data.error === "no_workspace" ? "no_workspace" : "fetch_failed");
+        return;
+      }
+      const data = await res.json();
+      setSlackChannels(data.channels || []);
+      setSlackChannelsError(null);
+    } catch (err) {
+      console.error("[slack] channel list failed:", err);
+      setSlackChannelsError("fetch_failed");
+    } finally {
+      setSlackChannelsLoaded(true);
+    }
+  };
+
+  const sendBriefToSlack = async (channelId: string) => {
+    if (!brief || sendingToSlack) return;
+    setSendingToSlack(true);
+    try {
+      const res = await fetch(
+        `/api/pre-call-planning/research/${brief.id}/send-to-slack`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        await showAlert({
+          title: "Slack post failed",
+          message: data.error || "Could not post to Slack. Try a different channel.",
+          variant: "danger",
+        });
+        return;
+      }
+      setSlackSentChannelId(channelId);
+      // Auto-close the picker after a beat so the success badge has
+      // time to land in the user's eye.
+      setTimeout(() => setSlackPickerOpen(false), 1500);
+    } catch (err) {
+      console.error("[slack] send failed:", err);
+      await showAlert({
+        title: "Slack post failed",
+        message: "Network error. Please try again.",
+        variant: "danger",
+      });
+    } finally {
+      setSendingToSlack(false);
+    }
+  };
+
   // Thin wrapper for the "Research Prospect" button: reads from form
   // state and delegates to runResearchWithInputs.
   const handleResearch = () =>
@@ -600,6 +673,74 @@ function ResearchContent() {
                 title={`Pre-Call Research: ${brief.companyName}${brief.contactName ? ` - ${brief.contactName}` : ""}${brief.contactTitle ? `, ${brief.contactTitle}` : ""}`}
                 content={brief.content}
               />
+              {/* Send to Slack: opens a channel picker dropdown. */}
+              <div className="relative">
+                <button
+                  onClick={openSlackPicker}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                  title="Post this brief to a Slack channel"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
+                  </svg>
+                  Send to Slack
+                </button>
+                {slackPickerOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-30 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                      Send brief to channel
+                    </div>
+                    {!slackChannelsLoaded ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 py-2">Loading channels…</p>
+                    ) : slackChannelsError === "no_workspace" ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                        Connect a Slack workspace to enable this.
+                      </p>
+                    ) : slackChannelsError ? (
+                      <p className="text-sm text-red-600 dark:text-red-400 py-2">Failed to load channels.</p>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={slackChannelFilter}
+                          onChange={(e) => setSlackChannelFilter(e.target.value)}
+                          placeholder="Filter channels…"
+                          className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <ul className="max-h-60 overflow-y-auto space-y-0.5">
+                          {slackChannels
+                            .filter((ch) =>
+                              ch.name.toLowerCase().includes(slackChannelFilter.trim().toLowerCase())
+                            )
+                            .map((ch) => (
+                              <li key={ch.id}>
+                                <button
+                                  onClick={() => sendBriefToSlack(ch.id)}
+                                  disabled={sendingToSlack}
+                                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center justify-between disabled:opacity-50"
+                                >
+                                  <span className="text-gray-800 dark:text-gray-100 truncate">
+                                    {ch.isPrivate ? "🔒" : "#"} {ch.name}
+                                  </span>
+                                  {slackSentChannelId === ch.id ? (
+                                    <span className="text-xs text-green-600 dark:text-green-400 font-medium flex-shrink-0 ml-2">✓ Sent</span>
+                                  ) : sendingToSlack ? (
+                                    <span className="text-xs text-gray-400 flex-shrink-0 ml-2">…</span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            ))}
+                          {slackChannels.length === 0 && (
+                            <li className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                              No channels available.
+                            </li>
+                          )}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={handleCopy}
                 className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
