@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import { AttendeePopover } from "@/components/AttendeePopover";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -1040,7 +1041,12 @@ function ResearchContent() {
                         minute: "2-digit",
                       });
                       return (
-                        <li key={event.id} className="relative group">
+                        <li key={event.id}>
+                        <AttendeePopover
+                          title={event.title}
+                          subheader="External attendees"
+                          attendees={event.attendees}
+                        >
                           <button
                             onClick={() => selectEvent(event)}
                             disabled={researching || enrichingEventId !== null}
@@ -1074,22 +1080,7 @@ function ResearchContent() {
                               </div>
                             )}
                           </button>
-                          {event.attendees.length > 0 && (
-                            <div className="pointer-events-none absolute left-3 top-full mt-1 z-20 hidden group-hover:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 min-w-[14rem] max-w-[20rem]">
-                              <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">{event.title}</div>
-                              <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">External attendees</div>
-                              <ul className="space-y-0.5">
-                                {event.attendees.map((a, idx) => (
-                                  <li key={`${a.email || a.name}-${idx}`} className="text-xs">
-                                    {a.name && <div className="text-gray-800 dark:text-gray-100">{a.name}</div>}
-                                    {a.email && (
-                                      <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all">{a.email}</div>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                        </AttendeePopover>
                         </li>
                           );
                         })}

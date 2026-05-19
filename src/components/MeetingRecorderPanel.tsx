@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { AttendeePopover } from "@/components/AttendeePopover";
 
 interface MeetingCall {
   id: string;
@@ -492,7 +493,12 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                         ? call.attendees
                         : call.participants.map((p) => ({ name: p }));
                     return (
-                    <div key={call.id} className="relative group">
+                    <AttendeePopover
+                      key={call.id}
+                      title={call.title}
+                      subheader="Attendees"
+                      attendees={attendeeRows}
+                    >
                       <button
                         onClick={() => {
                           if (multiSelectMode) {
@@ -576,23 +582,7 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                           )
                         )}
                       </button>
-                      {attendeeRows.length > 0 && (
-                        <div className="pointer-events-none absolute left-3 top-full mt-1 z-20 hidden group-hover:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2 min-w-[14rem] max-w-[20rem]">
-                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">{call.title}</div>
-                          <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">Attendees</div>
-                          <ul className="space-y-0.5">
-                            {attendeeRows.map((a, idx) => (
-                              <li key={`${a.email || a.name}-${idx}`} className="text-xs">
-                                <div className="text-gray-800 dark:text-gray-100">{a.name}</div>
-                                {a.email && (
-                                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all">{a.email}</div>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                    </AttendeePopover>
                     );
                   })}
                   {totalInGroup === 0 && (
