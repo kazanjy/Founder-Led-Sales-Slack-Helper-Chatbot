@@ -1474,11 +1474,14 @@ function RecurringResearchPatternsPanel({
     };
   }, []);
 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const handleAdd = async () => {
     const title = newTitle.trim();
     if (!title) return;
     if (newDest === "channel" && !newChannelId) return;
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const res = await fetch("/api/recurring-research-patterns", {
         method: "POST",
@@ -1490,11 +1493,26 @@ function RecurringResearchPatternsPanel({
           channelName: newDest === "channel" ? newChannelName : null,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Surface the failure so the user doesn't get a silent
+        // "modal just closes" experience when the migration hasn't
+        // run or the DB rejects the row.
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail = body?.error || "";
+        } catch { /* non-JSON body */ }
+        setErrorMessage(
+          detail || `Save failed (${res.status}). Try again, or check that DB migrations are up to date.`
+        );
+        return;
+      }
       const data = await res.json();
       setPatterns((prev) => [data.pattern, ...prev]);
       setNewTitle("");
       setAdding(false);
+    } catch (err) {
+      setErrorMessage(`Network error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -1666,6 +1684,9 @@ function RecurringResearchPatternsPanel({
               {submitting ? "Saving…" : "Save pattern"}
             </button>
           </div>
+          {errorMessage && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errorMessage}</p>
+          )}
         </div>
       )}
     </div>
