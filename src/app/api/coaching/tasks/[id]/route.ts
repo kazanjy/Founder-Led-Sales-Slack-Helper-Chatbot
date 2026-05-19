@@ -28,12 +28,21 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, description, status, order } = body;
+    const { title, description, status, order, priority } = body;
 
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description || null;
     if (order !== undefined) updateData.order = order;
+    if (priority !== undefined) {
+      // Accept "P0" | "P1" | "P2" or null (to clear). Anything else
+      // is rejected so we don't accumulate junk values.
+      if (priority === null || priority === "" || ["P0", "P1", "P2"].includes(priority)) {
+        updateData.priority = priority === "" ? null : priority;
+      } else {
+        return NextResponse.json({ error: "Invalid priority" }, { status: 400 });
+      }
+    }
     if (status !== undefined) {
       updateData.status = status;
       if (status !== task.status) {

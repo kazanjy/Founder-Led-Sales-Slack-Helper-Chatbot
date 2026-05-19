@@ -121,6 +121,8 @@ interface Task {
   // Null for top-level tasks; set to the parent task's id for subtasks.
   // Capped at one level deep — a subtask cannot have its own subtasks.
   parentTaskId?: string | null;
+  // Optional priority tag. "P0" | "P1" | "P2" | null (= unranked).
+  priority?: string | null;
 }
 
 interface NextGoal {
@@ -234,6 +236,56 @@ const STATUS_OPTIONS = [
   { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 line-through" },
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 ];
+
+// Priority palette for the optional P0 / P1 / P2 tag.  Red→amber→
+// slate so the visual weight matches urgency.
+const PRIORITY_OPTIONS: Array<{ value: string | null; label: string; color: string }> = [
+  { value: "P0", label: "P0", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
+  { value: "P1", label: "P1", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+  { value: "P2", label: "P2", color: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300" },
+  { value: null, label: "None", color: "bg-gray-50 text-gray-400 dark:bg-gray-800 dark:text-gray-500" },
+];
+
+// Compact priority pill rendered next to the status pill on each
+// task and subtask. Click flips through P0 → P1 → P2 → None when
+// canEdit is true; renders as a static badge for viewers. Cycling
+// is the lightest-weight affordance — no dropdown, no extra DOM.
+function PriorityPill({
+  priority,
+  canEdit,
+  onChange,
+  compact,
+}: {
+  priority: string | null;
+  canEdit: boolean;
+  onChange: (next: string | null) => void;
+  compact?: boolean;
+}) {
+  const cur = PRIORITY_OPTIONS.find((o) => o.value === priority);
+  const sizeClass = compact ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5";
+  if (!canEdit) {
+    if (!priority) return null;
+    return (
+      <span className={`font-medium rounded-full ${sizeClass} ${cur?.color || ""}`}>
+        {cur?.label}
+      </span>
+    );
+  }
+  const cycle = () => {
+    const idx = PRIORITY_OPTIONS.findIndex((o) => o.value === priority);
+    const next = PRIORITY_OPTIONS[(idx + 1) % PRIORITY_OPTIONS.length];
+    onChange(next.value);
+  };
+  return (
+    <button
+      onClick={cycle}
+      title="Click to cycle priority (P0 → P1 → P2 → None)"
+      className={`font-medium rounded-full border-0 cursor-pointer ${sizeClass} ${cur?.color || PRIORITY_OPTIONS[3].color} hover:ring-2 hover:ring-purple-300 transition`}
+    >
+      {cur?.label || "—"}
+    </button>
+  );
+}
 
 export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
@@ -1095,6 +1147,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   };
 
   const [animatingTaskId, setAnimatingTaskId] = useState<string | null>(null);
+
+  // Optimistically patch the task's priority locally, then PATCH the
+  // API. Pass null to clear. No reorder side-effect — priority is
+  // visual-only for now (sort still respects the user's preference).
+  const updateTaskPriority = async (taskId: string, priority: string | null) => {
+    setGoals((prev) => prev.map((g) => ({
+      ...g,
+      tasks: g.tasks.map((t) => t.id === taskId ? { ...t, priority } : t),
+    })));
+    try {
+      await fetch(`/api/coaching/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority }),
+      });
+    } catch (err) {
+      console.error("[priority] update failed:", err);
+    }
+  };
 
   const updateTaskStatus = async (taskId: string, status: string) => {
     if (status === "done") {
@@ -2524,11 +2595,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             </div>
                           )}
                         </div>
-                        {palette && (
-                          <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.color} flex-shrink-0`}>
-                            {palette.label}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <PriorityPill
+                            priority={task.priority ?? null}
+                            canEdit={canEdit}
+                            onChange={(p) => updateTaskPriority(task.id, p)}
+                            compact
+                          />
+                          {palette && (
+                            <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.color}`}>
+                              {palette.label}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </li>
                   );
@@ -2983,6 +3062,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               {copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link to task"}
                             </span>
                           </div>
+                          <PriorityPill
+                            priority={task.priority ?? null}
+                            canEdit={canEdit}
+                            onChange={(p) => updateTaskPriority(task.id, p)}
+                          />
                           {canEdit ? (
                             <select
                               value={task.status}
@@ -3210,6 +3294,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                       {copiedId === `anchor-task-${sub.id}` ? "Copied!" : "Copy link to subtask"}
                                     </span>
                                   </div>
+                                  <PriorityPill
+                                    priority={sub.priority ?? null}
+                                    canEdit={canEdit}
+                                    onChange={(p) => updateTaskPriority(sub.id, p)}
+                                    compact
+                                  />
                                   {canEdit ? (
                                     <select
                                       value={sub.status}

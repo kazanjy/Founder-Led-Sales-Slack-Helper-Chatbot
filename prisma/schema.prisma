@@ -1588,6 +1588,10 @@ model CoachingTask {
   description String?  @db.Text
   status      String   @default("active") // "active" | "done" | "not_doing" | "deprioritized"
   statusChangedAt DateTime?
+  // Optional priority tag. Null = unranked; otherwise "P0" / "P1" /
+  // "P2". Kept as a free-form string so we can extend the scale
+  // later without another migration.
+  priority    String?
 
   createdAt DateTime @default(now())
   order     Int      @default(0)
