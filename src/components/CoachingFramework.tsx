@@ -336,11 +336,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // Task ordering inside each goal. "manual" preserves the drag-
   // and-drop order field (the default). "newest" / "oldest" sort by
   // createdAt so users can see what landed most recently.
-  type TaskSort = "manual" | "newest" | "oldest";
+  type TaskSort = "manual" | "newest" | "oldest" | "priority";
   const [taskSort, setTaskSort] = useState<TaskSort>(() => {
     if (typeof window === "undefined") return "manual";
     const stored = localStorage.getItem("coaching:taskSort");
-    return stored === "newest" || stored === "oldest" ? stored : "manual";
+    return stored === "newest" || stored === "oldest" || stored === "priority"
+      ? stored
+      : "manual";
   });
   const updateTaskSort = (next: TaskSort) => {
     setTaskSort(next);
@@ -2455,6 +2457,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   title="How to order the task view"
                 >
                   <option value="manual">Goal &amp; Task</option>
+                  <option value="priority">Priority (then newest)</option>
                   <option value="newest">Created date — newest</option>
                   <option value="oldest">Created date — oldest</option>
                 </select>
@@ -2560,9 +2563,24 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 rows.push({ task: t, goal, parent });
               }
             }
+            // Lower number = higher priority. Unranked sinks to the
+            // bottom regardless of date.
+            const priorityRank = (p: string | null | undefined): number => {
+              if (p === "P0") return 0;
+              if (p === "P1") return 1;
+              if (p === "P2") return 2;
+              return 3;
+            };
             rows.sort((a, b) => {
               const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
               const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
+              if (taskSort === "priority") {
+                const aR = priorityRank(a.task.priority);
+                const bR = priorityRank(b.task.priority);
+                if (aR !== bR) return aR - bR;
+                // Within the same priority bucket, most-recent first.
+                return bMs - aMs;
+              }
               return taskSort === "newest" ? bMs - aMs : aMs - bMs;
             });
 
