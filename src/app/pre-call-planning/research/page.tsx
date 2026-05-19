@@ -98,6 +98,8 @@ function ResearchContent() {
   // 'external' default keeps the panel focused on sales calls — events
   // with at least one attendee whose email domain ≠ the user's own.
   const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
+  // Per-tile spinner while we run PDL enrichment on the selected event.
+  const [enrichingEventId, setEnrichingEventId] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -196,6 +198,44 @@ function ResearchContent() {
     if (event.prefill.contactTitle) setContactTitle(event.prefill.contactTitle);
     if (event.prefill.contactLinkedIn) setContactLinkedIn(event.prefill.contactLinkedIn);
     if (event.prefill.companyUrl) setUrls(event.prefill.companyUrl);
+  };
+
+  // Click handler for an upcoming-call tile: do the cheap
+  // domain-based prefill first so the form fields snap in
+  // immediately, then run PDL enrichment on the external attendees
+  // and overwrite with richer name/title/company/LinkedIn when PDL
+  // returns useful data.
+  const selectEvent = async (event: UpcomingEvent) => {
+    prefillFromEvent(event);
+    if (event.attendees.length === 0 || enrichingEventId) return;
+    setEnrichingEventId(event.id);
+    try {
+      const res = await fetch("/api/google-calendar/enrich-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attendees: event.attendees }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        prefill: {
+          companyName: string;
+          contactName: string;
+          contactTitle: string;
+          contactLinkedIn: string;
+          companyUrl: string;
+        } | null;
+      };
+      if (!data.prefill) return;
+      if (data.prefill.companyName) setCompanyName(data.prefill.companyName);
+      if (data.prefill.contactName) setContactName(data.prefill.contactName);
+      if (data.prefill.contactTitle) setContactTitle(data.prefill.contactTitle);
+      if (data.prefill.contactLinkedIn) setContactLinkedIn(data.prefill.contactLinkedIn);
+      if (data.prefill.companyUrl) setUrls(data.prefill.companyUrl);
+    } catch (err) {
+      console.error("[research] PDL enrichment failed:", err);
+    } finally {
+      setEnrichingEventId(null);
+    }
   };
 
   const handleResearch = async () => {
@@ -550,13 +590,21 @@ function ResearchContent() {
                       return (
                         <li key={event.id}>
                           <button
-                            onClick={() => prefillFromEvent(event)}
-                            disabled={researching}
-                            className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors disabled:opacity-50"
-                            title="Prefill the research form with this meeting's details"
+                            onClick={() => selectEvent(event)}
+                            disabled={researching || enrichingEventId !== null}
+                            className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                            title="Prefill the research form with this meeting's details (we'll enrich attendees via People Data Labs)"
                           >
-                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
-                              {event.title}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
+                                {event.title}
+                              </div>
+                              {enrichingEventId === event.id && (
+                                <svg className="animate-spin h-3.5 w-3.5 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                              )}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                               {whenLabel}
