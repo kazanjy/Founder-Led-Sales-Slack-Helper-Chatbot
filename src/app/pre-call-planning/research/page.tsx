@@ -100,6 +100,11 @@ function ResearchContent() {
   // 'external' default keeps the panel focused on sales calls — events
   // with at least one attendee whose email domain ≠ the user's own.
   const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
+  // How far ahead to fetch; grows by 14 days each time the user
+  // clicks "Load more meetings". Limit grows in tandem.
+  const [calendarDays, setCalendarDays] = useState(14);
+  const [calendarLimit, setCalendarLimit] = useState(10);
+  const [calendarHasMore, setCalendarHasMore] = useState(false);
   // Per-tile spinner while we run PDL enrichment on the selected event.
   const [enrichingEventId, setEnrichingEventId] = useState<string | null>(null);
   // PDL enrichment outcome per event so we can show "Enriched N of M
@@ -182,13 +187,18 @@ function ResearchContent() {
     (async () => {
       setLoadingUpcoming(true);
       try {
-        const res = await fetch(`/api/google-calendar/upcoming?filter=${calendarFilter}`);
+        const res = await fetch(
+          `/api/google-calendar/upcoming?filter=${calendarFilter}&days=${calendarDays}&limit=${calendarLimit}`
+        );
         if (!res.ok) {
           if (res.status === 403) setCalendarConnected(false);
           return;
         }
         const data = await res.json();
-        if (!cancelled) setUpcomingEvents(data.events || []);
+        if (!cancelled) {
+          setUpcomingEvents(data.events || []);
+          setCalendarHasMore(!!data.hasMore);
+        }
       } catch (err) {
         console.error("[research] Failed to load calendar:", err);
       } finally {
@@ -198,7 +208,19 @@ function ResearchContent() {
     return () => {
       cancelled = true;
     };
-  }, [calendarConnected, calendarFilter]);
+  }, [calendarConnected, calendarFilter, calendarDays, calendarLimit]);
+
+  // Reset pagination when the filter flips so users don't get a
+  // stale window mismatched with the filter.
+  useEffect(() => {
+    setCalendarDays(14);
+    setCalendarLimit(10);
+  }, [calendarFilter]);
+
+  const loadMoreCalendar = () => {
+    setCalendarDays((d) => Math.min(d + 14, 180));
+    setCalendarLimit((l) => Math.min(l + 10, 100));
+  };
 
   const prefillFromEvent = (event: UpcomingEvent) => {
     if (event.prefill.companyName) setCompanyName(event.prefill.companyName);
@@ -631,7 +653,7 @@ function ResearchContent() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>
                 ) : upcomingEvents.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No upcoming external meetings in the next 14 days.
+                    No upcoming {calendarFilter === "external" ? "external " : ""}meetings in the next {calendarDays} days.
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -699,6 +721,20 @@ function ResearchContent() {
                       );
                     })}
                   </ul>
+                )}
+                {calendarConnected && (calendarHasMore || calendarDays > 14) && (
+                  <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Showing next {calendarDays} days</span>
+                    {calendarHasMore && (
+                      <button
+                        onClick={loadMoreCalendar}
+                        disabled={loadingUpcoming || calendarDays >= 180}
+                        className="text-purple-600 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-200 font-medium disabled:opacity-50"
+                      >
+                        {loadingUpcoming ? "Loading…" : calendarDays >= 180 ? "Max range reached" : "Load more meetings →"}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}

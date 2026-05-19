@@ -78,8 +78,15 @@ export async function GET(request: Request) {
   // attendee whose email domain differs from the user's own domain
   // — the typical sales-call shape. ?filter=all turns the filter off
   // so users can browse personal/internal events too.
+  // ?days=N expands the time window (default 14); the UI bumps this
+  // when the user clicks "Load more meetings".
+  // ?limit=N caps how many events we return (default 10).
   const url = new URL(request.url);
   const filterMode = url.searchParams.get("filter") === "all" ? "all" : "external";
+  const daysRaw = parseInt(url.searchParams.get("days") || "", 10);
+  const daysAhead = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(daysRaw, 180) : 14;
+  const limitRaw = parseInt(url.searchParams.get("limit") || "", 10);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 10;
 
   const tokenRow = await prisma.user.findUnique({
     where: { id: user.id },
@@ -117,14 +124,16 @@ export async function GET(request: Request) {
     accountDomain || domainFromEmail(user.email || user.slackEmail || undefined);
 
   const timeMin = new Date();
-  const timeMax = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  const timeMax = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
 
   const calendarUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
   calendarUrl.searchParams.set("timeMin", timeMin.toISOString());
   calendarUrl.searchParams.set("timeMax", timeMax.toISOString());
   calendarUrl.searchParams.set("singleEvents", "true");
   calendarUrl.searchParams.set("orderBy", "startTime");
-  calendarUrl.searchParams.set("maxResults", "50");
+  // Pull a generous raw page so the filter (cancelled/declined/internal)
+  // doesn't starve us out before we hit the requested limit.
+  calendarUrl.searchParams.set("maxResults", String(Math.max(50, limit * 5)));
 
   const res = await fetch(calendarUrl.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -215,8 +224,13 @@ export async function GET(request: Request) {
       })),
     });
 
-    if (events.length >= 10) break;
+    if (events.length >= limit) break;
   }
 
-  return NextResponse.json({ events });
+  // hasMore is a best-effort hint for the UI: true if we hit the
+  // limit (more events likely beyond the current window) OR if
+  // Google returned a continuation token within the same window.
+  const hasMore = events.length >= limit;
+
+  return NextResponse.json({ events, daysAhead, hasMore });
 }
