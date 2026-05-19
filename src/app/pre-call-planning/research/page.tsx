@@ -947,10 +947,10 @@ function ResearchContent() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="max-w-[88rem] mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-8">
           {/* Left: Research Form + History */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="space-y-6">
             {/* Google Calendar — upcoming sales calls. Hidden entirely
                 until we know connection status to avoid layout jump on
                 a freshly-loaded page. */}
@@ -1292,8 +1292,8 @@ function ResearchContent() {
 
           </div>
 
-          {/* Right: Research Brief Display */}
-          <div className="lg:col-span-2">
+          {/* Middle: Research Brief Display */}
+          <div className="min-w-0">
             {brief ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-4 border-b border-gray-100">
@@ -1401,7 +1401,7 @@ function ResearchContent() {
               column so it doesn't move when the brief grows or
               shrinks, and the left column stays the operator-input
               area. Hidden if the user has nothing yet. */}
-          <div className="lg:col-span-1">
+          <div>
             {history.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 lg:sticky lg:top-8">
                 <div className="flex items-center justify-between mb-4">
