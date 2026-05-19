@@ -483,9 +483,17 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   {filtered.map((call) => {
                     const match = call.providerUrl ? existingMatches[call.providerUrl] : undefined;
                     const isChecked = selectedCallIds.has(call.id);
+                    // Native tooltip listing who was on the call. Helps
+                    // disambiguate same-titled recurring meetings at a
+                    // glance.
+                    const participantsTooltip =
+                      call.participants.length > 0
+                        ? `${call.title}\n\nAttendees:\n${call.participants.map((p) => `• ${p}`).join("\n")}`
+                        : call.title;
                     return (
                     <div key={call.id}>
                       <button
+                        title={participantsTooltip}
                         onClick={() => {
                           if (multiSelectMode) {
                             toggleSelection(call.id);
