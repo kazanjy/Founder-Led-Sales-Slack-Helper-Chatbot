@@ -281,6 +281,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       return new Set(Array.isArray(arr) ? arr : []);
     } catch { return new Set(); }
   });
+  // Task ordering inside each goal. "manual" preserves the drag-
+  // and-drop order field (the default). "newest" / "oldest" sort by
+  // createdAt so users can see what landed most recently.
+  type TaskSort = "manual" | "newest" | "oldest";
+  const [taskSort, setTaskSort] = useState<TaskSort>(() => {
+    if (typeof window === "undefined") return "manual";
+    const stored = localStorage.getItem("coaching:taskSort");
+    return stored === "newest" || stored === "oldest" ? stored : "manual";
+  });
+  const updateTaskSort = (next: TaskSort) => {
+    setTaskSort(next);
+    try { localStorage.setItem("coaching:taskSort", next); } catch {}
+  };
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
   const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
@@ -2329,6 +2342,21 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           </div>
 
           <div className="flex items-center gap-3">
+            {goals.length > 0 && (
+              <label className="flex items-center gap-1 text-xs text-gray-400">
+                <span>Sort:</span>
+                <select
+                  value={taskSort}
+                  onChange={(e) => updateTaskSort(e.target.value as TaskSort)}
+                  className="text-xs bg-transparent border-0 text-gray-500 dark:text-gray-300 focus:ring-0 cursor-pointer hover:text-gray-700 dark:hover:text-gray-100"
+                  title="How to order tasks within each goal"
+                >
+                  <option value="manual">Manual</option>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </label>
+            )}
             {goals.length > 0 && (() => {
               const visibleIds = goals
                 .filter((g) => !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized")))
@@ -2633,7 +2661,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   // keyed by their parent task id. The flat goal.tasks
                   // array stays the source of truth; this just gives
                   // us a tree shape to render.
-                  const topLevelTasks = goal.tasks.filter((t) => !t.parentTaskId);
+                  // Comparator honoring the current task-sort
+                  // preference. Manual = drag/drop `order`; newest
+                  // and oldest sort by createdAt (descending /
+                  // ascending). Missing createdAt sinks to the end.
+                  const taskComparator = (a: Task, b: Task) => {
+                    if (taskSort === "manual") return a.order - b.order;
+                    const aMs = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const bMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return taskSort === "newest" ? bMs - aMs : aMs - bMs;
+                  };
+                  const topLevelTasks = goal.tasks
+                    .filter((t) => !t.parentTaskId)
+                    .slice()
+                    .sort(taskComparator);
                   const subtasksByParent: Record<string, Task[]> = {};
                   for (const t of goal.tasks) {
                     if (t.parentTaskId) {
@@ -2641,7 +2682,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     }
                   }
                   for (const k of Object.keys(subtasksByParent)) {
-                    subtasksByParent[k].sort((a, b) => a.order - b.order);
+                    subtasksByParent[k].sort(taskComparator);
                   }
 
                   const visibleTopLevel = hideForGoal
