@@ -94,6 +94,13 @@ model User {
   googleTokenExpiresAt  DateTime?
   googleScopes          String?
 
+  // Saved Slack channel for pre-call research "Send to Slack" — set
+  // the first time a user picks a channel so subsequent posts skip
+  // the picker. Nullable; users without a saved channel still get
+  // the picker UI.
+  preferredResearchSlackChannelId   String?
+  preferredResearchSlackChannelName String?
+
   // Email - primary identifier for web-only users
   email           String?  @unique
   secondaryEmails String[] @default([]) // Additional emails that can be used for auth lookup

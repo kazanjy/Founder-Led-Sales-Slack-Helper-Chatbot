@@ -127,7 +127,15 @@ function ResearchContent() {
   const [slackChannelsError, setSlackChannelsError] = useState<string | null>(null);
   const [slackChannelFilter, setSlackChannelFilter] = useState("");
   const [sendingToSlack, setSendingToSlack] = useState(false);
-  const [slackSentChannelId, setSlackSentChannelId] = useState<string | null>(null);
+  const [slackSentTarget, setSlackSentTarget] = useState<string | null>(null);
+  // From /api/auth/me: whether the user has a Slack DM available
+  // and their saved preferred channel.
+  const [hasSlackDm, setHasSlackDm] = useState(false);
+  const [preferredChannelId, setPreferredChannelId] = useState<string | null>(null);
+  const [preferredChannelName, setPreferredChannelName] = useState<string | null>(null);
+  // Toggles into channel-picker mode inside the dropdown (otherwise
+  // the panel shows the two-option summary view).
+  const [slackPickingChannel, setSlackPickingChannel] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -167,6 +175,9 @@ function ResearchContent() {
           return;
         }
         setCalendarConnected(!!authData.user.googleCalendarConnected);
+        setHasSlackDm(!!authData.user.hasSlackDm);
+        setPreferredChannelId(authData.user.preferredResearchSlackChannelId || null);
+        setPreferredChannelName(authData.user.preferredResearchSlackChannelName || null);
 
         // Check if user has generated their planning process
         const pcpRes = await fetch("/api/pre-call-planning/latest");
@@ -447,11 +458,7 @@ function ResearchContent() {
     }
   };
 
-  // Toggle the Slack channel picker. First open lazily fetches the
-  // workspace's channel list.
-  const openSlackPicker = async () => {
-    setSlackPickerOpen((prev) => !prev);
-    setSlackSentChannelId(null);
+  const fetchSlackChannelsIfNeeded = async () => {
     if (slackChannelsLoaded) return;
     try {
       const res = await fetch("/api/slack/my-channels");
@@ -471,7 +478,20 @@ function ResearchContent() {
     }
   };
 
-  const sendBriefToSlack = async (channelId: string) => {
+  // Open/close the Slack panel. Channel list is fetched only when
+  // the user actually enters picking mode.
+  const openSlackPicker = () => {
+    setSlackPickerOpen((prev) => !prev);
+    setSlackSentTarget(null);
+    setSlackPickingChannel(false);
+  };
+
+  // Posts the brief to the chosen destination. `target` keys the
+  // success badge so the user sees which option lit up.
+  const sendBriefToSlack = async (
+    payload: { destination: "dm" | "channel"; channelId?: string; channelName?: string; saveAsPreferred?: boolean },
+    target: string
+  ) => {
     if (!brief || sendingToSlack) return;
     setSendingToSlack(true);
     try {
@@ -480,7 +500,7 @@ function ResearchContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ channelId }),
+          body: JSON.stringify(payload),
         }
       );
       const data = await res.json().catch(() => ({}));
@@ -492,10 +512,15 @@ function ResearchContent() {
         });
         return;
       }
-      setSlackSentChannelId(channelId);
-      // Auto-close the picker after a beat so the success badge has
-      // time to land in the user's eye.
-      setTimeout(() => setSlackPickerOpen(false), 1500);
+      setSlackSentTarget(target);
+      if (payload.saveAsPreferred && payload.channelId) {
+        setPreferredChannelId(payload.channelId);
+        setPreferredChannelName(payload.channelName || null);
+      }
+      setTimeout(() => {
+        setSlackPickerOpen(false);
+        setSlackPickingChannel(false);
+      }, 1500);
     } catch (err) {
       console.error("[slack] send failed:", err);
       await showAlert({
@@ -506,6 +531,24 @@ function ResearchContent() {
     } finally {
       setSendingToSlack(false);
     }
+  };
+
+  // Wipe the saved channel preference so the user is asked to pick
+  // again next time.
+  const clearPreferredSlackChannel = async () => {
+    try {
+      await fetch("/api/user/research-slack-channel", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: null }),
+      });
+    } catch (err) {
+      console.error("[slack] clear preference failed:", err);
+    }
+    setPreferredChannelId(null);
+    setPreferredChannelName(null);
+    setSlackPickingChannel(true);
+    fetchSlackChannelsIfNeeded();
   };
 
   // Thin wrapper for the "Research Prospect" button: reads from form
@@ -686,56 +729,148 @@ function ResearchContent() {
                   Send to Slack
                 </button>
                 {slackPickerOpen && (
-                  <div className="absolute right-0 top-full mt-2 z-30 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
-                    <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                      Send brief to channel
-                    </div>
-                    {!slackChannelsLoaded ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 py-2">Loading channels…</p>
-                    ) : slackChannelsError === "no_workspace" ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                        Connect a Slack workspace to enable this.
-                      </p>
-                    ) : slackChannelsError ? (
-                      <p className="text-sm text-red-600 dark:text-red-400 py-2">Failed to load channels.</p>
+                  <div className="absolute right-0 top-full mt-2 z-30 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+                    {!slackPickingChannel ? (
+                      <>
+                        {/* Option 1: Mikey DM */}
+                        {hasSlackDm && (
+                          <button
+                            onClick={() => sendBriefToSlack({ destination: "dm" }, "dm")}
+                            disabled={sendingToSlack}
+                            className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center justify-between disabled:opacity-50"
+                          >
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Send via MikeyBot DM</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Posts in your Slack direct message with Mikey</div>
+                            </div>
+                            {slackSentTarget === "dm" ? (
+                              <span className="text-xs text-green-600 dark:text-green-400 font-medium flex-shrink-0 ml-2">✓ Sent</span>
+                            ) : sendingToSlack ? (
+                              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">…</span>
+                            ) : null}
+                          </button>
+                        )}
+                        {!hasSlackDm && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1.5">
+                            Connect Slack to enable DM delivery.
+                          </p>
+                        )}
+
+                        <div className="my-2 border-t border-gray-100 dark:border-gray-700" />
+
+                        {/* Option 2: Saved / dedicated channel */}
+                        {preferredChannelId ? (
+                          <div className="px-3 py-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Dedicated channel</div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                                # {preferredChannelName || preferredChannelId}
+                              </span>
+                              <button
+                                onClick={clearPreferredSlackChannel}
+                                className="text-[11px] text-purple-600 dark:text-purple-300 hover:underline flex-shrink-0"
+                              >
+                                Change
+                              </button>
+                            </div>
+                            <button
+                              onClick={() =>
+                                sendBriefToSlack(
+                                  { destination: "channel", channelId: preferredChannelId, channelName: preferredChannelName || undefined },
+                                  preferredChannelId
+                                )
+                              }
+                              disabled={sendingToSlack}
+                              className="mt-2 w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {slackSentTarget === preferredChannelId
+                                ? "✓ Sent"
+                                : sendingToSlack
+                                  ? "Sending…"
+                                  : `Send to #${preferredChannelName || preferredChannelId}`}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setSlackPickingChannel(true); fetchSlackChannelsIfNeeded(); }}
+                            className="w-full text-left px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                          >
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Pick a dedicated channel…</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">We&apos;ll remember it for next time</div>
+                          </button>
+                        )}
+                      </>
                     ) : (
                       <>
-                        <input
-                          type="text"
-                          value={slackChannelFilter}
-                          onChange={(e) => setSlackChannelFilter(e.target.value)}
-                          placeholder="Filter channels…"
-                          className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <ul className="max-h-60 overflow-y-auto space-y-0.5">
-                          {slackChannels
-                            .filter((ch) =>
-                              ch.name.toLowerCase().includes(slackChannelFilter.trim().toLowerCase())
-                            )
-                            .map((ch) => (
-                              <li key={ch.id}>
-                                <button
-                                  onClick={() => sendBriefToSlack(ch.id)}
-                                  disabled={sendingToSlack}
-                                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center justify-between disabled:opacity-50"
-                                >
-                                  <span className="text-gray-800 dark:text-gray-100 truncate">
-                                    {ch.isPrivate ? "🔒" : "#"} {ch.name}
-                                  </span>
-                                  {slackSentChannelId === ch.id ? (
-                                    <span className="text-xs text-green-600 dark:text-green-400 font-medium flex-shrink-0 ml-2">✓ Sent</span>
-                                  ) : sendingToSlack ? (
-                                    <span className="text-xs text-gray-400 flex-shrink-0 ml-2">…</span>
-                                  ) : null}
-                                </button>
-                              </li>
-                            ))}
-                          {slackChannels.length === 0 && (
-                            <li className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                              No channels available.
-                            </li>
-                          )}
-                        </ul>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            Choose channel
+                          </div>
+                          <button
+                            onClick={() => setSlackPickingChannel(false)}
+                            className="text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {!slackChannelsLoaded ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 py-2">Loading channels…</p>
+                        ) : slackChannelsError === "no_workspace" ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                            Connect a Slack workspace to enable this.
+                          </p>
+                        ) : slackChannelsError ? (
+                          <p className="text-sm text-red-600 dark:text-red-400 py-2">Failed to load channels.</p>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              value={slackChannelFilter}
+                              onChange={(e) => setSlackChannelFilter(e.target.value)}
+                              placeholder="Filter channels…"
+                              className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                            <ul className="max-h-60 overflow-y-auto space-y-0.5">
+                              {slackChannels
+                                .filter((ch) =>
+                                  ch.name.toLowerCase().includes(slackChannelFilter.trim().toLowerCase())
+                                )
+                                .map((ch) => (
+                                  <li key={ch.id}>
+                                    <button
+                                      onClick={() =>
+                                        sendBriefToSlack(
+                                          {
+                                            destination: "channel",
+                                            channelId: ch.id,
+                                            channelName: ch.name,
+                                            saveAsPreferred: true,
+                                          },
+                                          ch.id
+                                        )
+                                      }
+                                      disabled={sendingToSlack}
+                                      className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center justify-between disabled:opacity-50"
+                                    >
+                                      <span className="text-gray-800 dark:text-gray-100 truncate">
+                                        {ch.isPrivate ? "🔒" : "#"} {ch.name}
+                                      </span>
+                                      {slackSentTarget === ch.id ? (
+                                        <span className="text-xs text-green-600 dark:text-green-400 font-medium flex-shrink-0 ml-2">✓ Sent</span>
+                                      ) : sendingToSlack ? (
+                                        <span className="text-xs text-gray-400 flex-shrink-0 ml-2">…</span>
+                                      ) : null}
+                                    </button>
+                                  </li>
+                                ))}
+                              {slackChannels.length === 0 && (
+                                <li className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                                  No channels available.
+                                </li>
+                              )}
+                            </ul>
+                          </>
+                        )}
                       </>
                     )}
                   </div>

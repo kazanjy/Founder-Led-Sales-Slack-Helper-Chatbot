@@ -54,6 +54,13 @@ export async function GET() {
     !!googleTokenRow?.googleRefreshToken &&
     hasGoogleCalendarScope(googleTokenRow.googleScopes);
 
+  // Saved Slack destination for pre-call research broadcasts. Read
+  // off the user row; null when the user hasn't picked one yet.
+  const slackPrefRow = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { preferredResearchSlackChannelId: true, preferredResearchSlackChannelName: true },
+  });
+
   return NextResponse.json({
     user: {
       id: user.id,
@@ -72,6 +79,9 @@ export async function GET() {
       isImpersonating: user.isImpersonating,
       accountDomain,
       googleCalendarConnected,
+      hasSlackDm: !!user.slackUserId && !!user.workspaceId,
+      preferredResearchSlackChannelId: slackPrefRow?.preferredResearchSlackChannelId || null,
+      preferredResearchSlackChannelName: slackPrefRow?.preferredResearchSlackChannelName || null,
     },
   });
 }

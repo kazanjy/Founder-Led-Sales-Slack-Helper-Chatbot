@@ -14,7 +14,10 @@ import { getSlackClient, sendSlackMessage } from "@/lib/slack/client";
  */
 
 interface Body {
+  destination?: "dm" | "channel";
   channelId?: string;
+  channelName?: string;
+  saveAsPreferred?: boolean;
 }
 
 // PDL output is lowercase; mirror the page's render-time title-case
@@ -81,17 +84,19 @@ export async function POST(
 
   const { id } = await params;
   const body = (await request.json()) as Body;
-  if (!body.channelId) {
-    return NextResponse.json({ error: "channelId required" }, { status: 400 });
-  }
+  const destination = body.destination === "dm" ? "dm" : "channel";
 
-  const [research, workspace] = await Promise.all([
+  const [research, workspace, userRow] = await Promise.all([
     prisma.preCallResearch.findFirst({
       where: { id, userId: user.id },
     }),
     prisma.workspace.findUnique({
       where: { id: user.workspaceId },
       select: { botToken: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { slackUserId: true },
     }),
   ]);
 
@@ -137,10 +142,44 @@ export async function POST(
 
   try {
     const client = getSlackClient(workspace.botToken);
+
+    // Resolve where to actually post. DM mode opens a conversation
+    // with the user's slackUserId and uses the returned channel id;
+    // channel mode trusts the caller's channelId.
+    let targetChannelId = body.channelId || "";
+    if (destination === "dm") {
+      if (!userRow?.slackUserId) {
+        return NextResponse.json({ error: "no_slack_dm" }, { status: 400 });
+      }
+      const opened = await client.conversations.open({ users: userRow.slackUserId });
+      const dmId = opened.channel?.id;
+      if (!dmId) {
+        return NextResponse.json({ error: "Failed to open DM" }, { status: 502 });
+      }
+      targetChannelId = dmId;
+    }
+
+    if (!targetChannelId) {
+      return NextResponse.json({ error: "channelId required" }, { status: 400 });
+    }
+
     // Header first so it's the parent message; body posts as a
     // threaded reply so the channel stays scannable.
-    const parentTs = await sendSlackMessage(client, body.channelId, headerText);
-    await sendSlackMessage(client, body.channelId, bodyText, parentTs);
+    const parentTs = await sendSlackMessage(client, targetChannelId, headerText);
+    await sendSlackMessage(client, targetChannelId, bodyText, parentTs);
+
+    // Persist the channel as the user's preferred destination when
+    // they explicitly asked us to.
+    if (destination === "channel" && body.saveAsPreferred && body.channelId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          preferredResearchSlackChannelId: body.channelId,
+          preferredResearchSlackChannelName: body.channelName || null,
+        },
+      });
+    }
+
     return NextResponse.json({ ok: true, truncated });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
