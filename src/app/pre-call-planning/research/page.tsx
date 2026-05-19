@@ -972,9 +972,9 @@ function ResearchContent() {
                         brief?.id === item.id ? "bg-purple-50 border border-purple-200" : ""
                       }`}
                     >
-                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{item.companyName}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{toTitleCase(item.companyName)}</div>
                       {item.contactName && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{item.contactName}{item.contactTitle ? ` - ${item.contactTitle}` : ""}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{toTitleCase(item.contactName)}{item.contactTitle ? ` - ${toTitleCase(item.contactTitle)}` : ""}</div>
                       )}
                       <div className="text-xs text-gray-400 mt-0.5">
                         {formatDate(item.createdAt)}
