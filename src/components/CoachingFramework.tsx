@@ -576,21 +576,56 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const showCopied = (id: string) => { setCopiedId(id); setTimeout(() => setCopiedId(null), 1500); };
 
+  // Format a single task as a markdown bullet line, optionally
+  // prefixed with its [P0]/[P1]/[P2] priority and nested by `depth`
+  // spaces. Used by copy-goal, copy-task, and copy-all so the
+  // priority tag always rides along consistently.
+  const formatTaskAsMarkdown = (task: Task, depth = 0): string => {
+    const indent = "  ".repeat(depth);
+    const prefix = task.priority ? `[${task.priority}] ` : "";
+    let line = `${indent}- [ ] ${prefix}${task.title}\n`;
+    if (task.description) {
+      const descIndent = indent + "  ";
+      line += `${descIndent}${task.description.split("\n").join("\n" + descIndent)}\n`;
+    }
+    return line;
+  };
+
   const copyGoalAsMarkdown = (goal: Goal) => {
     let md = `## ${goal.title}\n`;
     if (goal.description) md += `${goal.description}\n`;
     md += `\n`;
-    for (const task of goal.tasks) {
-      md += `- [ ] ${task.title}\n`;
-      if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
+    const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
+    for (const task of topLevel) {
+      md += formatTaskAsMarkdown(task, 0);
+      const subs = goal.tasks
+        .filter((t) => t.parentTaskId === task.id)
+        .sort((a, b) => a.order - b.order);
+      for (const sub of subs) {
+        md += formatTaskAsMarkdown(sub, 1);
+      }
     }
     navigator.clipboard.writeText(md.trim());
     showCopied(`goal-${goal.id}`);
   };
 
   const copyTaskAsMarkdown = (task: Task) => {
-    let md = `- [ ] ${task.title}\n`;
-    if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
+    let md = formatTaskAsMarkdown(task, 0);
+    // If we're copying a top-level task, pull its subtasks along
+    // (one level deep). Subtasks copied directly just emit the
+    // single line.
+    if (!task.parentTaskId) {
+      const subs: Task[] = [];
+      for (const g of goals) {
+        for (const t of g.tasks) {
+          if (t.parentTaskId === task.id) subs.push(t);
+        }
+      }
+      subs.sort((a, b) => a.order - b.order);
+      for (const sub of subs) {
+        md += formatTaskAsMarkdown(sub, 1);
+      }
+    }
     navigator.clipboard.writeText(md.trim());
     showCopied(`task-${task.id}`);
   };
@@ -608,16 +643,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
       for (const task of topLevel) {
         if (task.status === "done" || task.status === "not_doing") continue;
-        md += `- [ ] ${task.title}\n`;
-        if (task.description) md += `  ${task.description.split("\n").join("\n  ")}\n`;
-        // Nest subtasks as second-level bullets under their parent,
-        // applying the same skip-settled rule recursively.
+        md += formatTaskAsMarkdown(task, 0);
         const subs = goal.tasks
           .filter((t) => t.parentTaskId === task.id && t.status !== "done" && t.status !== "not_doing")
           .sort((a, b) => a.order - b.order);
         for (const sub of subs) {
-          md += `  - [ ] ${sub.title}\n`;
-          if (sub.description) md += `    ${sub.description.split("\n").join("\n    ")}\n`;
+          md += formatTaskAsMarkdown(sub, 1);
         }
       }
       md += `\n`;
