@@ -100,6 +100,11 @@ function ResearchContent() {
   // 'external' default keeps the panel focused on sales calls — events
   // with at least one attendee whose email domain ≠ the user's own.
   const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
+  // Free-text filter applied client-side after the API response —
+  // matches the user's typed query against event title, prefilled
+  // company name, and any attendee name/email. Persists until the
+  // user clears it via the X button or refreshes the page.
+  const [calendarSearch, setCalendarSearch] = useState("");
   // How far ahead to fetch; grows by 14 days each time the user
   // clicks "Load more meetings". Limit grows in tandem.
   const [calendarDays, setCalendarDays] = useState(14);
@@ -689,8 +694,63 @@ function ResearchContent() {
                     No upcoming {calendarFilter === "external" ? "external " : ""}meetings in the next {calendarDays} days.
                   </p>
                 ) : (
-                  <ul className="space-y-2">
-                    {upcomingEvents.map((event) => {
+                  <>
+                    {/* Free-text search across title, prefill company,
+                        and attendee name/email. Client-side filter so
+                        typing is instant. */}
+                    <div className="relative mb-2">
+                      <svg
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={calendarSearch}
+                        onChange={(e) => setCalendarSearch(e.target.value)}
+                        placeholder="Filter meetings…"
+                        className="w-full pl-8 pr-8 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                      {calendarSearch && (
+                        <button
+                          onClick={() => setCalendarSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                          aria-label="Clear search"
+                          title="Clear search"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {(() => {
+                      const q = calendarSearch.trim().toLowerCase();
+                      const filtered = q
+                        ? upcomingEvents.filter((event) => {
+                            const haystack = [
+                              event.title,
+                              event.prefill.companyName,
+                              ...event.attendees.flatMap((a) => [a.name || "", a.email]),
+                            ]
+                              .join(" ")
+                              .toLowerCase();
+                            return haystack.includes(q);
+                          })
+                        : upcomingEvents;
+                      if (filtered.length === 0) {
+                        return (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            No meetings match &ldquo;{calendarSearch}&rdquo;.
+                          </p>
+                        );
+                      }
+                      return (
+                        <ul className="space-y-2">
+                          {filtered.map((event) => {
                       const when = new Date(event.startsAt);
                       const whenLabel = when.toLocaleString(undefined, {
                         weekday: "short",
@@ -751,9 +811,12 @@ function ResearchContent() {
                             </div>
                           )}
                         </li>
+                          );
+                        })}
+                        </ul>
                       );
-                    })}
-                  </ul>
+                    })()}
+                  </>
                 )}
                 {calendarConnected && (calendarHasMore || calendarDays > 14) && (
                   <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
