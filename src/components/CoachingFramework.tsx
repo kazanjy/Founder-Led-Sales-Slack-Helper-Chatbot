@@ -725,27 +725,46 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
   };
 
-  const sendTaskToTop = (goalId: string, taskId: string) => {
+  // Reorder a top-level task within its goal. The flat g.tasks
+  // array mixes top-level + subtasks (both ordered by the same
+  // `order` column), so naïve adjacent-index swaps would move a
+  // top-level task past an unrelated subtask and look like nothing
+  // happened in the rendered view. We split into top-level vs.
+  // subtasks, mutate the top-level subset, then merge back as
+  // [top-level..., subtasks...] before persisting.
+  const reorderTopLevelTaskWithinGoal = (goalId: string, taskId: string, target: "up" | "down" | "top" | "bottom") => {
     setGoals((prev) => prev.map((g) => {
       if (g.id !== goalId) return g;
-      const idx = g.tasks.findIndex((t) => t.id === taskId);
-      if (idx <= 0) return g;
-      const reordered = [g.tasks[idx], ...g.tasks.filter((t) => t.id !== taskId)];
-      persistTaskOrder(reordered);
-      return { ...g, tasks: reordered };
+      const topLevel = g.tasks.filter((t) => !t.parentTaskId);
+      const subtasks = g.tasks.filter((t) => t.parentTaskId);
+      const idx = topLevel.findIndex((t) => t.id === taskId);
+      if (idx < 0) return g;
+      let nextTopLevel = topLevel;
+      if (target === "up") {
+        if (idx === 0) return g;
+        nextTopLevel = [...topLevel];
+        [nextTopLevel[idx - 1], nextTopLevel[idx]] = [nextTopLevel[idx], nextTopLevel[idx - 1]];
+      } else if (target === "down") {
+        if (idx >= topLevel.length - 1) return g;
+        nextTopLevel = [...topLevel];
+        [nextTopLevel[idx], nextTopLevel[idx + 1]] = [nextTopLevel[idx + 1], nextTopLevel[idx]];
+      } else if (target === "top") {
+        if (idx === 0) return g;
+        nextTopLevel = [topLevel[idx], ...topLevel.filter((_, i) => i !== idx)];
+      } else if (target === "bottom") {
+        if (idx === topLevel.length - 1) return g;
+        nextTopLevel = [...topLevel.filter((_, i) => i !== idx), topLevel[idx]];
+      }
+      const next = [...nextTopLevel, ...subtasks];
+      persistTaskOrder(next);
+      return { ...g, tasks: next };
     }));
   };
 
-  const sendTaskToBottom = (goalId: string, taskId: string) => {
-    setGoals((prev) => prev.map((g) => {
-      if (g.id !== goalId) return g;
-      const idx = g.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1 || idx === g.tasks.length - 1) return g;
-      const reordered = [...g.tasks.filter((t) => t.id !== taskId), g.tasks[idx]];
-      persistTaskOrder(reordered);
-      return { ...g, tasks: reordered };
-    }));
-  };
+  const sendTaskToTop = (goalId: string, taskId: string) =>
+    reorderTopLevelTaskWithinGoal(goalId, taskId, "top");
+  const sendTaskToBottom = (goalId: string, taskId: string) =>
+    reorderTopLevelTaskWithinGoal(goalId, taskId, "bottom");
 
   // Subtask top/bottom — scoped to siblings sharing the same parent.
   // The order column is shared with top-level tasks but the render
@@ -825,29 +844,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     });
   };
 
-  const moveTaskUp = (goalId: string, taskId: string) => {
-    setGoals((prev) => prev.map((g) => {
-      if (g.id !== goalId) return g;
-      const idx = g.tasks.findIndex((t) => t.id === taskId);
-      if (idx <= 0) return g;
-      const next = [...g.tasks];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      persistTaskOrder(next);
-      return { ...g, tasks: next };
-    }));
-  };
+  const moveTaskUp = (goalId: string, taskId: string) =>
+    reorderTopLevelTaskWithinGoal(goalId, taskId, "up");
 
-  const moveTaskDown = (goalId: string, taskId: string) => {
-    setGoals((prev) => prev.map((g) => {
-      if (g.id !== goalId) return g;
-      const idx = g.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1 || idx >= g.tasks.length - 1) return g;
-      const next = [...g.tasks];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      persistTaskOrder(next);
-      return { ...g, tasks: next };
-    }));
-  };
+  const moveTaskDown = (goalId: string, taskId: string) =>
+    reorderTopLevelTaskWithinGoal(goalId, taskId, "down");
 
   const handleGoalDrop = (targetGoalId: string) => {
     if (!dragGoal || dragGoal === targetGoalId) return;
