@@ -13,6 +13,17 @@ export function isAdminEmail(email: string | null): boolean {
 }
 
 /**
+ * Returns true if any of the candidate emails match the admin list.
+ * Used by getAdminUser so accounts that merged identities (e.g. a
+ * Slack user with one address who later attached a Google account
+ * with a different address) don't lose admin access just because
+ * `user.email` happened to be filled with the non-admin identity.
+ */
+function anyEmailIsAdmin(emails: Array<string | null | undefined>): boolean {
+  return emails.some((e) => (e ? isAdminEmail(e) : false));
+}
+
+/**
  * Check if the current user is an admin.
  * Returns the user if they are an admin, null otherwise.
  *
@@ -30,7 +41,7 @@ export async function getAdminUser(): Promise<AuthUser | null> {
   if (user.isImpersonating && user.impersonatingAdminId) {
     const realAdmin = await prisma.user.findUnique({
       where: { id: user.impersonatingAdminId },
-      select: { email: true, slackEmail: true },
+      select: { email: true, slackEmail: true, secondaryEmails: true },
     });
 
     if (!realAdmin) {
@@ -38,9 +49,17 @@ export async function getAdminUser(): Promise<AuthUser | null> {
       return null;
     }
 
-    const adminEmail = realAdmin.email || realAdmin.slackEmail;
-    if (!isAdminEmail(adminEmail)) {
-      console.error(`[getAdminUser] Impersonation: real admin email '${adminEmail}' not in ADMIN_EMAILS`);
+    const realCandidates: Array<string | null> = [
+      realAdmin.email,
+      realAdmin.slackEmail,
+      ...(realAdmin.secondaryEmails || []),
+    ];
+    if (!anyEmailIsAdmin(realCandidates)) {
+      console.error(
+        `[getAdminUser] Impersonation: none of real admin's emails [${realCandidates
+          .filter(Boolean)
+          .join(", ")}] are in ADMIN_EMAILS`
+      );
       return null;
     }
 
@@ -48,9 +67,20 @@ export async function getAdminUser(): Promise<AuthUser | null> {
     return user;
   }
 
-  // Normal case: check if user's email is in the admin list
-  const email = user.email || user.slackEmail;
-  if (!isAdminEmail(email)) {
+  // Normal case: check every email we know about on the user row.
+  // A user that has merged Slack + Google identities may have a
+  // different value in user.email vs user.slackEmail; admins in
+  // either column should still be admins.
+  const row = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { secondaryEmails: true },
+  });
+  const candidates: Array<string | null> = [
+    user.email,
+    user.slackEmail,
+    ...(row?.secondaryEmails || []),
+  ];
+  if (!anyEmailIsAdmin(candidates)) {
     return null;
   }
 
