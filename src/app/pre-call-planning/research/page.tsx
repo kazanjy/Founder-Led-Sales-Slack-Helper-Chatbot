@@ -1025,7 +1025,11 @@ function ResearchContent() {
                         );
                       }
                       return (
-                        <ul className="space-y-2">
+                        {/* Cap the visible list at ~6 tiles so the
+                            Recent Research history below stays one
+                            short page-scroll away. Anything beyond is
+                            reachable via the internal scroll. */}
+                        <ul className="space-y-2 max-h-[27rem] overflow-y-auto pr-1">
                           {filtered.map((event) => {
                       const when = new Date(event.startsAt);
                       const whenLabel = when.toLocaleString(undefined, {
