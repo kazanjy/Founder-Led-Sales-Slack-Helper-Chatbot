@@ -164,6 +164,7 @@ model User {
   preCallPlanningVersions    PreCallPlanningVersion[]
   preCallResearch            PreCallResearch[]
   recurringResearchPatterns  RecurringResearchPattern[]
+  preCallEnrichmentAttempts  PreCallEnrichmentAttempt[]
   pendingResearchRequests    PendingResearchRequest[]
   emailSequenceVersions      EmailSequenceVersion[]
   linkedInSequenceVersions   LinkedInSequenceVersion[]
@@ -1078,6 +1079,27 @@ model PreCallResearch {
   @@index([userId, createdAt])
   @@index([userId, companyName])
   @@map("pre_call_research")
+}
+
+// Per-(user, calendar event) record of a PDL enrichment attempt we
+// fired from the Upcoming-calls panel. Stored even (and especially)
+// on misses so the tile can show "we tried, PDL had no record"
+// across page refreshes rather than looking like fresh work waiting
+// to be done.
+model PreCallEnrichmentAttempt {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEventId String
+  pdlHits         Int      @default(0)
+  total           Int      @default(0)
+  companyFallback Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, calendarEventId])
+  @@index([userId, createdAt])
+  @@map("pre_call_enrichment_attempts")
 }
 
 // Saved title-pattern → Slack destination rules that the daily cron

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { enrichAttendeesByEmail } from "@/lib/search/pdl";
 
 /**
@@ -65,8 +66,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = (await request.json()) as { attendees?: Attendee[] };
+  const body = (await request.json()) as { attendees?: Attendee[]; calendarEventId?: string };
   const attendees = Array.isArray(body.attendees) ? body.attendees : [];
+  const calendarEventId = body.calendarEventId?.trim() || null;
   if (attendees.length === 0) {
     return NextResponse.json({ enrichedAttendees: [], prefill: null, pdlHits: 0 });
   }
@@ -146,6 +148,32 @@ export async function POST(request: NextRequest) {
         companyUrl: inferredCompanyUrl,
       }
     : null;
+
+  // Persist the attempt so the Upcoming-calls tile can show
+  // "tried, PDL had no record" across page refreshes. We upsert on
+  // (userId, calendarEventId) so re-clicks update the counters
+  // rather than create duplicates.
+  if (calendarEventId) {
+    try {
+      await prisma.preCallEnrichmentAttempt.upsert({
+        where: { userId_calendarEventId: { userId: user.id, calendarEventId } },
+        create: {
+          userId: user.id,
+          calendarEventId,
+          pdlHits,
+          total: attendees.length,
+          companyFallback: !!companyFromDomain,
+        },
+        update: {
+          pdlHits,
+          total: attendees.length,
+          companyFallback: !!companyFromDomain,
+        },
+      });
+    } catch (err) {
+      console.error("[enrich-event] Failed to persist attempt:", err);
+    }
+  }
 
   return NextResponse.json({
     enrichedAttendees: enriched,

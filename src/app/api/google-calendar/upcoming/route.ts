@@ -263,5 +263,25 @@ export async function GET(request: Request) {
     briefsByEventId = acc;
   }
 
-  return NextResponse.json({ events, daysAhead, hasMore, briefsByEventId });
+  // Same idea for persisted PDL enrichment attempts — lets the tile
+  // show "Enriched N of M from PDL" across page refreshes for events
+  // that don't (yet) have a brief.
+  let attemptsByEventId: Record<string, { pdlHits: number; total: number; companyFallback: boolean }> = {};
+  if (eventIds.length > 0) {
+    const attempts = await prisma.preCallEnrichmentAttempt.findMany({
+      where: { userId: user.id, calendarEventId: { in: eventIds } },
+      select: { calendarEventId: true, pdlHits: true, total: true, companyFallback: true },
+    });
+    const acc: Record<string, { pdlHits: number; total: number; companyFallback: boolean }> = {};
+    for (const a of attempts) {
+      acc[a.calendarEventId] = {
+        pdlHits: a.pdlHits,
+        total: a.total,
+        companyFallback: a.companyFallback,
+      };
+    }
+    attemptsByEventId = acc;
+  }
+
+  return NextResponse.json({ events, daysAhead, hasMore, briefsByEventId, attemptsByEventId });
 }

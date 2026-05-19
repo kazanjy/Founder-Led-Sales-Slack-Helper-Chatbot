@@ -234,6 +234,11 @@ function ResearchContent() {
           setUpcomingEvents(data.events || []);
           setCalendarHasMore(!!data.hasMore);
           setBriefsByEventId(data.briefsByEventId || {});
+          // Hydrate from the persisted attempts so the
+          // "Enriched N of M" line survives a page refresh.
+          if (data.attemptsByEventId) {
+            setEnrichmentResults((prev) => ({ ...data.attemptsByEventId, ...prev }));
+          }
         }
       } catch (err) {
         console.error("[research] Failed to load calendar:", err);
@@ -287,7 +292,7 @@ function ResearchContent() {
       const res = await fetch("/api/google-calendar/enrich-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attendees: event.attendees }),
+        body: JSON.stringify({ attendees: event.attendees, calendarEventId: event.id }),
       });
       if (!res.ok) return;
       const data = (await res.json()) as {
@@ -1285,42 +1290,6 @@ function ResearchContent() {
               )}
             </div>
 
-            {/* History */}
-            {history.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Research</h2>
-                  <Link
-                    href="/pre-call-planning/history"
-                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-                  >
-                    View All
-                  </Link>
-                </div>
-                <div className="space-y-2">
-                  {history.slice(0, 10).map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleLoadBrief(item.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                        brief?.id === item.id ? "bg-purple-50 border border-purple-200" : ""
-                      }`}
-                    >
-                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{toTitleCase(item.companyName)}</div>
-                      {item.contactName && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{toTitleCase(item.contactName)}{item.contactTitle ? ` - ${toTitleCase(item.contactTitle)}` : ""}</div>
-                      )}
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {formatDate(item.createdAt)}
-                        {item.source === "slack" && (
-                          <span className="ml-1 text-purple-500">via Slack</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right: Research Brief Display */}
@@ -1424,6 +1393,46 @@ function ResearchContent() {
                 <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                   Enter a company name and optional contact info to generate a comprehensive research brief for your next sales call.
                 </p>
+              </div>
+            )}
+
+            {/* Recent Research — moved to the right rail so the
+                taller left column (calendar + form + auto-broadcast)
+                doesn't push history off-screen. Hidden when the
+                user has nothing yet. */}
+            {history.length > 0 && (
+              <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Research</h2>
+                  <Link
+                    href="/pre-call-planning/history"
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    View All
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {history.slice(0, 10).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleLoadBrief(item.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                        brief?.id === item.id ? "bg-purple-50 border border-purple-200" : ""
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{toTitleCase(item.companyName)}</div>
+                      {item.contactName && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{toTitleCase(item.contactName)}{item.contactTitle ? ` - ${toTitleCase(item.contactTitle)}` : ""}</div>
+                      )}
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {formatDate(item.createdAt)}
+                        {item.source === "slack" && (
+                          <span className="ml-1 text-purple-500">via Slack</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
