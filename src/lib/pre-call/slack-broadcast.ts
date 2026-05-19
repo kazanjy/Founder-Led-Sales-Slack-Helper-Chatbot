@@ -57,6 +57,41 @@ export function markdownToSlack(md: string): string {
 
 const SLACK_MESSAGE_CHAR_LIMIT = 35000;
 
+// Cap on how much of the executive summary we'll inline into the
+// parent Slack message. Slack renders 4000+ chars per block fine,
+// but parents that scroll forever defeat the point of having a
+// thread. Anything beyond this stays in the thread reply.
+const EXEC_SUMMARY_CHAR_LIMIT = 1500;
+
+/**
+ * Split the brief into an "exec summary" chunk (everything before
+ * the second markdown heading — i.e. the TL;DR section) and the
+ * rest. Pure function. Falls back to "no summary, all body" if we
+ * can't find a clean break, so we never strip content silently.
+ */
+function splitExecSummary(content: string): { execSummary: string; rest: string } {
+  if (!content) return { execSummary: "", rest: "" };
+  const lines = content.split("\n");
+  let headingsSeen = 0;
+  let secondHeadingIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#{1,6}\s+/.test(lines[i])) {
+      headingsSeen++;
+      if (headingsSeen === 2) {
+        secondHeadingIdx = i;
+        break;
+      }
+    }
+  }
+  if (secondHeadingIdx === -1) return { execSummary: "", rest: content };
+  let execSummary = lines.slice(0, secondHeadingIdx).join("\n").trim();
+  const rest = lines.slice(secondHeadingIdx).join("\n");
+  if (execSummary.length > EXEC_SUMMARY_CHAR_LIMIT) {
+    execSummary = execSummary.slice(0, EXEC_SUMMARY_CHAR_LIMIT - 1).trimEnd() + "…";
+  }
+  return { execSummary, rest };
+}
+
 export interface ResearchForSlack {
   id: string;
   companyName: string;
@@ -160,12 +195,24 @@ export function buildResearchSlackMessage(research: ResearchForSlack): {
   if (research.contactLinkedIn) {
     lines.push(`🔗 <${normalizeUrl(research.contactLinkedIn)}|LinkedIn>`);
   }
+
+  // Split the brief: the first markdown section (typically
+  // "TL;DR — Executive Summary") becomes part of the parent
+  // message so Slack readers get tangible value before clicking
+  // through. Everything from the second heading onward (Company
+  // Snapshot etc.) goes into the threaded reply.
+  const briefSplit = splitExecSummary(research.content);
+  if (briefSplit.execSummary) {
+    lines.push("");
+    lines.push(markdownToSlack(briefSplit.execSummary));
+  }
+
   lines.push("");
   lines.push(`<${reportUrl}|View full brief →>`);
 
   const headerText = lines.join("\n");
 
-  let bodyText = markdownToSlack(research.content);
+  let bodyText = markdownToSlack(briefSplit.rest || research.content);
   let truncated = false;
   if (bodyText.length > SLACK_MESSAGE_CHAR_LIMIT) {
     bodyText = bodyText.slice(0, SLACK_MESSAGE_CHAR_LIMIT - 200);
