@@ -19,6 +19,7 @@ interface GCalEvent {
   description?: string;
   htmlLink?: string;
   hangoutLink?: string;
+  location?: string;
   conferenceData?: {
     entryPoints?: Array<{ entryPointType?: string; uri?: string; label?: string }>;
   };
@@ -36,6 +37,8 @@ interface UpcomingEvent {
   endsAt: string | null;
   meetingUrl: string | null;
   eventUrl: string | null;
+  description: string | null;
+  location: string | null;
   prefill: {
     companyName: string;
     contactName: string;
@@ -210,6 +213,8 @@ export async function GET(request: Request) {
       endsAt: ev.end?.dateTime || null,
       meetingUrl,
       eventUrl: ev.htmlLink || null,
+      description: ev.description?.trim() || null,
+      location: ev.location?.trim() || null,
       prefill: {
         companyName,
         contactName: primary?.displayName || "",

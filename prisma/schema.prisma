@@ -1053,6 +1053,13 @@ model PreCallResearch {
   contactLinkedIn String?
   freeformInput   String? @db.Text
 
+  // Snapshot of the calendar event the brief was triggered from
+  // (title, start/end, attendees, description, location, meeting
+  // URL). JSON so it can grow without further migrations. Null when
+  // the brief was created from the manual form rather than a
+  // calendar tile.
+  calendarEvent   Json?
+
   // Generated research brief (markdown)
   content String @db.Text
 

@@ -114,25 +114,116 @@ export async function POST(
   const contactDisplay = toTitleCase(research.contactName);
   const titleDisplay = toTitleCase(research.contactTitle);
 
-  const headerLines: string[] = [
-    `📋 *Pre-Call Research: ${companyDisplay}*`,
-  ];
+  // Normalize possibly-schemeless URLs so Slack renders them as
+  // proper hyperlinks (Slack only linkifies <url|label> when the
+  // URL has http(s)://).
+  const normalizeUrl = (u: string | null | undefined): string | null => {
+    if (!u) return null;
+    const t = u.trim();
+    if (!t) return null;
+    if (/^https?:\/\//i.test(t)) return t;
+    if (/^mailto:/i.test(t)) return t;
+    return `https://${t.replace(/^\/+/, "")}`;
+  };
+
+  // Pull the calendar event snapshot off the brief (set when the
+  // brief originated from an Upcoming-calls tile). Cast through
+  // unknown — Prisma types this as JsonValue.
+  const calEvent = research.calendarEvent as
+    | {
+        id?: string;
+        title?: string;
+        startsAt?: string;
+        endsAt?: string | null;
+        description?: string | null;
+        location?: string | null;
+        meetingUrl?: string | null;
+        eventUrl?: string | null;
+        attendees?: Array<{ email: string; name?: string | null }>;
+      }
+    | null
+    | undefined;
+
+  // ── Build the parent Slack message ──────────────────────────────
+  const headerLines: string[] = [];
+
+  if (calEvent?.title) {
+    headerLines.push(`📅 *${calEvent.title}*`);
+
+    // Time line. Use a single Slack <!date> token if we can so it
+    // renders in each viewer's local timezone; fall back to a static
+    // string if Slack rejects it.
+    if (calEvent.startsAt) {
+      const startSec = Math.floor(new Date(calEvent.startsAt).getTime() / 1000);
+      const fallback = new Date(calEvent.startsAt).toUTCString();
+      const startTok = `<!date^${startSec}^{date_short_pretty} at {time}|${fallback}>`;
+      let endTok = "";
+      if (calEvent.endsAt) {
+        const endSec = Math.floor(new Date(calEvent.endsAt).getTime() / 1000);
+        const endFallback = new Date(calEvent.endsAt).toUTCString();
+        endTok = ` – <!date^${endSec}^{time}|${endFallback}>`;
+      }
+      headerLines.push(`🕒 ${startTok}${endTok}`);
+    }
+
+    // Attendees (name + email).
+    if (calEvent.attendees && calEvent.attendees.length > 0) {
+      const attendeeLine = calEvent.attendees
+        .map((a) => {
+          const name = a.name?.trim();
+          const email = a.email?.trim();
+          if (name && email) return `${name} <mailto:${email}|${email}>`;
+          if (email) return `<mailto:${email}|${email}>`;
+          return name || "";
+        })
+        .filter(Boolean)
+        .join(", ");
+      if (attendeeLine) headerLines.push(`👥 ${attendeeLine}`);
+    }
+
+    // Location + meeting URL. Show whichever (or both) are present.
+    if (calEvent.location) {
+      // Google often puts "https://..." into the location field for
+      // virtual meetings, so auto-linkify when it looks like a URL.
+      const isUrl = /^(https?:\/\/|www\.)/i.test(calEvent.location.trim());
+      const loc = isUrl
+        ? `<${normalizeUrl(calEvent.location)}|${calEvent.location}>`
+        : calEvent.location;
+      headerLines.push(`📍 ${loc}`);
+    }
+    if (calEvent.meetingUrl) {
+      const url = normalizeUrl(calEvent.meetingUrl);
+      headerLines.push(`🎥 <${url}|Join meeting>`);
+    }
+    if (calEvent.eventUrl) {
+      const url = normalizeUrl(calEvent.eventUrl);
+      headerLines.push(`📆 <${url}|Open in Calendar>`);
+    }
+
+    // Invite description, truncated to keep the parent message
+    // scannable — full text goes into a follow-up reply.
+    const desc = calEvent.description?.trim();
+    if (desc) {
+      const trimmed = desc.length > 600 ? desc.slice(0, 600).trimEnd() + "…" : desc;
+      headerLines.push("");
+      headerLines.push(`>${trimmed.replace(/\n/g, "\n>")}`);
+    }
+
+    headerLines.push("");
+  }
+
+  // ── Prospect identity (always present) ──────────────────────────
+  headerLines.push(`📋 *Pre-Call Research: ${companyDisplay}*`);
   if (contactDisplay) {
     headerLines.push(
       `${contactDisplay}${titleDisplay ? ` — ${titleDisplay}` : ""}`
     );
   }
   if (research.contactEmail) {
-    headerLines.push(`✉️ ${research.contactEmail}`);
+    headerLines.push(`✉️ <mailto:${research.contactEmail}|${research.contactEmail}>`);
   }
   if (research.contactLinkedIn) {
-    // Slack only renders <…|label> as a hyperlink when the URL has an
-    // http(s):// scheme. PDL often returns LinkedIn URLs as bare
-    // "linkedin.com/in/handle" so normalize before linkifying.
-    const rawLinkedIn = research.contactLinkedIn.trim();
-    const linkedInUrl = /^https?:\/\//i.test(rawLinkedIn)
-      ? rawLinkedIn
-      : `https://${rawLinkedIn.replace(/^\/+/, "")}`;
+    const linkedInUrl = normalizeUrl(research.contactLinkedIn);
     headerLines.push(`🔗 <${linkedInUrl}|LinkedIn>`);
   }
   headerLines.push("");

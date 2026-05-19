@@ -86,6 +86,8 @@ function ResearchContent() {
     endsAt: string | null;
     meetingUrl: string | null;
     eventUrl: string | null;
+    description: string | null;
+    location: string | null;
     prefill: {
       companyName: string;
       contactName: string;
@@ -315,6 +317,17 @@ function ResearchContent() {
           contactLinkedIn: data.prefill.contactLinkedIn,
           contactEmail: primaryAttendee?.email || undefined,
           urls: data.prefill.companyUrl,
+          calendarEvent: {
+            id: event.id,
+            title: event.title,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            description: event.description,
+            location: event.location,
+            meetingUrl: event.meetingUrl,
+            eventUrl: event.eventUrl,
+            attendees: event.attendees.map((a) => ({ email: a.email, name: a.name })),
+          },
         });
       }
     } catch (err) {
@@ -327,6 +340,17 @@ function ResearchContent() {
   // Inner research runner: takes explicit input values so callers can
   // bypass the React state-update timing problem (auto-firing right
   // after setCompanyName etc. would otherwise read stale state).
+  interface CalendarEventSnapshot {
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt: string | null;
+    description: string | null;
+    location: string | null;
+    meetingUrl: string | null;
+    eventUrl: string | null;
+    attendees: Array<{ email: string; name: string | null }>;
+  }
   const runResearchWithInputs = async (inputs: {
     companyName: string;
     contactName?: string;
@@ -334,6 +358,7 @@ function ResearchContent() {
     contactLinkedIn?: string;
     contactEmail?: string;
     urls?: string;
+    calendarEvent?: CalendarEventSnapshot;
   }) => {
     if (!inputs.companyName.trim()) {
       await showAlert({
@@ -365,6 +390,7 @@ function ResearchContent() {
           contactLinkedIn: inputs.contactLinkedIn?.trim() || undefined,
           contactEmail: inputs.contactEmail?.trim() || undefined,
           urls: homepageUrl ? [homepageUrl] : undefined,
+          calendarEvent: inputs.calendarEvent,
         }),
         signal: controller.signal,
       });

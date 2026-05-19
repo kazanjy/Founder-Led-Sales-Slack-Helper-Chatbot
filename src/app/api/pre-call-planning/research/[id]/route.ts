@@ -34,6 +34,7 @@ export async function GET(
         contactTitle: research.contactTitle,
         contactEmail: research.contactEmail,
         contactLinkedIn: research.contactLinkedIn,
+        calendarEvent: research.calendarEvent ?? null,
         freeformInput: research.freeformInput,
         content: research.content,
         searchContext: research.searchContext,
