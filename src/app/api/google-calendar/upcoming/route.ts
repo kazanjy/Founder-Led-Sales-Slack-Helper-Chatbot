@@ -68,11 +68,18 @@ function companyNameFromDomain(domain: string): string {
   return root.charAt(0).toUpperCase() + root.slice(1);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  // ?filter=external (default) keeps only events with at least one
+  // attendee whose email domain differs from the user's own domain
+  // — the typical sales-call shape. ?filter=all turns the filter off
+  // so users can browse personal/internal events too.
+  const url = new URL(request.url);
+  const filterMode = url.searchParams.get("filter") === "all" ? "all" : "external";
 
   const tokenRow = await prisma.user.findUnique({
     where: { id: user.id },
@@ -103,21 +110,23 @@ export async function GET() {
     });
     accountDomain = account?.emailDomain?.toLowerCase() || null;
   }
-  // Fallback: user's own email domain if no account domain set.
-  const userDomain =
+  // The Google-authed identity may differ from slackEmail on Slack-
+  // first users. Fall back order: account.emailDomain > user.email >
+  // user.slackEmail > the per-event self-attendee domain set below.
+  const recordDomain =
     accountDomain || domainFromEmail(user.email || user.slackEmail || undefined);
 
   const timeMin = new Date();
   const timeMax = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
-  const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
-  url.searchParams.set("timeMin", timeMin.toISOString());
-  url.searchParams.set("timeMax", timeMax.toISOString());
-  url.searchParams.set("singleEvents", "true");
-  url.searchParams.set("orderBy", "startTime");
-  url.searchParams.set("maxResults", "50");
+  const calendarUrl = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
+  calendarUrl.searchParams.set("timeMin", timeMin.toISOString());
+  calendarUrl.searchParams.set("timeMax", timeMax.toISOString());
+  calendarUrl.searchParams.set("singleEvents", "true");
+  calendarUrl.searchParams.set("orderBy", "startTime");
+  calendarUrl.searchParams.set("maxResults", "50");
 
-  const res = await fetch(url.toString(), {
+  const res = await fetch(calendarUrl.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -144,28 +153,33 @@ export async function GET() {
     const selfAttendee = ev.attendees.find((a) => a.self);
     if (selfAttendee?.responseStatus === "declined") continue;
 
-    // Find external attendees (not on the user/account domain and
-    // not a personal-email provider domain we can't infer a company
-    // from).
+    // Best self-domain we can compute for this event: prefer the
+    // attendee Google marked self (most reliable for Slack-first
+    // users whose Google identity differs from their slackEmail), then
+    // fall back to the account/user-record domain.
+    const selfDomain = domainFromEmail(selfAttendee?.email) || recordDomain;
+
+    // External = attendee with a domain that isn't the user's own.
     const externalAttendees = ev.attendees.filter((a) => {
       const dom = domainFromEmail(a.email);
       if (!dom) return false;
-      if (userDomain && dom === userDomain) return false;
+      if (selfDomain && dom === selfDomain) return false;
       return true;
     });
 
-    if (externalAttendees.length === 0) continue;
+    if (filterMode === "external" && externalAttendees.length === 0) continue;
 
     // Pick the first non-public-domain external attendee as the
-    // "primary" prospect for prefill. Fall back to the first
-    // external attendee if all are public domains.
+    // "primary" prospect for prefill. Falls back to the first
+    // external attendee if all are public domains. With filter=all
+    // there may be no external attendees at all — leave prefill blank.
     const primary =
       externalAttendees.find((a) => {
         const dom = domainFromEmail(a.email);
         return dom && !PUBLIC_EMAIL_DOMAINS.has(dom);
-      }) || externalAttendees[0];
+      }) || externalAttendees[0] || null;
 
-    const primaryDomain = domainFromEmail(primary.email);
+    const primaryDomain = primary ? domainFromEmail(primary.email) : null;
     const companyName =
       primaryDomain && !PUBLIC_EMAIL_DOMAINS.has(primaryDomain)
         ? companyNameFromDomain(primaryDomain)
@@ -189,7 +203,7 @@ export async function GET() {
       eventUrl: ev.htmlLink || null,
       prefill: {
         companyName,
-        contactName: primary.displayName || "",
+        contactName: primary?.displayName || "",
         contactTitle: "",
         contactLinkedIn: "",
         companyUrl,

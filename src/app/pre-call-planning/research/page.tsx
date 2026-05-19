@@ -95,6 +95,9 @@ function ResearchContent() {
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loadingUpcoming, setLoadingUpcoming] = useState(false);
+  // 'external' default keeps the panel focused on sales calls — events
+  // with at least one attendee whose email domain ≠ the user's own.
+  const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -169,7 +172,7 @@ function ResearchContent() {
     (async () => {
       setLoadingUpcoming(true);
       try {
-        const res = await fetch("/api/google-calendar/upcoming");
+        const res = await fetch(`/api/google-calendar/upcoming?filter=${calendarFilter}`);
         if (!res.ok) {
           if (res.status === 403) setCalendarConnected(false);
           return;
@@ -185,7 +188,7 @@ function ResearchContent() {
     return () => {
       cancelled = true;
     };
-  }, [calendarConnected]);
+  }, [calendarConnected, calendarFilter]);
 
   const prefillFromEvent = (event: UpcomingEvent) => {
     if (event.prefill.companyName) setCompanyName(event.prefill.companyName);
@@ -475,13 +478,39 @@ function ResearchContent() {
                 a freshly-loaded page. */}
             {calendarConnected !== null && (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 min-w-0">
+                    <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     Upcoming calls
                   </h2>
+                  {calendarConnected && (
+                    <div className="flex-shrink-0 inline-flex text-xs rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                      <button
+                        onClick={() => setCalendarFilter("external")}
+                        className={`px-2 py-1 ${
+                          calendarFilter === "external"
+                            ? "bg-purple-600 text-white"
+                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                        title="Show only meetings with at least one attendee outside your domain"
+                      >
+                        External
+                      </button>
+                      <button
+                        onClick={() => setCalendarFilter("all")}
+                        className={`px-2 py-1 border-l border-gray-200 dark:border-gray-700 ${
+                          calendarFilter === "all"
+                            ? "bg-purple-600 text-white"
+                            : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                        title="Show every upcoming event on your calendar"
+                      >
+                        All
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {!calendarConnected ? (
                   <div>
