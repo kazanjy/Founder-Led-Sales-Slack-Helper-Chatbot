@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { companyName, contactName, contactTitle, contactLinkedIn, freeformText, urls } = body;
+    const { companyName, contactName, contactTitle, contactLinkedIn, contactEmail, freeformText, urls } = body;
 
     if (!companyName && !freeformText) {
       return NextResponse.json(
@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
               companyName: parsedInput.companyName,
               contactName: parsedInput.contactName,
               contactTitle: parsedInput.contactTitle,
+              contactEmail: contactEmail || null,
+              contactLinkedIn: parsedInput.contactLinkedIn || contactLinkedIn || null,
               freeformInput: freeformText || companyName,
               content: brief.content,
               searchContext: brief.searchContext,
@@ -135,6 +137,8 @@ export async function POST(request: NextRequest) {
             companyName: brief.companyName,
             contactName: brief.contactName,
             contactTitle: parsedInput.contactTitle,
+            contactEmail: research.contactEmail,
+            contactLinkedIn: research.contactLinkedIn,
             content: brief.content,
             sources: brief.sources,
             createdAt: research.createdAt,

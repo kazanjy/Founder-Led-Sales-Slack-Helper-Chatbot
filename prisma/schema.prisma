@@ -1039,10 +1039,12 @@ model PreCallResearch {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Research input
-  companyName   String
-  contactName   String?
-  contactTitle  String?
-  freeformInput String? @db.Text
+  companyName     String
+  contactName     String?
+  contactTitle    String?
+  contactEmail    String?
+  contactLinkedIn String?
+  freeformInput   String? @db.Text
 
   // Generated research brief (markdown)
   content String @db.Text

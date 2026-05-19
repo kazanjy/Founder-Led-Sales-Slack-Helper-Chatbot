@@ -17,6 +17,8 @@ interface ResearchBrief {
   companyName: string;
   contactName?: string;
   contactTitle?: string;
+  contactEmail?: string | null;
+  contactLinkedIn?: string | null;
   content: string;
   sources: { title: string; url: string }[];
   createdAt: string;
@@ -117,6 +119,8 @@ function ResearchContent() {
         companyName: data.research.companyName,
         contactName: data.research.contactName,
         contactTitle: data.research.contactTitle,
+        contactEmail: data.research.contactEmail ?? null,
+        contactLinkedIn: data.research.contactLinkedIn ?? null,
         content: data.research.content,
         sources: data.research.sources as { title: string; url: string }[],
         createdAt: data.research.createdAt,
@@ -245,6 +249,23 @@ function ResearchContent() {
       if (data.prefill.contactTitle) setContactTitle(data.prefill.contactTitle);
       if (data.prefill.contactLinkedIn) setContactLinkedIn(data.prefill.contactLinkedIn);
       if (data.prefill.companyUrl) setUrls(data.prefill.companyUrl);
+
+      // If PDL actually returned a person hit, auto-fire research
+      // with the enriched inputs (bypassing state-update timing). The
+      // user typed nothing — clicking a calendar tile + PDL hitting
+      // is enough intent to start work immediately.
+      const pdlHits = data.pdlHits ?? 0;
+      const primaryAttendee = event.attendees[0];
+      if (pdlHits > 0 && data.prefill.companyName) {
+        await runResearchWithInputs({
+          companyName: data.prefill.companyName,
+          contactName: data.prefill.contactName,
+          contactTitle: data.prefill.contactTitle,
+          contactLinkedIn: data.prefill.contactLinkedIn,
+          contactEmail: primaryAttendee?.email || undefined,
+          urls: data.prefill.companyUrl,
+        });
+      }
     } catch (err) {
       console.error("[research] PDL enrichment failed:", err);
     } finally {
@@ -252,8 +273,18 @@ function ResearchContent() {
     }
   };
 
-  const handleResearch = async () => {
-    if (!companyName.trim()) {
+  // Inner research runner: takes explicit input values so callers can
+  // bypass the React state-update timing problem (auto-firing right
+  // after setCompanyName etc. would otherwise read stale state).
+  const runResearchWithInputs = async (inputs: {
+    companyName: string;
+    contactName?: string;
+    contactTitle?: string;
+    contactLinkedIn?: string;
+    contactEmail?: string;
+    urls?: string;
+  }) => {
+    if (!inputs.companyName.trim()) {
       await showAlert({
         title: "Company Required",
         message: "Please enter a company name to research.",
@@ -271,16 +302,17 @@ function ResearchContent() {
     abortRef.current = controller;
 
     try {
-      const homepageUrl = urls.trim();
+      const homepageUrl = (inputs.urls || "").trim();
 
       const response = await fetch("/api/pre-call-planning/research-run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyName: companyName.trim(),
-          contactName: contactName.trim() || undefined,
-          contactTitle: contactTitle.trim() || undefined,
-          contactLinkedIn: contactLinkedIn.trim() || undefined,
+          companyName: inputs.companyName.trim(),
+          contactName: inputs.contactName?.trim() || undefined,
+          contactTitle: inputs.contactTitle?.trim() || undefined,
+          contactLinkedIn: inputs.contactLinkedIn?.trim() || undefined,
+          contactEmail: inputs.contactEmail?.trim() || undefined,
           urls: homepageUrl ? [homepageUrl] : undefined,
         }),
         signal: controller.signal,
@@ -375,6 +407,17 @@ function ResearchContent() {
       abortRef.current = null;
     }
   };
+
+  // Thin wrapper for the "Research Prospect" button: reads from form
+  // state and delegates to runResearchWithInputs.
+  const handleResearch = () =>
+    runResearchWithInputs({
+      companyName,
+      contactName,
+      contactTitle,
+      contactLinkedIn,
+      urls,
+    });
 
   const handleLoadBrief = async (id: string) => {
     router.replace(`/pre-call-planning/research?id=${id}`, { scroll: false });
@@ -829,6 +872,52 @@ function ResearchContent() {
                     Generated {formatDate(brief.createdAt)}
                   </p>
                 </div>
+                {/* Prospect header card — quick reference for who
+                    you're meeting with. Shows only when we have at
+                    least one human-context field beyond the company. */}
+                {(brief.contactName || brief.contactTitle || brief.contactEmail || brief.contactLinkedIn) && (
+                  <div className="px-6 pt-6">
+                    <div className="rounded-lg border border-purple-100 dark:border-purple-900/50 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-4">
+                      <div className="flex items-baseline gap-2 flex-wrap mb-2">
+                        {brief.contactName && (
+                          <span className="text-base font-semibold text-gray-900 dark:text-gray-100">{brief.contactName}</span>
+                        )}
+                        {brief.contactTitle && (
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{brief.contactTitle}</span>
+                        )}
+                        {brief.companyName && (
+                          <span className="text-sm text-purple-700 dark:text-purple-300">@ {brief.companyName}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 flex-wrap text-xs">
+                        {brief.contactEmail && (
+                          <a
+                            href={`mailto:${brief.contactEmail}`}
+                            className="inline-flex items-center gap-1 text-gray-700 dark:text-gray-200 hover:text-purple-600 dark:hover:text-purple-300 font-mono break-all"
+                          >
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            {brief.contactEmail}
+                          </a>
+                        )}
+                        {brief.contactLinkedIn && (
+                          <a
+                            href={brief.contactLinkedIn.startsWith("http") ? brief.contactLinkedIn : `https://${brief.contactLinkedIn}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-300 hover:underline"
+                          >
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                            </svg>
+                            LinkedIn
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="p-6">
                   <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-table:text-sm prose-th:bg-gray-100 prose-th:border prose-th:border-gray-300 prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-gray-300 prose-td:px-3 prose-td:py-2">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.content}</ReactMarkdown>
