@@ -126,7 +126,14 @@ export async function POST(
     headerLines.push(`✉️ ${research.contactEmail}`);
   }
   if (research.contactLinkedIn) {
-    headerLines.push(`🔗 <${research.contactLinkedIn}|LinkedIn>`);
+    // Slack only renders <…|label> as a hyperlink when the URL has an
+    // http(s):// scheme. PDL often returns LinkedIn URLs as bare
+    // "linkedin.com/in/handle" so normalize before linkifying.
+    const rawLinkedIn = research.contactLinkedIn.trim();
+    const linkedInUrl = /^https?:\/\//i.test(rawLinkedIn)
+      ? rawLinkedIn
+      : `https://${rawLinkedIn.replace(/^\/+/, "")}`;
+    headerLines.push(`🔗 <${linkedInUrl}|LinkedIn>`);
   }
   headerLines.push("");
   headerLines.push(`<${reportUrl}|View full brief →>`);
