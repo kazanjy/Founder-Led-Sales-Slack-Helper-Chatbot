@@ -103,6 +103,10 @@ function ResearchContent() {
   // 'external' default keeps the panel focused on sales calls — events
   // with at least one attendee whose email domain ≠ the user's own.
   const [calendarFilter, setCalendarFilter] = useState<"external" | "all">("external");
+  // Map of calendar event id → existing research brief id for this
+  // user. Lets us short-circuit a tile click to "open the existing
+  // brief" instead of re-running research.
+  const [briefsByEventId, setBriefsByEventId] = useState<Record<string, string>>({});
   // Free-text filter applied client-side after the API response —
   // matches the user's typed query against event title, prefilled
   // company name, and any attendee name/email. Persists until the
@@ -229,6 +233,7 @@ function ResearchContent() {
         if (!cancelled) {
           setUpcomingEvents(data.events || []);
           setCalendarHasMore(!!data.hasMore);
+          setBriefsByEventId(data.briefsByEventId || {});
         }
       } catch (err) {
         console.error("[research] Failed to load calendar:", err);
@@ -267,6 +272,14 @@ function ResearchContent() {
   // and overwrite with richer name/title/company/LinkedIn when PDL
   // returns useful data.
   const selectEvent = async (event: UpcomingEvent) => {
+    // Short-circuit: if we already have a brief for this calendar
+    // event, jump straight to it instead of re-running research.
+    const existingBriefId = briefsByEventId[event.id];
+    if (existingBriefId) {
+      router.replace(`/pre-call-planning/research?id=${existingBriefId}`, { scroll: false });
+      await loadBriefById(existingBriefId);
+      return;
+    }
     prefillFromEvent(event);
     if (event.attendees.length === 0 || enrichingEventId) return;
     setEnrichingEventId(event.id);
@@ -1089,10 +1102,18 @@ function ResearchContent() {
                                 </svg>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              {whenLabel}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                              <span>{whenLabel}</span>
                               {event.prefill.companyName && (
-                                <> · <span className="text-purple-600 dark:text-purple-300">{event.prefill.companyName}</span></>
+                                <span>· <span className="text-purple-600 dark:text-purple-300">{event.prefill.companyName}</span></span>
+                              )}
+                              {briefsByEventId[event.id] && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Researched · open brief
+                                </span>
                               )}
                             </div>
                             {enrichmentResults[event.id] && (

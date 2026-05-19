@@ -237,5 +237,28 @@ export async function GET(request: Request) {
   // Google returned a continuation token within the same window.
   const hasMore = events.length >= limit;
 
-  return NextResponse.json({ events, daysAhead, hasMore });
+  // Map each returned calendar event id to an existing pre-call
+  // research brief for this user, so the UI can show "Researched"
+  // and link to the saved brief instead of re-running research.
+  const eventIds = events.map((e) => e.id);
+  let briefsByEventId: Record<string, string> = {};
+  if (eventIds.length > 0) {
+    const existing = await prisma.preCallResearch.findMany({
+      where: {
+        userId: user.id,
+        calendarEvent: { path: ["id"], in: eventIds },
+      },
+      select: { id: true, calendarEvent: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const acc: Record<string, string> = {};
+    for (const row of existing) {
+      const evId = (row.calendarEvent as { id?: string } | null)?.id;
+      if (!evId) continue;
+      if (!acc[evId]) acc[evId] = row.id; // first (most recent) wins
+    }
+    briefsByEventId = acc;
+  }
+
+  return NextResponse.json({ events, daysAhead, hasMore, briefsByEventId });
 }
