@@ -489,7 +489,7 @@ function ResearchContent() {
                       Connect Google Calendar to load your next sales calls and start research with one click.
                     </p>
                     <a
-                      href="/api/auth/google"
+                      href="/api/auth/google?returnTo=/pre-call-planning/research"
                       className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24">

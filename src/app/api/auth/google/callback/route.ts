@@ -4,6 +4,24 @@ import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { findOrCreateAccountForUser } from "@/lib/accounts";
 
+/**
+ * If the request carries an active session cookie, return that
+ * user. Used so a Slack-authed user clicking "Connect Google
+ * Calendar" gets Google linked to their existing account instead of
+ * a brand-new user being minted under the Gmail address.
+ */
+async function getLoggedInUser() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("session")?.value;
+  if (!sessionToken) return null;
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+  if (!session || session.expiresAt < new Date()) return null;
+  return session.user;
+}
+
 interface GoogleTokenResponse {
   access_token: string;
   token_type: string;
@@ -30,6 +48,28 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const stateRaw = searchParams.get("state");
+
+  // Decode the optional state payload (set by /api/auth/google when
+  // the caller passes ?returnTo=...). We validate the path is
+  // same-origin before redirecting later; reject anything weird.
+  let returnTo: string | null = null;
+  if (stateRaw) {
+    try {
+      const decoded = JSON.parse(Buffer.from(stateRaw, "base64url").toString("utf-8")) as {
+        returnTo?: string;
+      };
+      if (
+        decoded?.returnTo &&
+        decoded.returnTo.startsWith("/") &&
+        !decoded.returnTo.startsWith("//")
+      ) {
+        returnTo = decoded.returnTo;
+      }
+    } catch {
+      /* ignore malformed state */
+    }
+  }
 
   if (error) {
     console.error("Google auth error:", error);
@@ -88,17 +128,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find existing user by Google ID, email, slackEmail, or secondaryEmails
-    let user = await prisma.user.findFirst({
+    // If the request already has an active session (e.g. the user
+    // logged in via Slack and is now adding Calendar), prefer linking
+    // Google to that account over an email-match lookup. Without this,
+    // a Slack-authed user with a different Gmail address ends up with
+    // a brand-new duplicate user record.
+    const sessionUser = await getLoggedInUser();
+
+    // If a *different* existing user already owns this Google
+    // identity, fall back to the email-based path so we don't
+    // accidentally re-link Google to whoever happens to be logged in.
+    const existingGoogleOwner = await prisma.user.findFirst({
       where: {
-        OR: [
-          { googleId: userInfo.id },
-          { email: userInfo.email },
-          { slackEmail: userInfo.email },
-          { secondaryEmails: { has: userInfo.email } },
-        ],
+        OR: [{ googleId: userInfo.id }, { email: userInfo.email }],
       },
+      select: { id: true },
     });
+
+    let user = null as Awaited<ReturnType<typeof prisma.user.findFirst>> | null;
+    if (sessionUser && (!existingGoogleOwner || existingGoogleOwner.id === sessionUser.id)) {
+      user = sessionUser;
+    } else {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { googleId: userInfo.id },
+            { email: userInfo.email },
+            { slackEmail: userInfo.email },
+            { secondaryEmails: { has: userInfo.email } },
+          ],
+        },
+      });
+    }
 
     let isNewUser = false;
 
@@ -177,10 +238,17 @@ export async function GET(request: NextRequest) {
       path: "/",
     });
 
-    // Redirect new users to upgrade page, existing users to chat
-    const redirectUrl = isNewUser
+    // If the caller passed a same-origin returnTo (e.g. the pre-call
+    // research page asking the user to grant calendar scopes), honor
+    // it over the default new-user/upgrade vs existing-user/chat
+    // routing. New-user provisioning still happened above; we just
+    // bounce them back where they started.
+    const defaultRedirect = isNewUser
       ? `${process.env.NEXT_PUBLIC_APP_URL}/upgrade`
       : `${process.env.NEXT_PUBLIC_APP_URL}/chat`;
+    const redirectUrl = returnTo
+      ? `${process.env.NEXT_PUBLIC_APP_URL}${returnTo}`
+      : defaultRedirect;
 
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
