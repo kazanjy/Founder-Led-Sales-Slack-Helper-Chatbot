@@ -243,18 +243,21 @@ export async function GET(request: Request) {
   const eventIds = events.map((e) => e.id);
   let briefsByEventId: Record<string, string> = {};
   if (eventIds.length > 0) {
+    // Prisma's JSON filter doesn't support `in` with `path`, so we
+    // pull the user's recent briefs and filter in-memory. Bounded by
+    // `take` so a power user with thousands of briefs doesn't make
+    // this query expensive. Most users have a few dozen.
     const existing = await prisma.preCallResearch.findMany({
-      where: {
-        userId: user.id,
-        calendarEvent: { path: ["id"], in: eventIds },
-      },
+      where: { userId: user.id },
       select: { id: true, calendarEvent: true, createdAt: true },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
+    const idSet = new Set(eventIds);
     const acc: Record<string, string> = {};
     for (const row of existing) {
       const evId = (row.calendarEvent as { id?: string } | null)?.id;
-      if (!evId) continue;
+      if (!evId || !idSet.has(evId)) continue;
       if (!acc[evId]) acc[evId] = row.id; // first (most recent) wins
     }
     briefsByEventId = acc;
