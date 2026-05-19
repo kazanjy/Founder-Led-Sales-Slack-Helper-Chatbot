@@ -948,7 +948,7 @@ function ResearchContent() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left: Research Form + History */}
           <div className="lg:col-span-1 space-y-6">
             {/* Google Calendar — upcoming sales calls. Hidden entirely
@@ -1395,13 +1395,15 @@ function ResearchContent() {
                 </p>
               </div>
             )}
+          </div>
 
-            {/* Recent Research — moved to the right rail so the
-                taller left column (calendar + form + auto-broadcast)
-                doesn't push history off-screen. Hidden when the
-                user has nothing yet. */}
+          {/* Right: Recent Research history rail. Lives as its own
+              column so it doesn't move when the brief grows or
+              shrinks, and the left column stays the operator-input
+              area. Hidden if the user has nothing yet. */}
+          <div className="lg:col-span-1">
             {history.length > 0 && (
-              <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 lg:sticky lg:top-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Research</h2>
                   <Link
@@ -1411,7 +1413,7 @@ function ResearchContent() {
                     View All
                   </Link>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {history.slice(0, 10).map((item) => (
                     <button
                       key={item.id}
