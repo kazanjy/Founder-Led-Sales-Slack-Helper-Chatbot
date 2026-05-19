@@ -247,20 +247,26 @@ export async function GET(request: Request) {
     // pull the user's recent briefs and filter in-memory. Bounded by
     // `take` so a power user with thousands of briefs doesn't make
     // this query expensive. Most users have a few dozen.
-    const existing = await prisma.preCallResearch.findMany({
-      where: { userId: user.id },
-      select: { id: true, calendarEvent: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    });
-    const idSet = new Set(eventIds);
-    const acc: Record<string, string> = {};
-    for (const row of existing) {
-      const evId = (row.calendarEvent as { id?: string } | null)?.id;
-      if (!evId || !idSet.has(evId)) continue;
-      if (!acc[evId]) acc[evId] = row.id; // first (most recent) wins
+    try {
+      const existing = await prisma.preCallResearch.findMany({
+        where: { userId: user.id },
+        select: { id: true, calendarEvent: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 500,
+      });
+      const idSet = new Set(eventIds);
+      const acc: Record<string, string> = {};
+      for (const row of existing) {
+        const evId = (row.calendarEvent as { id?: string } | null)?.id;
+        if (!evId || !idSet.has(evId)) continue;
+        if (!acc[evId]) acc[evId] = row.id; // first (most recent) wins
+      }
+      briefsByEventId = acc;
+    } catch (err) {
+      // Schema migration not applied yet, or transient DB issue —
+      // never let it tank the core calendar listing.
+      console.error("[upcoming] briefsByEventId lookup failed:", err);
     }
-    briefsByEventId = acc;
   }
 
   // Same idea for persisted PDL enrichment attempts — lets the tile
@@ -268,19 +274,25 @@ export async function GET(request: Request) {
   // that don't (yet) have a brief.
   let attemptsByEventId: Record<string, { pdlHits: number; total: number; companyFallback: boolean }> = {};
   if (eventIds.length > 0) {
-    const attempts = await prisma.preCallEnrichmentAttempt.findMany({
-      where: { userId: user.id, calendarEventId: { in: eventIds } },
-      select: { calendarEventId: true, pdlHits: true, total: true, companyFallback: true },
-    });
-    const acc: Record<string, { pdlHits: number; total: number; companyFallback: boolean }> = {};
-    for (const a of attempts) {
-      acc[a.calendarEventId] = {
-        pdlHits: a.pdlHits,
-        total: a.total,
-        companyFallback: a.companyFallback,
-      };
+    try {
+      const attempts = await prisma.preCallEnrichmentAttempt.findMany({
+        where: { userId: user.id, calendarEventId: { in: eventIds } },
+        select: { calendarEventId: true, pdlHits: true, total: true, companyFallback: true },
+      });
+      const acc: Record<string, { pdlHits: number; total: number; companyFallback: boolean }> = {};
+      for (const a of attempts) {
+        acc[a.calendarEventId] = {
+          pdlHits: a.pdlHits,
+          total: a.total,
+          companyFallback: a.companyFallback,
+        };
+      }
+      attemptsByEventId = acc;
+    } catch (err) {
+      // Migration 20260520000001 (pre_call_enrichment_attempts)
+      // hasn't been applied yet — keep the calendar list working.
+      console.error("[upcoming] attemptsByEventId lookup failed:", err);
     }
-    attemptsByEventId = acc;
   }
 
   return NextResponse.json({ events, daysAhead, hasMore, briefsByEventId, attemptsByEventId });
