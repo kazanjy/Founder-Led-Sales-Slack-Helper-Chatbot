@@ -455,6 +455,39 @@ function ResearchContent() {
     }
   };
 
+  // PDL returns names / titles / companies in lowercase. Title-case
+  // them at render time so the brief reads like a human wrote it.
+  // Keeps "&", short connector words (of/the/and/at/in/for/to),
+  // and existing all-caps tokens (CTO, VP, AI, SaaS, USA, II/III/IV)
+  // intact. Also handles hyphens and slashes as word separators.
+  const SMALL_WORDS = new Set([
+    "a", "an", "and", "as", "at", "but", "by", "for", "from", "in",
+    "of", "on", "or", "the", "to", "via", "with",
+  ]);
+  const capitalizeWord = (word: string): string => {
+    if (!word) return word;
+    if (/^[A-Z]{2,}$/.test(word)) return word; // existing acronym
+    if (/^[ivx]+$/i.test(word)) return word.toUpperCase(); // roman numerals
+    // Capitalize across hyphen and slash boundaries.
+    return word.replace(/(^|[-/])([a-z])/g, (_, sep: string, c: string) => sep + c.toUpperCase());
+  };
+  const toTitleCase = (s: string | null | undefined): string => {
+    if (!s) return "";
+    const tokens = s.split(/(\s+)/); // keep whitespace runs intact
+    let firstWordSeen = false;
+    return tokens
+      .map((tok) => {
+        if (/^\s+$/.test(tok)) return tok;
+        const lower = tok.toLowerCase();
+        const isFirst = !firstWordSeen;
+        firstWordSeen = true;
+        const stripped = lower.replace(/[.,;:!?]/g, "");
+        if (!isFirst && SMALL_WORDS.has(stripped)) return lower;
+        return capitalizeWord(tok);
+      })
+      .join("");
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -899,9 +932,9 @@ function ResearchContent() {
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="p-4 border-b border-gray-100">
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {brief.companyName}
+                    {toTitleCase(brief.companyName)}
                     {brief.contactName && (
-                      <span className="text-gray-500 dark:text-gray-400 font-normal"> — {brief.contactName}{brief.contactTitle ? `, ${brief.contactTitle}` : ""}</span>
+                      <span className="text-gray-500 dark:text-gray-400 font-normal"> — {toTitleCase(brief.contactName)}{brief.contactTitle ? `, ${toTitleCase(brief.contactTitle)}` : ""}</span>
                     )}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -916,13 +949,13 @@ function ResearchContent() {
                     <div className="rounded-lg border border-purple-100 dark:border-purple-900/50 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 p-4">
                       <div className="flex items-baseline gap-2 flex-wrap mb-2">
                         {brief.contactName && (
-                          <span className="text-base font-semibold text-gray-900 dark:text-gray-100">{brief.contactName}</span>
+                          <span className="text-base font-semibold text-gray-900 dark:text-gray-100">{toTitleCase(brief.contactName)}</span>
                         )}
                         {brief.contactTitle && (
-                          <span className="text-sm text-gray-600 dark:text-gray-300">{brief.contactTitle}</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{toTitleCase(brief.contactTitle)}</span>
                         )}
                         {brief.companyName && (
-                          <span className="text-sm text-purple-700 dark:text-purple-300">@ {brief.companyName}</span>
+                          <span className="text-sm text-purple-700 dark:text-purple-300">@ {toTitleCase(brief.companyName)}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 flex-wrap text-xs">
