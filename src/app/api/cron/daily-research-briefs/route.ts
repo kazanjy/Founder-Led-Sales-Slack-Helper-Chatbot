@@ -68,7 +68,7 @@ function domainFromEmail(email: string | undefined | null): string | null {
 // credits. Patterns are user-curated so this should rarely trigger.
 const MAX_BRIEFS_PER_USER_PER_RUN = 5;
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   // Vercel cron passes Authorization: Bearer <CRON_SECRET>. Reject
   // anything else so the endpoint can't be triggered externally.
   const expected = process.env.CRON_SECRET;
