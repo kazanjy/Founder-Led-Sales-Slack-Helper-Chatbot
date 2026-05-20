@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Fragment, ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -337,16 +338,47 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // and-drop order field (the default). "newest" / "oldest" sort by
   // createdAt so users can see what landed most recently.
   type TaskSort = "manual" | "newest" | "oldest" | "priority";
+  const VALID_SORTS: TaskSort[] = ["manual", "newest", "oldest", "priority"];
+  // URL ?sort=... wins over localStorage so sharing a link round-trips
+  // the same view; localStorage is the per-browser default when no
+  // explicit sort is on the URL.
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [taskSort, setTaskSort] = useState<TaskSort>(() => {
     if (typeof window === "undefined") return "manual";
+    const fromUrl = searchParams.get("sort");
+    if (fromUrl && (VALID_SORTS as string[]).includes(fromUrl)) {
+      return fromUrl as TaskSort;
+    }
     const stored = localStorage.getItem("coaching:taskSort");
-    return stored === "newest" || stored === "oldest" || stored === "priority"
-      ? stored
+    return stored && (VALID_SORTS as string[]).includes(stored)
+      ? (stored as TaskSort)
       : "manual";
   });
+  // Whenever the URL's ?sort= changes (e.g. user pasted a link),
+  // reflect it in state. Bound to searchParams so back/forward also
+  // restores the chosen sort.
+  useEffect(() => {
+    const fromUrl = searchParams.get("sort");
+    if (fromUrl && (VALID_SORTS as string[]).includes(fromUrl) && fromUrl !== taskSort) {
+      setTaskSort(fromUrl as TaskSort);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const updateTaskSort = (next: TaskSort) => {
     setTaskSort(next);
     try { localStorage.setItem("coaching:taskSort", next); } catch {}
+    // Mirror to the URL so the user can copy/share the link and get
+    // the same sort view. Default "manual" is implicit — strip it
+    // off the URL to keep links clean.
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "manual") {
+      params.delete("sort");
+    } else {
+      params.set("sort", next);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
   };
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
