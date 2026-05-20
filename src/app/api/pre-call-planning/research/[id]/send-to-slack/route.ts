@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { getSlackClient, sendSlackMessage } from "@/lib/slack/client";
+import { postResearchToSlack } from "@/lib/pre-call/slack-broadcast";
 
 /**
  * POST /api/pre-call-planning/research/[id]/send-to-slack
  *
- * Posts the pre-call research brief into a Slack channel the user
- * picked from /api/slack/my-channels. We send a compact header with
- * the prospect's identity + links, then the brief body translated
- * to Slack mrkdwn (best-effort) inside a follow-up message in the
- * same channel so the header stays scannable.
+ * Thin wrapper around the shared postResearchToSlack helper so both
+ * the manual button click and the daily-research-briefs cron use
+ * the same message formatter (otherwise the splitter / heading
+ * tweaks made for one path silently miss the other).
  */
 
 interface Body {
@@ -19,56 +18,6 @@ interface Body {
   channelName?: string;
   saveAsPreferred?: boolean;
 }
-
-// PDL output is lowercase; mirror the page's render-time title-case
-// so the Slack message reads consistently with the in-app view.
-const SMALL_WORDS = new Set([
-  "a","an","and","as","at","but","by","for","from","in",
-  "of","on","or","the","to","via","with",
-]);
-function capitalizeWord(word: string): string {
-  if (!word) return word;
-  if (/^[A-Z]{2,}$/.test(word)) return word;
-  if (/^[ivx]+$/i.test(word)) return word.toUpperCase();
-  return word.replace(/(^|[-/])([a-z])/g, (_, sep: string, c: string) => sep + c.toUpperCase());
-}
-function toTitleCase(s: string | null | undefined): string {
-  if (!s) return "";
-  const tokens = s.split(/(\s+)/);
-  let firstWordSeen = false;
-  return tokens
-    .map((tok) => {
-      if (/^\s+$/.test(tok)) return tok;
-      const lower = tok.toLowerCase();
-      const isFirst = !firstWordSeen;
-      firstWordSeen = true;
-      const stripped = lower.replace(/[.,;:!?]/g, "");
-      if (!isFirst && SMALL_WORDS.has(stripped)) return lower;
-      return capitalizeWord(tok);
-    })
-    .join("");
-}
-
-// Convert common markdown to Slack mrkdwn. Slack accepts a small
-// subset: *bold*, _italic_, ~strike~, `code`, ```block```, > quote,
-// • bullets, and <url|label> links. Headers / tables don't render
-// natively, so we downgrade them to bold lines.
-function markdownToSlack(md: string): string {
-  return md
-    // Headers → bold
-    .replace(/^#{1,6}\s+(.+)$/gm, "*$1*")
-    // [text](url) → <url|text>
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "<$2|$1>")
-    // **bold** → *bold*
-    .replace(/\*\*([^*]+)\*\*/g, "*$1*")
-    // - / * bullets → •
-    .replace(/^[\-*]\s+/gm, "• ")
-    // Trim runs of blank lines
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-const SLACK_MESSAGE_CHAR_LIMIT = 35000;
 
 export async function POST(
   request: NextRequest,
@@ -85,209 +34,56 @@ export async function POST(
   const { id } = await params;
   const body = (await request.json()) as Body;
   const destination = body.destination === "dm" ? "dm" : "channel";
+  if (destination === "channel" && !body.channelId) {
+    return NextResponse.json({ error: "channelId required" }, { status: 400 });
+  }
 
-  const [research, workspace, userRow] = await Promise.all([
-    prisma.preCallResearch.findFirst({
-      where: { id, userId: user.id },
-    }),
-    prisma.workspace.findUnique({
-      where: { id: user.workspaceId },
-      select: { botToken: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { slackUserId: true },
-    }),
-  ]);
-
+  const research = await prisma.preCallResearch.findFirst({
+    where: { id, userId: user.id },
+  });
   if (!research) {
     return NextResponse.json({ error: "Research not found" }, { status: 404 });
   }
-  if (!workspace?.botToken) {
-    return NextResponse.json({ error: "no_workspace_token" }, { status: 403 });
-  }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
-  const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
+  const result = await postResearchToSlack({
+    userId: user.id,
+    research: {
+      id: research.id,
+      companyName: research.companyName,
+      contactName: research.contactName,
+      contactTitle: research.contactTitle,
+      contactEmail: research.contactEmail,
+      contactLinkedIn: research.contactLinkedIn,
+      content: research.content,
+      calendarEvent: research.calendarEvent,
+    },
+    destination,
+    channelId: body.channelId ?? null,
+  });
 
-  const companyDisplay = toTitleCase(research.companyName);
-  const contactDisplay = toTitleCase(research.contactName);
-  const titleDisplay = toTitleCase(research.contactTitle);
-
-  // Normalize possibly-schemeless URLs so Slack renders them as
-  // proper hyperlinks (Slack only linkifies <url|label> when the
-  // URL has http(s)://).
-  const normalizeUrl = (u: string | null | undefined): string | null => {
-    if (!u) return null;
-    const t = u.trim();
-    if (!t) return null;
-    if (/^https?:\/\//i.test(t)) return t;
-    if (/^mailto:/i.test(t)) return t;
-    return `https://${t.replace(/^\/+/, "")}`;
-  };
-
-  // Pull the calendar event snapshot off the brief (set when the
-  // brief originated from an Upcoming-calls tile). Cast through
-  // unknown — Prisma types this as JsonValue.
-  const calEvent = research.calendarEvent as
-    | {
-        id?: string;
-        title?: string;
-        startsAt?: string;
-        endsAt?: string | null;
-        description?: string | null;
-        location?: string | null;
-        meetingUrl?: string | null;
-        eventUrl?: string | null;
-        attendees?: Array<{ email: string; name?: string | null }>;
-      }
-    | null
-    | undefined;
-
-  // ── Build the parent Slack message ──────────────────────────────
-  const headerLines: string[] = [];
-
-  if (calEvent?.title) {
-    headerLines.push(`📅 *${calEvent.title}*`);
-
-    // Time line. Use a single Slack <!date> token if we can so it
-    // renders in each viewer's local timezone; fall back to a static
-    // string if Slack rejects it.
-    if (calEvent.startsAt) {
-      const startSec = Math.floor(new Date(calEvent.startsAt).getTime() / 1000);
-      const fallback = new Date(calEvent.startsAt).toUTCString();
-      const startTok = `<!date^${startSec}^{date_short_pretty} at {time}|${fallback}>`;
-      let endTok = "";
-      if (calEvent.endsAt) {
-        const endSec = Math.floor(new Date(calEvent.endsAt).getTime() / 1000);
-        const endFallback = new Date(calEvent.endsAt).toUTCString();
-        endTok = ` – <!date^${endSec}^{time}|${endFallback}>`;
-      }
-      headerLines.push(`🕒 ${startTok}${endTok}`);
-    }
-
-    // Attendees (name + email).
-    if (calEvent.attendees && calEvent.attendees.length > 0) {
-      const attendeeLine = calEvent.attendees
-        .map((a) => {
-          const name = a.name?.trim();
-          const email = a.email?.trim();
-          if (name && email) return `${name} <mailto:${email}|${email}>`;
-          if (email) return `<mailto:${email}|${email}>`;
-          return name || "";
-        })
-        .filter(Boolean)
-        .join(", ");
-      if (attendeeLine) headerLines.push(`👥 ${attendeeLine}`);
-    }
-
-    // Location + meeting URL. Show whichever (or both) are present.
-    if (calEvent.location) {
-      // Google often puts "https://..." into the location field for
-      // virtual meetings, so auto-linkify when it looks like a URL.
-      const isUrl = /^(https?:\/\/|www\.)/i.test(calEvent.location.trim());
-      const loc = isUrl
-        ? `<${normalizeUrl(calEvent.location)}|${calEvent.location}>`
-        : calEvent.location;
-      headerLines.push(`📍 ${loc}`);
-    }
-    if (calEvent.meetingUrl) {
-      const url = normalizeUrl(calEvent.meetingUrl);
-      headerLines.push(`🎥 <${url}|Join meeting>`);
-    }
-    if (calEvent.eventUrl) {
-      const url = normalizeUrl(calEvent.eventUrl);
-      headerLines.push(`📆 <${url}|Open in Calendar>`);
-    }
-
-    // Invite description, truncated to keep the parent message
-    // scannable — full text goes into a follow-up reply.
-    const desc = calEvent.description?.trim();
-    if (desc) {
-      const trimmed = desc.length > 600 ? desc.slice(0, 600).trimEnd() + "…" : desc;
-      headerLines.push("");
-      headerLines.push(`>${trimmed.replace(/\n/g, "\n>")}`);
-    }
-
-    headerLines.push("");
-  }
-
-  // ── Prospect identity (always present) ──────────────────────────
-  headerLines.push(`📋 *Pre-Call Research: ${companyDisplay}*`);
-  if (contactDisplay) {
-    headerLines.push(
-      `${contactDisplay}${titleDisplay ? ` — ${titleDisplay}` : ""}`
-    );
-  }
-  if (research.contactEmail) {
-    headerLines.push(`✉️ <mailto:${research.contactEmail}|${research.contactEmail}>`);
-  }
-  if (research.contactLinkedIn) {
-    const linkedInUrl = normalizeUrl(research.contactLinkedIn);
-    headerLines.push(`🔗 <${linkedInUrl}|LinkedIn>`);
-  }
-  headerLines.push("");
-  headerLines.push(`<${reportUrl}|View full brief →>`);
-  const headerText = headerLines.join("\n");
-
-  let bodyText = markdownToSlack(research.content);
-  let truncated = false;
-  if (bodyText.length > SLACK_MESSAGE_CHAR_LIMIT) {
-    bodyText = bodyText.slice(0, SLACK_MESSAGE_CHAR_LIMIT - 200);
-    bodyText += `\n\n_…brief truncated — <${reportUrl}|view full report>_`;
-    truncated = true;
-  }
-
-  try {
-    const client = getSlackClient(workspace.botToken);
-
-    // Resolve where to actually post. DM mode opens a conversation
-    // with the user's slackUserId and uses the returned channel id;
-    // channel mode trusts the caller's channelId.
-    let targetChannelId = body.channelId || "";
-    if (destination === "dm") {
-      if (!userRow?.slackUserId) {
-        return NextResponse.json({ error: "no_slack_dm" }, { status: 400 });
-      }
-      const opened = await client.conversations.open({ users: userRow.slackUserId });
-      const dmId = opened.channel?.id;
-      if (!dmId) {
-        return NextResponse.json({ error: "Failed to open DM" }, { status: 502 });
-      }
-      targetChannelId = dmId;
-    }
-
-    if (!targetChannelId) {
-      return NextResponse.json({ error: "channelId required" }, { status: 400 });
-    }
-
-    // Header first so it's the parent message; body posts as a
-    // threaded reply so the channel stays scannable.
-    const parentTs = await sendSlackMessage(client, targetChannelId, headerText);
-    await sendSlackMessage(client, targetChannelId, bodyText, parentTs);
-
-    // Persist the channel as the user's preferred destination when
-    // they explicitly asked us to.
-    if (destination === "channel" && body.saveAsPreferred && body.channelId) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          preferredResearchSlackChannelId: body.channelId,
-          preferredResearchSlackChannelName: body.channelName || null,
-        },
-      });
-    }
-
-    return NextResponse.json({ ok: true, truncated });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[research/send-to-slack] post failed:", message);
+  if (!result.ok) {
+    const message = result.error || "";
     const friendly =
       /not_in_channel/.test(message)
         ? "Mikey isn't a member of that channel. Invite the bot, then try again."
         : /channel_not_found/.test(message)
           ? "Channel not found or not visible to Mikey."
-          : "Failed to post to Slack. Try a different channel.";
+          : /no_slack_dm|slackUserId/i.test(message)
+            ? "No Slack identity available for DM delivery."
+            : message || "Failed to post to Slack. Try a different channel.";
     return NextResponse.json({ error: friendly }, { status: 502 });
   }
+
+  // Persist the channel preference on first explicit save.
+  if (destination === "channel" && body.saveAsPreferred && body.channelId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        preferredResearchSlackChannelId: body.channelId,
+        preferredResearchSlackChannelName: body.channelName || null,
+      },
+    });
+  }
+
+  return NextResponse.json({ ok: true });
 }
