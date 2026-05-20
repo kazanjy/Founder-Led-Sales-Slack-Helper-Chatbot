@@ -97,6 +97,10 @@ function splitExecSummary(content: string): { execSummary: string; rest: string 
 
   // 3. Last resort: first 1200 chars as summary.
   if (splitIdx < 0) {
+    console.log(
+      `[slack-broadcast] no heading found; falling back to first ${EXEC_SUMMARY_CHAR_LIMIT} chars. ` +
+        `content starts: "${content.slice(0, 120).replace(/\n/g, " ")}"`
+    );
     if (content.length <= EXEC_SUMMARY_CHAR_LIMIT) {
       return { execSummary: content.trim(), rest: "" };
     }
@@ -111,6 +115,10 @@ function splitExecSummary(content: string): { execSummary: string; rest: string 
   if (execSummary.length > EXEC_SUMMARY_CHAR_LIMIT) {
     execSummary = execSummary.slice(0, EXEC_SUMMARY_CHAR_LIMIT - 1).trimEnd() + "…";
   }
+  console.log(
+    `[slack-broadcast] split at line ${splitIdx} ("${lines[splitIdx]?.slice(0, 60)}…"). ` +
+      `exec=${execSummary.length} chars, rest=${rest.length} chars.`
+  );
   return { execSummary, rest };
 }
 
