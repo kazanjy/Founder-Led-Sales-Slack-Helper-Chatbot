@@ -65,27 +65,49 @@ const EXEC_SUMMARY_CHAR_LIMIT = 1500;
 
 /**
  * Split the brief into an "exec summary" chunk (everything before
- * the second markdown heading — i.e. the TL;DR section) and the
- * rest. Pure function. Falls back to "no summary, all body" if we
- * can't find a clean break, so we never strip content silently.
+ * the start of the rest of the report) and the body. Prefers the
+ * canonical "Company Snapshot" section header (the next section
+ * after TL;DR in our synthesis prompt) so format drift on the
+ * heading levels doesn't trip the split. Falls back to the second
+ * markdown heading, then to the first 1200 chars of prose, so the
+ * parent always carries some value when the brief has content.
  */
 function splitExecSummary(content: string): { execSummary: string; rest: string } {
   if (!content) return { execSummary: "", rest: "" };
   const lines = content.split("\n");
-  let headingsSeen = 0;
-  let secondHeadingIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (/^#{1,6}\s+/.test(lines[i])) {
-      headingsSeen++;
-      if (headingsSeen === 2) {
-        secondHeadingIdx = i;
-        break;
+
+  // 1. Look for an explicit "Company Snapshot" line in any common
+  //    heading variant (### / ## / # / **bold** / plain).
+  const companySnapshotPattern = /^(#{1,6}\s+|\*\*)?company snapshot/i;
+  let splitIdx = lines.findIndex((l) => companySnapshotPattern.test(l.trim()));
+
+  // 2. Failing that, take the second markdown heading.
+  if (splitIdx < 0) {
+    let headingsSeen = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^#{1,6}\s+/.test(lines[i])) {
+        headingsSeen++;
+        if (headingsSeen === 2) {
+          splitIdx = i;
+          break;
+        }
       }
     }
   }
-  if (secondHeadingIdx === -1) return { execSummary: "", rest: content };
-  let execSummary = lines.slice(0, secondHeadingIdx).join("\n").trim();
-  const rest = lines.slice(secondHeadingIdx).join("\n");
+
+  // 3. Last resort: first 1200 chars as summary.
+  if (splitIdx < 0) {
+    if (content.length <= EXEC_SUMMARY_CHAR_LIMIT) {
+      return { execSummary: content.trim(), rest: "" };
+    }
+    return {
+      execSummary: content.slice(0, EXEC_SUMMARY_CHAR_LIMIT).trimEnd() + "…",
+      rest: content,
+    };
+  }
+
+  let execSummary = lines.slice(0, splitIdx).join("\n").trim();
+  const rest = lines.slice(splitIdx).join("\n");
   if (execSummary.length > EXEC_SUMMARY_CHAR_LIMIT) {
     execSummary = execSummary.slice(0, EXEC_SUMMARY_CHAR_LIMIT - 1).trimEnd() + "…";
   }
