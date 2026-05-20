@@ -974,8 +974,13 @@ export default async function Home({ searchParams }: HomeProps) {
           <p className="mb-2">
             Mikey is your AI sales coach, powered by Claude and trained on founder-led sales expertise.
           </p>
-          <p>
+          <p className="mb-3">
             Built with love for the startup community.
+          </p>
+          <p className="text-xs">
+            <a href="/privacy" className="hover:text-white underline-offset-2 hover:underline">Privacy</a>
+            <span className="mx-2 text-gray-600">·</span>
+            <a href="/terms" className="hover:text-white underline-offset-2 hover:underline">Terms</a>
           </p>
         </div>
       </footer>
