@@ -2651,10 +2651,31 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             onChange={(p) => updateTaskPriority(task.id, p)}
                             compact
                           />
-                          {palette && (
-                            <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.color}`}>
-                              {palette.label}
-                            </span>
+                          {canEdit ? (
+                            <select
+                              value={task.status}
+                              onChange={(e) => {
+                                if (e.target.value === "__delete__") {
+                                  deleteTask(goal.id, task.id);
+                                  e.target.value = task.status;
+                                  return;
+                                }
+                                updateTaskStatus(task.id, e.target.value);
+                              }}
+                              className={`text-[10px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 border-0 cursor-pointer ${palette?.color || ""}`}
+                              title="Change task status"
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                              <option value="__delete__" className="text-red-600 dark:text-red-300">🗑 Delete {parent ? "subtask" : "task"}</option>
+                            </select>
+                          ) : (
+                            palette && (
+                              <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${palette.color}`}>
+                                {palette.label}
+                              </span>
+                            )
                           )}
                         </div>
                       </div>
