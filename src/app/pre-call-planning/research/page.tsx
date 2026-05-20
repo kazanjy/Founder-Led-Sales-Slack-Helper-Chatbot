@@ -327,7 +327,11 @@ function ResearchContent() {
       // is enough intent to start work immediately.
       const pdlHits = data.pdlHits ?? 0;
       const primaryAttendee = event.attendees[0];
-      if (pdlHits > 0 && data.prefill.companyName) {
+      // Auto-fire on any usable prefill — a PDL hit OR a
+      // domain-guessed companyName + an attendee displayName is
+      // enough to run a best-effort web research brief.
+      const hasFallback = !!(data.prefill.companyName && data.prefill.contactName);
+      if (pdlHits > 0 || hasFallback) {
         await runResearchWithInputs({
           companyName: data.prefill.companyName,
           contactName: data.prefill.contactName,

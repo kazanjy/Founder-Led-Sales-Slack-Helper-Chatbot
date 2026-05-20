@@ -227,7 +227,16 @@ async function processUser(userId: string): Promise<{
       null;
 
     const primaryDomain = primary ? domainFromEmail(primary.email) : null;
-    const companyName = primary?.company || "";
+    // Cascade: PDL person company → first-word of the domain. We
+    // only bail when we have neither a usable name nor a non-public
+    // domain — otherwise we'll take a best-effort shot at web
+    // research below.
+    const companyFromDomain =
+      primaryDomain && !PUBLIC_EMAIL_DOMAINS.has(primaryDomain)
+        ? primaryDomain.split(".")[0].replace(/^./, (c) => c.toUpperCase())
+        : "";
+    const companyName = primary?.company || companyFromDomain;
+    const contactName = primary?.name || "";
 
     const eventSnapshot = {
       id: ev.id,
@@ -247,16 +256,18 @@ async function processUser(userId: string): Promise<{
       })),
     };
 
-    // If PDL couldn't pin down a company AND we don't have a usable
-    // domain to fall back on, we can't do a meaningful brief.
-    if (!companyName && (!primaryDomain || PUBLIC_EMAIL_DOMAINS.has(primaryDomain))) {
+    // Only bail when we have neither a company name nor a contact
+    // name to anchor research on. With at least one we still take
+    // a best-effort shot at the brief — web research can fill in
+    // the gaps PDL missed, especially for newer / smaller orgs.
+    if (!companyName && !contactName) {
       await postEnrichmentFailureNote({
         userId,
         destination: matched.destination as "dm" | "channel",
         channelId: matched.channelId,
         eventTitle: ev.summary,
         eventStartsAt: ev.start.dateTime,
-        reason: "PDL had no record of the attendees and we couldn't infer the company from the email domain.",
+        reason: "We couldn't infer a company name or contact name from the meeting's external attendees.",
       });
       await prisma.recurringResearchRun.create({
         data: {
@@ -264,7 +275,7 @@ async function processUser(userId: string): Promise<{
           patternId: matched.id,
           calendarEventId: ev.id,
           status: "enrichment_failed",
-          notes: "no_pdl_hit_no_domain",
+          notes: "no_pdl_hit_no_company_no_name",
         },
       });
       out.failed++;
@@ -275,8 +286,8 @@ async function processUser(userId: string): Promise<{
     // research-run endpoint, sans SSE plumbing.
     try {
       const parsedInput = await parseSearchInput({
-        companyName: companyName || (primaryDomain ? primaryDomain.split(".")[0] : ""),
-        contactName: primary?.name || undefined,
+        companyName,
+        contactName: contactName || undefined,
         contactTitle: primary?.title || undefined,
         contactLinkedIn: primary?.linkedinUrl || undefined,
         urls: primaryDomain && !PUBLIC_EMAIL_DOMAINS.has(primaryDomain)

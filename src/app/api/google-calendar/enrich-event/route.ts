@@ -43,6 +43,12 @@ function domainFromEmail(email: string | undefined | null): string | null {
   return email.slice(at + 1).toLowerCase() || null;
 }
 
+function companyNameFromDomain(domain: string): string {
+  // First label of the domain, capitalized. "tryflint.com" → "Tryflint".
+  const root = domain.split(".")[0] || domain;
+  return root.charAt(0).toUpperCase() + root.slice(1);
+}
+
 async function enrichCompanyByDomain(domain: string): Promise<PDLCompanyHit | null> {
   const key = process.env.PDL_API_KEY;
   if (!key) return null;
@@ -137,11 +143,18 @@ export async function POST(request: NextRequest) {
 
   const prefill = primary
     ? {
+        // Cascade: PDL person → PDL company → first-word of the
+        // domain (capitalized). The domain-root guess ensures we
+        // always have *something* to research on so a PDL miss
+        // doesn't require manual prospect entry — best-effort web
+        // research from name + guessed company can still pay off.
         companyName:
           primary.company ||
           companyFromDomain?.display_name ||
           companyFromDomain?.name ||
-          "",
+          (primaryDomain && !PUBLIC_EMAIL_DOMAINS.has(primaryDomain)
+            ? companyNameFromDomain(primaryDomain)
+            : ""),
         contactName: primary.name || "",
         contactTitle: primary.title || "",
         contactLinkedIn: primary.linkedinUrl || "",
