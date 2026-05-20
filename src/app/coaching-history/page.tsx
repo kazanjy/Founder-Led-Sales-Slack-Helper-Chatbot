@@ -221,6 +221,8 @@ function CoachingHistoryContent() {
   const [formDate, setFormDate] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formTranscript, setFormTranscript] = useState("");
+  // Brief "Copied" badge next to the transcript label after a copy.
+  const [transcriptCopied, setTranscriptCopied] = useState(false);
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
@@ -1154,9 +1156,39 @@ function CoachingHistoryContent() {
 
                     {/* Transcript */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
-                        Call Transcript <span className="font-normal text-gray-400">(optional)</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                          Call Transcript <span className="font-normal text-gray-400">(optional)</span>
+                        </label>
+                        {formTranscript.trim().length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(formTranscript);
+                              setTranscriptCopied(true);
+                              setTimeout(() => setTranscriptCopied(false), 1500);
+                            }}
+                            className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 inline-flex items-center gap-1"
+                            title="Copy transcript to clipboard"
+                          >
+                            {transcriptCopied ? (
+                              <>
+                                <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                       <textarea
                         value={formTranscript}
                         onChange={(e) => setFormTranscript(e.target.value)}
