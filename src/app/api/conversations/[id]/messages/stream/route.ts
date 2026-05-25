@@ -162,8 +162,26 @@ export async function POST(
       });
   }
 
-  // Determine conversation mode
-  const isDirectMode = conversation.mode === "DIRECT";
+  // Determine conversation mode. When the combined message +
+  // attachment content exceeds Chatbase's effective capacity, auto-
+  // promote to DIRECT so the full context reaches GPT in one
+  // window instead of being truncated or aggressively chunked.
+  const AUTO_FLIP_CHAR_THRESHOLD = 12000;
+  let isDirectMode = conversation.mode === "DIRECT";
+  if (
+    !isDirectMode &&
+    expandedMessage.length > AUTO_FLIP_CHAR_THRESHOLD
+  ) {
+    console.log(
+      `[stream] Auto-flipping conversation ${conversation.id} to DIRECT ` +
+        `(message length ${expandedMessage.length} > ${AUTO_FLIP_CHAR_THRESHOLD})`
+    );
+    isDirectMode = true;
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { mode: "DIRECT" },
+    });
+  }
 
   // Fetch user's prompt guidance for injection into AI context
   const promptGuidance = user.promptGuidance || "";
