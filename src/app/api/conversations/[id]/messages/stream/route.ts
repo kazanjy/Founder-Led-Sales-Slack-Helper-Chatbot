@@ -44,7 +44,11 @@ export async function POST(
   }
 
   // Validate attachments if provided
-  const validAttachments = ["salesNarrative", "gtmAssessment", "discoveryQuestions", "firstCallChecklist", "coachingHistory"];
+  const validAttachments = [
+    "salesNarrative", "gtmAssessment", "icp", "discoveryQuestions",
+    "firstCallChecklist", "preCallPlanning", "salesDeck",
+    "coachingHistory", "salesAssetLibrary",
+  ];
   const requestedAttachments: string[] = Array.isArray(attachments)
     ? attachments.filter((a: string) => validAttachments.includes(a))
     : [];
@@ -114,6 +118,11 @@ export async function POST(
 
     if (attachmentParts.length > 0) {
       attachmentContent = `\n\n---\n\n**The following context was attached by the user to provide background:**\n\n${attachmentParts.join("\n\n---\n\n")}\n\n---`;
+      console.log(
+        `[stream] Attachment content: ${attachmentParts.length} parts, ` +
+          `${attachmentContent.length} chars total. ` +
+          `Requested: [${requestedAttachments.join(", ")}]`
+      );
     }
   }
 
@@ -526,6 +535,55 @@ async function fetchAttachmentContent(
 
       if (!variable?.value) return null;
       return { title: "First Call Checklist", text: variable.value };
+    }
+
+    case "icp": {
+      const variable = await prisma.gtmVariable.findFirst({
+        where: { userId, mergeField: "ICP" },
+        select: { value: true },
+      });
+      if (!variable?.value) return null;
+      return { title: "Ideal Customer Profile", text: variable.value };
+    }
+
+    case "preCallPlanning": {
+      const variable = await prisma.gtmVariable.findFirst({
+        where: { userId, mergeField: "PRE_CALL_PLANNING" },
+        select: { value: true },
+      });
+      if (!variable?.value) return null;
+      return { title: "Pre-Call Planning Process", text: variable.value };
+    }
+
+    case "salesDeck": {
+      const variable = await prisma.gtmVariable.findFirst({
+        where: { userId, mergeField: "SALES_DECK" },
+        select: { value: true },
+      });
+      if (!variable?.value) return null;
+      return { title: "Sales Deck", text: variable.value };
+    }
+
+    case "salesAssetLibrary": {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { accountId: true },
+      });
+      if (!user?.accountId) return null;
+      const assets = await prisma.salesAsset.findMany({
+        where: { accountId: user.accountId, archived: false },
+        orderBy: { order: "asc" },
+        select: { name: true, description: true, category: true, currentUrl: true, currentLabel: true },
+      });
+      if (assets.length === 0) return null;
+      let text = "";
+      for (const asset of assets) {
+        text += `### ${asset.name} (${asset.category})\n`;
+        if (asset.description) text += `${asset.description}\n`;
+        if (asset.currentUrl) text += `Link: ${asset.currentUrl}${asset.currentLabel ? ` — ${asset.currentLabel}` : ""}\n`;
+        text += "\n";
+      }
+      return { title: `Sales Asset Library (${assets.length} assets)`, text: text.trim() };
     }
 
     case "coachingHistory": {
