@@ -16,14 +16,16 @@ interface AttachmentPickerProps {
   isFirstMessage: boolean; // Only show picker for first message
 }
 
-const ATTACHMENT_METADATA: Record<string, { name: string; appPath: string }> = {
-  salesNarrative: { name: "Sales Narrative", appPath: "/sales-narrative" },
-  gtmAssessment: { name: "GTM Assessment", appPath: "/assessment" },
-  icp: { name: "Ideal Customer Profile", appPath: "/icp" },
-  discoveryQuestions: { name: "Discovery Questions", appPath: "/discovery-questions" },
-  firstCallChecklist: { name: "First Call Checklist", appPath: "/first-call-checklist" },
-  preCallPlanning: { name: "Pre-Call Checklist", appPath: "/pre-call-planning" },
-  coachingHistory: { name: "Coaching History", appPath: "/coaching-history" },
+const ATTACHMENT_METADATA: Record<string, { name: string; appPath: string; tooltip: string }> = {
+  salesNarrative: { name: "Sales Narrative", appPath: "/sales-narrative", tooltip: "Your product story, value prop, elevator pitches, and positioning — the foundation that powers everything else." },
+  gtmAssessment: { name: "GTM Assessment", appPath: "/assessment", tooltip: "Your go-to-market maturity assessment Q&A — where you are in the founder-led sales journey and what to prioritize next." },
+  icp: { name: "Ideal Customer Profile", appPath: "/icp", tooltip: "Your ideal customer characteristics, key personas, pain points, buying signals, qualification criteria, and red flags." },
+  discoveryQuestions: { name: "Discovery Questions", appPath: "/discovery-questions", tooltip: "Tailored discovery questions organized by category — pain, impact, process, timeline, budget — for your ICP." },
+  firstCallChecklist: { name: "First Call Checklist", appPath: "/first-call-checklist", tooltip: "Step-by-step checklist for running a first sales call — rapport, discovery, demo, objection handling, next steps." },
+  preCallPlanning: { name: "Pre-Call Planning Process", appPath: "/pre-call-planning", tooltip: "Your framework for researching prospects and preparing for each individual sales call." },
+  salesDeck: { name: "Sales Deck", appPath: "/sales-deck", tooltip: "Your sales presentation outline with speaker scripts, slide-by-slide talking points, and objection handling." },
+  coachingHistory: { name: "Coaching History", appPath: "/coaching-history", tooltip: "All coaching session notes, transcripts, goals, and tasks — the full history of your sales development work." },
+  salesAssetLibrary: { name: "Sales Asset Library", appPath: "/sales-asset-library", tooltip: "Your saved sales collateral — one-pagers, case studies, battle cards, ROI calculators, and other deal-support materials." },
 };
 
 export function AttachmentPicker({
@@ -133,75 +135,57 @@ export function AttachmentPicker({
             ) : (
               attachments.map((attachment) => {
                 const isSelected = selectedAttachments.includes(attachment.id);
+                const meta = ATTACHMENT_METADATA[attachment.id];
                 return (
-                  <button
-                    key={attachment.id}
-                    type="button"
-                    onClick={() => {
-                      if (attachment.isAvailable) {
-                        toggleAttachment(attachment.id);
-                      } else {
-                        // Navigate to the app to complete it
-                        window.location.href = attachment.appUrl;
-                      }
-                    }}
-                    className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          isSelected
-                            ? "bg-blue-600 border-blue-600"
-                            : "border-gray-300 dark:border-gray-700"
-                        }`}
-                      >
-                        {isSelected && (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
+                  <div key={attachment.id} className="relative group/att">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (attachment.isAvailable) {
+                          toggleAttachment(attachment.id);
+                        } else {
+                          window.location.href = attachment.appUrl;
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                            isSelected
+                              ? "bg-blue-600 border-blue-600"
+                              : "border-gray-300 dark:border-gray-700"
+                          }`}
+                        >
+                          {isSelected && (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-sm ${attachment.isAvailable ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
+                          {attachment.name}
+                        </span>
+                      </div>
+                      {attachment.isAvailable ? (
+                        <span className="text-xs text-green-600 flex items-center gap-1 flex-shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
-                        )}
+                          Ready
+                        </span>
+                      ) : (
+                        <span className="text-xs text-blue-600 hover:underline flex-shrink-0">
+                          Start →
+                        </span>
+                      )}
+                    </button>
+                    {meta?.tooltip && (
+                      <div className="pointer-events-none absolute left-full top-0 ml-2 z-50 hidden group-hover/att:block w-56 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg leading-relaxed">
+                        {meta.tooltip}
                       </div>
-                      <span
-                        className={`text-sm ${
-                          attachment.isAvailable ? "text-gray-900 dark:text-gray-100" : "text-gray-400"
-                        }`}
-                      >
-                        {attachment.name}
-                      </span>
-                    </div>
-                    {attachment.isAvailable ? (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        Ready
-                      </span>
-                    ) : (
-                      <span className="text-xs text-blue-600 hover:underline">
-                        Start →
-                      </span>
                     )}
-                  </button>
+                  </div>
                 );
               })
             )}

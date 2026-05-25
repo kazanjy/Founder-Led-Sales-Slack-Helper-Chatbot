@@ -29,6 +29,7 @@ export async function GET() {
       preCallPlanningVar,
       salesDeckVar,
       coachingSessionCount,
+      salesAssetCount,
     ] = await Promise.all([
       // Sales Narrative - check GtmVariable
       prisma.gtmVariable.findFirst({
@@ -68,6 +69,10 @@ export async function GET() {
       }),
       // Coaching History - check for any sessions
       prisma.coachingSession.count({
+        where: { userId: user.id },
+      }),
+      // Sales Asset Library - check for any saved assets
+      prisma.salesAsset.count({
         where: { userId: user.id },
       }),
     ]);
@@ -135,6 +140,14 @@ export async function GET() {
         description: "All coaching session notes and transcripts",
         appUrl: "/coaching-history",
         isAvailable: coachingSessionCount > 0,
+        lastUpdated: null,
+      },
+      {
+        id: "salesAssetLibrary",
+        name: "Sales Asset Library",
+        description: "Your saved sales collateral — one-pagers, case studies, battle cards, etc.",
+        appUrl: "/sales-asset-library",
+        isAvailable: salesAssetCount > 0,
         lastUpdated: null,
       },
     ];
