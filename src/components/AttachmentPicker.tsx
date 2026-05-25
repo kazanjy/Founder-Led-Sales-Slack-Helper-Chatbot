@@ -166,6 +166,20 @@ export function AttachmentPicker({
                         <span className={`text-sm ${attachment.isAvailable ? "text-gray-900 dark:text-gray-100" : "text-gray-400"}`}>
                           {attachment.name}
                         </span>
+                        {meta?.appPath && (
+                          <a
+                            href={meta.appPath}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 flex-shrink-0"
+                            title={`Open ${attachment.name}`}
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        )}
                       </div>
                       {attachment.isAvailable ? (
                         <span className="text-xs text-green-600 flex items-center gap-1 flex-shrink-0">
