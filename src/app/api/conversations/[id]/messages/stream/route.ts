@@ -166,7 +166,7 @@ export async function POST(
   // attachment content exceeds Chatbase's effective capacity, auto-
   // promote to DIRECT so the full context reaches GPT in one
   // window instead of being truncated or aggressively chunked.
-  const AUTO_FLIP_CHAR_THRESHOLD = 12000;
+  const AUTO_FLIP_CHAR_THRESHOLD = 21000;
   let isDirectMode = conversation.mode === "DIRECT";
   if (
     !isDirectMode &&
