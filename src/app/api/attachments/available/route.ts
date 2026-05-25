@@ -71,10 +71,10 @@ export async function GET() {
       prisma.coachingSession.count({
         where: { userId: user.id },
       }),
-      // Sales Asset Library - check for any saved assets
-      prisma.salesAsset.count({
-        where: { userId: user.id },
-      }),
+      // Sales Asset Library - check for any saved assets (account-scoped)
+      user.accountId
+        ? prisma.salesAsset.count({ where: { accountId: user.accountId } })
+        : Promise.resolve(0),
     ]);
 
     const attachments: AttachmentInfo[] = [
