@@ -666,27 +666,75 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
   const copyAllGoalsAsMarkdown = () => {
     let md = "";
-    for (const goal of goals) {
-      // Copy All is for active to-dos. Skip goals (and their tasks)
-      // marked done or not-doing; deprioritized still counts as
-      // something on the list, just lower priority.
-      if (goal.status === "done" || goal.status === "not_doing") continue;
-      md += `## ${goal.title}\n`;
-      if (goal.description) md += `${goal.description}\n`;
-      md += `\n`;
-      const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
-      for (const task of topLevel) {
-        if (task.status === "done" || task.status === "not_doing") continue;
-        md += formatTaskAsMarkdown(task, 0);
-        const subs = goal.tasks
-          .filter((t) => t.parentTaskId === task.id && t.status !== "done" && t.status !== "not_doing")
-          .sort((a, b) => a.order - b.order);
-        for (const sub of subs) {
-          md += formatTaskAsMarkdown(sub, 1);
+
+    if (taskSort !== "manual") {
+      // Flat-sorted view: mirror the rendered order. Each row is a
+      // task or subtask with a goal (and optionally parent-task)
+      // breadcrumb so the reader doesn't lose context.
+      const isSettledCopy = (t: Task) =>
+        t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+      const priorityRank = (p: string | null | undefined): number => {
+        if (p === "P0") return 0;
+        if (p === "P1") return 1;
+        if (p === "P2") return 2;
+        return 3;
+      };
+      type FlatCopyRow = { task: Task; goal: Goal; parent: Task | null };
+      const rows: FlatCopyRow[] = [];
+      const visibleGoals = goals.filter(
+        (g) => g.status !== "done" && g.status !== "not_doing"
+      );
+      for (const goal of visibleGoals) {
+        const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
+        for (const t of goal.tasks) {
+          if (isSettledCopy(t)) continue;
+          rows.push({ task: t, goal, parent: t.parentTaskId ? taskById.get(t.parentTaskId) || null : null });
         }
       }
-      md += `\n`;
+      rows.sort((a, b) => {
+        const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
+        const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
+        if (taskSort === "priority") {
+          const aR = priorityRank(a.task.priority);
+          const bR = priorityRank(b.task.priority);
+          if (aR !== bR) return aR - bR;
+          return bMs - aMs;
+        }
+        return taskSort === "newest" ? bMs - aMs : aMs - bMs;
+      });
+
+      for (const { task, goal, parent } of rows) {
+        const prefix = task.priority ? `[${task.priority}] ` : "";
+        const breadcrumb = parent
+          ? `[${goal.title} > ${parent.title}]`
+          : `[${goal.title}]`;
+        md += `- [ ] ${prefix}${task.title}  ${breadcrumb}\n`;
+        if (task.description) {
+          md += `  ${task.description.split("\n").join("\n  ")}\n`;
+        }
+      }
+    } else {
+      // Grouped view: goals → tasks → subtasks in manual order.
+      for (const goal of goals) {
+        if (goal.status === "done" || goal.status === "not_doing") continue;
+        md += `## ${goal.title}\n`;
+        if (goal.description) md += `${goal.description}\n`;
+        md += `\n`;
+        const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
+        for (const task of topLevel) {
+          if (task.status === "done" || task.status === "not_doing") continue;
+          md += formatTaskAsMarkdown(task, 0);
+          const subs = goal.tasks
+            .filter((t) => t.parentTaskId === task.id && t.status !== "done" && t.status !== "not_doing")
+            .sort((a, b) => a.order - b.order);
+          for (const sub of subs) {
+            md += formatTaskAsMarkdown(sub, 1);
+          }
+        }
+        md += `\n`;
+      }
     }
+
     navigator.clipboard.writeText(md.trim());
     showCopied("all-goals");
   };
