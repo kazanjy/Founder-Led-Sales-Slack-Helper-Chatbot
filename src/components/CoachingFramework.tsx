@@ -1082,8 +1082,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     setDragOverTask(null);
   };
 
-  const handleSubtaskDrop = (parentTaskId: string, targetSubId: string) => {
-    if (!dragSubtask || dragSubtask.parentTaskId !== parentTaskId) {
+  const handleSubtaskDrop = (targetParentId: string, targetSubId: string) => {
+    if (!dragSubtask) {
       setDragSubtask(null);
       setDragOverSubtask(null);
       return;
@@ -1093,36 +1093,105 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       setDragOverSubtask(null);
       return;
     }
-    setGoals((prev) =>
-      prev.map((g) => {
-        const hasParent = g.tasks.some((t) => t.id === parentTaskId);
-        if (!hasParent) return g;
-        const siblings = g.tasks
-          .filter((t) => t.parentTaskId === parentTaskId)
+
+    const isCrossParent = dragSubtask.parentTaskId !== targetParentId;
+
+    setGoals((prev) => {
+      let next = prev;
+      if (isCrossParent) {
+        // ── Cross-parent move: remove from source, insert into target ──
+        // Find source and target goals (may be the same or different).
+        const sourceGoal = prev.find((g) => g.tasks.some((t) => t.id === dragSubtask.subId));
+        const targetGoal = prev.find((g) => g.tasks.some((t) => t.id === targetParentId));
+        if (!sourceGoal || !targetGoal) return prev;
+
+        const movedTask = sourceGoal.tasks.find((t) => t.id === dragSubtask.subId);
+        if (!movedTask) return prev;
+
+        const targetSiblings = targetGoal.tasks
+          .filter((t) => t.parentTaskId === targetParentId)
           .sort((a, b) => a.order - b.order);
-        const fromIdx = siblings.findIndex((t) => t.id === dragSubtask.subId);
-        const toIdx = siblings.findIndex((t) => t.id === targetSubId);
-        if (fromIdx === -1 || toIdx === -1) return g;
-        const reordered = [...siblings];
-        const [moved] = reordered.splice(fromIdx, 1);
-        reordered.splice(toIdx, 0, moved);
-        // Reassign order on the reordered siblings and persist. Top-
-        // level tasks share the order column but live in their own
-        // sort space (subtasksByParent sorts per-parent), so we don't
-        // need to renumber them.
+        const insertIdx = targetSubId
+          ? targetSiblings.findIndex((t) => t.id === targetSubId)
+          : targetSiblings.length;
+        const safeIdx = insertIdx === -1 ? targetSiblings.length : insertIdx;
+
+        // Build the moved task with updated parent + goal.
+        const movedUpdated = { ...movedTask, parentTaskId: targetParentId, goalId: targetGoal.id };
+
+        next = prev.map((g) => {
+          let tasks = g.tasks;
+          // Remove from source goal
+          if (g.id === sourceGoal.id) {
+            tasks = tasks.filter((t) => t.id !== dragSubtask.subId);
+          }
+          // Insert into target goal
+          if (g.id === targetGoal.id) {
+            const siblings = tasks
+              .filter((t) => t.parentTaskId === targetParentId)
+              .sort((a, b) => a.order - b.order);
+            const others = tasks.filter((t) => t.parentTaskId !== targetParentId && t.id !== dragSubtask.subId);
+            siblings.splice(safeIdx, 0, movedUpdated);
+            siblings.forEach((t, i) => { t.order = i; });
+            tasks = [...others, ...siblings];
+          }
+          return { ...g, tasks };
+        });
+
+        // Persist parent + goal change + new order
+        fetch(`/api/coaching/tasks/${dragSubtask.subId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parentTaskId: targetParentId,
+            goalId: targetGoal.id,
+            order: safeIdx,
+          }),
+        });
+        // Re-order siblings in the target parent
+        const finalSiblings = next
+          .find((g) => g.id === targetGoal.id)
+          ?.tasks.filter((t) => t.parentTaskId === targetParentId)
+          .sort((a, b) => a.order - b.order);
+        if (finalSiblings) persistTaskOrder(finalSiblings);
+      } else {
+        // ── Same-parent reorder (existing logic) ──
+        next = prev.map((g) => {
+          const hasParent = g.tasks.some((t) => t.id === targetParentId);
+          if (!hasParent) return g;
+          const siblings = g.tasks
+            .filter((t) => t.parentTaskId === targetParentId)
+            .sort((a, b) => a.order - b.order);
+          const fromIdx = siblings.findIndex((t) => t.id === dragSubtask.subId);
+          const toIdx = siblings.findIndex((t) => t.id === targetSubId);
+          if (fromIdx === -1 || toIdx === -1) return g;
+          const reordered = [...siblings];
+          const [moved] = reordered.splice(fromIdx, 1);
+          reordered.splice(toIdx, 0, moved);
+        // Reassign order on the reordered siblings and persist.
         const reorderedWithIndex = reordered.map((t, i) => ({ ...t, order: i }));
         persistTaskOrder(reorderedWithIndex);
-        // Splice the updated subtasks back into the goal's tasks array
-        // in place of the originals.
         const updatedTasks = g.tasks.map((t) => {
-          if (t.parentTaskId !== parentTaskId) return t;
+          if (t.parentTaskId !== targetParentId) return t;
           return reorderedWithIndex.find((r) => r.id === t.id) ?? t;
         });
         return { ...g, tasks: updatedTasks };
-      })
-    );
+        });
+      }
+      return next;
+    });
     setDragSubtask(null);
     setDragOverSubtask(null);
+  };
+
+  // Drop a subtask directly onto a parent-task row (not onto an
+  // existing subtask). Appends as the last subtask of that parent.
+  const handleSubtaskDropOnTask = (targetParentId: string) => {
+    if (!dragSubtask || dragSubtask.parentTaskId === targetParentId) {
+      setDragSubtask(null);
+      return;
+    }
+    handleSubtaskDrop(targetParentId, "");
   };
 
   const handleTaskDropOnGoal = (goalId: string) => {
@@ -3059,10 +3128,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       draggable={canEdit}
                       onDragStart={(e) => { e.stopPropagation(); setDragTask({ goalId: goal.id, taskId: task.id }); e.dataTransfer.effectAllowed = "move"; }}
                       onDragEnd={() => { setDragTask(null); setDragOverTask(null); }}
-                      onDragOver={(e) => { if (dragTask && dragTask.taskId !== task.id) { e.preventDefault(); e.stopPropagation(); setDragOverTask(task.id); } }}
+                      onDragOver={(e) => { if ((dragTask && dragTask.taskId !== task.id) || (dragSubtask && dragSubtask.parentTaskId !== task.id)) { e.preventDefault(); e.stopPropagation(); setDragOverTask(task.id); } }}
                       onDragLeave={() => setDragOverTask(null)}
-                      onDrop={(e) => { e.stopPropagation(); handleTaskDrop(goal.id, task.id); }}
-                      className={`px-4 py-2.5 pl-8 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === task.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""} ${dragTask?.taskId === task.id ? "opacity-40" : ""} ${dragOverTask === task.id ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
+                      onDrop={(e) => { e.stopPropagation(); if (dragSubtask) { handleSubtaskDropOnTask(task.id); } else { handleTaskDrop(goal.id, task.id); } }}
+                      className={`px-4 py-2.5 pl-8 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === task.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""} ${dragTask?.taskId === task.id ? "opacity-40" : ""} ${(dragOverTask === task.id && (dragTask || dragSubtask)) ? "bg-purple-50 border-t-2 border-purple-400" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
@@ -3292,7 +3361,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               draggable={canEdit}
                               onDragStart={canEdit ? (e) => { e.stopPropagation(); setDragSubtask({ parentTaskId: task.id, subId: sub.id }); e.dataTransfer.effectAllowed = "move"; } : undefined}
                               onDragEnd={canEdit ? (e) => { e.stopPropagation(); setDragSubtask(null); setDragOverSubtask(null); } : undefined}
-                              onDragOver={canEdit ? (e) => { if (dragSubtask && dragSubtask.parentTaskId === task.id && dragSubtask.subId !== sub.id) { e.preventDefault(); e.stopPropagation(); setDragOverSubtask(sub.id); } } : undefined}
+                              onDragOver={canEdit ? (e) => { if (dragSubtask && dragSubtask.subId !== sub.id) { e.preventDefault(); e.stopPropagation(); setDragOverSubtask(sub.id); } } : undefined}
                               onDragLeave={canEdit ? () => setDragOverSubtask((cur) => (cur === sub.id ? null : cur)) : undefined}
                               onDrop={canEdit ? (e) => { e.stopPropagation(); handleSubtaskDrop(task.id, sub.id); } : undefined}
                               className={`px-3 py-1.5 scroll-mt-24 group/task transition-all duration-500 ${animatingTaskId === sub.id ? "opacity-40 scale-[0.98] translate-y-2 bg-green-50" : ""} ${dragSubtask?.subId === sub.id ? "opacity-40" : ""} ${dragOverSubtask === sub.id && dragSubtask ? "border-t-2 border-purple-400" : ""}`}

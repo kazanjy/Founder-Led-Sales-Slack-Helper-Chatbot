@@ -28,20 +28,26 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, description, status, order, priority } = body;
+    const { title, description, status, order, priority, parentTaskId, goalId } = body;
 
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description || null;
     if (order !== undefined) updateData.order = order;
     if (priority !== undefined) {
-      // Accept "P0" | "P1" | "P2" or null (to clear). Anything else
-      // is rejected so we don't accumulate junk values.
       if (priority === null || priority === "" || ["P0", "P1", "P2"].includes(priority)) {
         updateData.priority = priority === "" ? null : priority;
       } else {
         return NextResponse.json({ error: "Invalid priority" }, { status: 400 });
       }
+    }
+    // Allow moving a subtask to a different parent task (and
+    // optionally a different goal). Null = promote to top-level.
+    if (parentTaskId !== undefined) {
+      updateData.parentTaskId = parentTaskId || null;
+    }
+    if (goalId !== undefined) {
+      updateData.goalId = goalId;
     }
     if (status !== undefined) {
       updateData.status = status;
