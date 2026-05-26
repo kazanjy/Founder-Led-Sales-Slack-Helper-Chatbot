@@ -2839,6 +2839,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   );
                 })}
               </ul>
+              </>
             );
           })()}
           {taskSort === "manual" && goals
