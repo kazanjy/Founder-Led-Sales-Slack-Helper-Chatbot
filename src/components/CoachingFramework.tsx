@@ -2672,8 +2672,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               );
             }
 
+            const topCount = rows.filter((r) => !r.parent).length;
+            const subCount = rows.filter((r) => r.parent).length;
+
             return (
-              <ul className="space-y-2">
+              <>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                  {topCount} task{topCount !== 1 ? "s" : ""}{subCount > 0 ? ` + ${subCount} subtask${subCount !== 1 ? "s" : ""}` : ""}
+                </p>
+                <ul className="space-y-2">
                 {rows.map(({ task, goal, parent }) => {
                   const settled = isSettledRow(task);
                   const palette = STATUS_OPTIONS.find((o) => o.value === task.status);
@@ -2681,7 +2688,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <li
                       key={task.id}
                       id={`task-${task.id}`}
-                      className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40"
+                      className={`p-3 rounded-lg border bg-white dark:bg-gray-900/40 ${parent ? "border-l-4 border-l-gray-300 dark:border-l-gray-600 border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700"}`}
                     >
                       <div className="flex items-baseline gap-2 text-[11px] text-gray-500 dark:text-gray-400 mb-1 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
@@ -2690,8 +2697,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         {parent && (
                           <>
                             <span>›</span>
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                              {parent.title}
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                              ↳ {parent.title}
                             </span>
                           </>
                         )}
