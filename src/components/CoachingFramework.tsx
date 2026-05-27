@@ -1968,7 +1968,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   <div className="flex-1 min-w-0">
                     {canEdit ? (
                       <>
-                        <input type="text" value={goal.title} onChange={(e) => updateNextGoalTitle(goal.id, e.target.value)} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0" />
+                        <textarea value={goal.title} onChange={(e) => { updateNextGoalTitle(goal.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }} rows={1} className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden" />
                         {editingNextGoalDescId === goal.id ? (
                           <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingNextGoalDescId(null); } }}>
                             <RichTextCommentEditor
@@ -2910,14 +2910,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 )}
                 <div className="flex-1 min-w-0">
                   {canEdit ? (
-                    <input
-                      type="text"
+                    <textarea
                       value={goal.title}
-                      onChange={(e) => updateGoalTitle(goal.id, e.target.value)}
-                      className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0"
+                      onChange={(e) => { updateGoalTitle(goal.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                      ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                      rows={1}
+                      className="font-medium text-gray-900 dark:text-gray-100 text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden"
                     />
                   ) : (
-                    <span className="font-medium text-gray-900 dark:text-gray-100 text-sm"><Linkify>{goal.title}</Linkify></span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100 text-sm break-words"><Linkify>{goal.title}</Linkify></span>
                   )}
                   {canEdit && editingGoalDescId === goal.id ? (
                     <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingGoalDescId(null); } }}>
@@ -3163,7 +3164,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}
                               />
                             ) : (
-                              <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
+                              <span className={`text-sm break-words ${task.status === "done" ? "text-gray-400 line-through" : task.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
                                 <Linkify>{task.title}</Linkify>
                               </span>
                             )}
@@ -3403,7 +3404,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                         className={`text-xs bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${sub.status === "done" || sub.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}
                                       />
                                     ) : (
-                                      <span className={`text-xs ${sub.status === "done" || sub.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
+                                      <span className={`text-xs break-words ${sub.status === "done" || sub.status === "not_doing" ? "text-gray-400 line-through" : "text-gray-700 dark:text-gray-200"}`}>
                                         <Linkify>{sub.title}</Linkify>
                                       </span>
                                     )}
