@@ -17,22 +17,12 @@ export const metadata: Metadata = {
     type: "website",
     url: appUrl,
     siteName: "Mikey",
-    images: [
-      {
-        url: `${appUrl}/opengraph-image`,
-        width: 1200,
-        height: 630,
-        type: "image/png",
-        alt: "Mikey - AI-Powered Founder-Led Sales Platform",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
     description:
       "Build your complete sales playbook automatically — narrative, ICP, sales motion analysis, discovery questions, sales decks, outreach sequences, hiring profiles, and more. Based on Pete Kazanjy's Founding Sales methodology.",
-    images: [`${appUrl}/opengraph-image`],
   },
 };
 
