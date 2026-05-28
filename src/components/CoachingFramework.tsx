@@ -2796,8 +2796,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             {task.title}
                           </div>
                           {task.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 whitespace-pre-wrap">
-                              {task.description}
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 prose dark:prose-invert prose-sm max-w-none prose-p:my-0.5 prose-p:break-words prose-a:break-all prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0">
+                              <DescriptionMarkdown>{task.description}</DescriptionMarkdown>
                             </div>
                           )}
                         </div>
