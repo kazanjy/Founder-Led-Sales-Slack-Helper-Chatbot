@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { generateSessionTitle } from "@/lib/openai";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 // Helper to build a where clause scoped to the user's account (or just the user)
 function accountScope(user: { id: string; accountId: string | null }, id: string) {
@@ -69,14 +70,17 @@ export async function PUT(
     const body = await request.json();
     const { title, sessionDate, notes, transcript, recordingUrl, lockPrior } = body;
 
-    // Only the creator can update
-    const existing = await prisma.coachingSession.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true },
+    // Account members can edit each other's sessions.
+    const existing = await prisma.coachingSession.findUnique({
+      where: { id },
+      select: { id: true, userId: true },
     });
-
     if (!existing) {
-      return NextResponse.json({ error: "Only the session creator can edit" }, { status: 403 });
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    const allowed = await canEditOwnedBy(user.id, existing.userId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     const session = await prisma.coachingSession.update({
@@ -137,14 +141,17 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Only the creator can delete
-    const existing = await prisma.coachingSession.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true },
+    // Account members can delete each other's sessions.
+    const existing = await prisma.coachingSession.findUnique({
+      where: { id },
+      select: { id: true, userId: true },
     });
-
     if (!existing) {
-      return NextResponse.json({ error: "Only the session creator can delete" }, { status: 403 });
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    const allowed = await canEditOwnedBy(user.id, existing.userId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     await prisma.coachingSession.delete({ where: { id } });

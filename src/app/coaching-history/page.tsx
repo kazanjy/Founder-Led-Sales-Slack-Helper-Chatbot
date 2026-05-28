@@ -1277,7 +1277,7 @@ function CoachingHistoryContent() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {selectedSession.userId === currentUserId && selectedSession.sessionStatus === "new" && (
+                        {true /* any account member can take session actions */ && selectedSession.sessionStatus === "new" && (
                           <button
                             onClick={() => handleStartSprint(selectedSession.id)}
                             className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors font-medium dark:bg-orange-900/30 dark:text-orange-300"
@@ -1285,7 +1285,7 @@ function CoachingHistoryContent() {
                             Start Sprint
                           </button>
                         )}
-                        {selectedSession.userId === currentUserId && (selectedSession.sessionStatus === "new" || selectedSession.sessionStatus === "in_progress") && (
+                        {true /* any account member can take session actions */ && (selectedSession.sessionStatus === "new" || selectedSession.sessionStatus === "in_progress") && (
                           <button
                             onClick={async () => {
                               await fetch(`/api/coaching-sessions/${selectedSession.id}/status`, {
@@ -1300,7 +1300,7 @@ function CoachingHistoryContent() {
                             Lock Session
                           </button>
                         )}
-                        {selectedSession.userId === currentUserId && (
+                        {true /* any account member can take session actions */ && (
                           <>
                             <button
                               onClick={() => startEdit(selectedSession)}
@@ -1352,7 +1352,11 @@ function CoachingHistoryContent() {
                     <CoachingFramework
                       sessionId={selectedSession.id}
                       sessionStatus={selectedSession.sessionStatus || "new"}
-                      isOwner={selectedSession.userId === currentUserId}
+                      // Account members can now edit each other's
+                      // sessions, so any visible session in the list
+                      // grants edit rights. The API still enforces
+                      // same-account membership per request.
+                      isOwner={true}
                       sessionCreatedAt={selectedSession.createdAt}
                       sessionUpdatedAt={selectedSession.updatedAt}
                       sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 export async function GET(
   _request: NextRequest,
@@ -25,7 +26,8 @@ export async function GET(
       );
     }
 
-    if (session.userId !== user.id) {
+    const allowed = await canEditOwnedBy(user.id, session.userId);
+    if (!allowed) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 export async function POST(
   request: NextRequest,
@@ -22,11 +23,9 @@ export async function POST(
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    // Allow same-account access
-    if (goal.userId !== user.id) {
-      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-      const goalOwner = await prisma.user.findFirst({ where: { id: goal.userId, accountId: user.accountId }, select: { id: true } });
-      if (!goalOwner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    const allowed = await canEditOwnedBy(user.id, goal.userId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     const body = await request.json();

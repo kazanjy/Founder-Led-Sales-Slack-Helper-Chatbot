@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   new: ["in_progress", "locked"],
@@ -30,7 +31,8 @@ export async function PATCH(
       );
     }
 
-    if (session.userId !== user.id) {
+    const allowed = await canEditOwnedBy(user.id, session.userId);
+    if (!allowed) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 

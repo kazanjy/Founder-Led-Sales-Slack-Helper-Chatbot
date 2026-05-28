@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 export async function PATCH(
   request: NextRequest,
@@ -25,11 +26,9 @@ export async function PATCH(
       );
     }
 
-    // Allow same-account access
-    if (metric.userId !== user.id) {
-      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-      const owner = await prisma.user.findFirst({ where: { id: metric.userId, accountId: user.accountId }, select: { id: true } });
-      if (!owner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    const allowed = await canEditOwnedBy(user.id, metric.userId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -81,11 +80,9 @@ export async function DELETE(
       );
     }
 
-    // Allow same-account access
-    if (metric.userId !== user.id) {
-      if (!user.accountId) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-      const owner = await prisma.user.findFirst({ where: { id: metric.userId, accountId: user.accountId }, select: { id: true } });
-      if (!owner) return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    const allowed = await canEditOwnedBy(user.id, metric.userId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     await prisma.coachingMetricDefinition.delete({

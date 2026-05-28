@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { canEditOwnedBy } from "@/lib/coaching/access";
 
 /**
  * GET /api/coaching/tasks/[id]/comments
@@ -28,7 +29,8 @@ export async function GET(
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
-  if (task.goal.userId !== user.id) {
+  const allowed = await canEditOwnedBy(user.id, task.goal.userId);
+  if (!allowed) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
@@ -84,7 +86,8 @@ export async function POST(
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
-  if (task.goal.userId !== user.id) {
+  const allowed = await canEditOwnedBy(user.id, task.goal.userId);
+  if (!allowed) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
