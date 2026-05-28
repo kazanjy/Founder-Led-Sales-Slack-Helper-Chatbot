@@ -6,7 +6,8 @@ import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
-import { DEAL_STAGES, DEAL_STATUSES, getStageInfo, getStatusInfo } from "@/lib/deals/constants";
+import { DEAL_STAGES, DEAL_STATUSES, getStatusInfo } from "@/lib/deals/constants";
+import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Deal {
   id: string;
@@ -53,7 +54,6 @@ function DealsPageContent() {
   const [stageFilter, setStageFilter] = useState<string>("all");
   // Account-scoped custom stages merged into the pipeline alongside
   // the built-in DEAL_STAGES.
-  interface CustomStage { id: string; value: string; label: string; color: string; order: number }
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [showAddStage, setShowAddStage] = useState(false);
   const [newStageLabel, setNewStageLabel] = useState("");
@@ -68,7 +68,13 @@ function DealsPageContent() {
     "bg-yellow-100 text-yellow-700",
   ];
   const [newStageColor, setNewStageColor] = useState(NEW_STAGE_COLORS[0]);
+  const [newStageInsertAfter, setNewStageInsertAfter] = useState<string>("");
   const [savingStage, setSavingStage] = useState(false);
+  // Inline edit popover for an existing custom stage.
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [editStageLabel, setEditStageLabel] = useState("");
+  const [editStageColor, setEditStageColor] = useState("");
+  const [editStageInsertAfter, setEditStageInsertAfter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showNewDeal, setShowNewDeal] = useState(false);
@@ -329,14 +335,104 @@ function DealsPageContent() {
           >
             All
           </button>
-          {[...DEAL_STAGES, ...customStages].map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setStageFilter(s.value)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${stageFilter === s.value ? "bg-gray-900 text-white" : `${s.color} hover:opacity-80`}`}
-            >
-              {s.label}
-            </button>
+          {mergePipeline(customStages).map((s) => (
+            <span key={s.value} className="relative inline-flex items-center">
+              <button
+                onClick={() => setStageFilter(s.value)}
+                onContextMenu={(e) => {
+                  if (s.builtin) return;
+                  e.preventDefault();
+                  setEditingStageId(s.customId ?? null);
+                  setEditStageLabel(s.label);
+                  setEditStageColor(s.color);
+                  const cust = customStages.find((c) => c.id === s.customId);
+                  setEditStageInsertAfter(cust?.insertAfter || "");
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${stageFilter === s.value ? "bg-gray-900 text-white" : `${s.color} hover:opacity-80`}`}
+                title={s.builtin ? "Built-in stage" : "Click to filter · right-click to edit"}
+              >
+                {s.label}
+                {!s.builtin && <span className="ml-1 opacity-50">✎</span>}
+              </button>
+              {editingStageId === s.customId && (
+                <div className="absolute left-0 top-full mt-2 z-30 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+                  <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Edit stage
+                  </div>
+                  <input
+                    type="text"
+                    value={editStageLabel}
+                    onChange={(e) => setEditStageLabel(e.target.value)}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    autoFocus
+                  />
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {NEW_STAGE_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setEditStageColor(c)}
+                        className={`w-6 h-6 rounded-full ${c.split(" ")[0]} ${editStageColor === c ? "ring-2 ring-offset-1 ring-purple-500" : ""}`}
+                      />
+                    ))}
+                  </div>
+                  <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-1">Insert after</label>
+                  <select
+                    value={editStageInsertAfter}
+                    onChange={(e) => setEditStageInsertAfter(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-3"
+                  >
+                    <option value="">— end of pipeline —</option>
+                    {DEAL_STAGES.map((b) => (
+                      <option key={b.value} value={b.value}>{b.label}</option>
+                    ))}
+                  </select>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={async () => {
+                        if (!editingStageId) return;
+                        if (!confirm("Archive this stage? Existing deals stay on it; it just stops showing in the picker.")) return;
+                        await fetch(`/api/deals/stages/${editingStageId}`, { method: "DELETE" });
+                        setCustomStages((prev) => prev.filter((c) => c.id !== editingStageId));
+                        setEditingStageId(null);
+                      }}
+                      className="text-xs text-red-600 dark:text-red-300 hover:underline"
+                    >
+                      Archive
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditingStageId(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!editingStageId) return;
+                          const res = await fetch(`/api/deals/stages/${editingStageId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              label: editStageLabel.trim(),
+                              color: editStageColor,
+                              insertAfter: editStageInsertAfter || null,
+                            }),
+                          });
+                          if (res.ok) {
+                            const d = await res.json();
+                            setCustomStages((prev) => prev.map((c) => c.id === d.stage.id ? d.stage : c));
+                            setEditingStageId(null);
+                          }
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </span>
           ))}
           <button
             onClick={() => setShowAddStage((v) => !v)}
@@ -358,7 +454,7 @@ function DealsPageContent() {
                 className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 autoFocus
               />
-              <div className="flex flex-wrap gap-1 mb-3">
+              <div className="flex flex-wrap gap-1 mb-2">
                 {NEW_STAGE_COLORS.map((c) => (
                   <button
                     key={c}
@@ -368,6 +464,17 @@ function DealsPageContent() {
                   />
                 ))}
               </div>
+              <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-1">Insert after</label>
+              <select
+                value={newStageInsertAfter}
+                onChange={(e) => setNewStageInsertAfter(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-3"
+              >
+                <option value="">— end of pipeline —</option>
+                {DEAL_STAGES.map((b) => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
               <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={() => { setShowAddStage(false); setNewStageLabel(""); }}
@@ -384,12 +491,13 @@ function DealsPageContent() {
                       const res = await fetch("/api/deals/stages", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ label, color: newStageColor }),
+                        body: JSON.stringify({ label, color: newStageColor, insertAfter: newStageInsertAfter || null }),
                       });
                       if (res.ok) {
                         const d = await res.json();
                         setCustomStages((prev) => [...prev, d.stage]);
                         setNewStageLabel("");
+                        setNewStageInsertAfter("");
                         setShowAddStage(false);
                       }
                     } finally {
@@ -455,8 +563,7 @@ function DealsPageContent() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredDeals.map((deal) => {
-              const stageInfo =
-                customStages.find((s) => s.value === deal.stage) || getStageInfo(deal.stage);
+              const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
               return (
                 <Link

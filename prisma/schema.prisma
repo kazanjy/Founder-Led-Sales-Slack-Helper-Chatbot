@@ -2422,6 +2422,10 @@ model CustomDealStage {
   color     String   // Tailwind class set (e.g. "bg-pink-100 text-pink-700")
   order     Int      @default(0)
   archived  Boolean  @default(false)
+  // Which built-in stage this custom stage sits after in the
+  // pipeline. e.g. "demo" → renders between Demo and Proposal.
+  // null = appended at the end of the pipeline.
+  insertAfter String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

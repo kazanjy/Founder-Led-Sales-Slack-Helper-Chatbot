@@ -8,7 +8,8 @@ import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { VoiceNoteButton } from "@/components/VoiceNoteButton";
 import DealChatPanel from "@/components/DealChatPanel";
-import { DEAL_STAGES, DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStageInfo, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
+import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
+import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Participant {
   id: string;
@@ -290,6 +291,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const searchParams = useSearchParams();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [customStages, setCustomStages] = useState<CustomStage[]>([]);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
@@ -370,6 +372,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     document.title = "Deal - Mikey";
     loadDeal();
+    // Fetch the account's custom stages once so the stage selector
+    // below offers the full pipeline (built-ins + customs).
+    fetch("/api/deals/stages")
+      .then((r) => (r.ok ? r.json() : { stages: [] }))
+      .then((d) => setCustomStages(d.stages || []))
+      .catch(() => { /* ignore */ });
   }, [loadDeal]);
 
   // Load the user's deal list for the top-of-page switcher. One fetch on
@@ -1033,7 +1041,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  const stageInfo = getStageInfo(deal.stage);
+  const stageInfo = resolveStage(deal.stage, customStages);
   const statusInfo = getStatusInfo(deal.status);
 
   // Sort participants by how frequently they appear in timeline entries
@@ -1173,7 +1181,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 onChange={(e) => updateDeal({ stage: e.target.value })}
                 className={`text-xs font-medium rounded-full px-2.5 py-1 border-0 cursor-pointer ${stageInfo.color}`}
               >
-                {DEAL_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {mergePipeline(customStages).map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
               <select
                 value={deal.status}

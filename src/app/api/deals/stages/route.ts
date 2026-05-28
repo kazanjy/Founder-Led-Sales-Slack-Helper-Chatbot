@@ -67,9 +67,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no_account" }, { status: 400 });
   }
 
-  const body = (await request.json()) as { label?: string; color?: string };
+  const body = (await request.json()) as { label?: string; color?: string; insertAfter?: string | null };
   const label = (body.label || "").trim();
   const color = (body.color || "bg-gray-100 text-gray-700").trim();
+  const insertAfter = body.insertAfter || null;
   if (!label) {
     return NextResponse.json({ error: "label required" }, { status: 400 });
   }
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       label,
       color,
       order,
+      insertAfter,
     },
   });
 
