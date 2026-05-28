@@ -3234,36 +3234,36 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         <div className="flex-shrink-0 flex items-center gap-1">
                           {canEdit && (
                             <>
-                              <div className="relative group/btn">
-                                <button onClick={() => sendTaskToTop(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                              <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                <button onClick={() => sendTaskToTop(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
                                 </button>
                                 <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
                               </div>
-                              <div className="relative group/btn">
-                                <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                              <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                <button onClick={() => moveTaskUp(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                                 </button>
                                 <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move up</span>
                               </div>
-                              <div className="relative group/btn">
-                                <button onClick={() => moveTaskDown(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                              <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                <button onClick={() => moveTaskDown(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </button>
                                 <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
                               </div>
-                              <div className="relative group/btn">
-                                <button onClick={() => sendTaskToBottom(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                              <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                <button onClick={() => sendTaskToBottom(goal.id, task.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" /></svg>
                                 </button>
                                 <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to bottom</span>
                               </div>
                             </>
                           )}
-                          <div className="relative group/btn">
+                          <div className="relative group/btn hidden group-hover/task:inline-flex">
                             <button
                               onClick={() => copyTaskAsMarkdown(task)}
-                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
                             >
                               {copiedId === `task-${task.id}` ? (
                                 <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -3275,10 +3275,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               {copiedId === `task-${task.id}` ? "Copied!" : "Copy task as markdown"}
                             </span>
                           </div>
-                          <div className="relative group/btn">
+                          <div className="relative group/btn hidden group-hover/task:inline-flex">
                             <button
                               onClick={() => copyAnchorLink(`task-${task.id}`)}
-                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                              className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 transition-opacity"
                             >
                               {copiedId === `anchor-task-${task.id}` ? (
                                 <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -3466,36 +3466,36 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 <div className="flex-shrink-0 flex items-center gap-1">
                                   {canEdit && (
                                     <>
-                                      <div className="relative group/btn">
-                                        <button onClick={() => sendSubtaskToTop(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                      <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                        <button onClick={() => sendSubtaskToTop(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" /></svg>
                                         </button>
                                         <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to top</span>
                                       </div>
-                                      <div className="relative group/btn">
-                                        <button onClick={() => moveSubtaskUp(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                      <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                        <button onClick={() => moveSubtaskUp(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                                         </button>
                                         <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move up</span>
                                       </div>
-                                      <div className="relative group/btn">
-                                        <button onClick={() => moveSubtaskDown(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                      <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                        <button onClick={() => moveSubtaskDown(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                         </button>
                                         <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Move down</span>
                                       </div>
-                                      <div className="relative group/btn">
-                                        <button onClick={() => sendSubtaskToBottom(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                      <div className="relative group/btn hidden group-hover/task:inline-flex">
+                                        <button onClick={() => sendSubtaskToBottom(task.id, sub.id)} className="p-0.5 text-gray-400 hover:text-purple-600 transition-opacity">
                                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" /></svg>
                                         </button>
                                         <span role="tooltip" className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 px-2 py-0.5 rounded bg-gray-900 text-white text-[10px] whitespace-nowrap shadow opacity-0 group-hover/btn:opacity-100 transition-opacity duration-75">Send to bottom</span>
                                       </div>
                                     </>
                                   )}
-                                  <div className="relative group/btn">
+                                  <div className="relative group/btn hidden group-hover/task:inline-flex">
                                     <button
                                       onClick={() => copyTaskAsMarkdown(sub)}
-                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
                                     >
                                       {copiedId === `task-${sub.id}` ? (
                                         <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -3507,10 +3507,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                       {copiedId === `task-${sub.id}` ? "Copied!" : "Copy subtask as markdown"}
                                     </span>
                                   </div>
-                                  <div className="relative group/btn">
+                                  <div className="relative group/btn hidden group-hover/task:inline-flex">
                                     <button
                                       onClick={() => copyAnchorLink(`task-${sub.id}`)}
-                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                                      className="p-0.5 text-gray-500 dark:text-gray-400 hover:text-purple-600 transition-opacity"
                                     >
                                       {copiedId === `anchor-task-${sub.id}` ? (
                                         <svg className="w-3 h-3 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
