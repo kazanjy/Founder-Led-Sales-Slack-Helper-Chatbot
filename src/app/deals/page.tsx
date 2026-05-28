@@ -51,6 +51,24 @@ function DealsPageContent() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>("all");
+  // Account-scoped custom stages merged into the pipeline alongside
+  // the built-in DEAL_STAGES.
+  interface CustomStage { id: string; value: string; label: string; color: string; order: number }
+  const [customStages, setCustomStages] = useState<CustomStage[]>([]);
+  const [showAddStage, setShowAddStage] = useState(false);
+  const [newStageLabel, setNewStageLabel] = useState("");
+  const NEW_STAGE_COLORS = [
+    "bg-pink-100 text-pink-700",
+    "bg-rose-100 text-rose-700",
+    "bg-cyan-100 text-cyan-700",
+    "bg-teal-100 text-teal-700",
+    "bg-lime-100 text-lime-700",
+    "bg-emerald-100 text-emerald-700",
+    "bg-sky-100 text-sky-700",
+    "bg-yellow-100 text-yellow-700",
+  ];
+  const [newStageColor, setNewStageColor] = useState(NEW_STAGE_COLORS[0]);
+  const [savingStage, setSavingStage] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showNewDeal, setShowNewDeal] = useState(false);
@@ -89,12 +107,17 @@ function DealsPageContent() {
         router.push("/?error=not_logged_in");
         return;
       }
-      const [dealsRes, connRes] = await Promise.all([
+      const [dealsRes, connRes, stagesRes] = await Promise.all([
         fetch("/api/deals"),
         fetch("/api/meeting-recorder/connections"),
+        fetch("/api/deals/stages"),
       ]);
       const loadedDeals: Deal[] = dealsRes.ok ? (await dealsRes.json()).deals || [] : [];
       setDeals(loadedDeals);
+      if (stagesRes.ok) {
+        const sd = await stagesRes.json();
+        setCustomStages(sd.stages || []);
+      }
 
       // First-run nudge: if the user has no deals yet AND hasn't connected
       // any meeting recorder, open the New Deal modal straight away. The
@@ -298,7 +321,7 @@ function DealsPageContent() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap text-sm">
+        <div className="flex items-center gap-3 mb-5 flex-wrap text-sm relative">
           <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Stage:</span>
           <button
             onClick={() => setStageFilter("all")}
@@ -306,7 +329,7 @@ function DealsPageContent() {
           >
             All
           </button>
-          {DEAL_STAGES.map((s) => (
+          {[...DEAL_STAGES, ...customStages].map((s) => (
             <button
               key={s.value}
               onClick={() => setStageFilter(s.value)}
@@ -315,6 +338,72 @@ function DealsPageContent() {
               {s.label}
             </button>
           ))}
+          <button
+            onClick={() => setShowAddStage((v) => !v)}
+            className="px-2 py-1 rounded-full text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors"
+            title="Add a custom stage"
+          >
+            + Add stage
+          </button>
+          {showAddStage && (
+            <div className="absolute right-0 top-full mt-2 z-30 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+              <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                New stage
+              </div>
+              <input
+                type="text"
+                value={newStageLabel}
+                onChange={(e) => setNewStageLabel(e.target.value)}
+                placeholder="e.g. Vendor Review"
+                className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-md mb-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                autoFocus
+              />
+              <div className="flex flex-wrap gap-1 mb-3">
+                {NEW_STAGE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setNewStageColor(c)}
+                    className={`w-6 h-6 rounded-full ${c.split(" ")[0]} ${newStageColor === c ? "ring-2 ring-offset-1 ring-purple-500" : ""}`}
+                    title={c.split("-")[1]}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => { setShowAddStage(false); setNewStageLabel(""); }}
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const label = newStageLabel.trim();
+                    if (!label || savingStage) return;
+                    setSavingStage(true);
+                    try {
+                      const res = await fetch("/api/deals/stages", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ label, color: newStageColor }),
+                      });
+                      if (res.ok) {
+                        const d = await res.json();
+                        setCustomStages((prev) => [...prev, d.stage]);
+                        setNewStageLabel("");
+                        setShowAddStage(false);
+                      }
+                    } finally {
+                      setSavingStage(false);
+                    }
+                  }}
+                  disabled={!newStageLabel.trim() || savingStage}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50"
+                >
+                  {savingStage ? "Adding…" : "Add"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3 mb-6 flex-wrap text-sm">
           <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Status:</span>
@@ -366,7 +455,8 @@ function DealsPageContent() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredDeals.map((deal) => {
-              const stageInfo = getStageInfo(deal.stage);
+              const stageInfo =
+                customStages.find((s) => s.value === deal.stage) || getStageInfo(deal.stage);
               const statusInfo = getStatusInfo(deal.status);
               return (
                 <Link

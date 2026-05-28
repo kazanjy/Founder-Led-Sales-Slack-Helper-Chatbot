@@ -19,6 +19,7 @@ model Account {
   channelClaims ChannelClaim[]
   salesReadinessItems SalesReadinessAccountItem[]
   salesAssets   SalesAsset[]
+  customDealStages CustomDealStage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2404,6 +2405,30 @@ model Deal {
   @@index([userId, createdAt])
   @@index([projectId])
   @@map("deals")
+}
+
+// Per-account customizable deal stages. Built-in stages (Prospecting,
+// Discovery, Demo, Proposal, Negotiation, Closing, Won, Lost) live in
+// src/lib/deals/constants.ts and apply to every account. Rows in this
+// table get merged in (sorted by `order`) to extend or replace the
+// built-in pipeline for a specific account.
+model CustomDealStage {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  value     String   // slug used on Deal.stage (e.g. "vendor-review")
+  label     String   // display text (e.g. "Vendor Review")
+  color     String   // Tailwind class set (e.g. "bg-pink-100 text-pink-700")
+  order     Int      @default(0)
+  archived  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, value])
+  @@index([accountId, archived])
+  @@map("custom_deal_stages")
 }
 
 model DealParticipant {
