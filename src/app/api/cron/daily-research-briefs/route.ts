@@ -6,6 +6,7 @@ import { parseSearchInput } from "@/lib/search/input-parser";
 import { generateSearchPlan } from "@/lib/search/queries";
 import { executeSearchPlan } from "@/lib/search/results";
 import { synthesizeResearchBrief } from "@/lib/search/synthesis";
+import { detectFollowUpContext, buildFollowUpContextBlock } from "@/lib/pre-call/follow-up";
 import { createResearchConversation } from "@/lib/search/research-conversation";
 import { postResearchToSlack, postEnrichmentFailureNote } from "@/lib/pre-call/slack-broadcast";
 
@@ -296,7 +297,23 @@ async function processUser(userId: string): Promise<{
       });
       const plan = generateSearchPlan(parsedInput);
       const results = await executeSearchPlan(plan, () => { /* no progress for cron */ });
-      const brief = await synthesizeResearchBrief(results, () => {}, userId);
+
+      // Follow-up detection: prior calendar history (180d) +
+      // recorder transcripts (90d) on the same domain. Non-fatal —
+      // falls back to first-call mode if anything errors.
+      const followUpCtx = await detectFollowUpContext(userId, parsedInput.companyDomain);
+      if (followUpCtx.isFollowUp) {
+        console.log(
+          `[cron daily-briefs] Follow-up detected for user ${userId} / ${parsedInput.companyDomain}: ` +
+            `${followUpCtx.priorCalendarEvents.length} prior event(s), ${followUpCtx.priorRecordedCalls.length} transcript(s).`
+        );
+      }
+      const followUpForSynth = {
+        isFollowUp: followUpCtx.isFollowUp,
+        contextBlock: buildFollowUpContextBlock(followUpCtx),
+      };
+
+      const brief = await synthesizeResearchBrief(results, () => {}, userId, followUpForSynth);
 
       const research = await prisma.preCallResearch.create({
         data: {
