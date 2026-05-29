@@ -232,6 +232,43 @@ interface CoachingFrameworkProps {
   onNavigateToItem?: (params: { sessionId: string; anchorId: string }) => void;
 }
 
+// ── Small icons reused by the row-actions menu items ─────────────
+const ICON_TOP = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11l7-7 7 7M5 19l7-7 7 7" />
+  </svg>
+);
+const ICON_UP = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+  </svg>
+);
+const ICON_DOWN = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  </svg>
+);
+const ICON_BOTTOM = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l7 7 7-7M5 5l7 7 7-7" />
+  </svg>
+);
+const ICON_COPY = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  </svg>
+);
+const ICON_LINK = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+  </svg>
+);
+const ICON_TRASH = (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+  </svg>
+);
+
 const STATUS_OPTIONS = [
   { value: "active", label: "Active", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   { value: "done", label: "Done", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
@@ -2964,18 +3001,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     groups={[
                       ...(canEdit
                         ? [[
-                            { key: "top", label: "Send to top", onClick: () => sendGoalToTop(goal.id) },
-                            { key: "up", label: "Move up", onClick: () => moveGoalUp(goal.id) },
-                            { key: "down", label: "Move down", onClick: () => moveGoalDown(goal.id) },
-                            { key: "bottom", label: "Send to bottom", onClick: () => sendGoalToBottom(goal.id) },
+                            { key: "top", label: "Send to top", icon: ICON_TOP, onClick: () => sendGoalToTop(goal.id) },
+                            { key: "up", label: "Move up", icon: ICON_UP, onClick: () => moveGoalUp(goal.id) },
+                            { key: "down", label: "Move down", icon: ICON_DOWN, onClick: () => moveGoalDown(goal.id) },
+                            { key: "bottom", label: "Send to bottom", icon: ICON_BOTTOM, onClick: () => sendGoalToBottom(goal.id) },
                           ] as RowAction[]]
                         : []),
                       [
-                        { key: "copy-md", label: copiedId === `goal-${goal.id}` ? "Copied!" : "Copy as markdown", onClick: () => copyGoalAsMarkdown(goal) },
-                        { key: "copy-link", label: copiedId === `anchor-goal-${goal.id}` ? "Copied!" : "Copy link", onClick: () => copyAnchorLink(`goal-${goal.id}`) },
+                        { key: "copy-md", label: copiedId === `goal-${goal.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyGoalAsMarkdown(goal) },
+                        { key: "copy-link", label: copiedId === `anchor-goal-${goal.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`goal-${goal.id}`) },
                       ] as RowAction[],
                       ...(canEdit
-                        ? [[{ key: "delete", label: "Delete goal", danger: true, onClick: () => deleteGoal(goal.id) }] as RowAction[]]
+                        ? [[{ key: "delete", label: "Delete goal", icon: ICON_TRASH, danger: true, onClick: () => deleteGoal(goal.id) }] as RowAction[]]
                         : []),
                     ]}
                   />
@@ -3204,18 +3241,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             groups={[
                               ...(canEdit
                                 ? [[
-                                    { key: "top", label: "Send to top", onClick: () => sendTaskToTop(goal.id, task.id) },
-                                    { key: "up", label: "Move up", onClick: () => moveTaskUp(goal.id, task.id) },
-                                    { key: "down", label: "Move down", onClick: () => moveTaskDown(goal.id, task.id) },
-                                    { key: "bottom", label: "Send to bottom", onClick: () => sendTaskToBottom(goal.id, task.id) },
+                                    { key: "top", label: "Send to top", icon: ICON_TOP, onClick: () => sendTaskToTop(goal.id, task.id) },
+                                    { key: "up", label: "Move up", icon: ICON_UP, onClick: () => moveTaskUp(goal.id, task.id) },
+                                    { key: "down", label: "Move down", icon: ICON_DOWN, onClick: () => moveTaskDown(goal.id, task.id) },
+                                    { key: "bottom", label: "Send to bottom", icon: ICON_BOTTOM, onClick: () => sendTaskToBottom(goal.id, task.id) },
                                   ] as RowAction[]]
                                 : []),
                               [
-                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy as markdown", onClick: () => copyTaskAsMarkdown(task) },
-                                { key: "copy-link", label: copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link", onClick: () => copyAnchorLink(`task-${task.id}`) },
+                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
+                                { key: "copy-link", label: copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${task.id}`) },
                               ] as RowAction[],
                               ...(canEdit
-                                ? [[{ key: "delete", label: "Delete task", danger: true, onClick: () => deleteTask(goal.id, task.id) }] as RowAction[]]
+                                ? [[{ key: "delete", label: "Delete task", icon: ICON_TRASH, danger: true, onClick: () => deleteTask(goal.id, task.id) }] as RowAction[]]
                                 : []),
                             ]}
                           />
@@ -3400,18 +3437,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                     groups={[
                                       ...(canEdit
                                         ? [[
-                                            { key: "top", label: "Send to top", onClick: () => sendSubtaskToTop(task.id, sub.id) },
-                                            { key: "up", label: "Move up", onClick: () => moveSubtaskUp(task.id, sub.id) },
-                                            { key: "down", label: "Move down", onClick: () => moveSubtaskDown(task.id, sub.id) },
-                                            { key: "bottom", label: "Send to bottom", onClick: () => sendSubtaskToBottom(task.id, sub.id) },
+                                            { key: "top", label: "Send to top", icon: ICON_TOP, onClick: () => sendSubtaskToTop(task.id, sub.id) },
+                                            { key: "up", label: "Move up", icon: ICON_UP, onClick: () => moveSubtaskUp(task.id, sub.id) },
+                                            { key: "down", label: "Move down", icon: ICON_DOWN, onClick: () => moveSubtaskDown(task.id, sub.id) },
+                                            { key: "bottom", label: "Send to bottom", icon: ICON_BOTTOM, onClick: () => sendSubtaskToBottom(task.id, sub.id) },
                                           ] as RowAction[]]
                                         : []),
                                       [
-                                        { key: "copy-md", label: copiedId === `task-${sub.id}` ? "Copied!" : "Copy as markdown", onClick: () => copyTaskAsMarkdown(sub) },
-                                        { key: "copy-link", label: copiedId === `anchor-task-${sub.id}` ? "Copied!" : "Copy link", onClick: () => copyAnchorLink(`task-${sub.id}`) },
+                                        { key: "copy-md", label: copiedId === `task-${sub.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(sub) },
+                                        { key: "copy-link", label: copiedId === `anchor-task-${sub.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${sub.id}`) },
                                       ] as RowAction[],
                                       ...(canEdit
-                                        ? [[{ key: "delete", label: "Delete subtask", danger: true, onClick: () => deleteTask(goal.id, sub.id) }] as RowAction[]]
+                                        ? [[{ key: "delete", label: "Delete subtask", icon: ICON_TRASH, danger: true, onClick: () => deleteTask(goal.id, sub.id) }] as RowAction[]]
                                         : []),
                                     ]}
                                   />

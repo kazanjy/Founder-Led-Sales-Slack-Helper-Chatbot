@@ -24,15 +24,12 @@ interface Props {
 }
 
 /**
- * Compact kebab (⋯) trigger with a click-anchored popover menu. The
- * menu renders into a portal at <body> so it can escape ancestor
- * overflow:hidden / clip / rounded-corner boxes. Position is anchored
- * to the trigger via getBoundingClientRect on each open and updated
- * on window scroll/resize while open.
- *
- * Click anywhere outside or press Esc to close. Each action's
- * onClick auto-closes the menu — callers don't need to track open
- * state themselves.
+ * Compact kebab (⋯) trigger with a click-anchored popover menu.
+ * Opens on hover (with a brief grace period when the cursor crosses
+ * the gap between trigger and menu) as well as on click for touch
+ * users. The menu is portalled to <body> so ancestor overflow
+ * can't clip it; position is anchored via getBoundingClientRect
+ * and tracked on scroll/resize while open.
  */
 export function RowActionsMenu({
   groups,
@@ -45,17 +42,30 @@ export function RowActionsMenu({
   const [coords, setCoords] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // 150ms grace period when the cursor crosses between trigger and
+  // menu so a small gap doesn't immediately dismiss the menu.
+  const closeTimer = useRef<number | null>(null);
+  const cancelClose = () => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = window.setTimeout(() => setOpen(false), 150);
+  };
 
   useEffect(() => {
     setMounted(true);
+    return () => cancelClose();
   }, []);
 
-  const MENU_WIDTH = 176; // matches w-44 in Tailwind
+  const MENU_WIDTH = 192; // matches w-48 (icons need a bit more room than w-44)
   const measure = () => {
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    // Right-align the menu under the trigger, but clamp to viewport.
     const right = rect.right;
     const left = Math.max(8, Math.min(window.innerWidth - MENU_WIDTH - 8, right - MENU_WIDTH));
     setCoords({ left, top: rect.bottom + 4 });
@@ -98,6 +108,8 @@ export function RowActionsMenu({
       role="menu"
       style={{ position: "fixed", left: coords.left, top: coords.top, width: MENU_WIDTH }}
       className="z-[1000] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 text-sm"
+      onMouseEnter={cancelClose}
+      onMouseLeave={scheduleClose}
       onClick={(e) => e.stopPropagation()}
     >
       {groups.flatMap((group, gi) => {
@@ -122,10 +134,12 @@ export function RowActionsMenu({
                     : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
             >
-              {action.icon && (
-                <span className="w-3.5 h-3.5 flex-shrink-0 inline-flex items-center justify-center text-current">
+              {action.icon ? (
+                <span className="w-4 h-4 flex-shrink-0 inline-flex items-center justify-center text-current">
                   {action.icon}
                 </span>
+              ) : (
+                <span className="w-4 h-4 flex-shrink-0" />
               )}
               <span className="flex-1">{action.label}</span>
             </button>
@@ -145,6 +159,11 @@ export function RowActionsMenu({
       <button
         ref={triggerRef}
         type="button"
+        onMouseEnter={() => {
+          cancelClose();
+          setOpen(true);
+        }}
+        onMouseLeave={scheduleClose}
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
