@@ -72,15 +72,20 @@ Generate a LinkedIn outreach sequence targeting the specified persona. The seque
 
 2. **Follow-up Message 1** (after they accept, Day 1-2)
    - Thank them for connecting
-   - Share a relevant insight or resource
-   - Soft CTA
+   - Share a relevant insight, resource, or observation
+   - End with an interest check, NOT a meeting ask (see CTA Strategy below)
 
 3. **Follow-up Message 2** (Day 5-7)
-   - Reference something from their profile/company
-   - Connect to a pain point
-   - Clear meeting CTA
+   - Reference something specific from their profile / company / recent post
+   - Validate the pain point with a curiosity question or a peer-benchmark prompt
+   - Still no meeting ask — go for an opinion, a one-line yes/no, or "is this on your radar?"
 
-4. **Breakup Message** (Day 14+)
+4. **Follow-up Message 3** (Day 10-12)
+   - First place a meeting / time ask is allowed
+   - Frame it as a specific, low-cost outcome ("15 min to walk you through how X handled this — worth it?")
+   - Avoid generic "let's hop on a call" language
+
+5. **Breakup Message** (Day 14+)
    - Graceful, leave door open
    - No guilt or pressure
 
@@ -90,6 +95,29 @@ For each touchpoint include:
 - **Character count** for connection request
 
 The tone should be authentic, founder-to-exec, not templated.
+
+## CTA STRATEGY (IMPORTANT):
+
+Default to **interest checks** before ever asking for a meeting or time. The first two messages after connection acceptance should make it easy for the prospect to reply with a single sentence. Use CTAs like:
+
+- "Curious whether [pain] is something your team is actively working on?"
+- "Is this how you're seeing it too, or am I off-base?"
+- "Would a tear-down of how [similar company] solved this be useful?"
+- "Open to a 30-sec read on this?" (when sharing a link)
+- "Hit me with a 'yes' or 'no' — I won't be offended either way."
+- "What's your current take on [problem]?"
+
+Only ask for a meeting in Follow-up Message 3 (or later). When you do, make it specific and low-cost:
+- "15 minutes to walk you through how [similar company] solved this — worth it?"
+- Anchor to a specific outcome, not "to learn about each other"
+
+**Anti-patterns to avoid (do NOT do these):**
+- Asking for "a quick call" or "15 minutes" in Follow-up 1 or 2
+- Dropping a Calendly / scheduling link before any interest signal
+- Generic "would love to chat" / "let's connect on a call" CTAs
+- Pitching the product in the connection note or first follow-up
+
+The arc should feel like a peer-to-peer conversation — pique interest → validate the problem → share proof → invite them to dig deeper — not five rephrasings of "let's get on a call."
 
 ## TARGET PERSONA:
 

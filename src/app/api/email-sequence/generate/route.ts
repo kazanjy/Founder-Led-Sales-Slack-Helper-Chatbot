@@ -73,9 +73,31 @@ Each email should include:
 The sequence should:
 - Lead with the prospect's pain, not the product
 - Be personalized to the organizational and human persona
-- Include a clear CTA in each email
-- Progress from introduction → value → social proof → breakup
 - Keep emails short (under 150 words each)
+- Progress from introduction → curiosity / proof → soft meeting ask → breakup
+
+## CTA STRATEGY (IMPORTANT):
+
+Default to **interest checks** before ever asking for a meeting or time. The job of the first 1-2 emails is to find out whether the prospect cares about the problem at all. Use CTAs that lower the cost of replying:
+
+- "Is [this pain] something you're actively working on right now?"
+- "Curious whether this resonates — is this a real problem for your team?"
+- "Worth a 30-second read?" (when sharing a resource)
+- "Would a tear-down of how [similar company] handled this be useful?"
+- "Hit reply with 'yes' or 'no' — I won't be offended either way."
+- "What's your current thinking on [problem]?"
+
+Only escalate to a meeting / time ask in the FINAL 1-2 emails, after you've earned curiosity. When you do ask, frame it as "low-cost / specific outcome":
+- "15 minutes to walk you through how [similar company] solved this — worth it?"
+- Suggest a specific time window, not "your calendar"
+
+**Anti-patterns to avoid (do NOT do these):**
+- Asking for "a quick 15 minutes" or "30 mins on your calendar" in the first email
+- Generic "let's hop on a call" CTAs before any interest signal
+- Calendly / scheduling links in the opener
+- "Worth a chat?" before establishing any value
+
+The progression should feel like a conversation — pique interest → validate the problem → share proof → invite them to dig deeper — rather than five variations of "let's meet."
 
 ## TARGET PERSONA:
 
