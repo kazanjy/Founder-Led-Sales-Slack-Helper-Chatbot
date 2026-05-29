@@ -37,7 +37,13 @@ async function fetchSalesContext(userId: string) {
 export async function synthesizeResearchBrief(
   results: SearchResults,
   onProgress?: SearchProgressCallback,
-  userId?: string
+  userId?: string,
+  // Optional follow-up context block (markdown) and a flag telling
+  // the LLM the call should be framed as a follow-up. When present
+  // we add a Follow-Up Recap section to the brief and tell the
+  // model to ground its recommendations in the prior conversation
+  // history.
+  followUp?: { isFollowUp: boolean; contextBlock: string } | null
 ): Promise<ResearchBrief> {
   onProgress?.({
     stage: "synthesizing",
@@ -67,9 +73,39 @@ export async function synthesizeResearchBrief(
   }
 
   const hasSalesContext = salesContext.salesNarrative || salesContext.firstCallChecklist || salesContext.preCallPlanning;
+  const isFollowUp = !!followUp?.isFollowUp;
 
   const formattedResults = formatResultsForSynthesis(results);
   const { parsedInput } = results;
+
+  // When follow-up mode is on, the brief leads with a Follow-Up
+  // Recap section that distills the prior history into "what's the
+  // state of the conversation" / "what's open" / "what to do next".
+  const followUpSection = isFollowUp
+    ? `
+### Follow-Up Recap
+This is a **follow-up call**, not a first call. Ground this section in the FOLLOW-UP CONTEXT block at the bottom of the user message (prior calendar history + recorded-call transcripts where available).
+
+#### State of the conversation
+- Where they are in the sales process based on the prior interactions.
+- Topics, objections, and themes that have come up so far.
+- Any value props, demos, or proof points already shown — don't repeat them, build on them.
+
+#### Recent interactions
+- 2-4 specific bullets from the most recent prior call(s): what was discussed, what they said, what changed.
+- Quote sparingly; summarize crisply. Always date-stamp ("On May 14, they said …").
+
+#### Open threads
+- Anything you committed to send, follow up on, or get an answer to.
+- Anything they committed to do before this call (decision, intro, sample data, etc.).
+- Flag if any of those are still outstanding.
+
+#### Recommended next steps for THIS meeting
+- The single most important goal for this specific call given where the conversation is.
+- 2-3 concrete agenda items tailored to the open threads above.
+- One probing question that moves the deal forward (not generic discovery).
+`
+    : "";
 
   const contactSection = parsedInput.contactName
     ? `\n\n## CONTACT TO RESEARCH\n- Name: ${parsedInput.contactName}\n- Title: ${parsedInput.contactTitle || "Unknown"}\n- LinkedIn: ${parsedInput.contactLinkedIn || "Not provided"}`
@@ -117,8 +153,10 @@ A concise 3-5 sentence executive summary at the very top of the brief. It should
 - Who the person is (name, title, what they do) and which human persona they most closely match${hasSalesContext ? " (from the seller's playbook)" : ""}
 - What the company is (name, what they do, stage/size) and which organizational persona they most closely match${hasSalesContext ? " (from the seller's playbook)" : ""}
 - The 1-2 most important things to know going into this call — what they likely care about, what to lead with, and any key risk or opportunity
-This should be punchy, specific, and immediately useful — not generic filler. A founder should be able to read ONLY this section 5 minutes before the call and walk in prepared.
+This should be punchy, specific, and immediately useful — not generic filler. A founder should be able to read ONLY this section 5 minutes before the call and walk in prepared.${isFollowUp ? `
 
+**IMPORTANT — Follow-up call:** lead the TL;DR with the relationship status ("This is the 3rd meeting; we last met May 14 to discuss …"). Don't pretend it's a first conversation.` : ""}
+${followUpSection}
 ### Company Snapshot
 - What the company does (1-2 sentences)
 - Industry, stage, size
@@ -187,6 +225,7 @@ ${parsedInput.additionalContext ? `\n## ADDITIONAL CONTEXT\n${parsedInput.additi
 
 ${formattedResults}
 ${salesPlaybookBlock}
+${followUp?.contextBlock ? `\n${followUp.contextBlock}\n` : ""}
 ---
 
 Now generate the research brief.`;

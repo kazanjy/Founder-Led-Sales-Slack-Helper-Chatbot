@@ -5,6 +5,7 @@ import { parseSearchInput } from "@/lib/search/input-parser";
 import { generateSearchPlan } from "@/lib/search/queries";
 import { executeSearchPlan } from "@/lib/search/results";
 import { synthesizeResearchBrief } from "@/lib/search/synthesis";
+import { detectFollowUpContext, buildFollowUpContextBlock } from "@/lib/pre-call/follow-up";
 import type { SearchInput } from "@/lib/search/types";
 
 // Force dynamic — never cache this route
@@ -91,13 +92,38 @@ export async function POST(request: NextRequest) {
             progress: 75,
           });
 
+          // Check for prior contact (Calendar last 180d) and pull
+          // transcripts from the user's connected recorder when
+          // present. Failures are non-fatal; we always fall back to
+          // first-call mode.
+          sendEvent("progress", {
+            stage: "follow_up",
+            message: "Checking for prior interactions…",
+            progress: 78,
+          });
+          const followUpCtx = await detectFollowUpContext(
+            user.id,
+            parsedInput.companyDomain
+          );
+          if (followUpCtx.isFollowUp) {
+            sendEvent("progress", {
+              stage: "follow_up",
+              message: `Follow-up detected: ${followUpCtx.priorCalendarEvents.length} prior event(s), ${followUpCtx.priorRecordedCalls.length} transcript(s).`,
+              progress: 79,
+            });
+          }
+          const followUpForSynth = {
+            isFollowUp: followUpCtx.isFollowUp,
+            contextBlock: buildFollowUpContextBlock(followUpCtx),
+          };
+
           const brief = await synthesizeResearchBrief(results, (update) => {
             if (update.stage === "content_chunk") {
               sendEvent("content_chunk", { token: update.message });
             } else {
               sendEvent("progress", update);
             }
-          }, user.id);
+          }, user.id, followUpForSynth);
 
           const research = await prisma.preCallResearch.create({
             data: {
