@@ -997,29 +997,42 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     );
   };
 
+  // Sibling lookup must respect the same sort the renderer uses
+  // (by `order`) so the index we hand to reorderSubtasksWithinParent
+  // lines up with what the user sees. The flat tasks array is
+  // insertion-ordered, not order-sorted, so an unsorted .filter()
+  // can produce a fromIdx that doesn't match the visible position
+  // — most visibly, the bottommost subtask often lands at unsorted
+  // index 0 and Move up / Send to top silently no-op.
+  const sortedSubtaskSiblings = (parentTaskId: string) =>
+    goals
+      .flatMap((g) => g.tasks)
+      .filter((t) => t.parentTaskId === parentTaskId)
+      .sort((a, b) => a.order - b.order);
+
   const sendSubtaskToTop = (parentTaskId: string, subId: string) => {
-    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const siblings = sortedSubtaskSiblings(parentTaskId);
     const fromIdx = siblings.findIndex((s) => s.id === subId);
     if (fromIdx <= 0) return;
     reorderSubtasksWithinParent(parentTaskId, fromIdx, 0);
   };
 
   const sendSubtaskToBottom = (parentTaskId: string, subId: string) => {
-    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const siblings = sortedSubtaskSiblings(parentTaskId);
     const fromIdx = siblings.findIndex((s) => s.id === subId);
     if (fromIdx === -1 || fromIdx === siblings.length - 1) return;
     reorderSubtasksWithinParent(parentTaskId, fromIdx, siblings.length - 1);
   };
 
   const moveSubtaskUp = (parentTaskId: string, subId: string) => {
-    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const siblings = sortedSubtaskSiblings(parentTaskId);
     const fromIdx = siblings.findIndex((s) => s.id === subId);
     if (fromIdx <= 0) return;
     reorderSubtasksWithinParent(parentTaskId, fromIdx, fromIdx - 1);
   };
 
   const moveSubtaskDown = (parentTaskId: string, subId: string) => {
-    const siblings = goals.flatMap((g) => g.tasks).filter((t) => t.parentTaskId === parentTaskId);
+    const siblings = sortedSubtaskSiblings(parentTaskId);
     const fromIdx = siblings.findIndex((s) => s.id === subId);
     if (fromIdx === -1 || fromIdx === siblings.length - 1) return;
     reorderSubtasksWithinParent(parentTaskId, fromIdx, fromIdx + 1);
