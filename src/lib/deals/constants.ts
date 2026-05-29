@@ -10,10 +10,17 @@ export const DEAL_STAGES = [
 ] as const;
 
 export const DEAL_STATUSES = [
+  // Auto-detected by the hourly call-recorder scanner — needs
+  // user confirmation before counting as a pursued deal.
+  { value: "potential", label: "Potential", color: "bg-purple-100 text-purple-700" },
   { value: "active", label: "Active", color: "bg-green-100 text-green-700" },
   { value: "stalled", label: "Stalled", color: "bg-amber-100 text-amber-700" },
   { value: "closed_won", label: "Closed Won", color: "bg-green-100 text-green-800 font-medium" },
   { value: "closed_lost", label: "Closed Lost", color: "bg-gray-100 text-gray-600" },
+  // Archived because the user rejected an auto-detected potential.
+  // Kept in DB (not hard-deleted) so the dedupe trail in
+  // processed_recordings stays consistent.
+  { value: "dismissed", label: "Dismissed", color: "bg-gray-100 text-gray-500" },
 ] as const;
 
 export const PARTICIPANT_ROLES = [

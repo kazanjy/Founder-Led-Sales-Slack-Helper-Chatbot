@@ -166,6 +166,7 @@ model User {
   preCallResearch            PreCallResearch[]
   recurringResearchPatterns  RecurringResearchPattern[]
   preCallEnrichmentAttempts  PreCallEnrichmentAttempt[]
+  processedRecordings        ProcessedRecording[]
   pendingResearchRequests    PendingResearchRequest[]
   emailSequenceVersions      EmailSequenceVersion[]
   linkedInSequenceVersions   LinkedInSequenceVersion[]
@@ -2433,6 +2434,33 @@ model CustomDealStage {
   @@unique([accountId, value])
   @@index([accountId, archived])
   @@map("custom_deal_stages")
+}
+
+// Bookkeeping for the hourly call-recorder scanner so we don't
+// re-process the same recording on every tick. One row per
+// (user, providerCallId). When a call gets attached to an existing
+// deal we store its dealId; when it spawns a brand-new potential
+// deal we also record that. `result` tells the scanner what
+// happened so future runs can short-circuit.
+model ProcessedRecording {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider        String   // recorder slug ("fathom" | "fireflies" | "granola")
+  providerCallId  String
+  // "attached_existing" — a meeting was added to an existing deal
+  // "created_potential" — a new auto-detected deal was spun up
+  // "skipped_internal_only" — call had no external attendees
+  // "skipped_no_domain"    — couldn't infer a company domain
+  result          String
+  dealId          String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, providerCallId])
+  @@index([userId, createdAt])
+  @@map("processed_recordings")
 }
 
 model DealParticipant {

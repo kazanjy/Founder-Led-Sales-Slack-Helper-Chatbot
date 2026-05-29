@@ -569,7 +569,7 @@ function DealsPageContent() {
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
-                  className="block text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-purple-300 hover:shadow-md transition-all group"
+                  className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-5 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
@@ -580,11 +580,44 @@ function DealsPageContent() {
                       {stageInfo.label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-3">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-3 flex-wrap">
                     <span className={`px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
                     <span>· {deal._count.entries} {deal._count.entries === 1 ? "entry" : "entries"}</span>
                     <span>· {deal._count.participants} {deal._count.participants === 1 ? "person" : "people"}</span>
                   </div>
+                  {deal.status === "potential" && (
+                    <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await fetch(`/api/deals/${deal.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: "active" }),
+                          });
+                          loadDeals();
+                        }}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-700"
+                      >
+                        ✓ Validate
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await fetch(`/api/deals/${deal.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ status: "dismissed" }),
+                          });
+                          loadDeals();
+                        }}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50"
+                      >
+                        ✕ Dismiss
+                      </button>
+                      <span className="text-[11px] text-purple-600 dark:text-purple-300 ml-1">Auto-detected from a recent recording</span>
+                    </div>
+                  )}
                   <div className="text-xs text-gray-400 mt-2">
                     Updated {formatRelative(deal.updatedAt)}
                   </div>
