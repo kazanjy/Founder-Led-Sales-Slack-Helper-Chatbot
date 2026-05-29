@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface RowAction {
   key: string;
@@ -23,12 +24,13 @@ interface Props {
 }
 
 /**
- * Compact kebab (⋯) trigger with a click-anchored popover menu. Used
- * to replace per-row hover-only chevron strips on goals/tasks/
- * subtasks so the title field can claim the row width and the
- * affordance survives on touch.
+ * Compact kebab (⋯) trigger with a click-anchored popover menu. The
+ * menu renders into a portal at <body> so it can escape ancestor
+ * overflow:hidden / clip / rounded-corner boxes. Position is anchored
+ * to the trigger via getBoundingClientRect on each open and updated
+ * on window scroll/resize while open.
  *
- * Click anywhere outside (or press Esc) to close. Each action's
+ * Click anywhere outside or press Esc to close. Each action's
  * onClick auto-closes the menu — callers don't need to track open
  * state themselves.
  */
@@ -39,14 +41,45 @@ export function RowActionsMenu({
   iconClass = "w-4 h-4",
 }: Props) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [coords, setCoords] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const MENU_WIDTH = 176; // matches w-44 in Tailwind
+  const measure = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // Right-align the menu under the trigger, but clamp to viewport.
+    const right = rect.right;
+    const left = Math.max(8, Math.min(window.innerWidth - MENU_WIDTH - 8, right - MENU_WIDTH));
+    setCoords({ left, top: rect.bottom + 4 });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    measure();
+    const onScroll = () => measure();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDocMouseDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -59,9 +92,58 @@ export function RowActionsMenu({
     };
   }, [open]);
 
+  const menu = (
+    <div
+      ref={menuRef}
+      role="menu"
+      style={{ position: "fixed", left: coords.left, top: coords.top, width: MENU_WIDTH }}
+      className="z-[1000] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 text-sm"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {groups.flatMap((group, gi) => {
+        const items = group
+          .filter((a) => a)
+          .map((action) => (
+            <button
+              key={action.key}
+              type="button"
+              role="menuitem"
+              disabled={action.disabled}
+              onClick={() => {
+                if (action.disabled) return;
+                action.onClick();
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${
+                action.disabled
+                  ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                  : action.danger
+                    ? "text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              {action.icon && (
+                <span className="w-3.5 h-3.5 flex-shrink-0 inline-flex items-center justify-center text-current">
+                  {action.icon}
+                </span>
+              )}
+              <span className="flex-1">{action.label}</span>
+            </button>
+          ));
+        return [
+          gi > 0 && (
+            <div key={`sep-${gi}`} className="my-1 border-t border-gray-100 dark:border-gray-700" />
+          ),
+          ...items,
+        ];
+      })}
+    </div>
+  );
+
   return (
-    <div ref={rootRef} className="relative inline-flex">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -78,51 +160,7 @@ export function RowActionsMenu({
           <circle cx="19" cy="12" r="2" />
         </svg>
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 text-sm"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {groups.flatMap((group, gi) => {
-            const items = group
-              .filter((a) => a)
-              .map((action) => (
-                <button
-                  key={action.key}
-                  type="button"
-                  role="menuitem"
-                  disabled={action.disabled}
-                  onClick={() => {
-                    if (action.disabled) return;
-                    action.onClick();
-                    setOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${
-                    action.disabled
-                      ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                      : action.danger
-                        ? "text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {action.icon && (
-                    <span className="w-3.5 h-3.5 flex-shrink-0 inline-flex items-center justify-center text-current">
-                      {action.icon}
-                    </span>
-                  )}
-                  <span className="flex-1">{action.label}</span>
-                </button>
-              ));
-            return [
-              gi > 0 && (
-                <div key={`sep-${gi}`} className="my-1 border-t border-gray-100 dark:border-gray-700" />
-              ),
-              ...items,
-            ];
-          })}
-        </div>
-      )}
-    </div>
+      {mounted && open && createPortal(menu, document.body)}
+    </>
   );
 }
