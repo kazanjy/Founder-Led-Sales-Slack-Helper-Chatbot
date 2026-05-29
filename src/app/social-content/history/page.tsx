@@ -64,7 +64,7 @@ export default function SocialContentHistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <SalesNavBar />
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center">
@@ -80,7 +80,7 @@ export default function SocialContentHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <SalesNavBar />
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-5xl mx-auto px-6 py-4">
@@ -125,7 +125,7 @@ export default function SocialContentHistoryPage() {
               <Link
                 key={version.id}
                 href={`/social-content?version=${version.id}`}
-                className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:border-purple-300 hover:shadow-md transition-all"
+                className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:border-purple-300 dark:hover:border-purple-500 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -134,27 +134,27 @@ export default function SocialContentHistoryPage() {
                         {version.title || `Version ${versions.length - index}`}
                       </span>
                       {index === 0 && (
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs font-medium rounded-full">
                           Latest
                         </span>
                       )}
                       {version.updatedAt !== version.createdAt && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">
                           Edited
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs font-medium rounded">
                         {version.platform === "linkedin" ? "LinkedIn" : "Twitter/X"}
                       </span>
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 text-xs font-medium rounded">
                         {version.tone}
                       </span>
-                      <span className="px-2 py-0.5 bg-gray-50 text-gray-600 dark:text-gray-300 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded">
                         {version.postCount} posts
                       </span>
-                      <span className="px-2 py-0.5 bg-gray-50 text-gray-600 dark:text-gray-300 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded">
                         {version.topicSource === "narrative" ? "From Narrative" : version.topicSource === "content" ? "Repurposed" : "Custom Topic"}
                       </span>
                     </div>
@@ -167,13 +167,13 @@ export default function SocialContentHistoryPage() {
                       <span>Created {formatDate(version.createdAt)}</span>
                       {version.updatedAt !== version.createdAt && (
                         <>
-                          <span className="text-gray-300">•</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
                           <span>Edited {formatDate(version.updatedAt)}</span>
                         </>
                       )}
                     </div>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
