@@ -597,7 +597,7 @@ function SalesNarrativeContent() {
   const current25w = isStreamingMode ? streaming25w : (isEditing ? edited25w : (version?.description25w || ""));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <SalesNavBar />
       <GeneratingOverlay
         visible={showOverlay}
@@ -1064,7 +1064,7 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[400px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100 font-normal"
                 />
               ) : (
-                <div className="prose prose-gray max-w-none">
+                <div className="prose prose-gray dark:prose-invert max-w-none">
                   <ReactMarkdown>{currentNarrative}</ReactMarkdown>
                 </div>
               )}
@@ -1112,7 +1112,7 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[300px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100 font-normal"
                 />
               ) : (
-                <div className="prose prose-gray max-w-none">
+                <div className="prose prose-gray dark:prose-invert max-w-none">
                   <ReactMarkdown>{current1000w}</ReactMarkdown>
                 </div>
               )}
@@ -1160,7 +1160,7 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[150px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
-                <div className="prose prose-lg prose-gray max-w-none">
+                <div className="prose prose-lg prose-gray dark:prose-invert max-w-none">
                   <ReactMarkdown>{current100w}</ReactMarkdown>
                 </div>
               )}
@@ -1208,7 +1208,7 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[100px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
-                <div className="prose prose-xl prose-gray max-w-none">
+                <div className="prose prose-xl prose-gray dark:prose-invert max-w-none">
                   <ReactMarkdown>{current50w}</ReactMarkdown>
                 </div>
               )}
@@ -1256,7 +1256,7 @@ function SalesNarrativeContent() {
                   className="w-full min-h-[80px] p-4 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y text-gray-800 dark:text-gray-100"
                 />
               ) : (
-                <div className="prose prose-2xl prose-gray max-w-none font-medium">
+                <div className="prose prose-2xl prose-gray dark:prose-invert max-w-none font-medium">
                   <ReactMarkdown>{current25w}</ReactMarkdown>
                 </div>
               )}
