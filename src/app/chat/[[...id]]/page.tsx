@@ -13,6 +13,8 @@ import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GetStartedModal from "@/components/GetStartedModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
+import OnboardingFlow, { OnboardingStep } from "@/components/OnboardingFlow";
+import IntegrationsRow from "@/components/IntegrationsRow";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
@@ -272,6 +274,8 @@ export default function ChatPage() {
   const [showMaturityModal, setShowMaturityModal] = useState(false);
   const [maturityModalMode, setMaturityModalMode] = useState<"continue" | "update">("continue");
   const [showGetStartedModal, setShowGetStartedModal] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep | null>(null);
+  const [integrationsStatus, setIntegrationsStatus] = useState<{ recorder: boolean; calendar: boolean } | null>(null);
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [isTTSPlaying, setIsTTSPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1632,18 +1636,33 @@ export default function ChatPage() {
     sendMessage(context);
   }, [loading, user, selectedConversation]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show "Get Started" modal for users who haven't created a sales narrative yet
+  // Fetch onboarding state — drives the recorder → calendar → narrative
+  // overlay sequence and the integrations row on the homepage.
   useEffect(() => {
     if (loading || !user) return;
-    if (appProgress.salesNarrative === null) return;
-    if (appProgress.salesNarrative.hasGenerated) return;
     if (showMaturityModal || showProfileModal) return;
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("startAssessment") === "true") return;
-    const dismissed = sessionStorage.getItem("getStartedModalDismissed");
-    if (dismissed) return;
-    setShowGetStartedModal(true);
-  }, [loading, user, appProgress.salesNarrative, showMaturityModal, showProfileModal]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/onboarding/state");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setIntegrationsStatus({
+          recorder: !!data.recorder?.done,
+          calendar: !!data.calendar?.done,
+        });
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("startAssessment") === "true") return;
+        if (data.currentStep) setOnboardingStep(data.currentStep);
+      } catch (err) {
+        console.error("Failed to fetch onboarding state:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, user, showMaturityModal, showProfileModal]);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -4246,6 +4265,16 @@ export default function ChatPage() {
                   </form>
                 )}
 
+                {/* Integrations Row — surfaces recorder + calendar status above
+                    the applets grid so dismissing the onboarding overlay still
+                    leaves a one-click path back. */}
+                {integrationsStatus && (
+                  <IntegrationsRow
+                    recorderConnected={integrationsStatus.recorder}
+                    calendarConnected={integrationsStatus.calendar}
+                  />
+                )}
+
                 {/* Apps Section - encourage users to fill out first */}
                 <div className="max-w-[950px] mx-auto w-full mb-6 md:mb-8">
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Your applets:</p>
@@ -5402,12 +5431,21 @@ export default function ChatPage() {
         }}
       />
 
-      {/* Get Started Modal - prompts new users to create Sales Narrative */}
+      {/* Get Started Modal — retained but no longer auto-shown; superseded by
+          the onboarding flow below. */}
       <GetStartedModal
         isOpen={showGetStartedModal}
         onClose={() => setShowGetStartedModal(false)}
         userEmail={user?.email}
       />
+
+      {/* Onboarding overlay — recorder → calendar → narrative sequence. */}
+      {onboardingStep && (
+        <OnboardingFlow
+          step={onboardingStep}
+          onDismissed={() => setOnboardingStep(null)}
+        />
+      )}
 
       {/* Profile Completion Modal */}
       <ProfileCompletionModal

@@ -208,6 +208,13 @@ model User {
   // Activity tracking
   lastActiveAt DateTime?
 
+  // Onboarding overlay state. Tracks per-step dismissal so the recorder →
+  // calendar → narrative prompt sequence on /chat can be suppressed without
+  // hiding the underlying integration widgets. Shape:
+  //   { recorder: { dismissedUntil: ISO|null, dismissedForever: boolean },
+  //     calendar: { ... }, narrative: { ... } }
+  onboardingState Json?
+
   // Broadcast campaigns this user (as an admin) created.
   createdBroadcastCampaigns BroadcastCampaign[] @relation("BroadcastCampaignCreatedBy")
 
