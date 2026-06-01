@@ -3,6 +3,7 @@ import { getGoogleAccessToken, hasGoogleCalendarScope } from "@/lib/google";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 import { enrichByEmail } from "@/lib/search/pdl";
+import { suggestDealNameFromCalls } from "@/lib/deals/suggest-name";
 
 /**
  * Hydrate a freshly-validated deal with everything we can find about
@@ -420,5 +421,91 @@ export async function enrichDeal(userId: string, dealId: string): Promise<Enrich
     summary.errors++;
   }
 
+  try {
+    await renamePlaceholderDeal(dealId, deal.companyName);
+  } catch (err) {
+    console.error(`[enrich] rename pass failed for ${dealId}:`, err);
+    summary.errors++;
+  }
+
   return summary;
+}
+
+/**
+ * If the deal's name still matches the "{Company} — Potential"
+ * placeholder that auto-detect set when the row was spawned, hand
+ * the freshly-imported timeline + participants to the suggest-name
+ * LLM and replace the name with a proper opportunity descriptor.
+ * User-edited names (anything that doesn't match the placeholder
+ * pattern) are left alone.
+ */
+async function renamePlaceholderDeal(dealId: string, companyName: string): Promise<void> {
+  const deal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    select: { name: true },
+  });
+  if (!deal) return;
+
+  // Placeholder format from auto-detect.ts: "<companyName> — Potential".
+  // Also tolerate "— New Business" since that's the LLM's own fallback,
+  // and the bare companyName which a few legacy rows have.
+  const trimmed = deal.name.trim();
+  const lowerCompany = companyName.toLowerCase();
+  const lowerName = trimmed.toLowerCase();
+  const looksPlaceholder =
+    lowerName === lowerCompany ||
+    lowerName === `${lowerCompany} — potential` ||
+    lowerName === `${lowerCompany} - potential` ||
+    lowerName === `${lowerCompany} — new business` ||
+    lowerName === `${lowerCompany} - new business`;
+  if (!looksPlaceholder) return;
+
+  // Pull the entries we just hydrated. Reuse the suggest-name shape:
+  // recorder calls (transcript + summary), calendar meetings (treated
+  // as call-shaped), plus current participants for context.
+  const [entries, participants] = await Promise.all([
+    prisma.dealTimelineEntry.findMany({
+      where: {
+        dealId,
+        type: { in: ["call_summary", "meeting", "call_transcript"] },
+      },
+      orderBy: { entryDate: "desc" },
+      take: 6,
+      select: { title: true, content: true, entryDate: true },
+    }),
+    prisma.dealParticipant.findMany({
+      where: { dealId },
+      select: { name: true, email: true, title: true, company: true },
+    }),
+  ]);
+
+  if (entries.length === 0) return;
+
+  const callShaped = entries.map((e) => ({
+    title: e.title || undefined,
+    date: e.entryDate.toISOString(),
+    summary: e.content,
+    attendees: participants.map((p) => ({
+      name: p.name,
+      email: p.email || undefined,
+      title: p.title || undefined,
+      company: p.company || undefined,
+    })),
+  }));
+
+  const suggestion = await suggestDealNameFromCalls(callShaped);
+  if (!suggestion.dealName) return;
+  // Defensive: don't accept a name that's just the placeholder again,
+  // and don't accept a name that doesn't reference the company.
+  const lowerSuggestion = suggestion.dealName.toLowerCase();
+  if (lowerSuggestion.endsWith("— potential") || lowerSuggestion.endsWith("- potential")) return;
+  if (!lowerSuggestion.includes(lowerCompany.split(/[\s.]/)[0])) {
+    // Suggestion didn't anchor to the prospect — skip to avoid weird renames.
+    return;
+  }
+
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { name: suggestion.dealName },
+  });
 }
