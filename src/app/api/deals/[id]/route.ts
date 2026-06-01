@@ -3,6 +3,9 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { enrichDeal } from "@/lib/deals/enrich";
+import { CLOSED_LOST_REASONS } from "@/lib/deals/constants";
+
+const CLOSED_LOST_REASON_VALUES = new Set<string>(CLOSED_LOST_REASONS.map((r) => r.value));
 
 // Bumped so post-response enrichment scheduled via after() has time
 // to finish (PDL + recorder transcript fetches add up).
@@ -82,7 +85,14 @@ export async function PATCH(
       updateData.closeDate = body.closeDate ? new Date(body.closeDate) : null;
     }
     if (body.closedLostReason !== undefined) {
-      updateData.closedLostReason = body.closedLostReason?.trim() || null;
+      const v = body.closedLostReason?.trim();
+      if (!v) {
+        updateData.closedLostReason = null;
+      } else if (CLOSED_LOST_REASON_VALUES.has(v)) {
+        updateData.closedLostReason = v;
+      } else {
+        return NextResponse.json({ error: "Invalid closedLostReason" }, { status: 400 });
+      }
     }
 
     // Auto-stamp closeDate when status flips into a terminal closed

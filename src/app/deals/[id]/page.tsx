@@ -8,7 +8,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { VoiceNoteButton } from "@/components/VoiceNoteButton";
 import DealChatPanel from "@/components/DealChatPanel";
-import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
+import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Participant {
@@ -1310,20 +1310,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               </label>
             )}
             {deal.status === "closed_lost" && (
-              <label className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+              <label className="flex items-center gap-1.5">
                 <span className="font-medium text-gray-500 dark:text-gray-400">Closed-lost reason:</span>
-                <input
-                  type="text"
-                  defaultValue={deal.closedLostReason || ""}
-                  onBlur={(e) => {
-                    const next = e.target.value.trim() || null;
-                    if (next !== (deal.closedLostReason || null)) {
-                      updateDeal({ closedLostReason: next });
-                    }
-                  }}
-                  placeholder="competitor / budget / no decision…"
-                  className="flex-1 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 placeholder:text-gray-400"
-                />
+                <select
+                  value={deal.closedLostReason || ""}
+                  onChange={(e) => updateDeal({ closedLostReason: e.target.value || null })}
+                  className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+                >
+                  <option value="">— pick a reason —</option>
+                  {CLOSED_LOST_REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
               </label>
             )}
           </div>

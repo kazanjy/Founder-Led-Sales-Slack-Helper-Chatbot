@@ -23,6 +23,18 @@ export const DEAL_STATUSES = [
   { value: "dismissed", label: "Dismissed", color: "bg-gray-100 text-gray-500" },
 ] as const;
 
+export const CLOSED_LOST_REASONS = [
+  { value: "unqualified", label: "Unqualified" },
+  { value: "budget", label: "Budget" },
+  { value: "timing", label: "Timing / Not a Priority" },
+  { value: "competition", label: "Competition" },
+  { value: "no_decision", label: "No Decision" },
+  { value: "bad_fit", label: "Bad Fit" },
+  { value: "status_quo", label: "Lost to Status Quo" },
+  { value: "champion_left", label: "Champion Left" },
+  { value: "other", label: "Other" },
+] as const;
+
 export const PARTICIPANT_ROLES = [
   { value: "champion", label: "Champion", color: "bg-green-100 text-green-700" },
   { value: "decision_maker", label: "Decision Maker", color: "bg-blue-100 text-blue-700" },
