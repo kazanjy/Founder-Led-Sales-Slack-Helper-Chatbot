@@ -176,7 +176,9 @@ export async function POST(
   // promote to DIRECT so the full context reaches GPT in one
   // window instead of being truncated or aggressively chunked.
   const AUTO_FLIP_CHAR_THRESHOLD = 21000;
-  let isDirectMode = conversation.mode === "DIRECT";
+  const startedAsDirect = conversation.mode === "DIRECT";
+  let isDirectMode = startedAsDirect;
+  let modeFlipped = false;
   if (
     !isDirectMode &&
     expandedMessage.length > AUTO_FLIP_CHAR_THRESHOLD
@@ -186,6 +188,7 @@ export async function POST(
         `(message length ${expandedMessage.length} > ${AUTO_FLIP_CHAR_THRESHOLD})`
     );
     isDirectMode = true;
+    modeFlipped = true;
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { mode: "DIRECT" },
@@ -386,6 +389,7 @@ export async function POST(
               messageId: assistantMessage.id,
               createdAt: assistantMessage.createdAt,
               ...(attachmentContent ? { savedUserMessage: expandedMessage } : {}),
+              ...(modeFlipped ? { mode: "DIRECT", modeFlipped: true } : {}),
             })}\n\n`
           )
         );

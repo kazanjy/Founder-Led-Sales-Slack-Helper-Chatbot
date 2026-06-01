@@ -2361,6 +2361,23 @@ export default function ChatPage() {
                     )
                   );
                 }
+                // Sync mode when server auto-flipped to DIRECT (e.g. due to
+                // large attachment context exceeding the Chatbase threshold).
+                if (parsed.mode === "DIRECT") {
+                  setConversationMode("DIRECT");
+                  setConversations((prev) =>
+                    prev.map((c) =>
+                      c.id === conversationId ? { ...c, mode: "DIRECT" } : c
+                    )
+                  );
+                  if (parsed.modeFlipped) {
+                    showToast(
+                      "Switched to Direct LLM — attached context exceeded the RAG window",
+                      "bottom",
+                      5000
+                    );
+                  }
+                }
               } else if (parsed.error) {
                 throw new Error(parsed.error);
               }
@@ -2723,6 +2740,14 @@ export default function ChatPage() {
               } else if (parsed.messageId) {
                 messageId = parsed.messageId;
                 createdAt = parsed.createdAt;
+                if (parsed.mode === "DIRECT") {
+                  setConversationMode("DIRECT");
+                  setConversations((prev) =>
+                    prev.map((c) =>
+                      c.id === conversationId ? { ...c, mode: "DIRECT" } : c
+                    )
+                  );
+                }
               }
             } catch {
               // Ignore parse errors
@@ -4451,6 +4476,18 @@ export default function ChatPage() {
                             </button>
                           )}
                           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 md:p-4 bg-gray-50 dark:bg-gray-800 min-w-0 flex-1 overflow-hidden">
+                            {/* Attachment chips on the first user message —
+                                visual confirmation that the conversation's
+                                attached context (Sales Narrative, Coaching
+                                History, etc.) was included with this turn. */}
+                            {(() => {
+                              const conv = conversations.find(c => c.id === selectedConversation);
+                              const attached = conv?.attachmentsIncluded as string[] | undefined;
+                              if (!attached?.length) return null;
+                              const firstUserIdx = messages.findIndex(m => m.role === "USER");
+                              if (msgIndex !== firstUserIdx) return null;
+                              return <AttachmentChipsReadOnly attachments={attached} />;
+                            })()}
                             {/* Show attached images/PDFs for this specific message */}
                             {(() => {
                               const messageFiles = getMessageFiles(msg.content, loadedFiles, pendingFiles);
