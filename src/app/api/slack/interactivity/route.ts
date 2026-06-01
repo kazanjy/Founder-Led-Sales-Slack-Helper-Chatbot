@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifySlackRequest } from "@/lib/slack/verify";
 import { getSlackClient } from "@/lib/slack/client";
+import { enrichDeal } from "@/lib/deals/enrich";
+
+export const maxDuration = 300;
 
 /**
  * POST /api/slack/interactivity
@@ -112,10 +116,24 @@ export async function POST(request: NextRequest) {
   }
 
   const newStatus = actionId === "validate_potential_deal" ? "active" : "dismissed";
+  const wasPotential = deal.status === "potential";
   await prisma.deal.update({
     where: { id: dealId },
     data: { status: newStatus },
   });
+
+  // Same post-response enrichment hook as the web PATCH path so a
+  // Slack-driven validation also hydrates the deal in the background.
+  if (newStatus === "active" && wasPotential) {
+    after(async () => {
+      try {
+        const summary = await enrichDeal(deal.userId, deal.id);
+        console.log(`[slack/interactivity] enriched deal ${deal.id}:`, summary);
+      } catch (err) {
+        console.error(`[slack/interactivity] enrich failed for ${deal.id}:`, err);
+      }
+    });
+  }
 
   // Edit the original message so the buttons disappear and the
   // user sees the resolution inline. Slack lets us update via

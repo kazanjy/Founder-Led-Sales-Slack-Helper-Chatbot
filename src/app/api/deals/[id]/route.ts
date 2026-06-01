@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { enrichDeal } from "@/lib/deals/enrich";
+
+// Bumped so post-response enrichment scheduled via after() has time
+// to finish (PDL + recorder transcript fetches add up).
+export const maxDuration = 300;
 
 async function verifyAccess(id: string, userId: string) {
   const deal = await prisma.deal.findUnique({ where: { id } });
@@ -69,6 +75,26 @@ export async function PATCH(
     if (body.projectId !== undefined) updateData.projectId = body.projectId || null;
 
     const deal = await prisma.deal.update({ where: { id }, data: updateData });
+
+    // Validation flip (potential → active): hydrate the deal with
+    // calendar + recorder history + PDL participant enrichment.
+    // Runs after the response so the UI doesn't block on the slow
+    // network fan-out.
+    if (
+      body.status === "active" &&
+      exists.status === "potential" &&
+      deal.status === "active"
+    ) {
+      after(async () => {
+        try {
+          const summary = await enrichDeal(user.id, id);
+          console.log(`[deals/${id}] post-validate enrichment:`, summary);
+        } catch (err) {
+          console.error(`[deals/${id}] post-validate enrichment failed:`, err);
+        }
+      });
+    }
+
     return NextResponse.json({ deal });
   } catch (error) {
     console.error("Error updating deal:", error);
