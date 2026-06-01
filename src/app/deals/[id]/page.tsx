@@ -473,6 +473,67 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     router.push("/deals");
   };
 
+  // Mutate the entry's metadata.linkedParticipantIds[] and persist.
+  // Optimistic local update so the chip appears immediately.
+  const patchEntryLinkedParticipants = async (
+    entry: TimelineEntry,
+    nextIds: string[]
+  ) => {
+    let parsed: Record<string, unknown> = {};
+    if (entry.metadata) {
+      try {
+        parsed = JSON.parse(entry.metadata) as Record<string, unknown>;
+      } catch { /* keep empty */ }
+    }
+    const nextMetadata = { ...parsed, linkedParticipantIds: nextIds };
+    const nextMetadataStr = JSON.stringify(nextMetadata);
+    setDeal((prev) =>
+      prev
+        ? {
+            ...prev,
+            entries: prev.entries.map((e) => (e.id === entry.id ? { ...e, metadata: nextMetadataStr } : e)),
+          }
+        : prev
+    );
+    try {
+      await fetch(`/api/deals/${id}/entries/${entry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metadata: nextMetadata }),
+      });
+    } catch (err) {
+      console.error("[deal] entry participant patch failed:", err);
+      loadDeal(); // fall back to refetch on failure
+    }
+  };
+
+  const linkEntryParticipant = (entry: TimelineEntry, pid: string) => {
+    let current: string[] = [];
+    if (entry.metadata) {
+      try {
+        const parsed = JSON.parse(entry.metadata);
+        if (Array.isArray(parsed?.linkedParticipantIds)) {
+          current = parsed.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+        }
+      } catch { /* ignore */ }
+    }
+    if (current.includes(pid)) return;
+    return patchEntryLinkedParticipants(entry, [...current, pid]);
+  };
+
+  const unlinkEntryParticipant = (entry: TimelineEntry, pid: string) => {
+    let current: string[] = [];
+    if (entry.metadata) {
+      try {
+        const parsed = JSON.parse(entry.metadata);
+        if (Array.isArray(parsed?.linkedParticipantIds)) {
+          current = parsed.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+        }
+      } catch { /* ignore */ }
+    }
+    return patchEntryLinkedParticipants(entry, current.filter((x) => x !== pid));
+  };
+
   const addEntry = async (entryData?: Partial<TimelineEntry>) => {
     const content = entryData?.content ?? newEntryContent;
     const type = entryData?.type ?? newEntryType;
@@ -2028,24 +2089,44 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               const linked = ids
                                 .map((pid) => participantsById.get(pid))
                                 .filter((p): p is NonNullable<typeof p> => !!p);
-                              if (linked.length === 0) return null;
+                              const linkedIdSet = new Set(linked.map((p) => p.id));
+                              const available = deal.participants.filter((p) => !linkedIdSet.has(p.id));
+                              if (linked.length === 0 && available.length === 0) return null;
                               return (
                                 <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                                   <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium">With</span>
                                   {linked.map((p) => {
                                     const nameLabel = p.name.includes("@") ? (nameFromEmail(p.name) || p.name) : titleCase(p.name);
                                     return (
-                                      <button
+                                      <span
                                         key={p.id}
-                                        type="button"
-                                        onClick={() => setTimelineQuery(nameLabel)}
-                                        title={`Filter timeline to ${nameLabel}`}
-                                        className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-[11px] text-purple-700 hover:bg-purple-100"
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-[11px] text-purple-700"
                                       >
-                                        {nameLabel}
-                                      </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setTimelineQuery(nameLabel)}
+                                          title={`Filter timeline to ${nameLabel}`}
+                                          className="hover:underline"
+                                        >
+                                          {nameLabel}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => unlinkEntryParticipant(entry, p.id)}
+                                          title="Remove from this entry"
+                                          className="text-purple-400 hover:text-red-500"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
                                     );
                                   })}
+                                  {available.length > 0 && (
+                                    <EntryParticipantPicker
+                                      available={available}
+                                      onPick={(pid) => linkEntryParticipant(entry, pid)}
+                                    />
+                                  )}
                                 </div>
                               );
                             })()}
@@ -2306,6 +2387,64 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           );
         }}
       />
+    </div>
+  );
+}
+
+function EntryParticipantPicker({
+  available,
+  onPick,
+}: {
+  available: Participant[];
+  onPick: (participantId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border border-dashed border-gray-300 dark:border-gray-600 text-[11px] text-gray-500 hover:text-purple-700 hover:border-purple-300 hover:bg-purple-50"
+        title="Attach an existing deal participant to this entry"
+      >
+        + Add
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-20 min-w-[180px] max-h-64 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
+          {available.map((p) => {
+            const nameLabel = p.name.includes("@") ? (nameFromEmail(p.name) || p.name) : titleCase(p.name);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onPick(p.id);
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <div className="font-medium text-gray-900 dark:text-gray-100">{nameLabel}</div>
+                {(p.title || p.company) && (
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                    {[p.title, p.company].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
