@@ -72,6 +72,10 @@ function DealsPageContent() {
   const [newStageInsertAfter, setNewStageInsertAfter] = useState<string>("");
   const [savingStage, setSavingStage] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  // Bulk selection state for Potential cards. Lets the user
+  // multi-select and validate/dismiss in one shot from the action bar.
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkActing, setBulkActing] = useState(false);
   const [discoverResult, setDiscoverResult] = useState<{
     recorder: { available: boolean; scanned: number; potentials: number; attached: number; skipped: number; errors: number };
     calendar: { available: boolean; scanned: number; potentials: number; attached: number; skipped: number; errors: number };
@@ -190,6 +194,32 @@ function DealsPageContent() {
       router.replace(tail ? `/deals?${tail}` : "/deals", { scroll: false });
     }
   }, [searchParams, router]);
+
+  const bulkUpdateStatus = async (status: "active" | "dismissed") => {
+    if (bulkActing || bulkSelected.size === 0) return;
+    const ids = Array.from(bulkSelected);
+    setBulkActing(true);
+    // Optimistic local update — the selected rows transition out of
+    // the Potential filter view immediately.
+    setDeals((prev) => prev.map((d) => (bulkSelected.has(d.id) ? { ...d, status } : d)));
+    setBulkSelected(new Set());
+    try {
+      const res = await fetch("/api/deals/bulk-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealIds: ids, status }),
+      });
+      if (!res.ok) {
+        console.error("[deals] bulk update failed", res.status);
+        loadDeals();
+      }
+    } catch (err) {
+      console.error("[deals] bulk update error", err);
+      loadDeals();
+    } finally {
+      setBulkActing(false);
+    }
+  };
 
   const handleDiscoverDeals = async () => {
     if (discovering) return;
@@ -693,6 +723,52 @@ function DealsPageContent() {
             )}
           </div>
         ) : (
+          <>
+            {/* Bulk-select action bar — appears whenever any Potential
+                cards are checked. Lets the user validate or dismiss
+                them in one shot. */}
+            {bulkSelected.size > 0 && (() => {
+              const visiblePotentialIds = filteredDeals
+                .filter((d) => d.status === "potential")
+                .map((d) => d.id);
+              const allVisibleSelected =
+                visiblePotentialIds.length > 0 &&
+                visiblePotentialIds.every((id) => bulkSelected.has(id));
+              return (
+                <div className="sticky top-2 z-10 mb-4 flex items-center gap-3 px-4 py-2.5 rounded-lg border border-purple-300 bg-purple-50 dark:bg-purple-900/30 dark:border-purple-700 shadow-sm">
+                  <span className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                    {bulkSelected.size} selected
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (allVisibleSelected) {
+                        setBulkSelected(new Set());
+                      } else {
+                        setBulkSelected(new Set(visiblePotentialIds));
+                      }
+                    }}
+                    className="text-xs text-purple-700 dark:text-purple-300 hover:underline"
+                  >
+                    {allVisibleSelected ? "Clear selection" : `Select all visible (${visiblePotentialIds.length})`}
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => bulkUpdateStatus("active")}
+                    disabled={bulkActing}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
+                  >
+                    ✓ Validate {bulkSelected.size}
+                  </button>
+                  <button
+                    onClick={() => bulkUpdateStatus("dismissed")}
+                    disabled={bulkActing}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60"
+                  >
+                    ✕ Dismiss {bulkSelected.size}
+                  </button>
+                </div>
+              );
+            })()}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredDeals.map((deal) => {
               const stageInfo = resolveStage(deal.stage, customStages);
@@ -718,9 +794,29 @@ function DealsPageContent() {
                   className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-5 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</p>
+                    <div className="min-w-0 flex-1 flex items-start gap-2">
+                      {deal.status === "potential" && (
+                        <input
+                          type="checkbox"
+                          checked={bulkSelected.has(deal.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setBulkSelected((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(deal.id);
+                              else next.delete(deal.id);
+                              return next;
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 accent-purple-600 cursor-pointer"
+                          title="Select for bulk action"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</p>
+                      </div>
                     </div>
                     <InlinePillSelect
                       currentValue={stageInfo.value}
@@ -797,6 +893,7 @@ function DealsPageContent() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 
