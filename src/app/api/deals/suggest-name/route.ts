@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 
+// Title-case each word, but leave already-cased tokens alone so
+// "DoorDash" / "iOS" / "HubSpot" survive. Only forces uppercase
+// on the first letter of fully-lowercase tokens (e.g. the LLM
+// returning a bare domain stem like "styleframe").
+function properCase(input: string): string {
+  if (!input) return input;
+  return input.replace(/\b([a-z][a-z0-9]*)\b/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -83,8 +92,8 @@ Respond with ONLY a JSON object: {"companyName": "...", "dealName": "..."}`,
     try {
       const parsed = JSON.parse(content);
       return NextResponse.json({
-        companyName: parsed.companyName || "",
-        dealName: parsed.dealName || "",
+        companyName: properCase(parsed.companyName || ""),
+        dealName: properCase(parsed.dealName || ""),
       });
     } catch {
       return NextResponse.json({ companyName: "", dealName: "" });
