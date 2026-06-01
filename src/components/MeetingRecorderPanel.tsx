@@ -39,6 +39,31 @@ interface MeetingRecorderPanelProps {
 
 const DEEP_SEARCH_LIMIT = 500;
 
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com",
+  "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "pm.me",
+  "live.com", "msn.com",
+]);
+
+function extractExternalDomains(
+  attendees: Array<{ email?: string }> | undefined,
+  internalDomain: string | null
+): string[] {
+  if (!attendees || attendees.length === 0) return [];
+  const set = new Set<string>();
+  for (const a of attendees) {
+    if (!a.email) continue;
+    const at = a.email.lastIndexOf("@");
+    if (at < 0) continue;
+    const d = a.email.slice(at + 1).trim().toLowerCase();
+    if (!d) continue;
+    if (PUBLIC_EMAIL_DOMAINS.has(d)) continue;
+    if (internalDomain && d === internalDomain) continue;
+    set.add(d);
+  }
+  return Array.from(set);
+}
+
 // Build a lowercased string that concatenates several common renderings of
 // an ISO date so a substring check against the user's query hits the formats
 // people actually type: "3/30", "03/30/2026", "March 30", "Mar 30, 2026",
@@ -92,6 +117,25 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [deepSearching, setDeepSearching] = useState(false);
+  // User's own email domain — used to filter "internal" attendees out of
+  // the per-row domain pills so they only show prospect domains.
+  const [internalDomain, setInternalDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        const userEmail = data.user?.email || data.user?.slackEmail;
+        const accountDomain = data.user?.accountDomain;
+        const dom = accountDomain || (userEmail ? userEmail.split("@")[1]?.toLowerCase() : null);
+        if (!cancelled) setInternalDomain(dom || null);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [deepSearchDone, setDeepSearchDone] = useState(false);
 
   // Fetch existing recaps/reviews for the current call list
@@ -484,6 +528,11 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                   {filtered.map((call) => {
                     const match = call.providerUrl ? existingMatches[call.providerUrl] : undefined;
                     const isChecked = selectedCallIds.has(call.id);
+                    // Unique external (non-personal, non-internal) domains
+                    // from this call's attendees. Shown inline as chips so
+                    // the user can tell who the meeting was with without
+                    // mousing over the popover.
+                    const externalDomains = extractExternalDomains(call.attendees, internalDomain);
                     // CSS popover (no native title delay) listing who
                     // was on the call. Prefer the richer attendees
                     // list (name + email) when the provider returned
@@ -527,11 +576,23 @@ export default function MeetingRecorderPanel({ onSelectCall, onSelectCalls, defa
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="text-xs text-gray-400">{formatDate(call.date)}</span>
                             {call.duration != null && call.duration > 0 && <span className="text-xs text-gray-400">· {formatDuration(call.duration)}</span>}
                             {call.participants.length > 0 && (
                               <span className="text-xs text-gray-400">· {call.participants.length} people</span>
+                            )}
+                            {externalDomains.slice(0, 3).map((d) => (
+                              <span
+                                key={d}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800"
+                                title={d}
+                              >
+                                {d}
+                              </span>
+                            ))}
+                            {externalDomains.length > 3 && (
+                              <span className="text-[10px] text-gray-400">+{externalDomains.length - 3} more</span>
                             )}
                           </div>
                           <p className="text-sm text-gray-900 dark:text-gray-100 truncate font-medium">{call.title}</p>
