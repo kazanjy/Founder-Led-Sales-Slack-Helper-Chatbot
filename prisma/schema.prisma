@@ -218,6 +218,13 @@ model User {
   preCallResearchDestination   String?  @default("dm")            // "dm" | "channel"
   preCallResearchMutedDomains  String[] @default([])
 
+  // Stage 2: when true, the daily research cron also spawns a
+  // Potential deal (with 30-day per-domain cooldown) for every
+  // external meeting it briefs. Off by default — the recorder
+  // pipeline already covers most attribution and pollution of the
+  // deals board is hard to undo.
+  createDealsFromCalendar Boolean @default(false)
+
   // Onboarding overlay state. Tracks per-step dismissal so the recorder →
   // calendar → narrative prompt sequence on /chat can be suppressed without
   // hiding the underlying integration widgets. Shape:
@@ -2403,7 +2410,12 @@ model Deal {
   companyUrl  String? // for PDL company enrichment
 
   stage  String @default("prospecting") // "prospecting" | "discovery" | "demo" | "proposal" | "negotiation" | "closing" | "won" | "lost"
-  status String @default("active") // "active" | "stalled" | "closed_won" | "closed_lost"
+  status String @default("active") // "active" | "stalled" | "closed_won" | "closed_lost" | "potential" | "dismissed"
+
+  // Provenance for auto-created deals. null = user-created.
+  // "recorder" = spawned by the hourly call-recorder scanner.
+  // "calendar" = spawned by the daily pre-call research cron.
+  source String?
 
   notes String? @db.Text
 

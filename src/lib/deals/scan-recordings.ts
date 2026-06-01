@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { Deal } from "@prisma/client";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { getSlackClient } from "@/lib/slack/client";
+import { ensurePotentialDealForDomain, getSelfDomains } from "@/lib/deals/auto-detect";
 
 /**
  * Hourly scanner that watches each user's connected call recorder
@@ -29,71 +30,16 @@ interface ScanSummary {
   errors: number;
 }
 
-function normalizeDomain(d: string | null | undefined): string {
-  return (d || "").trim().toLowerCase().replace(/^www\./, "");
-}
 function domainFromEmail(email: string | undefined | null): string | null {
   if (!email) return null;
   const at = email.lastIndexOf("@");
   if (at < 0) return null;
-  const d = normalizeDomain(email.slice(at + 1));
+  const d = email.slice(at + 1).trim().toLowerCase().replace(/^www\./, "");
   return d || null;
 }
-function companyNameFromDomain(domain: string): string {
-  const root = domain.split(".")[0] || domain;
-  return root.charAt(0).toUpperCase() + root.slice(1);
-}
 
-/**
- * Resolve the user's own email domains (account + personal) so we
- * can filter "internal" attendees out before deciding what's
- * external. Returns lowercase, no www.
- */
-async function selfDomains(userId: string): Promise<Set<string>> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, slackEmail: true, accountId: true },
-  });
-  const set = new Set<string>();
-  const add = (d: string | null) => {
-    if (d) set.add(d);
-  };
-  add(domainFromEmail(user?.email));
-  add(domainFromEmail(user?.slackEmail));
-  if (user?.accountId) {
-    const account = await prisma.account.findUnique({
-      where: { id: user.accountId },
-      select: { emailDomain: true },
-    });
-    add(normalizeDomain(account?.emailDomain || null));
-  }
-  return set;
-}
-
-/**
- * Domains that the user's existing deals are about, keyed for fast
- * lookup. Maps domain → Deal so when we hit a match we can attach
- * directly. Built from each deal's companyUrl + every participant
- * email's domain.
- */
-async function existingDealsByDomain(userId: string): Promise<Map<string, Deal>> {
-  const deals = await prisma.deal.findMany({
-    where: { userId, status: { notIn: ["dismissed", "closed_lost"] } },
-    include: { participants: { select: { email: true } } },
-  });
-  const map = new Map<string, Deal>();
-  for (const deal of deals) {
-    const fromUrl = deal.companyUrl
-      ? normalizeDomain(deal.companyUrl.replace(/^https?:\/\//i, "").split("/")[0])
-      : null;
-    if (fromUrl) map.set(fromUrl, deal);
-    for (const p of deal.participants) {
-      const d = domainFromEmail(p.email);
-      if (d) map.set(d, deal);
-    }
-  }
-  return map;
-}
+// Self-domain + existing-deal lookups now live in lib/deals/auto-detect.ts so
+// the calendar pipeline can reuse the same dedup contract.
 
 interface PostedAlert {
   channelId: string;
@@ -275,8 +221,7 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   const fresh = calls.filter((c) => !doneSet.has(c.id));
   if (fresh.length === 0) return out;
 
-  const self = await selfDomains(userId);
-  const dealByDomain = await existingDealsByDomain(userId);
+  const self = await getSelfDomains(userId);
 
   // Slack target: user's MikeyBot DM. Resolved once per user.
   const userRow = await prisma.user.findUnique({
@@ -307,7 +252,6 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       );
 
       if (externalDomains.length === 0) {
-        // Internal-only or unparseable — record and skip.
         await prisma.processedRecording.create({
           data: {
             userId,
@@ -320,76 +264,57 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
         continue;
       }
 
-      // Existing deal? Attach the meeting as a timeline entry.
-      const matchedDomain = externalDomains.find((d) => dealByDomain.has(d));
-      if (matchedDomain) {
-        const deal = dealByDomain.get(matchedDomain)!;
-        const detail = await provider.getCallDetail(conn.accessToken, call.id);
-        const content =
-          (detail.summary ? `**Summary**\n${detail.summary}\n\n` : "") +
-          (detail.transcript ? `**Transcript**\n${detail.transcript}` : "");
-        const entry = await prisma.dealTimelineEntry.create({
-          data: {
-            dealId: deal.id,
-            type: "call_summary",
-            title: call.title,
-            content,
-            sourceUrl: call.providerUrl || null,
-            entryDate: new Date(call.date),
-            metadata: JSON.stringify({
-              auto_imported: true,
-              provider: conn.provider,
-              providerCallId: call.id,
-              participants: call.participants || [],
-            }),
-          },
-        });
+      // Use the shared helper to pick the target deal — handles "attach to
+      // existing active/potential", "skip if cooldown hit on a dismissed
+      // deal", and "create new Potential" with one consistent contract.
+      const primaryDomain = externalDomains[0];
+      const detection = await ensurePotentialDealForDomain({
+        userId,
+        domain: primaryDomain,
+        source: "recorder",
+        selfDomains: self,
+      });
+
+      if (detection.kind === "cooldown_hit") {
+        // Recently-dismissed deal for this domain — don't reattach.
         await prisma.processedRecording.create({
           data: {
             userId,
             provider: conn.provider,
             providerCallId: call.id,
-            result: "attached_existing",
-            dealId: deal.id,
-            notes: entry.id,
+            result: "skipped_cooldown",
+            dealId: detection.deal.id,
           },
         });
-        out.attached++;
-        if (botToken && dmChannelId) {
-          await postMeetingAttachedAlert({
-            botToken,
-            channelId: dmChannelId,
-            appUrl,
-            deal,
-            call: { title: call.title, date: call.date, url: call.providerUrl },
-          });
-        }
+        out.skipped++;
         continue;
       }
 
-      // Brand-new external domain — spin up a Potential deal.
-      const primaryDomain = externalDomains[0];
-      const companyName = companyNameFromDomain(primaryDomain);
-      const dealName = `${companyName} — Potential`;
-      const newDeal = await prisma.deal.create({
-        data: {
-          userId,
-          name: dealName,
-          companyName,
-          companyUrl: `https://${primaryDomain}`,
-          stage: "prospecting",
-          status: "potential",
-        },
-      });
+      if (!detection.deal) {
+        // skipped_internal / skipped_public_domain — shouldn't happen here
+        // since we already filtered externalDomains, but be defensive.
+        await prisma.processedRecording.create({
+          data: {
+            userId,
+            provider: conn.provider,
+            providerCallId: call.id,
+            result: detection.kind,
+          },
+        });
+        out.skipped++;
+        continue;
+      }
 
-      // Attach the call as the first timeline entry on the new deal.
+      const deal = detection.deal;
+      const isNew = detection.kind === "created_potential";
+
       const detail = await provider.getCallDetail(conn.accessToken, call.id);
       const content =
         (detail.summary ? `**Summary**\n${detail.summary}\n\n` : "") +
         (detail.transcript ? `**Transcript**\n${detail.transcript}` : "");
-      await prisma.dealTimelineEntry.create({
+      const entry = await prisma.dealTimelineEntry.create({
         data: {
-          dealId: newDeal.id,
+          dealId: deal.id,
           type: "call_summary",
           title: call.title,
           content,
@@ -404,50 +329,53 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
         },
       });
 
-      // Seed participants from the call's external attendees so the
-      // deal isn't empty when the user opens it.
-      for (const a of call.attendees || []) {
-        const d = domainFromEmail(a.email);
-        if (!d || self.has(d) || PUBLIC_EMAIL_DOMAINS.has(d)) continue;
-        await prisma.dealParticipant.create({
-          data: {
-            dealId: newDeal.id,
-            name: a.name,
-            email: a.email,
-          },
-        });
+      if (isNew) {
+        for (const a of call.attendees || []) {
+          const d = domainFromEmail(a.email);
+          if (!d || self.has(d) || PUBLIC_EMAIL_DOMAINS.has(d)) continue;
+          await prisma.dealParticipant.create({
+            data: { dealId: deal.id, name: a.name, email: a.email },
+          });
+        }
       }
-
-      // Update local map so subsequent calls in the same batch
-      // attach to this freshly-created deal instead of spawning
-      // another potential for the same domain.
-      dealByDomain.set(primaryDomain, newDeal);
 
       await prisma.processedRecording.create({
         data: {
           userId,
           provider: conn.provider,
           providerCallId: call.id,
-          result: "created_potential",
-          dealId: newDeal.id,
+          result: isNew ? "created_potential" : "attached_existing",
+          dealId: deal.id,
+          notes: isNew ? null : entry.id,
         },
       });
-      out.potentials++;
+      if (isNew) out.potentials++;
+      else out.attached++;
 
       if (botToken && dmChannelId) {
-        await postPotentialDealAlert({
-          botToken,
-          channelId: dmChannelId,
-          appUrl,
-          deal: newDeal,
-          call: {
-            title: call.title,
-            date: call.date,
-            summary: detail.summary,
-            attendees: (call.attendees || []).map((a) => ({ name: a.name, email: a.email })),
-            url: call.providerUrl,
-          },
-        });
+        if (isNew) {
+          await postPotentialDealAlert({
+            botToken,
+            channelId: dmChannelId,
+            appUrl,
+            deal,
+            call: {
+              title: call.title,
+              date: call.date,
+              summary: detail.summary,
+              attendees: (call.attendees || []).map((a) => ({ name: a.name, email: a.email })),
+              url: call.providerUrl,
+            },
+          });
+        } else {
+          await postMeetingAttachedAlert({
+            botToken,
+            channelId: dmChannelId,
+            appUrl,
+            deal,
+            call: { title: call.title, date: call.date, url: call.providerUrl },
+          });
+        }
       }
     } catch (err) {
       console.error(`[scan-recordings] processing failed for call ${call.id}:`, err);

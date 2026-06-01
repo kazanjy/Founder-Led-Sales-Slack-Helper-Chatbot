@@ -1498,6 +1498,7 @@ function RecurringResearchPatternsPanel({
   const [defaultDestination, setDefaultDestination] = useState<"dm" | "channel">("dm");
   const [mutedDomains, setMutedDomains] = useState<string[]>([]);
   const [newMutedDomain, setNewMutedDomain] = useState("");
+  const [createDealsFromCalendar, setCreateDealsFromCalendar] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
@@ -1518,6 +1519,7 @@ function RecurringResearchPatternsPanel({
             setMode(settings.mode || "all_external");
             setDefaultDestination(settings.destination || "dm");
             setMutedDomains(settings.mutedDomains || []);
+            setCreateDealsFromCalendar(!!settings.createDealsFromCalendar);
           }
         }
       } catch (err) {
@@ -1535,6 +1537,7 @@ function RecurringResearchPatternsPanel({
     mode?: "all_external" | "title_match" | "off";
     destination?: "dm" | "channel";
     mutedDomains?: string[];
+    createDealsFromCalendar?: boolean;
   }) => {
     setSavingSettings(true);
     try {
@@ -1730,6 +1733,30 @@ function RecurringResearchPatternsPanel({
                 Save a Slack channel from any brief&apos;s &ldquo;Send to channel&rdquo; menu to enable channel posting.
               </p>
             )}
+          </div>
+
+          <div>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createDealsFromCalendar}
+                onChange={(e) => {
+                  setCreateDealsFromCalendar(e.target.checked);
+                  persistSettings({ createDealsFromCalendar: e.target.checked });
+                }}
+                disabled={savingSettings}
+                className="mt-0.5 accent-purple-600"
+              />
+              <div>
+                <div className="text-xs font-medium text-gray-700 dark:text-gray-200">
+                  Auto-create deals from calendar meetings
+                </div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Spawns a Potential deal (Validate/Dismiss in Slack) for each new prospect domain.
+                  Skipped if a deal already exists or one was created in the last 30 days.
+                </div>
+              </div>
+            </label>
           </div>
 
           <div>

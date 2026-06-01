@@ -365,3 +365,95 @@ export async function postEnrichmentFailureNote(opts: {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
+
+/**
+ * Slack alert posted alongside (or after) a calendar-triggered
+ * research brief when stage-2 auto-deal-creation spawns a new
+ * Potential deal. Includes the same Validate/Dismiss action buttons
+ * as the recorder pipeline so both feel symmetric.
+ */
+export async function postPotentialDealFromCalendarAlert(opts: {
+  userId: string;
+  destination: "dm" | "channel";
+  channelId: string | null;
+  deal: { id: string; companyName: string };
+  meetingTitle: string;
+  meetingStartsAt: string;
+}): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: opts.userId },
+    select: { workspaceId: true, slackUserId: true },
+  });
+  if (!user?.workspaceId) return;
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { botToken: true },
+  });
+  if (!workspace?.botToken) return;
+
+  const client = getSlackClient(workspace.botToken);
+  let targetChannel: string;
+  try {
+    targetChannel = await resolveSlackTargetChannel(
+      client,
+      opts.destination,
+      user.slackUserId,
+      opts.channelId
+    );
+  } catch (err) {
+    console.error("[calendar potential-deal alert] resolve channel failed:", err);
+    return;
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+  const dealUrl = `${appUrl}/deals/${opts.deal.id}`;
+  const when = new Date(opts.meetingStartsAt).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  try {
+    await client.chat.postMessage({
+      channel: targetChannel,
+      mrkdwn: true,
+      text: `New potential deal: ${opts.deal.companyName}`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text:
+              `🆕 *Potential deal created from your calendar:* *${opts.deal.companyName}*\n` +
+              `📅 ${opts.meetingTitle} — ${when}\n` +
+              `<${dealUrl}|Open deal →>`,
+          },
+        },
+        {
+          type: "actions",
+          block_id: `potential_deal_actions:${opts.deal.id}`,
+          elements: [
+            {
+              type: "button",
+              style: "primary",
+              text: { type: "plain_text", text: "✓ Validate" },
+              value: opts.deal.id,
+              action_id: "validate_potential_deal",
+            },
+            {
+              type: "button",
+              style: "danger",
+              text: { type: "plain_text", text: "✕ Dismiss" },
+              value: opts.deal.id,
+              action_id: "dismiss_potential_deal",
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("[calendar potential-deal alert] post failed:", err);
+  }
+}

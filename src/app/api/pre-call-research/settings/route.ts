@@ -16,6 +16,7 @@ export async function GET() {
       preCallResearchMode: true,
       preCallResearchDestination: true,
       preCallResearchMutedDomains: true,
+      createDealsFromCalendar: true,
       preferredResearchSlackChannelId: true,
       preferredResearchSlackChannelName: true,
     },
@@ -24,6 +25,7 @@ export async function GET() {
     mode: row?.preCallResearchMode || "all_external",
     destination: row?.preCallResearchDestination || "dm",
     mutedDomains: row?.preCallResearchMutedDomains || [],
+    createDealsFromCalendar: !!row?.createDealsFromCalendar,
     channelId: row?.preferredResearchSlackChannelId || null,
     channelName: row?.preferredResearchSlackChannelName || null,
   });
@@ -35,7 +37,14 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { mode, destination, mutedDomains, channelId, channelName } = await request.json();
+  const {
+    mode,
+    destination,
+    mutedDomains,
+    createDealsFromCalendar,
+    channelId,
+    channelName,
+  } = await request.json();
 
   const update: Record<string, unknown> = {};
   if (mode !== undefined) {
@@ -54,6 +63,9 @@ export async function PATCH(request: NextRequest) {
     update.preCallResearchMutedDomains = mutedDomains
       .filter((d) => typeof d === "string" && d.trim())
       .map((d) => d.trim().toLowerCase());
+  }
+  if (typeof createDealsFromCalendar === "boolean") {
+    update.createDealsFromCalendar = createDealsFromCalendar;
   }
   if (channelId !== undefined) {
     update.preferredResearchSlackChannelId = channelId || null;

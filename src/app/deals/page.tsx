@@ -15,6 +15,7 @@ interface Deal {
   companyName: string;
   stage: string;
   status: string;
+  source: string | null;
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
   updatedAt: string;
@@ -615,7 +616,9 @@ function DealsPageContent() {
                       >
                         ✕ Dismiss
                       </button>
-                      <span className="text-[11px] text-purple-600 dark:text-purple-300 ml-1">Auto-detected from a recent recording</span>
+                      <span className="text-[11px] text-purple-600 dark:text-purple-300 ml-1">
+                        Auto-detected from {deal.source === "calendar" ? "an upcoming calendar meeting" : "a recent recording"}
+                      </span>
                     </div>
                   )}
                   <div className="text-xs text-gray-400 mt-2">

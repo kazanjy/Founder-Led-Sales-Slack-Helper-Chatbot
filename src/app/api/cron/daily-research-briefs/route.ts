@@ -9,6 +9,8 @@ import { synthesizeResearchBrief } from "@/lib/search/synthesis";
 import { detectFollowUpContext, buildFollowUpContextBlock } from "@/lib/pre-call/follow-up";
 import { createResearchConversation } from "@/lib/search/research-conversation";
 import { postResearchToSlack, postEnrichmentFailureNote } from "@/lib/pre-call/slack-broadcast";
+import { ensurePotentialDealForDomain, getSelfDomains } from "@/lib/deals/auto-detect";
+import { postPotentialDealFromCalendarAlert } from "@/lib/pre-call/slack-broadcast";
 
 /**
  * POST /api/cron/daily-research-briefs
@@ -130,6 +132,7 @@ async function processUser(userId: string): Promise<{
       preCallResearchMode: true,
       preCallResearchDestination: true,
       preCallResearchMutedDomains: true,
+      createDealsFromCalendar: true,
       preferredResearchSlackChannelId: true,
       preferredResearchSlackChannelName: true,
     },
@@ -163,6 +166,15 @@ async function processUser(userId: string): Promise<{
   const mutedDomains = new Set(
     (tokenRow.preCallResearchMutedDomains || []).map((d) => d.toLowerCase())
   );
+
+  // Stage 2: only the all_external pipeline can spawn Potential deals,
+  // and only if the user has opted in. Resolve self-domains once for
+  // the helper.
+  const dealCreationEnabled =
+    mode === "all_external" && (tokenRow.createDealsFromCalendar ?? false);
+  const selfDomainsForDeals = dealCreationEnabled
+    ? await getSelfDomains(userId)
+    : null;
 
   // Determine the user's "self" email domain for filtering internal
   // attendees. Account.emailDomain wins, then user email, then
@@ -431,6 +443,35 @@ async function processUser(userId: string): Promise<{
         out.sent++;
       } else {
         out.failed++;
+      }
+
+      // Stage 2: spawn a Potential deal for the prospect domain if the
+      // user opted in. Best-effort — failures don't fail the brief.
+      if (dealCreationEnabled && selfDomainsForDeals && parsedInput.companyDomain) {
+        try {
+          const detection = await ensurePotentialDealForDomain({
+            userId,
+            domain: parsedInput.companyDomain,
+            companyName: parsedInput.companyName,
+            source: "calendar",
+            selfDomains: selfDomainsForDeals,
+          });
+          if (detection.kind === "created_potential" && detection.deal) {
+            await postPotentialDealFromCalendarAlert({
+              userId,
+              destination,
+              channelId,
+              deal: { id: detection.deal.id, companyName: detection.deal.companyName },
+              meetingTitle: ev.summary,
+              meetingStartsAt: ev.start.dateTime,
+            });
+          }
+        } catch (dealErr) {
+          console.error(
+            `[cron daily-briefs] Calendar deal creation failed for ${userId} / ${parsedInput.companyDomain}:`,
+            dealErr
+          );
+        }
       }
     } catch (err) {
       console.error(`[cron daily-briefs] Brief generation failed for ${userId} / event ${ev.id}:`, err);
