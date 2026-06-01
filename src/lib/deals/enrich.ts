@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getGoogleAccessToken, hasGoogleCalendarScope } from "@/lib/google";
 import { getProvider } from "@/lib/meeting-recorder/providers";
+import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 import { enrichByEmail } from "@/lib/search/pdl";
 
 /**
@@ -218,7 +219,9 @@ async function enrichRecorder(opts: {
 
   let calls;
   try {
-    calls = await provider.listCalls(conn.accessToken, RECORDER_CALL_LIMIT);
+    calls = await withRecorderTokenRefresh(conn, (apiKey) =>
+      provider.listCalls(apiKey, RECORDER_CALL_LIMIT)
+    );
   } catch (err) {
     console.error(`[enrich] recorder listCalls failed for ${opts.userId}:`, err);
     return out;
@@ -247,7 +250,9 @@ async function enrichRecorder(opts: {
     }
 
     try {
-      const detail = await provider.getCallDetail(conn.accessToken, call.id);
+      const detail = await withRecorderTokenRefresh(conn, (apiKey) =>
+        provider.getCallDetail(apiKey, call.id)
+      );
       const content =
         (detail.summary ? `**Summary**\n${detail.summary}\n\n` : "") +
         (detail.transcript ? `**Transcript**\n${detail.transcript}` : "");

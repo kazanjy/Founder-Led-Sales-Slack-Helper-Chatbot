@@ -3,6 +3,7 @@ import type { Deal } from "@prisma/client";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { getSlackClient } from "@/lib/slack/client";
 import { ensurePotentialDealForDomain, getSelfDomains } from "@/lib/deals/auto-detect";
+import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 
 /**
  * Hourly scanner that watches each user's connected call recorder
@@ -201,7 +202,7 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
 
   let calls;
   try {
-    calls = await provider.listCalls(conn.accessToken, 50);
+    calls = await withRecorderTokenRefresh(conn, (apiKey) => provider.listCalls(apiKey, 50));
   } catch (err) {
     console.error(`[scan-recordings] ${conn.provider} listCalls failed for ${userId}:`, err);
     out.errors++;
@@ -308,7 +309,9 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       const deal = detection.deal;
       const isNew = detection.kind === "created_potential";
 
-      const detail = await provider.getCallDetail(conn.accessToken, call.id);
+      const detail = await withRecorderTokenRefresh(conn, (apiKey) =>
+        provider.getCallDetail(apiKey, call.id)
+      );
       const content =
         (detail.summary ? `**Summary**\n${detail.summary}\n\n` : "") +
         (detail.transcript ? `**Transcript**\n${detail.transcript}` : "");

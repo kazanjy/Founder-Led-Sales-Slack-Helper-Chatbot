@@ -362,6 +362,9 @@ function DealsPageContent() {
                   <div>
                     Recorder: scanned {discoverResult.recorder.scanned}, {discoverResult.recorder.potentials} new potential,{" "}
                     {discoverResult.recorder.attached} attached to existing deals.
+                    {discoverResult.recorder.errors > 0 && (
+                      <span className="text-red-600 dark:text-red-400"> · {discoverResult.recorder.errors} error{discoverResult.recorder.errors === 1 ? "" : "s"}</span>
+                    )}
                   </div>
                 ) : (
                   <div className="italic">Recorder not connected — skipped.</div>
@@ -370,6 +373,9 @@ function DealsPageContent() {
                   <div>
                     Calendar (30d): scanned {discoverResult.calendar.scanned}, {discoverResult.calendar.potentials} new potential,{" "}
                     {discoverResult.calendar.attached} attached to existing deals.
+                    {discoverResult.calendar.errors > 0 && (
+                      <span className="text-red-600 dark:text-red-400"> · {discoverResult.calendar.errors} error{discoverResult.calendar.errors === 1 ? "" : "s"}</span>
+                    )}
                   </div>
                 ) : (
                   <div className="italic">Calendar not connected — skipped.</div>
