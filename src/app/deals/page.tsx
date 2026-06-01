@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
@@ -668,6 +668,20 @@ function DealsPageContent() {
             {filteredDeals.map((deal) => {
               const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
+              const pipeline = mergePipeline(customStages);
+              const patchDeal = async (patch: { stage?: string; status?: string }) => {
+                setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...patch } : d)));
+                try {
+                  await fetch(`/api/deals/${deal.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(patch),
+                  });
+                } catch (err) {
+                  console.error("[deals] inline patch failed:", err);
+                  loadDeals();
+                }
+              };
               return (
                 <Link
                   key={deal.id}
@@ -679,12 +693,22 @@ function DealsPageContent() {
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</p>
                     </div>
-                    <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${stageInfo.color}`}>
-                      {stageInfo.label}
-                    </span>
+                    <InlinePillSelect
+                      currentValue={stageInfo.value}
+                      currentLabel={stageInfo.label}
+                      currentColor={stageInfo.color}
+                      options={pipeline.map((p) => ({ value: p.value, label: p.label, color: p.color }))}
+                      onChange={(value) => patchDeal({ stage: value })}
+                    />
                   </div>
                   <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-3 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full ${statusInfo.color}`}>{statusInfo.label}</span>
+                    <InlinePillSelect
+                      currentValue={statusInfo.value}
+                      currentLabel={statusInfo.label}
+                      currentColor={statusInfo.color}
+                      options={DEAL_STATUSES.map((s) => ({ value: s.value, label: s.label, color: s.color }))}
+                      onChange={(value) => patchDeal({ status: value })}
+                    />
                     <span>· {deal._count.entries} {deal._count.entries === 1 ? "entry" : "entries"}</span>
                     <span>· {deal._count.participants} {deal._count.participants === 1 ? "person" : "people"}</span>
                   </div>
@@ -907,6 +931,83 @@ function DealsPageContent() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PillOption {
+  value: string;
+  label: string;
+  color: string;
+}
+
+function InlinePillSelect({
+  currentValue,
+  currentLabel,
+  currentColor,
+  options,
+  onChange,
+}: {
+  currentValue: string;
+  currentLabel: string;
+  currentColor: string;
+  options: PillOption[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all hover:ring-2 hover:ring-purple-300 ${currentColor}`}
+        title={`Change ${currentLabel}`}
+      >
+        {currentLabel}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                if (opt.value !== currentValue) onChange(opt.value);
+              }}
+              className={`w-full text-left px-3 py-1.5 text-xs flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                opt.value === currentValue ? "font-semibold" : ""
+              }`}
+            >
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${opt.color}`}>
+                {opt.label}
+              </span>
+              {opt.value === currentValue && (
+                <svg className="w-3 h-3 text-purple-600 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          ))}
         </div>
       )}
     </div>
