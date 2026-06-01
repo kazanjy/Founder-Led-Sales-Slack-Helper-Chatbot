@@ -21,7 +21,7 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
   "live.com", "msn.com",
 ]);
 
-interface ScanSummary {
+export interface ScanSummary {
   userId: string;
   scanned: number;
   attached: number;

@@ -71,6 +71,11 @@ function DealsPageContent() {
   const [newStageColor, setNewStageColor] = useState(NEW_STAGE_COLORS[0]);
   const [newStageInsertAfter, setNewStageInsertAfter] = useState<string>("");
   const [savingStage, setSavingStage] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverResult, setDiscoverResult] = useState<{
+    recorder: { available: boolean; scanned: number; potentials: number; attached: number; skipped: number; errors: number };
+    calendar: { available: boolean; scanned: number; potentials: number; attached: number; skipped: number; errors: number };
+  } | null>(null);
   // Inline edit popover for an existing custom stage.
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [editStageLabel, setEditStageLabel] = useState("");
@@ -156,6 +161,26 @@ function DealsPageContent() {
       router.replace("/deals");
     }
   }, [searchParams, router]);
+
+  const handleDiscoverDeals = async () => {
+    if (discovering) return;
+    setDiscovering(true);
+    setDiscoverResult(null);
+    try {
+      const res = await fetch("/api/deals/discover", { method: "POST" });
+      if (!res.ok) {
+        console.error("[deals] discover failed", res.status);
+        return;
+      }
+      const summary = await res.json();
+      setDiscoverResult(summary);
+      await loadDeals();
+    } catch (err) {
+      console.error("[deals] discover error", err);
+    } finally {
+      setDiscovering(false);
+    }
+  };
 
   const createDeal = async () => {
     if (!newDealName.trim() || !newDealCompany.trim()) return;
@@ -286,14 +311,71 @@ function DealsPageContent() {
               Track your active sales opportunities — timeline of calls, emails, notes, and AI-powered next actions.
             </p>
           </div>
-          <button
-            onClick={() => setShowNewDeal(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm shadow hover:shadow-md transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            New Deal
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleDiscoverDeals}
+              disabled={discovering}
+              className="px-3 py-2 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-white dark:bg-gray-800 rounded-lg font-medium text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all flex items-center gap-2 disabled:opacity-60"
+            >
+              {discovering ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Looking…
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Look for new deals
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setShowNewDeal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium text-sm shadow hover:shadow-md transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              New Deal
+            </button>
+          </div>
         </div>
+
+        {discoverResult && (
+          <div className="mb-4 p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-sm flex items-start justify-between gap-3">
+            <div className="text-gray-700 dark:text-gray-200">
+              <div className="font-medium mb-0.5">Discovery sweep complete</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                {discoverResult.recorder.available ? (
+                  <div>
+                    Recorder: scanned {discoverResult.recorder.scanned}, {discoverResult.recorder.potentials} new potential,{" "}
+                    {discoverResult.recorder.attached} attached to existing deals.
+                  </div>
+                ) : (
+                  <div className="italic">Recorder not connected — skipped.</div>
+                )}
+                {discoverResult.calendar.available ? (
+                  <div>
+                    Calendar (30d): scanned {discoverResult.calendar.scanned}, {discoverResult.calendar.potentials} new potential,{" "}
+                    {discoverResult.calendar.attached} attached to existing deals.
+                  </div>
+                ) : (
+                  <div className="italic">Calendar not connected — skipped.</div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setDiscoverResult(null)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative mb-4">
