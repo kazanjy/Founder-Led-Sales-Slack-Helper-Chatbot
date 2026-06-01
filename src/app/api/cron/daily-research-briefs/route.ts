@@ -80,10 +80,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Select any user who has connected Google Calendar and is not
+  // opted out. Default mode is "all_external" so users without any
+  // explicit setting still get briefs for every external meeting.
   const users = await prisma.user.findMany({
     where: {
-      recurringResearchPatterns: { some: { enabled: true } },
       googleRefreshToken: { not: null },
+      OR: [
+        { preCallResearchMode: { not: "off" } },
+        { preCallResearchMode: null }, // null = treat as default (all_external)
+      ],
     },
     select: { id: true, accountId: true, email: true, slackEmail: true },
   });
@@ -121,6 +127,11 @@ async function processUser(userId: string): Promise<{
       email: true,
       slackEmail: true,
       workspaceId: true,
+      preCallResearchMode: true,
+      preCallResearchDestination: true,
+      preCallResearchMutedDomains: true,
+      preferredResearchSlackChannelId: true,
+      preferredResearchSlackChannelName: true,
     },
   });
   if (!tokenRow?.googleRefreshToken || !hasGoogleCalendarScope(tokenRow.googleScopes)) {
@@ -128,13 +139,30 @@ async function processUser(userId: string): Promise<{
   }
   if (!tokenRow.workspaceId) return out;
 
+  const mode = (tokenRow.preCallResearchMode || "all_external") as
+    | "all_external"
+    | "title_match"
+    | "off";
+  if (mode === "off") return out;
+
   const accessToken = await getGoogleAccessToken(userId);
   if (!accessToken) return out;
 
-  const patterns = await prisma.recurringResearchPattern.findMany({
-    where: { userId, enabled: true },
-  });
-  if (patterns.length === 0) return out;
+  const patterns = mode === "title_match"
+    ? await prisma.recurringResearchPattern.findMany({
+        where: { userId, enabled: true },
+      })
+    : [];
+  // In title_match mode without any patterns there's nothing to do.
+  if (mode === "title_match" && patterns.length === 0) return out;
+
+  // Default destination + channel for all_external mode. Falls back
+  // to user's saved preferred channel if destination = "channel".
+  const defaultDestination = (tokenRow.preCallResearchDestination || "dm") as "dm" | "channel";
+  const defaultChannelId = tokenRow.preferredResearchSlackChannelId;
+  const mutedDomains = new Set(
+    (tokenRow.preCallResearchMutedDomains || []).map((d) => d.toLowerCase())
+  );
 
   // Determine the user's "self" email domain for filtering internal
   // attendees. Account.emailDomain wins, then user email, then
@@ -192,17 +220,34 @@ async function processUser(userId: string): Promise<{
     });
     if (externalAttendees.length === 0) continue;
 
-    // Find which (if any) pattern matches this event title.
-    const titleLower = ev.summary.toLowerCase();
-    const matched = patterns.find((p) =>
-      titleLower.includes(p.titlePattern.toLowerCase())
-    );
-    if (!matched) continue;
+    // Pick the rule to brief under. title_match → find a pattern
+    // whose substring is in the event title. all_external → brief
+    // every external event (no pattern needed).
+    let matchedPatternId: string | null = null;
+    let destination: "dm" | "channel" = defaultDestination;
+    let channelId: string | null = defaultChannelId || null;
+
+    if (mode === "title_match") {
+      const titleLower = ev.summary.toLowerCase();
+      const matched = patterns.find((p) =>
+        titleLower.includes(p.titlePattern.toLowerCase())
+      );
+      if (!matched) continue;
+      matchedPatternId = matched.id;
+      destination = matched.destination as "dm" | "channel";
+      channelId = matched.channelId;
+    } else {
+      // all_external: skip if any external attendee's domain is muted.
+      const eventDomains = externalAttendees
+        .map((a) => domainFromEmail(a.email))
+        .filter((d): d is string => !!d);
+      if (eventDomains.some((d) => mutedDomains.has(d))) continue;
+    }
     out.matched++;
 
-    // Skip if we've already processed this (pattern, event) combo.
+    // Skip if we've already processed this event for this user.
     const existing = await prisma.recurringResearchRun.findUnique({
-      where: { patternId_calendarEventId: { patternId: matched.id, calendarEventId: ev.id } },
+      where: { userId_calendarEventId: { userId, calendarEventId: ev.id } },
     });
     if (existing) {
       out.skipped++;
@@ -264,8 +309,8 @@ async function processUser(userId: string): Promise<{
     if (!companyName && !contactName) {
       await postEnrichmentFailureNote({
         userId,
-        destination: matched.destination as "dm" | "channel",
-        channelId: matched.channelId,
+        destination,
+        channelId,
         eventTitle: ev.summary,
         eventStartsAt: ev.start.dateTime,
         reason: "We couldn't infer a company name or contact name from the meeting's external attendees.",
@@ -273,7 +318,7 @@ async function processUser(userId: string): Promise<{
       await prisma.recurringResearchRun.create({
         data: {
           userId,
-          patternId: matched.id,
+          patternId: matchedPatternId,
           calendarEventId: ev.id,
           status: "enrichment_failed",
           notes: "no_pdl_hit_no_company_no_name",
@@ -360,24 +405,26 @@ async function processUser(userId: string): Promise<{
           content: research.content,
           calendarEvent: research.calendarEvent,
         },
-        destination: matched.destination as "dm" | "channel",
-        channelId: matched.channelId,
+        destination,
+        channelId,
       });
 
       await prisma.recurringResearchRun.create({
         data: {
           userId,
-          patternId: matched.id,
+          patternId: matchedPatternId,
           calendarEventId: ev.id,
           status: post.ok ? "sent" : "post_failed",
           researchId: research.id,
           notes: post.ok ? null : ("error" in post ? post.error : null),
         },
       });
-      await prisma.recurringResearchPattern.update({
-        where: { id: matched.id },
-        data: { lastRunAt: new Date() },
-      });
+      if (matchedPatternId) {
+        await prisma.recurringResearchPattern.update({
+          where: { id: matchedPatternId },
+          data: { lastRunAt: new Date() },
+        });
+      }
 
       briefsThisRun++;
       if (post.ok) {
@@ -389,8 +436,8 @@ async function processUser(userId: string): Promise<{
       console.error(`[cron daily-briefs] Brief generation failed for ${userId} / event ${ev.id}:`, err);
       await postEnrichmentFailureNote({
         userId,
-        destination: matched.destination as "dm" | "channel",
-        channelId: matched.channelId,
+        destination,
+        channelId,
         eventTitle: ev.summary,
         eventStartsAt: ev.start.dateTime,
         reason: `Research generation failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -398,7 +445,7 @@ async function processUser(userId: string): Promise<{
       await prisma.recurringResearchRun.create({
         data: {
           userId,
-          patternId: matched.id,
+          patternId: matchedPatternId,
           calendarEventId: ev.id,
           status: "brief_failed",
           notes: err instanceof Error ? err.message : String(err),

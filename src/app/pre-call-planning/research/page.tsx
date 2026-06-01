@@ -1491,14 +1491,35 @@ function RecurringResearchPatternsPanel({
   const [newChannelName, setNewChannelName] = useState<string>(preferredChannelName || "");
   const [submitting, setSubmitting] = useState(false);
 
+  // Top-level mode controls which proactive-brief flavor is active.
+  // Defaults to all_external for new users; existing users with
+  // patterns get migrated to title_match by the schema migration.
+  const [mode, setMode] = useState<"all_external" | "title_match" | "off">("all_external");
+  const [defaultDestination, setDefaultDestination] = useState<"dm" | "channel">("dm");
+  const [mutedDomains, setMutedDomains] = useState<string[]>([]);
+  const [newMutedDomain, setNewMutedDomain] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/recurring-research-patterns");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setPatterns(data.patterns || []);
+        const [pRes, sRes] = await Promise.all([
+          fetch("/api/recurring-research-patterns"),
+          fetch("/api/pre-call-research/settings"),
+        ]);
+        if (pRes.ok) {
+          const data = await pRes.json();
+          if (!cancelled) setPatterns(data.patterns || []);
+        }
+        if (sRes.ok) {
+          const settings = await sRes.json();
+          if (!cancelled) {
+            setMode(settings.mode || "all_external");
+            setDefaultDestination(settings.destination || "dm");
+            setMutedDomains(settings.mutedDomains || []);
+          }
+        }
       } catch (err) {
         console.error("[recurring] load failed:", err);
       } finally {
@@ -1509,6 +1530,51 @@ function RecurringResearchPatternsPanel({
       cancelled = true;
     };
   }, []);
+
+  const persistSettings = async (patch: {
+    mode?: "all_external" | "title_match" | "off";
+    destination?: "dm" | "channel";
+    mutedDomains?: string[];
+  }) => {
+    setSavingSettings(true);
+    try {
+      await fetch("/api/pre-call-research/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch (err) {
+      console.error("[recurring] settings save failed:", err);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleModeChange = (next: "all_external" | "title_match" | "off") => {
+    setMode(next);
+    persistSettings({ mode: next });
+  };
+  const handleDestinationChange = (next: "dm" | "channel") => {
+    setDefaultDestination(next);
+    persistSettings({ destination: next });
+  };
+  const handleAddMutedDomain = () => {
+    const domain = newMutedDomain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    if (!domain) return;
+    if (mutedDomains.includes(domain)) {
+      setNewMutedDomain("");
+      return;
+    }
+    const next = [...mutedDomains, domain];
+    setMutedDomains(next);
+    setNewMutedDomain("");
+    persistSettings({ mutedDomains: next });
+  };
+  const handleRemoveMutedDomain = (domain: string) => {
+    const next = mutedDomains.filter((d) => d !== domain);
+    setMutedDomains(next);
+    persistSettings({ mutedDomains: next });
+  };
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -1585,7 +1651,7 @@ function RecurringResearchPatternsPanel({
           </svg>
           Auto-broadcast briefs
         </h2>
-        {!adding && (
+        {mode === "title_match" && !adding && (
           <button
             onClick={() => {
               setAdding(true);
@@ -1598,16 +1664,131 @@ function RecurringResearchPatternsPanel({
         )}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-        Match calendar event titles. We&apos;ll research matching meetings each morning and post the brief to Slack.
+        We&apos;ll research your meetings each morning and post the brief to Slack.
       </p>
 
-      {loaded && patterns.length === 0 && !adding && (
+      {/* Mode selector — controls which calendar events get briefed. */}
+      <div className="mb-4 space-y-2">
+        <ModeRadio
+          name="precall-mode"
+          value="all_external"
+          current={mode}
+          onChange={handleModeChange}
+          label="All external meetings"
+          help="Brief every meeting with at least one attendee outside your domain."
+          disabled={savingSettings}
+        />
+        <ModeRadio
+          name="precall-mode"
+          value="title_match"
+          current={mode}
+          onChange={handleModeChange}
+          label="Specific meeting titles"
+          help="Only meetings whose title matches a saved pattern below."
+          disabled={savingSettings}
+        />
+        <ModeRadio
+          name="precall-mode"
+          value="off"
+          current={mode}
+          onChange={handleModeChange}
+          label="Off"
+          help="Don't auto-broadcast briefs."
+          disabled={savingSettings}
+        />
+      </div>
+
+      {/* all_external mode: destination toggle + muted-domains list. */}
+      {mode === "all_external" && (
+        <div className="mb-4 p-3 rounded-md border border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-900/10 space-y-3">
+          <div>
+            <div className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Post briefs to:</div>
+            <div className="flex gap-3 text-xs">
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="precall-default-dest"
+                  checked={defaultDestination === "dm"}
+                  onChange={() => handleDestinationChange("dm")}
+                  disabled={!hasSlackDm || savingSettings}
+                />
+                MikeyBot DM
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="precall-default-dest"
+                  checked={defaultDestination === "channel"}
+                  onChange={() => handleDestinationChange("channel")}
+                  disabled={!preferredChannelId || savingSettings}
+                />
+                {preferredChannelName ? `#${preferredChannelName}` : "Your saved channel"}
+              </label>
+            </div>
+            {!preferredChannelId && defaultDestination === "dm" && (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                Save a Slack channel from any brief&apos;s &ldquo;Send to channel&rdquo; menu to enable channel posting.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <div className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">Muted domains</div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+              Meetings with attendees from these domains get skipped (e.g. your investors or vendors).
+            </p>
+            {mutedDomains.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {mutedDomains.map((d) => (
+                  <span
+                    key={d}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                  >
+                    {d}
+                    <button
+                      onClick={() => handleRemoveMutedDomain(d)}
+                      className="text-gray-400 hover:text-red-500"
+                      aria-label={`Remove ${d}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMutedDomain}
+                onChange={(e) => setNewMutedDomain(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddMutedDomain();
+                  }
+                }}
+                placeholder="example.com"
+                className="flex-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+              <button
+                onClick={handleAddMutedDomain}
+                disabled={!newMutedDomain.trim() || savingSettings}
+                className="px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-300 hover:text-purple-700 disabled:opacity-50"
+              >
+                Mute
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loaded && mode === "title_match" && patterns.length === 0 && !adding && (
         <p className="text-xs text-gray-500 dark:text-gray-400 italic">
           No saved patterns yet.
         </p>
       )}
 
-      {patterns.length > 0 && (
+      {mode === "title_match" && patterns.length > 0 && (
         <ul className="space-y-2 mb-3">
           {patterns.map((p) => (
             <li
@@ -1646,7 +1827,7 @@ function RecurringResearchPatternsPanel({
         </ul>
       )}
 
-      {adding && (
+      {mode === "title_match" && adding && (
         <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
           <input
             type="text"
@@ -1726,5 +1907,41 @@ function RecurringResearchPatternsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function ModeRadio({
+  name,
+  value,
+  current,
+  onChange,
+  label,
+  help,
+  disabled,
+}: {
+  name: string;
+  value: "all_external" | "title_match" | "off";
+  current: "all_external" | "title_match" | "off";
+  onChange: (next: "all_external" | "title_match" | "off") => void;
+  label: string;
+  help: string;
+  disabled?: boolean;
+}) {
+  const checked = current === value;
+  return (
+    <label className="flex items-start gap-2 cursor-pointer">
+      <input
+        type="radio"
+        name={name}
+        checked={checked}
+        onChange={() => onChange(value)}
+        disabled={disabled}
+        className="mt-0.5 accent-purple-600"
+      />
+      <div>
+        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{label}</div>
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">{help}</div>
+      </div>
+    </label>
   );
 }

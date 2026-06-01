@@ -208,6 +208,16 @@ model User {
   // Activity tracking
   lastActiveAt DateTime?
 
+  // Proactive pre-call research settings. The daily cron uses these
+  // to decide whether to brief every external meeting on the user's
+  // calendar (all_external — default), only meetings whose titles
+  // match a saved RecurringResearchPattern (title_match), or to
+  // skip the user entirely (off). Destination + mutedDomains apply
+  // when mode = all_external.
+  preCallResearchMode          String?  @default("all_external") // "all_external" | "title_match" | "off"
+  preCallResearchDestination   String?  @default("dm")            // "dm" | "channel"
+  preCallResearchMutedDomains  String[] @default([])
+
   // Onboarding overlay state. Tracks per-step dismissal so the recorder →
   // calendar → narrative prompt sequence on /chat can be suppressed without
   // hiding the underlying integration widgets. Shape:
@@ -1138,19 +1148,21 @@ model RecurringResearchPattern {
   @@map("recurring_research_patterns")
 }
 
-// One row per (pattern, calendar event) the cron has already
-// processed so we never re-post the same brief on later runs.
+// One row per (user, calendar event) the cron has already processed
+// so we never re-post the same brief on later runs. patternId is
+// nullable to support "all external" mode where there's no
+// pattern driving the brief.
 model RecurringResearchRun {
   id              String   @id @default(cuid())
   userId          String
-  patternId       String
+  patternId       String?
   calendarEventId String
   status          String   // "sent" | "enrichment_failed" | "brief_failed" | "post_failed"
   researchId      String?
   notes           String?
   createdAt       DateTime @default(now())
 
-  @@unique([patternId, calendarEventId])
+  @@unique([userId, calendarEventId])
   @@index([userId, createdAt])
   @@map("recurring_research_runs")
 }
