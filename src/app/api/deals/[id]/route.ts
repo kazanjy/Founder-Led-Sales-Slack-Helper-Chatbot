@@ -90,6 +90,21 @@ export async function PATCH(
         updateData.closedLostReason = null;
       } else if (CLOSED_LOST_REASON_VALUES.has(v)) {
         updateData.closedLostReason = v;
+      } else if (user.accountId) {
+        // Also accept an account-defined custom reason slug.
+        const custom = await prisma.customClosedLostReason.findUnique({
+          where: { accountId_value: { accountId: user.accountId, value: v } },
+        });
+        if (custom && !custom.archived) {
+          updateData.closedLostReason = v;
+        } else if (custom && custom.archived) {
+          // Archived reasons should still be writable so existing
+          // deals can re-save their current value without flipping
+          // it. Just persist the slug.
+          updateData.closedLostReason = v;
+        } else {
+          return NextResponse.json({ error: "Invalid closedLostReason" }, { status: 400 });
+        }
       } else {
         return NextResponse.json({ error: "Invalid closedLostReason" }, { status: 400 });
       }

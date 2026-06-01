@@ -295,6 +295,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
+  const [customLostReasons, setCustomLostReasons] = useState<Array<{ id: string; value: string; label: string; order: number }>>([]);
+  const [showAddReason, setShowAddReason] = useState(false);
+  const [newReasonLabel, setNewReasonLabel] = useState("");
+  const [savingReason, setSavingReason] = useState(false);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
@@ -381,7 +385,50 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       .then((r) => (r.ok ? r.json() : { stages: [] }))
       .then((d) => setCustomStages(d.stages || []))
       .catch(() => { /* ignore */ });
+    // Same idea for account-level custom closed-lost reasons.
+    fetch("/api/deals/closed-lost-reasons")
+      .then((r) => (r.ok ? r.json() : { reasons: [] }))
+      .then((d) => setCustomLostReasons(d.reasons || []))
+      .catch(() => { /* ignore */ });
   }, [loadDeal]);
+
+  const addCustomLostReason = async () => {
+    const label = newReasonLabel.trim();
+    if (!label || savingReason) return;
+    setSavingReason(true);
+    try {
+      const res = await fetch("/api/deals/closed-lost-reasons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label }),
+      });
+      if (res.ok) {
+        const { reason } = await res.json();
+        setCustomLostReasons((prev) => [...prev, reason]);
+        setNewReasonLabel("");
+        setShowAddReason(false);
+        // Auto-pick the new value on the current deal so the user
+        // doesn't have to take a second action.
+        updateDeal({ closedLostReason: reason.value });
+      }
+    } finally {
+      setSavingReason(false);
+    }
+  };
+
+  const archiveCustomLostReason = async (id: string, value: string) => {
+    setCustomLostReasons((prev) => prev.filter((r) => r.id !== id));
+    // If the current deal was using the archived value, clear it so
+    // the picker doesn't keep showing a stale label.
+    if (deal?.closedLostReason === value) {
+      updateDeal({ closedLostReason: null });
+    }
+    try {
+      await fetch(`/api/deals/closed-lost-reasons/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("[deals] archive reason failed:", err);
+    }
+  };
 
   // Load the user's deal list for the top-of-page switcher. One fetch on
   // mount — small payload (summary fields only), used for typeahead jumping
@@ -1310,19 +1357,84 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               </label>
             )}
             {deal.status === "closed_lost" && (
-              <label className="flex items-center gap-1.5">
-                <span className="font-medium text-gray-500 dark:text-gray-400">Closed-lost reason:</span>
-                <select
-                  value={deal.closedLostReason || ""}
-                  onChange={(e) => updateDeal({ closedLostReason: e.target.value || null })}
-                  className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <label className="flex items-center gap-1.5">
+                  <span className="font-medium text-gray-500 dark:text-gray-400">Closed-lost reason:</span>
+                  <select
+                    value={deal.closedLostReason || ""}
+                    onChange={(e) => updateDeal({ closedLostReason: e.target.value || null })}
+                    className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+                  >
+                    <option value="">— pick a reason —</option>
+                    <optgroup label="Built-in">
+                      {CLOSED_LOST_REASONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </optgroup>
+                    {customLostReasons.length > 0 && (
+                      <optgroup label="Custom">
+                        {customLostReasons.map((r) => (
+                          <option key={r.id} value={r.value}>{r.label}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddReason((v) => !v)}
+                  className="text-[11px] text-purple-600 dark:text-purple-300 hover:underline"
                 >
-                  <option value="">— pick a reason —</option>
-                  {CLOSED_LOST_REASONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
-              </label>
+                  {showAddReason ? "Close" : "Manage…"}
+                </button>
+                {showAddReason && (
+                  <div className="basis-full mt-1 p-3 rounded-md border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20 space-y-2">
+                    {customLostReasons.length > 0 && (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Custom reasons</div>
+                        <ul className="space-y-1">
+                          {customLostReasons.map((r) => (
+                            <li key={r.id} className="flex items-center justify-between text-xs">
+                              <span className="text-gray-800 dark:text-gray-100">{r.label}</span>
+                              <button
+                                type="button"
+                                onClick={() => archiveCustomLostReason(r.id, r.value)}
+                                className="text-gray-400 hover:text-red-600"
+                                title="Archive — existing deals keep the label"
+                              >
+                                Archive
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newReasonLabel}
+                        onChange={(e) => setNewReasonLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomLostReason();
+                          }
+                        }}
+                        placeholder="e.g. Procurement, Legal, Lost to Incumbent…"
+                        className="flex-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomLostReason}
+                        disabled={!newReasonLabel.trim() || savingReason}
+                        className="px-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-300 hover:text-purple-700 disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

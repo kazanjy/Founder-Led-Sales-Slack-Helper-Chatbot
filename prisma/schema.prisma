@@ -20,6 +20,7 @@ model Account {
   salesReadinessItems SalesReadinessAccountItem[]
   salesAssets   SalesAsset[]
   customDealStages CustomDealStage[]
+  customClosedLostReasons CustomClosedLostReason[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2474,6 +2475,29 @@ model CustomDealStage {
   @@unique([accountId, value])
   @@index([accountId, archived])
   @@map("custom_deal_stages")
+}
+
+// Per-account custom closed-lost reasons. Built-in reasons (Unqualified,
+// Budget, Timing, Competition, etc.) live in src/lib/deals/constants.ts;
+// rows here let an account add or archive choices without a code change.
+// Archived rows stay in the DB so any Deal.closedLostReason already
+// pointing at the slug still displays after archive.
+model CustomClosedLostReason {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  value     String   // slug stored on Deal.closedLostReason
+  label     String   // display text
+  order     Int      @default(0)
+  archived  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, value])
+  @@index([accountId, archived])
+  @@map("custom_closed_lost_reasons")
 }
 
 // Bookkeeping for the hourly call-recorder scanner so we don't
