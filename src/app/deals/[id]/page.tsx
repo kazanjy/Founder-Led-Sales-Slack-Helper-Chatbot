@@ -55,6 +55,9 @@ interface Deal {
   notes: string | null;
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
+  projectedCloseDate: string | null;
+  closeDate: string | null;
+  closedLostReason: string | null;
   participants: Participant[];
   entries: TimelineEntry[];
   project: { id: string; name: string } | null;
@@ -1277,6 +1280,49 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 Delete
               </button>
             </div>
+          </div>
+
+          {/* Date + close-reason row. Projected close is always shown;
+              actual close date appears once the deal is in a terminal
+              state. Closed-lost reason only when status is closed_lost. */}
+          <div className="mt-3 flex items-center gap-4 flex-wrap text-xs text-gray-600 dark:text-gray-300">
+            <label className="flex items-center gap-1.5">
+              <span className="font-medium text-gray-500 dark:text-gray-400">Projected close:</span>
+              <input
+                type="date"
+                value={deal.projectedCloseDate ? deal.projectedCloseDate.split("T")[0] : ""}
+                onChange={(e) => updateDeal({ projectedCloseDate: e.target.value || null })}
+                className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+              />
+            </label>
+            {(deal.status === "closed_won" || deal.status === "closed_lost") && (
+              <label className="flex items-center gap-1.5">
+                <span className="font-medium text-gray-500 dark:text-gray-400">Close date:</span>
+                <input
+                  type="date"
+                  value={deal.closeDate ? deal.closeDate.split("T")[0] : ""}
+                  onChange={(e) => updateDeal({ closeDate: e.target.value || null })}
+                  className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+                />
+              </label>
+            )}
+            {deal.status === "closed_lost" && (
+              <label className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+                <span className="font-medium text-gray-500 dark:text-gray-400">Closed-lost reason:</span>
+                <input
+                  type="text"
+                  defaultValue={deal.closedLostReason || ""}
+                  onBlur={(e) => {
+                    const next = e.target.value.trim() || null;
+                    if (next !== (deal.closedLostReason || null)) {
+                      updateDeal({ closedLostReason: next });
+                    }
+                  }}
+                  placeholder="competitor / budget / no decision…"
+                  className="flex-1 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 placeholder:text-gray-400"
+                />
+              </label>
+            )}
           </div>
         </div>
 

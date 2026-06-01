@@ -2417,6 +2417,15 @@ model Deal {
   // "calendar" = spawned by the daily pre-call research cron.
   source String?
 
+  // Forward-looking sell-by date the rep sets when forecasting.
+  projectedCloseDate DateTime?
+  // Actual date the deal closed (won or lost). Set when the user
+  // flips status to closed_won / closed_lost.
+  closeDate          DateTime?
+  // Free-text reason captured when a deal is closed_lost (e.g.
+  // "competitor", "budget", "no decision"). Optional on close.
+  closedLostReason   String?    @db.Text
+
   notes String? @db.Text
 
   // Latest AI state assessment (JSON)

@@ -73,6 +73,28 @@ export async function PATCH(
     if (body.status !== undefined) updateData.status = body.status;
     if (body.notes !== undefined) updateData.notes = body.notes?.trim() || null;
     if (body.projectId !== undefined) updateData.projectId = body.projectId || null;
+    if (body.projectedCloseDate !== undefined) {
+      updateData.projectedCloseDate = body.projectedCloseDate
+        ? new Date(body.projectedCloseDate)
+        : null;
+    }
+    if (body.closeDate !== undefined) {
+      updateData.closeDate = body.closeDate ? new Date(body.closeDate) : null;
+    }
+    if (body.closedLostReason !== undefined) {
+      updateData.closedLostReason = body.closedLostReason?.trim() || null;
+    }
+
+    // Auto-stamp closeDate when status flips into a terminal closed
+    // state and the caller didn't pass one explicitly. Clear it if
+    // the deal reopens.
+    const nextStatus = body.status as string | undefined;
+    if (nextStatus !== undefined && body.closeDate === undefined) {
+      const becameClosed = nextStatus === "closed_won" || nextStatus === "closed_lost";
+      const wasClosed = exists.status === "closed_won" || exists.status === "closed_lost";
+      if (becameClosed && !wasClosed) updateData.closeDate = new Date();
+      if (!becameClosed && wasClosed) updateData.closeDate = null;
+    }
 
     const deal = await prisma.deal.update({ where: { id }, data: updateData });
 

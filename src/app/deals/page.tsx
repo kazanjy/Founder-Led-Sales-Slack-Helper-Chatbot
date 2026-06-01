@@ -52,7 +52,7 @@ function DealsPageContent() {
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>(() => searchParams.get("stage") || "all");
   // Account-scoped custom stages merged into the pipeline alongside
   // the built-in DEAL_STAGES.
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
@@ -81,8 +81,8 @@ function DealsPageContent() {
   const [editStageLabel, setEditStageLabel] = useState("");
   const [editStageColor, setEditStageColor] = useState("");
   const [editStageInsertAfter, setEditStageInsertAfter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("active");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "active");
+  const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -152,13 +152,42 @@ function DealsPageContent() {
     loadDeals();
   }, [loadDeals]);
 
+  // Sync filter state → URL so the back button, refresh, and sharing
+  // round-trip cleanly. Search query is debounced so each keystroke
+  // doesn't push a history entry. Filters that match the default
+  // value are omitted from the URL to keep it tidy.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (stageFilter !== "all") params.set("stage", stageFilter);
+      if (statusFilter !== "active") params.set("status", statusFilter);
+      const q = searchQuery.trim();
+      if (q) params.set("q", q);
+      const current = searchParams.toString();
+      // Preserve unrelated params (e.g. ?new=1) by stripping our keys
+      // from the existing search and merging.
+      const merged = new URLSearchParams(current);
+      ["stage", "status", "q"].forEach((k) => merged.delete(k));
+      for (const [k, v] of params) merged.set(k, v);
+      const target = merged.toString();
+      if (target !== current) {
+        router.replace(target ? `/deals?${target}` : "/deals", { scroll: false });
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [stageFilter, statusFilter, searchQuery, router, searchParams]);
+
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
   useEffect(() => {
     if (searchParams.get("new") === "1") {
       setShowNewDeal(true);
-      // Clean the URL so refreshes don't keep re-opening the modal.
-      router.replace("/deals");
+      // Clean the URL so refreshes don't keep re-opening the modal —
+      // but preserve any filter params the user already had set.
+      const merged = new URLSearchParams(searchParams.toString());
+      merged.delete("new");
+      const tail = merged.toString();
+      router.replace(tail ? `/deals?${tail}` : "/deals", { scroll: false });
     }
   }, [searchParams, router]);
 
