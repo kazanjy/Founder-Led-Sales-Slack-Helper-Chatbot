@@ -124,10 +124,31 @@ export async function POST(
     // Chat conversations, not new deal context, and their short "Started a
     // conversation: ..." content reads like engagement activity when fed to
     // the analyzer as timeline events.
+    const now = Date.now();
     const analyzableEntries = deal.entries.filter((e) => e.type !== "chat");
-    if (analyzableEntries.length > 0) {
-      sections.push("## Timeline");
-      for (const entry of analyzableEntries) {
+    const upcomingMeetings = analyzableEntries.filter(
+      (e) => e.type === "meeting" && new Date(e.entryDate).getTime() > now
+    );
+    const pastEntries = analyzableEntries.filter((e) => !upcomingMeetings.includes(e));
+
+    if (upcomingMeetings.length > 0) {
+      sections.push("## Upcoming Meetings (next 90 days)");
+      // Soonest first so the analyzer reads them in pipeline order.
+      const sortedUpcoming = [...upcomingMeetings].sort(
+        (a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
+      );
+      for (const entry of sortedUpcoming) {
+        const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+        sections.push(`### ${date}${entry.title ? `: ${entry.title}` : ""}`);
+        const content = entry.content.length > 800 ? entry.content.substring(0, 800) + "…" : entry.content;
+        sections.push(content);
+        sections.push("");
+      }
+    }
+
+    if (pastEntries.length > 0) {
+      sections.push("## Timeline (past)");
+      for (const entry of pastEntries) {
         const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
         sections.push(`### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`);
         // Keep summaries full but truncate long transcripts
@@ -205,8 +226,8 @@ For each participant, assess their likely role (champion, decision maker, blocke
 ## Suggested Stage
 Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`;
 
-    const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
-${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}
+    const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
+${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}${upcomingMeetings.length > 0 ? `\nThe deal has ${upcomingMeetings.length} upcoming meeting${upcomingMeetings.length === 1 ? "" : "s"} on the calendar. Treat them as committed pipeline — your "What's Next" / "Recommended Next Steps" should explicitly tee up what to prepare for, ask in, or follow up after those meetings. Flag in "Risks & Gaps" if the calendar is empty when it shouldn't be (e.g. a deal in proposal stage with no next meeting scheduled is a momentum risk).\n` : `\nThe deal has NO upcoming meetings on the calendar. Call this out as a momentum signal in "Risks & Gaps" if the deal is past the prospecting stage — a live deal with no scheduled next meeting is usually a problem.\n`}
 Your analysis MUST include these sections, in this exact order:
 
 ${sectionRequirements}

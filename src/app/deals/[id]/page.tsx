@@ -299,6 +299,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [showAddReason, setShowAddReason] = useState(false);
   const [newReasonLabel, setNewReasonLabel] = useState("");
   const [savingReason, setSavingReason] = useState(false);
+  const [refreshingUpcoming, setRefreshingUpcoming] = useState(false);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
@@ -413,6 +414,21 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       }
     } finally {
       setSavingReason(false);
+    }
+  };
+
+  const refreshUpcomingMeetings = async () => {
+    if (refreshingUpcoming) return;
+    setRefreshingUpcoming(true);
+    try {
+      // Hits the same comprehensive enrichment endpoint — pulls a
+      // fresh 30d back + 90d forward calendar window and dedupes.
+      const res = await fetch(`/api/deals/${id}/enrich`, { method: "POST" });
+      if (res.ok) await loadDeal();
+    } catch (err) {
+      console.error("[deals] upcoming refresh failed:", err);
+    } finally {
+      setRefreshingUpcoming(false);
     }
   };
 
@@ -1439,6 +1455,70 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
+        {/* Upcoming Meetings — calendar events in the next 90 days
+            for this deal's domain. Imported via enrichDeal during
+            validation and refreshable on demand. */}
+        {(() => {
+          const now = Date.now();
+          const upcoming = deal.entries
+            .filter((e) => e.type === "meeting" && new Date(e.entryDate).getTime() > now)
+            .sort((a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime());
+          return (
+            <div className="bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-xl p-4 mb-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-purple-900 dark:text-purple-200">
+                    📅 Upcoming Meetings ({upcoming.length})
+                  </span>
+                  <span className="text-xs text-gray-400">next 90 days</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshUpcomingMeetings}
+                  disabled={refreshingUpcoming}
+                  className="text-xs text-purple-600 dark:text-purple-300 hover:underline disabled:opacity-60"
+                >
+                  {refreshingUpcoming ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+              {upcoming.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                  No upcoming meetings detected on the calendar for this deal&rsquo;s domain. A live deal with no next meeting scheduled is usually a momentum risk.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {upcoming.map((e) => {
+                    const when = new Date(e.entryDate);
+                    const dateLabel = when.toLocaleDateString(undefined, {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+                    return (
+                      <li key={e.id} className="flex items-baseline gap-2 text-sm">
+                        <span className="text-xs text-purple-600 dark:text-purple-300 font-medium whitespace-nowrap">{dateLabel}</span>
+                        <span className="text-gray-800 dark:text-gray-100 truncate">{e.title || "Meeting"}</span>
+                        {e.sourceUrl && (
+                          <a
+                            href={e.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-blue-600 hover:underline flex-shrink-0"
+                          >
+                            open ↗
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Analysis panel */}
         {deal.lastAnalysis && (() => {
           const summaryBody = extractDealSummary(deal.lastAnalysis);
@@ -2060,7 +2140,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   return false;
                 };
 
+                const nowTs = Date.now();
                 const filteredEntries = deal.entries.filter((e) => {
+                  // Upcoming calendar meetings render in the dedicated
+                  // section above the analysis panel — don't double-list
+                  // them in the historical timeline.
+                  if (
+                    e.type === "meeting" &&
+                    new Date(e.entryDate).getTime() > nowTs
+                  ) {
+                    return false;
+                  }
                   if (hasTypeFilter && !timelineTypeFilter.has(e.type)) return false;
                   if (!entryMatchesQuery(e)) return false;
                   return true;

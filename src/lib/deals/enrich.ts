@@ -27,6 +27,7 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
 ]);
 
 const CALENDAR_LOOKBACK_DAYS = 30;
+const CALENDAR_LOOKAHEAD_DAYS = 90;
 const RECORDER_CALL_LIMIT = 50;
 const PDL_REENRICH_DAYS = 30;
 
@@ -122,7 +123,7 @@ async function enrichCalendar(opts: {
   if (!accessToken) return out;
 
   const timeMin = new Date(Date.now() - CALENDAR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  const timeMax = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const timeMax = new Date(Date.now() + CALENDAR_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
 
   // Use Calendar's free-text q=<domain> as a server-side filter to
   // narrow the result set, then validate attendee domains client-side
@@ -182,6 +183,8 @@ async function enrichCalendar(opts: {
       (ev.description ? `${ev.description.trim()}\n\n` : "") +
       (attendeeLine ? `**Attendees from ${opts.domain}:** ${attendeeLine}` : "");
 
+    const startDate = new Date(startIso);
+    const isUpcoming = startDate.getTime() > Date.now();
     await prisma.dealTimelineEntry.create({
       data: {
         dealId: opts.dealId,
@@ -189,11 +192,16 @@ async function enrichCalendar(opts: {
         title: ev.summary || "Calendar meeting",
         content: body || "(no description)",
         sourceUrl: ev.htmlLink || null,
-        entryDate: new Date(startIso),
+        entryDate: startDate,
         metadata: JSON.stringify({
           auto_imported: true,
           source: "calendar",
           calendarEventId: ev.id,
+          // Snapshot whether this was a future meeting at import time
+          // so re-runs after the date passes don't churn the flag.
+          // UI / analyzer still compare entryDate vs now() as the
+          // source of truth — this is just for telemetry.
+          futureAtImport: isUpcoming,
         }),
       },
     });
