@@ -687,12 +687,19 @@ function DealsPageContent() {
                       <button
                         onClick={async (e) => {
                           e.preventDefault();
-                          await fetch(`/api/deals/${deal.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: "active" }),
-                          });
-                          loadDeals();
+                          setDeals((prev) =>
+                            prev.map((d) => (d.id === deal.id ? { ...d, status: "active" } : d))
+                          );
+                          try {
+                            await fetch(`/api/deals/${deal.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: "active" }),
+                            });
+                          } catch (err) {
+                            console.error("[deals] validate failed:", err);
+                            loadDeals();
+                          }
                         }}
                         className="px-2.5 py-1 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-700"
                       >
@@ -701,12 +708,19 @@ function DealsPageContent() {
                       <button
                         onClick={async (e) => {
                           e.preventDefault();
-                          await fetch(`/api/deals/${deal.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ status: "dismissed" }),
-                          });
-                          loadDeals();
+                          setDeals((prev) =>
+                            prev.map((d) => (d.id === deal.id ? { ...d, status: "dismissed" } : d))
+                          );
+                          try {
+                            await fetch(`/api/deals/${deal.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: "dismissed" }),
+                            });
+                          } catch (err) {
+                            console.error("[deals] dismiss failed:", err);
+                            loadDeals();
+                          }
                         }}
                         className="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50"
                       >

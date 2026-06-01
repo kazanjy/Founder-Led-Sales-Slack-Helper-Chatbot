@@ -5,6 +5,7 @@ import {
   getSelfDomains,
 } from "@/lib/deals/auto-detect";
 import { scanUserRecordings, type ScanSummary } from "@/lib/deals/scan-recordings";
+import { postPotentialDealFromCalendarAlert } from "@/lib/pre-call/slack-broadcast";
 
 /**
  * Manual "Look for new deals" trigger. Runs both pipelines against
@@ -46,6 +47,10 @@ interface GCalEvent {
   attendees?: GCalAttendee[];
 }
 
+function eventStartIso(ev: GCalEvent): string {
+  return ev.start?.dateTime || ev.start?.date || new Date().toISOString();
+}
+
 export interface CalendarDiscoverySummary {
   available: boolean;
   scanned: number;
@@ -75,7 +80,12 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
 
   const tokenRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { googleRefreshToken: true, googleScopes: true },
+    select: {
+      googleRefreshToken: true,
+      googleScopes: true,
+      preCallResearchDestination: true,
+      preferredResearchSlackChannelId: true,
+    },
   });
   if (!tokenRow?.googleRefreshToken || !hasGoogleCalendarScope(tokenRow.googleScopes)) {
     return out;
@@ -83,6 +93,9 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
   const accessToken = await getGoogleAccessToken(userId);
   if (!accessToken) return out;
   out.available = true;
+
+  const destination = (tokenRow.preCallResearchDestination || "dm") as "dm" | "channel";
+  const channelId = tokenRow.preferredResearchSlackChannelId;
 
   const self = await getSelfDomains(userId);
 
@@ -137,9 +150,30 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
         source: "calendar",
         selfDomains: self,
       });
-      if (detection.kind === "created_potential") out.potentials++;
-      else if (detection.kind === "attached_existing") out.attached++;
-      else out.skipped++;
+      if (detection.kind === "created_potential" && detection.deal) {
+        out.potentials++;
+        // Mirror the daily cron: fire a Validate/Dismiss Slack alert
+        // anchored to the calendar event that triggered the spawn.
+        try {
+          await postPotentialDealFromCalendarAlert({
+            userId,
+            destination,
+            channelId,
+            deal: {
+              id: detection.deal.id,
+              companyName: detection.deal.companyName,
+            },
+            meetingTitle: ev.summary || "Upcoming meeting",
+            meetingStartsAt: eventStartIso(ev),
+          });
+        } catch (postErr) {
+          console.error(`[discover] Slack alert failed for ${primary}:`, postErr);
+        }
+      } else if (detection.kind === "attached_existing") {
+        out.attached++;
+      } else {
+        out.skipped++;
+      }
     } catch (err) {
       console.error(`[discover] calendar deal detection failed for ${primary}:`, err);
       out.errors++;
