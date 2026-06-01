@@ -15,6 +15,15 @@ const VALID_STAGES = [
 ] as const;
 type DealStage = (typeof VALID_STAGES)[number];
 
+const VALID_ROLES = new Set([
+  "champion",
+  "decision_maker",
+  "influencer",
+  "blocker",
+  "end_user",
+  "unknown",
+]);
+
 // Pulls "SUGGESTED_STAGE: <stage>" out of the analysis text. Returns the
 // matched stage (if recognized) and the analysis with the marker line removed.
 function extractSuggestedStage(text: string): { stage: DealStage | null; cleaned: string } {
@@ -24,6 +33,40 @@ function extractSuggestedStage(text: string): { stage: DealStage | null; cleaned
   const stage = (VALID_STAGES as readonly string[]).includes(candidate) ? (candidate as DealStage) : null;
   const cleaned = text.replace(match[0], "").replace(/\n{3,}$/, "\n\n").trimEnd();
   return { stage, cleaned };
+}
+
+/**
+ * Pulls a PARTICIPANT_ROLES block out of the analysis text. Format:
+ *
+ *   PARTICIPANT_ROLES_START
+ *   <participantId>: <role>
+ *   <participantId>: <role>
+ *   PARTICIPANT_ROLES_END
+ *
+ * Returns a {participantId -> role} map for whatever it could parse,
+ * plus the analysis text with the block removed so it doesn't pollute
+ * the user-facing markdown.
+ */
+function extractParticipantRoles(text: string): {
+  roles: Map<string, string>;
+  cleaned: string;
+} {
+  const roles = new Map<string, string>();
+  const blockMatch = text.match(/PARTICIPANT_ROLES_START\s*([\s\S]*?)\s*PARTICIPANT_ROLES_END/i);
+  if (!blockMatch) return { roles, cleaned: text };
+  const body = blockMatch[1];
+  for (const rawLine of body.split("\n")) {
+    const line = rawLine.trim().replace(/^[-*]\s*/, "");
+    if (!line) continue;
+    const m = line.match(/^([A-Za-z0-9_-]+)\s*[:|]\s*([a-z_]+)\s*$/);
+    if (!m) continue;
+    const [, id, role] = m;
+    const normalized = role.toLowerCase();
+    if (!VALID_ROLES.has(normalized) || normalized === "unknown") continue;
+    roles.set(id, normalized);
+  }
+  const cleaned = text.replace(blockMatch[0], "").replace(/\n{3,}$/, "\n\n").trimEnd();
+  return { roles, cleaned };
 }
 
 export async function POST(
@@ -60,11 +103,13 @@ export async function POST(
     if (deal.notes) sections.push(`Notes: ${deal.notes}`);
     sections.push("");
 
-    // Participants
+    // Participants. Include the DB id so the LLM can emit a
+    // machine-parseable PARTICIPANT_ROLES block at the end keyed by
+    // these ids — saves us a fuzzy name match on the way back in.
     if (deal.participants.length > 0) {
       sections.push("## Participants");
       for (const p of deal.participants) {
-        const parts = [`- **${p.name}**`];
+        const parts = [`- [id:${p.id}] **${p.name}**`];
         if (p.title) parts.push(`(${p.title})`);
         if (p.company) parts.push(`@ ${p.company}`);
         if (p.role && p.role !== "unknown") parts.push(`— Role: ${p.role}`);
@@ -168,8 +213,19 @@ ${sectionRequirements}
 
 Be direct and specific. Reference actual conversations and participants by name. Don't hedge or use generic advice.
 
-After the markdown analysis above, output ONE final line in this exact format so it can be machine-parsed:
+After the markdown analysis above, output a machine-parseable footer in this EXACT format (no other text after it):
+
+PARTICIPANT_ROLES_START
+<participantId>: <role>
+<participantId>: <role>
+PARTICIPANT_ROLES_END
 SUGGESTED_STAGE: <stage>
+
+Rules for PARTICIPANT_ROLES:
+- Use the [id:...] value from the Participants section above as <participantId>.
+- <role> must be exactly one of: champion, decision_maker, influencer, blocker, end_user.
+- Only emit a line for a participant if the evidence in the timeline genuinely supports the role. Skip participants you can't confidently classify (don't emit "unknown").
+- If the participant works for the SELLER (the founder's own company), skip them entirely.
 
 <stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.`;
 
@@ -191,7 +247,8 @@ SUGGESTED_STAGE: <stage>
     });
 
     const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
-    const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(rawAnalysis);
+    const { roles: suggestedRoles, cleaned: afterRoles } = extractParticipantRoles(rawAnalysis);
+    const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(afterRoles);
 
     // Only overwrite stage if GPT returned a recognized one AND the deal isn't already closed.
     const shouldUpdateStage =
@@ -199,6 +256,22 @@ SUGGESTED_STAGE: <stage>
       suggestedStage !== deal.stage &&
       deal.status !== "closed_won" &&
       deal.status !== "closed_lost";
+
+    // Apply suggested participant roles, but only to participants
+    // whose current role is still "unknown" — we don't want to
+    // overwrite a label the user has manually set. Validate the
+    // participantId belongs to this deal so the LLM can't poison
+    // unrelated rows.
+    const dealParticipantIds = new Set(deal.participants.map((p) => p.id));
+    const unknownById = new Map(
+      deal.participants.filter((p) => p.role === "unknown").map((p) => [p.id, p])
+    );
+    const roleUpdates: Array<{ id: string; role: string }> = [];
+    for (const [pid, role] of suggestedRoles) {
+      if (!dealParticipantIds.has(pid)) continue;
+      if (!unknownById.has(pid)) continue;
+      roleUpdates.push({ id: pid, role });
+    }
 
     const [updated, history] = await prisma.$transaction([
       prisma.deal.update({
@@ -220,12 +293,19 @@ SUGGESTED_STAGE: <stage>
         },
         select: { id: true, createdAt: true },
       }),
+      ...roleUpdates.map((u) =>
+        prisma.dealParticipant.update({
+          where: { id: u.id },
+          data: { role: u.role },
+        })
+      ),
     ]);
 
     return NextResponse.json({
       analysis,
       stage: updated.stage,
       stageUpdated: shouldUpdateStage,
+      rolesUpdated: roleUpdates.length,
       lastAnalyzedAt: updated.lastAnalyzedAt,
       historyId: history.id,
     });

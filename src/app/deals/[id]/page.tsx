@@ -908,6 +908,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         );
         // Invalidate cached history so the next open re-fetches with the new run.
         setAnalysisHistory(null);
+        // If the analyzer applied role guesses to any participants,
+        // reload so the chips reflect the new assignments.
+        if (data.rolesUpdated > 0) loadDeal();
         if (!silent) setShowAnalysis(true);
         if (scrollToResult) {
           // Expand first so the scroll target is rendered, then scroll on the
