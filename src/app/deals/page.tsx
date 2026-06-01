@@ -175,6 +175,15 @@ function DealsPageContent() {
       const summary = await res.json();
       setDiscoverResult(summary);
       await loadDeals();
+      // If the sweep created any Potentials, flip the status filter to
+      // "potential" so they appear right away — otherwise newly-created
+      // dashed-purple cards stay hidden behind the default "active"
+      // filter and the discovery looks like a no-op.
+      const newPotentials =
+        (summary?.recorder?.potentials || 0) + (summary?.calendar?.potentials || 0);
+      if (newPotentials > 0) {
+        setStatusFilter("potential");
+      }
     } catch (err) {
       console.error("[deals] discover error", err);
     } finally {
@@ -364,6 +373,11 @@ function DealsPageContent() {
                   </div>
                 ) : (
                   <div className="italic">Calendar not connected — skipped.</div>
+                )}
+                {(discoverResult.recorder.potentials + discoverResult.calendar.potentials) > 0 && (
+                  <div className="mt-1 text-purple-700 dark:text-purple-300">
+                    Showing the new ones under the <strong>Potential</strong> status filter — Validate or Dismiss to clear.
+                  </div>
                 )}
               </div>
             </div>
