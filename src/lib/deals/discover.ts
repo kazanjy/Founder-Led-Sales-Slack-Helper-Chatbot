@@ -66,6 +66,7 @@ export interface DiscoverDealsSummary {
 }
 
 const CALENDAR_LOOKBACK_DAYS = 30;
+const CALENDAR_LOOKAHEAD_DAYS = 7;
 const CALENDAR_MAX_EVENTS = 250;
 
 async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummary> {
@@ -100,7 +101,7 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
   const self = await getSelfDomains(userId);
 
   const timeMin = new Date(Date.now() - CALENDAR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  const timeMax = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const timeMax = new Date(Date.now() + CALENDAR_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
 
   const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
   url.searchParams.set("timeMin", timeMin.toISOString());

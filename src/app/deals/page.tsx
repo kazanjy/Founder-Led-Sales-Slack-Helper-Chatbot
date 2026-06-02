@@ -503,7 +503,7 @@ function DealsPageContent() {
                 )}
                 {discoverResult.calendar.available ? (
                   <div>
-                    Calendar (30d): scanned {discoverResult.calendar.scanned}, {discoverResult.calendar.potentials} new potential,{" "}
+                    Calendar (30d back, 7d forward): scanned {discoverResult.calendar.scanned}, {discoverResult.calendar.potentials} new potential,{" "}
                     {discoverResult.calendar.attached} attached to existing deals.
                     {discoverResult.calendar.errors > 0 && (
                       <span className="text-red-600 dark:text-red-400"> · {discoverResult.calendar.errors} error{discoverResult.calendar.errors === 1 ? "" : "s"}</span>
