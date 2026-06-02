@@ -2430,6 +2430,11 @@ model Deal {
   // deals are sized later in the cycle. Used for sort + filtering
   // on /deals and (eventually) pipeline value aggregations.
   dealValue          Int?
+  // Holistic deal-health rating produced by the analyzer
+  // ("poor" | "fair" | "good" | "excellent"). null when never
+  // analyzed. Shown as the "Mikey Health" pill on /deals and the
+  // detail page.
+  mikeyHealth        String?
 
   notes String? @db.Text
 

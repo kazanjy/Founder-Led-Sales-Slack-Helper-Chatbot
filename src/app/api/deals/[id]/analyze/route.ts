@@ -24,6 +24,17 @@ const VALID_ROLES = new Set([
   "unknown",
 ]);
 
+const VALID_HEALTH = new Set(["poor", "fair", "good", "excellent"]);
+
+function extractMikeyHealth(text: string): { health: string | null; cleaned: string } {
+  const match = text.match(/^\s*MIKEY_HEALTH:\s*([a-z]+)\s*$/im);
+  if (!match) return { health: null, cleaned: text };
+  const candidate = match[1].trim().toLowerCase();
+  const health = VALID_HEALTH.has(candidate) ? candidate : null;
+  const cleaned = text.replace(match[0], "").replace(/\n{3,}$/, "\n\n").trimEnd();
+  return { health, cleaned };
+}
+
 // Pulls "SUGGESTED_STAGE: <stage>" out of the analysis text. Returns the
 // matched stage (if recognized) and the analysis with the marker line removed.
 function extractSuggestedStage(text: string): { stage: DealStage | null; cleaned: string } {
@@ -236,7 +247,10 @@ What could derail this deal — missing stakeholders, stalled momentum, unaddres
 For each participant, assess their likely role (champion, decision maker, blocker, influencer) and engagement level based on the evidence.
 
 ## Suggested Stage
-Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`
+Based on the evidence, recommend what pipeline stage this deal should be in and explain why.
+
+## Mikey Health
+A single-line overall verdict: Excellent / Good / Fair / Poor + one sentence justifying it. This must match the MIKEY_HEALTH footer below and reflect the same evidence cited in Strengths and Risks & Gaps.`
       : `## Deal Summary
 A 2-3 sentence overview of where this deal stands.
 
@@ -253,7 +267,10 @@ For each participant, assess their likely role (champion, decision maker, blocke
 3-5 specific, actionable next steps ranked by priority. Be concrete — name specific people, topics, and timelines.
 
 ## Suggested Stage
-Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`;
+Based on the evidence, recommend what pipeline stage this deal should be in and explain why.
+
+## Mikey Health
+A single-line overall verdict: Excellent / Good / Fair / Poor + one sentence justifying it. This must match the MIKEY_HEALTH footer below and reflect the same evidence cited in Strengths and Risks & Gaps.`;
 
     const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}${stageChanges.length > 0 ? "stage history with time-in-stage durations, " : ""}and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
 ${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}${upcomingMeetings.length > 0 ? `\nThe deal has ${upcomingMeetings.length} upcoming meeting${upcomingMeetings.length === 1 ? "" : "s"} on the calendar. Treat them as committed pipeline — your "What's Next" / "Recommended Next Steps" should explicitly tee up what to prepare for, ask in, or follow up after those meetings. Flag in "Risks & Gaps" if the calendar is empty when it shouldn't be (e.g. a deal in proposal stage with no next meeting scheduled is a momentum risk).\n` : `\nThe deal has NO upcoming meetings on the calendar. Call this out as a momentum signal in "Risks & Gaps" if the deal is past the prospecting stage — a live deal with no scheduled next meeting is usually a problem.\n`}${stageChanges.length > 0 ? `\nThe Stage History section shows each pipeline transition with how long the deal sat in each stage. Use these durations to assess velocity in "Risks & Gaps" — long dwells in a single stage (especially Discovery, Proposal, or Negotiation) are a stall signal; quick transitions can be a positive momentum signal.\n` : ""}
@@ -270,6 +287,7 @@ PARTICIPANT_ROLES_START
 <participantId>: <role>
 PARTICIPANT_ROLES_END
 SUGGESTED_STAGE: <stage>
+MIKEY_HEALTH: <health>
 
 Rules for PARTICIPANT_ROLES:
 - Use the [id:...] value from the Participants section above as <participantId>.
@@ -277,7 +295,14 @@ Rules for PARTICIPANT_ROLES:
 - Only emit a line for a participant if the evidence in the timeline genuinely supports the role. Skip participants you can't confidently classify (don't emit "unknown").
 - If the participant works for the SELLER (the founder's own company), skip them entirely.
 
-<stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.`;
+<stage> must be exactly one of: prospecting, discovery, demo, proposal, negotiation, closing, won, lost.
+
+Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be one of: excellent, good, fair, poor):
+- excellent: champion identified + decision maker engaged + upcoming meeting on the calendar + strong recent activity + no major risks. The deal is moving and you'd bet on it closing.
+- good: solid stakeholder coverage, healthy engagement, momentum is positive, minor risks but nothing alarming. You're not worried.
+- fair: at least one meaningful risk (stalled momentum, missing decision-maker, long dwell in current stage, no upcoming meeting on an active deal). Recoverable but needs attention this week.
+- poor: multiple risks compounding (champion silent, no upcoming meeting AND long dwell, lost competitor signal, key stakeholder churned, etc.). This deal is in trouble.
+- Anchor the rating in the SAME evidence you cited in Strengths and Risks & Gaps — don't grade easier than the prose suggests.`;
 
     // Send to GPT for analysis
     const response = await openai.chat.completions.create({
@@ -298,7 +323,8 @@ Rules for PARTICIPANT_ROLES:
 
     const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
     const { roles: suggestedRoles, cleaned: afterRoles } = extractParticipantRoles(rawAnalysis);
-    const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(afterRoles);
+    const { health: suggestedHealth, cleaned: afterHealth } = extractMikeyHealth(afterRoles);
+    const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(afterHealth);
 
     // Only overwrite stage if GPT returned a recognized one AND the deal isn't already closed.
     const shouldUpdateStage =
@@ -330,6 +356,7 @@ Rules for PARTICIPANT_ROLES:
           lastAnalysis: analysis,
           lastAnalyzedAt: new Date(),
           ...(shouldUpdateStage ? { stage: suggestedStage } : {}),
+          ...(suggestedHealth ? { mikeyHealth: suggestedHealth } : {}),
         },
         select: { stage: true, lastAnalyzedAt: true },
       }),
@@ -378,6 +405,7 @@ Rules for PARTICIPANT_ROLES:
       stage: updated.stage,
       stageUpdated: shouldUpdateStage,
       rolesUpdated: roleUpdates.length,
+      mikeyHealth: suggestedHealth || null,
       lastAnalyzedAt: updated.lastAnalyzedAt,
       historyId: history.id,
     });

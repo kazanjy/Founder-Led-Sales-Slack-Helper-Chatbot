@@ -8,7 +8,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { VoiceNoteButton } from "@/components/VoiceNoteButton";
 import DealChatPanel from "@/components/DealChatPanel";
-import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo } from "@/lib/deals/constants";
+import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Participant {
@@ -57,6 +57,7 @@ interface Deal {
   lastAnalyzedAt: string | null;
   projectedCloseDate: string | null;
   dealValue: number | null;
+  mikeyHealth: string | null;
   closeDate: string | null;
   closedLostReason: string | null;
   participants: Participant[];
@@ -967,6 +968,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 lastAnalysis: data.analysis,
                 lastAnalyzedAt: data.lastAnalyzedAt ?? new Date().toISOString(),
                 stage: data.stage ?? prev.stage,
+                mikeyHealth: data.mikeyHealth ?? prev.mikeyHealth,
               }
             : prev,
         );
@@ -1321,6 +1323,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               >
                 {DEAL_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
+              {(() => {
+                const h = getHealthInfo(deal.mikeyHealth);
+                if (!h) return null;
+                return (
+                  <span
+                    className={`text-xs font-medium rounded-full px-2.5 py-1 ${h.color}`}
+                    title="Mikey Health — set on last deal analysis"
+                  >
+                    {h.emoji} Mikey Health: {h.label}
+                  </span>
+                );
+              })()}
               <button
                 onClick={() => analyzeDeal()}
                 disabled={analyzing || deal.entries.length === 0}

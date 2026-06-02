@@ -6,7 +6,7 @@ import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
-import { DEAL_STAGES, DEAL_STATUSES, getStatusInfo } from "@/lib/deals/constants";
+import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Deal {
@@ -23,6 +23,7 @@ interface Deal {
   lastActivityAt: string | null;
   nextMeetingAt: string | null;
   dealValue: number | null;
+  mikeyHealth: string | null;
   projectedCloseDate: string | null;
   _count: { entries: number; participants: number };
 }
@@ -106,6 +107,9 @@ function DealsPageContent() {
   const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
   const [sortBy, setSortBy] = useState<string>(() => searchParams.get("sort") || "recent");
   const [sortBy2, setSortBy2] = useState<string>(() => searchParams.get("sort2") || "none");
+  const [healthFilter, setHealthFilter] = useState<string>(() => searchParams.get("health") || "all");
+  const [meetingFilter, setMeetingFilter] = useState<string>(() => searchParams.get("meeting") || "all");
+  const [activityFilter, setActivityFilter] = useState<string>(() => searchParams.get("activity") || "all");
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -186,13 +190,16 @@ function DealsPageContent() {
       if (statusFilter !== "active") params.set("status", statusFilter);
       if (sortBy !== "recent") params.set("sort", sortBy);
       if (sortBy2 !== "none") params.set("sort2", sortBy2);
+      if (healthFilter !== "all") params.set("health", healthFilter);
+      if (meetingFilter !== "all") params.set("meeting", meetingFilter);
+      if (activityFilter !== "all") params.set("activity", activityFilter);
       const q = searchQuery.trim();
       if (q) params.set("q", q);
       const current = searchParams.toString();
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
       const merged = new URLSearchParams(current);
-      ["stage", "status", "q", "sort", "sort2"].forEach((k) => merged.delete(k));
+      ["stage", "status", "q", "sort", "sort2", "health", "meeting", "activity"].forEach((k) => merged.delete(k));
       for (const [k, v] of params) merged.set(k, v);
       const target = merged.toString();
       if (target !== current) {
@@ -200,7 +207,7 @@ function DealsPageContent() {
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, router, searchParams]);
+  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, healthFilter, meetingFilter, activityFilter, router, searchParams]);
 
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
@@ -380,12 +387,40 @@ function DealsPageContent() {
   };
 
   const filteredDeals = (() => {
+    const now = Date.now();
+    const dayMs = 86_400_000;
     const filtered = deals.filter((d) => {
       if (stageFilter !== "all" && d.stage !== stageFilter) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
       const q = searchQuery.trim().toLowerCase();
       if (q && !d.name.toLowerCase().includes(q) && !d.companyName.toLowerCase().includes(q)) {
         return false;
+      }
+      if (healthFilter !== "all") {
+        if (healthFilter === "unrated" ? !!d.mikeyHealth : d.mikeyHealth !== healthFilter) {
+          return false;
+        }
+      }
+      if (meetingFilter !== "all") {
+        const has = !!d.nextMeetingAt;
+        if (meetingFilter === "with" && !has) return false;
+        if (meetingFilter === "without" && has) return false;
+        if (meetingFilter === "this_week") {
+          if (!has) return false;
+          const diff = new Date(d.nextMeetingAt!).getTime() - now;
+          if (diff < 0 || diff > 7 * dayMs) return false;
+        }
+      }
+      if (activityFilter !== "all") {
+        const ts = d.lastActivityAt ? new Date(d.lastActivityAt).getTime() : null;
+        if (activityFilter === "stale_30" && ts !== null && now - ts < 30 * dayMs) return false;
+        if (activityFilter === "stale_30" && ts === null) {
+          // No activity ever — count as stale too.
+        }
+        if (activityFilter === "recent_7") {
+          if (ts === null || now - ts > 7 * dayMs) return false;
+        }
+        if (activityFilter === "never" && ts !== null) return false;
       }
       return true;
     });
@@ -804,6 +839,38 @@ function DealsPageContent() {
           ))}
         </div>
 
+        {/* Health / Meeting / Activity filters — sit alongside status
+            so the user can quickly slice by deal-momentum signals. */}
+        <div className="flex items-center gap-3 mb-6 flex-wrap text-sm">
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Health:</span>
+          <FilterPill active={healthFilter === "all"} onClick={() => setHealthFilter("all")}>All</FilterPill>
+          {MIKEY_HEALTH_LEVELS.map((h) => (
+            <FilterPill
+              key={h.value}
+              active={healthFilter === h.value}
+              onClick={() => setHealthFilter(h.value)}
+              colorWhenIdle={h.color}
+            >
+              {h.emoji} {h.label}
+            </FilterPill>
+          ))}
+          <FilterPill active={healthFilter === "unrated"} onClick={() => setHealthFilter("unrated")}>
+            Unrated
+          </FilterPill>
+
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider ml-3">Meeting:</span>
+          <FilterPill active={meetingFilter === "all"} onClick={() => setMeetingFilter("all")}>All</FilterPill>
+          <FilterPill active={meetingFilter === "with"} onClick={() => setMeetingFilter("with")}>📅 Has next</FilterPill>
+          <FilterPill active={meetingFilter === "this_week"} onClick={() => setMeetingFilter("this_week")}>This week</FilterPill>
+          <FilterPill active={meetingFilter === "without"} onClick={() => setMeetingFilter("without")}>⚠ None</FilterPill>
+
+          <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider ml-3">Activity:</span>
+          <FilterPill active={activityFilter === "all"} onClick={() => setActivityFilter("all")}>All</FilterPill>
+          <FilterPill active={activityFilter === "recent_7"} onClick={() => setActivityFilter("recent_7")}>Last 7d</FilterPill>
+          <FilterPill active={activityFilter === "stale_30"} onClick={() => setActivityFilter("stale_30")}>Stale 30d+</FilterPill>
+          <FilterPill active={activityFilter === "never"} onClick={() => setActivityFilter("never")}>No activity</FilterPill>
+        </div>
+
         {/* Deal grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -951,6 +1018,18 @@ function DealsPageContent() {
                         · ${deal.dealValue.toLocaleString()}
                       </span>
                     )}
+                    {(() => {
+                      const h = getHealthInfo(deal.mikeyHealth);
+                      if (!h) return null;
+                      return (
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${h.color}`}
+                          title="Mikey Health — set on last deal analysis"
+                        >
+                          {h.emoji} {h.label}
+                        </span>
+                      );
+                    })()}
                   </div>
                   {deal.status === "potential" && (
                     <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
@@ -1267,5 +1346,32 @@ function InlinePillSelect({
         </div>
       )}
     </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+  colorWhenIdle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  colorWhenIdle?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+        active
+          ? "bg-gray-900 text-white"
+          : colorWhenIdle
+          ? `${colorWhenIdle} hover:opacity-80`
+          : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
