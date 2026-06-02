@@ -56,6 +56,7 @@ interface Deal {
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
   projectedCloseDate: string | null;
+  dealValue: number | null;
   closeDate: string | null;
   closedLostReason: string | null;
   participants: Participant[];
@@ -1352,6 +1353,25 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               actual close date appears once the deal is in a terminal
               state. Closed-lost reason only when status is closed_lost. */}
           <div className="mt-3 flex items-center gap-4 flex-wrap text-xs text-gray-600 dark:text-gray-300">
+            <label className="flex items-center gap-1.5">
+              <span className="font-medium text-gray-500 dark:text-gray-400">Deal size:</span>
+              <span className="text-gray-500">$</span>
+              <input
+                type="number"
+                min={0}
+                step={100}
+                defaultValue={deal.dealValue ?? ""}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  const next = raw === "" ? null : Math.max(0, Math.round(Number(raw)));
+                  if (next !== (deal.dealValue ?? null)) {
+                    updateDeal({ dealValue: next });
+                  }
+                }}
+                placeholder="—"
+                className="w-28 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
+              />
+            </label>
             <label className="flex items-center gap-1.5">
               <span className="font-medium text-gray-500 dark:text-gray-400">Projected close:</span>
               <input

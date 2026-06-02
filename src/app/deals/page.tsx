@@ -22,6 +22,8 @@ interface Deal {
   createdAt: string;
   lastActivityAt: string | null;
   nextMeetingAt: string | null;
+  dealValue: number | null;
+  projectedCloseDate: string | null;
   _count: { entries: number; participants: number };
 }
 
@@ -102,6 +104,7 @@ function DealsPageContent() {
   const [editStageInsertAfter, setEditStageInsertAfter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "active");
   const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
+  const [sortBy, setSortBy] = useState<string>(() => searchParams.get("sort") || "recent");
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -180,13 +183,14 @@ function DealsPageContent() {
       const params = new URLSearchParams();
       if (stageFilter !== "all") params.set("stage", stageFilter);
       if (statusFilter !== "active") params.set("status", statusFilter);
+      if (sortBy !== "recent") params.set("sort", sortBy);
       const q = searchQuery.trim();
       if (q) params.set("q", q);
       const current = searchParams.toString();
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
       const merged = new URLSearchParams(current);
-      ["stage", "status", "q"].forEach((k) => merged.delete(k));
+      ["stage", "status", "q", "sort"].forEach((k) => merged.delete(k));
       for (const [k, v] of params) merged.set(k, v);
       const target = merged.toString();
       if (target !== current) {
@@ -194,7 +198,7 @@ function DealsPageContent() {
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [stageFilter, statusFilter, searchQuery, router, searchParams]);
+  }, [stageFilter, statusFilter, searchQuery, sortBy, router, searchParams]);
 
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
@@ -373,15 +377,74 @@ function DealsPageContent() {
     setImportedCalls([]);
   };
 
-  const filteredDeals = deals.filter((d) => {
-    if (stageFilter !== "all" && d.stage !== stageFilter) return false;
-    if (statusFilter !== "all" && d.status !== statusFilter) return false;
-    const q = searchQuery.trim().toLowerCase();
-    if (q && !d.name.toLowerCase().includes(q) && !d.companyName.toLowerCase().includes(q)) {
-      return false;
+  const filteredDeals = (() => {
+    const filtered = deals.filter((d) => {
+      if (stageFilter !== "all" && d.stage !== stageFilter) return false;
+      if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      const q = searchQuery.trim().toLowerCase();
+      if (q && !d.name.toLowerCase().includes(q) && !d.companyName.toLowerCase().includes(q)) {
+        return false;
+      }
+      return true;
+    });
+
+    // Pipeline order for the stage sort. Built-ins anchored to
+    // mergePipeline so custom stages slot in at the right index.
+    const pipelineIndex = new Map(mergePipeline(customStages).map((s, i) => [s.value, i]));
+
+    const cmpDateDesc = (a: string | null, b: string | null) => {
+      // Nulls sink to the bottom for a "X first" sort.
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return new Date(b).getTime() - new Date(a).getTime();
+    };
+    const cmpDateAsc = (a: string | null, b: string | null) => {
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      return new Date(a).getTime() - new Date(b).getTime();
+    };
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "last_activity":
+        sorted.sort((a, b) => cmpDateDesc(a.lastActivityAt, b.lastActivityAt));
+        break;
+      case "next_meeting":
+        sorted.sort((a, b) => cmpDateAsc(a.nextMeetingAt, b.nextMeetingAt));
+        break;
+      case "created_new":
+        sorted.sort((a, b) => cmpDateDesc(a.createdAt, b.createdAt));
+        break;
+      case "created_old":
+        sorted.sort((a, b) => cmpDateAsc(a.createdAt, b.createdAt));
+        break;
+      case "value_high": {
+        sorted.sort((a, b) => {
+          const av = a.dealValue ?? -1;
+          const bv = b.dealValue ?? -1;
+          return bv - av;
+        });
+        break;
+      }
+      case "stage":
+        sorted.sort((a, b) => {
+          const ai = pipelineIndex.get(a.stage) ?? 99;
+          const bi = pipelineIndex.get(b.stage) ?? 99;
+          return ai - bi;
+        });
+        break;
+      case "projected_close":
+        sorted.sort((a, b) => cmpDateAsc(a.projectedCloseDate, b.projectedCloseDate));
+        break;
+      case "recent":
+      default:
+        // Server returns updatedAt desc already — no-op.
+        break;
     }
-    return true;
-  });
+    return sorted;
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -471,8 +534,9 @@ function DealsPageContent() {
           </div>
         )}
 
-        {/* Search */}
-        <div className="relative mb-4">
+        {/* Search + sort */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[240px]">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             fill="none"
@@ -501,6 +565,24 @@ function DealsPageContent() {
               </svg>
             </button>
           )}
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          Sort:
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+          >
+            <option value="recent">Recently updated</option>
+            <option value="last_activity">Last activity</option>
+            <option value="next_meeting">Next meeting (soonest)</option>
+            <option value="created_new">Created (newest)</option>
+            <option value="created_old">Created (oldest)</option>
+            <option value="value_high">Deal size (highest)</option>
+            <option value="stage">Stage (pipeline order)</option>
+            <option value="projected_close">Projected close (soonest)</option>
+          </select>
+        </label>
         </div>
 
         {/* Filters */}
@@ -851,6 +933,11 @@ function DealsPageContent() {
                     />
                     <span>· {deal._count.entries} {deal._count.entries === 1 ? "entry" : "entries"}</span>
                     <span>· {deal._count.participants} {deal._count.participants === 1 ? "person" : "people"}</span>
+                    {typeof deal.dealValue === "number" && deal.dealValue > 0 && (
+                      <span className="font-medium text-gray-700 dark:text-gray-200">
+                        · ${deal.dealValue.toLocaleString()}
+                      </span>
+                    )}
                   </div>
                   {deal.status === "potential" && (
                     <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>

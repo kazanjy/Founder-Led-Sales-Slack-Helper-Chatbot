@@ -2426,6 +2426,10 @@ model Deal {
   // Free-text reason captured when a deal is closed_lost (e.g.
   // "competitor", "budget", "no decision"). Optional on close.
   closedLostReason   String?    @db.Text
+  // Forecast deal size in whole dollars. Optional — many founder-led
+  // deals are sized later in the cycle. Used for sort + filtering
+  // on /deals and (eventually) pipeline value aggregations.
+  dealValue          Int?
 
   notes String? @db.Text
 

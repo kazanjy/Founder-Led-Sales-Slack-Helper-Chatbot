@@ -76,6 +76,18 @@ export async function PATCH(
     if (body.status !== undefined) updateData.status = body.status;
     if (body.notes !== undefined) updateData.notes = body.notes?.trim() || null;
     if (body.projectId !== undefined) updateData.projectId = body.projectId || null;
+    if (body.dealValue !== undefined) {
+      if (body.dealValue === null || body.dealValue === "") {
+        updateData.dealValue = null;
+      } else {
+        const v = typeof body.dealValue === "number" ? body.dealValue : parseInt(String(body.dealValue), 10);
+        if (Number.isFinite(v) && v >= 0) {
+          updateData.dealValue = Math.round(v);
+        } else {
+          return NextResponse.json({ error: "Invalid dealValue" }, { status: 400 });
+        }
+      }
+    }
     if (body.projectedCloseDate !== undefined) {
       updateData.projectedCloseDate = body.projectedCloseDate
         ? new Date(body.projectedCloseDate)
