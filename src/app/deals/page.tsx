@@ -20,6 +20,8 @@ interface Deal {
   lastAnalyzedAt: string | null;
   updatedAt: string;
   createdAt: string;
+  lastActivityAt: string | null;
+  nextMeetingAt: string | null;
   _count: { entries: number; participants: number };
 }
 
@@ -31,6 +33,19 @@ function formatRelative(dateStr: string): string {
   if (diffDay < 7) return `${diffDay}d ago`;
   if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatNextMeeting(dateStr: string): string {
+  const date = new Date(dateStr);
+  const diffMs = date.getTime() - Date.now();
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffDay < 1) {
+    return date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" }) + " today";
+  }
+  if (diffDay === 1) return "tomorrow";
+  if (diffDay < 7) return `in ${diffDay}d`;
+  if (diffDay < 30) return `in ${Math.floor(diffDay / 7)}w`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export default function DealsPage() {
@@ -886,8 +901,23 @@ function DealsPageContent() {
                       </span>
                     </div>
                   )}
-                  <div className="text-xs text-gray-400 mt-2">
-                    Updated {formatRelative(deal.updatedAt)}
+                  <div className="text-xs mt-2 flex items-center gap-3 flex-wrap">
+                    {deal.lastActivityAt ? (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Last activity {formatRelative(deal.lastActivityAt)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">No activity yet</span>
+                    )}
+                    {deal.nextMeetingAt ? (
+                      <span className="text-purple-700 dark:text-purple-300 font-medium">
+                        📅 Next meeting {formatNextMeeting(deal.nextMeetingAt)}
+                      </span>
+                    ) : (
+                      deal.status === "active" || deal.status === "stalled" ? (
+                        <span className="text-amber-600 dark:text-amber-400">⚠ No upcoming meeting</span>
+                      ) : null
+                    )}
                   </div>
                 </Link>
               );

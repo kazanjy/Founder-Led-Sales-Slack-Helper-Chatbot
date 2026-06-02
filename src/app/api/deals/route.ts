@@ -10,17 +10,49 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const deals = await prisma.deal.findMany({
-      where: { userId: user.id },
-      orderBy: { updatedAt: "desc" },
-      include: {
-        _count: {
-          select: { entries: true, participants: true },
+    const [deals, lastActivity, nextMeeting] = await Promise.all([
+      prisma.deal.findMany({
+        where: { userId: user.id },
+        orderBy: { updatedAt: "desc" },
+        include: {
+          _count: {
+            select: { entries: true, participants: true },
+          },
         },
-      },
-    });
+      }),
+      // Most recent past (non-chat) timeline entry per deal. Drives
+      // the "Last activity" line on each card.
+      prisma.dealTimelineEntry.groupBy({
+        by: ["dealId"],
+        where: {
+          deal: { userId: user.id },
+          entryDate: { lte: new Date() },
+          type: { not: "chat" },
+        },
+        _max: { entryDate: true },
+      }),
+      // Earliest upcoming meeting per deal. Drives "Next meeting".
+      prisma.dealTimelineEntry.groupBy({
+        by: ["dealId"],
+        where: {
+          deal: { userId: user.id },
+          entryDate: { gt: new Date() },
+          type: "meeting",
+        },
+        _min: { entryDate: true },
+      }),
+    ]);
 
-    return NextResponse.json({ deals });
+    const lastById = new Map(lastActivity.map((r) => [r.dealId, r._max.entryDate]));
+    const nextById = new Map(nextMeeting.map((r) => [r.dealId, r._min.entryDate]));
+
+    const enriched = deals.map((d) => ({
+      ...d,
+      lastActivityAt: lastById.get(d.id) || null,
+      nextMeetingAt: nextById.get(d.id) || null,
+    }));
+
+    return NextResponse.json({ deals: enriched });
   } catch (error) {
     console.error("Error fetching deals:", error);
     return NextResponse.json({ error: "Failed to fetch deals" }, { status: 500 });
