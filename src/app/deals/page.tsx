@@ -105,6 +105,7 @@ function DealsPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "active");
   const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
   const [sortBy, setSortBy] = useState<string>(() => searchParams.get("sort") || "recent");
+  const [sortBy2, setSortBy2] = useState<string>(() => searchParams.get("sort2") || "none");
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -184,13 +185,14 @@ function DealsPageContent() {
       if (stageFilter !== "all") params.set("stage", stageFilter);
       if (statusFilter !== "active") params.set("status", statusFilter);
       if (sortBy !== "recent") params.set("sort", sortBy);
+      if (sortBy2 !== "none") params.set("sort2", sortBy2);
       const q = searchQuery.trim();
       if (q) params.set("q", q);
       const current = searchParams.toString();
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
       const merged = new URLSearchParams(current);
-      ["stage", "status", "q", "sort"].forEach((k) => merged.delete(k));
+      ["stage", "status", "q", "sort", "sort2"].forEach((k) => merged.delete(k));
       for (const [k, v] of params) merged.set(k, v);
       const target = merged.toString();
       if (target !== current) {
@@ -198,7 +200,7 @@ function DealsPageContent() {
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [stageFilter, statusFilter, searchQuery, sortBy, router, searchParams]);
+  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, router, searchParams]);
 
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
@@ -406,44 +408,37 @@ function DealsPageContent() {
       return new Date(a).getTime() - new Date(b).getTime();
     };
 
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case "last_activity":
-        sorted.sort((a, b) => cmpDateDesc(a.lastActivityAt, b.lastActivityAt));
-        break;
-      case "next_meeting":
-        sorted.sort((a, b) => cmpDateAsc(a.nextMeetingAt, b.nextMeetingAt));
-        break;
-      case "created_new":
-        sorted.sort((a, b) => cmpDateDesc(a.createdAt, b.createdAt));
-        break;
-      case "created_old":
-        sorted.sort((a, b) => cmpDateAsc(a.createdAt, b.createdAt));
-        break;
-      case "value_high": {
-        sorted.sort((a, b) => {
-          const av = a.dealValue ?? -1;
-          const bv = b.dealValue ?? -1;
-          return bv - av;
-        });
-        break;
+    const makeComparator = (key: string): ((a: Deal, b: Deal) => number) => {
+      switch (key) {
+        case "last_activity":
+          return (a, b) => cmpDateDesc(a.lastActivityAt, b.lastActivityAt);
+        case "next_meeting":
+          return (a, b) => cmpDateAsc(a.nextMeetingAt, b.nextMeetingAt);
+        case "created_new":
+          return (a, b) => cmpDateDesc(a.createdAt, b.createdAt);
+        case "created_old":
+          return (a, b) => cmpDateAsc(a.createdAt, b.createdAt);
+        case "value_high":
+          return (a, b) => (b.dealValue ?? -1) - (a.dealValue ?? -1);
+        case "stage":
+          return (a, b) =>
+            (pipelineIndex.get(a.stage) ?? 99) - (pipelineIndex.get(b.stage) ?? 99);
+        case "projected_close":
+          return (a, b) => cmpDateAsc(a.projectedCloseDate, b.projectedCloseDate);
+        case "recent":
+          return (a, b) => cmpDateDesc(a.updatedAt, b.updatedAt);
+        default:
+          return () => 0;
       }
-      case "stage":
-        sorted.sort((a, b) => {
-          const ai = pipelineIndex.get(a.stage) ?? 99;
-          const bi = pipelineIndex.get(b.stage) ?? 99;
-          return ai - bi;
-        });
-        break;
-      case "projected_close":
-        sorted.sort((a, b) => cmpDateAsc(a.projectedCloseDate, b.projectedCloseDate));
-        break;
-      case "recent":
-      default:
-        // Server returns updatedAt desc already — no-op.
-        break;
-    }
-    return sorted;
+    };
+
+    const primary = makeComparator(sortBy);
+    const secondary = sortBy2 !== "none" && sortBy2 !== sortBy ? makeComparator(sortBy2) : null;
+    return [...filtered].sort((a, b) => {
+      const p = primary(a, b);
+      if (p !== 0 || !secondary) return p;
+      return secondary(a, b);
+    });
   })();
 
   return (
@@ -581,6 +576,24 @@ function DealsPageContent() {
             <option value="value_high">Deal size (highest)</option>
             <option value="stage">Stage (pipeline order)</option>
             <option value="projected_close">Projected close (soonest)</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          Then by:
+          <select
+            value={sortBy2}
+            onChange={(e) => setSortBy2(e.target.value)}
+            className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+          >
+            <option value="none">— none —</option>
+            <option value="recent" disabled={sortBy === "recent"}>Recently updated</option>
+            <option value="last_activity" disabled={sortBy === "last_activity"}>Last activity</option>
+            <option value="next_meeting" disabled={sortBy === "next_meeting"}>Next meeting (soonest)</option>
+            <option value="created_new" disabled={sortBy === "created_new"}>Created (newest)</option>
+            <option value="created_old" disabled={sortBy === "created_old"}>Created (oldest)</option>
+            <option value="value_high" disabled={sortBy === "value_high"}>Deal size (highest)</option>
+            <option value="stage" disabled={sortBy === "stage"}>Stage (pipeline order)</option>
+            <option value="projected_close" disabled={sortBy === "projected_close"}>Projected close (soonest)</option>
           </select>
         </label>
         </div>
