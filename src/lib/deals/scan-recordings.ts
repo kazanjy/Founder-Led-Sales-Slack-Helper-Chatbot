@@ -328,6 +328,12 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
             provider: conn.provider,
             providerCallId: call.id,
             participants: call.participants || [],
+            // Captured so the post-enrich back-link pass on validation
+            // can resolve attendees → DealParticipant ids and write
+            // linkedParticipantIds for the "With <names>" row.
+            attendeeEmails: (call.attendees || [])
+              .map((a) => a.email?.trim().toLowerCase())
+              .filter((e): e is string => !!e),
           }),
         },
       });

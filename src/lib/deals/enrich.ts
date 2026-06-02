@@ -202,6 +202,9 @@ async function enrichCalendar(opts: {
           // UI / analyzer still compare entryDate vs now() as the
           // source of truth — this is just for telemetry.
           futureAtImport: isUpcoming,
+          attendeeEmails: (ev.attendees || [])
+            .map((a) => a.email?.trim().toLowerCase())
+            .filter((e): e is string => !!e),
         }),
       },
     });
@@ -279,6 +282,13 @@ async function enrichRecorder(opts: {
             provider: conn.provider,
             providerCallId: call.id,
             participants: call.participants || [],
+            // Captured so the post-enrich back-link pass can resolve
+            // each attendee to a DealParticipant row by email and
+            // populate linkedParticipantIds for the "With <names>"
+            // row on the timeline entry.
+            attendeeEmails: (call.attendees || [])
+              .map((a) => a.email?.trim().toLowerCase())
+              .filter((e): e is string => !!e),
           }),
         },
       });
@@ -429,6 +439,16 @@ export async function enrichDeal(userId: string, dealId: string): Promise<Enrich
     summary.errors++;
   }
 
+  // Back-link DealParticipants to the timeline entries they appeared
+  // in. Has to run after the participants pass since the IDs only
+  // exist post-create. Additive — never strips a manually-linked id.
+  try {
+    await backlinkEntryParticipants(dealId);
+  } catch (err) {
+    console.error(`[enrich] back-link pass failed for ${dealId}:`, err);
+    summary.errors++;
+  }
+
   try {
     await renamePlaceholderDeal(dealId, deal.companyName);
   } catch (err) {
@@ -516,4 +536,95 @@ async function renamePlaceholderDeal(dealId: string, companyName: string): Promi
     where: { id: dealId },
     data: { name: suggestion.dealName },
   });
+}
+
+/**
+ * Walk every call_summary / meeting timeline entry on the deal, resolve
+ * the attendee emails stored in metadata to DealParticipant ids, and
+ * write the union into metadata.linkedParticipantIds so the "With
+ * <names>" row on each entry actually renders the people. Additive —
+ * existing linkedParticipantIds (e.g. ones a user manually attached via
+ * the inline picker) are preserved.
+ *
+ * Also handles legacy entries that don't carry attendeeEmails — falls
+ * back to a name-token match against participant.name as a best effort.
+ */
+async function backlinkEntryParticipants(dealId: string): Promise<void> {
+  const [entries, participants] = await Promise.all([
+    prisma.dealTimelineEntry.findMany({
+      where: { dealId, type: { in: ["call_summary", "meeting", "call_transcript"] } },
+      select: { id: true, metadata: true },
+    }),
+    prisma.dealParticipant.findMany({
+      where: { dealId },
+      select: { id: true, name: true, email: true },
+    }),
+  ]);
+  if (entries.length === 0 || participants.length === 0) return;
+
+  const byEmail = new Map<string, string>();
+  const byNameToken = new Map<string, string>(); // first token of name → participant id (best effort)
+  for (const p of participants) {
+    if (p.email) byEmail.set(p.email.trim().toLowerCase(), p.id);
+    const first = p.name.split(/[\s,@]/)[0]?.trim().toLowerCase();
+    if (first && first.length > 1 && !byNameToken.has(first)) {
+      byNameToken.set(first, p.id);
+    }
+  }
+
+  for (const entry of entries) {
+    if (!entry.metadata) continue;
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(entry.metadata) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+
+    const matchedIds = new Set<string>();
+    const emails = Array.isArray(parsed.attendeeEmails)
+      ? (parsed.attendeeEmails as unknown[]).filter((e): e is string => typeof e === "string")
+      : [];
+    for (const email of emails) {
+      const pid = byEmail.get(email.trim().toLowerCase());
+      if (pid) matchedIds.add(pid);
+    }
+
+    // Legacy fallback: entries written before attendeeEmails was added
+    // only have a list of bare name strings. Match the first token.
+    if (matchedIds.size === 0 && Array.isArray(parsed.participants)) {
+      for (const name of parsed.participants as unknown[]) {
+        if (typeof name !== "string") continue;
+        const first = name.split(/[\s,@]/)[0]?.trim().toLowerCase();
+        if (!first) continue;
+        const pid = byNameToken.get(first);
+        if (pid) matchedIds.add(pid);
+      }
+    }
+
+    if (matchedIds.size === 0) continue;
+
+    // Union with any existing linkedParticipantIds (e.g. ones the user
+    // attached manually). Skip the write if nothing would change.
+    const existingLinks = new Set<string>();
+    if (Array.isArray(parsed.linkedParticipantIds)) {
+      for (const id of parsed.linkedParticipantIds as unknown[]) {
+        if (typeof id === "string") existingLinks.add(id);
+      }
+    }
+    let changed = false;
+    for (const id of matchedIds) {
+      if (!existingLinks.has(id)) {
+        existingLinks.add(id);
+        changed = true;
+      }
+    }
+    if (!changed) continue;
+
+    const nextMetadata = { ...parsed, linkedParticipantIds: Array.from(existingLinks) };
+    await prisma.dealTimelineEntry.update({
+      where: { id: entry.id },
+      data: { metadata: JSON.stringify(nextMetadata) },
+    });
+  }
 }
