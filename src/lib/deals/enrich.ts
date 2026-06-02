@@ -125,26 +125,36 @@ async function enrichCalendar(opts: {
   const timeMin = new Date(Date.now() - CALENDAR_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const timeMax = new Date(Date.now() + CALENDAR_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
 
-  // Use Calendar's free-text q=<domain> as a server-side filter to
-  // narrow the result set, then validate attendee domains client-side
-  // in case the match was loose (mentions in description, etc.).
-  const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
-  url.searchParams.set("timeMin", timeMin.toISOString());
-  url.searchParams.set("timeMax", timeMax.toISOString());
-  url.searchParams.set("singleEvents", "true");
-  url.searchParams.set("orderBy", "startTime");
-  url.searchParams.set("maxResults", "250");
-  url.searchParams.set("q", opts.domain);
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) {
-    console.error(`[enrich] calendar list failed for ${opts.userId}: ${res.status}`);
-    return out;
-  }
-  const data = (await res.json()) as { items?: GCalEvent[] };
-  const events = data.items ?? [];
+  // We used to send q=<domain> as a server-side filter to narrow the
+  // result set, but Google Calendar's free-text search tokenizes on
+  // `.` (so a search for "glyf.space" can miss events where the
+  // domain only appears inside an attendee email). Now we fetch the
+  // raw window and rely entirely on attendee-domain matching below.
+  // Paginates via nextPageToken so a busy calendar past the
+  // 250-results cap still gets fully scanned.
+  const events: GCalEvent[] = [];
+  let pageToken: string | undefined;
+  do {
+    const url = new URL("https://www.googleapis.com/calendar/v3/calendars/primary/events");
+    url.searchParams.set("timeMin", timeMin.toISOString());
+    url.searchParams.set("timeMax", timeMax.toISOString());
+    url.searchParams.set("singleEvents", "true");
+    url.searchParams.set("orderBy", "startTime");
+    url.searchParams.set("maxResults", "250");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      console.error(`[enrich] calendar list failed for ${opts.userId}: ${res.status}`);
+      return out;
+    }
+    const data = (await res.json()) as { items?: GCalEvent[]; nextPageToken?: string };
+    if (Array.isArray(data.items)) events.push(...data.items);
+    pageToken = data.nextPageToken;
+    // Hard cap to avoid runaway pagination on enormous calendars.
+    if (events.length >= 1500) break;
+  } while (pageToken);
 
   const seenEventIds = await existingEventIds(opts.dealId);
 
