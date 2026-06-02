@@ -129,7 +129,36 @@ export async function POST(
     const upcomingMeetings = analyzableEntries.filter(
       (e) => e.type === "meeting" && new Date(e.entryDate).getTime() > now
     );
-    const pastEntries = analyzableEntries.filter((e) => !upcomingMeetings.includes(e));
+    const stageChanges = analyzableEntries.filter((e) => e.type === "stage_change");
+    const pastEntries = analyzableEntries.filter(
+      (e) => !upcomingMeetings.includes(e) && e.type !== "stage_change"
+    );
+
+    // Stage history with time-in-stage gaps so the LLM can reason
+    // about pipeline velocity. Ordered oldest-first; durations are
+    // formatted as days for readability.
+    if (stageChanges.length > 0) {
+      sections.push("## Stage History");
+      const sorted = [...stageChanges].sort(
+        (a, b) => new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime()
+      );
+      for (let i = 0; i < sorted.length; i++) {
+        const entry = sorted[i];
+        const dateMs = new Date(entry.entryDate).getTime();
+        const date = new Date(entry.entryDate).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        const nextMs = i < sorted.length - 1 ? new Date(sorted[i + 1].entryDate).getTime() : now;
+        const days = Math.max(0, Math.round((nextMs - dateMs) / 86400000));
+        const tail = i < sorted.length - 1
+          ? ` — held for ${days} day${days === 1 ? "" : "s"}`
+          : ` — current stage, in for ${days} day${days === 1 ? "" : "s"}`;
+        sections.push(`- ${date}: ${entry.title || "Stage change"}${tail}`);
+      }
+      sections.push("");
+    }
 
     if (upcomingMeetings.length > 0) {
       sections.push("## Upcoming Meetings (next 90 days)");
@@ -226,8 +255,8 @@ For each participant, assess their likely role (champion, decision maker, blocke
 ## Suggested Stage
 Based on the evidence, recommend what pipeline stage this deal should be in and explain why.`;
 
-    const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
-${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}${upcomingMeetings.length > 0 ? `\nThe deal has ${upcomingMeetings.length} upcoming meeting${upcomingMeetings.length === 1 ? "" : "s"} on the calendar. Treat them as committed pipeline — your "What's Next" / "Recommended Next Steps" should explicitly tee up what to prepare for, ask in, or follow up after those meetings. Flag in "Risks & Gaps" if the calendar is empty when it shouldn't be (e.g. a deal in proposal stage with no next meeting scheduled is a momentum risk).\n` : `\nThe deal has NO upcoming meetings on the calendar. Call this out as a momentum signal in "Risks & Gaps" if the deal is past the prospecting stage — a live deal with no scheduled next meeting is usually a problem.\n`}
+    const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}${stageChanges.length > 0 ? "stage history with time-in-stage durations, " : ""}and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
+${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}${upcomingMeetings.length > 0 ? `\nThe deal has ${upcomingMeetings.length} upcoming meeting${upcomingMeetings.length === 1 ? "" : "s"} on the calendar. Treat them as committed pipeline — your "What's Next" / "Recommended Next Steps" should explicitly tee up what to prepare for, ask in, or follow up after those meetings. Flag in "Risks & Gaps" if the calendar is empty when it shouldn't be (e.g. a deal in proposal stage with no next meeting scheduled is a momentum risk).\n` : `\nThe deal has NO upcoming meetings on the calendar. Call this out as a momentum signal in "Risks & Gaps" if the deal is past the prospecting stage — a live deal with no scheduled next meeting is usually a problem.\n`}${stageChanges.length > 0 ? `\nThe Stage History section shows each pipeline transition with how long the deal sat in each stage. Use these durations to assess velocity in "Risks & Gaps" — long dwells in a single stage (especially Discovery, Proposal, or Negotiation) are a stall signal; quick transitions can be a positive momentum signal.\n` : ""}
 Your analysis MUST include these sections, in this exact order:
 
 ${sectionRequirements}
@@ -320,6 +349,28 @@ Rules for PARTICIPANT_ROLES:
           data: { role: u.role },
         })
       ),
+      // If the analyzer is auto-flipping the stage, also log a
+      // stage_change timeline entry so the next analyze run can
+      // reason about time-in-stage.
+      ...(shouldUpdateStage && suggestedStage
+        ? [
+            prisma.dealTimelineEntry.create({
+              data: {
+                dealId: id,
+                type: "stage_change",
+                title: `Stage: ${deal.stage} → ${suggestedStage}`,
+                content: `Pipeline stage changed from **${deal.stage}** to **${suggestedStage}** by Deal Analyzer.`,
+                entryDate: new Date(),
+                metadata: JSON.stringify({
+                  auto_logged: true,
+                  source: "analyzer",
+                  fromStage: deal.stage,
+                  toStage: suggestedStage,
+                }),
+              },
+            }),
+          ]
+        : []),
     ]);
 
     return NextResponse.json({

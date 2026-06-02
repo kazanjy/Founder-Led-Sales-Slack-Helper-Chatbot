@@ -3,9 +3,47 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { enrichDeal } from "@/lib/deals/enrich";
-import { CLOSED_LOST_REASONS } from "@/lib/deals/constants";
+import { CLOSED_LOST_REASONS, DEAL_STAGES } from "@/lib/deals/constants";
 
 const CLOSED_LOST_REASON_VALUES = new Set<string>(CLOSED_LOST_REASONS.map((r) => r.value));
+const BUILTIN_STAGE_LABELS = new Map(DEAL_STAGES.map((s) => [s.value, s.label]));
+
+function labelForStage(value: string, customs: Array<{ value: string; label: string }>): string {
+  return (
+    customs.find((c) => c.value === value)?.label ||
+    BUILTIN_STAGE_LABELS.get(value) ||
+    value
+  );
+}
+
+/**
+ * Write a stage_change timeline entry recording a pipeline
+ * transition. Used by the deals analyzer to compute time-in-stage
+ * and surface velocity signals.
+ */
+async function logStageChange(opts: {
+  dealId: string;
+  fromStage: string;
+  toStage: string;
+  customStages: Array<{ value: string; label: string }>;
+}) {
+  const fromLabel = labelForStage(opts.fromStage, opts.customStages);
+  const toLabel = labelForStage(opts.toStage, opts.customStages);
+  await prisma.dealTimelineEntry.create({
+    data: {
+      dealId: opts.dealId,
+      type: "stage_change",
+      title: `Stage: ${fromLabel} → ${toLabel}`,
+      content: `Pipeline stage changed from **${fromLabel}** to **${toLabel}**.`,
+      entryDate: new Date(),
+      metadata: JSON.stringify({
+        auto_logged: true,
+        fromStage: opts.fromStage,
+        toStage: opts.toStage,
+      }),
+    },
+  });
+}
 
 // Bumped so post-response enrichment scheduled via after() has time
 // to finish (PDL + recorder transcript fetches add up).
@@ -134,6 +172,32 @@ export async function PATCH(
     }
 
     const deal = await prisma.deal.update({ where: { id }, data: updateData });
+
+    // Log stage transitions as timeline entries so the analyzer can
+    // reason about time-in-stage and pipeline velocity. Skip if the
+    // value didn't actually change (PATCH may include stage even
+    // when unchanged from an inline dropdown that re-emits on focus).
+    if (
+      body.stage !== undefined &&
+      typeof body.stage === "string" &&
+      body.stage !== exists.stage
+    ) {
+      try {
+        await logStageChange({
+          dealId: id,
+          fromStage: exists.stage,
+          toStage: body.stage,
+          customStages: user.accountId
+            ? await prisma.customDealStage.findMany({
+                where: { accountId: user.accountId },
+                select: { value: true, label: true },
+              })
+            : [],
+        });
+      } catch (err) {
+        console.error(`[deals/${id}] stage_change log failed:`, err);
+      }
+    }
 
     // Validation flip (potential → active): hydrate the deal with
     // calendar + recorder history + PDL participant enrichment.

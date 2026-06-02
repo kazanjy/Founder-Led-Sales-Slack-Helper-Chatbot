@@ -53,6 +53,7 @@ export const ENTRY_TYPES = [
   { value: "linkedin", label: "LinkedIn", emoji: "💼", description: "A LinkedIn message, post, or comment relevant to this deal." },
   { value: "document", label: "Document", emoji: "📄", description: "Drop in a PDF or paste a doc — proposals, contracts, brief sheets." },
   { value: "chat", label: "Deal Chat", emoji: "🌊", description: "Saved breadcrumbs from chats with Mikey about this deal." },
+  { value: "stage_change", label: "Stage Change", emoji: "🔀", description: "Automatic log entry written when a deal's pipeline stage changes." },
 ] as const;
 
 export function getStageInfo(stage: string) {
