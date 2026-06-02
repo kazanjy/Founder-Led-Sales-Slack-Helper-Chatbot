@@ -6,7 +6,7 @@ import { enrichDeal } from "@/lib/deals/enrich";
 import { CLOSED_LOST_REASONS, DEAL_STAGES } from "@/lib/deals/constants";
 
 const CLOSED_LOST_REASON_VALUES = new Set<string>(CLOSED_LOST_REASONS.map((r) => r.value));
-const BUILTIN_STAGE_LABELS = new Map(DEAL_STAGES.map((s) => [s.value, s.label]));
+const BUILTIN_STAGE_LABELS = new Map<string, string>(DEAL_STAGES.map((s) => [s.value, s.label]));
 
 function labelForStage(value: string, customs: Array<{ value: string; label: string }>): string {
   return (
