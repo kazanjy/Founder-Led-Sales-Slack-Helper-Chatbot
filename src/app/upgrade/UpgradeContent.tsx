@@ -14,6 +14,7 @@ export default function UpgradeContent() {
   const canceled = searchParams.get("canceled") === "true";
   const installed = searchParams.get("installed") === "true";
   const workspace = searchParams.get("workspace");
+  const expired = searchParams.get("expired") === "true";
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,27 +248,57 @@ export default function UpgradeContent() {
           </ul>
         </div>
 
-        {/* CTA Buttons */}
-        <div className="space-y-3">
-          <button
-            onClick={handleCheckout}
-            disabled={checkoutLoading}
-            className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors"
-          >
-            {checkoutLoading
-              ? "Redirecting to checkout..."
-              : user
-              ? "Continue to Payment"
-              : "Sign in with Slack to Subscribe"}
-          </button>
-
-          <button
-            onClick={handleSkip}
-            className="w-full py-3 px-6 text-gray-400 hover:text-gray-600 font-medium transition-colors"
-          >
-            Skip for now
-          </button>
-        </div>
+        {/* CTA Buttons — when the user is on TRIAL and there's no
+            ?expired=true flag (first-login welcome flow), demote the
+            payment CTA to a secondary outline button and promote
+            "Continue to Mikey" so the page reads as a soft pitch
+            instead of a paywall. EXPIRED / SUSPENDED / signed-out
+            visitors still see the original blue-primary CTA. */}
+        {(() => {
+          const isFirstLoginTrial =
+            user?.licenseStatus === "TRIAL" && !expired;
+          const payLabel = checkoutLoading
+            ? "Redirecting to checkout..."
+            : user
+            ? "Continue to Payment"
+            : "Sign in with Slack to Subscribe";
+          if (isFirstLoginTrial) {
+            return (
+              <div className="space-y-3">
+                <button
+                  onClick={handleSkip}
+                  className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  Continue to Mikey →
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading}
+                  className="w-full py-3 px-6 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-medium rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition-colors"
+                >
+                  {payLabel}
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="space-y-3">
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors"
+              >
+                {payLabel}
+              </button>
+              <button
+                onClick={handleSkip}
+                className="w-full py-3 px-6 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Trust signals */}
         <p className="text-center text-sm text-gray-400 mt-6">
