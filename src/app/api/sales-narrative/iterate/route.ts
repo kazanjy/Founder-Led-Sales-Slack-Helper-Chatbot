@@ -19,8 +19,21 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: "Version ID and feedback are required" }), { status: 400 });
     }
 
+    // Allow iterating on the user's own version OR a teammate's
+    // version (account-scope). The latest endpoint falls back to a
+    // teammate's narrative when the user has none, so without this
+    // mirror lookup the page renders someone else's narrative but
+    // iterate 404s on "Version not found".
     const version = await prisma.salesNarrativeVersion.findFirst({
-      where: { id: versionId, userId: user.id },
+      where: {
+        id: versionId,
+        OR: [
+          { userId: user.id },
+          ...(user.accountId
+            ? [{ user: { accountId: user.accountId } }]
+            : []),
+        ],
+      },
     });
 
     if (!version) {
