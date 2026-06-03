@@ -51,7 +51,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* No-flash theme script. Runs synchronously before paint so
+            the .dark class is on <html> when the first frame lands —
+            no light → dark snap on reload. Falls back to OS preference
+            when the user hasn't picked an explicit theme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('mikey-theme');var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var dark=t==='dark'||((!t||t==='system')&&prefersDark);document.documentElement.classList.toggle('dark',dark);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

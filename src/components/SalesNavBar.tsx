@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface NavItem {
   href: string;
@@ -583,6 +584,7 @@ export default function SalesNavBar() {
               </div>
             )}
           </div>
+          <ThemeToggle compact />
         </div>
       </div>
     </nav>
