@@ -72,6 +72,35 @@ function dealDomainFor(deal: { companyUrl: string | null }): string | null {
   return normalizeDomain(stripped) || null;
 }
 
+/**
+ * Pick the most common non-public, non-self domain from a list of
+ * participant emails. Used to recover a deal's prospect domain when
+ * companyUrl wasn't set (typically deals created manually via the
+ * New Deal modal which only collects Company Name + Deal Name).
+ */
+function inferDomainFromParticipants(
+  participants: Array<{ email: string | null }>,
+  selfDomain: string | null
+): string | null {
+  const counts = new Map<string, number>();
+  for (const p of participants) {
+    const d = domainFromEmail(p.email);
+    if (!d) continue;
+    if (PUBLIC_EMAIL_DOMAINS.has(d)) continue;
+    if (selfDomain && d === selfDomain) continue;
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [d, c] of counts) {
+    if (c > bestCount) {
+      best = d;
+      bestCount = c;
+    }
+  }
+  return best;
+}
+
 async function existingEventIds(dealId: string): Promise<Set<string>> {
   const entries = await prisma.dealTimelineEntry.findMany({
     where: { dealId, type: "meeting" },
@@ -383,7 +412,37 @@ export async function enrichDeal(userId: string, dealId: string): Promise<Enrich
     throw new Error("Deal not found or not owned by user");
   }
 
-  const domain = dealDomainFor(deal);
+  let domain = dealDomainFor(deal);
+
+  // Fall back to inferring from participant emails when the deal
+  // was created manually without a companyUrl. Persist the result
+  // back to the row so subsequent runs (cron, refresh button) skip
+  // this step.
+  if (!domain || PUBLIC_EMAIL_DOMAINS.has(domain)) {
+    const selfDomainSet = await (async () => {
+      try {
+        const { getSelfDomains } = await import("@/lib/deals/auto-detect");
+        const s = await getSelfDomains(userId);
+        return s.values().next().value as string | undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const inferred = inferDomainFromParticipants(
+      deal.participants.map((p) => ({ email: p.email })),
+      selfDomainSet || null
+    );
+    if (inferred) {
+      domain = inferred;
+      if (!deal.companyUrl) {
+        await prisma.deal.update({
+          where: { id: dealId },
+          data: { companyUrl: `https://${inferred}` },
+        });
+      }
+    }
+  }
+
   const summary: EnrichDealSummary = {
     dealDomain: domain,
     calendarEvents: { scanned: 0, added: 0, skipped: 0 },
