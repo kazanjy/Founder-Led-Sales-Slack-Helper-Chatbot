@@ -419,17 +419,23 @@ export async function enrichDeal(userId: string, dealId: string): Promise<Enrich
   // back to the row so subsequent runs (cron, refresh button) skip
   // this step.
   if (!domain || PUBLIC_EMAIL_DOMAINS.has(domain)) {
-    const selfDomainSet = await (async () => {
-      try {
-        const { getSelfDomains } = await import("@/lib/deals/auto-detect");
-        const s = await getSelfDomains(userId);
-        return s.values().next().value as string | undefined;
-      } catch {
-        return undefined;
-      }
-    })();
+    const [dealParticipants, selfDomainSet] = await Promise.all([
+      prisma.dealParticipant.findMany({
+        where: { dealId },
+        select: { email: true },
+      }),
+      (async () => {
+        try {
+          const { getSelfDomains } = await import("@/lib/deals/auto-detect");
+          const s = await getSelfDomains(userId);
+          return s.values().next().value as string | undefined;
+        } catch {
+          return undefined;
+        }
+      })(),
+    ]);
     const inferred = inferDomainFromParticipants(
-      deal.participants.map((p) => ({ email: p.email })),
+      dealParticipants,
       selfDomainSet || null
     );
     if (inferred) {
