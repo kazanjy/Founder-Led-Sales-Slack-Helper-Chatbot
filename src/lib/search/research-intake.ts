@@ -47,7 +47,6 @@ Return ONLY valid JSON. Use null for fields that cannot be determined. For urls,
         },
       ],
       max_completion_tokens: 300,
-      temperature: 0,
       response_format: { type: "json_object" },
     });
 

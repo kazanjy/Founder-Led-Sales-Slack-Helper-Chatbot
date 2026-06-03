@@ -59,7 +59,6 @@ export async function POST(
           content: `Project name: "${project.name}"\n\nConversations in this project:\n${chatSummary}`,
         },
       ],
-      temperature: 0.5,
       max_tokens: 150,
     });
 

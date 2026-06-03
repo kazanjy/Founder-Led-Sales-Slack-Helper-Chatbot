@@ -42,7 +42,6 @@ export async function* streamFromOpenAI(
     model: "gpt-5.5",
     messages,
     stream: true,
-    temperature: 0.7,
   });
 
   let fullResponse = "";

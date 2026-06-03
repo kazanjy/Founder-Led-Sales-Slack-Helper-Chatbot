@@ -61,7 +61,6 @@ Return clean markdown (NO code blocks). Start with a brief # title line.`;
       const response = await openai.chat.completions.create({
         model: "gpt-5.5",
         messages: [{ role: "user", content: instructionPrompt }],
-        temperature: 0.7,
       });
       aiResponse = response.choices[0]?.message?.content || "";
     } catch (openaiError) {

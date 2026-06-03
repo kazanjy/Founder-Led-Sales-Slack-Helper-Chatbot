@@ -52,7 +52,6 @@ export async function generateChatTitle(firstMessage: string): Promise<string> {
         },
       ],
       max_completion_tokens: 50,
-      temperature: 0.7,
     });
 
     console.log("[OpenAI] Response received:", JSON.stringify(response.choices[0]));

@@ -52,7 +52,6 @@ ${narrativeSummary}`;
       const response = await openai.chat.completions.create({
         model: "gpt-5.5",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.9,
       });
       aiResponse = response.choices[0]?.message?.content?.trim() || "";
     } catch (openaiError) {

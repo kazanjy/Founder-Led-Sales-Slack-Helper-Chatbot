@@ -180,7 +180,6 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
       { role: "system", content: systemPrompt },
       { role: "user", content: `Here is the call transcript to review:\n\n${transcript}` },
     ],
-    temperature: 0.3,
     response_format: { type: "json_object" },
   });
 

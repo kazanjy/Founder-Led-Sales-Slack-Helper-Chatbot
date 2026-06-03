@@ -110,7 +110,6 @@ Return clean markdown (NO code blocks). Use ## headers for each platform section
       const response = await openai.chat.completions.create({
         model: "gpt-5.5",
         messages: [{ role: "user", content: fullPrompt }],
-        temperature: 0.7,
       });
       aiResponse = response.choices[0]?.message?.content || "";
     } catch (openaiError) {

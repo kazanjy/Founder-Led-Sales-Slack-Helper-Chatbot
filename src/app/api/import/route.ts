@@ -453,7 +453,6 @@ export async function POST(request: NextRequest) {
       messages: [
         { role: "user", content: prompt },
       ],
-      temperature: 0.3,
       ...(isJsonOutput ? { response_format: { type: "json_object" } } : {}),
     });
 

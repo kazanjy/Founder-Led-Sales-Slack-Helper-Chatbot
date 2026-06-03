@@ -200,7 +200,6 @@ IMPORTANT RULES:
           const llmStream = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: fullPrompt }],
-            temperature: 0.8,
             stream: true,
           });
 

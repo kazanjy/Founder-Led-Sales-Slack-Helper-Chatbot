@@ -146,26 +146,22 @@ ${answersSummary.substring(0, 2000)}`;
           const narrativeStream = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: narrativePrompt }],
-            temperature: 0.7,
             stream: true,
           });
 
           const condensedPromise = openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: condensedPrompt }],
-            temperature: 0.7,
           });
 
           const descriptionsPromise = openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: descriptionsPrompt }],
-            temperature: 0.7,
           });
 
           const titlePromise = openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: titlePrompt }],
-            temperature: 0.5,
           });
 
           // Stream the narrative tokens

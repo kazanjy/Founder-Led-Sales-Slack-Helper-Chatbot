@@ -153,7 +153,6 @@ ${eligibleItems.map((i) => `- ID: ${i.id} | Stage: ${i.maturityStage} | Category
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
       response_format: { type: "json_object" },
     });
 

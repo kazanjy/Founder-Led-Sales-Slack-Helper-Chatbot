@@ -115,7 +115,6 @@ export async function POST(request: NextRequest) {
         },
       ],
       max_completion_tokens: 8000,
-      temperature: 0.7,
     });
 
     const structuredSlideContent = preProcessResponse.choices[0]?.message?.content?.trim() || "";

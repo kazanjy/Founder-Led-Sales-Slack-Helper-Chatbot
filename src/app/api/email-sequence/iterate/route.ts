@@ -58,7 +58,6 @@ Respond ONLY with the revised email sequence content in markdown format (no JSON
           const response = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: prompt }],
-            temperature: 0.7,
           });
 
           const content = response.choices[0]?.message?.content || "";

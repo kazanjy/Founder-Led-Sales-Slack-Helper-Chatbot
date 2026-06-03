@@ -65,7 +65,6 @@ Output: {"companyName":"Example Co","companyDomain":"example.com","contactName":
         },
       ],
       max_completion_tokens: 300,
-      temperature: 0,
       response_format: { type: "json_object" },
     });
 

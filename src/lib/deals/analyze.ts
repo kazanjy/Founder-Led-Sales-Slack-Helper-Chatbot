@@ -293,7 +293,6 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
       { role: "user", content: (dealContext + priorAnalysisBlock).substring(0, 30000) },
     ],
     max_completion_tokens: 2000,
-    temperature: 0.4,
   });
 
   const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";

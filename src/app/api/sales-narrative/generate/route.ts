@@ -170,12 +170,10 @@ Respond ONLY with valid JSON (no markdown code blocks):
         openai.chat.completions.create({
           model: "gpt-5.5",
           messages: [{ role: "user", content: narrativePrompt }],
-          temperature: 0.7,
         }),
         openai.chat.completions.create({
           model: "gpt-5.5",
           messages: [{ role: "user", content: descriptionsPrompt }],
-          temperature: 0.7,
         }),
       ]);
       narrativeRaw = narrativeRes.choices[0]?.message?.content || "";

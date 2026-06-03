@@ -224,7 +224,6 @@ ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${
           { role: "assistant", content: "I've studied Example 2 (Synthesis). I see the additional depth: background modifiers, persona-specific intro scripts, 'why we ask this' for each question, signal check framework, disqualification script, narrative positioning with bridge language table, and strategic framing rules. I'm ready to generate a First Call Checklist with this level of detail." },
           { role: "user", content: mainPrompt },
         ],
-        temperature: 0.7,
       });
       aiResponse = response.choices[0]?.message?.content || "";
     } catch (aiError) {

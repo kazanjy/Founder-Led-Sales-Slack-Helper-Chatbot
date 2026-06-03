@@ -240,7 +240,6 @@ Now generate the research brief.`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
       stream: true,
     });
 

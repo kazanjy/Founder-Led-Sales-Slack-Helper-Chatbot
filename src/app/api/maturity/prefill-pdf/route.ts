@@ -104,7 +104,6 @@ Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`
           { role: "system", content: systemPrompt },
           { role: "user", content: `## PDF CONTENT\n\n${trimmedContext}` },
         ],
-        temperature: 0.2,
         response_format: { type: "json_object" },
       });
 

@@ -211,7 +211,6 @@ Output ONLY the markdown report, no JSON wrapping.`;
           const llmStream = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: prompt }],
-            temperature: 0.7,
             stream: true,
           });
 
@@ -228,7 +227,6 @@ Output ONLY the markdown report, no JSON wrapping.`;
           const titleRes = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: `Based on this AE hiring profile, generate a short title in the format "AE Hiring Profile - [brief descriptor]". Respond with ONLY the title.\n\n${fullContent.substring(0, 2000)}` }],
-            temperature: 0.5,
           });
           const title = (titleRes.choices[0]?.message?.content || "AE Hiring Profile").trim();
 

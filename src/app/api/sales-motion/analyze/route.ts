@@ -79,7 +79,6 @@ Respond with JSON only, no markdown fencing:
               const res = await openai.chat.completions.create({
                 model: "gpt-5.5",
                 messages: [{ role: "user", content: classifyPrompt }],
-                temperature: 0.7,
               });
 
               const raw = res.choices[0]?.message?.content || "{}";
@@ -181,7 +180,6 @@ Be specific and grounded in the data provided. Output ONLY the markdown report.`
           const motionStream = await openai.chat.completions.create({
             model: "gpt-5.5",
             messages: [{ role: "user", content: motionPrompt }],
-            temperature: 0.7,
             stream: true,
           });
 
@@ -297,7 +295,6 @@ Be specific and grounded in the actual examples provided. Output ONLY the markdo
               const res = await openai.chat.completions.create({
                 model: "gpt-5.5",
                 messages: [{ role: "user", content: scriptPrompt }],
-                temperature: 0.7,
               });
 
               const content = res.choices[0]?.message?.content || "";
