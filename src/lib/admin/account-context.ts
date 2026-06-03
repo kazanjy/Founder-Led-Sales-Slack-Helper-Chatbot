@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 /**
- * Per-section size caps. The total budget is generous (gpt-5.2 has a
+ * Per-section size caps. The total budget is generous (gpt-5.5 has a
  * large context window) but we cap individual items so one runaway
  * transcript or asset note can't dominate the bundle. Numbers are in
  * characters; rough rule of thumb is ~4 chars per token.

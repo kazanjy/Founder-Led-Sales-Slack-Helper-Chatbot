@@ -235,7 +235,7 @@ Now generate the research brief.`;
   let aiResponse = "";
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

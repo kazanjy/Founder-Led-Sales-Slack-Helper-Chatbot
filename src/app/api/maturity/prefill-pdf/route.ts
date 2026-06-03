@@ -99,7 +99,7 @@ Format: {"questionId1": "answer text...", "questionId2": "answer text...", ...}`
     let aiResponse: string;
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-5.5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `## PDF CONTENT\n\n${trimmedContext}` },

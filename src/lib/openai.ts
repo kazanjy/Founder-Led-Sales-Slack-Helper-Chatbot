@@ -37,9 +37,9 @@ export async function generateChatTitle(firstMessage: string): Promise<string> {
   console.log("[OpenAI] API key prefix:", process.env.OPENAI_API_KEY?.substring(0, 7) || "missing");
 
   try {
-    console.log("[OpenAI] Calling chat.completions.create with model: gpt-5.2");
+    console.log("[OpenAI] Calling chat.completions.create with model: gpt-5.5");
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         {
           role: "system",

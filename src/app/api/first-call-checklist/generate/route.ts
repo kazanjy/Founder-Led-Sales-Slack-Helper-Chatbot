@@ -215,7 +215,7 @@ ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${
     let aiResponse = "";
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-5.5",
         messages: [
           { role: "system", content: "You are an expert sales coach specializing in founder-led sales. Generate detailed, actionable first call checklists with verbatim scripts — not generic advice. Return raw markdown (no code blocks)." },
           { role: "user", content: example1 },

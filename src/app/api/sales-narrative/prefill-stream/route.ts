@@ -158,7 +158,7 @@ Respond with ONLY the answer text. No JSON, no quotes, no preamble, no markdown 
 
             try {
               const response = await openai.chat.completions.create({
-                model: "gpt-5.2",
+                model: "gpt-5.5",
                 messages: [{ role: "user", content: prompt }],
                 temperature: 0.7,
               });

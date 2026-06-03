@@ -5,7 +5,7 @@ import { openai } from "@/lib/openai";
  * Deal analysis pipeline shared by the on-demand POST handler at
  * /api/deals/[id]/analyze and the daily cron at
  * /api/cron/refresh-deal-health. Builds the prompt context from the
- * deal's timeline + participants + sales narrative, asks gpt-5.2
+ * deal's timeline + participants + sales narrative, asks gpt-5.5
  * for a structured analysis, parses three machine-parseable footers
  * (PARTICIPANT_ROLES, SUGGESTED_STAGE, MIKEY_HEALTH), applies them
  * to the deal row, and logs a stage_change timeline entry when the
@@ -287,7 +287,7 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
 - Anchor the rating in the SAME evidence you cited in Strengths and Risks & Gaps — don't grade easier than the prose suggests.`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-5.5",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: (dealContext + priorAnalysisBlock).substring(0, 30000) },

@@ -77,7 +77,7 @@ Respond with JSON only, no markdown fencing:
 }`;
 
               const res = await openai.chat.completions.create({
-                model: "gpt-5.2",
+                model: "gpt-5.5",
                 messages: [{ role: "user", content: classifyPrompt }],
                 temperature: 0.7,
               });
@@ -179,7 +179,7 @@ What do successful deals have in common? Patterns in sequencing, timing, engagem
 Be specific and grounded in the data provided. Output ONLY the markdown report.`;
 
           const motionStream = await openai.chat.completions.create({
-            model: "gpt-5.2",
+            model: "gpt-5.5",
             messages: [{ role: "user", content: motionPrompt }],
             temperature: 0.7,
             stream: true,
@@ -295,7 +295,7 @@ What a successful call looks like and typical follow-up actions.
 Be specific and grounded in the actual examples provided. Output ONLY the markdown.`;
 
               const res = await openai.chat.completions.create({
-                model: "gpt-5.2",
+                model: "gpt-5.5",
                 messages: [{ role: "user", content: scriptPrompt }],
                 temperature: 0.7,
               });

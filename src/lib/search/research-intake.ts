@@ -19,7 +19,7 @@ export interface ResearchFields {
 export async function parseResearchFields(freeformText: string): Promise<ResearchFields> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         {
           role: "system",

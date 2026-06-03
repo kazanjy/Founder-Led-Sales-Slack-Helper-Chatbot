@@ -175,7 +175,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code block
   console.log("[CallReview:analyze] Calling GPT-5.2 | system prompt:", systemPromptLen, "chars | user prompt:", userPromptLen, "chars | total:", systemPromptLen + userPromptLen, "chars");
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-5.5",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Here is the call transcript to review:\n\n${transcript}` },

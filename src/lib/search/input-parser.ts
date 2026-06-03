@@ -32,7 +32,7 @@ export async function parseSearchInput(input: SearchInput): Promise<ParsedSearch
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         {
           role: "system",

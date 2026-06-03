@@ -39,7 +39,7 @@ export async function* streamFromOpenAI(
   ];
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-5.5",
     messages,
     stream: true,
     temperature: 0.7,

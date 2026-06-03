@@ -303,12 +303,12 @@ export async function POST(
             });
           }
 
-          // Cap total input so we don't hit gpt-5.2's 272k-token
+          // Cap total input so we don't hit gpt-5.5's 1M-token
           // ceiling when long conversations + heavy attachments
-          // compound. Conservative char budget (~3.5 chars/token,
-          // minus headroom for system prompt and completion).
+          // compound. Char budget is conservative (~3.5 chars/token)
+          // with headroom for the system prompt and completion.
           // Newest messages win; oldest get dropped first.
-          const MAX_INPUT_CHARS = 800_000;
+          const MAX_INPUT_CHARS = 3_200_000;
           const fixedChars = expandedMessage.length;
           let runningChars = 0;
           const keptReversed: typeof directHistory = [];

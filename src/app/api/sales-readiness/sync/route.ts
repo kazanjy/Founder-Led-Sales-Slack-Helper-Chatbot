@@ -148,7 +148,7 @@ ${sourceText}
 ${eligibleItems.map((i) => `- ID: ${i.id} | Stage: ${i.maturityStage} | Category: ${i.capabilityCategory} | Title: ${i.title}${i.description ? ` | Description: ${i.description}` : ""} | Current Status: ${i.currentStatus}`).join("\n")}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

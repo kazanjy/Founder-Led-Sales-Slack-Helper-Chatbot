@@ -98,7 +98,7 @@ Be specific and actionable — avoid generic advice. Output ONLY the markdown re
         try {
           // Stream the profile content token by token
           const llmStream = await openai.chat.completions.create({
-            model: "gpt-5.2",
+            model: "gpt-5.5",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
             stream: true,
@@ -115,7 +115,7 @@ Be specific and actionable — avoid generic advice. Output ONLY the markdown re
 
           // Generate a title (fast, non-streaming)
           const titleRes = await openai.chat.completions.create({
-            model: "gpt-5.2",
+            model: "gpt-5.5",
             messages: [{ role: "user", content: `Based on this Sales Leader hiring profile, generate a short title in the format "Sales Leader Hiring Profile - [brief descriptor]". Respond with ONLY the title.\n\n${fullContent.substring(0, 2000)}` }],
             temperature: 0.5,
           });

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     // 5. Pre-process with GPT-5 to produce structured slide content
     console.log(`[generate-gamma] Pre-processing with GPT-5 (${allContext.length} chars)`);
     const preProcessResponse = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         {
           role: "system",

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     console.log("[Sales Metrics] Calling GPT for analysis, prompt length:", prompt.length);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       response_format: { type: "json_object" },

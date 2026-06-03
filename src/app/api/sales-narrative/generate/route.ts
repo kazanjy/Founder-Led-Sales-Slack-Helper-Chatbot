@@ -168,12 +168,12 @@ Respond ONLY with valid JSON (no markdown code blocks):
     try {
       const [narrativeRes, descriptionsRes] = await Promise.all([
         openai.chat.completions.create({
-          model: "gpt-5.2",
+          model: "gpt-5.5",
           messages: [{ role: "user", content: narrativePrompt }],
           temperature: 0.7,
         }),
         openai.chat.completions.create({
-          model: "gpt-5.2",
+          model: "gpt-5.5",
           messages: [{ role: "user", content: descriptionsPrompt }],
           temperature: 0.7,
         }),

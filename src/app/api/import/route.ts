@@ -449,7 +449,7 @@ export async function POST(request: NextRequest) {
 
     // Call GPT 5.2 for synthesis
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
+      model: "gpt-5.5",
       messages: [
         { role: "user", content: prompt },
       ],
