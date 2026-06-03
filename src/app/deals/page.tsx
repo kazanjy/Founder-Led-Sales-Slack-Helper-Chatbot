@@ -28,10 +28,17 @@ interface Deal {
   _count: { entries: number; participants: number };
 }
 
+function startOfLocalDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 function formatRelative(dateStr: string): string {
   const date = new Date(dateStr);
-  const diffDay = Math.floor((Date.now() - date.getTime()) / 86400000);
-  if (diffDay < 1) return "today";
+  // Compare calendar-day midnights in local time so "today" / "yesterday"
+  // line up with what the user actually sees on a calendar, not raw
+  // elapsed-hours-divided-by-24.
+  const diffDay = Math.round((startOfLocalDay(new Date()) - startOfLocalDay(date)) / 86400000);
+  if (diffDay <= 0) return "today";
   if (diffDay === 1) return "yesterday";
   if (diffDay < 7) return `${diffDay}d ago`;
   if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
@@ -40,9 +47,8 @@ function formatRelative(dateStr: string): string {
 
 function formatNextMeeting(dateStr: string): string {
   const date = new Date(dateStr);
-  const diffMs = date.getTime() - Date.now();
-  const diffDay = Math.floor(diffMs / 86400000);
-  if (diffDay < 1) {
+  const diffDay = Math.round((startOfLocalDay(date) - startOfLocalDay(new Date())) / 86400000);
+  if (diffDay <= 0) {
     return date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" }) + " today";
   }
   if (diffDay === 1) return "tomorrow";
