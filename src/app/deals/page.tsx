@@ -57,6 +57,22 @@ function formatNextMeeting(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Natural direction for each sort option — the one the dropdown
+// label implies (e.g. "Deal size (highest)" is desc). Picking a new
+// sort option resets sortDir to its natural. The arrow toggle flips
+// it. URL omits ?dir when it matches natural to keep links clean.
+const NATURAL_DIR: Record<string, "asc" | "desc"> = {
+  recent: "desc",
+  last_activity: "desc",
+  next_meeting: "asc",
+  created_new: "desc",
+  created_old: "asc",
+  value_high: "desc",
+  stage: "asc",
+  projected_close: "asc",
+  none: "desc",
+};
+
 export default function DealsPage() {
   return (
     <Suspense
@@ -113,6 +129,8 @@ function DealsPageContent() {
   const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
   const [sortBy, setSortBy] = useState<string>(() => searchParams.get("sort") || "recent");
   const [sortBy2, setSortBy2] = useState<string>(() => searchParams.get("sort2") || "none");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (searchParams.get("dir") as "asc" | "desc") || "desc");
+  const [sortDir2, setSortDir2] = useState<"asc" | "desc">(() => (searchParams.get("dir2") as "asc" | "desc") || "desc");
   const [healthFilter, setHealthFilter] = useState<string>(() => searchParams.get("health") || "all");
   const [meetingFilter, setMeetingFilter] = useState<string>(() => searchParams.get("meeting") || "all");
   const [activityFilter, setActivityFilter] = useState<string>(() => searchParams.get("activity") || "all");
@@ -196,6 +214,8 @@ function DealsPageContent() {
       if (statusFilter !== "active") params.set("status", statusFilter);
       if (sortBy !== "recent") params.set("sort", sortBy);
       if (sortBy2 !== "none") params.set("sort2", sortBy2);
+      if (sortDir !== NATURAL_DIR[sortBy]) params.set("dir", sortDir);
+      if (sortBy2 !== "none" && sortDir2 !== NATURAL_DIR[sortBy2]) params.set("dir2", sortDir2);
       if (healthFilter !== "all") params.set("health", healthFilter);
       if (meetingFilter !== "all") params.set("meeting", meetingFilter);
       if (activityFilter !== "all") params.set("activity", activityFilter);
@@ -205,7 +225,7 @@ function DealsPageContent() {
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
       const merged = new URLSearchParams(current);
-      ["stage", "status", "q", "sort", "sort2", "health", "meeting", "activity"].forEach((k) => merged.delete(k));
+      ["stage", "status", "q", "sort", "sort2", "dir", "dir2", "health", "meeting", "activity"].forEach((k) => merged.delete(k));
       for (const [k, v] of params) merged.set(k, v);
       const target = merged.toString();
       if (target !== current) {
@@ -213,7 +233,7 @@ function DealsPageContent() {
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, healthFilter, meetingFilter, activityFilter, router, searchParams]);
+  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, sortDir, sortDir2, healthFilter, meetingFilter, activityFilter, router, searchParams]);
 
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
@@ -473,8 +493,17 @@ function DealsPageContent() {
       }
     };
 
-    const primary = makeComparator(sortBy);
-    const secondary = sortBy2 !== "none" && sortBy2 !== sortBy ? makeComparator(sortBy2) : null;
+    // Each comparator already returns its "natural" direction's
+    // output. If the user has flipped the toggle so sortDir differs
+    // from the option's natural direction, multiply by -1.
+    const applyDir = (cmp: (a: Deal, b: Deal) => number, key: string, dir: "asc" | "desc") => {
+      const flip = dir !== NATURAL_DIR[key];
+      return flip ? (a: Deal, b: Deal) => -cmp(a, b) : cmp;
+    };
+    const primary = applyDir(makeComparator(sortBy), sortBy, sortDir);
+    const secondary = sortBy2 !== "none" && sortBy2 !== sortBy
+      ? applyDir(makeComparator(sortBy2), sortBy2, sortDir2)
+      : null;
     return [...filtered].sort((a, b) => {
       const p = primary(a, b);
       if (p !== 0 || !secondary) return p;
@@ -606,7 +635,11 @@ function DealsPageContent() {
           Sort:
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setSortBy(next);
+              setSortDir(NATURAL_DIR[next] || "desc");
+            }}
             className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
           >
             <option value="recent">Recently updated</option>
@@ -618,12 +651,17 @@ function DealsPageContent() {
             <option value="stage">Stage (pipeline order)</option>
             <option value="projected_close">Projected close (soonest)</option>
           </select>
+          <SortDirButton dir={sortDir} onToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))} />
         </label>
         <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
           Then by:
           <select
             value={sortBy2}
-            onChange={(e) => setSortBy2(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setSortBy2(next);
+              setSortDir2(NATURAL_DIR[next] || "desc");
+            }}
             className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
           >
             <option value="none">— none —</option>
@@ -636,6 +674,9 @@ function DealsPageContent() {
             <option value="stage" disabled={sortBy === "stage"}>Stage (pipeline order)</option>
             <option value="projected_close" disabled={sortBy === "projected_close"}>Projected close (soonest)</option>
           </select>
+          {sortBy2 !== "none" && (
+            <SortDirButton dir={sortDir2} onToggle={() => setSortDir2((d) => (d === "asc" ? "desc" : "asc"))} />
+          )}
         </label>
         </div>
 
@@ -1378,6 +1419,19 @@ function FilterPill({
       }`}
     >
       {children}
+    </button>
+  );
+}
+
+function SortDirButton({ dir, onToggle }: { dir: "asc" | "desc"; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+      title={dir === "desc" ? "Sorted highest / newest / soonest first — click to flip" : "Sorted lowest / oldest / latest first — click to flip"}
+    >
+      {dir === "desc" ? "↓" : "↑"}
     </button>
   );
 }
