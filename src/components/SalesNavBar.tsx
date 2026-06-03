@@ -24,11 +24,11 @@ const callExecutionItems: NavItem[] = [
   { href: "/call-recap/new", label: "✉️ Call Recap Email", statusKey: "callRecap" },
   { href: "/call-review", label: "📞 Call Coaching", statusKey: "callReview" },
   { href: "/call-scripts", label: "🎯 Cold Call Scripts", statusKey: "coldCallScript" },
+  { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
 ];
 
 const standaloneItems: NavItem[] = [
   { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
-  { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];
