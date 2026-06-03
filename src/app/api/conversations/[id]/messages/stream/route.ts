@@ -302,6 +302,39 @@ export async function POST(
               content: `## User's Prompt Guidance\nThe user has provided the following guidance for how you should respond. Follow these instructions:\n\n${promptGuidance}`,
             });
           }
+
+          // Cap total input so we don't hit gpt-5.2's 272k-token
+          // ceiling when long conversations + heavy attachments
+          // compound. Conservative char budget (~3.5 chars/token,
+          // minus headroom for system prompt and completion).
+          // Newest messages win; oldest get dropped first.
+          const MAX_INPUT_CHARS = 800_000;
+          const fixedChars = expandedMessage.length;
+          let runningChars = 0;
+          const keptReversed: typeof directHistory = [];
+          for (let i = directHistory.length - 1; i >= 0; i--) {
+            const m = directHistory[i];
+            const len = m.content.length;
+            if (runningChars + len + fixedChars > MAX_INPUT_CHARS) break;
+            runningChars += len;
+            keptReversed.push(m);
+          }
+          const droppedCount = directHistory.length - keptReversed.length;
+          if (droppedCount > 0) {
+            console.log(
+              `[stream] direct-mode history truncated: dropped ${droppedCount} oldest messages ` +
+                `(kept ${keptReversed.length}, runningChars=${runningChars}, fixedChars=${fixedChars}, budget=${MAX_INPUT_CHARS})`
+            );
+          }
+          let trimmed = keptReversed.reverse();
+          // Avoid starting the kept window on an orphan assistant
+          // message (its preceding user turn was dropped). Slice
+          // forward until we hit a user/system turn.
+          while (trimmed.length > 0 && trimmed[0].role === "assistant") {
+            trimmed = trimmed.slice(1);
+          }
+          directHistory = trimmed;
+
           const openaiStream = streamFromOpenAI(expandedMessage, directHistory);
 
           while (true) {
