@@ -131,6 +131,7 @@ function DealsPageContent() {
   const [sortBy2, setSortBy2] = useState<string>(() => searchParams.get("sort2") || "none");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (searchParams.get("dir") as "asc" | "desc") || "desc");
   const [sortDir2, setSortDir2] = useState<"asc" | "desc">(() => (searchParams.get("dir2") as "asc" | "desc") || "desc");
+  const [layout, setLayout] = useState<"grid" | "list">(() => (searchParams.get("layout") as "grid" | "list") || "grid");
   const [healthFilter, setHealthFilter] = useState<string>(() => searchParams.get("health") || "all");
   const [meetingFilter, setMeetingFilter] = useState<string>(() => searchParams.get("meeting") || "all");
   const [activityFilter, setActivityFilter] = useState<string>(() => searchParams.get("activity") || "all");
@@ -216,6 +217,7 @@ function DealsPageContent() {
       if (sortBy2 !== "none") params.set("sort2", sortBy2);
       if (sortDir !== NATURAL_DIR[sortBy]) params.set("dir", sortDir);
       if (sortBy2 !== "none" && sortDir2 !== NATURAL_DIR[sortBy2]) params.set("dir2", sortDir2);
+      if (layout !== "grid") params.set("layout", layout);
       if (healthFilter !== "all") params.set("health", healthFilter);
       if (meetingFilter !== "all") params.set("meeting", meetingFilter);
       if (activityFilter !== "all") params.set("activity", activityFilter);
@@ -225,7 +227,7 @@ function DealsPageContent() {
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
       const merged = new URLSearchParams(current);
-      ["stage", "status", "q", "sort", "sort2", "dir", "dir2", "health", "meeting", "activity"].forEach((k) => merged.delete(k));
+      ["stage", "status", "q", "sort", "sort2", "dir", "dir2", "layout", "health", "meeting", "activity"].forEach((k) => merged.delete(k));
       for (const [k, v] of params) merged.set(k, v);
       const target = merged.toString();
       if (target !== current) {
@@ -233,7 +235,7 @@ function DealsPageContent() {
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, sortDir, sortDir2, healthFilter, meetingFilter, activityFilter, router, searchParams]);
+  }, [stageFilter, statusFilter, searchQuery, sortBy, sortBy2, sortDir, sortDir2, layout, healthFilter, meetingFilter, activityFilter, router, searchParams]);
 
   // Auto-open the New Deal modal when landed on /deals?new=1 (used by the
   // "New Deal" CTA on the detail page).
@@ -678,6 +680,34 @@ function DealsPageContent() {
             <SortDirButton dir={sortDir2} onToggle={() => setSortDir2((d) => (d === "asc" ? "desc" : "asc"))} />
           )}
         </label>
+        <div className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden ml-auto">
+          <button
+            type="button"
+            onClick={() => setLayout("grid")}
+            className={`px-2 py-1.5 text-sm transition-colors ${
+              layout === "grid"
+                ? "bg-purple-600 text-white"
+                : "text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title="2-column grid"
+            aria-label="2-column grid"
+          >
+            ▦
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayout("list")}
+            className={`px-2 py-1.5 text-sm transition-colors ${
+              layout === "list"
+                ? "bg-purple-600 text-white"
+                : "text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}
+            title="Ranked single-column list with extra detail"
+            aria-label="Single-column list"
+          >
+            ☰
+          </button>
+        </div>
         </div>
 
         {/* Filters */}
@@ -993,7 +1023,7 @@ function DealsPageContent() {
                 </div>
               );
             })()}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={layout === "list" ? "flex flex-col gap-3" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
             {filteredDeals.map((deal) => {
               const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
@@ -1145,6 +1175,36 @@ function DealsPageContent() {
                       ) : null
                     )}
                   </div>
+                  {/* Extended details — list-only row with forecast + close
+                      dates + source + notes so the wider card layout has
+                      something to chew on. */}
+                  {layout === "list" && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-4 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2">
+                      {typeof deal.dealValue === "number" && deal.dealValue > 0 ? (
+                        <span>
+                          <span className="text-gray-400">Size:</span> <span className="text-gray-700 dark:text-gray-200 font-medium">${deal.dealValue.toLocaleString()}</span>
+                        </span>
+                      ) : null}
+                      {deal.projectedCloseDate && (
+                        <span>
+                          <span className="text-gray-400">Projected close:</span> <span className="text-gray-700 dark:text-gray-200">{new Date(deal.projectedCloseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </span>
+                      )}
+                      {(deal.status === "closed_won" || deal.status === "closed_lost") && (deal as Deal & { closeDate?: string | null }).closeDate && (
+                        <span>
+                          <span className="text-gray-400">Closed:</span> <span className="text-gray-700 dark:text-gray-200">{new Date((deal as Deal & { closeDate: string }).closeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                        </span>
+                      )}
+                      <span>
+                        <span className="text-gray-400">Created:</span> <span className="text-gray-700 dark:text-gray-200">{new Date(deal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      </span>
+                      {deal.source && (
+                        <span className="text-purple-600 dark:text-purple-300">
+                          Auto-detected · {deal.source === "calendar" ? "Calendar" : "Recorder"}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </Link>
               );
             })}
