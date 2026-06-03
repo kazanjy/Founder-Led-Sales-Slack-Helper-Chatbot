@@ -611,11 +611,6 @@ function ResearchContent() {
       urls,
     });
 
-  const handleLoadBrief = async (id: string) => {
-    router.replace(`/pre-call-planning/research?id=${id}`, { scroll: false });
-    await loadBriefById(id);
-  };
-
   const handleCopy = async () => {
     if (!brief) return;
     const success = await copyMarkdownAsRichText(brief.content);
@@ -1419,10 +1414,11 @@ function ResearchContent() {
                 </div>
                 <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
                   {history.slice(0, 10).map((item) => (
-                    <button
+                    <Link
                       key={item.id}
-                      onClick={() => handleLoadBrief(item.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                      href={`/pre-call-planning/research?id=${item.id}`}
+                      scroll={false}
+                      className={`block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
                         brief?.id === item.id ? "bg-purple-50 border border-purple-200" : ""
                       }`}
                     >
@@ -1436,7 +1432,7 @@ function ResearchContent() {
                           <span className="ml-1 text-purple-500">via Slack</span>
                         )}
                       </div>
-                    </button>
+                    </Link>
                   ))}
                 </div>
               </div>
