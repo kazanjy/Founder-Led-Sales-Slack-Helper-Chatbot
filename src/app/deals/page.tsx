@@ -1028,7 +1028,7 @@ function DealsPageContent() {
               const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
               const pipeline = mergePipeline(customStages);
-              const patchDeal = async (patch: { stage?: string; status?: string }) => {
+              const patchDeal = async (patch: { stage?: string; status?: string; dealValue?: number | null; projectedCloseDate?: string | null }) => {
                 setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...patch } : d)));
                 try {
                   await fetch(`/api/deals/${deal.id}`, {
@@ -1179,17 +1179,45 @@ function DealsPageContent() {
                       dates + source + notes so the wider card layout has
                       something to chew on. */}
                   {layout === "list" && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-4 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2">
-                      {typeof deal.dealValue === "number" && deal.dealValue > 0 ? (
-                        <span>
-                          <span className="text-gray-400">Size:</span> <span className="text-gray-700 dark:text-gray-200 font-medium">${deal.dealValue.toLocaleString()}</span>
-                        </span>
-                      ) : null}
-                      {deal.projectedCloseDate && (
-                        <span>
-                          <span className="text-gray-400">Projected close:</span> <span className="text-gray-700 dark:text-gray-200">{new Date(deal.projectedCloseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                        </span>
-                      )}
+                    <div
+                      className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-4 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <label className="flex items-center gap-1.5">
+                        <span className="text-gray-400">Size:</span>
+                        <span className="text-gray-500">$</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          defaultValue={deal.dealValue != null ? deal.dealValue.toLocaleString("en-US") : ""}
+                          key={`size-${deal.dealValue ?? "empty"}`}
+                          onClick={(e) => e.preventDefault()}
+                          onInput={(e) => {
+                            const el = e.currentTarget;
+                            const digits = el.value.replace(/[^\d]/g, "");
+                            el.value = digits ? Number(digits).toLocaleString("en-US") : "";
+                          }}
+                          onBlur={(e) => {
+                            const digits = e.target.value.replace(/[^\d]/g, "");
+                            const next = digits === "" ? null : Math.max(0, parseInt(digits, 10));
+                            if (next !== (deal.dealValue ?? null)) {
+                              patchDeal({ dealValue: next });
+                            }
+                          }}
+                          placeholder="—"
+                          className="w-20 bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 text-gray-700 dark:text-gray-200 font-medium"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1.5">
+                        <span className="text-gray-400">Projected close:</span>
+                        <input
+                          type="date"
+                          value={deal.projectedCloseDate ? deal.projectedCloseDate.split("T")[0] : ""}
+                          onClick={(e) => e.preventDefault()}
+                          onChange={(e) => patchDeal({ projectedCloseDate: e.target.value || null })}
+                          className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 text-gray-700 dark:text-gray-200"
+                        />
+                      </label>
                       {(deal.status === "closed_won" || deal.status === "closed_lost") && (deal as Deal & { closeDate?: string | null }).closeDate && (
                         <span>
                           <span className="text-gray-400">Closed:</span> <span className="text-gray-700 dark:text-gray-200">{new Date((deal as Deal & { closeDate: string }).closeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>

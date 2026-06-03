@@ -1375,13 +1375,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
               <span className="font-medium text-gray-500 dark:text-gray-400">Deal size:</span>
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                min={0}
-                step={100}
-                defaultValue={deal.dealValue ?? ""}
+                type="text"
+                inputMode="numeric"
+                // Display with commas; strip them + any non-digits on
+                // blur before saving as a plain integer.
+                defaultValue={deal.dealValue != null ? deal.dealValue.toLocaleString("en-US") : ""}
+                key={deal.dealValue ?? "empty"}
+                onInput={(e) => {
+                  const el = e.currentTarget;
+                  const digits = el.value.replace(/[^\d]/g, "");
+                  el.value = digits ? Number(digits).toLocaleString("en-US") : "";
+                }}
                 onBlur={(e) => {
-                  const raw = e.target.value.trim();
-                  const next = raw === "" ? null : Math.max(0, Math.round(Number(raw)));
+                  const digits = e.target.value.replace(/[^\d]/g, "");
+                  const next = digits === "" ? null : Math.max(0, parseInt(digits, 10));
                   if (next !== (deal.dealValue ?? null)) {
                     updateDeal({ dealValue: next });
                   }
