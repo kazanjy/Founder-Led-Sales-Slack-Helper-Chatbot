@@ -2093,7 +2093,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             {/* Meeting Recorder import */}
             <div className="mb-5">
               <MeetingRecorderPanel
-                defaultCollapsed={deal.entries.length > 0}
+                defaultCollapsed={false}
                 onSelectCall={async (data) => {
                   // Build content with attendees header
                   const headerLines: string[] = [];
