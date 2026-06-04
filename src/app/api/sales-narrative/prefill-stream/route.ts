@@ -47,15 +47,24 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: "No questions configured" }), { status: 500 });
     }
 
-    // Gather context (same logic as prefill route)
+    // Gather context (same logic as prefill route). We also collect
+    // per-source extracted text so it can be returned to the client
+    // and persisted at generation time — that way the Extend flow
+    // can re-use the original tokens without re-crawling / re-OCRing.
     const contextParts: string[] = [];
     const sourceUrls: string[] = [];
     const sourcePdfNames: string[] = [];
+    const extractedSources: Array<{ type: "url" | "pdf"; key: string; content: string }> = [];
     const tasks: Promise<void>[] = [];
 
     if (cachedCrawl?.text) {
       contextParts.push(`## WEBSITE CONTENT\n\n${cachedCrawl.text}`);
       sourceUrls.push(...cachedCrawl.urls);
+      // Store the whole crawl text under the first URL as the
+      // representative key — we don't have per-page splits here.
+      if (cachedCrawl.urls[0]) {
+        extractedSources.push({ type: "url", key: cachedCrawl.urls[0], content: cachedCrawl.text });
+      }
     } else if (websiteUrl?.trim()) {
       tasks.push(
         crawlWebsiteForContext(websiteUrl.trim())
@@ -63,6 +72,9 @@ export async function POST(request: NextRequest) {
             if (result.text) {
               contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
               sourceUrls.push(...result.urls);
+              if (result.urls[0]) {
+                extractedSources.push({ type: "url", key: result.urls[0], content: result.text });
+              }
             }
           })
           .catch((err) => console.error("[PrefillStream] Crawl failed:", err))
@@ -81,6 +93,9 @@ export async function POST(request: NextRequest) {
             if (ok.length > 0) {
               contextParts.push(`## SPECIFIC PAGE CONTENT\n\n${ok.map((p) => `### ${p.title || p.url}\n${p.textContent}`).join("\n\n---\n\n")}`);
               sourceUrls.push(...ok.map((p) => p.url));
+              for (const p of ok) {
+                if (p.textContent) extractedSources.push({ type: "url", key: p.url, content: p.textContent });
+              }
             }
           })
           .catch((err) => console.error("[PrefillStream] URL fetch failed:", err))
@@ -100,6 +115,7 @@ export async function POST(request: NextRequest) {
               if (formatted) {
                 contextParts.push(`## PDF: ${pdf.name}\n\n${formatted}`);
                 sourcePdfNames.push(pdf.name);
+                extractedSources.push({ type: "pdf", key: pdf.name, content: formatted });
               }
             } catch (err) {
               console.error(`[PrefillStream] PDF ${pdf.name} failed:`, err);
@@ -130,8 +146,11 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-          // Send source info immediately
-          send("sources", { sourceUrls, sourcePdfNames });
+          // Send source info immediately. extractedSources carries
+          // the raw text per source so the client can pass it to
+          // generate-stream for persistence into the NarrativeSource
+          // cache — powers the Extend flow without re-crawling.
+          send("sources", { sourceUrls, sourcePdfNames, extractedSources });
 
           console.log(`[PrefillStream] Firing ${questions.length} parallel LLM calls`);
 

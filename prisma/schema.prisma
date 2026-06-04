@@ -161,6 +161,7 @@ model User {
   maturityAssessments        MaturityAssessment[]
   salesNarrativeAnswers      SalesNarrativeAnswer[]
   salesNarrativeVersions     SalesNarrativeVersion[]
+  narrativeSources           NarrativeSource[]
   discoveryQuestionsVersions DiscoveryQuestionsVersion[]
   firstCallChecklistVersions FirstCallChecklistVersion[]
   preCallPlanningVersions    PreCallPlanningVersion[]
@@ -941,6 +942,11 @@ model SalesNarrativeVersion {
   sourceUrls     String[] @default([]) // URLs crawled from website
   sourcePdfNames String[] @default([]) // Names of uploaded PDF files
 
+  // Cached extracted text for each source so the Extend flow can
+  // reuse the original tokens without re-crawling / re-OCRing PDFs
+  // that may no longer be accessible. One row per (versionId, key).
+  sources NarrativeSource[]
+
   // Iteration tracking
   iterationHistory String[] @default([])
 
@@ -964,6 +970,35 @@ model SalesNarrativeVersion {
 
   @@index([userId, createdAt])
   @@map("sales_narrative_versions")
+}
+
+// ============================================
+// NARRATIVE SOURCE CACHE
+// ============================================
+
+// Cached extracted text from each source (URL or PDF) used to
+// generate a SalesNarrativeVersion. Lets the Extend flow combine
+// the original tokens with newly-added sources without re-crawling
+// or re-OCRing PDFs that the user may no longer have around.
+model NarrativeSource {
+  id String @id @default(cuid())
+
+  versionId String
+  version   SalesNarrativeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // "url" | "pdf"
+  key     String // URL or filename
+  content String @db.Text // extracted text (capped at ~200k chars)
+  chars   Int    @default(0) // for quick UI display + size budgeting
+
+  createdAt DateTime @default(now())
+
+  @@unique([versionId, type, key])
+  @@index([userId, type, key])
+  @@map("narrative_sources")
 }
 
 // ============================================

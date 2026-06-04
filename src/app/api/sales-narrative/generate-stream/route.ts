@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { extractProductName } from "@/lib/extract-product-name";
+import { persistNarrativeSources, type ExtractedSource } from "@/lib/narrative-prefill/sources";
 
 export const maxDuration = 180;
 
@@ -14,10 +15,29 @@ export async function POST(request: Request) {
 
     let sourceUrls: string[] = [];
     let sourcePdfNames: string[] = [];
+    let extractedSources: ExtractedSource[] = [];
+    let parentVersionId: string | null = null;
     try {
       const body = await request.json();
       sourceUrls = body.sourceUrls || [];
       sourcePdfNames = body.sourcePdfNames || [];
+      if (Array.isArray(body.extractedSources)) {
+        extractedSources = body.extractedSources
+          .filter((s: { type?: string; key?: string; content?: string }) =>
+            (s.type === "url" || s.type === "pdf") && typeof s.key === "string" && typeof s.content === "string"
+          )
+          .map((s: { type: "url" | "pdf"; key: string; content: string }) => ({
+            type: s.type,
+            key: s.key,
+            content: s.content,
+          }));
+      }
+      // Extend flow: client passes parentVersionId so we inherit any
+      // cached sources from the prior version that the client didn't
+      // re-supply (typical for the original crawl text).
+      if (typeof body.parentVersionId === "string") {
+        parentVersionId = body.parentVersionId;
+      }
     } catch {
       // optional
     }
@@ -219,6 +239,29 @@ ${answersSummary.substring(0, 2000)}`;
               sourcePdfNames,
             },
           });
+
+          // Persist source text into the NarrativeSource cache so the
+          // Extend flow can reuse the original tokens without
+          // re-crawling. Inherits parent-version sources (deduped by
+          // key) for any the client didn't re-supply.
+          try {
+            const inherited: ExtractedSource[] = [];
+            if (parentVersionId) {
+              const { loadNarrativeSources } = await import("@/lib/narrative-prefill/sources");
+              const prior = await loadNarrativeSources({ userId: user.id, versionId: parentVersionId });
+              const seen = new Set(extractedSources.map((s) => `${s.type}:${s.key.toLowerCase()}`));
+              for (const p of prior) {
+                if (!seen.has(`${p.type}:${p.key.toLowerCase()}`)) inherited.push(p);
+              }
+            }
+            await persistNarrativeSources({
+              userId: user.id,
+              versionId: version.id,
+              sources: [...extractedSources, ...inherited],
+            });
+          } catch (sourceErr) {
+            console.error(`[generate-stream] persistNarrativeSources failed for ${version.id}:`, sourceErr);
+          }
 
           // Save answer snapshots and merge variables in parallel
           const answerSnapshots = questions.map((q) => ({
