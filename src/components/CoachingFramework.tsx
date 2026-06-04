@@ -1994,8 +1994,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
+            <a
+              href="/sales-readiness"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-[11px] font-medium normal-case tracking-normal text-purple-600 dark:text-purple-300 hover:underline inline-flex items-center gap-1"
+              title="Open GTM Readiness Progression in a new tab"
+            >
+              ✅ GTM Readiness Progression ↗
+            </a>
           </h3>
-          <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready.</p>
+          <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready. Need inspiration? The GTM Readiness Progression suggests what to tackle next based on your current stage.</p>
           <div className="space-y-3">
             {visibleNextGoals.map((goal) => (
               <div
