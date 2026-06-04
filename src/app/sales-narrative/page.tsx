@@ -10,6 +10,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
+import ExtendNarrativeModal from "@/components/ExtendNarrativeModal";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
@@ -132,6 +133,7 @@ function SalesNarrativeContent() {
   const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
   const [importing, setImporting] = useState(false);
   const [iterateFeedback, setIterateFeedback] = useState("");
+  const [showExtendModal, setShowExtendModal] = useState(false);
   const [iterating, setIterating] = useState(false);
   const [iterationPrompt, setIterationPrompt] = useState<string | null>(null);
 
@@ -750,6 +752,18 @@ function SalesNarrativeContent() {
                     </svg>
                     History
                   </Link>
+                  {version && (
+                    <button
+                      onClick={() => setShowExtendModal(true)}
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                      title="Add new docs and re-draft the narrative on top of the original sources"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Extend
+                    </button>
+                  )}
                   {version?.userId === currentUserId && (
                     <button
                       onClick={handleClone}
@@ -1452,6 +1466,17 @@ function SalesNarrativeContent() {
         </div>{/* end flex row */}
       </div>}
       {ConfirmModalElement}
+      {version && (
+        <ExtendNarrativeModal
+          isOpen={showExtendModal}
+          parentVersionId={version.id}
+          onClose={() => setShowExtendModal(false)}
+          onComplete={(newVersionId) => {
+            setShowExtendModal(false);
+            router.push(`/sales-narrative?version=${newVersionId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
