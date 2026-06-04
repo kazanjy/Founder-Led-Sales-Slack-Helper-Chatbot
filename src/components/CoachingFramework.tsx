@@ -519,20 +519,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const loadData = useCallback(async () => {
     try {
       const userParam = sessionUserId ? `&userId=${sessionUserId}` : "";
-      // For locked sessions, show all goals that existed at the time (any status)
-      // For active sessions, show only active goals. Either way, pass
-      // a time cutoff so this session's view stays bounded — locked
-      // uses updatedAt (the lock time), non-locked uses the session's
-      // own createdAt + a sessionId match so own-session goals show
-      // alongside earlier carry-forwards but NEWER sessions' goals
-      // don't pollute this view.
+      // Locked sessions are historical snapshots — bound them to what
+      // existed at lock time via createdBefore=sessionUpdatedAt.
+      // Active (new / in_progress) sessions are LIVE — no createdBefore
+      // filter, so tasks added during the session appear immediately
+      // in the same view they were typed into. The earlier filter
+      // intended to stop "newer session pollution" was also clipping
+      // tasks the user added to the active session itself; the user
+      // expectation is "live session = current state."
       const isLockedSession = sessionStatus === "locked";
       const goalsStatusParam = isLockedSession ? "" : "status=active";
       let scopeParams = "";
       if (isLockedSession && sessionUpdatedAt) {
         scopeParams = `&createdBefore=${sessionUpdatedAt}`;
-      } else if (!isLockedSession && sessionCreatedAt) {
-        scopeParams = `&sessionId=${sessionId}&createdBefore=${sessionCreatedAt}`;
       }
       const [stageRes, goalsRes, metricsRes, nextGoalsRes] = await Promise.all([
         fetch("/api/coaching/maturity-stage"),
