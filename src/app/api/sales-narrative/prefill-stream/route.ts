@@ -6,6 +6,7 @@ import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
+import { extractTextFromImage } from "@/lib/narrative-prefill/extract-image";
 
 export const maxDuration = 120;
 
@@ -13,6 +14,7 @@ interface PrefillRequest {
   websiteUrl?: string;
   specificUrls?: string[];
   pdfFiles?: { name: string; storagePath?: string }[];
+  imageFiles?: { name: string; storagePath?: string; mimeType?: string }[];
   cachedCrawl?: { text: string; urls: string[] };
 }
 
@@ -30,10 +32,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body: PrefillRequest = await request.json();
-    const { websiteUrl, specificUrls, pdfFiles, cachedCrawl } = body;
+    const { websiteUrl, specificUrls, pdfFiles, imageFiles, cachedCrawl } = body;
     const hasSpecificUrls = specificUrls && specificUrls.filter((u) => u.trim()).length > 0;
+    const hasImages = imageFiles && imageFiles.length > 0;
 
-    if (!websiteUrl?.trim() && !hasSpecificUrls && (!pdfFiles || pdfFiles.length === 0) && !cachedCrawl?.text) {
+    if (!websiteUrl?.trim() && !hasSpecificUrls && (!pdfFiles || pdfFiles.length === 0) && !hasImages && !cachedCrawl?.text) {
       return new Response(JSON.stringify({ error: "No materials provided" }), { status: 400 });
     }
 
@@ -54,7 +57,8 @@ export async function POST(request: NextRequest) {
     const contextParts: string[] = [];
     const sourceUrls: string[] = [];
     const sourcePdfNames: string[] = [];
-    const extractedSources: Array<{ type: "url" | "pdf"; key: string; content: string }> = [];
+    const sourceImageNames: string[] = [];
+    const extractedSources: Array<{ type: "url" | "pdf" | "image"; key: string; content: string }> = [];
     const tasks: Promise<void>[] = [];
 
     if (cachedCrawl?.text) {
@@ -125,6 +129,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (imageFiles && imageFiles.length > 0) {
+      for (const img of imageFiles) {
+        tasks.push(
+          (async () => {
+            try {
+              if (!img.storagePath) return;
+              const buffer = await downloadFile(img.storagePath);
+              if (!buffer) return;
+              const extracted = await extractTextFromImage(buffer, img.name, img.mimeType || "image/png");
+              if (extracted) {
+                contextParts.push(`## IMAGE: ${img.name}\n\n${extracted}`);
+                sourceImageNames.push(img.name);
+                extractedSources.push({ type: "image", key: img.name, content: extracted });
+              }
+            } catch (err) {
+              console.error(`[PrefillStream] Image ${img.name} failed:`, err);
+            }
+          })()
+        );
+      }
+    }
+
     await Promise.all(tasks);
     const combinedContext = contextParts.join("\n\n---\n\n");
 
@@ -150,7 +176,7 @@ export async function POST(request: NextRequest) {
           // the raw text per source so the client can pass it to
           // generate-stream for persistence into the NarrativeSource
           // cache — powers the Extend flow without re-crawling.
-          send("sources", { sourceUrls, sourcePdfNames, extractedSources });
+          send("sources", { sourceUrls, sourcePdfNames, sourceImageNames, extractedSources });
 
           console.log(`[PrefillStream] Firing ${questions.length} parallel LLM calls`);
 

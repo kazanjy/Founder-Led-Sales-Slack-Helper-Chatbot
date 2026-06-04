@@ -6,6 +6,7 @@ import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
+import { extractTextFromImage } from "@/lib/narrative-prefill/extract-image";
 import { loadNarrativeSources, type ExtractedSource } from "@/lib/narrative-prefill/sources";
 
 export const maxDuration = 180;
@@ -30,6 +31,7 @@ interface ExtendRequest {
   newWebsiteUrl?: string;
   newSpecificUrls?: string[];
   newPdfFiles?: { name: string; storagePath?: string }[];
+  newImageFiles?: { name: string; storagePath?: string; mimeType?: string }[];
 }
 
 export async function POST(request: NextRequest) {
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: ExtendRequest = await request.json();
-    const { parentVersionId, newWebsiteUrl, newSpecificUrls, newPdfFiles } = body;
+    const { parentVersionId, newWebsiteUrl, newSpecificUrls, newPdfFiles, newImageFiles } = body;
     if (!parentVersionId) {
       return new Response(JSON.stringify({ error: "parentVersionId required" }), { status: 400 });
     }
@@ -134,6 +136,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (newImageFiles && newImageFiles.length > 0) {
+      for (const img of newImageFiles) {
+        tasks.push(
+          (async () => {
+            try {
+              if (!img.storagePath) return;
+              const buffer = await downloadFile(img.storagePath);
+              if (!buffer) return;
+              const extracted = await extractTextFromImage(buffer, img.name, img.mimeType || "image/png");
+              if (!extracted) return;
+              const k = `image:${img.name.toLowerCase()}`;
+              if (priorKeys.has(k)) return;
+              newSources.push({ type: "image", key: img.name, content: extracted });
+            } catch (err) {
+              console.error(`[ExtendStream] Image ${img.name} failed:`, err);
+            }
+          })()
+        );
+      }
+    }
+
     await Promise.all(tasks);
 
     if (newSources.length === 0) {
@@ -150,7 +173,7 @@ export async function POST(request: NextRequest) {
     if (cachedPriorSources.length > 0) {
       corpus.push("## EXISTING SOURCES (original narrative was built from these)\n");
       for (const s of cachedPriorSources) {
-        corpus.push(`### ${s.type === "pdf" ? "PDF" : "URL"}: ${s.key}\n${s.content}`);
+        corpus.push(`### ${s.type === "pdf" ? "PDF" : s.type === "image" ? "IMAGE" : "URL"}: ${s.key}\n${s.content}`);
       }
     }
     corpus.push("\n## NEW SOURCES (added now — weave these in)\n");
@@ -172,6 +195,10 @@ export async function POST(request: NextRequest) {
       ...cachedPriorSources.filter((s) => s.type === "pdf").map((s) => s.key),
       ...newSources.filter((s) => s.type === "pdf").map((s) => s.key),
     ];
+    const allImageNames = [
+      ...cachedPriorSources.filter((s) => s.type === "image").map((s) => s.key),
+      ...newSources.filter((s) => s.type === "image").map((s) => s.key),
+    ];
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -188,6 +215,7 @@ export async function POST(request: NextRequest) {
             parentVersionId,
             sourceUrls: allSourceUrls,
             sourcePdfNames: allPdfNames,
+            sourceImageNames: allImageNames,
             extractedSources: newSources,
           });
 

@@ -939,8 +939,9 @@ model SalesNarrativeVersion {
   description25w   String  @db.Text // 25-word tagline
 
   // Sources used to create this narrative (from prefill)
-  sourceUrls     String[] @default([]) // URLs crawled from website
-  sourcePdfNames String[] @default([]) // Names of uploaded PDF files
+  sourceUrls       String[] @default([]) // URLs crawled from website
+  sourcePdfNames   String[] @default([]) // Names of uploaded PDF files
+  sourceImageNames String[] @default([]) // Names of uploaded image (PNG/JPG/etc.) files
 
   // Cached extracted text for each source so the Extend flow can
   // reuse the original tokens without re-crawling / re-OCRing PDFs

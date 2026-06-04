@@ -12,7 +12,7 @@ export const MAX_SOURCE_CHARS = 200_000;
 export const MAX_SOURCES_PER_VERSION = 30;
 
 export interface ExtractedSource {
-  type: "url" | "pdf";
+  type: "url" | "pdf" | "image";
   key: string;
   content: string;
 }
@@ -30,7 +30,7 @@ export async function persistNarrativeSources(opts: {
     return {
       userId: opts.userId,
       versionId: opts.versionId,
-      type: s.type === "pdf" ? "pdf" : "url",
+      type: s.type === "pdf" ? "pdf" : s.type === "image" ? "image" : "url",
       key: s.key,
       content,
       chars: content.length,
@@ -51,7 +51,7 @@ export async function loadNarrativeSources(opts: {
     select: { type: true, key: true, content: true },
   });
   return rows.map((r) => ({
-    type: r.type === "pdf" ? "pdf" : "url",
+    type: r.type === "pdf" ? "pdf" : r.type === "image" ? "image" : "url",
     key: r.key,
     content: r.content,
   }));

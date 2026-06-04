@@ -6,6 +6,7 @@ import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
+import { extractTextFromImage } from "@/lib/narrative-prefill/extract-image";
 
 // Allow up to 120s for crawling + LLM
 export const maxDuration = 120;
@@ -14,6 +15,7 @@ interface PrefillRequest {
   websiteUrl?: string;
   specificUrls?: string[];
   pdfFiles?: { name: string; storagePath?: string; base64Data?: string }[];
+  imageFiles?: { name: string; storagePath?: string; base64Data?: string; mimeType?: string }[];
   cachedCrawl?: { text: string; urls: string[] };
 }
 
@@ -26,11 +28,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body: PrefillRequest = await request.json();
-    const { websiteUrl, specificUrls, pdfFiles, cachedCrawl } = body;
+    const { websiteUrl, specificUrls, pdfFiles, imageFiles, cachedCrawl } = body;
 
     const hasSpecificUrls = specificUrls && specificUrls.filter((u) => u.trim()).length > 0;
+    const hasImages = imageFiles && imageFiles.length > 0;
 
-    if (!websiteUrl?.trim() && !hasSpecificUrls && (!pdfFiles || pdfFiles.length === 0)) {
+    if (!websiteUrl?.trim() && !hasSpecificUrls && (!pdfFiles || pdfFiles.length === 0) && !hasImages) {
       return NextResponse.json(
         { error: "Provide a website URL, specific page URLs, and/or at least one PDF file." },
         { status: 400 }
@@ -57,6 +60,7 @@ export async function POST(request: NextRequest) {
     const contextParts: string[] = [];
     const sourceUrls: string[] = [];
     const sourcePdfNames: string[] = [];
+    const sourceImageNames: string[] = [];
     const tasks: Promise<void>[] = [];
 
     // Website content: use client-provided precrawl data if available, otherwise crawl
@@ -108,6 +112,35 @@ export async function POST(request: NextRequest) {
             console.error("[Prefill] Specific URL fetch failed:", err);
           })
       );
+    }
+
+    // Image processing — gpt-4o vision pass per image, base64 or Supabase download.
+    if (imageFiles) {
+      for (const img of imageFiles) {
+        tasks.push(
+          (async () => {
+            try {
+              let buffer: Buffer;
+              if (img.base64Data) {
+                const raw = img.base64Data.includes(",") ? img.base64Data.split(",")[1] : img.base64Data;
+                buffer = Buffer.from(raw, "base64");
+              } else if (img.storagePath) {
+                buffer = await downloadFile(img.storagePath);
+              } else {
+                console.error(`[Prefill] Image ${img.name}: no data or storagePath`);
+                return;
+              }
+              const extracted = await extractTextFromImage(buffer, img.name, img.mimeType || "image/png");
+              if (extracted) {
+                contextParts.push(`## IMAGE: ${img.name}\n\n${extracted}`);
+                sourceImageNames.push(img.name);
+              }
+            } catch (err) {
+              console.error(`[Prefill] Failed to process image ${img.name}:`, err);
+            }
+          })()
+        );
+      }
     }
 
     // PDF processing — accept base64 data directly (like chat) or download from Supabase
@@ -310,6 +343,7 @@ ${trimmedContext}`;
       totalQuestions: questions.length,
       sourceUrls,
       sourcePdfNames,
+      sourceImageNames,
     });
   } catch (error) {
     console.error("[Prefill] Error:", error);

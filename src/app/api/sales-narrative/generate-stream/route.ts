@@ -15,18 +15,20 @@ export async function POST(request: Request) {
 
     let sourceUrls: string[] = [];
     let sourcePdfNames: string[] = [];
+    let sourceImageNames: string[] = [];
     let extractedSources: ExtractedSource[] = [];
     let parentVersionId: string | null = null;
     try {
       const body = await request.json();
       sourceUrls = body.sourceUrls || [];
       sourcePdfNames = body.sourcePdfNames || [];
+      sourceImageNames = body.sourceImageNames || [];
       if (Array.isArray(body.extractedSources)) {
         extractedSources = body.extractedSources
           .filter((s: { type?: string; key?: string; content?: string }) =>
-            (s.type === "url" || s.type === "pdf") && typeof s.key === "string" && typeof s.content === "string"
+            (s.type === "url" || s.type === "pdf" || s.type === "image") && typeof s.key === "string" && typeof s.content === "string"
           )
-          .map((s: { type: "url" | "pdf"; key: string; content: string }) => ({
+          .map((s: { type: "url" | "pdf" | "image"; key: string; content: string }) => ({
             type: s.type,
             key: s.key,
             content: s.content,
@@ -237,6 +239,7 @@ ${answersSummary.substring(0, 2000)}`;
               description25w,
               sourceUrls,
               sourcePdfNames,
+              sourceImageNames,
             },
           });
 

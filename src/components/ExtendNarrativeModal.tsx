@@ -34,6 +34,9 @@ export default function ExtendNarrativeModal({
   const [step, setStep] = useState<Step>("input");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [specificUrls, setSpecificUrls] = useState<string[]>([""]);
+  // Holds both PDFs and images — split server-side by mime/extension
+  // on submit. Naming kept as pdfFiles for the smallest-diff refactor
+  // of the existing modal state.
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionAnswer[]>([]);
@@ -64,8 +67,11 @@ export default function ExtendNarrativeModal({
 
   const hasInputs = !!websiteUrl.trim() || specificUrls.some((u) => u.trim()) || pdfFiles.length > 0;
 
-  const uploadPdfs = async (): Promise<{ name: string; storagePath: string }[]> => {
-    if (pdfFiles.length === 0) return [];
+  const uploadFiles = async (): Promise<{
+    pdfs: { name: string; storagePath: string }[];
+    images: { name: string; storagePath: string; mimeType: string }[];
+  }> => {
+    if (pdfFiles.length === 0) return { pdfs: [], images: [] };
     const urlRes = await fetch("/api/files/upload-url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,7 +95,25 @@ export default function ExtendNarrativeModal({
         if (!putRes.ok) throw new Error(`Failed to upload ${entry.name}`);
       })
     );
-    return fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
+
+    const fileByName = new Map(pdfFiles.map((f) => [f.name, f]));
+    const pdfs: { name: string; storagePath: string }[] = [];
+    const images: { name: string; storagePath: string; mimeType: string }[] = [];
+    for (const entry of fileEntries) {
+      const original = fileByName.get(entry.name);
+      const mimeType = original?.type || "";
+      const lower = entry.name.toLowerCase();
+      const isImage =
+        mimeType.startsWith("image/") ||
+        lower.endsWith(".png") || lower.endsWith(".jpg") ||
+        lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif");
+      if (isImage) {
+        images.push({ name: entry.name, storagePath: entry.storagePath, mimeType: mimeType || "image/png" });
+      } else {
+        pdfs.push({ name: entry.name, storagePath: entry.storagePath });
+      }
+    }
+    return { pdfs, images };
   };
 
   const handleExtend = async () => {
@@ -99,7 +123,7 @@ export default function ExtendNarrativeModal({
     setQuestions([]);
 
     try {
-      const uploadedPdfs = await uploadPdfs();
+      const { pdfs, images } = await uploadFiles();
       const res = await fetch("/api/sales-narrative/extend-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,7 +131,8 @@ export default function ExtendNarrativeModal({
           parentVersionId,
           newWebsiteUrl: websiteUrl.trim() || undefined,
           newSpecificUrls: specificUrls.filter((u) => u.trim()),
-          newPdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
+          newPdfFiles: pdfs.length > 0 ? pdfs : undefined,
+          newImageFiles: images.length > 0 ? images : undefined,
         }),
       });
       if (!res.ok || !res.body) {
@@ -341,11 +366,11 @@ export default function ExtendNarrativeModal({
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  PDFs (optional)
+                  PDFs or images (optional) — PNG / JPG one-pagers, screenshots, slides
                 </label>
                 <input
                   type="file"
-                  accept="application/pdf"
+                  accept=".pdf,application/pdf,.png,.jpg,.jpeg,.webp,.gif,image/*"
                   multiple
                   onChange={(e) => setPdfFiles(Array.from(e.target.files || []))}
                   className="text-sm"

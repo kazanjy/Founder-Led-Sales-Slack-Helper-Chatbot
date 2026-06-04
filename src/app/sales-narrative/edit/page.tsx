@@ -364,7 +364,8 @@ function SalesNarrativeEditContent() {
     let filledCount = 0;
     try {
       // Step 1: Upload PDFs directly to Supabase via signed URLs
-      let uploadedPdfs: { name: string; storagePath: string }[] = [];
+      const uploadedPdfs: { name: string; storagePath: string }[] = [];
+      const uploadedImages: { name: string; storagePath: string; mimeType: string }[] = [];
       if (prefillFiles.length > 0) {
         const urlRes = await fetch("/api/files/upload-url", {
           method: "POST",
@@ -396,7 +397,25 @@ function SalesNarrativeEditContent() {
           }
         }));
 
-        uploadedPdfs = fileEntries.map((f) => ({ name: f.name, storagePath: f.storagePath }));
+        // Split uploaded files into PDFs vs images by extension/mime
+        // so the server-side branches (PDF OCR vs gpt-4o vision) get
+        // the right inputs.
+        const isImage = (name: string, type: string) => {
+          const lower = name.toLowerCase();
+          return type.startsWith("image/") ||
+            lower.endsWith(".png") || lower.endsWith(".jpg") ||
+            lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif");
+        };
+        const fileByName = new Map(prefillFiles.map((f) => [f.name, f]));
+        for (const entry of fileEntries) {
+          const original = fileByName.get(entry.name);
+          const mimeType = original?.type || "";
+          if (isImage(entry.name, mimeType)) {
+            uploadedImages.push({ name: entry.name, storagePath: entry.storagePath, mimeType: mimeType || "image/png" });
+          } else {
+            uploadedPdfs.push({ name: entry.name, storagePath: entry.storagePath });
+          }
+        }
       }
 
       // Step 2: Stream prefill — answers arrive one-by-one via SSE
@@ -406,6 +425,7 @@ function SalesNarrativeEditContent() {
           ? specificUrls.filter((u) => u.trim())
           : undefined,
         pdfFiles: uploadedPdfs.length > 0 ? uploadedPdfs : undefined,
+        imageFiles: uploadedImages.length > 0 ? uploadedImages : undefined,
       };
       if (precrawlResultRef.current && url) {
         prefillBody.cachedCrawl = precrawlResultRef.current;
@@ -502,8 +522,19 @@ function SalesNarrativeEditContent() {
   }, [shouldAutoTriggerPrefill, prefilling, prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addPdfFiles = (files: File[]) => {
-    const pdfs = files.filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
-    if (pdfs.length > 0) setPrefillFiles((prev) => [...prev, ...pdfs]);
+    // Accept PDFs and common image formats — PNGs are an explicit ask
+    // since marketing one-pagers and pricing screenshots come in as
+    // images. The server-side vision pass extracts text via gpt-4o.
+    const ok = files.filter((f) => {
+      const lower = f.name.toLowerCase();
+      const isPdf = f.type === "application/pdf" || lower.endsWith(".pdf");
+      const isImage =
+        f.type.startsWith("image/") ||
+        lower.endsWith(".png") || lower.endsWith(".jpg") ||
+        lower.endsWith(".jpeg") || lower.endsWith(".webp") || lower.endsWith(".gif");
+      return isPdf || isImage;
+    });
+    if (ok.length > 0) setPrefillFiles((prev) => [...prev, ...ok]);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -853,7 +884,7 @@ function SalesNarrativeEditContent() {
                 <input
                   ref={pdfFileInputRef}
                   type="file"
-                  accept=".pdf,application/pdf"
+                  accept=".pdf,application/pdf,.png,.jpg,.jpeg,.webp,.gif,image/*"
                   multiple
                   onChange={handleFileSelect}
                   className="hidden"
