@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { TaskComments } from "@/components/TaskComments";
 import { RowActionsMenu, type RowAction } from "@/components/RowActionsMenu";
+import ReadinessTray from "@/components/ReadinessTray";
 
 // Loaded only on the client — TipTap pulls in a chunk we don't want to
 // pay for on SSR. Same pattern used by TaskComments for its comment
@@ -450,6 +451,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // window.open()-ing the chat, which takes a couple seconds — without
   // a spinner the user gets no feedback and may click again.
   const [askingMikeyFor, setAskingMikeyFor] = useState<string | null>(null);
+
+  // GTM Readiness Progression tray — slide-in panel on the right that
+  // lets the user browse readiness items and promote them into Up Next
+  // without leaving the session.
+  const [readinessTrayOpen, setReadinessTrayOpen] = useState(false);
 
   // Goals & Tasks search — debounced typeahead that hits
   // /api/coaching/search and returns goals + tasks + subtasks across
@@ -1984,6 +1990,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
   return (
     <div className="space-y-6 mb-8">
+      <ReadinessTray
+        open={readinessTrayOpen}
+        onClose={() => setReadinessTrayOpen(false)}
+        canEdit={canEdit}
+        onAddedAsNextGoal={(goal) => setNextGoals((prev) => [...prev, goal])}
+      />
       {/* ── Up Next Queue ──────────────────────────────────────── */}
       {(() => {
         // In read-only mode, only show next goals that existed when this session was created
@@ -1994,15 +2006,24 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
-            <a
-              href="/sales-readiness"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-auto text-[11px] font-medium normal-case tracking-normal text-purple-600 dark:text-purple-300 hover:underline inline-flex items-center gap-1"
-              title="Open GTM Readiness Progression in a new tab"
-            >
-              ✅ GTM Readiness Progression ↗
-            </a>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setReadinessTrayOpen(true)}
+                className="text-[11px] font-medium normal-case tracking-normal text-purple-600 dark:text-purple-300 hover:underline inline-flex items-center gap-1"
+                title="Open the GTM Readiness Progression tray to promote items into Up Next"
+              >
+                ✅ GTM Readiness Progression
+              </button>
+              <a
+                href="/sales-readiness"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-purple-600/70 dark:text-purple-300/70 hover:text-purple-700 dark:hover:text-purple-200"
+                title="Open in new tab"
+              >
+                ↗
+              </a>
+            </div>
           </h3>
           <p className="text-xs text-gray-400 mb-3">Future goals and tasks to promote into your current session when ready. Need inspiration? The GTM Readiness Progression suggests what to tackle next based on your current stage.</p>
           <div className="space-y-3">
