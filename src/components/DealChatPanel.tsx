@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
+import { TruncatedUserMessage } from "@/components/TruncatedUserMessage";
 
 interface Message {
   id: string;
@@ -464,7 +465,14 @@ export default function DealChatPanel({
             >
               <div className={bubbleClass}>
                 {m.role === "USER" ? (
-                  displayContent(m, idx)
+                  <TruncatedUserMessage
+                    content={displayContent(m, idx)}
+                    maxLines={10}
+                    lineHeight={20}
+                    className="whitespace-pre-wrap break-words text-white text-sm"
+                    fadeFromClass="from-purple-600"
+                    buttonClassName="text-xs text-purple-100 hover:text-white font-medium underline"
+                  />
                 ) : (
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
