@@ -1783,6 +1783,91 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // each transcript capped at 30k chars). If the target is a subtask,
   // its parent task is included so the model can reason about both
   // levels of context.
+  const askMikeyForGoalContext = async (goal: Goal) => {
+    if (askingMikeyFor) return;
+    setAskingMikeyFor(goal.id);
+    try {
+      const createdStr = goal.createdAt
+        ? new Date(goal.createdAt).toLocaleDateString("en-US", {
+            month: "long", day: "numeric", year: "numeric",
+          })
+        : "an unknown date";
+      let context = `This is a coaching goal that was created on ${createdStr}. Please look through the below context and find the relevant discussion that prompted the creation of the goal, and synthesize what the discussion covered and what the outcomes were.\n\n---\n\n`;
+
+      context += `## The Goal in Question\n\n`;
+      context += `**Title:** ${goal.title}\n`;
+      if (goal.description) context += `**Description:** ${goal.description}\n`;
+      context += `**Status:** ${goal.status}\n`;
+      context += `**Created:** ${createdStr}\n\n`;
+
+      if (goal.tasks.length > 0) {
+        context += `### Tasks under this goal (${goal.tasks.length})\n\n`;
+        for (const t of goal.tasks) {
+          context += `- **${t.title}** (${t.status})`;
+          if (t.description) context += ` — ${t.description}`;
+          context += `\n`;
+        }
+        context += `\n`;
+      }
+
+      try {
+        const res = await fetch("/api/coaching-sessions");
+        if (res.ok) {
+          const data = await res.json();
+          const recent = (data.sessions || [])
+            .filter((s: { notes: string }) => s.notes !== "(draft)")
+            .slice(0, 10);
+          if (recent.length > 0) {
+            context += `\n---\n\n## Recent Coaching Sessions (most recent ${recent.length})\n\n`;
+            for (const session of recent) {
+              const sessionDate = new Date(session.sessionDate).toLocaleDateString("en-US", {
+                month: "short", day: "numeric", year: "numeric",
+              });
+              context += `### ${session.title || "Untitled"} (${sessionDate})\n\n`;
+              if (session.notes) {
+                const notesTruncated = session.notes.length > 4000
+                  ? session.notes.substring(0, 4000) + "...[truncated]"
+                  : session.notes;
+                context += `**Notes:**\n${notesTruncated}\n\n`;
+              }
+              if (session.transcript) {
+                const transcriptTruncated = session.transcript.length > 30000
+                  ? session.transcript.substring(0, 30000) + "\n...[transcript truncated]"
+                  : session.transcript;
+                context += `**Transcript:**\n${transcriptTruncated}\n\n`;
+              }
+              context += `---\n\n`;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[ask-mikey-goal] failed to load sessions:", err);
+      }
+
+      try {
+        const res = await fetch("/api/conversations/from-context", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `🌊 Context for: ${goal.title.slice(0, 60)}`,
+            context,
+            autoSend: true,
+            mode: "DIRECT",
+          }),
+        });
+        const data = await res.json();
+        if (data.conversationId) {
+          sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
+          window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+        }
+      } catch (err) {
+        console.error("[ask-mikey-goal] failed to open chat:", err);
+      }
+    } finally {
+      setAskingMikeyFor(null);
+    }
+  };
+
   const askMikeyForTaskContext = async (task: Task, parentTask: Task | null) => {
     if (askingMikeyFor) return; // ignore double-click while one is in flight
     setAskingMikeyFor(task.id);
@@ -3032,7 +3117,33 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     </button>
                   ) : null}
                   {goal.createdAt && (
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-gray-400">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <div className="relative group/askmikey inline-flex">
+                        <button
+                          onClick={() => askMikeyForGoalContext(goal)}
+                          disabled={askingMikeyFor === goal.id}
+                          aria-label="Ask Mikey for coaching context on this goal"
+                          className="text-[10px] leading-none text-purple-600 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-200 font-medium inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-wait"
+                        >
+                          {askingMikeyFor === goal.id ? (
+                            <svg className="animate-spin w-3 h-3 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <>
+                              <span aria-hidden>🌊</span>
+                              <span>Get Context</span>
+                            </>
+                          )}
+                        </button>
+                        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
+                          Ask Mikey to find the coaching discussion that created this goal and summarize what was covered.
+                          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-900" />
+                        </span>
+                      </div>
+                    </div>
                   )}
                   {goal.status === "done" && goal.statusChangedAt && (
                     <span className="text-[10px] text-green-600 mt-0.5 block dark:text-green-300">Completed {new Date(goal.statusChangedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
