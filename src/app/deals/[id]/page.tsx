@@ -306,6 +306,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
+  // Index of the currently-highlighted match in the dropdown — driven
+  // by ArrowDown / ArrowUp, sync'd to hover so mouse + keyboard agree.
+  const [dealSearchHighlight, setDealSearchHighlight] = useState(0);
   const dealSearchRef = useRef<HTMLDivElement>(null);
   const [newEntryType, setNewEntryType] = useState<string>("note");
   // Raw whisper transcript that produced the current synthesized note
@@ -1261,28 +1264,55 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 <input
                   type="search"
                   value={dealSearchQuery}
-                  onChange={(e) => { setDealSearchQuery(e.target.value); setDealSearchOpen(true); }}
+                  onChange={(e) => { setDealSearchQuery(e.target.value); setDealSearchOpen(true); setDealSearchHighlight(0); }}
                   onFocus={() => setDealSearchOpen(true)}
                   onKeyDown={(e) => {
-                    if (e.key === "Escape") { setDealSearchOpen(false); (e.target as HTMLInputElement).blur(); }
-                    if (e.key === "Enter" && matches[0]) { router.push(`/deals/${matches[0].id}`); }
+                    if (e.key === "Escape") {
+                      setDealSearchOpen(false);
+                      (e.target as HTMLInputElement).blur();
+                      return;
+                    }
+                    if (e.key === "ArrowDown") {
+                      if (matches.length === 0) return;
+                      e.preventDefault();
+                      setDealSearchOpen(true);
+                      setDealSearchHighlight((h) => Math.min(h + 1, matches.length - 1));
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      if (matches.length === 0) return;
+                      e.preventDefault();
+                      setDealSearchHighlight((h) => Math.max(h - 1, 0));
+                      return;
+                    }
+                    if (e.key === "Enter") {
+                      const target = matches[dealSearchHighlight] || matches[0];
+                      if (target) router.push(`/deals/${target.id}`);
+                    }
                   }}
                   placeholder="Jump to another deal..."
                   className="w-full pl-8 pr-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 {dealSearchOpen && matches.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-80 overflow-y-auto">
-                    {matches.map((d) => (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => { setDealSearchOpen(false); setDealSearchQuery(""); router.push(`/deals/${d.id}`); }}
-                        className="w-full text-left px-3 py-2 hover:bg-purple-50 flex flex-col gap-0.5 border-b border-gray-100 last:border-b-0"
-                      >
-                        <span className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{d.name}</span>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{d.companyName}{d.stage ? ` · ${d.stage}` : ""}</span>
-                      </button>
-                    ))}
+                    {matches.map((d, i) => {
+                      const isHighlighted = i === dealSearchHighlight;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => { setDealSearchOpen(false); setDealSearchQuery(""); router.push(`/deals/${d.id}`); }}
+                          onMouseEnter={() => setDealSearchHighlight(i)}
+                          ref={(el) => {
+                            if (isHighlighted && el) el.scrollIntoView({ block: "nearest" });
+                          }}
+                          className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 border-b border-gray-100 last:border-b-0 ${isHighlighted ? "bg-purple-100 dark:bg-purple-900/40" : "hover:bg-purple-50 dark:hover:bg-purple-900/20"}`}
+                        >
+                          <span className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{d.name}</span>
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{d.companyName}{d.stage ? ` · ${d.stage}` : ""}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {dealSearchOpen && q && matches.length === 0 && (
