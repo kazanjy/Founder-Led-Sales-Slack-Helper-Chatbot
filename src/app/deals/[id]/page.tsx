@@ -360,6 +360,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
   const [timelineQuery, setTimelineQuery] = useState<string>("");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [scanningFutureMeetings, setScanningFutureMeetings] = useState(false);
+  const [futureMeetingsResult, setFutureMeetingsResult] = useState<{ added: number; skipped: number; hasCalendar: boolean; hasDomain: boolean } | null>(null);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -418,6 +420,26 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       }
     } finally {
       setSavingReason(false);
+    }
+  };
+
+  const scanFutureMeetings = async () => {
+    if (scanningFutureMeetings) return;
+    setScanningFutureMeetings(true);
+    setFutureMeetingsResult(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/scan-future-meetings`, { method: "POST" });
+      if (res.ok) {
+        const json = await res.json();
+        setFutureMeetingsResult(json);
+        if (json.added > 0) await loadDeal();
+        // Auto-dismiss the result toast after a few seconds.
+        window.setTimeout(() => setFutureMeetingsResult(null), 6000);
+      }
+    } catch (err) {
+      console.error("[deals] scan-future-meetings failed:", err);
+    } finally {
+      setScanningFutureMeetings(false);
     }
   };
 
@@ -2251,6 +2273,26 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         >
                           📞 Bulk Import Calls
                         </button>
+                        <button
+                          type="button"
+                          onClick={scanFutureMeetings}
+                          disabled={scanningFutureMeetings}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 disabled:opacity-60"
+                          title="Scan the next 90 days of your calendar for new meetings with this deal's participants"
+                        >
+                          {scanningFutureMeetings ? "Scanning…" : "📅 Scan Future Meetings"}
+                        </button>
+                        {futureMeetingsResult && (
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {!futureMeetingsResult.hasCalendar
+                              ? "No calendar connected"
+                              : !futureMeetingsResult.hasDomain
+                                ? "Deal has no domain to match"
+                                : futureMeetingsResult.added > 0
+                                  ? `Added ${futureMeetingsResult.added} new · ${futureMeetingsResult.skipped} already on timeline`
+                                  : "No new meetings found"}
+                          </span>
+                        )}
                       </div>
                       {deal.entries.length > 0 && visibleTypes.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap">

@@ -112,6 +112,8 @@ function DealsPageContent() {
   const [newStageInsertAfter, setNewStageInsertAfter] = useState<string>("");
   const [savingStage, setSavingStage] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  const [scanningCalendar, setScanningCalendar] = useState(false);
+  const [calendarScanResult, setCalendarScanResult] = useState<{ hasCalendar: boolean; dealsScanned: number; totalEventsAdded: number; perDeal: Array<{ dealId: string; dealName: string; added: number; skipped: number }> } | null>(null);
   // Bulk selection state for Potential cards. Lets the user
   // multi-select and validate/dismiss in one shot from the action bar.
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -274,6 +276,26 @@ function DealsPageContent() {
       loadDeals();
     } finally {
       setBulkActing(false);
+    }
+  };
+
+  const handleScanCalendar = async () => {
+    if (scanningCalendar) return;
+    setScanningCalendar(true);
+    setCalendarScanResult(null);
+    try {
+      const res = await fetch("/api/deals/scan-future-meetings", { method: "POST" });
+      if (!res.ok) {
+        console.error("[deals] scan-future-meetings failed", res.status);
+        return;
+      }
+      const summary = await res.json();
+      setCalendarScanResult(summary);
+      if (summary.totalEventsAdded > 0) await loadDeals();
+    } catch (err) {
+      console.error("[deals] scan-future-meetings error", err);
+    } finally {
+      setScanningCalendar(false);
     }
   };
 
@@ -526,6 +548,24 @@ function DealsPageContent() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              onClick={handleScanCalendar}
+              disabled={scanningCalendar}
+              className="px-3 py-2 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 rounded-lg font-medium text-sm hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex items-center gap-2 disabled:opacity-60"
+              title="Scan the next 90 days of your calendar and add new future meetings to every active deal"
+            >
+              {scanningCalendar ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Scanning…
+                </>
+              ) : (
+                <>📅 Scan Calendar (90d)</>
+              )}
+            </button>
+            <button
               onClick={handleDiscoverDeals}
               disabled={discovering}
               className="px-3 py-2 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-white dark:bg-gray-800 rounded-lg font-medium text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all flex items-center gap-2 disabled:opacity-60"
@@ -556,6 +596,48 @@ function DealsPageContent() {
             </button>
           </div>
         </div>
+
+        {calendarScanResult && (
+          <div className="mb-4 p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-sm flex items-start justify-between gap-3">
+            <div className="text-gray-700 dark:text-gray-200">
+              <div className="font-medium mb-0.5">Calendar sweep complete</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                {!calendarScanResult.hasCalendar ? (
+                  <div className="italic">Calendar not connected — connect Google Calendar to use this.</div>
+                ) : (
+                  <>
+                    <div>
+                      Scanned {calendarScanResult.dealsScanned} active deal{calendarScanResult.dealsScanned === 1 ? "" : "s"} against the next 90 days of your calendar.{" "}
+                      Added <strong>{calendarScanResult.totalEventsAdded}</strong> new future meeting{calendarScanResult.totalEventsAdded === 1 ? "" : "s"}.
+                    </div>
+                    {calendarScanResult.perDeal.length > 0 && (
+                      <ul className="mt-1 list-disc list-inside text-gray-600 dark:text-gray-300">
+                        {calendarScanResult.perDeal.slice(0, 6).map((d) => (
+                          <li key={d.dealId}>
+                            <a href={`/deals/${d.dealId}`} className="text-green-700 dark:text-green-300 hover:underline">{d.dealName}</a>: +{d.added}
+                            {d.skipped > 0 && <span className="text-gray-400"> ({d.skipped} already on timeline)</span>}
+                          </li>
+                        ))}
+                        {calendarScanResult.perDeal.length > 6 && (
+                          <li className="text-gray-400">+{calendarScanResult.perDeal.length - 6} more</li>
+                        )}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setCalendarScanResult(null)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 flex-shrink-0"
+              title="Dismiss"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {discoverResult && (
           <div className="mb-4 p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-sm flex items-start justify-between gap-3">
