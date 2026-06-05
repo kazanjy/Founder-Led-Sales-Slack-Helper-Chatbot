@@ -377,19 +377,38 @@ export default function DealChatPanel({
             <button
               type="button"
               onClick={() => {
-                // Specifying width/height + popup=1 nudges most browsers
-                // to open a chromeless window rather than a tab. Browsers
-                // that ignore the hint fall back to a new tab, which is
-                // still a usable "popout" — the user can drag it loose.
-                const url = `/chat/${conversationId}`;
-                window.open(
-                  url,
+                // Open the window synchronously so the click is still in
+                // a user-gesture context (browsers block window.open
+                // called after an await). Then flip the conversation to
+                // DIRECT and navigate the placeholder. Forcing DIRECT
+                // because popping a Deal Chat out signals deep work —
+                // the user wants full context, not RAG-bounded Chatbase.
+                const popup = window.open(
+                  "about:blank",
                   `deal-chat-${conversationId}`,
                   "popup=1,width=560,height=820,noopener,noreferrer"
                 );
+                const targetUrl = `/chat/${conversationId}`;
+                fetch(`/api/conversations/${conversationId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ mode: "DIRECT" }),
+                })
+                  .catch((err) => {
+                    console.error("[DealChatPanel] failed to flip mode before popout:", err);
+                  })
+                  .finally(() => {
+                    if (popup && !popup.closed) {
+                      popup.location.href = targetUrl;
+                    } else {
+                      // Popup blocked — fall back to opening in the
+                      // current tab so the user still gets the chat.
+                      window.location.href = targetUrl;
+                    }
+                  });
               }}
               className="text-gray-400 hover:text-purple-600 p-1"
-              title="Pop this chat out into its own window"
+              title="Pop this chat out into its own window (switches to Direct LLM)"
               aria-label="Pop chat out into a new window"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
