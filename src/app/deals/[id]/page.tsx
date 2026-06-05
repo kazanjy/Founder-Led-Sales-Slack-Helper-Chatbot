@@ -361,7 +361,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [timelineQuery, setTimelineQuery] = useState<string>("");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [scanningFutureMeetings, setScanningFutureMeetings] = useState(false);
-  const [futureMeetingsResult, setFutureMeetingsResult] = useState<{ added: number; skipped: number; hasCalendar: boolean; hasDomain: boolean } | null>(null);
+  const [futureMeetingsResult, setFutureMeetingsResult] = useState<{ added: number; skipped: number; hasCalendar: boolean; hasDomain: boolean; triggeredAnalysis?: boolean } | null>(null);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -433,8 +433,17 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         const json = await res.json();
         setFutureMeetingsResult(json);
         if (json.added > 0) await loadDeal();
-        // Auto-dismiss the result toast after a few seconds.
-        window.setTimeout(() => setFutureMeetingsResult(null), 6000);
+        // If the server kicked off a background re-analysis, refresh
+        // the deal a couple of times over the next ~45s so the new
+        // Mikey Health + analysis text show up without the user
+        // needing to reload. Then dismiss the toast.
+        if (json.triggeredAnalysis) {
+          window.setTimeout(() => { void loadDeal(); }, 15000);
+          window.setTimeout(() => { void loadDeal(); }, 45000);
+          window.setTimeout(() => setFutureMeetingsResult(null), 60000);
+        } else {
+          window.setTimeout(() => setFutureMeetingsResult(null), 6000);
+        }
       }
     } catch (err) {
       console.error("[deals] scan-future-meetings failed:", err);
@@ -2283,7 +2292,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           {scanningFutureMeetings ? "Scanning…" : "📅 Scan Future Meetings"}
                         </button>
                         {futureMeetingsResult && (
-                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400 inline-flex items-center gap-1.5">
                             {!futureMeetingsResult.hasCalendar
                               ? "No calendar connected"
                               : !futureMeetingsResult.hasDomain
@@ -2291,6 +2300,18 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 : futureMeetingsResult.added > 0
                                   ? `Added ${futureMeetingsResult.added} new · ${futureMeetingsResult.skipped} already on timeline`
                                   : "No new meetings found"}
+                            {futureMeetingsResult.triggeredAnalysis && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span className="text-pink-600 dark:text-pink-300 inline-flex items-center gap-1">
+                                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                  Re-analyzing in background…
+                                </span>
+                              </>
+                            )}
                           </span>
                         )}
                       </div>

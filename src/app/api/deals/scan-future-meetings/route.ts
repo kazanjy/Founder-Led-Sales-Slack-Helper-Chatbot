@@ -12,7 +12,16 @@ export async function POST() {
 
   try {
     const result = await scanFutureMeetingsForUser(user.id);
-    return NextResponse.json(result);
+    // Surface the dealIds that picked up new meetings so the client can
+    // immediately fire the existing bulk-analyze SSE endpoint and show
+    // live re-analysis progress. We don't kick the analyses off here —
+    // 30+ deals × ~30s would blow past the route's 300s ceiling, and
+    // the client experience is better with the streaming progress
+    // banner anyway.
+    const dealsNeedingAnalysis = result.perDeal
+      .filter((d) => d.added > 0)
+      .map((d) => d.dealId);
+    return NextResponse.json({ ...result, dealsNeedingAnalysis });
   } catch (err) {
     console.error("[scan-future-meetings/sweep] failed:", err);
     return NextResponse.json(

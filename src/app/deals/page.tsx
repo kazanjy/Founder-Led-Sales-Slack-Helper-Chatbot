@@ -289,10 +289,8 @@ function DealsPageContent() {
     }
   };
 
-  const handleBulkAnalyze = async () => {
-    if (bulkAnalyzing) return;
-    const ids = filteredDeals.map((d) => d.id);
-    if (ids.length === 0) return;
+  const runBulkAnalyzeForIds = async (ids: string[]) => {
+    if (bulkAnalyzing || ids.length === 0) return;
     setBulkAnalyzing(true);
     setBulkAnalyzeProgress({
       total: ids.length,
@@ -394,6 +392,15 @@ function DealsPageContent() {
     }
   };
 
+  // Button-driven path: analyze whatever the user currently has filtered
+  // into view. Thin wrapper around runBulkAnalyzeForIds so the same SSE
+  // progress flow gets reused from both the manual click and the
+  // post-scan auto-trigger in handleScanCalendar.
+  const handleBulkAnalyze = () => {
+    const ids = filteredDeals.map((d) => d.id);
+    void runBulkAnalyzeForIds(ids);
+  };
+
   const handleScanCalendar = async () => {
     if (scanningCalendar) return;
     setScanningCalendar(true);
@@ -407,6 +414,17 @@ function DealsPageContent() {
       const summary = await res.json();
       setCalendarScanResult(summary);
       if (summary.totalEventsAdded > 0) await loadDeals();
+
+      // If any deals got new meetings, chain into the bulk-analyze SSE
+      // endpoint so their Mikey Health + analysis reflect the new
+      // calendar evidence. Reuses the live progress banner the user
+      // already sees for the manual "Re-analyze (N)" button.
+      const needAnalysis: string[] = Array.isArray(summary.dealsNeedingAnalysis)
+        ? summary.dealsNeedingAnalysis.filter((d: unknown): d is string => typeof d === "string")
+        : [];
+      if (needAnalysis.length > 0) {
+        void runBulkAnalyzeForIds(needAnalysis);
+      }
     } catch (err) {
       console.error("[deals] scan-future-meetings error", err);
     } finally {
@@ -797,6 +815,9 @@ function DealsPageContent() {
                     <div>
                       Scanned {calendarScanResult.dealsScanned} active deal{calendarScanResult.dealsScanned === 1 ? "" : "s"} against the next 90 days of your calendar.{" "}
                       Added <strong>{calendarScanResult.totalEventsAdded}</strong> new future meeting{calendarScanResult.totalEventsAdded === 1 ? "" : "s"}.
+                      {calendarScanResult.totalEventsAdded > 0 && (
+                        <span className="text-pink-700 dark:text-pink-300"> Re-analyzing affected deals…</span>
+                      )}
                     </div>
                     {calendarScanResult.perDeal.length > 0 && (
                       <ul className="mt-1 list-disc list-inside text-gray-600 dark:text-gray-300">
