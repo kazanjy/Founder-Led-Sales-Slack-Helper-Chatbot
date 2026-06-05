@@ -1,4 +1,4 @@
-import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./interface";
+import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail, ListCallsOptions, normalizeListCallsOpts } from "./interface";
 
 const GRAPHQL_URL = "https://api.fireflies.ai/graphql";
 
@@ -48,7 +48,9 @@ export const firefliesProvider: MeetingRecorderProvider = {
     }
   },
 
-  async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
+  async listCalls(apiKey: string, opts?: number | ListCallsOptions): Promise<MeetingCall[]> {
+    const { limit, since } = normalizeListCallsOpts(opts, 15);
+    const sinceMs = since ? since.getTime() : null;
     const allTranscripts: Array<{
       id: string;
       title: string;
@@ -59,7 +61,8 @@ export const firefliesProvider: MeetingRecorderProvider = {
       summary?: { overview?: string };
     }> = [];
 
-    // Fireflies uses skip-based (offset) pagination
+    // Fireflies uses skip-based (offset) pagination, newest-first.
+    // Dates are ms-since-epoch strings — convert before comparing.
     while (allTranscripts.length < limit) {
       const pageSize = Math.min(limit - allTranscripts.length, 50);
       const data = await firefliesQuery(apiKey, `
@@ -81,11 +84,16 @@ export const firefliesProvider: MeetingRecorderProvider = {
       const transcripts = data?.transcripts || [];
       allTranscripts.push(...transcripts);
 
+      if (sinceMs != null && transcripts.some((t: { date: string }) => Number(t.date) < sinceMs)) break;
       // If we got fewer than requested, there are no more
       if (transcripts.length < pageSize) break;
     }
 
-    return allTranscripts.map((t) => {
+    const trimmed = sinceMs != null
+      ? allTranscripts.filter((t) => Number(t.date) >= sinceMs)
+      : allTranscripts;
+
+    return trimmed.map((t) => {
       const participantStrs: string[] = t.participants || [];
       // Fireflies can pack multiple emails in a single comma-separated string — split them
       const individualParticipants = participantStrs.flatMap((p) =>

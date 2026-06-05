@@ -1,4 +1,4 @@
-import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./interface";
+import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail, ListCallsOptions, normalizeListCallsOpts } from "./interface";
 
 // Fathom REST API integration
 // Docs: https://developers.fathom.ai
@@ -146,11 +146,14 @@ export const fathomProvider: MeetingRecorderProvider = {
     }
   },
 
-  async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
+  async listCalls(apiKey: string, opts?: number | ListCallsOptions): Promise<MeetingCall[]> {
+    const { limit, since } = normalizeListCallsOpts(opts, 15);
     const allMeetings: FathomMeeting[] = [];
     let cursor: string | undefined;
+    let hitSinceCutoff = false;
 
-    // Fathom uses cursor pagination
+    // Fathom uses cursor pagination, newest-first. Stop early if we
+    // encounter a meeting older than `since`.
     while (allMeetings.length < limit) {
       const pageSize = Math.min(limit - allMeetings.length, 25);
       let url = `/meetings?limit=${pageSize}`;
@@ -167,19 +170,27 @@ export const fathomProvider: MeetingRecorderProvider = {
       const meetings: FathomMeeting[] = data.items || [];
       allMeetings.push(...meetings);
 
+      if (since && meetings.some((m) => new Date(m.created_at) < since)) {
+        hitSinceCutoff = true;
+        break;
+      }
       if (!data.next_cursor || meetings.length === 0) break;
       cursor = data.next_cursor;
     }
 
+    const trimmed = since
+      ? allMeetings.filter((m) => new Date(m.created_at) >= since)
+      : allMeetings;
+
     // Cache for getCallDetail
     cachedMeetings = new Map();
-    for (const m of allMeetings) {
+    for (const m of trimmed) {
       cachedMeetings.set(String(m.recording_id), m);
     }
 
-    console.log(`[Fathom] Found ${allMeetings.length} meetings`);
+    console.log(`[Fathom] Found ${trimmed.length} meetings${since ? ` since ${since.toISOString()}${hitSinceCutoff ? " (cutoff reached)" : ""}` : ""}`);
 
-    return allMeetings.map((m) => {
+    return trimmed.map((m) => {
       const recId = String(m.recording_id);
       const invitees = m.calendar_invitees || [];
       return {

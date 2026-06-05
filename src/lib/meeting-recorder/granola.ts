@@ -1,4 +1,4 @@
-import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail } from "./interface";
+import { MeetingRecorderProvider, MeetingCall, MeetingCallDetail, ListCallsOptions, normalizeListCallsOpts } from "./interface";
 
 const BASE_URL = "https://public-api.granola.ai/v1";
 
@@ -64,11 +64,13 @@ export const granolaProvider: MeetingRecorderProvider = {
     }
   },
 
-  async listCalls(apiKey: string, limit = 15): Promise<MeetingCall[]> {
+  async listCalls(apiKey: string, opts?: number | ListCallsOptions): Promise<MeetingCall[]> {
+    const { limit, since } = normalizeListCallsOpts(opts, 15);
     const allNotes: GranolaNoteListItem[] = [];
     let cursor: string | undefined;
 
-    // Granola's API has a fixed page size — use cursor pagination to fetch more
+    // Granola's API has a fixed page size — use cursor pagination to fetch more.
+    // Stop early if we encounter a note older than `since` (notes are newest-first).
     while (allNotes.length < limit) {
       const pageSize = Math.min(limit - allNotes.length, 25);
       let url = `/notes?limit=${pageSize}`;
@@ -83,12 +85,16 @@ export const granolaProvider: MeetingRecorderProvider = {
       const notes: GranolaNoteListItem[] = data.notes || data.data || [];
       allNotes.push(...notes);
 
-      // Check if there are more pages
+      if (since && notes.some((n) => new Date(n.created_at) < since)) break;
       if (!data.hasMore || !data.cursor || notes.length === 0) break;
       cursor = data.cursor;
     }
 
-    return allNotes.map((note) => ({
+    const trimmed = since
+      ? allNotes.filter((n) => new Date(n.created_at) >= since)
+      : allNotes;
+
+    return trimmed.map((note) => ({
       id: note.id,
       title: note.title || "Untitled Meeting",
       date: note.created_at,

@@ -202,7 +202,10 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
 
   let calls;
   try {
-    calls = await withRecorderTokenRefresh(conn, (apiKey) => provider.listCalls(apiKey, 50));
+    // Bumped from 50 → 75 because founders typically run ~10 calls/week
+    // and a daily sweep at 50 leaves zero headroom for a missed run or a
+    // burst week. 75 is ~1.5 weeks of coverage at typical volume.
+    calls = await withRecorderTokenRefresh(conn, (apiKey) => provider.listCalls(apiKey, 75));
   } catch (err) {
     console.error(`[scan-recordings] ${conn.provider} listCalls failed for ${userId}:`, err);
     out.errors++;

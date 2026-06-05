@@ -8,6 +8,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { VoiceNoteButton } from "@/components/VoiceNoteButton";
 import DealChatPanel from "@/components/DealChatPanel";
+import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
@@ -358,6 +359,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [revealedTranscripts, setRevealedTranscripts] = useState<Set<string>>(new Set());
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
   const [timelineQuery, setTimelineQuery] = useState<string>("");
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const loadDeal = useCallback(async () => {
     setLoading(true);
@@ -2241,6 +2243,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             🌊 Chat With Deal Timeline
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setBulkImportOpen(true)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                          title="Scan the last 90 days of recordings for calls matching this deal"
+                        >
+                          📞 Bulk Import Calls
+                        </button>
                       </div>
                       {deal.entries.length > 0 && visibleTypes.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -2634,6 +2644,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
+      <BulkImportCallsModal
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        dealId={id}
+        dealName={deal.name}
+        onImported={() => loadDeal()}
+      />
       <DealChatPanel
         open={chatPanelOpen}
         onClose={closeChatPanel}
