@@ -252,7 +252,7 @@ export default function SyncReviewOverlay({
                             also trigger the toggle. */}
                         <div
                           onClick={() => toggleExpand(change.itemId)}
-                          className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50/60 dark:hover:bg-gray-700/40 rounded-xl"
+                          className="group/row flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50/60 dark:hover:bg-gray-700/40 rounded-xl"
                         >
                           <input
                             type="checkbox"
@@ -267,7 +267,7 @@ export default function SyncReviewOverlay({
                               <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{change.itemTitle}</span>
                               <span className="text-xs text-gray-400">{change.capabilityCategory}</span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{change.evidenceText}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1 group-hover/row:line-clamp-none">{change.evidenceText}</p>
                           </div>
 
                           {/* Status change badge */}
