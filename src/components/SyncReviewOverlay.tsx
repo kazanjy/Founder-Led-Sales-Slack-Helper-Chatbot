@@ -79,22 +79,12 @@ export default function SyncReviewOverlay({
   const [acceptStage, setAcceptStage] = useState(true);
   const [stageOverride, setStageOverride] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
 
   if (!isOpen) return null;
 
   const toggleItem = (itemId: string) => {
     setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  };
-
-  const toggleExpand = (itemId: string) => {
-    setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(itemId)) next.delete(itemId);
       else next.add(itemId);
@@ -233,7 +223,6 @@ export default function SyncReviewOverlay({
                 <div className="space-y-2">
                   {changes.map((change) => {
                     const isSelected = selectedIds.has(change.itemId);
-                    const isExpanded = expandedItems.has(change.itemId);
                     const conf = CONFIDENCE_STYLES[change.confidence] || CONFIDENCE_STYLES.medium;
                     const currentSt = STATUS_LABELS[change.currentStatus] || STATUS_LABELS.to_do;
                     const proposedSt = STATUS_LABELS[change.proposedStatus] || STATUS_LABELS.to_do;
@@ -245,20 +234,12 @@ export default function SyncReviewOverlay({
                           isSelected ? "border-purple-300 bg-purple-50/30" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
                         }`}
                       >
-                        {/* Main row — clicking anywhere on the header
-                            toggles the expanded detail. Interactive
-                            controls inside (checkbox, status select,
-                            chevron) stop propagation so they don't
-                            also trigger the toggle. */}
-                        <div
-                          onClick={() => toggleExpand(change.itemId)}
-                          className="group/row flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-gray-50/60 dark:hover:bg-gray-700/40 rounded-xl"
-                        >
+                        {/* Header row — title, status flow, confidence */}
+                        <div className="flex items-center gap-3 px-4 py-3 select-none">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleItem(change.itemId)}
-                            onClick={(e) => e.stopPropagation()}
                             className="w-4 h-4 text-purple-600 rounded border-gray-300 dark:border-gray-700 focus:ring-purple-500 flex-shrink-0"
                           />
 
@@ -267,7 +248,6 @@ export default function SyncReviewOverlay({
                               <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{change.itemTitle}</span>
                               <span className="text-xs text-gray-400">{change.capabilityCategory}</span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1 group-hover/row:line-clamp-none">{change.evidenceText}</p>
                           </div>
 
                           {/* Status change badge */}
@@ -291,7 +271,6 @@ export default function SyncReviewOverlay({
                                   return { ...prev, [change.itemId]: val };
                                 });
                               }}
-                              onClick={(e) => e.stopPropagation()}
                               className={`px-2 py-0.5 rounded-full text-xs font-medium border-none cursor-pointer appearance-none pr-5 bg-no-repeat bg-[length:12px] bg-[right_4px_center] ${
                                 (STATUS_LABELS[statusOverrides[change.itemId] || change.proposedStatus] || proposedSt).color
                               } ${statusOverrides[change.itemId] ? "ring-2 ring-purple-400 ring-offset-1" : ""}`}
@@ -307,24 +286,15 @@ export default function SyncReviewOverlay({
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${conf.color}`}>
                             {conf.label}
                           </span>
-
-                          {/* Expand toggle */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleExpand(change.itemId); }}
-                            className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                          >
-                            <svg
-                              className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
                         </div>
 
-                        {/* Expanded detail */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 pt-1 border-t border-gray-100 ml-7">
+                        {/* Always-visible side-by-side: proposed evidence
+                            (with reasoning underneath) on the left and the
+                            supporting source excerpts on the right. The
+                            click-to-expand gate was removed so the user
+                            can scan proof for every proposed change without
+                            playing chevron whack-a-mole. */}
+                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 ml-7">
                             <div className="grid grid-cols-2 gap-4">
                               {/* Left: proposed evidence */}
                               <div>
@@ -350,7 +320,6 @@ export default function SyncReviewOverlay({
                               </div>
                             </div>
                           </div>
-                        )}
                       </div>
                     );
                   })}
