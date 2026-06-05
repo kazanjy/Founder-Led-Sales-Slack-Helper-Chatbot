@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import { VoiceNoteButton } from "@/components/VoiceNoteButton";
@@ -267,6 +268,30 @@ function buildAnalysisMarkdownComponents(fullMarkdown: string) {
     h2: buildHeading(2, fullMarkdown),
     h3: buildHeading(3, fullMarkdown),
   };
+}
+
+// Renders a timeline-entry body as markdown so call summaries,
+// meetings, emails, notes — anything the user or an importer wrote
+// with **bold**, [links](url), bullets, or ## headings — comes out
+// styled instead of as raw markup. Links open in a new tab so a
+// fathom.video timestamp click doesn't kill the deal view.
+function EntryMarkdown({ children }: { children: string }) {
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:my-2 prose-h1:text-base prose-h2:text-sm prose-h3:text-xs prose-pre:my-1 prose-code:text-xs">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-800 dark:text-purple-300 underline break-words">
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function displayName(name: string, email?: string | null): string {
@@ -2656,8 +2681,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           const isShort = entry.content.length <= 200;
                           if (isShort) {
                             return (
-                              <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap mt-1">
-                                {entry.content}
+                              <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+                                <EntryMarkdown>{entry.content}</EntryMarkdown>
                               </div>
                             );
                           }
@@ -2675,8 +2700,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 {isExpanded ? "Hide content" : `Show full content (${entry.content.length.toLocaleString()} chars)`}
                               </div>
                               {isExpanded && (
-                                <div className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap mt-2 pt-2 border-t border-gray-100">
-                                  {entry.content}
+                                <div className="text-sm text-gray-700 dark:text-gray-200 mt-2 pt-2 border-t border-gray-100">
+                                  <EntryMarkdown>{entry.content}</EntryMarkdown>
                                 </div>
                               )}
                             </>
