@@ -1623,7 +1623,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   label="full deal analysis"
                 />
               </div>
-              <div className="px-5 pb-5 border-t border-purple-100">
+              <div
+                className={`px-5 pb-5 border-t border-purple-100 ${hasSummary && !showAnalysis ? "cursor-pointer" : ""}`}
+                onClick={hasSummary && !showAnalysis ? () => setShowAnalysis(true) : undefined}
+              >
                 <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-200 mt-3">
                   {showAnalysis || !hasSummary ? (
                     <ReactMarkdown components={analysisMarkdownComponents}>{deal.lastAnalysis}</ReactMarkdown>
@@ -1631,24 +1634,16 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     <ReactMarkdown components={analysisMarkdownComponents}>{summaryBody!}</ReactMarkdown>
                   )}
                 </div>
-                <div
-                  className={`mt-3 flex items-center gap-4 flex-wrap ${hasSummary && !showAnalysis ? "cursor-pointer" : ""}`}
-                  onClick={hasSummary && !showAnalysis ? (e) => {
-                    // Only expand on clicks in the empty gap — clicks on
-                    // Re-analyze / View history / Show more already have
-                    // their own handlers.
-                    if (e.target === e.currentTarget) setShowAnalysis(true);
-                  } : undefined}
-                >
+                <div className="mt-3 flex items-center gap-4 flex-wrap">
                   <button
-                    onClick={() => analyzeDeal()}
+                    onClick={(e) => { e.stopPropagation(); analyzeDeal(); }}
                     disabled={analyzing}
                     className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1"
                   >
                     {analyzing ? "Analyzing..." : "↻ Re-analyze"}
                   </button>
                   <button
-                    onClick={toggleAnalysisHistory}
+                    onClick={(e) => { e.stopPropagation(); toggleAnalysisHistory(); }}
                     className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium flex items-center gap-1"
                   >
                     {showHistory ? "Hide history" : "View history"}
@@ -1658,7 +1653,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                   {hasSummary && (
                     <button
-                      onClick={() => setShowAnalysis(!showAnalysis)}
+                      onClick={(e) => { e.stopPropagation(); setShowAnalysis(!showAnalysis); }}
                       className="text-xs text-purple-600 hover:text-purple-800 font-medium ml-auto flex items-center gap-1"
                     >
                       {showAnalysis ? "Show less ↑" : "Show more ↓"}
