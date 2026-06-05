@@ -439,8 +439,13 @@ export default function DealChatPanel({
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && !streamingMessage && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-            Ask Mikey anything about this deal. Mikey has the timeline, participants, latest analysis, and your sales narrative.
+          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+            <div>Ask Mikey anything about this deal. Mikey has the timeline, participants, latest analysis, and your sales narrative.</div>
+            {!conversationId && threads && threads.length > 0 && (
+              <div className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
+                💬 {threads.length} previous {threads.length === 1 ? "thread" : "threads"} on this deal — switch above ↑
+              </div>
+            )}
           </div>
         )}
         {messages.map((m, idx) => {
@@ -653,9 +658,23 @@ function ThreadSwitcher({
           <span className="text-gray-400">Thread:</span>
           <span className="font-medium truncate">{currentLabel}</span>
         </span>
-        <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <span className="flex items-center gap-1.5 flex-shrink-0">
+          {threads.length > 0 && (
+            <span
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                !active
+                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200"
+                  : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+              }`}
+              title={`${threads.length} prior thread${threads.length === 1 ? "" : "s"} available`}
+            >
+              {threads.length} {threads.length === 1 ? "thread" : "threads"}
+            </span>
+          )}
+          <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
       </button>
       {open && (
         <div className="absolute left-0 right-0 top-full z-10 bg-white dark:bg-gray-800 border-b border-x border-gray-200 dark:border-gray-700 shadow-lg max-h-72 overflow-y-auto">
