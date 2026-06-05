@@ -14,9 +14,7 @@ interface ReadinessItem {
   notes: string | null;
   evidenceUrl: string | null;
   mikeyLinks: Array<{ label: string; href: string }> | null;
-}
-
-interface Category {
+}interface Category {
   name: string;
   items: ReadinessItem[];
   doneCount: number;
@@ -63,11 +61,13 @@ interface NextGoalShape {
 
 export default function ReadinessTray({
   open,
+  onOpen,
   onClose,
   canEdit,
   onAddedAsNextGoal,
 }: {
   open: boolean;
+  onOpen: () => void;
   onClose: () => void;
   canEdit: boolean;
   onAddedAsNextGoal?: (goal: NextGoalShape) => void;
@@ -203,6 +203,29 @@ export default function ReadinessTray({
 
   return (
     <>
+      {/* Persistent right-edge rail — visible whenever the tray is closed
+          so the founder can pop it open from anywhere on the page, mirroring
+          the Deal Chat panel pattern. */}
+      {!open && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="fixed right-0 top-1/3 z-30 flex flex-col items-center gap-3 px-3 py-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 rounded-l-xl shadow-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 transition-colors group/rail"
+          aria-label="Open GTM Readiness Progression tray"
+          title="Open GTM Readiness Progression"
+        >
+          <span className="text-2xl leading-none" aria-hidden>✅</span>
+          <span
+            className="text-[11px] font-semibold tracking-wider text-gray-600 dark:text-gray-300 group-hover/rail:text-purple-700 dark:group-hover/rail:text-purple-300 uppercase"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            GTM Readiness
+          </span>
+          <svg className="w-5 h-5 text-gray-400 group-hover/rail:text-purple-600 dark:group-hover/rail:text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
       {/* Backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/30 transition-opacity ${
@@ -347,7 +370,7 @@ export default function ReadinessTray({
                                 return (
                                   <div
                                     key={item.id}
-                                    className="border border-gray-200 dark:border-gray-700 rounded-md p-2.5 hover:border-purple-300 dark:hover:border-purple-700 transition"
+                                    className="group/item border border-gray-200 dark:border-gray-700 rounded-md p-2.5 hover:border-purple-300 dark:hover:border-purple-700 transition"
                                   >
                                     <div className="flex items-start gap-2">
                                       <button
@@ -365,8 +388,34 @@ export default function ReadinessTray({
                                           {item.title}
                                         </div>
                                         {item.description && (
-                                          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-3">
+                                          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2 group-hover/item:line-clamp-none">
                                             {item.description}
+                                          </div>
+                                        )}
+                                        {(item.notes || item.evidenceUrl) && (
+                                          <div className="mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                                            {item.notes && (
+                                              <div className="text-[11px] text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1 line-clamp-2 group-hover/item:line-clamp-none whitespace-pre-wrap break-words">
+                                                {item.notes}
+                                              </div>
+                                            )}
+                                            {item.evidenceUrl && (
+                                              /^https?:\/\//.test(item.evidenceUrl) ? (
+                                                <a
+                                                  href={item.evidenceUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="text-[11px] text-blue-600 dark:text-blue-300 hover:underline inline-flex items-center gap-1 break-all line-clamp-1 group-hover/item:line-clamp-none"
+                                                >
+                                                  🔗 {item.evidenceUrl.replace(/^https?:\/\/(www\.)?/, "")}
+                                                </a>
+                                              ) : (
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 italic line-clamp-1 group-hover/item:line-clamp-none break-words">
+                                                  📎 {item.evidenceUrl}
+                                                </div>
+                                              )
+                                            )}
                                           </div>
                                         )}
                                       </div>

@@ -1992,6 +1992,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     <div className="space-y-6 mb-8">
       <ReadinessTray
         open={readinessTrayOpen}
+        onOpen={() => setReadinessTrayOpen(true)}
         onClose={() => setReadinessTrayOpen(false)}
         canEdit={canEdit}
         onAddedAsNextGoal={(goal) => setNextGoals((prev) => [...prev, goal])}
