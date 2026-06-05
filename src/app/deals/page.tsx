@@ -114,6 +114,16 @@ function DealsPageContent() {
   const [discovering, setDiscovering] = useState(false);
   const [scanningCalendar, setScanningCalendar] = useState(false);
   const [calendarScanResult, setCalendarScanResult] = useState<{ hasCalendar: boolean; dealsScanned: number; totalEventsAdded: number; perDeal: Array<{ dealId: string; dealName: string; added: number; skipped: number }> } | null>(null);
+  // Bulk analyze state — drives the inline progress banner that shows
+  // each visible deal's analyzer status as the SSE stream lands.
+  const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  const [bulkAnalyzeProgress, setBulkAnalyzeProgress] = useState<{
+    total: number;
+    current: number;
+    currentDealName: string | null;
+    rows: Array<{ dealId: string; dealName: string; status: "analyzing" | "done" | "failed"; mikeyHealth?: string; healthFlipped?: boolean; error?: string }>;
+    summary: { analyzed: number; failed: number; healthFlips: number } | null;
+  } | null>(null);
   // Bulk selection state for Potential cards. Lets the user
   // multi-select and validate/dismiss in one shot from the action bar.
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -276,6 +286,111 @@ function DealsPageContent() {
       loadDeals();
     } finally {
       setBulkActing(false);
+    }
+  };
+
+  const handleBulkAnalyze = async () => {
+    if (bulkAnalyzing) return;
+    const ids = filteredDeals.map((d) => d.id);
+    if (ids.length === 0) return;
+    setBulkAnalyzing(true);
+    setBulkAnalyzeProgress({
+      total: ids.length,
+      current: 0,
+      currentDealName: null,
+      rows: [],
+      summary: null,
+    });
+
+    try {
+      const res = await fetch("/api/deals/bulk-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealIds: ids }),
+      });
+      if (!res.ok || !res.body) {
+        const text = await res.text().catch(() => "");
+        console.error("[deals] bulk-analyze failed", res.status, text);
+        setBulkAnalyzing(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      // Parse SSE frames: each event is "event: X\ndata: {...}\n\n".
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let frameEnd = buf.indexOf("\n\n");
+        while (frameEnd !== -1) {
+          const frame = buf.slice(0, frameEnd);
+          buf = buf.slice(frameEnd + 2);
+          frameEnd = buf.indexOf("\n\n");
+          const lines = frame.split("\n");
+          let event = "";
+          let dataStr = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) event = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataStr += line.slice(6);
+          }
+          if (!event || !dataStr) continue;
+          let data: unknown;
+          try { data = JSON.parse(dataStr); } catch { continue; }
+
+          if (event === "started") {
+            const d = data as { total: number };
+            setBulkAnalyzeProgress((prev) => prev && { ...prev, total: d.total });
+          } else if (event === "progress") {
+            const d = data as {
+              dealId: string;
+              dealName: string;
+              index: number;
+              total: number;
+              status: "analyzing" | "done" | "failed";
+              mikeyHealth?: string;
+              healthFlipped?: boolean;
+              error?: string;
+            };
+            setBulkAnalyzeProgress((prev) => {
+              if (!prev) return prev;
+              const existingIdx = prev.rows.findIndex((r) => r.dealId === d.dealId);
+              const row = {
+                dealId: d.dealId,
+                dealName: d.dealName,
+                status: d.status,
+                mikeyHealth: d.mikeyHealth,
+                healthFlipped: d.healthFlipped,
+                error: d.error,
+              };
+              const rows = [...prev.rows];
+              if (existingIdx >= 0) rows[existingIdx] = row;
+              else rows.push(row);
+              return {
+                ...prev,
+                rows,
+                current: d.status === "analyzing" ? d.index + 1 : Math.max(prev.current, d.index + 1),
+                currentDealName: d.status === "analyzing" ? d.dealName : prev.currentDealName,
+              };
+            });
+          } else if (event === "complete") {
+            const d = data as { analyzed: number; failed: number; healthFlips: number };
+            setBulkAnalyzeProgress((prev) => prev && { ...prev, summary: d, currentDealName: null });
+          } else if (event === "error") {
+            const d = data as { error: string };
+            console.error("[deals] bulk-analyze stream error:", d.error);
+          }
+        }
+      }
+
+      // Refresh card data so updated Mikey Health pills + lastAnalyzedAt
+      // reflect the bulk run.
+      await loadDeals();
+    } catch (err) {
+      console.error("[deals] bulk-analyze error", err);
+    } finally {
+      setBulkAnalyzing(false);
     }
   };
 
@@ -548,6 +663,24 @@ function DealsPageContent() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              onClick={handleBulkAnalyze}
+              disabled={bulkAnalyzing || filteredDeals.length === 0}
+              className="px-3 py-2 border border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-300 bg-white dark:bg-gray-800 rounded-lg font-medium text-sm hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all flex items-center gap-2 disabled:opacity-60"
+              title={`Re-run the deal analyzer on each of the ${filteredDeals.length} visible deal${filteredDeals.length === 1 ? "" : "s"}`}
+            >
+              {bulkAnalyzing ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Analyzing…
+                </>
+              ) : (
+                <>🧠 Re-analyze ({filteredDeals.length})</>
+              )}
+            </button>
+            <button
               onClick={handleScanCalendar}
               disabled={scanningCalendar}
               className="px-3 py-2 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 bg-white dark:bg-gray-800 rounded-lg font-medium text-sm hover:bg-green-50 dark:hover:bg-green-900/20 transition-all flex items-center gap-2 disabled:opacity-60"
@@ -596,6 +729,61 @@ function DealsPageContent() {
             </button>
           </div>
         </div>
+
+        {bulkAnalyzeProgress && (
+          <div className="mb-4 p-3 rounded-lg border border-pink-200 dark:border-pink-800 bg-pink-50 dark:bg-pink-900/20 text-sm flex items-start justify-between gap-3">
+            <div className="text-gray-700 dark:text-gray-200 flex-1 min-w-0">
+              <div className="font-medium mb-0.5 flex items-center gap-2">
+                {bulkAnalyzeProgress.summary
+                  ? <>🧠 Bulk analysis complete</>
+                  : <>🧠 Re-analyzing deals…</>}
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                  {bulkAnalyzeProgress.summary
+                    ? `${bulkAnalyzeProgress.summary.analyzed} analyzed${bulkAnalyzeProgress.summary.failed ? ` · ${bulkAnalyzeProgress.summary.failed} failed` : ""}${bulkAnalyzeProgress.summary.healthFlips ? ` · ${bulkAnalyzeProgress.summary.healthFlips} health change${bulkAnalyzeProgress.summary.healthFlips === 1 ? "" : "s"}` : ""}`
+                    : `${bulkAnalyzeProgress.current} of ${bulkAnalyzeProgress.total}${bulkAnalyzeProgress.currentDealName ? ` · ${bulkAnalyzeProgress.currentDealName}` : ""}`}
+                </span>
+              </div>
+              {/* Live progress bar */}
+              <div className="h-1.5 bg-pink-100 dark:bg-pink-900/40 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-pink-500 transition-[width] duration-300"
+                  style={{ width: `${Math.min(100, Math.round((bulkAnalyzeProgress.current / Math.max(1, bulkAnalyzeProgress.total)) * 100))}%` }}
+                />
+              </div>
+              {bulkAnalyzeProgress.rows.length > 0 && (
+                <ul className="mt-1 text-xs text-gray-600 dark:text-gray-300 space-y-0.5 max-h-40 overflow-y-auto">
+                  {bulkAnalyzeProgress.rows.map((r) => (
+                    <li key={r.dealId} className="flex items-center gap-2">
+                      <span className="w-4 flex-shrink-0 text-center">
+                        {r.status === "done" ? "✓" : r.status === "failed" ? "✗" : "…"}
+                      </span>
+                      <a href={`/deals/${r.dealId}`} className="text-pink-700 dark:text-pink-300 hover:underline truncate">{r.dealName}</a>
+                      {r.status === "done" && r.mikeyHealth && (
+                        <span className="text-[10px] uppercase font-medium text-gray-500 dark:text-gray-400">
+                          {r.mikeyHealth}{r.healthFlipped ? " ⟵ changed" : ""}
+                        </span>
+                      )}
+                      {r.status === "failed" && r.error && (
+                        <span className="text-[11px] text-red-600 dark:text-red-300 truncate">{r.error}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {bulkAnalyzeProgress.summary && (
+              <button
+                onClick={() => setBulkAnalyzeProgress(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 flex-shrink-0"
+                title="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
 
         {calendarScanResult && (
           <div className="mb-4 p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-sm flex items-start justify-between gap-3">
