@@ -274,8 +274,8 @@ export default function ReadinessTray({
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="px-5 py-2.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1.5">
+        {/* Filters + expand/collapse controls */}
+        <div className="px-5 py-2.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-1.5">
           {STATUS_OPTIONS.map((opt) => {
             const active = statusFilter.has(opt.value);
             return (
@@ -292,10 +292,32 @@ export default function ReadinessTray({
               </button>
             );
           })}
+          {filteredStages.length > 0 && (
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setExpandedStages(new Set(filteredStages.map((s) => s.key)))}
+                className="text-[11px] text-purple-600 dark:text-purple-300 hover:underline font-medium"
+                title="Expand every stage"
+              >
+                Expand all
+              </button>
+              <span className="text-gray-300">·</span>
+              <button
+                onClick={() => setExpandedStages(new Set())}
+                className="text-[11px] text-gray-500 dark:text-gray-400 hover:underline font-medium"
+                title="Collapse every stage"
+              >
+                Collapse all
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Body — min-h-0 is required so flex-1 inside a flex-col parent
+            can shrink below its content size and let overflow-y-auto
+            actually take effect. Without it the body grows to fit every
+            stage at once and the scroll is silently dead. */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
           {loading && !data ? (
             <div className="flex items-center justify-center py-12">
               <svg className="animate-spin h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24">
