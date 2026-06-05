@@ -372,16 +372,42 @@ export default function DealChatPanel({
             <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{dealName}</div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
-          aria-label="Close chat panel"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          {conversationId && (
+            <button
+              type="button"
+              onClick={() => {
+                // Specifying width/height + popup=1 nudges most browsers
+                // to open a chromeless window rather than a tab. Browsers
+                // that ignore the hint fall back to a new tab, which is
+                // still a usable "popout" — the user can drag it loose.
+                const url = `/chat/${conversationId}`;
+                window.open(
+                  url,
+                  `deal-chat-${conversationId}`,
+                  "popup=1,width=560,height=820,noopener,noreferrer"
+                );
+              }}
+              className="text-gray-400 hover:text-purple-600 p-1"
+              title="Pop this chat out into its own window"
+              aria-label="Pop chat out into a new window"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-1"
+            aria-label="Close chat panel"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {threads && threads.length > 0 && onSelectThread && (
