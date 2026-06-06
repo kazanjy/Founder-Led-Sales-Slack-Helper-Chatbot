@@ -1162,7 +1162,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       });
       if (res.ok) {
         const data = await res.json();
-        const ALLOWED_DETECTED = new Set(["email", "chat", "linkedin", "screenshot"]);
+        const ALLOWED_DETECTED = new Set(["email", "slack_message", "sms_message", "linkedin", "screenshot"]);
         const detected =
           typeof data.entryType === "string" && ALLOWED_DETECTED.has(data.entryType)
             ? data.entryType
@@ -2698,10 +2698,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                           );
                         })()}
-                        {(entry.type === "email" || entry.type === "chat") && (() => {
-                          // For chat breadcrumbs, "Chat With This" reopens the
-                          // past conversation stored at sourceUrl = /chat/<id>.
-                          // For emails, it starts a fresh focused chat.
+                        {(entry.type === "email" || entry.type === "chat" || entry.type === "slack_message" || entry.type === "sms_message") && (() => {
+                          // For Mikey Deal Chat breadcrumbs, "Chat With This" reopens
+                          // the past conversation stored at sourceUrl = /chat/<id>.
+                          // For emails / Slack / SMS, it starts a fresh focused chat.
                           const chatMatch = entry.type === "chat" && entry.sourceUrl
                             ? entry.sourceUrl.match(/^\/chat\/([^/?#]+)/)
                             : null;
@@ -2709,9 +2709,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                           const onClickAction = chatMatch
                             ? () => openChatPanelForConversation(chatMatch[1])
                             : () => startChatWithEntry(entry.id);
+                          const conversationLabel =
+                            entry.type === "email" ? "email"
+                            : entry.type === "slack_message" ? "Slack thread"
+                            : entry.type === "sms_message" ? "text exchange"
+                            : "conversation";
                           const titleText = chatMatch
                             ? "Reopen this past Deal Chat in the side panel"
-                            : `Chat with Mikey focused on this ${entry.type === "email" ? "email" : "conversation"}, with the rest of the deal as background`;
+                            : `Chat with Mikey focused on this ${conversationLabel}, with the rest of the deal as background`;
                           return (
                             <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
                               <button

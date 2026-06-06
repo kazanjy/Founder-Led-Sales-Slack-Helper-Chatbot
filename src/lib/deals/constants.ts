@@ -60,6 +60,8 @@ export const ENTRY_TYPES = [
   { value: "call_transcript", label: "Call Transcript", emoji: "📞", description: "Paste a full call transcript — Mikey extracts attendees, summary, and action items." },
   { value: "call_summary", label: "Call Summary", emoji: "📋", description: "A short recap of a call. Use when you don't have the full transcript." },
   { value: "email", label: "Email", emoji: "📧", description: "Paste an email thread or a single message you sent or received." },
+  { value: "slack_message", label: "Slack Message", emoji: "💬", description: "A Slack DM, channel message, or thread — paste the content or drop in a screenshot." },
+  { value: "sms_message", label: "SMS / iMessage", emoji: "📱", description: "An iMessage, SMS/MMS, WhatsApp, Signal, or Telegram exchange — paste it or drop in a screenshot." },
   { value: "screenshot", label: "Screenshot", emoji: "📷", description: "Drop in a screenshot — Mikey reads the image and pulls out who and what." },
   { value: "note", label: "Note", emoji: "📝", description: "Free-form notes. Type, paste, or record a voice note that gets synthesized into a written summary." },
   { value: "linkedin", label: "LinkedIn", emoji: "💼", description: "A LinkedIn message, post, or comment relevant to this deal." },

@@ -93,13 +93,14 @@ ${participantRoster}
 
 Your response MUST start with one line of JSON and nothing else on that line, then a blank line, then the extracted text:
 
-Line 1: {"title": "...", "date": "YYYY-MM-DD" or null, "entryType": "email|chat|linkedin|screenshot", "matchedParticipantIds": ["..."], "newPeople": [{"name": "...", "email": "..." or null, "reason": "..."}]}
+Line 1: {"title": "...", "date": "YYYY-MM-DD" or null, "entryType": "email|slack_message|sms_message|linkedin|screenshot", "matchedParticipantIds": ["..."], "newPeople": [{"name": "...", "email": "..." or null, "reason": "..."}]}
 
 - title: a concise one-line label (e.g. "iMessage thread with Deepa — procurement sync"). Under 80 chars.
 - date: the date of the interaction if visible, in YYYY-MM-DD. null if no date is visible.
 - entryType: pick the single best classification of what this screenshot shows:
   * "email" — an email client (Gmail, Outlook, Apple Mail, etc.) or email thread with subject + From/To.
-  * "chat" — a text-message / direct-message conversation: iMessage, SMS/MMS, WhatsApp, Slack DM, Telegram, Signal, Teams, Messenger, etc.
+  * "slack_message" — anything happening inside Slack: DMs, channel messages, thread replies, Slack canvas. Identifying signs: Slack workspace sidebar, channel names prefixed with #, "Slack" branding, the Slack message composer.
+  * "sms_message" — phone-style text messaging: iMessage (blue/green bubbles, iOS messages UI), SMS/MMS, WhatsApp (green check marks), Signal, Telegram, Microsoft Teams chat, Facebook Messenger. If you're unsure between sms_message and slack_message, pick the one whose UI matches more clearly.
   * "linkedin" — anything happening inside LinkedIn (messages, posts, profile view, InMail).
   * "screenshot" — fallback when it clearly isn't one of the above (dashboards, CRM UI, contracts, misc docs).
 - matchedParticipantIds: array of ids (from the roster above) that appear as speakers/recipients in the screenshot. Empty array if none match.
@@ -133,12 +134,12 @@ Then a blank line, then the full attributed transcript. Format each message as "
     const lines = extractedText.split("\n");
     let title = "Screenshot";
     let date: string | null = null;
-    let entryType: "email" | "chat" | "linkedin" | "screenshot" = "screenshot";
+    let entryType: "email" | "slack_message" | "sms_message" | "linkedin" | "screenshot" = "screenshot";
     let matchedParticipantIds: string[] = [];
     let newPeople: SuggestedPerson[] = [];
     let contentStartIndex = 0;
 
-    const ALLOWED_TYPES = new Set(["email", "chat", "linkedin", "screenshot"]);
+    const ALLOWED_TYPES = new Set(["email", "slack_message", "sms_message", "linkedin", "screenshot"]);
 
     try {
       const firstLine = lines[0]?.trim();

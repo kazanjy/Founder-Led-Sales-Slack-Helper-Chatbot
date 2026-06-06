@@ -10,6 +10,8 @@ import { attributeEntryToParticipants } from "@/lib/deals/attribute";
 const ATTRIBUTABLE_TYPES = new Set([
   "email",
   "chat",
+  "slack_message",
+  "sms_message",
   "linkedin",
   "call_transcript",
   "call_summary",
