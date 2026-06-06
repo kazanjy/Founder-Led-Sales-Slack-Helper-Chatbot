@@ -50,7 +50,7 @@ function DescriptionMarkdown({ children }: { children: string }) {
 // descriptions render as-is without an idle "Show more" button.
 function TruncatedDescription({
   children,
-  maxLines = 5,
+  maxLines = 6,
   lineHeight = 20,
 }: {
   children: string;
