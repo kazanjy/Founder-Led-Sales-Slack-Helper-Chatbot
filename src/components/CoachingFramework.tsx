@@ -193,6 +193,7 @@ interface NextTask {
   title: string;
   description?: string | null;
   order: number;
+  createdAt?: string;
 }
 
 interface MetricHistoryEntry {
@@ -2227,6 +2228,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         )}
                       </>
                     )}
+                    {goal.createdAt && (
+                      <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(goal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    )}
                   </div>
                   <button onClick={() => copyAnchorLink(`next-goal-${goal.id}`)} className="flex-shrink-0 p-1 text-gray-500 dark:text-gray-400 hover:text-purple-600 opacity-0 group-hover/ngoal:opacity-100 transition-opacity" title="Copy link">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
@@ -2283,6 +2287,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               ) : canEdit ? (
                                 <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                               ) : null}
+                              {task.createdAt && (
+                                <span className="text-[10px] text-gray-400 mt-0.5 block">Created {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                              )}
                             </div>
                           </div>
                           {canEdit && (
