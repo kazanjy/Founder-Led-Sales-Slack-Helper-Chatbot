@@ -373,6 +373,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
+  // Full-entry inline edit state — when this matches an entry id, the
+  // card renders an edit form (type / title / content / sourceUrl)
+  // instead of the read-only header + body.
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editEntryDraft, setEditEntryDraft] = useState<{ type: string; title: string; content: string; sourceUrl: string }>({ type: "", title: "", content: "", sourceUrl: "" });
+  const [savingEntryEdit, setSavingEntryEdit] = useState(false);
   const [editDateValue, setEditDateValue] = useState("");
   const [enrichingAll, setEnrichingAll] = useState(false);
   const autoEnrichAttempted = useRef(false);
@@ -1006,6 +1012,46 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     });
     setEditingDateEntryId(null);
     await loadDeal();
+  };
+
+  const startEditEntry = (entry: TimelineEntry) => {
+    setEditingEntryId(entry.id);
+    setEditEntryDraft({
+      type: entry.type,
+      title: entry.title || "",
+      content: entry.content || "",
+      sourceUrl: entry.sourceUrl || "",
+    });
+    // Make sure the entry isn't simultaneously in date-edit mode.
+    setEditingDateEntryId(null);
+    // Auto-expand so the user can see the full content they're editing.
+    setExpandedEntries((prev) => new Set(prev).add(entry.id));
+  };
+
+  const cancelEditEntry = () => {
+    setEditingEntryId(null);
+    setEditEntryDraft({ type: "", title: "", content: "", sourceUrl: "" });
+  };
+
+  const saveEditEntry = async (entryId: string) => {
+    if (savingEntryEdit) return;
+    setSavingEntryEdit(true);
+    try {
+      await fetch(`/api/deals/${id}/entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: editEntryDraft.type,
+          title: editEntryDraft.title.trim() || null,
+          content: editEntryDraft.content,
+          sourceUrl: editEntryDraft.sourceUrl.trim() || null,
+        }),
+      });
+      await loadDeal();
+      cancelEditEntry();
+    } finally {
+      setSavingEntryEdit(false);
+    }
   };
 
   const updateParticipantTitle = async (pid: string, title: string) => {
@@ -2589,6 +2635,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                   </a>
                                 );
                               })()}
+                              <button onClick={() => startEditEntry(entry)} className="text-gray-400 hover:text-purple-600" title="Edit entry">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </button>
                               <button onClick={() => deleteEntry(entry.id)} className="text-gray-400 hover:text-red-600" title="Delete">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
@@ -2676,7 +2725,71 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                           );
                         })()}
-                        {(() => {
+                        {editingEntryId === entry.id ? (
+                          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 space-y-2" data-no-toggle>
+                            <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] gap-2">
+                              <label className="text-[11px] uppercase tracking-wider text-gray-400 font-medium self-center">Type</label>
+                              <select
+                                value={editEntryDraft.type}
+                                onChange={(e) => setEditEntryDraft((d) => ({ ...d, type: e.target.value }))}
+                                className="text-sm px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500"
+                              >
+                                {ENTRY_TYPES.map((t) => (
+                                  <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>
+                                ))}
+                              </select>
+                              <label className="text-[11px] uppercase tracking-wider text-gray-400 font-medium self-center">Title</label>
+                              <input
+                                type="text"
+                                value={editEntryDraft.title}
+                                onChange={(e) => setEditEntryDraft((d) => ({ ...d, title: e.target.value }))}
+                                placeholder="Optional title…"
+                                className="text-sm px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500"
+                              />
+                              <label className="text-[11px] uppercase tracking-wider text-gray-400 font-medium self-center">Source URL</label>
+                              <input
+                                type="url"
+                                value={editEntryDraft.sourceUrl}
+                                onChange={(e) => setEditEntryDraft((d) => ({ ...d, sourceUrl: e.target.value }))}
+                                placeholder="https://…"
+                                className="text-sm px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] uppercase tracking-wider text-gray-400 font-medium block mb-1">Content</label>
+                              <textarea
+                                value={editEntryDraft.content}
+                                onChange={(e) => setEditEntryDraft((d) => ({ ...d, content: e.target.value }))}
+                                rows={Math.min(20, Math.max(6, editEntryDraft.content.split("\n").length + 2))}
+                                className="w-full text-sm px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 font-mono"
+                              />
+                              <div className="text-[10px] text-gray-400 mt-0.5">{editEntryDraft.content.length.toLocaleString()} chars · markdown supported</div>
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={cancelEditEntry}
+                                className="text-xs px-3 py-1.5 text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => saveEditEntry(entry.id)}
+                                disabled={savingEntryEdit || !editEntryDraft.content.trim()}
+                                className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-md inline-flex items-center gap-1.5"
+                              >
+                                {savingEntryEdit && (
+                                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                )}
+                                {savingEntryEdit ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (() => {
                           const isExpanded = expandedEntries.has(entry.id);
                           const isShort = entry.content.length <= 200;
                           if (isShort) {
