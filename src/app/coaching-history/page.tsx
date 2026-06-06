@@ -1088,13 +1088,23 @@ function CoachingHistoryContent() {
                     </button>
                   </div>
 
-                  {/* Coaching Framework — at top of form */}
+                  {/* Coaching Framework — at top of form. Edit mode mirrors
+                      the view-mode mount's prop set so the same session data
+                      loads in both views. Hardcoding sessionStatus="new" /
+                      omitting sessionUserId here caused goals to appear in
+                      edit mode (querying the current user's active goals)
+                      and disappear on save (view mode queries the session
+                      owner's goals via sessionUserId), even though the
+                      underlying session never changed. */}
                   {((mode === "edit" && selectedId) || (mode === "create" && autoSavedId)) && (
                     <div className="px-6 pt-6">
                       <CoachingFramework
                         sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
-                        sessionStatus="new"
+                        sessionStatus={mode === "edit" ? (selectedSession?.sessionStatus || "new") : "new"}
                         isOwner={true}
+                        sessionCreatedAt={mode === "edit" ? selectedSession?.createdAt : undefined}
+                        sessionUpdatedAt={mode === "edit" ? selectedSession?.updatedAt : undefined}
+                        sessionUserId={mode === "edit" && selectedSession && selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
                       />
                     </div>
                   )}
