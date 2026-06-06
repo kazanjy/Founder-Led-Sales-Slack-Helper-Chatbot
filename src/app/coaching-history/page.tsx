@@ -123,13 +123,20 @@ async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<st
     sorted.map((s) => fetchEnrichedSession(s.id))
   );
 
-  // Also fetch maturity stage and next goals
+  // Also fetch maturity stage, next goals, and the user's current active
+  // goals + tasks (mirrors what CoachingFramework shows in the UI). The
+  // per-session enriched data only carries goals natively created in
+  // that session; carry-forward active goals from prior sessions are
+  // surfaced separately so the chat sees the same live state the user
+  // sees, not a session-scoped snapshot.
   let maturityStage: string | null = null;
   let nextGoals: Array<{ title: string; description?: string; tasks: Array<{ title: string; description?: string | null }> }> = [];
+  let activeGoals: Array<{ title: string; description?: string | null; status: string; tasks: Array<{ title: string; description?: string | null; status: string }> }> = [];
   try {
-    const [stageRes, nextRes] = await Promise.all([
+    const [stageRes, nextRes, activeRes] = await Promise.all([
       fetch("/api/coaching/maturity-stage"),
       fetch("/api/coaching/next-goals"),
+      fetch("/api/coaching/goals?status=active"),
     ]);
     if (stageRes.ok) {
       const d = await stageRes.json();
@@ -138,6 +145,10 @@ async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<st
     if (nextRes.ok) {
       const d = await nextRes.json();
       nextGoals = d.goals || [];
+    }
+    if (activeRes.ok) {
+      const d = await activeRes.json();
+      activeGoals = d.goals || [];
     }
   } catch { /* ignore */ }
 
@@ -150,6 +161,27 @@ async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<st
 
   context += `---\n\n`;
   context += sorted.map((s, i) => formatEnrichedContext(s, enrichedData[i])).join("---\n\n");
+
+  // Current active goals + tasks across every session — this is what the
+  // user sees in the Goals & Tasks panel right now. Includes carry-forward
+  // goals from prior sessions that the session-scoped enriched view
+  // intentionally omits.
+  if (activeGoals.length > 0) {
+    context += `---\n\n### Current Active Goals & Tasks\n\n`;
+    for (const goal of activeGoals) {
+      context += `**${goal.title}** [${goal.status}]\n`;
+      if (goal.description) context += `${goal.description}\n`;
+      for (const task of goal.tasks) {
+        const check = task.status === "done" ? "x" : " ";
+        context += `- [${check}] ${task.title}`;
+        if (task.status === "not_doing") context += ` ~~(not doing)~~`;
+        if (task.status === "deprioritized") context += ` *(deprioritized)*`;
+        context += `\n`;
+        if (task.description) context += `  ${task.description}\n`;
+      }
+      context += `\n`;
+    }
+  }
 
   // Add Up Next items
   if (nextGoals.length > 0) {
