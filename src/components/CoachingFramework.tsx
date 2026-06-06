@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Fragment, ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect, Fragment, ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
@@ -40,6 +40,57 @@ function DescriptionMarkdown({ children }: { children: string }) {
     >
       {children}
     </ReactMarkdown>
+  );
+}
+
+// Read-only description block that clamps to ~5 visible lines and
+// reveals a "Show more / Hide" toggle when the underlying markdown
+// renders taller than that. Uses scrollHeight measurement so the
+// toggle only appears when content actually overflows — short
+// descriptions render as-is without an idle "Show more" button.
+function TruncatedDescription({
+  children,
+  maxLines = 5,
+  lineHeight = 20,
+}: {
+  children: string;
+  maxLines?: number;
+  lineHeight?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowed, setOverflowed] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const maxHeight = maxLines * lineHeight;
+
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    setOverflowed(ref.current.scrollHeight > maxHeight + lineHeight);
+  }, [children, maxHeight, lineHeight]);
+
+  const clamp = overflowed && !expanded;
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className={clamp ? "relative overflow-hidden" : undefined}
+        style={clamp ? { maxHeight: `${maxHeight}px` } : undefined}
+      >
+        <DescriptionMarkdown>{children}</DescriptionMarkdown>
+        {clamp && (
+          <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white dark:from-gray-800 to-transparent pointer-events-none" />
+        )}
+      </div>
+      {overflowed && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+          className="mt-1 text-[11px] font-medium text-purple-600 hover:text-purple-700 dark:text-purple-300 dark:hover:text-purple-200"
+        >
+          {expanded ? "Hide" : "Show more"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -2155,7 +2206,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             }}
                             className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1"
                           >
-                            <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
+                            <TruncatedDescription>{goal.description}</TruncatedDescription>
                           </div>
                         ) : (
                           <button
@@ -2171,7 +2222,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{goal.title}</span>
                         {goal.description && (
                           <div className="text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
-                            <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
+                            <TruncatedDescription>{goal.description}</TruncatedDescription>
                           </div>
                         )}
                       </>
@@ -2228,7 +2279,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                   <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
                                 </div>
                               ) : descText ? (
-                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><DescriptionMarkdown>{descText}</DescriptionMarkdown></div>
+                                <div onClick={canEdit ? (e) => { if (!(e.target instanceof HTMLAnchorElement)) setEditingNextDescTask(task.id); } : undefined} className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700" : ""} rounded px-1 -mx-1`}><TruncatedDescription>{descText}</TruncatedDescription></div>
                               ) : canEdit ? (
                                 <button onClick={() => setEditingNextDescTask(task.id)} className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
                               ) : null}
@@ -2962,7 +3013,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           </div>
                           {task.description && (
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 prose dark:prose-invert prose-sm max-w-none prose-p:my-0.5 prose-p:break-words prose-a:break-all prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0">
-                              <DescriptionMarkdown>{task.description}</DescriptionMarkdown>
+                              <TruncatedDescription>{task.description}</TruncatedDescription>
                             </div>
                           )}
                         </div>
@@ -3106,7 +3157,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       }}
                       className={`text-xs text-gray-600 dark:text-gray-300 block mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                     >
-                      <DescriptionMarkdown>{goal.description}</DescriptionMarkdown>
+                      <TruncatedDescription>{goal.description}</TruncatedDescription>
                     </div>
                   ) : canEdit ? (
                     <button
@@ -3345,7 +3396,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                 }}
                                 className={`text-sm text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                               >
-                                <DescriptionMarkdown>{descText}</DescriptionMarkdown>
+                                <TruncatedDescription>{descText}</TruncatedDescription>
                               </div>
                             ) : canEdit ? (
                               <button
@@ -3549,7 +3600,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                         onClick={(e) => { if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(sub.id); }}
                                         className={`text-xs text-gray-500 dark:text-gray-400 mt-0.5 prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
                                       >
-                                        <DescriptionMarkdown>{subDescText}</DescriptionMarkdown>
+                                        <TruncatedDescription>{subDescText}</TruncatedDescription>
                                       </div>
                                     ) : canEdit ? (
                                       <button onClick={() => setEditingDescTask(sub.id)} className="text-[10px] text-purple-500 hover:text-purple-700 font-medium mt-0.5">Add description</button>
