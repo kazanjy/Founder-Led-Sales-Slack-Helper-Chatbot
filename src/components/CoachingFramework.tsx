@@ -575,6 +575,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // ── Load data ──────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
+    const callId = Math.random().toString(36).slice(2, 6);
+    console.log(`[CF:${callId}] loadData START`, {
+      sessionId,
+      sessionStatus,
+      sessionUserId,
+      sessionUpdatedAt,
+      sessionCreatedAt,
+    });
     try {
       const userParam = sessionUserId ? `&userId=${sessionUserId}` : "";
       // Locked sessions are historical snapshots — bound them to what
@@ -591,11 +599,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       if (isLockedSession && sessionUpdatedAt) {
         scopeParams = `&createdBefore=${sessionUpdatedAt}`;
       }
+      const goalsUrl = `/api/coaching/goals?${goalsStatusParam}${userParam}${scopeParams}`;
+      const nextGoalsUrl = `/api/coaching/next-goals?_=1${userParam}`;
+      console.log(`[CF:${callId}] fetching`, { goalsUrl, nextGoalsUrl });
       const [stageRes, goalsRes, metricsRes, nextGoalsRes] = await Promise.all([
         fetch("/api/coaching/maturity-stage"),
-        fetch(`/api/coaching/goals?${goalsStatusParam}${userParam}${scopeParams}`),
+        fetch(goalsUrl),
         fetch(`/api/coaching-sessions/${sessionId}/metrics`),
-        fetch(`/api/coaching/next-goals?_=1${userParam}`),
+        fetch(nextGoalsUrl),
       ]);
 
       if (stageRes.ok) {
@@ -611,21 +622,32 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             .sort((a: Task, b: Task) => new Date(b.statusChangedAt || 0).getTime() - new Date(a.statusChangedAt || 0).getTime());
           return { ...g, tasks: [...active, ...done] };
         });
+        console.log(`[CF:${callId}] setGoals`, { count: sortedGoals.length, ids: sortedGoals.map((g: Goal) => g.id) });
         setGoals(sortedGoals);
+      } else {
+        console.warn(`[CF:${callId}] goalsRes NOT OK`, goalsRes.status);
       }
       if (metricsRes.ok) {
         const d = await metricsRes.json();
+        console.log(`[CF:${callId}] setMetricEntries`, { count: (d.entries || []).length });
         setMetricEntries(d.entries || []);
       }
       if (nextGoalsRes.ok) {
         const d = await nextGoalsRes.json();
+        console.log(`[CF:${callId}] setNextGoals`, { count: (d.goals || []).length });
         setNextGoals(d.goals || []);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error(`[CF:${callId}] loadData error`, err);
+    }
+    console.log(`[CF:${callId}] loadData END`);
     setDataLoaded(true);
-  }, [sessionId]);
+  }, [sessionId, sessionStatus, sessionUserId, sessionUpdatedAt]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    console.log("[CF] useEffect → loadData", { sessionId });
+    loadData();
+  }, [loadData]);
 
   // Dismiss a pinned metric-history popover when the user clicks
   // anywhere outside it (or its trigger). Only attached when a pin
