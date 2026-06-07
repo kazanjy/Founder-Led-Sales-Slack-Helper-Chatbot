@@ -7,7 +7,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
 import CalendarEventPicker, { type CalendarPickerEvent } from "@/components/CalendarEventPicker";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
-import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getHealthInfo } from "@/lib/deals/constants";
+import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRoleInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 
 interface Deal {
@@ -27,11 +27,46 @@ interface Deal {
   mikeyHealth: string | null;
   projectedCloseDate: string | null;
   _count: { entries: number; participants: number };
+  participants?: Array<{
+    id: string;
+    name: string;
+    email: string | null;
+    role: string;
+    title: string | null;
+  }>;
 }
 
 function startOfLocalDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
+
+// Render a participant's "card name" — prefer a real first/last name,
+// then a derived name from their email local-part, then the email
+// itself. Keeps chips tight and human-readable on busy cards.
+function participantChipLabel(p: { name: string; email: string | null }): string {
+  const raw = (p.name || "").trim();
+  if (raw && !raw.includes("@")) return raw;
+  const source = raw || p.email || "";
+  const local = source.includes("@") ? source.split("@")[0] : source;
+  if (!local) return source;
+  // Convert "peter.kazanjy" / "peter_kazanjy" / "peter-k" → "Peter Kazanjy"
+  return local
+    .replace(/[._-]+/g, " ")
+    .replace(/\b([a-z])/gi, (m) => m.toUpperCase())
+    .trim();
+}
+
+// Sort participants for chip display — decision-makers first, then
+// champions, influencers, blockers, end users, unknown. Within a role
+// the API already returns createdAt-ascending so it's stable.
+const ROLE_RANK: Record<string, number> = {
+  decision_maker: 0,
+  champion: 1,
+  influencer: 2,
+  blocker: 3,
+  end_user: 4,
+  unknown: 5,
+};
 
 function formatRelative(dateStr: string): string {
   const date = new Date(dateStr);
@@ -1473,6 +1508,43 @@ function DealsPageContent() {
                       );
                     })()}
                   </div>
+                  {/* Participant chips — surface WHO is on the deal, not
+                      just a count. Cap at 5 visible; overflow shows as
+                      "+N more". Role-prioritized so decision-makers
+                      surface first. */}
+                  {deal.participants && deal.participants.length > 0 && (() => {
+                    const sorted = deal.participants.slice().sort(
+                      (a, b) => (ROLE_RANK[a.role] ?? 99) - (ROLE_RANK[b.role] ?? 99)
+                    );
+                    const visible = sorted.slice(0, 5);
+                    const overflow = sorted.length - visible.length;
+                    return (
+                      <div className="flex items-center gap-1 flex-wrap mt-2.5" onClick={(e) => e.stopPropagation()}>
+                        {visible.map((p) => {
+                          const roleInfo = getRoleInfo(p.role);
+                          const label = participantChipLabel(p);
+                          const tooltip = `${label}${p.title ? ` — ${p.title}` : ""}${p.email ? ` · ${p.email}` : ""} · ${roleInfo.label}`;
+                          return (
+                            <span
+                              key={p.id}
+                              title={tooltip}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${roleInfo.color} border-current/20 max-w-[160px] truncate`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
+                        {overflow > 0 && (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300"
+                            title={sorted.slice(5).map((p) => participantChipLabel(p)).join(", ")}
+                          >
+                            +{overflow} more
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {deal.status === "potential" && (
                     <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                       <button

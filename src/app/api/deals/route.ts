@@ -18,6 +18,20 @@ export async function GET() {
           _count: {
             select: { entries: true, participants: true },
           },
+          // Surface a few participant names per deal so the card can
+          // merchandise WHO is on the deal, not just a count. Capped at
+          // 8 because that's enough to fill two compact lines on a deal
+          // card without ballooning the payload size.
+          participants: {
+            select: { id: true, name: true, email: true, role: true, title: true },
+            take: 8,
+            // Role-rank fans out at the API consumer below (Prisma can't
+            // express "decision_maker first, then everyone else"
+            // declaratively without raw SQL). Just stable-order by
+            // createdAt so the front-end's role-priority sort is
+            // deterministic.
+            orderBy: { createdAt: "asc" },
+          },
         },
       }),
       // Most recent past (non-chat) timeline entry per deal. Drives
