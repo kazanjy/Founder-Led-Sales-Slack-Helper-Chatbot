@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { attributeEntryToParticipants } from "@/lib/deals/attribute";
+import { classifyEntryContent } from "@/lib/deals/classify-entry";
+
+// Minimum content length before we pay for the GPT classification pass.
+// Tiny notes / quick scribbles aren't worth round-tripping.
+const MIN_CONTENT_FOR_CLASSIFY = 200;
 
 // Entry types where auto-attribution is useful enough to pay for a GPT call.
 // Notes/documents/screenshots are excluded: notes rarely reference people by
@@ -51,43 +56,64 @@ export async function POST(
     }
 
     const trimmedContent = content.trim();
+    const trimmedTitle = typeof title === "string" ? title.trim() : "";
+
+    // Auto-classify pass: if the user didn't title the entry (clear "they
+    // pasted and clicked Save" signal) and the content is meaty enough,
+    // ask GPT to infer title + date + a better type. The user's selected
+    // type wins unless they left it on "note" (the catch-all default), in
+    // which case we'll upgrade. Runs in parallel with participant
+    // attribution below so latency is the max of the two, not the sum.
+    const shouldClassify = !trimmedTitle && trimmedContent.length >= MIN_CONTENT_FOR_CLASSIFY;
 
     // Run participant attribution if the entry type is conversation-shaped,
     // the content is meaty enough to be worth a GPT call, there are
     // participants to match against, AND the client didn't already supply
     // linked IDs (screenshots pass them from the vision pass).
     const alreadyAttributed = Array.isArray(metadata?.linkedParticipantIds) && (metadata!.linkedParticipantIds as unknown[]).length > 0;
-    if (
-      !alreadyAttributed &&
-      ATTRIBUTABLE_TYPES.has(type) &&
-      trimmedContent.length >= MIN_CONTENT_FOR_ATTRIBUTION
-    ) {
-      const participants = await prisma.dealParticipant.findMany({
-        where: { dealId: id },
-        select: { id: true, name: true, title: true, email: true, company: true },
-      });
-      if (participants.length > 0) {
-        const ownerLabel = `${user.name || user.email || "Deal Owner"}${user.email ? ` <${user.email}>` : ""}`;
-        const { matchedParticipantIds } = await attributeEntryToParticipants(
-          trimmedContent,
-          participants,
-          ownerLabel,
-        );
-        if (matchedParticipantIds.length > 0) {
-          metadata = { ...(metadata ?? {}), linkedParticipantIds: matchedParticipantIds };
-        }
+    const participants = (!alreadyAttributed && ATTRIBUTABLE_TYPES.has(type) && trimmedContent.length >= MIN_CONTENT_FOR_ATTRIBUTION)
+      ? await prisma.dealParticipant.findMany({
+          where: { dealId: id },
+          select: { id: true, name: true, title: true, email: true, company: true },
+        })
+      : [];
+    const ownerLabel = `${user.name || user.email || "Deal Owner"}${user.email ? ` <${user.email}>` : ""}`;
+
+    const [classifyResult, attributionResult] = await Promise.all([
+      shouldClassify
+        ? classifyEntryContent(trimmedContent, type)
+        : Promise.resolve(null),
+      participants.length > 0
+        ? attributeEntryToParticipants(trimmedContent, participants, ownerLabel)
+        : Promise.resolve({ matchedParticipantIds: [] as string[] }),
+    ]);
+
+    if (attributionResult.matchedParticipantIds.length > 0) {
+      metadata = { ...(metadata ?? {}), linkedParticipantIds: attributionResult.matchedParticipantIds };
+    }
+
+    // Bake classifier output into the final fields. Upgrade type only when
+    // the user left it on "note" — never override an explicit choice.
+    let finalType = type;
+    let finalTitle: string | null = trimmedTitle || null;
+    let finalEntryDate: Date = entryDate ? new Date(entryDate) : new Date();
+    if (classifyResult) {
+      if (!finalTitle && classifyResult.title) finalTitle = classifyResult.title;
+      if (!entryDate && classifyResult.date) finalEntryDate = new Date(classifyResult.date);
+      if (type === "note" && classifyResult.suggestedType && classifyResult.suggestedType !== "note") {
+        finalType = classifyResult.suggestedType;
       }
     }
 
     const entry = await prisma.dealTimelineEntry.create({
       data: {
         dealId: id,
-        type,
-        title: title?.trim() || null,
+        type: finalType,
+        title: finalTitle,
         content: trimmedContent,
         sourceUrl: sourceUrl?.trim() || null,
         metadata: metadata ? JSON.stringify(metadata) : null,
-        entryDate: entryDate ? new Date(entryDate) : new Date(),
+        entryDate: finalEntryDate,
       },
     });
 
