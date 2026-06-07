@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
+import CalendarEventPicker, { type CalendarPickerEvent } from "@/components/CalendarEventPicker";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
@@ -160,6 +161,21 @@ function DealsPageContent() {
     date?: string;
     attendees?: Array<{ name: string; email?: string; title?: string; company?: string }>;
   }>>([]);
+  // Calendar-tab state for the New Deal modal — parallel to importedCalls.
+  // Each picked event lands here, gets surfaced in the same purple
+  // confirmation panel, and turns into a "meeting" timeline entry on
+  // create.
+  const [importedCalendarEvents, setImportedCalendarEvents] = useState<Array<{
+    id: string;
+    title: string;
+    startsAt: string;
+    description: string | null;
+    meetingUrl: string | null;
+    eventUrl: string | null;
+    inferredCompany: { name: string; url: string } | null;
+    attendees: Array<{ email: string; name: string | null }>;
+  }>>([]);
+  const [newDealSourceTab, setNewDealSourceTab] = useState<"recorder" | "calendar">("recorder");
 
   const inferCompanyFromEmail = (email: string | undefined): string | null => {
     if (!email) return null;
@@ -550,6 +566,62 @@ function DealsPageContent() {
         }
       }
 
+      // 3) If there are picked calendar events, write each as a lightweight
+      // "meeting" timeline entry and seed any new external attendees as
+      // participants. Dedupes via metadata.calendarEventId so a later
+      // post-validation enrichDeal pass doesn't double-import them.
+      if (importedCalendarEvents.length > 0) {
+        const sortedEvents = [...importedCalendarEvents].sort((a, b) => {
+          return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+        });
+        const eventParticipants = new Map<string, { name: string; email: string }>();
+        for (const ev of sortedEvents) {
+          const attendeeLine = ev.attendees
+            .map((a) => (a.name ? `${a.name} <${a.email}>` : a.email))
+            .filter(Boolean)
+            .join(", ");
+          const body =
+            (ev.description ? `${ev.description.trim()}\n\n` : "") +
+            (attendeeLine ? `**Attendees:** ${attendeeLine}` : "");
+          await fetch(`/api/deals/${deal.id}/entries`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "meeting",
+              title: ev.title,
+              content: body || "(no description)",
+              sourceUrl: ev.meetingUrl || ev.eventUrl || undefined,
+              entryDate: ev.startsAt,
+              metadata: {
+                source: "calendar",
+                calendarEventId: ev.id,
+                attendeeEmails: ev.attendees
+                  .map((a) => a.email?.trim().toLowerCase())
+                  .filter((e): e is string => !!e),
+              },
+            }),
+          });
+          for (const a of ev.attendees) {
+            if (!a.email) continue;
+            const key = a.email.toLowerCase();
+            if (!eventParticipants.has(key)) {
+              eventParticipants.set(key, { name: a.name || a.email, email: a.email });
+            }
+          }
+        }
+        for (const p of eventParticipants.values()) {
+          await fetch(`/api/deals/${deal.id}/participants`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: p.name,
+              email: p.email,
+              role: "unknown",
+            }),
+          });
+        }
+      }
+
       // Auto-enrich all participants missing titles (non-blocking)
       fetch(`/api/deals/${deal.id}/participants/enrich-all`, { method: "POST" }).catch(() => {});
 
@@ -567,6 +639,8 @@ function DealsPageContent() {
     setNewDealName("");
     setNewDealCompany("");
     setImportedCalls([]);
+    setImportedCalendarEvents([]);
+    setNewDealSourceTab("recorder");
   };
 
   const filteredDeals = (() => {
@@ -1544,8 +1618,33 @@ function DealsPageContent() {
               Select all the calls for a deal to automatically build its timeline, or create one manually.
             </p>
 
-            {/* Import from Meeting Recorder */}
-            <div className="mb-4">
+            {/* Source picker tabs: meeting recorder vs Google Calendar */}
+            <div className="mb-3 flex items-center gap-1 border-b border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setNewDealSourceTab("recorder")}
+                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  newDealSourceTab === "recorder"
+                    ? "border-purple-500 text-purple-700 dark:text-purple-300"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
+              >
+                🎙️ Meeting Recorder
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewDealSourceTab("calendar")}
+                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  newDealSourceTab === "calendar"
+                    ? "border-purple-500 text-purple-700 dark:text-purple-300"
+                    : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
+                }`}
+              >
+                📅 Calendar
+              </button>
+            </div>
+
+            <div className="mb-4" hidden={newDealSourceTab !== "recorder"}>
               <MeetingRecorderPanel
                 defaultCollapsed={false}
                 onSelectCalls={(calls) => {
@@ -1593,6 +1692,102 @@ function DealsPageContent() {
                 }}
               />
             </div>
+
+            <div className="mb-4" hidden={newDealSourceTab !== "calendar"}>
+              <CalendarEventPicker
+                onAddEvents={(picked: CalendarPickerEvent[]) => {
+                  setImportedCalendarEvents((prev) => {
+                    const seen = new Set(prev.map((e) => e.id));
+                    const merged = [...prev];
+                    for (const ev of picked) {
+                      if (seen.has(ev.id)) continue;
+                      seen.add(ev.id);
+                      merged.push({
+                        id: ev.id,
+                        title: ev.title,
+                        startsAt: ev.startsAt,
+                        description: ev.description,
+                        meetingUrl: ev.meetingUrl,
+                        eventUrl: ev.eventUrl,
+                        inferredCompany: ev.inferredCompany,
+                        attendees: ev.attendees.map((a) => ({ email: a.email, name: a.name })),
+                      });
+                    }
+                    return merged;
+                  });
+                  // Pre-fill company/deal name from the picked events if
+                  // the user hasn't already typed them. Mirrors the
+                  // recorder-tab behavior so both sources feed into the
+                  // same suggest-name flow.
+                  const inferred = picked.find((e) => e.inferredCompany)?.inferredCompany;
+                  if (inferred) {
+                    setNewDealCompany((prev) => prev.trim() ? prev : inferred.name);
+                  }
+                  setSuggestingName(true);
+                  fetch("/api/deals/suggest-name", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      calls: [],
+                      events: picked.map((ev) => ({
+                        title: ev.title,
+                        date: ev.startsAt,
+                        description: ev.description,
+                        attendees: ev.attendees,
+                      })),
+                    }),
+                  })
+                    .then((r) => r.json())
+                    .then((data) => {
+                      if (data.companyName) setNewDealCompany((prev) => prev.trim() ? prev : data.companyName);
+                      if (data.dealName) setNewDealName((prev) => prev.trim() ? prev : data.dealName);
+                    })
+                    .catch(() => {})
+                    .finally(() => setSuggestingName(false));
+                }}
+              />
+            </div>
+
+            {importedCalendarEvents.length > 0 && (
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-green-900 dark:text-green-200">
+                    📅 {importedCalendarEvents.length} calendar event{importedCalendarEvents.length === 1 ? "" : "s"} attached
+                  </p>
+                  <button
+                    onClick={() => setImportedCalendarEvents([])}
+                    className="text-xs text-green-700 dark:text-green-300 hover:text-green-900"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <ul className="space-y-1">
+                  {[...importedCalendarEvents]
+                    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
+                    .map((ev, idx) => (
+                      <li key={ev.id} className="flex items-center justify-between gap-2 text-xs text-green-800 dark:text-green-200">
+                        <span className="truncate">
+                          <span className="text-green-600 dark:text-green-300 mr-1.5">
+                            {new Date(ev.startsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                          <span className="font-medium">{ev.title}</span>
+                          <span className="text-green-700 dark:text-green-400"> · {ev.attendees.length} attendee{ev.attendees.length === 1 ? "" : "s"}</span>
+                        </span>
+                        <button
+                          onClick={() => setImportedCalendarEvents((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-green-600 hover:text-red-500 flex-shrink-0"
+                          aria-label="Remove event"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+                <p className="text-xs text-green-700 dark:text-green-400 mt-2">
+                  Each event becomes a meeting entry on the timeline. External attendees become deal participants.
+                </p>
+              </div>
+            )}
 
             {importedCalls.length > 0 && (
               <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
@@ -1682,13 +1877,24 @@ function DealsPageContent() {
                 disabled={!newDealName.trim() || !newDealCompany.trim() || creating}
                 className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
-                {creating
-                  ? <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Creating...</span>
-                  : importedCalls.length > 1
-                    ? `Create Deal from ${importedCalls.length} Calls`
-                    : importedCalls.length === 1
-                      ? "Create Deal from Call"
-                      : "Create Deal"}
+                {(() => {
+                  if (creating) {
+                    return (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                        Creating...
+                      </span>
+                    );
+                  }
+                  const total = importedCalls.length + importedCalendarEvents.length;
+                  if (total === 0) return "Create Deal";
+                  // Build a short pluralized summary covering both sources
+                  // so the button label tracks what's actually been picked.
+                  const parts: string[] = [];
+                  if (importedCalls.length > 0) parts.push(`${importedCalls.length} call${importedCalls.length === 1 ? "" : "s"}`);
+                  if (importedCalendarEvents.length > 0) parts.push(`${importedCalendarEvents.length} event${importedCalendarEvents.length === 1 ? "" : "s"}`);
+                  return `Create Deal from ${parts.join(" + ")}`;
+                })()}
               </button>
             </div>
           </div>

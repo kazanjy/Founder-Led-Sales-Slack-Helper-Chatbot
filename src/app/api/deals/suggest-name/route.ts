@@ -9,12 +9,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { calls } = (await request.json()) as { calls: SuggestNameInput[] };
-    if (!calls?.length) {
-      return NextResponse.json({ error: "No calls provided" }, { status: 400 });
+    const body = (await request.json()) as {
+      calls?: SuggestNameInput[];
+      events?: Array<{
+        title: string;
+        date: string;
+        description: string | null;
+        attendees: Array<{ email: string; name: string | null }>;
+      }>;
+    };
+    const calls = body.calls ?? [];
+    // Calendar events feed the same suggester — Mikey just needs title /
+    // date / attendees / a summary blob to reason about the opportunity.
+    const eventsAsCalls: SuggestNameInput[] = (body.events ?? []).map((ev) => ({
+      title: ev.title,
+      date: ev.date,
+      summary: ev.description || undefined,
+      attendees: ev.attendees.map((a) => ({ name: a.name || a.email, email: a.email })),
+    }));
+    const merged = [...calls, ...eventsAsCalls];
+    if (merged.length === 0) {
+      return NextResponse.json({ error: "No calls or events provided" }, { status: 400 });
     }
 
-    const result = await suggestDealNameFromCalls(calls);
+    const result = await suggestDealNameFromCalls(merged);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error suggesting deal name:", error);
