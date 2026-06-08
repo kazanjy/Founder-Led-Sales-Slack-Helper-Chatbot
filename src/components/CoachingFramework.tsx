@@ -2999,6 +2999,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 {rows.map(({ task, goal, parent }) => {
                   const settled = isSettledRow(task);
                   const palette = STATUS_OPTIONS.find((o) => o.value === task.status);
+                  // Same draft pattern as the manual-sort view: optimistic
+                  // local edits flow through editingDescriptions until
+                  // flushTaskDescriptionSave commits to the server.
+                  const descText = editingDescriptions[task.id] ?? task.description ?? "";
                   return (
                     <li
                       key={task.id}
@@ -3037,14 +3041,56 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           <span className="mt-0.5 w-3 h-3 rounded-sm border border-gray-300 dark:border-gray-600 flex-shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className={`text-sm ${settled ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"}`}>
-                            {task.title}
-                          </div>
-                          {task.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 prose dark:prose-invert prose-sm max-w-none prose-p:my-0.5 prose-p:break-words prose-a:break-all prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0">
-                              <TruncatedDescription>{task.description}</TruncatedDescription>
+                          {/* Title — editable when the session allows
+                              edits. Auto-grows on input so wrapping
+                              doesn't clip. */}
+                          {canEdit ? (
+                            <textarea
+                              value={task.title}
+                              onChange={(e) => { updateTaskTitle(task.id, e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                              ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                              rows={1}
+                              className={`text-sm bg-transparent border-0 border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-purple-500 focus:ring-0 w-full px-0 py-0 resize-none overflow-hidden ${settled ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"}`}
+                            />
+                          ) : (
+                            <div className={`text-sm break-words ${settled ? "line-through text-gray-400" : "text-gray-900 dark:text-gray-100"}`}>
+                              <Linkify>{task.title}</Linkify>
                             </div>
                           )}
+                          {/* Description — click-to-edit via the same
+                              RichTextCommentEditor the manual-sort view
+                              uses, so behavior is consistent across both
+                              sorts. */}
+                          {editingDescTask === task.id ? (
+                            <div className="mt-1" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditingDescTask(null); } }}>
+                              <RichTextCommentEditor
+                                value={descText}
+                                onChange={(md) => updateTaskDescription(task.id, md)}
+                                onSubmit={() => { flushTaskDescriptionSave(task.id); setEditingDescTask(null); }}
+                                onBlur={() => { flushTaskDescriptionSave(task.id); setEditingDescTask(null); }}
+                                autoFocus
+                                minHeight={56}
+                                placeholder="Add details, links, notes…"
+                              />
+                              <div className="text-[10px] text-gray-400 mt-1">⌘↵ to save · Esc to cancel · click outside to save</div>
+                            </div>
+                          ) : descText ? (
+                            <div
+                              onClick={(e) => {
+                                if (canEdit && !(e.target instanceof HTMLAnchorElement)) setEditingDescTask(task.id);
+                              }}
+                              className={`text-xs text-gray-500 dark:text-gray-400 mt-1 prose dark:prose-invert prose-sm max-w-none prose-p:my-0.5 prose-p:break-words prose-a:break-all prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0 ${canEdit ? "cursor-text hover:bg-gray-50 dark:hover:bg-gray-700 rounded px-1 -mx-1" : ""}`}
+                            >
+                              <TruncatedDescription>{descText}</TruncatedDescription>
+                            </div>
+                          ) : canEdit ? (
+                            <button
+                              onClick={() => setEditingDescTask(task.id)}
+                              className="text-xs text-purple-500 hover:text-purple-700 font-medium mt-0.5"
+                            >
+                              Add description
+                            </button>
+                          ) : null}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <PriorityPill
