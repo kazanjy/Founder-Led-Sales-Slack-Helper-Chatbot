@@ -166,7 +166,12 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
     for (const entry of sortedUpcoming) {
       const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
       sections.push(`### ${date}${entry.title ? `: ${entry.title}` : ""}`);
-      const content = entry.content.length > 800 ? entry.content.substring(0, 800) + "…" : entry.content;
+      // Upcoming meeting bodies are agenda / invite descriptions
+      // pulled by enrichCalendar — frequently 1–2k chars when they
+      // include doc links + meeting goals. Bump the analyzer cap from
+      // 800 → 6000 so the model actually has the agenda to reason
+      // about ("Mikey, what should I prep for this discovery call?").
+      const content = entry.content.length > 6000 ? entry.content.substring(0, 6000) + "…" : entry.content;
       sections.push(content);
       sections.push("");
     }

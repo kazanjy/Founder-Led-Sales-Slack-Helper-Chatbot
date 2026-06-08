@@ -1690,19 +1690,33 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                       hour: "numeric",
                       minute: "2-digit",
                     });
+                    // Pull just the invite description out of the entry
+                    // body (enrichCalendar concatenates description +
+                    // attendees with a known separator). Surface it so
+                    // the founder can see the agenda Mikey is also
+                    // using for analysis.
+                    const descBlock = (e.content || "").split(/\n\n\*\*Attendees /)[0]?.trim();
+                    const inviteDesc = descBlock && descBlock !== "(no description)" ? descBlock : null;
                     return (
-                      <li key={e.id} className="flex items-baseline gap-2 text-sm">
-                        <span className="text-xs text-purple-600 dark:text-purple-300 font-medium whitespace-nowrap">{dateLabel}</span>
-                        <span className="text-gray-800 dark:text-gray-100 truncate">{e.title || "Meeting"}</span>
-                        {e.sourceUrl && (
-                          <a
-                            href={e.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] text-blue-600 hover:underline flex-shrink-0"
-                          >
-                            open ↗
-                          </a>
+                      <li key={e.id} className="text-sm">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs text-purple-600 dark:text-purple-300 font-medium whitespace-nowrap">{dateLabel}</span>
+                          <span className="text-gray-800 dark:text-gray-100 truncate">{e.title || "Meeting"}</span>
+                          {e.sourceUrl && (
+                            <a
+                              href={e.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] text-blue-600 hover:underline flex-shrink-0"
+                            >
+                              open ↗
+                            </a>
+                          )}
+                        </div>
+                        {inviteDesc && (
+                          <div className="ml-[4.75rem] mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 hover:line-clamp-none transition-all">
+                            {inviteDesc}
+                          </div>
                         )}
                       </li>
                     );
