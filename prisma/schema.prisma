@@ -21,6 +21,10 @@ model Account {
   salesAssets   SalesAsset[]
   customDealStages CustomDealStage[]
   customClosedLostReasons CustomClosedLostReason[]
+  // Built-in deal stages the account has hidden from the picker.
+  // Stored as the stage value (e.g. "negotiation") rather than label
+  // so renaming a built-in label later wouldn't orphan the archive.
+  archivedBuiltinStages String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

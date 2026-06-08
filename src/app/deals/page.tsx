@@ -132,6 +132,10 @@ function DealsPageContent() {
   // Account-scoped custom stages merged into the pipeline alongside
   // the built-in DEAL_STAGES.
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
+  // Built-in stage values the account has hidden from the picker.
+  // Cards on archived stages still render with their label via
+  // resolveStage; this just gates which chips appear in the filter row.
+  const [archivedBuiltinStages, setArchivedBuiltinStages] = useState<string[]>([]);
   const [showAddStage, setShowAddStage] = useState(false);
   const [newStageLabel, setNewStageLabel] = useState("");
   const NEW_STAGE_COLORS = [
@@ -244,6 +248,7 @@ function DealsPageContent() {
       if (stagesRes.ok) {
         const sd = await stagesRes.json();
         setCustomStages(sd.stages || []);
+        setArchivedBuiltinStages(Array.isArray(sd.archivedBuiltinStages) ? sd.archivedBuiltinStages : []);
       }
 
       // First-run nudge: if the user has no deals yet AND hasn't connected
@@ -719,7 +724,7 @@ function DealsPageContent() {
 
     // Pipeline order for the stage sort. Built-ins anchored to
     // mergePipeline so custom stages slot in at the right index.
-    const pipelineIndex = new Map(mergePipeline(customStages).map((s, i) => [s.value, i]));
+    const pipelineIndex = new Map(mergePipeline(customStages, archivedBuiltinStages).map((s, i) => [s.value, i]));
 
     const cmpDateDesc = (a: string | null, b: string | null) => {
       // Nulls sink to the bottom for a "X first" sort.
@@ -1119,26 +1124,69 @@ function DealsPageContent() {
           >
             All
           </button>
-          {mergePipeline(customStages).map((s) => (
-            <span key={s.value} className="relative inline-flex items-center">
+          {mergePipeline(customStages, archivedBuiltinStages).map((s) => {
+            // Popover key namespaces built-ins (by stage value) and
+            // customs (by customId) into the same editingStageId state
+            // — same popover dismiss / single-open behavior either way.
+            const popoverKey = s.builtin ? `builtin:${s.value}` : s.customId;
+            const popoverOpen = editingStageId === popoverKey;
+            return (
+            <span key={s.value} className="relative inline-flex items-center group/stage">
               <button
                 onClick={() => setStageFilter(s.value)}
-                onContextMenu={(e) => {
-                  if (s.builtin) return;
-                  e.preventDefault();
-                  setEditingStageId(s.customId ?? null);
-                  setEditStageLabel(s.label);
-                  setEditStageColor(s.color);
-                  const cust = customStages.find((c) => c.id === s.customId);
-                  setEditStageInsertAfter(cust?.insertAfter || "");
-                }}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${stageFilter === s.value ? "bg-gray-900 text-white" : `${s.color} hover:opacity-80`}`}
-                title={s.builtin ? "Built-in stage" : "Click to filter · right-click to edit"}
+                className={`pl-2.5 pr-1 py-1 rounded-l-full text-xs font-medium transition-colors ${stageFilter === s.value ? "bg-gray-900 text-white" : `${s.color} hover:opacity-80`}`}
+                title="Click to filter"
               >
                 {s.label}
-                {!s.builtin && <span className="ml-1 opacity-50">✎</span>}
               </button>
-              {editingStageId === s.customId && (
+              <button
+                onClick={() => {
+                  setEditingStageId(popoverKey ?? null);
+                  setEditStageLabel(s.label);
+                  setEditStageColor(s.color);
+                  const cust = !s.builtin ? customStages.find((c) => c.id === s.customId) : null;
+                  setEditStageInsertAfter(cust?.insertAfter || "");
+                }}
+                className={`pl-1 pr-2 py-1 rounded-r-full text-xs font-medium transition-colors ${stageFilter === s.value ? "bg-gray-900 text-white opacity-70 hover:opacity-100" : `${s.color} opacity-50 group-hover/stage:opacity-100 hover:opacity-100`}`}
+                title={s.builtin ? "Archive this built-in stage" : "Edit / archive this stage"}
+                aria-label={s.builtin ? `Archive ${s.label}` : `Edit ${s.label}`}
+              >
+                ✎
+              </button>
+              {popoverOpen && s.builtin && (
+                <div className="absolute left-0 top-full mt-2 z-30 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+                  <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Built-in stage
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    <strong className="text-gray-700 dark:text-gray-200">{s.label}</strong> is built-in — its label and color can&apos;t be edited. Archive to hide it from the picker. Existing deals on this stage keep their pill.
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/deals/stages/builtin/${s.value}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ archived: true }),
+                        });
+                        setArchivedBuiltinStages((prev) => Array.from(new Set([...prev, s.value])));
+                        if (stageFilter === s.value) setStageFilter("all");
+                        setEditingStageId(null);
+                      }}
+                      className="text-xs text-red-600 dark:text-red-300 hover:underline font-medium"
+                    >
+                      Archive stage
+                    </button>
+                    <button
+                      onClick={() => setEditingStageId(null)}
+                      className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {popoverOpen && !s.builtin && (
                 <div className="absolute left-0 top-full mt-2 z-30 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
                   <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     Edit stage
@@ -1176,7 +1224,14 @@ function DealsPageContent() {
                         if (!editingStageId) return;
                         if (!confirm("Archive this stage? Existing deals stay on it; it just stops showing in the picker.")) return;
                         await fetch(`/api/deals/stages/${editingStageId}`, { method: "DELETE" });
-                        setCustomStages((prev) => prev.filter((c) => c.id !== editingStageId));
+                        // Keep the row in customStages but flip archived=true so
+                        // the Archived restore row can surface it.
+                        const archivedId = editingStageId.replace(/^builtin:/, "");
+                        setCustomStages((prev) => prev.map((c) => c.id === archivedId ? { ...c, archived: true } : c));
+                        if (stageFilter !== "all") {
+                          const archived = customStages.find((c) => c.id === archivedId);
+                          if (archived && stageFilter === archived.value) setStageFilter("all");
+                        }
                         setEditingStageId(null);
                       }}
                       className="text-xs text-red-600 dark:text-red-300 hover:underline"
@@ -1217,7 +1272,8 @@ function DealsPageContent() {
                 </div>
               )}
             </span>
-          ))}
+            );
+          })}
           <button
             onClick={() => setShowAddStage((v) => !v)}
             className="px-2 py-1 rounded-full text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors"
@@ -1297,6 +1353,60 @@ function DealsPageContent() {
             </div>
           )}
         </div>
+        {/* Archived stages restore row — only shows when there are any
+            archived built-ins or customs. Restore returns the stage to
+            the chip row in its original pipeline position. */}
+        {(() => {
+          const archivedCustoms = customStages.filter((c) => c.archived);
+          const archivedBuiltinDetails = archivedBuiltinStages
+            .map((v) => DEAL_STAGES.find((b) => b.value === v))
+            .filter((b): b is (typeof DEAL_STAGES)[number] => !!b);
+          if (archivedCustoms.length === 0 && archivedBuiltinDetails.length === 0) return null;
+          return (
+            <div className="flex items-center gap-2 mb-3 flex-wrap text-xs text-gray-500 dark:text-gray-400">
+              <span className="uppercase tracking-wider font-medium">Archived:</span>
+              {archivedBuiltinDetails.map((b) => (
+                <button
+                  key={`ab-${b.value}`}
+                  onClick={async () => {
+                    await fetch(`/api/deals/stages/builtin/${b.value}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ archived: false }),
+                    });
+                    setArchivedBuiltinStages((prev) => prev.filter((v) => v !== b.value));
+                  }}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity ${b.color}`}
+                  title="Click to restore"
+                >
+                  {b.label}
+                  <span className="text-gray-500">↩</span>
+                </button>
+              ))}
+              {archivedCustoms.map((c) => (
+                <button
+                  key={`ac-${c.id}`}
+                  onClick={async () => {
+                    const res = await fetch(`/api/deals/stages/${c.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ archived: false }),
+                    });
+                    if (res.ok) {
+                      const d = await res.json();
+                      setCustomStages((prev) => prev.map((x) => x.id === d.stage.id ? d.stage : x));
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity ${c.color}`}
+                  title="Click to restore"
+                >
+                  {c.label}
+                  <span className="text-gray-500">↩</span>
+                </button>
+              ))}
+            </div>
+          );
+        })()}
         <div className="flex items-center gap-3 mb-6 flex-wrap text-sm">
           <span className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Status:</span>
           <button
@@ -1427,7 +1537,7 @@ function DealsPageContent() {
             {filteredDeals.map((deal) => {
               const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
-              const pipeline = mergePipeline(customStages);
+              const pipeline = mergePipeline(customStages, archivedBuiltinStages);
               const patchDeal = async (patch: { stage?: string; status?: string; dealValue?: number | null; projectedCloseDate?: string | null }) => {
                 setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...patch } : d)));
                 try {

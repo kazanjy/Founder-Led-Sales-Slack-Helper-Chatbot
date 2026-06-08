@@ -47,6 +47,7 @@ export async function PATCH(
     color?: string;
     order?: number;
     insertAfter?: string | null;
+    archived?: boolean;
   };
   const updateData: Record<string, unknown> = {};
   if (typeof body.label === "string" && body.label.trim()) {
@@ -63,6 +64,9 @@ export async function PATCH(
   }
   if (body.insertAfter !== undefined) {
     updateData.insertAfter = body.insertAfter || null;
+  }
+  if (typeof body.archived === "boolean") {
+    updateData.archived = body.archived;
   }
 
   const stage = await prisma.customDealStage.update({

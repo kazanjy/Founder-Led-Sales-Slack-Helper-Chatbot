@@ -27,9 +27,17 @@ export interface PipelineStage {
  * Customs with insertAfter === null are appended at the end.
  * Customs sharing the same insertAfter slot are ordered by their
  * `order` field.
+ *
+ * Built-in stages whose value is in `archivedBuiltins` are dropped
+ * from the visible pipeline but their customs are NOT orphaned —
+ * customs that referenced an archived built-in still surface at
+ * the position the built-in used to occupy. resolveStage continues
+ * to render an archived built-in's label so existing deals on that
+ * stage keep their pill.
  */
-export function mergePipeline(custom: CustomStage[]): PipelineStage[] {
+export function mergePipeline(custom: CustomStage[], archivedBuiltins: ReadonlyArray<string> = []): PipelineStage[] {
   const active = custom.filter((c) => !c.archived);
+  const archivedSet = new Set(archivedBuiltins);
   const byInsertAfter = new Map<string | "__end__", CustomStage[]>();
   for (const c of active) {
     const key = c.insertAfter ?? "__end__";
@@ -43,7 +51,11 @@ export function mergePipeline(custom: CustomStage[]): PipelineStage[] {
 
   const pipeline: PipelineStage[] = [];
   for (const b of DEAL_STAGES) {
-    pipeline.push({ value: b.value, label: b.label, color: b.color, builtin: true });
+    if (!archivedSet.has(b.value)) {
+      pipeline.push({ value: b.value, label: b.label, color: b.color, builtin: true });
+    }
+    // Custom stages inserted after an archived built-in still appear —
+    // they slot in where the built-in used to be.
     const after = byInsertAfter.get(b.value);
     if (after) {
       for (const c of after) {

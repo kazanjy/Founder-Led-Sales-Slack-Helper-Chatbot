@@ -47,15 +47,30 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
   if (!user.accountId) {
-    return NextResponse.json({ stages: [] });
+    return NextResponse.json({ stages: [], archivedBuiltinStages: [] });
   }
 
-  const stages = await prisma.customDealStage.findMany({
-    where: { accountId: user.accountId, archived: false },
-    orderBy: { order: "asc" },
-  });
+  const [stages, account] = await Promise.all([
+    // Return ALL custom stages, including archived ones, so the client
+    // can surface them in the "Archived" restore row. mergePipeline
+    // already filters out archived rows from the active chip set.
+    prisma.customDealStage.findMany({
+      where: { accountId: user.accountId },
+      orderBy: { order: "asc" },
+    }),
+    // Defensive read — if the archivedBuiltinStages column hasn't
+    // been migrated yet, return an empty list so the pipeline still
+    // renders without the feature.
+    prisma.account.findUnique({
+      where: { id: user.accountId },
+      select: { archivedBuiltinStages: true },
+    }).catch(() => null),
+  ]);
 
-  return NextResponse.json({ stages });
+  return NextResponse.json({
+    stages,
+    archivedBuiltinStages: account?.archivedBuiltinStages ?? [],
+  });
 }
 
 export async function POST(request: NextRequest) {
