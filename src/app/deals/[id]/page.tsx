@@ -870,10 +870,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       const when = formatEntryDate(focused.entryDate);
       sections.push(`## The ${typeInfo.label.toLowerCase()} I want to focus on`);
       sections.push(`### ${when} — ${typeInfo.label}${focused.title ? `: ${focused.title}` : ""}`);
-      const focusedContent = focused.content.length > 6000
-        ? focused.content.substring(0, 6000) + "\n[...truncated]"
-        : focused.content;
-      sections.push(focusedContent);
+      // No truncation — Deal Chat runs in DIRECT mode and gpt-5.5 has
+      // a 1M-token context. The chat stream route's MAX_INPUT_CHARS
+      // safety net at 3.2M handles the rare edge cases where a deal
+      // genuinely exceeds the window.
+      sections.push(focused.content);
       sections.push("");
       sections.push("---");
       sections.push("");
@@ -909,14 +910,15 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     });
     if (timelineEntries.length > 0) {
       sections.push(focused ? "## Timeline of Interactions (other entries)" : "## Timeline of Interactions");
-      for (const entry of timelineEntries.slice(0, 15)) {
+      // No entry-count cap and no per-entry truncation — DIRECT-mode
+      // Deal Chat is sized for the whole deal. The chat stream route's
+      // MAX_INPUT_CHARS budget trims oldest messages first if a deal
+      // ever overflows gpt-5.5's window.
+      for (const entry of timelineEntries) {
         const date = formatEntryDate(entry.entryDate);
         const typeInfo = getEntryTypeInfo(entry.type);
         sections.push(`### ${date} — ${typeInfo.label}${entry.title ? `: ${entry.title}` : ""}`);
-        const content = entry.content.length > 2000
-          ? entry.content.substring(0, 2000) + "\n[...truncated]"
-          : entry.content;
-        sections.push(content);
+        sections.push(entry.content);
         sections.push("");
       }
     }
@@ -927,7 +929,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       const when = ex.entryDate ? formatEntryDate(ex.entryDate) : formatEntryDate(new Date().toISOString());
       sections.push("## Just Added");
       sections.push(`### ${when} — ${typeInfo.label}${ex.title ? `: ${ex.title}` : ""}`);
-      sections.push(ex.content.length > 3000 ? ex.content.substring(0, 3000) + "\n[...truncated]" : ex.content);
+      sections.push(ex.content);
       sections.push("");
     }
 
