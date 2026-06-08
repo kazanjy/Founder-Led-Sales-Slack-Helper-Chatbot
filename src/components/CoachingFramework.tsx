@@ -17,9 +17,32 @@ const RichTextCommentEditor = dynamic(
   { ssr: false }
 );
 
+// Token-aware autolinker: wraps bare http/https URLs in <…> so GFM's
+// autolink extension always picks them up. remark-gfm's built-in
+// autolinking is unreliable for URLs that sit mid-sentence (after
+// `: `, inside parens, etc.), so we normalize before parsing.
+// Skips URLs that are already inside [text](url) links, <url>
+// autolinks, or `code spans` so we don't double-wrap.
+const URL_PATTERN_BARE = /https?:\/\/[^\s<>()[\]'"`]+[^\s<>()[\].,!?;:'"`]/g;
+function autolinkBareUrls(md: string): string {
+  if (!md) return md;
+  const SKIP = /(\[[^\]]*\]\([^)]+\)|<https?:\/\/[^>]+>|`[^`]*`)/g;
+  let out = "";
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = SKIP.exec(md)) !== null) {
+    out += md.slice(lastIndex, m.index).replace(URL_PATTERN_BARE, (url) => `<${url}>`);
+    out += m[0];
+    lastIndex = SKIP.lastIndex;
+  }
+  out += md.slice(lastIndex).replace(URL_PATTERN_BARE, (url) => `<${url}>`);
+  return out;
+}
+
 // Shared read-only renderer for description prose. Markdown via
 // remark-gfm, with anchor override that opens links in a new tab.
 function DescriptionMarkdown({ children }: { children: string }) {
+  const normalized = autolinkBareUrls(children);
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -38,7 +61,7 @@ function DescriptionMarkdown({ children }: { children: string }) {
         ),
       }}
     >
-      {children}
+      {normalized}
     </ReactMarkdown>
   );
 }
