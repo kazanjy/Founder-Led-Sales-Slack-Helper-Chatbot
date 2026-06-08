@@ -203,7 +203,12 @@ export default function DealChatPanel({
         const createRes = await fetch("/api/conversations/from-context", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: `Deal: ${dealName}`, context: payload, autoSend: true }),
+          // DIRECT because Deal Chat reasons over the entire deal — call
+          // recordings, timeline entries, participants, analysis. That
+          // corpus fits comfortably in gpt-5.5's context and we'd rather
+          // pay the per-message token cost than lose recall through
+          // RAG retrieval on bigger deals.
+          body: JSON.stringify({ title: `Deal: ${dealName}`, context: payload, autoSend: true, mode: "DIRECT" }),
         });
         if (!createRes.ok) throw new Error("Failed to start conversation");
         const createData = await createRes.json();
