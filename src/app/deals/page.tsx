@@ -1555,10 +1555,13 @@ function DealsPageContent() {
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
-                  className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-5 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
+                  className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-3 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0 flex-1 flex items-start gap-2">
+                  {/* Title row — title + companyName inline, stage pill on
+                      the right. Halves the vertical footprint vs. the
+                      old two-row title + subtitle layout. */}
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="min-w-0 flex-1 flex items-baseline gap-2">
                       {deal.status === "potential" && (
                         <input
                           type="checkbox"
@@ -1573,14 +1576,12 @@ function DealsPageContent() {
                             });
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="mt-1 accent-purple-600 cursor-pointer"
+                          className="self-center accent-purple-600 cursor-pointer flex-shrink-0"
                           title="Select for bulk action"
                         />
                       )}
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</p>
-                      </div>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
+                      <span className="text-sm text-gray-400 dark:text-gray-500 truncate">· {deal.companyName}</span>
                     </div>
                     <InlinePillSelect
                       currentValue={stageInfo.value}
@@ -1590,7 +1591,11 @@ function DealsPageContent() {
                       onChange={(value) => patchDeal({ stage: value })}
                     />
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-3 flex-wrap">
+                  {/* Metadata row — status + counts + value + health +
+                      last activity + next meeting, all on one line that
+                      wraps gracefully on narrow screens. Was two rows
+                      before. */}
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                     <InlinePillSelect
                       currentValue={statusInfo.value}
                       currentLabel={statusInfo.label}
@@ -1617,6 +1622,18 @@ function DealsPageContent() {
                         </span>
                       );
                     })()}
+                    {deal.lastActivityAt ? (
+                      <span className="text-gray-500 dark:text-gray-400">· Last activity {formatRelative(deal.lastActivityAt)}</span>
+                    ) : (
+                      <span className="text-gray-400 italic">· No activity yet</span>
+                    )}
+                    {deal.nextMeetingAt ? (
+                      <span className="text-purple-700 dark:text-purple-300 font-medium">· 📅 {formatNextMeeting(deal.nextMeetingAt)}</span>
+                    ) : (
+                      (deal.status === "active" || deal.status === "stalled") ? (
+                        <span className="text-amber-600 dark:text-amber-400">· ⚠ No upcoming meeting</span>
+                      ) : null
+                    )}
                   </div>
                   {/* Participant chips — surface WHO is on the deal, not
                       just a count. Cap at 5 visible; overflow shows as
@@ -1629,7 +1646,7 @@ function DealsPageContent() {
                     const visible = sorted.slice(0, 5);
                     const overflow = sorted.length - visible.length;
                     return (
-                      <div className="flex items-center gap-1 flex-wrap mt-2.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 flex-wrap mt-1.5" onClick={(e) => e.stopPropagation()}>
                         {visible.map((p) => {
                           const roleInfo = getRoleInfo(p.role);
                           const label = participantChipLabel(p);
@@ -1656,7 +1673,7 @@ function DealsPageContent() {
                     );
                   })()}
                   {deal.status === "potential" && (
-                    <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 mt-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={async (e) => {
                           e.preventDefault();
@@ -1704,30 +1721,14 @@ function DealsPageContent() {
                       </span>
                     </div>
                   )}
-                  <div className="text-xs mt-2 flex items-center gap-3 flex-wrap">
-                    {deal.lastActivityAt ? (
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Last activity {formatRelative(deal.lastActivityAt)}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 italic">No activity yet</span>
-                    )}
-                    {deal.nextMeetingAt ? (
-                      <span className="text-purple-700 dark:text-purple-300 font-medium">
-                        📅 Next meeting {formatNextMeeting(deal.nextMeetingAt)}
-                      </span>
-                    ) : (
-                      deal.status === "active" || deal.status === "stalled" ? (
-                        <span className="text-amber-600 dark:text-amber-400">⚠ No upcoming meeting</span>
-                      ) : null
-                    )}
-                  </div>
                   {/* Extended details — list-only row with forecast + close
                       dates + source + notes so the wider card layout has
-                      something to chew on. */}
+                      something to chew on. Last activity / next meeting
+                      moved into the main metadata row above to compress
+                      the card. */}
                   {layout === "list" && (
                     <div
-                      className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-4 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2"
+                      className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 flex items-center gap-4 flex-wrap border-t border-gray-100 dark:border-gray-700 pt-1.5"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <label className="flex items-center gap-1.5">
