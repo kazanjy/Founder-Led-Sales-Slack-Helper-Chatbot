@@ -175,9 +175,20 @@ export async function GET(request: Request) {
     });
   }
 
-  // Newest first — the calendar API returns oldest-first within the
-  // window, but the UI is more useful with recent meetings at the top.
-  events.sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  // Order by proximity to now — events closest to today land at the
+  // top of the picker since they're most likely the ones the user is
+  // creating the deal around. Future-vs-past ties break toward the
+  // future event (an upcoming meeting is usually more actionable than
+  // an equally-distant past one).
+  const now = Date.now();
+  events.sort((a, b) => {
+    const aT = new Date(a.startsAt).getTime();
+    const bT = new Date(b.startsAt).getTime();
+    const aDist = Math.abs(aT - now);
+    const bDist = Math.abs(bT - now);
+    if (aDist !== bDist) return aDist - bDist;
+    return bT - aT;
+  });
 
   return NextResponse.json({
     events,
