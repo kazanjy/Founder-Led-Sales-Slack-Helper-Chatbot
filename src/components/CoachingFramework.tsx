@@ -3148,6 +3148,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                               </span>
                             )
                           )}
+                          {/* Same Copy as markdown / Copy link actions
+                              the manual-sort view exposes, so users can
+                              grab a deep link or paste task content into
+                              email without switching sorts. */}
+                          <RowActionsMenu
+                            triggerLabel={`Actions for ${task.title}`}
+                            groups={[
+                              [
+                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
+                                { key: "copy-link", label: copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${task.id}`) },
+                              ] as RowAction[],
+                            ]}
+                          />
                         </div>
                       </div>
                     </li>
