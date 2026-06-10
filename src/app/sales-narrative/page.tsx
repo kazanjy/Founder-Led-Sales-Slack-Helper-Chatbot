@@ -8,6 +8,7 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import ExportNarrativeButton from "@/components/ExportNarrativeButton";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { NewButtonDropdown } from "@/components/NewButtonDropdown";
 import ExtendNarrativeModal from "@/components/ExtendNarrativeModal";
@@ -719,6 +720,20 @@ function SalesNarrativeContent() {
                       return context;
                     }}
                   />
+                  {version && (
+                    <ExportNarrativeButton
+                      version={{
+                        title: version.title,
+                        narrative: currentNarrative,
+                        description1000w: current1000w,
+                        description100w: current100w,
+                        description50w: current50w,
+                        description25w: current25w,
+                        updatedAt: version.createdAt,
+                      }}
+                      answersByCategory={answersByCategory}
+                    />
+                  )}
                   {version && <ShareDocumentButton
                     documentType="salesNarrative"
                     documentId={version.id}
