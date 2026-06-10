@@ -346,10 +346,18 @@ const ICON_TRASH = (
 );
 
 const STATUS_OPTIONS = [
+  { value: "not_started", label: "Not Started", color: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300" },
+  { value: "next", label: "Next", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
+  { value: "in_progress", label: "In Progress", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  // Keep "active" for backwards compatibility — existing rows in the
+  // database default to it (Prisma schema default), so any row created
+  // before this expansion will still resolve to a palette entry and
+  // render correctly. New rows can use the more specific statuses
+  // above.
   { value: "active", label: "Active", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   { value: "done", label: "Done", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
-  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 line-through" },
   { value: "deprioritized", label: "Deprioritized", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+  { value: "not_doing", label: "Not Doing", color: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 line-through" },
 ];
 
 // Priority palette for the optional P0 / P1 / P2 tag.  Red→amber→
