@@ -120,6 +120,7 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
   }
   const data = (await res.json()) as { items?: GCalEvent[] };
   const events = data.items ?? [];
+  console.log(`[discover] calendar window ${timeMin.toISOString()} → ${timeMax.toISOString()}: ${events.length} events returned`);
 
   // Dedupe domains within this sweep — many calendars have weekly
   // recurring meetings with the same prospect; we only want to
@@ -127,60 +128,83 @@ async function scanCalendarPast(userId: string): Promise<CalendarDiscoverySummar
   const seenDomains = new Set<string>();
 
   for (const ev of events) {
-    if (ev.status === "cancelled") continue;
-    if (!ev.attendees || ev.attendees.length === 0) continue;
-    out.scanned++;
-
-    const externalDomains = ev.attendees
-      .map((a) => domainFromEmail(a.email))
-      .filter((d): d is string => !!d)
-      .filter((d) => !self.has(d) && !PUBLIC_EMAIL_DOMAINS.has(d));
-    if (externalDomains.length === 0) continue;
-
-    const primary = externalDomains[0];
-    if (seenDomains.has(primary)) {
-      out.skipped++;
+    const evLabel = `"${ev.summary || "(no title)"}" @ ${eventStartIso(ev)}`;
+    if (ev.status === "cancelled") {
+      console.log(`[discover] skip cancelled: ${evLabel}`);
       continue;
     }
-    seenDomains.add(primary);
+    if (!ev.attendees || ev.attendees.length === 0) {
+      console.log(`[discover] skip no-attendees: ${evLabel}`);
+      continue;
+    }
+    out.scanned++;
 
-    try {
-      const detection = await ensurePotentialDealForDomain({
-        userId,
-        domain: primary,
-        source: "calendar",
-        selfDomains: self,
-      });
-      if (detection.kind === "created_potential" && detection.deal) {
-        out.potentials++;
-        // Mirror the daily cron: fire a Validate/Dismiss Slack alert
-        // anchored to the calendar event that triggered the spawn.
-        try {
-          await postPotentialDealFromCalendarAlert({
-            userId,
-            destination,
-            channelId,
-            deal: {
-              id: detection.deal.id,
-              companyName: detection.deal.companyName,
-            },
-            meetingTitle: ev.summary || "Upcoming meeting",
-            meetingStartsAt: eventStartIso(ev),
-          });
-        } catch (postErr) {
-          console.error(`[discover] Slack alert failed for ${primary}:`, postErr);
+    const allDomains = ev.attendees
+      .map((a) => domainFromEmail(a.email))
+      .filter((d): d is string => !!d);
+    const externalDomains = allDomains.filter(
+      (d) => !self.has(d) && !PUBLIC_EMAIL_DOMAINS.has(d)
+    );
+    if (externalDomains.length === 0) {
+      console.log(`[discover] skip no-external (attendee domains: ${allDomains.join(",") || "—"}, self: ${[...self].join(",")}): ${evLabel}`);
+      continue;
+    }
+
+    // Try EVERY external domain on the event, not just the first.
+    // The previous "primary = externalDomains[0]" path would silently
+    // skip an event with new domains B and C if domain A had already
+    // been seen this sweep — even though B and C still needed to be
+    // processed.
+    let touchedAny = false;
+    for (const domain of externalDomains) {
+      if (seenDomains.has(domain)) continue;
+      seenDomains.add(domain);
+      touchedAny = true;
+
+      try {
+        const detection = await ensurePotentialDealForDomain({
+          userId,
+          domain,
+          source: "calendar",
+          selfDomains: self,
+        });
+        console.log(`[discover] ${evLabel} → domain=${domain} → ${detection.kind}${detection.deal ? ` (deal ${detection.deal.id})` : ""}`);
+        if (detection.kind === "created_potential" && detection.deal) {
+          out.potentials++;
+          // Mirror the daily cron: fire a Validate/Dismiss Slack alert
+          // anchored to the calendar event that triggered the spawn.
+          try {
+            await postPotentialDealFromCalendarAlert({
+              userId,
+              destination,
+              channelId,
+              deal: {
+                id: detection.deal.id,
+                companyName: detection.deal.companyName,
+              },
+              meetingTitle: ev.summary || "Upcoming meeting",
+              meetingStartsAt: eventStartIso(ev),
+            });
+          } catch (postErr) {
+            console.error(`[discover] Slack alert failed for ${domain}:`, postErr);
+          }
+        } else if (detection.kind === "attached_existing") {
+          out.attached++;
+        } else {
+          out.skipped++;
         }
-      } else if (detection.kind === "attached_existing") {
-        out.attached++;
-      } else {
-        out.skipped++;
+      } catch (err) {
+        console.error(`[discover] calendar deal detection failed for ${domain}:`, err);
+        out.errors++;
       }
-    } catch (err) {
-      console.error(`[discover] calendar deal detection failed for ${primary}:`, err);
-      out.errors++;
+    }
+    if (!touchedAny) {
+      console.log(`[discover] skip all-domains-already-seen-this-sweep: ${evLabel}`);
+      out.skipped++;
     }
   }
 
+  console.log(`[discover] calendar sweep done: ${out.scanned} scanned, ${out.potentials} potentials, ${out.attached} attached, ${out.skipped} skipped, ${out.errors} errors`);
   return out;
 }
 
