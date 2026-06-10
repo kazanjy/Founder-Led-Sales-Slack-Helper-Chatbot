@@ -159,10 +159,16 @@ function exportAsPdf(version: NarrativeForExport, answers: AnswersByCategory | n
 </style>
 </head><body>${html}</body></html>`;
 
-  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=1000");
+  // window.open() returns NULL when "noopener" is in the features
+  // string — by design, since noopener severs the opener reference.
+  // We need the returned Window handle to write the HTML and call
+  // print(), so we deliberately drop noopener/noreferrer here. The
+  // destination is a same-origin about:blank we fully control, so
+  // there's no XSS risk from the opener relationship.
+  const w = window.open("", "_blank", "popup=1,width=900,height=1000");
   if (!w) {
-    // Popup blocked — fall back to MD download so the user still gets
-    // an artifact they can convert manually.
+    // Actual popup blocker — fall back to MD download so the user
+    // still gets an artifact.
     downloadMarkdown(version, answers);
     return;
   }
