@@ -1552,7 +1552,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap basis-full lg:basis-auto">
               <select
                 value={deal.stage}
                 onChange={(e) => updateDeal({ stage: e.target.value })}
