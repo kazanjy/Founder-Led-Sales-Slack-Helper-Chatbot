@@ -133,6 +133,123 @@ Here's to some founder-led selling success! 🏄‍♂️🌊🚀
 _Powered by Claude • Trained on Pete Kazanjy's founder-led sales expertise_`;
 
 /**
+ * Channel-welcome variant: shorter parent message + the rest split
+ * into threaded replies. Used by handleBotChannelJoin so a brand-new
+ * channel doesn't get flooded with a 100+ line wall of text in the
+ * main channel timeline — interested folks click into the thread.
+ *
+ * The slash command `#instructions` still uses the full single-message
+ * INSTRUCTIONS_MESSAGE above since that's a user-initiated reply.
+ */
+export const CHANNEL_WELCOME_INTRO = `👋🌊 *Hey there! I'm Mikey — your AI-powered Founder-Led Sales assistant!* 🌊👋
+
+Just \`@Mikey\` me in this channel and I'll help with sales questions, content drafting, pre-call prep, deal strategy, call reviews, and more. You can also share screenshots, PDFs, and CSVs and I'll work with them.
+
+🧵 *Full rundown in the thread below* — what I'm trained on, every built-in tool, and pro tips. Type \`#instructions\` anytime to see this again.`;
+
+export const CHANNEL_WELCOME_REPLIES: string[] = [
+  // Reply 1: How to use me (training + mentions + threading + uploads)
+  `*🧠 What Am I Trained On?*
+
+I'm trained on *Pete Kazanjy's entire body of work* on founder-led sales — 📘 *Founding Sales* (the book that started it all), 🎙️ podcasts & interviews, ✍️ blog posts & essays, 🎓 complete class curriculum, 📋 templates, sales assets, and real-world examples. 1000s of pages of battle-tested B2B sales methodology + 15+ years of expertise.
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+*💬 How to Talk to Me in Slack*
+
+\`@Mikey\` me in any channel I've been added to:
+> \`@Mikey how do I handle pricing objections?\`
+
+Or *DM me directly* for a private conversation — click on my name and start typing. 🤫
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+*🧵 How Threading Works*
+
+I *always* respond in a thread to keep things tidy:
+• Your first \`@Mikey\` message kicks off a new thread 🆕
+• To keep chatting, just \`@Mikey\` me again in the reply
+• I look back at the last 50 messages in our thread for context 🧠
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+*📎 I Can Read Images & PDFs!*
+
+Screenshots of emails, PDFs of prospect websites — send them my way. I'll analyze and give you advice based on what I see. 🖼️📄`,
+
+  // Reply 2: Common use cases
+  `*🔥 Common Use Cases*
+
+📧 *Email Help* — "How should I reply to this prospect who went cold?" Forward me screenshots and I'll help you craft the perfect response.
+✍️ *Content Drafting* — Outbound sequences, LinkedIn messages, follow-ups, proposals — I'll draft it with you.
+❓ *Burning Questions* — "How do I build pipeline from scratch?" "When should I hire my first rep?" "How do I handle 'we don't have budget'?"
+🗓️ *Pre-Call Prep* — Tell me about your upcoming call and I'll help with discovery questions, talking points, and a game plan.
+🤝 *Deal Strategy* — Walk me through a deal and I'll help you spot risks and figure out the next move.
+📊 *Call Reviews* — Upload a call transcript and I'll score the call across discovery, demo effectiveness, objection handling, and next steps.
+📈 *Sales Metrics* — Paste your pipeline numbers or upload a CSV and I'll benchmark your performance.`,
+
+  // Reply 3: Built-in apps & tools (biggest section)
+  `*🚀 Built-In Apps & Tools*
+
+I come loaded with powerful tools — each with its own dedicated page at *askmikey.ai*:
+
+*📋 Foundation (Build Your Playbook)*
+📏 *GTM Maturity Assessment* — Measure where you stand and get prioritized recommendations
+💎 *Sales Narrative* — Craft a compelling value prop and product story
+🔍 *Discovery Questions* — Generate targeted discovery questions for your ICP
+📞 *First Call Checklist* — Structure what to cover on every first call
+🎯 *Pre-Call Planning* — Build a repeatable prep framework for every meeting
+
+*🔬 Research & Prep*
+🔍 *Pre-Call Research* — Type \`#research\` or \`#precall\` followed by what you know — company, contact, LinkedIn, website — and I'll generate a full brief. Example: \`#research Acme Corp, Jane Doe CTO, acme.com\`
+
+*⚡ Execution Tools*
+📧 *Email Sequences* — Multi-step outbound with subject lines + cadence
+💬 *LinkedIn Sequences* — Connection requests + follow-ups
+📞 *Cold Call Scripts* — Scripts tailored to specific buyer personas
+📊 *Sales Decks* — Generate or enhance your sales presentation
+
+*📈 Analysis & Coaching*
+🎯 *Call Review* — Upload a transcript, get a scorecard with red flags + improvement areas
+📊 *Sales Metrics Analysis* — Upload CRM CSV or enter numbers, get benchmarked performance
+🗒️ *Coaching History* — Log sessions with notes + transcripts, chat about progress over time
+
+*🎓 Learning & Practice*
+🧠 *Founder-Led Sales Quiz* — 20-question knowledge test
+📖 *Tutoring Sessions* — Lesson on a topic + a quiz to lock it in
+📚 *Sales Playbook Builder* — Put together your complete sales playbook
+💰 *Comp Plan Design* — Design compensation for your first reps
+👥 *Sales Hiring Process* — Guidance on finding and hiring great reps
+🚀 *Sales Rep Onboarding* — Build an effective onboarding plan
+
+Ask me to start any of these, or visit *askmikey.ai* for the full web experience. 🪜`,
+
+  // Reply 4: Web + pro tips + closing
+  `*🌐 Mikey on the Web*
+
+Full web app at *askmikey.ai* with extra capabilities 🖥️:
+• 💬 Chat with rich formatting, voice input, and file uploads
+• 🔗 *Share anything* — conversations, research briefs, call reviews via shareable link
+• 📦 *Custom prompt library* — save, edit, clone, and organize your favorite workflows
+• ⚙️ *Personalize your context* — set ICP, value prop, sales motion so I tailor everything to your business
+• 📁 *Files* — all your uploaded images, PDFs, and CSVs in one place
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+*💡 Pro Tips*
+• 🌊 The more context you give me, the better my advice — tell me about your product, ICP, situation
+• 🌊 Great for roleplay — "Pretend to be a skeptical CTO and let me practice my pitch"
+• 🌊 You can ask me to be more specific, shorter, longer, or to try a different angle anytime
+• 🌊 Type \`#research\` or \`#precall\` for pre-call briefs
+• 🌊 Upload a call transcript to get a scorecard, or paste CRM numbers for a metrics breakdown
+• 🌊 Type \`#instructions\` anytime to see this again
+
+Here's to some founder-led selling success! 🏄‍♂️🌊🚀
+
+_Powered by Claude • Trained on Pete Kazanjy's founder-led sales expertise_`,
+];
+
+/**
  * The #precall #instructions response message (Slack mrkdwn format)
  */
 export const PRECALL_INSTRUCTIONS_MESSAGE = `🔍🌊 *Pre-Call Research with Mikey — How It Works!* 🌊🔍

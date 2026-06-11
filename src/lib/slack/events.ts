@@ -3,7 +3,7 @@ import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { markdownToSlack } from "./markdown";
-import { handleCommand, INSTRUCTIONS_MESSAGE, parseResearchCommand } from "./commands";
+import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseResearchCommand } from "./commands";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -379,10 +379,19 @@ async function handleBotChannelJoin(
   const client = getSlackClient(workspace.botToken);
 
   try {
-    await client.chat.postMessage({
+    const parent = await client.chat.postMessage({
       channel,
-      text: INSTRUCTIONS_MESSAGE,
+      text: CHANNEL_WELCOME_INTRO,
     });
+    if (parent.ts) {
+      for (const reply of CHANNEL_WELCOME_REPLIES) {
+        await client.chat.postMessage({
+          channel,
+          text: reply,
+          thread_ts: parent.ts,
+        });
+      }
+    }
   } catch (error) {
     console.error("Error posting channel welcome:", error);
   }
