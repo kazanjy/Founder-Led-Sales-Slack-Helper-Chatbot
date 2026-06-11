@@ -119,13 +119,12 @@ export default function CalendarEventPicker({
   };
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50/40 dark:bg-gray-800/40">
-      {/* Window sliders */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
-        <div>
-          <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-            Look back: <span className="text-purple-600 dark:text-purple-300">{lookback}d</span>
-          </label>
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/40 dark:bg-gray-800/40">
+      {/* Window sliders — labels inline with the slider on the same
+          row so the controls take half the vertical space. */}
+      <div className="grid grid-cols-2 gap-3 mb-2">
+        <label className="flex items-center gap-2 text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="whitespace-nowrap">Back: <span className="text-purple-600 dark:text-purple-300">{lookback}d</span></span>
           <input
             type="range"
             min={0}
@@ -133,13 +132,11 @@ export default function CalendarEventPicker({
             step={5}
             value={lookback}
             onChange={(e) => setLookback(parseInt(e.target.value, 10))}
-            className="w-full accent-purple-600"
+            className="flex-1 accent-purple-600"
           />
-        </div>
-        <div>
-          <label className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-            Look forward: <span className="text-purple-600 dark:text-purple-300">{lookforward}d</span>
-          </label>
+        </label>
+        <label className="flex items-center gap-2 text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          <span className="whitespace-nowrap">Forward: <span className="text-purple-600 dark:text-purple-300">{lookforward}d</span></span>
           <input
             type="range"
             min={0}
@@ -147,28 +144,39 @@ export default function CalendarEventPicker({
             step={5}
             value={lookforward}
             onChange={(e) => setLookforward(parseInt(e.target.value, 10))}
-            className="w-full accent-purple-600"
+            className="flex-1 accent-purple-600"
+          />
+        </label>
+      </div>
+
+      {/* Search + toolbar + primary CTA in one row. Lifting the Add
+          button into the toolbar puts it above the fold and removes
+          the dedicated footer row below the list. */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="relative flex-1">
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search title, description, attendees…"
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
         </div>
+        <button
+          onClick={handleAdd}
+          disabled={selectedIds.size === 0}
+          className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          + Add {selectedIds.size > 0 ? selectedIds.size : ""} event{selectedIds.size === 1 ? "" : "s"}
+        </button>
       </div>
 
-      {/* Search input */}
-      <div className="relative mb-2">
-        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search title, description, attendee name or email…"
-          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-        />
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-        <div className="flex items-center gap-3">
+      {/* Selection actions + counts — compact single row above the list. */}
+      <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1.5">
+        <div className="flex items-center gap-2">
           <button onClick={selectAllVisible} className="text-purple-600 hover:underline font-medium">Select all visible</button>
           <span className="text-gray-300">·</span>
           <button onClick={selectNone} className="hover:underline font-medium">Select none</button>
@@ -179,14 +187,16 @@ export default function CalendarEventPicker({
         </span>
       </div>
 
-      {/* Body */}
+      {/* Body — denser rows: drop the description preview line so each
+          event is just the title row + attendees row. Description still
+          surfaces via title attribute on hover for power users. */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 max-h-72 overflow-y-auto">
         {loading && !data ? (
-          <div className="text-center py-10 text-sm text-gray-400">Loading calendar…</div>
+          <div className="text-center py-8 text-sm text-gray-400">Loading calendar…</div>
         ) : error ? (
-          <div className="text-center py-10 text-sm text-red-600">{error}</div>
+          <div className="text-center py-8 text-sm text-red-600">{error}</div>
         ) : filteredEvents.length === 0 ? (
-          <div className="text-center py-10 text-sm text-gray-400">
+          <div className="text-center py-8 text-sm text-gray-400">
             {query.trim() ? `No events match "${query}"` : "No matching meetings in this window."}
           </div>
         ) : (
@@ -195,7 +205,10 @@ export default function CalendarEventPicker({
               const selected = selectedIds.has(ev.id);
               return (
                 <li key={ev.id}>
-                  <label className={`flex items-start gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? "bg-purple-50 dark:bg-purple-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-800/60"}`}>
+                  <label
+                    className={`flex items-start gap-2 px-3 py-1.5 cursor-pointer transition-colors ${selected ? "bg-purple-50 dark:bg-purple-900/20" : "hover:bg-gray-50 dark:hover:bg-gray-800/60"}`}
+                    title={ev.description || undefined}
+                  >
                     <input
                       type="checkbox"
                       checked={selected}
@@ -204,7 +217,7 @@ export default function CalendarEventPicker({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
                           {fmtDate(ev.startsAt)}
                           {isSameDay(ev.startsAt) && <span className="text-purple-600 dark:text-purple-300"> · today</span>}
                         </span>
@@ -221,17 +234,14 @@ export default function CalendarEventPicker({
                             className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
                             title={`Existing deal — stage: ${ev.existingDeal.stage}, status: ${ev.existingDeal.status}`}
                           >
-                            ⚠ Already on deal: {ev.existingDeal.name} ↗
+                            ⚠ {ev.existingDeal.name} ↗
                           </a>
                         )}
                       </div>
-                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
                         {ev.attendees.slice(0, 3).map((a) => a.name || a.email).join(", ")}
                         {ev.attendees.length > 3 && ` +${ev.attendees.length - 3}`}
                       </div>
-                      {ev.description && (
-                        <div className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">{ev.description}</div>
-                      )}
                     </div>
                   </label>
                 </li>
@@ -239,17 +249,6 @@ export default function CalendarEventPicker({
             })}
           </ul>
         )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-end mt-3">
-        <button
-          onClick={handleAdd}
-          disabled={selectedIds.size === 0}
-          className="px-3 py-1.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          + Add {selectedIds.size > 0 ? selectedIds.size : ""} event{selectedIds.size === 1 ? "" : "s"}
-        </button>
       </div>
     </div>
   );
