@@ -408,6 +408,21 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [timelineTypeFilter, setTimelineTypeFilter] = useState<Set<string>>(new Set());
   const [timelineQuery, setTimelineQuery] = useState<string>("");
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  // Sticky compact-header state. Tracks whether the main header card
+  // has scrolled out of view so we can fade in a fixed-position
+  // condensed header with the same key controls.
+  const headerSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [floatingHeaderShown, setFloatingHeaderShown] = useState(false);
+  useEffect(() => {
+    const el = headerSentinelRef.current;
+    if (!el || typeof window === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFloatingHeaderShown(!entry.isIntersecting),
+      { rootMargin: "-10px 0px 0px 0px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const [scanningFutureMeetings, setScanningFutureMeetings] = useState(false);
   const [futureMeetingsResult, setFutureMeetingsResult] = useState<{ added: number; skipped: number; hasCalendar: boolean; hasDomain: boolean; triggeredAnalysis?: boolean } | null>(null);
 
@@ -1329,6 +1344,75 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
+      {/* Floating compact header — slides down from the top once the
+          main header card scrolls out of view. Carries the same key
+          controls so the user can change stage/status, run analysis,
+          open Deal Chat, or delete without scrolling back up. */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm transition-transform duration-150 ${floatingHeaderShown ? "translate-y-0" : "-translate-y-full"}`}
+        aria-hidden={!floatingHeaderShown}
+      >
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{deal.companyName}</div>
+          </div>
+          <select
+            value={deal.stage}
+            onChange={(e) => updateDeal({ stage: e.target.value })}
+            className={`text-[11px] font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${stageInfo.color}`}
+            title="Stage"
+          >
+            {mergePipeline(customStages).map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <select
+            value={deal.status}
+            onChange={(e) => updateDeal({ status: e.target.value })}
+            className={`text-[11px] font-medium rounded-full px-2 py-0.5 border-0 cursor-pointer ${statusInfo.color}`}
+            title="Status"
+          >
+            {DEAL_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          {(() => {
+            const h = getHealthInfo(deal.mikeyHealth);
+            if (!h) return null;
+            return (
+              <span
+                className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${h.color}`}
+                title="Mikey Health — set on last deal analysis"
+              >
+                {h.emoji} {h.label}
+              </span>
+            );
+          })()}
+          <button
+            onClick={() => analyzeDeal()}
+            disabled={analyzing || deal.entries.length === 0}
+            className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-md text-[11px] font-medium hover:shadow disabled:opacity-50 inline-flex items-center gap-1"
+            title="Re-run deal analysis"
+          >
+            {analyzing ? (
+              <>
+                <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                Analyzing
+              </>
+            ) : "🧠 Analyze"}
+          </button>
+          <button
+            onClick={startDealChat}
+            className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
+          >
+            🌊 Deal Chat
+          </button>
+          <button
+            onClick={deleteDeal}
+            className="text-[11px] text-gray-400 hover:text-red-600 px-1.5 py-1"
+            title="Delete deal"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
           <Link href="/deals" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center gap-1 flex-shrink-0">
@@ -1420,7 +1504,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-5">
+        <div ref={headerSentinelRef} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 mb-5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
               {editingMeta ? (
