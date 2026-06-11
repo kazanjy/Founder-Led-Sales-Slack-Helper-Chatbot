@@ -217,6 +217,20 @@ function DealsPageContent() {
     attendees: Array<{ email: string; name: string | null }>;
   }>>([]);
   const [newDealSourceTab, setNewDealSourceTab] = useState<"recorder" | "calendar">("recorder");
+  // Phase 4: prior pre-call briefs surfaced for the deal's domain.
+  // Populated whenever the company name changes (debounced) or a
+  // recorder call / calendar event with an external domain gets
+  // imported. Multi-select; selected ones get attached as
+  // research_brief timeline entries on Create Deal.
+  const [priorBriefs, setPriorBriefs] = useState<Array<{
+    id: string;
+    companyName: string;
+    contactName: string | null;
+    contactTitle: string | null;
+    createdAt: string;
+    preview: string;
+  }>>([]);
+  const [selectedPriorBriefIds, setSelectedPriorBriefIds] = useState<Set<string>>(new Set());
 
   const inferCompanyFromEmail = (email: string | undefined): string | null => {
     if (!email) return null;
@@ -230,6 +244,50 @@ function DealsPageContent() {
   };
 
   const titleCase = (s: string) => s.replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+  // Phase 4: whenever the prospect identity changes in the New Deal
+  // modal (company name typed, calls / events imported), look up any
+  // prior Pre-Call Plans the user generated for that domain. Surfaces
+  // them so the founder can attach them to the new deal at create
+  // time instead of orphaning historical research.
+  useEffect(() => {
+    if (!showNewDeal) return;
+    // Derive the best lookup signal: an external attendee email
+    // domain from any imported call/event wins (most specific),
+    // otherwise fall back to the typed company name.
+    const callEmails = importedCalls.flatMap((c) => c.attendees?.map((a) => a.email).filter((e): e is string => !!e) || []);
+    const eventEmails = importedCalendarEvents.flatMap((e) => e.attendees.map((a) => a.email));
+    const PUBLIC = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "protonmail.com", "mail.com"]);
+    let domain: string | null = null;
+    for (const email of [...callEmails, ...eventEmails]) {
+      const d = email.split("@")[1]?.toLowerCase();
+      if (d && !PUBLIC.has(d)) { domain = d; break; }
+    }
+    if (!domain && newDealCompany.trim()) {
+      // No imports yet — fall back to the typed company name as a
+      // domain root. The by-domain endpoint matches companyName
+      // ILIKE %root% so "Acme" finds briefs created for "Acme Corp".
+      domain = newDealCompany.trim().toLowerCase().split(/\s+/)[0];
+    }
+    if (!domain) {
+      setPriorBriefs([]);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void fetch(`/api/pre-call-planning/research/by-domain?domain=${encodeURIComponent(domain!)}&days=90`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.briefs) {
+            setPriorBriefs(data.briefs);
+            // Default: pre-select all matches so the founder gets the
+            // benefit without an extra click. They can uncheck any.
+            setSelectedPriorBriefIds(new Set(data.briefs.map((b: { id: string }) => b.id)));
+          }
+        })
+        .catch(() => { /* silent — non-critical */ });
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [showNewDeal, newDealCompany, importedCalls, importedCalendarEvents]);
 
   const loadDeals = useCallback(async () => {
     setLoading(true);
@@ -664,6 +722,34 @@ function DealsPageContent() {
         }
       }
 
+      // Phase 4 fusion: attach any selected prior Pre-Call Plans as
+      // research_brief timeline entries. Upsert endpoint dedupes by
+      // researchId so repeats are safe. Done before navigation so the
+      // detail page renders them immediately.
+      if (selectedPriorBriefIds.size > 0) {
+        const briefsToAttach = priorBriefs.filter((b) => selectedPriorBriefIds.has(b.id));
+        for (const b of briefsToAttach) {
+          const titleParts: string[] = ["Pre-Call Plan"];
+          if (b.companyName) titleParts.push(b.companyName);
+          if (b.contactName) titleParts.push(`w/ ${b.contactName}`);
+          try {
+            await fetch(`/api/deals/${deal.id}/entries/research-brief`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                researchId: b.id,
+                title: titleParts.join(" — "),
+                preview: b.preview || "Pre-Call Plan",
+                sourceUrl: `/pre-call-planning/research?id=${b.id}`,
+                entryDate: b.createdAt,
+              }),
+            });
+          } catch (err) {
+            console.error("[createDeal] attach prior brief failed:", err);
+          }
+        }
+      }
+
       // Auto-enrich all participants missing titles (non-blocking)
       fetch(`/api/deals/${deal.id}/participants/enrich-all`, { method: "POST" }).catch(() => {});
 
@@ -683,6 +769,8 @@ function DealsPageContent() {
     setImportedCalls([]);
     setImportedCalendarEvents([]);
     setNewDealSourceTab("recorder");
+    setPriorBriefs([]);
+    setSelectedPriorBriefIds(new Set());
   };
 
   const filteredDeals = (() => {
@@ -1981,6 +2069,83 @@ function DealsPageContent() {
                 </ul>
                 <p className="text-xs text-green-700 dark:text-green-400 mt-2">
                   Each event becomes a meeting entry on the timeline. External attendees become deal participants.
+                </p>
+              </div>
+            )}
+
+            {priorBriefs.length > 0 && (
+              <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-purple-900 dark:text-purple-200">
+                    🔬 {priorBriefs.length} prior Pre-Call Plan{priorBriefs.length === 1 ? "" : "s"} for this prospect
+                  </p>
+                  <div className="text-xs text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedPriorBriefIds(new Set(priorBriefs.map((b) => b.id)))}
+                      className="hover:underline"
+                    >
+                      Select all
+                    </button>
+                    <span className="text-purple-300">·</span>
+                    <button
+                      onClick={() => setSelectedPriorBriefIds(new Set())}
+                      className="hover:underline"
+                    >
+                      Select none
+                    </button>
+                  </div>
+                </div>
+                <ul className="space-y-1.5">
+                  {priorBriefs.map((b) => {
+                    const checked = selectedPriorBriefIds.has(b.id);
+                    return (
+                      <li key={b.id}>
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setSelectedPriorBriefIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(b.id)) next.delete(b.id);
+                                else next.add(b.id);
+                                return next;
+                              });
+                            }}
+                            className="mt-0.5 accent-purple-600"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs flex items-center gap-2 flex-wrap">
+                              <span className="text-purple-700 dark:text-purple-300 font-medium">
+                                {new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                              </span>
+                              <span className="text-purple-900 dark:text-purple-100 font-medium">{b.companyName}</span>
+                              {b.contactName && (
+                                <span className="text-purple-700 dark:text-purple-300">w/ {b.contactName}{b.contactTitle ? `, ${b.contactTitle}` : ""}</span>
+                              )}
+                              <a
+                                href={`/pre-call-planning/research?id=${b.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[11px] text-purple-600 hover:underline"
+                              >
+                                open ↗
+                              </a>
+                            </div>
+                            {b.preview && (
+                              <div className="text-[11px] text-purple-700/80 dark:text-purple-300/80 line-clamp-2 mt-0.5">
+                                {b.preview}
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-xs text-purple-700 dark:text-purple-400 mt-2">
+                  Selected plans become Pre-Call Plan timeline entries on the new deal.
                 </p>
               </div>
             )}
