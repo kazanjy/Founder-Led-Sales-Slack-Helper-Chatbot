@@ -81,6 +81,12 @@ function CallRecapContent() {
 
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<CallRecapVersion | null>(null);
+  // Deal-fusion handoff: when the recap was kicked off from a deal
+  // page's call-summary CTA, callRecapInput carried attachToDealId +
+  // entry date + the source entry id. Stash them so the after-save
+  // attach can upsert a recap_email entry on that deal.
+  const attachToDealRef = useRef<{ dealId: string; entryDate: string | null; sourceEntryId: string | null } | null>(null);
+  const lastAttachedRecapIdRef = useRef<string | null>(null);
   const [showOverlay, setShowOverlay] = useState(isGenerating);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingSubject, setStreamingSubject] = useState("");
@@ -114,6 +120,38 @@ function CallRecapContent() {
   useEffect(() => {
     document.title = "Call Recap Email - Mikey";
   }, []);
+
+  // After a recap version saves (fresh stream OR load-by-id), fuse it
+  // onto the originating deal's timeline if the handoff carried deal
+  // context. Upsert by recapVersionId server-side so iterating the
+  // draft refreshes the same row.
+  useEffect(() => {
+    const ctx = attachToDealRef.current;
+    if (!ctx) return;
+    if (!version?.id) return;
+    if (lastAttachedRecapIdRef.current === version.id) return;
+    lastAttachedRecapIdRef.current = version.id;
+    const previewSource = version.emailBody || "";
+    const preview = previewSource.length > 600
+      ? previewSource.slice(0, 600).trimEnd() + "…"
+      : previewSource;
+    const title = version.emailSubject?.trim() || version.title?.trim() || "Recap Email";
+    void fetch(`/api/deals/${ctx.dealId}/entries/recap-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recapVersionId: version.id,
+        title: `Recap Email — ${title}`,
+        preview: preview || "Recap email drafted.",
+        sourceUrl: `/call-recap?version=${version.id}`,
+        entryDate: ctx.entryDate || undefined,
+        sourceEntryId: ctx.sourceEntryId || undefined,
+      }),
+    }).catch((err) => {
+      console.error("[call-recap] attach to deal failed:", err);
+      lastAttachedRecapIdRef.current = null;
+    });
+  }, [version?.id, version?.emailBody, version?.emailSubject, version?.title]);
 
   // Load tone guidance
   useEffect(() => {
@@ -274,11 +312,24 @@ function CallRecapContent() {
         }
 
         const inputs = JSON.parse(stored);
+        // Pluck deal-fusion fields out of the input payload before
+        // forwarding to the generate-stream endpoint (which doesn't
+        // know about them). Stash them in the ref for the after-save
+        // attach to use.
+        if (typeof inputs.attachToDealId === "string") {
+          attachToDealRef.current = {
+            dealId: inputs.attachToDealId,
+            entryDate: typeof inputs.attachToDealEntryDate === "string" ? inputs.attachToDealEntryDate : null,
+            sourceEntryId: typeof inputs.attachToDealSourceEntryId === "string" ? inputs.attachToDealSourceEntryId : null,
+          };
+        }
+        const { attachToDealId, attachToDealEntryDate, attachToDealSourceEntryId, ...generateInputs } = inputs;
+        void attachToDealId; void attachToDealEntryDate; void attachToDealSourceEntryId;
 
         const response = await fetch("/api/call-recap/generate-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(inputs),
+          body: JSON.stringify(generateInputs),
         });
 
         if (!response.ok || !response.body) {

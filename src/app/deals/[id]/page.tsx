@@ -2881,6 +2881,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                 recordingUrl: entry.sourceUrl || "",
                                 callSummary: summary || transcript,
                                 callTranscript: transcript,
+                                // Round-trip the deal context so the
+                                // recap page can post a recap_email
+                                // entry back to this deal once the
+                                // recap saves (Phase 3 fusion).
+                                attachToDealId: deal.id,
+                                attachToDealEntryDate: entry.entryDate,
+                                attachToDealSourceEntryId: entry.id,
                               }));
                             } catch { /* ignore quota errors */ }
                             window.open("/call-recap?generating=true", "_blank");
