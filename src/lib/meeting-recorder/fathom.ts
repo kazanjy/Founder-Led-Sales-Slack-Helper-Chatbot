@@ -222,6 +222,8 @@ export const fathomProvider: MeetingRecorderProvider = {
     if (transcriptRes.ok) {
       const tData = await transcriptRes.json();
       transcriptEntries = tData.transcript || [];
+    } else {
+      console.error(`[Fathom] transcript endpoint for ${callId} returned ${transcriptRes.status}`);
     }
 
     let summaryText = "";
@@ -229,6 +231,22 @@ export const fathomProvider: MeetingRecorderProvider = {
     if (summaryRes.ok) {
       const sData = await summaryRes.json();
       summaryText = sData.summary?.markdown_formatted || "";
+    } else {
+      console.error(`[Fathom] summary endpoint for ${callId} returned ${summaryRes.status}`);
+    }
+
+    // If BOTH transcript and summary calls failed we have no body
+    // content to write — surface as a real error rather than silently
+    // create an empty-body timeline entry. Most common cause is a 502
+    // from Fathom ("try again in 30 seconds") or a too-recent call
+    // whose transcript hasn't been processed yet. The cached list
+    // metadata is intentionally NOT a substitute since the import was
+    // for the call body, not a placeholder.
+    if (!transcriptRes.ok && !summaryRes.ok) {
+      const code = transcriptRes.status === summaryRes.status
+        ? `${transcriptRes.status}`
+        : `transcript ${transcriptRes.status} / summary ${summaryRes.status}`;
+      throw new Error(`Fathom returned ${code} for both transcript and summary. If the call just ended, Fathom may still be processing it — retry in 30 seconds.`);
     }
 
     // Use cached metadata if available, otherwise minimal
