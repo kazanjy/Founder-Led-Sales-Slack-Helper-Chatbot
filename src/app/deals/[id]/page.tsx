@@ -2935,10 +2935,32 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         ) : (() => {
                           const isExpanded = expandedEntries.has(entry.id);
                           const isShort = entry.content.length <= 200;
+                          // Entry types whose content originates as
+                          // plain text from a calendar invite, email
+                          // thread, Slack DM, SMS thread, or LinkedIn
+                          // message preserve every newline — markdown
+                          // otherwise collapses isolated single \n into
+                          // a space, which destroys bulleted invite
+                          // bodies. Call summaries / transcripts / notes
+                          // / documents already format with proper
+                          // markdown paragraphs, so we leave those alone
+                          // (the regex would otherwise add blank lines
+                          // inside code-block fences and tighten lists).
+                          // Also decode HTML entities (&#39; → ', etc.)
+                          // up front so older imports that stored them
+                          // raw render correctly without a backfill.
+                          const PRESERVE_LINEBREAKS = new Set(["meeting", "email", "slack_message", "sms_message", "linkedin"]);
+                          const renderContent = (() => {
+                            const decoded = decodeHtmlEntities(entry.content);
+                            if (PRESERVE_LINEBREAKS.has(entry.type)) {
+                              return decoded.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
+                            }
+                            return decoded;
+                          })();
                           if (isShort) {
                             return (
                               <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-                                <EntryMarkdown>{entry.content}</EntryMarkdown>
+                                <EntryMarkdown>{renderContent}</EntryMarkdown>
                               </div>
                             );
                           }
@@ -2957,7 +2979,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               </div>
                               {isExpanded && (
                                 <div className="text-sm text-gray-700 dark:text-gray-200 mt-2 pt-2 border-t border-gray-100">
-                                  <EntryMarkdown>{entry.content}</EntryMarkdown>
+                                  <EntryMarkdown>{renderContent}</EntryMarkdown>
                                 </div>
                               )}
                             </>
