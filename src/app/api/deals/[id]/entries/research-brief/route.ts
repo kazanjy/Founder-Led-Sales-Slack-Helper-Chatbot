@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { attachResearchBriefToDeal } from "@/lib/deals/attach-research-brief";
 
 /**
  * POST /api/deals/[id]/entries/research-brief
@@ -66,64 +67,17 @@ export async function POST(
       );
     }
 
-    // Dedupe: find an existing research_brief entry on this deal
-    // whose metadata.researchId matches. Done in-app since Prisma
-    // doesn't have a JSON-path equality filter that's portable across
-    // Postgres versions consistently for this case.
-    const existingEntries = await prisma.dealTimelineEntry.findMany({
-      where: { dealId: id, type: "research_brief" },
-      select: { id: true, metadata: true },
-    });
-    let matchedEntryId: string | null = null;
-    for (const e of existingEntries) {
-      if (!e.metadata) continue;
-      try {
-        const m = JSON.parse(e.metadata) as { researchId?: string };
-        if (m.researchId === researchId) {
-          matchedEntryId = e.id;
-          break;
-        }
-      } catch { /* ignore */ }
-    }
-
-    const metadata = JSON.stringify({
-      source: "pre_call_planning",
+    const result = await attachResearchBriefToDeal({
+      dealId: id,
       researchId,
-      ...(calendarEventId ? { calendarEventId } : {}),
-      ...(attendeeEmails.length > 0 ? { attendeeEmails } : {}),
+      title,
+      preview,
+      sourceUrl,
+      entryDate,
+      calendarEventId,
+      attendeeEmails,
     });
-
-    if (matchedEntryId) {
-      const updated = await prisma.dealTimelineEntry.update({
-        where: { id: matchedEntryId },
-        data: {
-          title,
-          content: preview,
-          sourceUrl,
-          entryDate,
-          metadata,
-        },
-      });
-      return NextResponse.json({ entry: updated, action: "updated" });
-    }
-
-    const created = await prisma.dealTimelineEntry.create({
-      data: {
-        dealId: id,
-        type: "research_brief",
-        title,
-        content: preview,
-        sourceUrl,
-        metadata,
-        entryDate,
-      },
-    });
-    // Bump updatedAt so the deal sorts to the top of the list.
-    await prisma.deal.update({
-      where: { id },
-      data: { updatedAt: new Date() },
-    });
-    return NextResponse.json({ entry: created, action: "created" });
+    return NextResponse.json(result);
   } catch (err) {
     console.error("[entries/research-brief] failed:", err);
     return NextResponse.json(

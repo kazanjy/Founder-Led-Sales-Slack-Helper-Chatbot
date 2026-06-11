@@ -8,6 +8,7 @@ import { executeSearchPlan } from "@/lib/search/results";
 import { synthesizeResearchBrief } from "@/lib/search/synthesis";
 import { detectFollowUpContext, buildFollowUpContextBlock } from "@/lib/pre-call/follow-up";
 import { createResearchConversation } from "@/lib/search/research-conversation";
+import { attachResearchBriefToDeal } from "@/lib/deals/attach-research-brief";
 import { postResearchToSlack, postEnrichmentFailureNote } from "@/lib/pre-call/slack-broadcast";
 import { ensurePotentialDealForDomain, getSelfDomains } from "@/lib/deals/auto-detect";
 import { postPotentialDealFromCalendarAlert } from "@/lib/pre-call/slack-broadcast";
@@ -470,6 +471,59 @@ async function processUser(userId: string): Promise<{
           console.error(
             `[cron daily-briefs] Calendar deal creation failed for ${userId} / ${parsedInput.companyDomain}:`,
             dealErr
+          );
+        }
+      }
+
+      // Stage 3: fuse the brief onto any existing open deal whose
+      // companyUrl or participant emails match the meeting's domain.
+      // Independent of the dealCreationEnabled gate above — even
+      // users who haven't opted into auto-deal-creation want briefs
+      // surfaced on deals they manually created. Upsert by
+      // researchId server-side so daily re-runs don't stack entries.
+      if (parsedInput.companyDomain) {
+        try {
+          const matchDomain = parsedInput.companyDomain;
+          const openDeal = await prisma.deal.findFirst({
+            where: {
+              userId,
+              status: { notIn: ["dismissed", "closed_won", "closed_lost"] },
+              OR: [
+                { companyUrl: { contains: matchDomain, mode: "insensitive" } },
+                { participants: { some: { email: { endsWith: `@${matchDomain}`, mode: "insensitive" } } } },
+              ],
+            },
+            orderBy: { updatedAt: "desc" },
+            select: { id: true },
+          });
+          if (openDeal) {
+            const previewSource = research.content || "";
+            const preview = previewSource.length > 600
+              ? previewSource.slice(0, 600).trimEnd() + "…"
+              : previewSource;
+            const titleParts: string[] = ["Pre-Call Plan"];
+            if (parsedInput.companyName) titleParts.push(parsedInput.companyName);
+            if (parsedInput.contactName) titleParts.push(`w/ ${parsedInput.contactName}`);
+            const attendeeEmails = Array.isArray(ev.attendees)
+              ? ev.attendees
+                  .map((a) => (typeof a.email === "string" ? a.email.toLowerCase() : null))
+                  .filter((e): e is string => !!e)
+              : [];
+            await attachResearchBriefToDeal({
+              dealId: openDeal.id,
+              researchId: research.id,
+              title: titleParts.join(" — "),
+              preview: preview || "Pre-Call Plan generated.",
+              sourceUrl: `${appUrl}/pre-call-planning/research?id=${research.id}`,
+              entryDate: ev.start.dateTime ? new Date(ev.start.dateTime) : new Date(),
+              calendarEventId: ev.id,
+              attendeeEmails,
+            });
+          }
+        } catch (fuseErr) {
+          console.error(
+            `[cron daily-briefs] research_brief fusion failed for ${userId} / ${parsedInput.companyDomain}:`,
+            fuseErr
           );
         }
       }
