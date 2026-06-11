@@ -3053,8 +3053,34 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           </>
                         )}
                         {task.createdAt && (
-                          <span className="ml-auto">
-                            Created {new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                          <span className="ml-auto inline-flex items-center gap-2">
+                            <span>
+                              Created {new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                            <span className="relative group/askmikey inline-flex">
+                              <button
+                                onClick={() => askMikeyForTaskContext(task, parent)}
+                                disabled={askingMikeyFor === task.id}
+                                aria-label="Ask Mikey for coaching context on this task"
+                                className="text-[10px] leading-none text-purple-600 dark:text-purple-300 hover:text-purple-700 dark:hover:text-purple-200 font-medium inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-wait"
+                              >
+                                {askingMikeyFor === task.id ? (
+                                  <svg className="animate-spin w-3 h-3 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                ) : (
+                                  <>
+                                    <span aria-hidden>🌊</span>
+                                    <span>Get Context</span>
+                                  </>
+                                )}
+                              </button>
+                              <span className="pointer-events-none absolute right-0 bottom-full mb-1 z-30 px-2.5 py-1.5 bg-gray-900 text-white text-[11px] rounded-lg shadow-xl whitespace-normal w-56 text-center opacity-0 group-hover/askmikey:opacity-100 transition-opacity">
+                                Ask Mikey to find the coaching discussion that created this {parent ? "subtask" : "task"} and summarize what was covered.
+                                <span className="absolute top-full right-4 -mt-px border-4 border-transparent border-t-gray-900" />
+                              </span>
+                            </span>
                           </span>
                         )}
                       </div>
