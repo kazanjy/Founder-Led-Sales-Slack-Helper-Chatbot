@@ -106,6 +106,8 @@ const NATURAL_DIR: Record<string, "asc" | "desc"> = {
   value_high: "desc",
   stage: "asc",
   projected_close: "asc",
+  name_az: "asc",
+  company_az: "asc",
   none: "desc",
 };
 
@@ -757,6 +759,13 @@ function DealsPageContent() {
             (pipelineIndex.get(a.stage) ?? 99) - (pipelineIndex.get(b.stage) ?? 99);
         case "projected_close":
           return (a, b) => cmpDateAsc(a.projectedCloseDate, b.projectedCloseDate);
+        // Alphabetical sorts use locale-aware compare with numeric
+        // collation so "Acme 2" sorts before "Acme 10". Case-insensitive
+        // so a stray uppercase letter doesn't disrupt ordering.
+        case "name_az":
+          return (a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base", numeric: true });
+        case "company_az":
+          return (a, b) => (a.companyName || "").localeCompare(b.companyName || "", undefined, { sensitivity: "base", numeric: true });
         case "recent":
           return (a, b) => cmpDateDesc(a.updatedAt, b.updatedAt);
         default:
@@ -1057,6 +1066,8 @@ function DealsPageContent() {
             <option value="value_high">Deal size (highest)</option>
             <option value="stage">Stage (pipeline order)</option>
             <option value="projected_close">Projected close (soonest)</option>
+            <option value="name_az">Deal name (A→Z)</option>
+            <option value="company_az">Company name (A→Z)</option>
           </select>
           <SortDirButton dir={sortDir} onToggle={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))} />
         </label>
@@ -1080,6 +1091,8 @@ function DealsPageContent() {
             <option value="value_high" disabled={sortBy === "value_high"}>Deal size (highest)</option>
             <option value="stage" disabled={sortBy === "stage"}>Stage (pipeline order)</option>
             <option value="projected_close" disabled={sortBy === "projected_close"}>Projected close (soonest)</option>
+            <option value="name_az" disabled={sortBy === "name_az"}>Deal name (A→Z)</option>
+            <option value="company_az" disabled={sortBy === "company_az"}>Company name (A→Z)</option>
           </select>
           {sortBy2 !== "none" && (
             <SortDirButton dir={sortDir2} onToggle={() => setSortDir2((d) => (d === "asc" ? "desc" : "asc"))} />
