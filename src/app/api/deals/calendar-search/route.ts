@@ -190,8 +190,57 @@ export async function GET(request: Request) {
     return bT - aT;
   });
 
+  // Build a domain → existing deal map so the picker can show an
+  // "Already has deal" affordance and the user doesn't accidentally
+  // create a duplicate. Single query for all of the user's
+  // non-dismissed deals; match against companyUrl and participant
+  // emails. Restricted to status != dismissed since a dismissed
+  // potential isn't really "tracked" anymore — the user can re-create.
+  const userDeals = await prisma.deal.findMany({
+    where: { userId: user.id, status: { not: "dismissed" } },
+    select: {
+      id: true,
+      name: true,
+      stage: true,
+      status: true,
+      companyUrl: true,
+      participants: { select: { email: true } },
+    },
+  });
+  const dealByDomain = new Map<string, { id: string; name: string; stage: string; status: string }>();
+  for (const d of userDeals) {
+    const slim = { id: d.id, name: d.name, stage: d.stage, status: d.status };
+    const companyDomain = d.companyUrl
+      ? d.companyUrl.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0]
+      : null;
+    if (companyDomain && !PUBLIC_EMAIL_DOMAINS.has(companyDomain)) {
+      // First deal wins so the picker stably points at the same one
+      // when multiple deals share a domain (e.g. existing + new
+      // potential during a re-engagement).
+      if (!dealByDomain.has(companyDomain)) dealByDomain.set(companyDomain, slim);
+    }
+    for (const p of d.participants) {
+      const dom = domainFromEmail(p.email || undefined);
+      if (!dom || PUBLIC_EMAIL_DOMAINS.has(dom)) continue;
+      if (!dealByDomain.has(dom)) dealByDomain.set(dom, slim);
+    }
+  }
+
+  const eventsWithDealMatch = events.map((ev) => {
+    // First non-public external attendee domain on the event drives
+    // the lookup. Same priority order as the inferredCompany above.
+    let existingDeal: typeof dealByDomain extends Map<string, infer V> ? V | null : null = null;
+    for (const a of ev.attendees) {
+      const dom = domainFromEmail(a.email);
+      if (!dom || PUBLIC_EMAIL_DOMAINS.has(dom)) continue;
+      const hit = dealByDomain.get(dom);
+      if (hit) { existingDeal = hit; break; }
+    }
+    return { ...ev, existingDeal };
+  });
+
   return NextResponse.json({
-    events,
+    events: eventsWithDealMatch,
     windowDays: { back: lookback, forward: lookforward },
     rawScanned: rawEvents.length,
   });

@@ -12,6 +12,11 @@ export interface CalendarPickerEvent {
   description: string | null;
   inferredCompany: { name: string; url: string } | null;
   attendees: Array<{ email: string; name: string | null; external: boolean }>;
+  /** Populated when at least one external attendee's email domain
+   *  matches an existing (non-dismissed) deal the user already owns —
+   *  drives the "Already has deal" affordance in the picker so the
+   *  founder doesn't double-create. */
+  existingDeal: { id: string; name: string; stage: string; status: string } | null;
 }
 
 interface FetchResult {
@@ -98,7 +103,11 @@ export default function CalendarEventPicker({
       return next;
     });
   };
-  const selectAllVisible = () => setSelectedIds(new Set(filteredEvents.map((e) => e.id)));
+  // Exclude events that already have a deal so "Select all visible"
+  // doesn't bulk-attach duplicates to the new deal being created.
+  // Users can still manually check those rows if they want to merge
+  // a meeting onto a new parallel deal.
+  const selectAllVisible = () => setSelectedIds(new Set(filteredEvents.filter((e) => !e.existingDeal).map((e) => e.id)));
   const selectNone = () => setSelectedIds(new Set());
 
   const handleAdd = () => {
@@ -202,6 +211,18 @@ export default function CalendarEventPicker({
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{ev.title}</span>
                         {ev.inferredCompany && (
                           <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">{ev.inferredCompany.name}</span>
+                        )}
+                        {ev.existingDeal && (
+                          <a
+                            href={`/deals/${ev.existingDeal.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                            title={`Existing deal — stage: ${ev.existingDeal.stage}, status: ${ev.existingDeal.status}`}
+                          >
+                            ⚠ Already on deal: {ev.existingDeal.name} ↗
+                          </a>
                         )}
                       </div>
                       <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
