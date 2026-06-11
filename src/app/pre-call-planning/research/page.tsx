@@ -365,7 +365,15 @@ function ResearchContent() {
   // we hand it straight to selectEvent so the user lands on a primed
   // form (or an existing brief if one already exists for that
   // calendar event). Runs once after first paint via a ref guard.
+  //
+  // The handoff may also carry attachToDealId — the dealId the user
+  // came from on /deals/<id>/page. When present, we stash it so the
+  // SSE complete handler can POST a research_brief entry back to that
+  // deal once the brief saves. Survives the whole session in a ref
+  // since the brief stream is async and React state changes in
+  // between aren't a problem.
   const handoffRanRef = useRef(false);
+  const attachToDealRef = useRef<{ dealId: string; entryDate: string | null; calendarEventId: string | null; attendeeEmails: string[] } | null>(null);
   useEffect(() => {
     if (handoffRanRef.current) return;
     if (loading) return;
@@ -376,14 +384,66 @@ function ResearchContent() {
       if (!raw) return;
       window.sessionStorage.removeItem("precallPlanPrefill");
       handoffRanRef.current = true;
-      const handoff = JSON.parse(raw) as UpcomingEvent | null;
+      const handoff = JSON.parse(raw) as (UpcomingEvent & {
+        attachToDealId?: string;
+        attachToDealEntryDate?: string;
+      }) | null;
       if (handoff && typeof handoff.id === "string") {
+        if (typeof handoff.attachToDealId === "string") {
+          attachToDealRef.current = {
+            dealId: handoff.attachToDealId,
+            entryDate: handoff.attachToDealEntryDate || handoff.startsAt || null,
+            calendarEventId: handoff.id,
+            attendeeEmails: (handoff.attendees || [])
+              .map((a) => a.email)
+              .filter((e): e is string => typeof e === "string" && !!e),
+          };
+        }
         void selectEvent(handoff);
       }
     } catch (err) {
       console.error("[precall research] handoff parse failed:", err);
     }
   }, [loading]);
+
+  // After a brief becomes available (from a fresh research run OR a
+  // load-by-id from the URL), fuse it onto the originating deal's
+  // timeline via the upsert endpoint. Dedup happens server-side by
+  // researchId, so this is safe to fire repeatedly. Only runs when
+  // the handoff included deal context (attachToDealRef populated).
+  // Re-attaches if the user's brief id changes (edited brief gets a
+  // refreshed preview on the deal).
+  const lastAttachedBriefIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const ctx = attachToDealRef.current;
+    if (!ctx) return;
+    if (!brief?.id) return;
+    if (lastAttachedBriefIdRef.current === brief.id) return;
+    lastAttachedBriefIdRef.current = brief.id;
+    const previewSource = brief.content || "";
+    const preview = previewSource.length > 600
+      ? previewSource.slice(0, 600).trimEnd() + "…"
+      : previewSource;
+    const titleParts: string[] = ["Pre-Call Plan"];
+    if (brief.companyName) titleParts.push(brief.companyName);
+    if (brief.contactName) titleParts.push(`w/ ${brief.contactName}`);
+    void fetch(`/api/deals/${ctx.dealId}/entries/research-brief`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        researchId: brief.id,
+        title: titleParts.join(" — "),
+        preview: preview || "Pre-Call Plan generated.",
+        sourceUrl: `/pre-call-planning/research?id=${brief.id}`,
+        entryDate: ctx.entryDate || undefined,
+        calendarEventId: ctx.calendarEventId || undefined,
+        attendeeEmails: ctx.attendeeEmails,
+      }),
+    }).catch((err) => {
+      console.error("[precall research] attach to deal failed:", err);
+      lastAttachedBriefIdRef.current = null; // allow retry on next id change
+    });
+  }, [brief?.id, brief?.content, brief?.companyName, brief?.contactName]);
 
   // Inner research runner: takes explicit input values so callers can
   // bypass the React state-update timing problem (auto-firing right
@@ -509,6 +569,9 @@ function ResearchContent() {
                 },
                 ...prev,
               ]);
+              // Deal-page fusion happens in a separate useEffect that
+              // watches brief.id — handles both this path and the
+              // "jump to existing brief" path uniformly.
             } else if (eventType === "error") {
               throw new Error(parsed.message);
             }

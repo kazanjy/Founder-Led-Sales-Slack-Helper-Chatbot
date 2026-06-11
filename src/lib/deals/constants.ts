@@ -66,6 +66,8 @@ export const ENTRY_TYPES = [
   { value: "note", label: "Note", emoji: "📝", description: "Free-form notes. Type, paste, or record a voice note that gets synthesized into a written summary." },
   { value: "linkedin", label: "LinkedIn", emoji: "💼", description: "A LinkedIn message, post, or comment relevant to this deal." },
   { value: "document", label: "Document", emoji: "📄", description: "Drop in a PDF or paste a doc — proposals, contracts, brief sheets." },
+  { value: "research_brief", label: "Pre-Call Plan", emoji: "🔬", description: "A pre-call research brief — surfaced on the timeline with a preview and a link to the full brief." },
+  { value: "recap_email", label: "Recap Email", emoji: "📨", description: "A post-call recap email draft — surfaced on the timeline with a preview and a link to the full draft." },
   { value: "chat", label: "Deal Chat", emoji: "🌊", description: "Saved breadcrumbs from chats with Mikey about this deal." },
   { value: "stage_change", label: "Stage Change", emoji: "🔀", description: "Automatic log entry written when a deal's pipeline stage changes." },
 ] as const;

@@ -1841,6 +1841,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                                   companyUrl: deal.companyUrl || "",
                                 },
                                 attendees: attendeeEmails.map((email) => ({ email, name: null, external: true })),
+                                // Round-trip the deal context so the
+                                // research page can attach a timeline
+                                // entry back to this deal once the brief
+                                // saves. Without these, the brief lives
+                                // only on the research page.
+                                attachToDealId: deal.id,
+                                attachToDealEntryDate: e.entryDate,
                               };
                               try {
                                 window.sessionStorage.setItem("precallPlanPrefill", JSON.stringify(payload));
@@ -2920,6 +2927,32 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             </div>
                           );
                         })()}
+                        {entry.type === "research_brief" && entry.sourceUrl && (
+                          <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                            <a
+                              href={entry.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800"
+                              title="Open the full Pre-Call Plan in a new tab"
+                            >
+                              🔬 Open full Pre-Call Plan ↗
+                            </a>
+                          </div>
+                        )}
+                        {entry.type === "recap_email" && entry.sourceUrl && (
+                          <div className="flex items-center gap-2 flex-wrap mt-1 mb-2">
+                            <a
+                              href={entry.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800"
+                              title="Open the full Recap Email draft in a new tab"
+                            >
+                              📨 Open full Recap Email ↗
+                            </a>
+                          </div>
+                        )}
                         {(entry.type === "email" || entry.type === "chat" || entry.type === "slack_message" || entry.type === "sms_message") && (() => {
                           // For Mikey Deal Chat breadcrumbs, "Chat With This" reopens
                           // the past conversation stored at sourceUrl = /chat/<id>.
