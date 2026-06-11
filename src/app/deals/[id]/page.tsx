@@ -1682,7 +1682,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                 </p>
               ) : (
                 <ul className="space-y-1.5">
-                  {upcoming.map((e) => {
+                  {(() => {
+                    const participantsById = new Map(deal.participants.map((p) => [p.id, p]));
+                    return upcoming.map((e) => {
                     const when = new Date(e.entryDate);
                     const dateLabel = when.toLocaleDateString(undefined, {
                       weekday: "short",
@@ -1767,6 +1769,51 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                             🔬 Pre-Call Plan
                           </button>
                         </div>
+                        {(() => {
+                          // Surface "With Alice, Bob, charlie@…" so the
+                          // upcoming row tells the user who's actually
+                          // joining the meeting. Prefer linked deal
+                          // participants (nicer names + titles via the
+                          // backlink pass), fall back to raw attendee
+                          // emails for anyone not yet seeded as a
+                          // participant.
+                          let linkedIds: string[] = [];
+                          let attendeeEmails: string[] = [];
+                          if (e.metadata) {
+                            try {
+                              const m = JSON.parse(e.metadata);
+                              if (Array.isArray(m.linkedParticipantIds)) {
+                                linkedIds = m.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+                              }
+                              if (Array.isArray(m.attendeeEmails)) {
+                                attendeeEmails = m.attendeeEmails.filter((x: unknown): x is string => typeof x === "string");
+                              }
+                            } catch { /* ignore */ }
+                          }
+                          const linked = linkedIds
+                            .map((pid) => participantsById.get(pid))
+                            .filter((p): p is NonNullable<typeof p> => !!p);
+                          const linkedEmails = new Set(
+                            linked.map((p) => p.email?.toLowerCase()).filter((e): e is string => !!e)
+                          );
+                          // Anyone in attendeeEmails who isn't already
+                          // covered by a linked DealParticipant.
+                          const extraEmails = attendeeEmails
+                            .filter((email) => !linkedEmails.has(email.toLowerCase()));
+                          if (linked.length === 0 && extraEmails.length === 0) return null;
+                          const linkedLabels = linked.map((p) => {
+                            const name = p.name.includes("@") ? (nameFromEmail(p.name) || p.name) : titleCase(p.name);
+                            return p.title ? `${name} (${p.title})` : name;
+                          });
+                          const extraLabels = extraEmails.map((email) => nameFromEmail(email) || email);
+                          const all = [...linkedLabels, ...extraLabels];
+                          return (
+                            <div className="ml-[4.75rem] mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                              <span className="uppercase tracking-wider font-medium text-gray-400">With </span>
+                              {all.join(", ")}
+                            </div>
+                          );
+                        })()}
                         {inviteDesc && (
                           <div className="ml-[4.75rem] mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 hover:line-clamp-none transition-all">
                             {/* Convert isolated single newlines into
@@ -1781,7 +1828,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         )}
                       </li>
                     );
-                  })}
+                    });
+                  })()}
                 </ul>
               )}
             </div>
