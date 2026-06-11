@@ -654,7 +654,14 @@ function SalesNarrativeContent() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            {/* Action group — moved to its own row via basis-full.
+                With 9+ buttons (Chat / Export / Link / Edit / History /
+                Extend / Clone / Delete / New), the title was getting
+                squeezed into a 1-word-per-line column. Stacking the
+                buttons under the title is a tiny vertical-density hit
+                on huge monitors but guarantees the title is readable
+                at every viewport. */}
+            <div className="flex flex-wrap items-center gap-3 basis-full">
               {isStreamingMode ? (
                 <span className="text-sm text-purple-600 font-medium flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
