@@ -1769,7 +1769,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                         </div>
                         {inviteDesc && (
                           <div className="ml-[4.75rem] mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 hover:line-clamp-none transition-all">
-                            {inviteDesc}
+                            {/* Convert isolated single newlines into
+                                paragraph breaks so the bulleted invite
+                                content keeps its structure (markdown
+                                otherwise collapses single \n into a
+                                space). Double \n\n stays as-is. */}
+                            <EntryMarkdown>
+                              {inviteDesc.replace(/(?<!\n)\n(?!\n)/g, "\n\n")}
+                            </EntryMarkdown>
                           </div>
                         )}
                       </li>
