@@ -276,7 +276,7 @@ function ResearchContent() {
   // immediately, then run PDL enrichment on the external attendees
   // and overwrite with richer name/title/company/LinkedIn when PDL
   // returns useful data.
-  const selectEvent = async (event: UpcomingEvent) => {
+  const selectEvent = async (event: UpcomingEvent, opts?: { autoRun?: boolean }) => {
     // Short-circuit: if we already have a brief for this calendar
     // event, jump straight to it instead of re-running research.
     const existingBriefId = briefsByEventId[event.id];
@@ -286,7 +286,34 @@ function ResearchContent() {
       return;
     }
     prefillFromEvent(event);
-    if (event.attendees.length === 0 || enrichingEventId) return;
+    if (event.attendees.length === 0 || enrichingEventId) {
+      // No attendees to PDL-enrich. If this came from the deal page's
+      // "Pre-Call Plan" CTA (autoRun) and we already have a company
+      // name from the prefill, fire research immediately on whatever
+      // we have — the user's intent was "run this now", not "land me
+      // on an empty form".
+      if (opts?.autoRun && event.prefill.companyName) {
+        await runResearchWithInputs({
+          companyName: event.prefill.companyName,
+          contactName: event.prefill.contactName,
+          contactTitle: event.prefill.contactTitle,
+          contactLinkedIn: event.prefill.contactLinkedIn,
+          urls: event.prefill.companyUrl,
+          calendarEvent: {
+            id: event.id,
+            title: event.title,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            description: event.description,
+            location: event.location,
+            meetingUrl: event.meetingUrl,
+            eventUrl: event.eventUrl,
+            attendees: [],
+          },
+        });
+      }
+      return;
+    }
     setEnrichingEventId(event.id);
     try {
       const res = await fetch("/api/google-calendar/enrich-event", {
@@ -331,7 +358,9 @@ function ResearchContent() {
       // domain-guessed companyName + an attendee displayName is
       // enough to run a best-effort web research brief.
       const hasFallback = !!(data.prefill.companyName && data.prefill.contactName);
-      if (pdlHits > 0 || hasFallback) {
+      // autoRun: caller (deal-page handoff) wants to run regardless of
+      // whether PDL came back with anything richer than the prefill.
+      if (pdlHits > 0 || hasFallback || (opts?.autoRun && !!data.prefill.companyName)) {
         await runResearchWithInputs({
           companyName: data.prefill.companyName,
           contactName: data.prefill.contactName,
@@ -399,7 +428,9 @@ function ResearchContent() {
               .filter((e): e is string => typeof e === "string" && !!e),
           };
         }
-        void selectEvent(handoff);
+        // autoRun: handoff implies the user wants the research to kick
+        // off immediately on landing, not to stop at a prefilled form.
+        void selectEvent(handoff, { autoRun: true });
       }
     } catch (err) {
       console.error("[precall research] handoff parse failed:", err);
