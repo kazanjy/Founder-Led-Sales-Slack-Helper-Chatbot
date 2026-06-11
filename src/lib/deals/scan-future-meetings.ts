@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getGoogleAccessToken, hasGoogleCalendarScope } from "@/lib/google";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 
 /**
  * Calendar-only forward scan. Reuses the matching logic from
@@ -136,7 +137,7 @@ async function createMeetingEntry(
     .filter(Boolean)
     .join(", ");
   const body =
-    (ev.description ? `${ev.description.trim()}\n\n` : "") +
+    (ev.description ? `${decodeHtmlEntities(ev.description.trim())}\n\n` : "") +
     (attendeeLines ? `**Attendees from ${Array.from(matchedDomains).join(", ")}:** ${attendeeLines}` : "");
 
   await prisma.dealTimelineEntry.create({

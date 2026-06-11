@@ -3,6 +3,7 @@ import { getGoogleAccessToken, hasGoogleCalendarScope } from "@/lib/google";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 import { enrichByEmail } from "@/lib/search/pdl";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 import { suggestDealNameFromCalls } from "@/lib/deals/suggest-name";
 
 /**
@@ -219,7 +220,7 @@ async function enrichCalendar(opts: {
       .filter(Boolean)
       .join(", ");
     const body =
-      (ev.description ? `${ev.description.trim()}\n\n` : "") +
+      (ev.description ? `${decodeHtmlEntities(ev.description.trim())}\n\n` : "") +
       (attendeeLine ? `**Attendees from ${opts.domain}:** ${attendeeLine}` : "");
 
     const startDate = new Date(startIso);

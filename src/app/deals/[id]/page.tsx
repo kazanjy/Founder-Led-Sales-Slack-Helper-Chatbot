@@ -12,6 +12,7 @@ import DealChatPanel from "@/components/DealChatPanel";
 import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
+import { decodeHtmlEntities } from "@/lib/html-entities";
 
 interface Participant {
   id: string;
@@ -1696,7 +1697,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     // the founder can see the agenda Mikey is also
                     // using for analysis.
                     const descBlock = (e.content || "").split(/\n\n\*\*Attendees /)[0]?.trim();
-                    const inviteDesc = descBlock && descBlock !== "(no description)" ? descBlock : null;
+                    // Decode HTML entities at render time so older
+                    // entries (imported before the decode-on-write fix)
+                    // stop showing "Let&#39;s" instead of "Let's".
+                    const inviteDesc = descBlock && descBlock !== "(no description)"
+                      ? decodeHtmlEntities(descBlock)
+                      : null;
                     return (
                       <li key={e.id} className="text-sm">
                         <div className="flex items-baseline gap-2">
