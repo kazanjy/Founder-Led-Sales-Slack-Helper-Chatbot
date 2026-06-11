@@ -125,12 +125,57 @@ export default function DealsPage() {
   );
 }
 
+// localStorage key for the deals page's persisted view config. Bump
+// the version suffix if the shape changes so stale blobs get ignored.
+const VIEW_STATE_KEY = "deals:viewState:v1";
+
+type StoredView = Partial<{
+  stage: string;
+  status: string;
+  sort: string;
+  sort2: string;
+  dir: string;
+  dir2: string;
+  layout: string;
+  health: string;
+  meeting: string;
+  activity: string;
+}>;
+
+function readStoredView(): StoredView {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(VIEW_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed as StoredView : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredView(view: StoredView) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VIEW_STATE_KEY, JSON.stringify(view));
+  } catch {
+    // localStorage might be disabled / full — degrade silently.
+  }
+}
+
 function DealsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stageFilter, setStageFilter] = useState<string>(() => searchParams.get("stage") || "all");
+  // Persisted view-state lives in localStorage so the user lands back
+  // on the same sort / layout / filter set they last used. URL params
+  // still win when present (shareable links, back-button), but a clean
+  // /deals visit falls back to whatever they had last time.
+  const [storedView] = useState<StoredView>(() => readStoredView());
+  const pick = (key: keyof StoredView, paramKey: string, fallback: string) =>
+    searchParams.get(paramKey) || storedView[key] || fallback;
+  const [stageFilter, setStageFilter] = useState<string>(() => pick("stage", "stage", "all"));
   // Account-scoped custom stages merged into the pipeline alongside
   // the built-in DEAL_STAGES.
   const [customStages, setCustomStages] = useState<CustomStage[]>([]);
@@ -179,16 +224,16 @@ function DealsPageContent() {
   const [editStageLabel, setEditStageLabel] = useState("");
   const [editStageColor, setEditStageColor] = useState("");
   const [editStageInsertAfter, setEditStageInsertAfter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "active");
+  const [statusFilter, setStatusFilter] = useState<string>(() => pick("status", "status", "active"));
   const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get("q") || "");
-  const [sortBy, setSortBy] = useState<string>(() => searchParams.get("sort") || "recent");
-  const [sortBy2, setSortBy2] = useState<string>(() => searchParams.get("sort2") || "none");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (searchParams.get("dir") as "asc" | "desc") || "desc");
-  const [sortDir2, setSortDir2] = useState<"asc" | "desc">(() => (searchParams.get("dir2") as "asc" | "desc") || "desc");
-  const [layout, setLayout] = useState<"grid" | "list">(() => (searchParams.get("layout") as "grid" | "list") || "grid");
-  const [healthFilter, setHealthFilter] = useState<string>(() => searchParams.get("health") || "all");
-  const [meetingFilter, setMeetingFilter] = useState<string>(() => searchParams.get("meeting") || "all");
-  const [activityFilter, setActivityFilter] = useState<string>(() => searchParams.get("activity") || "all");
+  const [sortBy, setSortBy] = useState<string>(() => pick("sort", "sort", "recent"));
+  const [sortBy2, setSortBy2] = useState<string>(() => pick("sort2", "sort2", "none"));
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (pick("dir", "dir", "desc") as "asc" | "desc"));
+  const [sortDir2, setSortDir2] = useState<"asc" | "desc">(() => (pick("dir2", "dir2", "desc") as "asc" | "desc"));
+  const [layout, setLayout] = useState<"grid" | "list">(() => (pick("layout", "layout", "grid") as "grid" | "list"));
+  const [healthFilter, setHealthFilter] = useState<string>(() => pick("health", "health", "all"));
+  const [meetingFilter, setMeetingFilter] = useState<string>(() => pick("meeting", "meeting", "all"));
+  const [activityFilter, setActivityFilter] = useState<string>(() => pick("activity", "activity", "all"));
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [newDealName, setNewDealName] = useState("");
   const [newDealCompany, setNewDealCompany] = useState("");
@@ -351,6 +396,21 @@ function DealsPageContent() {
       if (activityFilter !== "all") params.set("activity", activityFilter);
       const q = searchQuery.trim();
       if (q) params.set("q", q);
+      // Mirror the same config into localStorage so a clean /deals
+      // visit (no params) restores the user's last view. Search query
+      // is intentionally not persisted — it's per-session intent.
+      writeStoredView({
+        stage: stageFilter,
+        status: statusFilter,
+        sort: sortBy,
+        sort2: sortBy2,
+        dir: sortDir,
+        dir2: sortDir2,
+        layout,
+        health: healthFilter,
+        meeting: meetingFilter,
+        activity: activityFilter,
+      });
       const current = searchParams.toString();
       // Preserve unrelated params (e.g. ?new=1) by stripping our keys
       // from the existing search and merging.
