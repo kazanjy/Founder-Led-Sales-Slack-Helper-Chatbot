@@ -413,7 +413,13 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // condensed header with the same key controls.
   const headerSentinelRef = useRef<HTMLDivElement | null>(null);
   const [floatingHeaderShown, setFloatingHeaderShown] = useState(false);
+  // Watch the inline header card's intersection with the viewport.
+  // Re-runs when `deal` first becomes available — the page short-
+  // circuits to loading / not-found states before that point, so the
+  // sentinel ref doesn't exist on first paint. Without this dep the
+  // observer would attach to a null ref and never fire.
   useEffect(() => {
+    if (!deal) return;
     const el = headerSentinelRef.current;
     if (!el || typeof window === "undefined") return;
     const observer = new IntersectionObserver(
@@ -422,7 +428,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [deal]);
   const [scanningFutureMeetings, setScanningFutureMeetings] = useState(false);
   const [futureMeetingsResult, setFutureMeetingsResult] = useState<{ added: number; skipped: number; hasCalendar: boolean; hasDomain: boolean; triggeredAnalysis?: boolean } | null>(null);
 
