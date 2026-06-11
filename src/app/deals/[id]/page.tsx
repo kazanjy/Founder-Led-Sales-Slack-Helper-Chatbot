@@ -1712,6 +1712,54 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                               open ↗
                             </a>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Hand off a minimal UpcomingEvent-shaped
+                              // payload to /pre-call-planning/research.
+                              // It picks this up from sessionStorage on
+                              // mount, prefills the form, and either
+                              // jumps to an existing brief or runs a
+                              // fresh research pass.
+                              let calendarEventId: string | null = null;
+                              let attendeeEmails: string[] = [];
+                              if (e.metadata) {
+                                try {
+                                  const m = JSON.parse(e.metadata);
+                                  if (typeof m.calendarEventId === "string") calendarEventId = m.calendarEventId;
+                                  if (Array.isArray(m.attendeeEmails)) {
+                                    attendeeEmails = m.attendeeEmails.filter((x: unknown): x is string => typeof x === "string");
+                                  }
+                                } catch { /* ignore */ }
+                              }
+                              const payload = {
+                                id: calendarEventId || e.id,
+                                title: e.title || "Meeting",
+                                startsAt: e.entryDate,
+                                endsAt: null,
+                                meetingUrl: e.sourceUrl || null,
+                                eventUrl: e.sourceUrl || null,
+                                description: e.content || null,
+                                location: null,
+                                prefill: {
+                                  companyName: deal.companyName || "",
+                                  contactName: "",
+                                  contactTitle: "",
+                                  contactLinkedIn: "",
+                                  companyUrl: deal.companyUrl || "",
+                                },
+                                attendees: attendeeEmails.map((email) => ({ email, name: null, external: true })),
+                              };
+                              try {
+                                window.sessionStorage.setItem("precallPlanPrefill", JSON.stringify(payload));
+                              } catch { /* quota — fall through */ }
+                              window.open("/pre-call-planning/research", "_blank", "noopener,noreferrer");
+                            }}
+                            className="text-[11px] text-purple-600 hover:underline flex-shrink-0 font-medium"
+                            title="Open pre-call research for this meeting in a new tab"
+                          >
+                            🔬 Pre-Call Plan
+                          </button>
                         </div>
                         {inviteDesc && (
                           <div className="ml-[4.75rem] mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 hover:line-clamp-none transition-all">

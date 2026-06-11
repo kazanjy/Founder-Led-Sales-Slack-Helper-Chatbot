@@ -359,6 +359,32 @@ function ResearchContent() {
     }
   };
 
+  // Honor a sessionStorage handoff from the deal page's "📋 Pre-Call
+  // Plan" button on an upcoming meeting. The deal page writes a
+  // minimal UpcomingEvent-shaped payload and then navigates here;
+  // we hand it straight to selectEvent so the user lands on a primed
+  // form (or an existing brief if one already exists for that
+  // calendar event). Runs once after first paint via a ref guard.
+  const handoffRanRef = useRef(false);
+  useEffect(() => {
+    if (handoffRanRef.current) return;
+    if (loading) return;
+    try {
+      const raw = typeof window !== "undefined"
+        ? window.sessionStorage.getItem("precallPlanPrefill")
+        : null;
+      if (!raw) return;
+      window.sessionStorage.removeItem("precallPlanPrefill");
+      handoffRanRef.current = true;
+      const handoff = JSON.parse(raw) as UpcomingEvent | null;
+      if (handoff && typeof handoff.id === "string") {
+        void selectEvent(handoff);
+      }
+    } catch (err) {
+      console.error("[precall research] handoff parse failed:", err);
+    }
+  }, [loading]);
+
   // Inner research runner: takes explicit input values so callers can
   // bypass the React state-update timing problem (auto-firing right
   // after setCompanyName etc. would otherwise read stale state).
