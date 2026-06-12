@@ -12,7 +12,7 @@ import DealChatPanel from "@/components/DealChatPanel";
 import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
-import { decodeHtmlEntities } from "@/lib/html-entities";
+import { decodeHtmlEntities, htmlToMarkdown } from "@/lib/html-entities";
 
 interface Participant {
   id: string;
@@ -1852,11 +1852,15 @@ If you're torn between two actions, name both and tell me how to choose.`;
                     // the founder can see the agenda Mikey is also
                     // using for analysis.
                     const descBlock = (e.content || "").split(/\n\n\*\*Attendees /)[0]?.trim();
-                    // Decode HTML entities at render time so older
-                    // entries (imported before the decode-on-write fix)
-                    // stop showing "Let&#39;s" instead of "Let's".
+                    // Convert any HTML in the invite (Google Calendar /
+                    // Mixmax / Zoom auto-format descriptions with <br>,
+                    // <p>, <a> tags) into markdown so ReactMarkdown
+                    // renders the links and line breaks instead of
+                    // showing the literal tag text. htmlToMarkdown also
+                    // decodes entities at the end, so it covers what
+                    // decodeHtmlEntities used to do alone.
                     const inviteDesc = descBlock && descBlock !== "(no description)"
-                      ? decodeHtmlEntities(descBlock)
+                      ? htmlToMarkdown(descBlock)
                       : null;
                     return (
                       <li key={e.id} className="text-sm">
@@ -3144,11 +3148,23 @@ If you're torn between two actions, name both and tell me how to choose.`;
                           // raw render correctly without a backfill.
                           const PRESERVE_LINEBREAKS = new Set(["meeting", "email", "slack_message", "sms_message", "linkedin"]);
                           const renderContent = (() => {
-                            const decoded = decodeHtmlEntities(entry.content);
                             if (PRESERVE_LINEBREAKS.has(entry.type)) {
-                              return decoded.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
+                              // External-source content (calendar invites,
+                              // emails, slack copy-paste, etc.) sometimes
+                              // arrives with HTML tags inline — <br>, <p>,
+                              // <a href>. htmlToMarkdown converts those to
+                              // markdown equivalents and decodes entities
+                              // in one pass. The single-newline → blank-line
+                              // expansion that follows preserves the
+                              // structure of plain-text invites that don't
+                              // have any HTML at all.
+                              const md = htmlToMarkdown(entry.content);
+                              return md.replace(/(?<!\n)\n(?!\n)/g, "\n\n");
                             }
-                            return decoded;
+                            // Call summaries / transcripts / notes / docs
+                            // already format as proper markdown; just decode
+                            // any straggling HTML entities.
+                            return decodeHtmlEntities(entry.content);
                           })();
                           if (isShort) {
                             return (
