@@ -611,57 +611,59 @@ function SalesNarrativeContent() {
       />
       {/* Header */}
       {!showOverlay && <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-y-3">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <Link
-                href="/chat"
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </Link>
-              <div className="flex-1 min-w-0">
-                {isStreamingMode && !version ? (
-                  <>
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Sales Narrative</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                      <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Generating...
-                    </p>
-                  </>
-                ) : isEditing ? (
-                  <textarea
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Sales Narrative"
-                    rows={1}
-                    className="text-xl font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
-                    style={{ minHeight: "2.5rem" }}
-                  />
-                ) : (
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version?.title || "Sales Narrative"}</h1>
-                )}
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
-                  {version?.user && <span className="text-sm text-gray-400 ml-2">by {version.user.name || version.user.slackUserName || version.user.email}</span>}
-                </p>
-              </div>
+        <div className="max-w-7xl mx-auto px-6 py-4 space-y-3">
+          {/* Title row — always its own block so a long version title
+              can't get squeezed into a one-word-per-line column by the
+              action row next to it. */}
+          <div className="flex items-center gap-4 min-w-0">
+            <Link
+              href="/chat"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 shrink-0"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </Link>
+            <div className="flex-1 min-w-0">
+              {isStreamingMode && !version ? (
+                <>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">Sales Narrative</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <svg className="animate-spin h-3.5 w-3.5 text-purple-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Generating...
+                  </p>
+                </>
+              ) : isEditing ? (
+                <textarea
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Sales Narrative"
+                  rows={1}
+                  className="text-xl font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize"
+                  style={{ minHeight: "2.5rem" }}
+                />
+              ) : (
+                <h1
+                  className="text-xl font-semibold text-gray-900 dark:text-gray-100 truncate"
+                  title={version?.title || "Sales Narrative"}
+                >
+                  {version?.title || "Sales Narrative"}
+                </h1>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                {version?.createdAt ? `Generated ${formatDate(version.createdAt)}` : ""}
+                {version?.user && <span className="text-sm text-gray-400 ml-2">by {version.user.name || version.user.slackUserName || version.user.email}</span>}
+              </p>
             </div>
+          </div>
 
-            {/* Action group — moved to its own row via basis-full.
-                With 9+ buttons (Chat / Export / Link / Edit / History /
-                Extend / Clone / Delete / New), the title was getting
-                squeezed into a 1-word-per-line column. Stacking the
-                buttons under the title is a tiny vertical-density hit
-                on huge monitors but guarantees the title is readable
-                at every viewport. */}
-            <div className="flex flex-wrap items-center gap-3 basis-full">
+          {/* Action row — its own block under the title row so the
+              row of 9 buttons can never elbow the title. */}
+          <div className="flex flex-wrap items-center gap-3">
               {isStreamingMode ? (
                 <span className="text-sm text-purple-600 font-medium flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -824,7 +826,6 @@ function SalesNarrativeContent() {
                 </>
               )}
             </div>
-          </div>
         </div>
       </div>}
 
