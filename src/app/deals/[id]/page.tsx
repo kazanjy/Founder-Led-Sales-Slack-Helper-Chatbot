@@ -1034,6 +1034,41 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
     if (panelConversationId) syncChatUrl(panelConversationId);
   };
 
+  // Seeded Deal Chat launchers. Both spin up a fresh conversation
+  // (rather than continuing the last thread) so the seeded prompt
+  // lands on a clean slate, then auto-send it via the autoSendNonce
+  // pattern the panel already supports. The full deal context +
+  // {{SALES_NARRATIVE}} merge field are built by buildDealChatContext
+  // on the first turn — same path as a normal Deal Chat send.
+  const launchDealChatWithPrompt = (question: string) => {
+    setFocusedEntryId(null);
+    setPanelConversationId(null);
+    syncChatUrl(null);
+    setChatPanelOpen(true);
+    setAutoSendQuestion(question);
+    setAutoSendNonce((n) => n + 1);
+  };
+
+  const PREP_FOR_MEETING_PROMPT = `I'm about to walk into a meeting on this deal. Using the full deal history, current stage and status, participants, recent timeline, and my sales narrative, give me a tight meeting prep:
+
+1. The likely state of mind of each external stakeholder coming into this call (what they probably remember, what they probably care about, what they're probably worried about).
+2. The two or three highest-leverage things I should accomplish in this meeting.
+3. The specific questions I should be ready to ASK them.
+4. The specific questions I should be ready to ANSWER from them — including any objections this deal's history suggests they'll raise.
+5. The smartest next step to propose at the end of the call.
+
+Be specific and use what's actually in this deal's history — don't generalize. If something important is missing from the context, call it out so I can fill it in before the call.`;
+
+  const NEXT_BEST_ACTION_PROMPT = `Based on the full deal history, current stage and status, participants, timeline of every interaction so far, and my sales narrative, what is the single highest-leverage next action I should take on this deal right now?
+
+Tell me:
+1. The action itself (specific, concrete — not "follow up").
+2. Why it's the right move given where this deal actually is (cite the timeline).
+3. Exactly how I should execute it — who I should reach out to, what I should say or send (draft it if it's a message), and what a good response looks like.
+4. What I should be ready to do next depending on how it lands.
+
+If you're torn between two actions, name both and tell me how to choose.`;
+
   const closeChatPanel = () => {
     setChatPanelOpen(false);
     setFocusedEntryId(null);
@@ -1405,6 +1440,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
             ) : "🧠 Analyze"}
           </button>
           <button
+            onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT)}
+            className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
+            title="Prep me for an upcoming meeting on this deal"
+          >
+            📋 Prep
+          </button>
+          <button
+            onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT)}
+            className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
+            title="Suggest the next best action on this deal"
+          >
+            🎯 Next Action
+          </button>
+          <button
             onClick={startDealChat}
             className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
           >
@@ -1590,6 +1639,20 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
                     Analyzing...
                   </>
                 ) : "🧠 Analyze Deal"}
+              </button>
+              <button
+                onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT)}
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
+                title="Open Deal Chat and have Mikey prep you for an upcoming meeting using the full deal context and your sales narrative"
+              >
+                📋 Prep for a Meeting
+              </button>
+              <button
+                onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT)}
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
+                title="Open Deal Chat and have Mikey suggest the single highest-leverage next action on this deal"
+              >
+                🎯 Next Best Action
               </button>
               <button
                 onClick={startDealChat}
