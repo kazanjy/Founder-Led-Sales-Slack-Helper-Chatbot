@@ -10,6 +10,8 @@ import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRoleInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { parseDealAnalysis } from "@/lib/deals/parse-analysis";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Deal {
   id: string;
@@ -1986,7 +1988,7 @@ function DealsPageContent() {
                   </div>
                   {showRightRail && (
                     <div
-                      className="w-72 flex-shrink-0 flex flex-col gap-2 border-l border-gray-100 dark:border-gray-700 pl-4 self-stretch"
+                      className="group/rail relative w-72 flex-shrink-0 flex flex-col gap-2 border-l border-gray-100 dark:border-gray-700 pl-4 self-stretch"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <AnalysisStatusBlock
@@ -2014,6 +2016,26 @@ function DealsPageContent() {
                         section={parsedAnalysis.nextBestAction}
                         emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
                       />
+                      {/* Rail-level popover — one hover target covering
+                          the whole right rail, surfacing all three
+                          sections rendered as markdown. Replaces the
+                          older per-widget popovers so the user gets
+                          the full picture in a single hover. Anchored
+                          to the rail's right edge so it pops outward
+                          past the card. */}
+                      {(parsedAnalysis.currentState || parsedAnalysis.lastInteraction || parsedAnalysis.nextBestAction) && (
+                        <div className="hidden group-hover/rail:block absolute right-full top-0 mr-2 z-40 w-[28rem] max-w-[80vw] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-4 max-h-[70vh] overflow-y-auto">
+                          {parsedAnalysis.currentState && (
+                            <RailPopoverSection label="Current State" markdown={parsedAnalysis.currentState.full} />
+                          )}
+                          {parsedAnalysis.lastInteraction && (
+                            <RailPopoverSection label="Last Meaningful Interaction" markdown={parsedAnalysis.lastInteraction.full} />
+                          )}
+                          {parsedAnalysis.nextBestAction && (
+                            <RailPopoverSection label="Next Best Action" markdown={parsedAnalysis.nextBestAction.full} />
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                   </div>
@@ -2485,9 +2507,10 @@ function AnalysisStatusBlock({
 
 // Right-rail widget on each deal card showing one section of the
 // latest deal analysis (Current State / Last Meaningful Interaction /
-// Next Best Action). Two lines clipped in the card; hover surfaces a
-// popover with the full section content. Renders a faded "Run / Re-
-// analyze to populate" hint when the section is missing.
+// Next Best Action). Two lines clipped in the card. The hover popover
+// that exposes the full content is rendered at the rail level (one
+// for the whole rail) so the user gets the full picture from a single
+// hover — see the RailPopoverSection block in the card markup.
 function AnalysisWidget({
   label,
   section,
@@ -2498,32 +2521,40 @@ function AnalysisWidget({
   emptyHint: string | null;
 }) {
   return (
-    <div className="group/widget relative text-[11px] leading-snug">
+    <div className="text-[11px] leading-snug">
       <div className="font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px] mb-0.5">
         {label}
       </div>
       {section ? (
-        <>
-          <div className="text-gray-700 dark:text-gray-200 line-clamp-2">
-            {section.headline}
-          </div>
-          {/* Hover popover — full section content. Positioned to the
-              left of the rail so it doesn't fall off the right edge
-              of the page on narrow viewports. */}
-          <div className="hidden group-hover/widget:block absolute right-0 top-full mt-1 z-30 w-96 max-w-[80vw] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
-              {label}
-            </div>
-            <div className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap max-h-72 overflow-y-auto">
-              {section.full}
-            </div>
-          </div>
-        </>
+        // Inline markdown so leading **bold** / *italic* in the
+        // analyzer's bullets render correctly even in the clipped
+        // headline. line-clamp-2 keeps the visual rhythm; the full
+        // section text shows in the rail popover.
+        <div className="text-gray-700 dark:text-gray-200 line-clamp-2 prose prose-sm max-w-none prose-p:my-0 prose-strong:font-semibold">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.headline}</ReactMarkdown>
+        </div>
       ) : (
         <div className="text-gray-300 dark:text-gray-600 italic">
           {emptyHint || "—"}
         </div>
       )}
+    </div>
+  );
+}
+
+// One section inside the rail-level hover popover. Renders the full
+// markdown content for Current State / Last Meaningful Interaction /
+// Next Best Action with proper prose styles so bullets, bold, and
+// links all read correctly.
+function RailPopoverSection({ label, markdown }: { label: string; markdown: string }) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1">
+        {label}
+      </div>
+      <div className="text-xs text-gray-700 dark:text-gray-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:font-semibold">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+      </div>
     </div>
   );
 }
