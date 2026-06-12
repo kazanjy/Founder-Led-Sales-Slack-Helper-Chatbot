@@ -224,6 +224,9 @@ A tight bullet list of what's new or shifted since the previous analysis. Focus 
 ## Deal Summary
 A 2-3 sentence overview of where this deal stands now.
 
+## Last Meaningful Interaction
+ONE sentence summarizing the most consequential thing that happened on this deal since the last analysis (or in the past 2 weeks if nothing else qualifies). Cite the specific timeline entry by date — what shifted, what was confirmed, what was promised, or what concern surfaced. Example format: "Jun 4 — Ameya confirmed on the security review call that procurement sign-off is gated on the SOC 2 Type II report." Skip generic descriptions of the activity ("a discovery call happened") — focus on what about it actually moves the deal.
+
 ## Strengths
 What's going well — champion engagement, urgency signals, technical fit, etc.
 
@@ -240,6 +243,9 @@ Based on the evidence, recommend what pipeline stage this deal should be in and 
 A single-line overall verdict: Excellent / Good / Fair / Poor + one sentence justifying it. This must match the MIKEY_HEALTH footer below and reflect the same evidence cited in Strengths and Risks & Gaps.`
     : `## Deal Summary
 A 2-3 sentence overview of where this deal stands.
+
+## Last Meaningful Interaction
+ONE sentence summarizing the most consequential thing that happened on this deal recently. Cite the specific timeline entry by date — what shifted, what was confirmed, what was promised, or what concern surfaced. Example format: "Jun 4 — Ameya confirmed on the security review call that procurement sign-off is gated on the SOC 2 Type II report." Skip generic descriptions of the activity ("a discovery call happened") — focus on what about it actually moves the deal.
 
 ## Strengths
 What's going well — champion engagement, urgency signals, technical fit, etc.

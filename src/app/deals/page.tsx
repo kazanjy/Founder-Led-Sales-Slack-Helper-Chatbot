@@ -9,6 +9,7 @@ import CalendarEventPicker, { type CalendarPickerEvent } from "@/components/Cale
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRoleInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
+import { parseDealAnalysis } from "@/lib/deals/parse-analysis";
 
 interface Deal {
   id: string;
@@ -230,7 +231,7 @@ function DealsPageContent() {
   const [sortBy2, setSortBy2] = useState<string>(() => pick("sort2", "sort2", "none"));
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (pick("dir", "dir", "desc") as "asc" | "desc"));
   const [sortDir2, setSortDir2] = useState<"asc" | "desc">(() => (pick("dir2", "dir2", "desc") as "asc" | "desc"));
-  const [layout, setLayout] = useState<"grid" | "list">(() => (pick("layout", "layout", "grid") as "grid" | "list"));
+  const [layout, setLayout] = useState<"grid" | "list">(() => (pick("layout", "layout", "list") as "grid" | "list"));
   const [healthFilter, setHealthFilter] = useState<string>(() => pick("health", "health", "all"));
   const [meetingFilter, setMeetingFilter] = useState<string>(() => pick("meeting", "meeting", "all"));
   const [activityFilter, setActivityFilter] = useState<string>(() => pick("activity", "activity", "all"));
@@ -390,7 +391,7 @@ function DealsPageContent() {
       if (sortBy2 !== "none") params.set("sort2", sortBy2);
       if (sortDir !== NATURAL_DIR[sortBy]) params.set("dir", sortDir);
       if (sortBy2 !== "none" && sortDir2 !== NATURAL_DIR[sortBy2]) params.set("dir2", sortDir2);
-      if (layout !== "grid") params.set("layout", layout);
+      if (layout !== "list") params.set("layout", layout);
       if (healthFilter !== "all") params.set("health", healthFilter);
       if (meetingFilter !== "all") params.set("meeting", meetingFilter);
       if (activityFilter !== "all") params.set("activity", activityFilter);
@@ -1712,15 +1713,21 @@ function DealsPageContent() {
                   loadDeals();
                 }
               };
+              const parsedAnalysis = parseDealAnalysis(deal.lastAnalysis);
+              const showRightRail = layout === "list";
               return (
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
                   className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-3 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
                 >
-                  {/* Title row — title + companyName inline, stage pill on
-                      the right. Halves the vertical footprint vs. the
-                      old two-row title + subtitle layout. */}
+                  <div className={showRightRail ? "flex items-start gap-4" : ""}>
+                    <div className={showRightRail ? "min-w-0 flex-1" : ""}>
+                  {/* Title row — title + companyName inline. The Stage
+                      chip used to sit on the right edge here; in the
+                      new layout it lives in the metadata row next to
+                      Status so the right side of the card is free for
+                      analysis widgets. */}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div className="min-w-0 flex-1 flex items-baseline gap-2">
                       {deal.status === "potential" && (
@@ -1744,6 +1751,11 @@ function DealsPageContent() {
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{deal.name}</h3>
                       <span className="text-sm text-gray-400 dark:text-gray-500 truncate">· {deal.companyName}</span>
                     </div>
+                  </div>
+                  {/* Metadata row — Stage + Status + counts + value +
+                      health + last activity + next meeting, all on one
+                      line that wraps gracefully on narrow screens. */}
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                     <InlinePillSelect
                       currentValue={stageInfo.value}
                       currentLabel={stageInfo.label}
@@ -1751,12 +1763,6 @@ function DealsPageContent() {
                       options={pipeline.map((p) => ({ value: p.value, label: p.label, color: p.color }))}
                       onChange={(value) => patchDeal({ stage: value })}
                     />
-                  </div>
-                  {/* Metadata row — status + counts + value + health +
-                      last activity + next meeting, all on one line that
-                      wraps gracefully on narrow screens. Was two rows
-                      before. */}
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                     <InlinePillSelect
                       currentValue={statusInfo.value}
                       currentLabel={statusInfo.label}
@@ -1942,6 +1948,34 @@ function DealsPageContent() {
                       )}
                     </div>
                   )}
+                  </div>
+                  {showRightRail && (
+                    <div
+                      className="w-72 flex-shrink-0 flex flex-col gap-2 border-l border-gray-100 dark:border-gray-700 pl-4 self-stretch"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AnalysisWidget
+                        label="Current State"
+                        section={parsedAnalysis.currentState}
+                        emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
+                      />
+                      <AnalysisWidget
+                        label="Last Meaningful Interaction"
+                        section={parsedAnalysis.lastInteraction}
+                        emptyHint={
+                          deal.lastAnalysis
+                            ? "Re-analyze to populate this section"
+                            : "Run analysis to populate"
+                        }
+                      />
+                      <AnalysisWidget
+                        label="Next Best Action"
+                        section={parsedAnalysis.nextBestAction}
+                        emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
+                      />
+                    </div>
+                  )}
+                  </div>
                 </Link>
               );
             })}
@@ -2329,6 +2363,51 @@ interface PillOption {
   value: string;
   label: string;
   color: string;
+}
+
+// Right-rail widget on each deal card showing one section of the
+// latest deal analysis (Current State / Last Meaningful Interaction /
+// Next Best Action). Two lines clipped in the card; hover surfaces a
+// popover with the full section content. Renders a faded "Run / Re-
+// analyze to populate" hint when the section is missing.
+function AnalysisWidget({
+  label,
+  section,
+  emptyHint,
+}: {
+  label: string;
+  section: { headline: string; full: string } | null;
+  emptyHint: string | null;
+}) {
+  return (
+    <div className="group/widget relative text-[11px] leading-snug">
+      <div className="font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px] mb-0.5">
+        {label}
+      </div>
+      {section ? (
+        <>
+          <div className="text-gray-700 dark:text-gray-200 line-clamp-2">
+            {section.headline}
+          </div>
+          {/* Hover popover — full section content. Positioned to the
+              left of the rail so it doesn't fall off the right edge
+              of the page on narrow viewports. */}
+          <div className="hidden group-hover/widget:block absolute right-0 top-full mt-1 z-30 w-96 max-w-[80vw] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
+              {label}
+            </div>
+            <div className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap max-h-72 overflow-y-auto">
+              {section.full}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="text-gray-300 dark:text-gray-600 italic">
+          {emptyHint || "—"}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function InlinePillSelect({
