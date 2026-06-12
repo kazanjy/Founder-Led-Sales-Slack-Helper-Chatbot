@@ -24,6 +24,10 @@ interface Deal {
   createdAt: string;
   lastActivityAt: string | null;
   nextMeetingAt: string | null;
+  // Count of substantive (non-chat) timeline entries added since the
+  // last analysis. Drives the "N new entries since last analysis"
+  // affordance on the right rail.
+  newEntriesSinceAnalysis: number;
   dealValue: number | null;
   mikeyHealth: string | null;
   projectedCloseDate: string | null;
@@ -205,6 +209,10 @@ function DealsPageContent() {
   // Bulk analyze state — drives the inline progress banner that shows
   // each visible deal's analyzer status as the SSE stream lands.
   const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
+  // Set of deal IDs currently running a per-card "Update Analysis"
+  // CTA on the right rail. Drives the spinner state on each card's
+  // Analysis Status block independently of the page-wide bulk run.
+  const [updatingAnalysisIds, setUpdatingAnalysisIds] = useState<Set<string>>(new Set());
   const [bulkAnalyzeProgress, setBulkAnalyzeProgress] = useState<{
     total: number;
     current: number;
@@ -1715,6 +1723,33 @@ function DealsPageContent() {
               };
               const parsedAnalysis = parseDealAnalysis(deal.lastAnalysis);
               const showRightRail = layout === "list";
+              const updatingAnalysis = updatingAnalysisIds.has(deal.id);
+              const runUpdateAnalysis = async () => {
+                setUpdatingAnalysisIds((prev) => {
+                  const next = new Set(prev);
+                  next.add(deal.id);
+                  return next;
+                });
+                try {
+                  const res = await fetch(`/api/deals/${deal.id}/analyze`, { method: "POST" });
+                  if (res.ok) {
+                    // Reload list so the new lastAnalysis / lastAnalyzedAt
+                    // / mikeyHealth / newEntriesSinceAnalysis fields all
+                    // refresh in lockstep.
+                    await loadDeals();
+                  } else {
+                    console.error("[deals] per-card analyze failed:", await res.text());
+                  }
+                } catch (err) {
+                  console.error("[deals] per-card analyze threw:", err);
+                } finally {
+                  setUpdatingAnalysisIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(deal.id);
+                    return next;
+                  });
+                }
+              };
               return (
                 <Link
                   key={deal.id}
@@ -1954,6 +1989,12 @@ function DealsPageContent() {
                       className="w-72 flex-shrink-0 flex flex-col gap-2 border-l border-gray-100 dark:border-gray-700 pl-4 self-stretch"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <AnalysisStatusBlock
+                        lastAnalyzedAt={deal.lastAnalyzedAt}
+                        newEntriesSinceAnalysis={deal.newEntriesSinceAnalysis}
+                        updating={updatingAnalysis}
+                        onUpdate={runUpdateAnalysis}
+                      />
                       <AnalysisWidget
                         label="Current State"
                         section={parsedAnalysis.currentState}
@@ -2363,6 +2404,83 @@ interface PillOption {
   value: string;
   label: string;
   color: string;
+}
+
+// Mini-header at the top of the right rail showing when the deal
+// analysis was last run, how many timeline entries have been added
+// since, and an "Update Analysis" CTA. Visually distinct from the
+// three content widgets below so the user reads it as a status
+// banner, not as analysis output.
+function AnalysisStatusBlock({
+  lastAnalyzedAt,
+  newEntriesSinceAnalysis,
+  updating,
+  onUpdate,
+}: {
+  lastAnalyzedAt: string | null;
+  newEntriesSinceAnalysis: number;
+  updating: boolean;
+  onUpdate: () => void;
+}) {
+  const hasAnalysis = !!lastAnalyzedAt;
+  const stale = hasAnalysis && newEntriesSinceAnalysis > 0;
+  // Three visual states drive the colors:
+  //  - never analyzed → purple call-to-action
+  //  - stale (new entries since last run) → amber warning
+  //  - fresh → neutral gray, CTA still present but quiet
+  const containerClass = !hasAnalysis
+    ? "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700"
+    : stale
+      ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700"
+      : "bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-700";
+  const buttonClass = stale || !hasAnalysis
+    ? "bg-purple-600 hover:bg-purple-700 text-white"
+    : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700";
+  return (
+    <div className={`rounded-md border px-2 py-1.5 ${containerClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1 text-[11px] leading-snug">
+          <div className="font-medium text-gray-700 dark:text-gray-200">
+            {hasAnalysis ? (
+              <>Analyzed {formatRelative(lastAnalyzedAt)}</>
+            ) : (
+              <>Never analyzed</>
+            )}
+          </div>
+          {stale && (
+            <div className="text-amber-700 dark:text-amber-300">
+              {newEntriesSinceAnalysis} new {newEntriesSinceAnalysis === 1 ? "entry" : "entries"} since
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!updating) onUpdate();
+          }}
+          disabled={updating}
+          className={`text-[11px] font-medium rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-60 ${buttonClass}`}
+          title={hasAnalysis ? "Re-run the deal analyzer" : "Run the deal analyzer for the first time"}
+        >
+          {updating ? (
+            <>
+              <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Updating
+            </>
+          ) : hasAnalysis ? (
+            "🧠 Update"
+          ) : (
+            "🧠 Analyze"
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // Right-rail widget on each deal card showing one section of the

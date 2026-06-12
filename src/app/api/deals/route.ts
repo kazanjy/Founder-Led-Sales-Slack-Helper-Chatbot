@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const [deals, lastActivity, nextMeeting] = await Promise.all([
+    const [deals, lastActivity, nextMeeting, newSinceAnalysis] = await Promise.all([
       prisma.deal.findMany({
         where: { userId: user.id },
         orderBy: { updatedAt: "desc" },
@@ -55,15 +55,36 @@ export async function GET() {
         },
         _min: { entryDate: true },
       }),
+      // Count of substantive timeline entries added since each deal's
+      // last analysis. Drives the "N new entries since last analysis"
+      // affordance on the right-rail Analysis Status block. Excludes
+      // chat breadcrumbs (they're not new deal context) and deals
+      // that have never been analyzed (the widget shows "Never
+      // analyzed" for those instead). Using $queryRaw because the
+      // per-deal "newer than this deal's own lastAnalyzedAt" filter
+      // can't be expressed in a Prisma groupBy without a per-row
+      // self-join.
+      prisma.$queryRaw<Array<{ deal_id: string; cnt: bigint }>>`
+        SELECT t."dealId" as deal_id, COUNT(*)::bigint as cnt
+        FROM deal_timeline_entries t
+        JOIN deals d ON d.id = t."dealId"
+        WHERE d."userId" = ${user.id}
+          AND d."lastAnalyzedAt" IS NOT NULL
+          AND t."createdAt" > d."lastAnalyzedAt"
+          AND t.type != 'chat'
+        GROUP BY t."dealId"
+      `,
     ]);
 
     const lastById = new Map(lastActivity.map((r) => [r.dealId, r._max.entryDate]));
     const nextById = new Map(nextMeeting.map((r) => [r.dealId, r._min.entryDate]));
+    const newSinceById = new Map(newSinceAnalysis.map((r) => [r.deal_id, Number(r.cnt)]));
 
     const enriched = deals.map((d) => ({
       ...d,
       lastActivityAt: lastById.get(d.id) || null,
       nextMeetingAt: nextById.get(d.id) || null,
+      newEntriesSinceAnalysis: newSinceById.get(d.id) || 0,
     }));
 
     return NextResponse.json({ deals: enriched });
