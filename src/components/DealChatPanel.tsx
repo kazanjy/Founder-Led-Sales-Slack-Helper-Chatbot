@@ -148,6 +148,19 @@ export default function DealChatPanel({
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Auto-resize the textarea up to a cap as the user types. Mirrors the
+  // Claude / ChatGPT pattern: starts ~2 rows tall, grows line-by-line as
+  // content is added, stops growing at ~10 rows and starts internal
+  // scrolling instead. Driven off the input value so it re-fires after
+  // setInput("") on send too (snaps back to the min).
+  useEffect(() => {
+    const ta = inputRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    const MAX_PX = 240;
+    ta.style.height = `${Math.min(ta.scrollHeight, MAX_PX)}px`;
+  }, [input]);
+
   // When the user sends a new message, snap the just-added user bubble to
   // the top of the scroll area so the prompt stays visible while the
   // assistant's reply streams in below it. We deliberately don't follow the
@@ -541,7 +554,8 @@ export default function DealChatPanel({
             placeholder="Ask about this deal…"
             rows={2}
             disabled={sending}
-            className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-60"
+            style={{ minHeight: "52px", maxHeight: "240px" }}
+            className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-60 overflow-y-auto"
           />
           <button
             type="button"
