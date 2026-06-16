@@ -2111,6 +2111,57 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     setDragOverNextTask(null);
   };
 
+  // Build the flat-sorted (newest / oldest / priority) row list at
+  // component level so we can hand it to usePinnedOrder, which keeps
+  // a task from jumping out from under the user's mouse when the
+  // priority pill is changed while the priority sort is active. The
+  // grouped "manual" view doesn't need this — moves there are
+  // user-driven, not sort-driven. Declared BEFORE the !dataLoaded
+  // early return so the hook count stays constant across the loading
+  // → loaded transition (React error #310 fix).
+  type FlatSortedRow = { task: Task; goal: Goal; parent: Task | null };
+  const flatSortedRows: FlatSortedRow[] = (() => {
+    if (taskSort === "manual" || goals.length === 0) return [];
+    const isSettledRow = (t: Task) =>
+      t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+    const visibleGoals = goals.filter((g) =>
+      !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
+    );
+    const rows: FlatSortedRow[] = [];
+    for (const goal of visibleGoals) {
+      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+      const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
+      for (const t of goal.tasks) {
+        if (hideForGoal && isSettledRow(t)) continue;
+        const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
+        rows.push({ task: t, goal, parent });
+      }
+    }
+    const priorityRankLocal = (p: string | null | undefined): number => {
+      if (p === "P0") return 0;
+      if (p === "P1") return 1;
+      if (p === "P2") return 2;
+      return 3;
+    };
+    rows.sort((a, b) => {
+      const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
+      const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
+      if (taskSort === "priority") {
+        const aR = priorityRankLocal(a.task.priority);
+        const bR = priorityRankLocal(b.task.priority);
+        if (aR !== bR) return aR - bR;
+        return bMs - aMs;
+      }
+      return taskSort === "newest" ? bMs - aMs : aMs - bMs;
+    });
+    return rows;
+  })();
+
+  const { ordered: orderedFlatSortedRows, pin: pinFlatRow } = usePinnedOrder(
+    flatSortedRows,
+    (r) => r.task.id
+  );
+
   // ── Render ─────────────────────────────────────────────────────
 
   if (!dataLoaded) {
@@ -2178,55 +2229,6 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       </div>
     );
   }
-
-  // Build the flat-sorted (newest / oldest / priority) row list at
-  // component level so we can hand it to usePinnedOrder, which keeps
-  // a task from jumping out from under the user's mouse when the
-  // priority pill is changed while the priority sort is active. The
-  // grouped "manual" view doesn't need this — moves there are
-  // user-driven, not sort-driven.
-  type FlatSortedRow = { task: Task; goal: Goal; parent: Task | null };
-  const flatSortedRows: FlatSortedRow[] = (() => {
-    if (taskSort === "manual" || goals.length === 0) return [];
-    const isSettledRow = (t: Task) =>
-      t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
-    const visibleGoals = goals.filter((g) =>
-      !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
-    );
-    const rows: FlatSortedRow[] = [];
-    for (const goal of visibleGoals) {
-      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
-      const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
-      for (const t of goal.tasks) {
-        if (hideForGoal && isSettledRow(t)) continue;
-        const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
-        rows.push({ task: t, goal, parent });
-      }
-    }
-    const priorityRankLocal = (p: string | null | undefined): number => {
-      if (p === "P0") return 0;
-      if (p === "P1") return 1;
-      if (p === "P2") return 2;
-      return 3;
-    };
-    rows.sort((a, b) => {
-      const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
-      const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
-      if (taskSort === "priority") {
-        const aR = priorityRankLocal(a.task.priority);
-        const bR = priorityRankLocal(b.task.priority);
-        if (aR !== bR) return aR - bR;
-        return bMs - aMs;
-      }
-      return taskSort === "newest" ? bMs - aMs : aMs - bMs;
-    });
-    return rows;
-  })();
-
-  const { ordered: orderedFlatSortedRows, pin: pinFlatRow } = usePinnedOrder(
-    flatSortedRows,
-    (r) => r.task.id
-  );
 
   return (
     <div className="space-y-6 mb-8">
