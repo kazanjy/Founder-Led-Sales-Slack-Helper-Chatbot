@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { TaskComments } from "@/components/TaskComments";
 import { RowActionsMenu, type RowAction } from "@/components/RowActionsMenu";
 import ReadinessTray from "@/components/ReadinessTray";
+import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
 
 // Loaded only on the client — TipTap pulls in a chunk we don't want to
 // pay for on SSR. Same pattern used by TaskComments for its comment
@@ -2178,6 +2179,55 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     );
   }
 
+  // Build the flat-sorted (newest / oldest / priority) row list at
+  // component level so we can hand it to usePinnedOrder, which keeps
+  // a task from jumping out from under the user's mouse when the
+  // priority pill is changed while the priority sort is active. The
+  // grouped "manual" view doesn't need this — moves there are
+  // user-driven, not sort-driven.
+  type FlatSortedRow = { task: Task; goal: Goal; parent: Task | null };
+  const flatSortedRows: FlatSortedRow[] = (() => {
+    if (taskSort === "manual" || goals.length === 0) return [];
+    const isSettledRow = (t: Task) =>
+      t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+    const visibleGoals = goals.filter((g) =>
+      !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
+    );
+    const rows: FlatSortedRow[] = [];
+    for (const goal of visibleGoals) {
+      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+      const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
+      for (const t of goal.tasks) {
+        if (hideForGoal && isSettledRow(t)) continue;
+        const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
+        rows.push({ task: t, goal, parent });
+      }
+    }
+    const priorityRankLocal = (p: string | null | undefined): number => {
+      if (p === "P0") return 0;
+      if (p === "P1") return 1;
+      if (p === "P2") return 2;
+      return 3;
+    };
+    rows.sort((a, b) => {
+      const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
+      const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
+      if (taskSort === "priority") {
+        const aR = priorityRankLocal(a.task.priority);
+        const bR = priorityRankLocal(b.task.priority);
+        if (aR !== bR) return aR - bR;
+        return bMs - aMs;
+      }
+      return taskSort === "newest" ? bMs - aMs : aMs - bMs;
+    });
+    return rows;
+  })();
+
+  const { ordered: orderedFlatSortedRows, pin: pinFlatRow } = usePinnedOrder(
+    flatSortedRows,
+    (r) => r.task.id
+  );
+
   return (
     <div className="space-y-6 mb-8">
       <ReadinessTray
@@ -2966,49 +3016,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             </div>
           )}
           {taskSort !== "manual" && goals.length > 0 && (() => {
-            // ── Flat date-sorted view ─────────────────────────────
-            // Pull every task + subtask from every visible goal,
-            // sort by createdAt, and render a single flat list. Each
-            // row keeps a small breadcrumb chip naming the goal
-            // (and parent task for subtasks) so users don't lose
-            // bucket context. Heavier interactions (drag, move,
-            // send-to-top) stay scoped to the grouped view.
-            type FlatRow = { task: Task; goal: Goal; parent: Task | null };
-            const rows: FlatRow[] = [];
+            // Flat newest/oldest/priority view. Row computation and
+            // sorting live at component level so usePinnedOrder can
+            // freeze the order when a task is being edited — see
+            // flatSortedRows / orderedFlatSortedRows above. The
+            // settled check is still used locally to dim rows.
+            const rows = orderedFlatSortedRows;
             const isSettledRow = (t: Task) =>
               t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
-            const visibleGoals = goals.filter((g) =>
-              !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
-            );
-            for (const goal of visibleGoals) {
-              const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
-              const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
-              for (const t of goal.tasks) {
-                if (hideForGoal && isSettledRow(t)) continue;
-                const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
-                rows.push({ task: t, goal, parent });
-              }
-            }
-            // Lower number = higher priority. Unranked sinks to the
-            // bottom regardless of date.
-            const priorityRank = (p: string | null | undefined): number => {
-              if (p === "P0") return 0;
-              if (p === "P1") return 1;
-              if (p === "P2") return 2;
-              return 3;
-            };
-            rows.sort((a, b) => {
-              const aMs = a.task.createdAt ? new Date(a.task.createdAt).getTime() : 0;
-              const bMs = b.task.createdAt ? new Date(b.task.createdAt).getTime() : 0;
-              if (taskSort === "priority") {
-                const aR = priorityRank(a.task.priority);
-                const bR = priorityRank(b.task.priority);
-                if (aR !== bR) return aR - bR;
-                // Within the same priority bucket, most-recent first.
-                return bMs - aMs;
-              }
-              return taskSort === "newest" ? bMs - aMs : aMs - bMs;
-            });
 
             if (rows.length === 0) {
               return (
@@ -3038,6 +3053,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     <li
                       key={task.id}
                       id={`task-${task.id}`}
+                      data-pinned-id={task.id}
+                      onMouseDown={() => pinFlatRow(task.id)}
                       className={`p-3 rounded-lg border bg-white dark:bg-gray-900/40 ${parent ? "border-l-4 border-l-gray-300 dark:border-l-gray-600 border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700"}`}
                     >
                       <div className="flex items-baseline gap-2 text-[11px] text-gray-500 dark:text-gray-400 mb-1 flex-wrap">

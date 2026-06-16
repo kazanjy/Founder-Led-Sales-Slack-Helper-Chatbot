@@ -10,6 +10,7 @@ import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRoleInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { parseDealAnalysis } from "@/lib/deals/parse-analysis";
+import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -955,6 +956,15 @@ function DealsPageContent() {
     });
   })();
 
+  // Stable-order projection: keeps a card from jumping out from under
+  // the user's mouse when an inline edit (stage / status / value /
+  // close-date) changes the sort key. Snapshot freezes on mousedown
+  // inside a card and clears on the next outside-click.
+  const { ordered: orderedFilteredDeals, pin: pinDealOrder } = usePinnedOrder(
+    filteredDeals,
+    (d) => d.id
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <SalesNavBar />
@@ -1717,7 +1727,7 @@ function DealsPageContent() {
               );
             })()}
           <div className={layout === "list" ? "flex flex-col gap-3" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
-            {filteredDeals.map((deal) => {
+            {orderedFilteredDeals.map((deal) => {
               const stageInfo = resolveStage(deal.stage, customStages);
               const statusInfo = getStatusInfo(deal.status);
               const pipeline = mergePipeline(customStages, archivedBuiltinStages);
@@ -1767,6 +1777,8 @@ function DealsPageContent() {
                 <Link
                   key={deal.id}
                   href={`/deals/${deal.id}`}
+                  data-pinned-id={deal.id}
+                  onMouseDown={() => pinDealOrder(deal.id)}
                   className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-3 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
                 >
                   <div className={showRightRail ? "flex items-start gap-4" : ""}>
