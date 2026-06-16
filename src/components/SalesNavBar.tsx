@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -62,6 +62,7 @@ interface CompletionStatus {
 
 export default function SalesNavBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
@@ -69,11 +70,22 @@ export default function SalesNavBar() {
   const [hiringOpen, setHiringOpen] = useState(false);
   const [gtmMaturityOpen, setGtmMaturityOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Quick-search dropdown that hangs off the Deals tab. Keeps the
+  // search input + result list local to the nav so the founder can
+  // jump to a known deal from anywhere in the app without first
+  // navigating to /deals.
+  const [dealsSearchOpen, setDealsSearchOpen] = useState(false);
+  const [dealsSearchQuery, setDealsSearchQuery] = useState("");
+  const [dealsSearchList, setDealsSearchList] = useState<Array<{ id: string; name: string; companyName: string; stage: string; status: string }>>([]);
+  const [dealsSearchLoading, setDealsSearchLoading] = useState(false);
+  const [dealsSearchHighlight, setDealsSearchHighlight] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contentDropdownRef = useRef<HTMLDivElement>(null);
   const callExecDropdownRef = useRef<HTMLDivElement>(null);
   const hiringDropdownRef = useRef<HTMLDivElement>(null);
   const gtmMaturityDropdownRef = useRef<HTMLDivElement>(null);
+  const dealsSearchDropdownRef = useRef<HTMLDivElement>(null);
+  const dealsSearchInputRef = useRef<HTMLInputElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [impersonating, setImpersonating] = useState<{ active: boolean; userName: string | null }>({ active: false, userName: null });
 
@@ -175,12 +187,55 @@ export default function SalesNavBar() {
       if (gtmMaturityDropdownRef.current && !gtmMaturityDropdownRef.current.contains(e.target as Node)) {
         setGtmMaturityOpen(false);
       }
+      if (dealsSearchDropdownRef.current && !dealsSearchDropdownRef.current.contains(e.target as Node)) {
+        setDealsSearchOpen(false);
+      }
     }
-    if (playbookOpen || contentOpen || callExecOpen || hiringOpen || gtmMaturityOpen) {
+    if (playbookOpen || contentOpen || callExecOpen || hiringOpen || gtmMaturityOpen || dealsSearchOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [playbookOpen, contentOpen, callExecOpen, hiringOpen, gtmMaturityOpen]);
+  }, [playbookOpen, contentOpen, callExecOpen, hiringOpen, gtmMaturityOpen, dealsSearchOpen]);
+
+  // Lazy-load the deals list the first time the search dropdown opens
+  // — keeps the cost off every nav mount. Re-fetches on each open so
+  // newly-created deals show up without a full page reload.
+  useEffect(() => {
+    if (!dealsSearchOpen) return;
+    let cancelled = false;
+    setDealsSearchLoading(true);
+    fetch("/api/deals")
+      .then((res) => (res.ok ? res.json() : { deals: [] }))
+      .then((data: { deals?: Array<{ id: string; name: string; companyName: string; stage: string; status: string }> }) => {
+        if (cancelled) return;
+        setDealsSearchList(
+          (data.deals || []).map((d) => ({
+            id: d.id,
+            name: d.name,
+            companyName: d.companyName,
+            stage: d.stage,
+            status: d.status,
+          }))
+        );
+      })
+      .catch((err) => console.error("[nav deals search] fetch failed:", err))
+      .finally(() => {
+        if (!cancelled) setDealsSearchLoading(false);
+      });
+    // Pop focus into the input after the dropdown mounts so the user
+    // can start typing immediately.
+    queueMicrotask(() => dealsSearchInputRef.current?.focus());
+    return () => {
+      cancelled = true;
+    };
+  }, [dealsSearchOpen]);
+
+  // Reset the highlight cursor whenever the query changes so the user
+  // doesn't end up with a highlight pointing past the new shorter
+  // match list.
+  useEffect(() => {
+    setDealsSearchHighlight(0);
+  }, [dealsSearchQuery, dealsSearchOpen]);
 
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
@@ -447,17 +502,128 @@ export default function SalesNavBar() {
             )}
           </div>
 
-          {/* Deals */}
-          <Link
-            href="/deals"
-            className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
-              isActive("/deals")
-                ? "border-purple-600 text-purple-600"
-                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
-            }`}
-          >
-            💼 Deals
-          </Link>
+          {/* Deals — Link + adjacent search chevron. Clicking the
+              label navigates to /deals as before; clicking the
+              chevron opens a quick-search dropdown so the founder can
+              jump straight to a known deal from anywhere in the app. */}
+          <div className="relative flex items-stretch" ref={dealsSearchDropdownRef}>
+            <Link
+              href="/deals"
+              className={`pl-2 pr-1 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isActive("/deals")
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
+              }`}
+            >
+              💼 Deals
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setDealsSearchOpen((v) => !v);
+                setPlaybookOpen(false);
+                setContentOpen(false);
+                setCallExecOpen(false);
+                setHiringOpen(false);
+                setGtmMaturityOpen(false);
+              }}
+              className={`pl-1 pr-2 py-3 border-b-2 transition-colors ${
+                isActive("/deals")
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
+              }`}
+              title="Quick search deals"
+              aria-label="Quick search deals"
+            >
+              <svg className={`w-3.5 h-3.5 transition-transform ${dealsSearchOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dealsSearchOpen && (() => {
+              const q = dealsSearchQuery.trim().toLowerCase();
+              const matches = q
+                ? dealsSearchList.filter(
+                    (d) =>
+                      d.name.toLowerCase().includes(q) ||
+                      d.companyName.toLowerCase().includes(q)
+                  ).slice(0, 10)
+                : dealsSearchList.slice(0, 10);
+              const jumpTo = (id: string) => {
+                setDealsSearchOpen(false);
+                setDealsSearchQuery("");
+                router.push(`/deals/${id}`);
+              };
+              return (
+                <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 w-80">
+                  <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                    <input
+                      ref={dealsSearchInputRef}
+                      type="text"
+                      value={dealsSearchQuery}
+                      onChange={(e) => setDealsSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setDealsSearchHighlight((i) => Math.min(i + 1, matches.length - 1));
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setDealsSearchHighlight((i) => Math.max(i - 1, 0));
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          const pick = matches[dealsSearchHighlight];
+                          if (pick) jumpTo(pick.id);
+                        } else if (e.key === "Escape") {
+                          setDealsSearchOpen(false);
+                        }
+                      }}
+                      placeholder="Search deals by name or company…"
+                      className="w-full px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800"
+                    />
+                  </div>
+                  <div className="max-h-80 overflow-y-auto py-1">
+                    {dealsSearchLoading && dealsSearchList.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-gray-400 italic">Loading deals…</div>
+                    ) : matches.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-gray-400 italic">
+                        {q ? "No deals match." : "No deals yet."}
+                      </div>
+                    ) : (
+                      matches.map((d, idx) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onMouseEnter={() => setDealsSearchHighlight(idx)}
+                          onClick={() => jumpTo(d.id)}
+                          className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 ${
+                            idx === dealsSearchHighlight
+                              ? "bg-purple-50 dark:bg-purple-900/30"
+                              : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-gray-900 dark:text-gray-100">{d.name}</div>
+                            <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+                              {d.companyName} · {d.stage}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-1.5 text-[11px] text-gray-400 flex items-center justify-between">
+                    <span>↑ ↓ to navigate · ↵ to open</span>
+                    <Link
+                      href="/deals"
+                      onClick={() => setDealsSearchOpen(false)}
+                      className="text-purple-600 hover:underline"
+                    >
+                      All deals →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
 
           {/* Content dropdown */}
           <div className="relative" ref={contentDropdownRef}>
