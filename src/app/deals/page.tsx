@@ -847,13 +847,18 @@ function DealsPageContent() {
   const filteredDeals = (() => {
     const now = Date.now();
     const dayMs = 86_400_000;
+    const q = searchQuery.trim().toLowerCase();
+    // When the user is actively searching, override every other
+    // filter so they can find a deal regardless of which stage /
+    // status / health / meeting / activity chips are currently set.
+    // Clearing the search restores the filter view.
+    const isSearching = q.length > 0;
     const filtered = deals.filter((d) => {
+      if (isSearching) {
+        return d.name.toLowerCase().includes(q) || d.companyName.toLowerCase().includes(q);
+      }
       if (stageFilter !== "all" && d.stage !== stageFilter) return false;
       if (statusFilter !== "all" && d.status !== statusFilter) return false;
-      const q = searchQuery.trim().toLowerCase();
-      if (q && !d.name.toLowerCase().includes(q) && !d.companyName.toLowerCase().includes(q)) {
-        return false;
-      }
       if (healthFilter !== "all") {
         if (healthFilter === "unrated" ? !!d.mikeyHealth : d.mikeyHealth !== healthFilter) {
           return false;
@@ -1190,8 +1195,9 @@ function DealsPageContent() {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search deals by name or company..."
+            placeholder="Search all deals by name or company..."
             className="w-full pl-10 pr-10 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800"
+            title="Search spans every deal, regardless of the stage / status / health / meeting / activity filters set below."
           />
           {searchQuery && (
             <button
@@ -1204,6 +1210,11 @@ function DealsPageContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          )}
+          {searchQuery.trim() && (
+            <div className="absolute left-0 right-0 top-full mt-1 text-[11px] text-purple-600 dark:text-purple-300">
+              Searching all deals — stage / status / health / meeting / activity filters ignored while a query is set.
+            </div>
           )}
         </div>
         <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
