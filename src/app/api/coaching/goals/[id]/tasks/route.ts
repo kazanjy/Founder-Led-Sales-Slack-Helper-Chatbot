@@ -47,16 +47,24 @@ export async function POST(
       }
     }
 
-    // Order within the appropriate sibling group: under a parent task
-    // for subtasks, otherwise across the goal's top-level tasks.
-    const maxOrder = await prisma.coachingTask.aggregate({
+    // Sort key for the new task. Tasks are fetched orderBy order
+    // ASC, so to land the new task at the TOP of its sibling group
+    // (the client prepends it visually on add, and the founder
+    // expects it to stay there across a session save / refetch) we
+    // give it the LOWEST order — one below the current min. Using
+    // max+1 would shove it to the bottom on the next reload, which
+    // was the "new tasks drop to the bottom on save" bug. Order can
+    // go negative; reorder PATCHes write explicit values so the
+    // running min just keeps drifting down with each new add, which
+    // is fine.
+    const minOrder = await prisma.coachingTask.aggregate({
       where: parentTaskId
         ? { parentTaskId }
         : { goalId: id, parentTaskId: null },
-      _max: { order: true },
+      _min: { order: true },
     });
 
-    const order = (maxOrder._max.order ?? -1) + 1;
+    const order = (minOrder._min.order ?? 1) - 1;
 
     const task = await prisma.coachingTask.create({
       data: {
