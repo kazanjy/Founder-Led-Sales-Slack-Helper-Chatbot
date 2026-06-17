@@ -61,6 +61,12 @@ export default function DealChatPanel({
   const [isDragging, setIsDragging] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Conversation IDs that this panel JUST created itself — the
+  // history-load effect skips fetching for these so the optimistic
+  // user message + streaming assistant reply don't get wiped by an
+  // empty server snapshot taken before the stream's /messages POST
+  // had a chance to persist anything.
+  const freshConvIdRef = useRef<string | null>(null);
 
   // Restore the user's saved panel width on mount, clamped to the current
   // viewport so a narrow screen doesn't get a 1200px panel.
@@ -138,8 +144,16 @@ export default function DealChatPanel({
     return () => { cancelled = true; };
   }, [open, conversationId, historyLoaded]);
 
-  // Reset the loaded flag when the conversation id changes so a fresh load fires.
+  // Reset the loaded flag when the conversation id changes so a fresh
+  // load fires — but skip the reset when *this* panel just created the
+  // conversation. Otherwise the load races the streaming /messages
+  // POST, hits the server before the user message has been persisted,
+  // and wipes the optimistic [USER, ASSISTANT] state we just rendered.
   useEffect(() => {
+    if (conversationId && freshConvIdRef.current === conversationId) {
+      freshConvIdRef.current = null;
+      return;
+    }
     setHistoryLoaded(false);
   }, [conversationId]);
 
@@ -235,6 +249,11 @@ export default function DealChatPanel({
         const createData = await createRes.json();
         convId = createData.conversationId;
         if (!convId) throw new Error("No conversation id returned");
+        // Mark this convId as freshly created locally so the parent's
+        // setPanelConversationId(convId) doesn't trigger a wipe via
+        // the conversationId-change effect — the server has 0 saved
+        // messages at this point (autoSend = true on /from-context).
+        freshConvIdRef.current = convId;
         onConversationCreated(convId, trimmed);
       }
 
