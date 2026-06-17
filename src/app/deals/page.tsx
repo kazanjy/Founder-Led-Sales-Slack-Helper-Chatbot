@@ -1221,11 +1221,6 @@ function DealsPageContent() {
               </svg>
             </button>
           )}
-          {searchQuery.trim() && (
-            <div className="absolute left-0 right-0 top-full mt-1 text-[11px] text-purple-600 dark:text-purple-300">
-              Searching all deals — stage / status / health / meeting / activity filters ignored while a query is set.
-            </div>
-          )}
         </div>
         <label className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
           Sort:
@@ -1307,6 +1302,15 @@ function DealsPageContent() {
           </button>
         </div>
         </div>
+
+        {/* Search-overrides-filters hint. Lives in its own row (not
+            absolutely positioned under the input) so it doesn't sit
+            on top of the STAGE filter chips below. */}
+        {searchQuery.trim() && (
+          <div className="text-[11px] text-purple-600 dark:text-purple-300 -mt-2 mb-3">
+            Searching all deals — stage / status / health / meeting / activity filters ignored while a query is set.
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-5 flex-wrap text-sm relative">
