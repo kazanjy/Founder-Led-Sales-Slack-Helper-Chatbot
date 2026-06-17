@@ -750,6 +750,25 @@ export default function SalesNavBar() {
               </div>
             )}
           </div>
+          {/* Global Search affordance — fires a window-level event
+              that the site-wide CmdKPalette mounted in the root
+              layout listens for. Doubles as the discoverability
+              affordance for the Cmd+K shortcut. */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("cmdk:open"))}
+            className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            title="Search deals (⌘K)"
+            aria-label="Search deals"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>Search</span>
+            <kbd className="ml-1 inline-flex items-center px-1 py-0.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 rounded">
+              ⌘K
+            </kbd>
+          </button>
           <ThemeToggle compact />
         </div>
       </div>

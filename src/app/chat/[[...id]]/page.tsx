@@ -873,16 +873,13 @@ export default function ChatPage() {
     };
   }, [isResizingInput]);
 
-  // Cmd+K keyboard shortcut for search
+  // Esc-to-close on the chat-history search modal. The Cmd+K binding
+  // that used to open this modal was dropped because the site-wide
+  // command palette (mounted in the root layout) also owns Cmd+K and
+  // the two overlays were stacking on /chat. The chat-history search
+  // is still reachable via its in-page button affordance.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      // Cmd+K (Mac) or Ctrl+K (Windows/Linux)
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setSearchOpen(true);
-        setSearchSelectedIndex(0); // Reset to "New Chat"
-      }
-      // Escape to close search
       if (event.key === "Escape" && searchOpen) {
         event.preventDefault();
         setSearchOpen(false);

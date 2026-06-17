@@ -41,10 +41,9 @@ export default function CmdKPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Global keybinding: Cmd+K on macOS, Ctrl+K elsewhere. Toggles the
-  // palette. Suppress when an editable element is focused AND the
-  // user is mid-composition (so we don't steal the shortcut from
-  // browser native bindings inside form fields with their own Cmd+K
-  // handlers — but we still want it to fire from normal page chrome).
+  // palette. Also listens for a custom DOM event so non-keyboard
+  // affordances (e.g. the Search button in SalesNavBar) can open the
+  // same palette without needing to share React state or context.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isCmdK =
@@ -56,8 +55,13 @@ export default function CmdKPalette() {
         setOpen(false);
       }
     };
+    const onOpenEvent = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("cmdk:open", onOpenEvent);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("cmdk:open", onOpenEvent);
+    };
   }, [open]);
 
   // Lazy-load the deals list on first open. Cached for the session.
@@ -172,6 +176,11 @@ export default function CmdKPalette() {
             placeholder="Search deals by name or company…"
             className="flex-1 py-3 bg-transparent text-sm focus:outline-none placeholder-gray-400"
           />
+          {/* Two kbd hints so users who opened the palette via the
+              navbar Search button learn that ⌘K is the shortcut. */}
+          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 rounded">
+            ⌘K
+          </kbd>
           <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 rounded">
             ESC
           </kbd>
