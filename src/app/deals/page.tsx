@@ -52,16 +52,19 @@ function startOfLocalDay(d: Date): number {
 // then a derived name from their email local-part, then the email
 // itself. Keeps chips tight and human-readable on busy cards.
 function participantChipLabel(p: { name: string; email: string | null }): string {
+  // Capitalize each whitespace-separated word. Stored names sometimes
+  // arrive all-lowercase from imports (Slack, Google Calendar, etc.) —
+  // the chips read better when "ameya kanitkar" surfaces as "Ameya
+  // Kanitkar". Preserves any letters the user explicitly cased.
+  const toTitle = (s: string) =>
+    s.replace(/\b([a-zA-Z])([a-zA-Z']*)/g, (_m, first, rest) => first.toUpperCase() + rest.toLowerCase());
   const raw = (p.name || "").trim();
-  if (raw && !raw.includes("@")) return raw;
+  if (raw && !raw.includes("@")) return toTitle(raw);
   const source = raw || p.email || "";
   const local = source.includes("@") ? source.split("@")[0] : source;
   if (!local) return source;
   // Convert "peter.kazanjy" / "peter_kazanjy" / "peter-k" → "Peter Kazanjy"
-  return local
-    .replace(/[._-]+/g, " ")
-    .replace(/\b([a-z])/gi, (m) => m.toUpperCase())
-    .trim();
+  return toTitle(local.replace(/[._-]+/g, " ")).trim();
 }
 
 // Sort participants for chip display — decision-makers first, then
