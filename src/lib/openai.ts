@@ -123,11 +123,39 @@ export async function generateAssessmentTitle(aiRecommendations: string): Promis
  * @param transcript - Optional call transcript
  * @returns A short descriptive title for the session
  */
+// Patterns that indicate the model refused to do the summarization
+// (typically when the notes contain a URL and the small title model
+// reads it as a request to browse, or when the notes are too thin to
+// generate anything from). If we detect one of these in the response
+// we fall back to the generic "Coaching Session" title instead of
+// stamping a refusal onto a coaching session card.
+const REFUSAL_PATTERNS: RegExp[] = [
+  /^i'?m\s+(?:unable|sorry|not\s+able)/i,
+  /^i\s+cannot/i,
+  /^i\s+can'?t/i,
+  /^(?:as|i'?m)\s+an?\s+ai/i,
+  /\bif you (?:could )?provide me\b/i,
+  /\bcannot\s+access\b/i,
+  /\bunable\s+to\s+access\b/i,
+];
+
+function looksLikeRefusal(text: string): boolean {
+  return REFUSAL_PATTERNS.some((re) => re.test(text));
+}
+
 export async function generateSessionTitle(notes: string, transcript?: string | null): Promise<string> {
   try {
-    const content = transcript
-      ? `Notes:\n${notes.substring(0, 1000)}\n\nTranscript:\n${transcript.substring(0, 1000)}`
-      : `Notes:\n${notes.substring(0, 2000)}`;
+    // If there's almost nothing to summarize, skip the LLM call. A
+    // bare URL or one-liner gives gpt-4o-mini just enough rope to
+    // hallucinate or refuse; the generic title is a better default.
+    const noteBody = (notes || "").trim();
+    const txBody = (transcript || "").trim();
+    const totalLen = noteBody.length + txBody.length;
+    if (totalLen < 30) return "Coaching Session";
+
+    const content = txBody
+      ? `Notes:\n${noteBody.substring(0, 1000)}\n\nTranscript:\n${txBody.substring(0, 1000)}`
+      : `Notes:\n${noteBody.substring(0, 2000)}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -135,7 +163,7 @@ export async function generateSessionTitle(notes: string, transcript?: string | 
         {
           role: "system",
           content:
-            "You are a coaching session title generator. Given session notes and optionally a transcript, identify the 4-8 major specific topics discussed and list them as a comma-separated title. Be specific and concrete — use the actual deal names, skills, or strategies discussed rather than generic labels. Do not use quotes. Examples: 'Pipeline Gaps, Acme Deal Strategy, Discovery Frameworks, Q1 Targets', 'Cold Call Openers, Objection Handling, Demo Flow, Pricing Negotiation, Follow-up Cadence', 'Stakeholder Mapping, Champion Building, Technical Eval, Procurement Timeline'.",
+            "You are a coaching session title generator. You will be given the FULL text of a sales coaching session's notes (and optionally a transcript) directly in the user message — there is nothing external to fetch. Identify the 4-8 major specific topics discussed and list them as a comma-separated title. Be specific and concrete — use the actual deal names, skills, or strategies discussed rather than generic labels. Do not use quotes. Never refuse or ask for more content; if the input is sparse, summarize what you can in 2-3 short labels. Examples: 'Pipeline Gaps, Acme Deal Strategy, Discovery Frameworks, Q1 Targets', 'Cold Call Openers, Objection Handling, Demo Flow, Pricing Negotiation, Follow-up Cadence', 'Stakeholder Mapping, Champion Building, Technical Eval, Procurement Timeline'.",
         },
         {
           role: "user",
@@ -146,13 +174,21 @@ export async function generateSessionTitle(notes: string, transcript?: string | 
       temperature: 0.5,
     });
 
-    const title = response.choices[0]?.message?.content?.trim() || null;
+    const raw = response.choices[0]?.message?.content?.trim() || "";
 
-    if (title && title.length > 120) {
-      return truncateAtWordBoundary(title, 120);
+    // Guard against the model returning a refusal ("I'm unable to
+    // access external links…", "If you provide me with the session
+    // notes…", etc.) instead of an actual topic list. Without this
+    // check the refusal text got stamped onto the session card.
+    if (!raw || looksLikeRefusal(raw)) {
+      return "Coaching Session";
     }
 
-    return title || "Coaching Session";
+    if (raw.length > 120) {
+      return truncateAtWordBoundary(raw, 120);
+    }
+
+    return raw;
   } catch (error: unknown) {
     console.error("[OpenAI] Error generating session title:", error);
     return "Coaching Session";
