@@ -206,8 +206,16 @@ export default function DealChatPanel({
     setMessages((prev) => [...prev, userMsg]);
 
     // First turn bakes the deal context into the message; subsequent turns
-    // rely on the conversation history already stored server-side.
-    const isFirstTurn = messages.length === 0;
+    // rely on the conversation history already stored server-side. We key
+    // on conversationId (not messages.length) because messages.length is
+    // subject to a render-order race: when the parent kicks off a seeded
+    // prompt by setting panelConversationId(null) + bumping the autoSend
+    // nonce in the same batch, the auto-send effect can fire with a stale
+    // messages.length closure (the previous conversation's count) before
+    // the setMessages([]) reset commits. Reading conversationId is safe —
+    // when it's null we definitely don't have a conversation yet, so this
+    // IS the first turn and the context must be baked in.
+    const isFirstTurn = !conversationId;
     const payload = isFirstTurn ? buildContext(trimmed) : trimmed;
 
     try {
