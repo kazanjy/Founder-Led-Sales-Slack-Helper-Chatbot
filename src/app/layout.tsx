@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import CmdKPalette from "@/components/CmdKPalette";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,6 +68,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <PostHogProvider>{children}</PostHogProvider>
+        {/* Global Cmd/Ctrl+K palette. Mounted at the root so the
+            shortcut works from every page; lazy-loads /api/deals on
+            first open and silently no-ops for unauthenticated
+            visitors. */}
+        <CmdKPalette />
       </body>
     </html>
   );
