@@ -4,16 +4,30 @@ import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 import { extractProductName } from "@/lib/extract-product-name";
 
-// Allow up to 120s for Chatbase AI generation
-export const maxDuration = 120;
+// Bumped to 300s — gpt-5.5 generating a full multi-section checklist
+// with 2 in-context examples regularly runs 90-180s, and the previous
+// 120s ceiling was getting killed mid-call by Vercel. The function
+// no longer needs to "wait for streaming" so this is a hard upper
+// bound; OpenAI normally returns in well under it.
+export const maxDuration = 300;
+
+// Hard timeout on the OpenAI call itself, slightly under maxDuration,
+// so we surface a clean error message and a real console.error rather
+// than letting the function get terminated by Vercel with zero logs.
+const OPENAI_TIMEOUT_MS = 270_000;
 
 // POST - Generate first call checklist from discovery questions and sales narrative
 export async function POST() {
+  const startedAt = Date.now();
+  const tag = `[first-call-checklist/generate ${startedAt}]`;
+  console.log(`${tag} POST received`);
   try {
     const user = await getCurrentUser();
     if (!user) {
+      console.log(`${tag} unauthenticated`);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
+    console.log(`${tag} user=${user.id}`);
 
     // Get the latest discovery questions version with its sales narrative
     const latestDiscoveryQuestions = await prisma.discoveryQuestionsVersion.findFirst({
@@ -209,27 +223,52 @@ ${narrative?.narrative ?? "No sales narrative available."}
 ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${icpSection}` : ""}`;
 
     const totalChars = mainPrompt.length + example1.length + example2.length;
-    console.log(`Sending first call checklist prompt: ${mainPrompt.length} chars (+ ${example1.length} + ${example2.length} chars in history, ${totalChars} total) via GPT-5.2`);
+    console.log(`${tag} prompt sizes: main=${mainPrompt.length} ex1=${example1.length} ex2=${example2.length} total=${totalChars}`);
 
-    // Use GPT-5.2 directly — the prompt is too large for Chatbase's 7.5K char limit
+    // Use GPT-5.5 directly — the prompt is too large for Chatbase's 7.5K char limit.
+    // Explicit AbortController so we surface a real "timed out at Xs" log
+    // before Vercel kills the function silently.
     let aiResponse = "";
+    const openaiStart = Date.now();
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-5.5",
-        messages: [
-          { role: "system", content: "You are an expert sales coach specializing in founder-led sales. Generate detailed, actionable first call checklists with verbatim scripts — not generic advice. Return raw markdown (no code blocks)." },
-          { role: "user", content: example1 },
-          { role: "assistant", content: "I've studied Example 1 (Julius). I see the structure: Persona Reference Library with org + individual persona tables, Pre-Call Planning with research steps and persona selection template, Rapport & Introduction with credibility framing and agenda set, Discovery with must-ask questions and follow-ups, and closing scripts. Ready for Example 2." },
-          { role: "user", content: example2 },
-          { role: "assistant", content: "I've studied Example 2 (Synthesis). I see the additional depth: background modifiers, persona-specific intro scripts, 'why we ask this' for each question, signal check framework, disqualification script, narrative positioning with bridge language table, and strategic framing rules. I'm ready to generate a First Call Checklist with this level of detail." },
-          { role: "user", content: mainPrompt },
-        ],
-      });
+      console.log(`${tag} openai.chat.completions.create starting (timeout=${OPENAI_TIMEOUT_MS}ms)`);
+      const response = await openai.chat.completions.create(
+        {
+          model: "gpt-5.5",
+          messages: [
+            { role: "system", content: "You are an expert sales coach specializing in founder-led sales. Generate detailed, actionable first call checklists with verbatim scripts — not generic advice. Return raw markdown (no code blocks)." },
+            { role: "user", content: example1 },
+            { role: "assistant", content: "I've studied Example 1 (Julius). I see the structure: Persona Reference Library with org + individual persona tables, Pre-Call Planning with research steps and persona selection template, Rapport & Introduction with credibility framing and agenda set, Discovery with must-ask questions and follow-ups, and closing scripts. Ready for Example 2." },
+            { role: "user", content: example2 },
+            { role: "assistant", content: "I've studied Example 2 (Synthesis). I see the additional depth: background modifiers, persona-specific intro scripts, 'why we ask this' for each question, signal check framework, disqualification script, narrative positioning with bridge language table, and strategic framing rules. I'm ready to generate a First Call Checklist with this level of detail." },
+            { role: "user", content: mainPrompt },
+          ],
+        },
+        { signal: controller.signal }
+      );
       aiResponse = response.choices[0]?.message?.content || "";
+      console.log(`${tag} openai responded in ${Date.now() - openaiStart}ms, ${aiResponse.length} chars`);
     } catch (aiError) {
-      console.error("GPT API error:", aiError);
+      const elapsed = Date.now() - openaiStart;
+      console.error(`${tag} GPT API error after ${elapsed}ms:`, aiError);
+      const aborted = aiError instanceof Error && aiError.name === "AbortError";
       return NextResponse.json(
-        { error: "Failed to generate first call checklist. Please try again." },
+        {
+          error: aborted
+            ? "Generation timed out. Please try again — if this keeps happening, the prompt may need to be smaller."
+            : "Failed to generate first call checklist. Please try again.",
+        },
+        { status: aborted ? 504 : 500 }
+      );
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
+    if (!aiResponse.trim()) {
+      console.error(`${tag} openai returned empty response`);
+      return NextResponse.json(
+        { error: "Generation returned an empty response. Please try again." },
         { status: 500 }
       );
     }
@@ -305,6 +344,7 @@ ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${
       });
     } catch (e) { console.error("[first-call-checklist/generate] conversation error:", e); }
 
+    console.log(`${tag} done in ${Date.now() - startedAt}ms (versionId=${version.id})`);
     return NextResponse.json({
       success: true,
       version: {
@@ -316,7 +356,7 @@ ${discoveryQuestionsSection}${icpSection ? `\n\n## IDEAL CUSTOMER PROFILE:\n\n${
       },
     });
   } catch (error) {
-    console.error("Error generating first call checklist:", error);
+    console.error(`${tag} unhandled error after ${Date.now() - startedAt}ms:`, error);
     return NextResponse.json(
       { error: "Failed to generate first call checklist" },
       { status: 500 }
