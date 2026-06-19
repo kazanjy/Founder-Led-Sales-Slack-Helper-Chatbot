@@ -47,11 +47,41 @@ export async function POST(
       where: { metricDefinitionId: id, sessionId },
     });
 
-    // Find the previous entry from a DIFFERENT session for addedSinceLastSession
-    const previousEntry = await prisma.coachingMetricEntry.findFirst({
-      where: { metricDefinitionId: id, sessionId: { not: sessionId } },
-      orderBy: { createdAt: "desc" },
+    // Resolve the chronologically-prior non-draft session's entry for
+    // this metric so the stored delta matches the "Last session" value
+    // the GET endpoint surfaces. Previously this used createdAt: desc
+    // which picked the most-recently-CREATED entry — fine when sessions
+    // are entered in order, wrong the moment the user backfills an
+    // earlier session or re-creates an old one.
+    const currentSession = await prisma.coachingSession.findUnique({
+      where: { id: sessionId },
+      select: { sessionDate: true, createdAt: true },
     });
+
+    const previousEntry = currentSession
+      ? await prisma.coachingMetricEntry.findFirst({
+          where: {
+            metricDefinitionId: id,
+            sessionId: { not: sessionId },
+            session: {
+              notes: { not: "(draft)" },
+              OR: [
+                { sessionDate: { lt: currentSession.sessionDate } },
+                {
+                  AND: [
+                    { sessionDate: currentSession.sessionDate },
+                    { createdAt: { lt: currentSession.createdAt } },
+                  ],
+                },
+              ],
+            },
+          },
+          orderBy: [
+            { session: { sessionDate: "desc" } },
+            { session: { createdAt: "desc" } },
+          ],
+        })
+      : null;
 
     const addedSinceLastSession = previousEntry
       ? currentValue - previousEntry.currentValue

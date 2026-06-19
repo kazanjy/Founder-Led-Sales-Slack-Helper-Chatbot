@@ -98,11 +98,29 @@ export async function GET(
       }
     }
 
-    const entriesWithPrev = entries.map((e) => ({
-      ...e,
-      previousValue: previousByDefId[e.metricDefinitionId] ?? null,
-      history: historyByDefId[e.metricDefinitionId] ?? [],
-    }));
+    const entriesWithPrev = entries.map((e) => {
+      const prev = previousByDefId[e.metricDefinitionId];
+      // Recompute the delta on read instead of trusting the value the
+      // POST stamped on the row at write time. The POST resolved the
+      // "previous entry" via createdAt: desc, which is the most-
+      // recently-CREATED entry — not necessarily the chronologically-
+      // prior session. So if the user re-created an older session, or
+      // entered values out of date order, the stored delta could drift
+      // out of sync with the previousValue surfaced here. Computing it
+      // off the same previousByDefId we just resolved keeps the two
+      // numbers consistent and lights the widget back up even for
+      // entries that were saved with no prior session at the time.
+      const addedSinceLastSession =
+        prev != null && typeof e.currentValue === "number"
+          ? e.currentValue - prev
+          : 0;
+      return {
+        ...e,
+        previousValue: prev ?? null,
+        addedSinceLastSession,
+        history: historyByDefId[e.metricDefinitionId] ?? [],
+      };
+    });
 
     // Pull section markers (kind=section definitions) so the UI can
     // interleave them in order with the real metric entries. Sections
