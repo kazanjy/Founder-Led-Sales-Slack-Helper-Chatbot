@@ -3547,15 +3547,62 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   const hiddenCount = goal.tasks.length
                     - visibleTopLevel.length
                     - Object.values(visibleSubsByParent).reduce((s, v) => s + v.length, 0);
+                  // Count of tasks/subtasks this goal would surface
+                  // if "Only prioritized" was off but everything else
+                  // (hide-completed, per-goal overrides) stayed the
+                  // same. Drives the "X unprioritized hidden"
+                  // affordance below so the founder sees what the
+                  // filter is suppressing on THIS goal.
+                  const unprioritizedHiddenCount = onlyPrioritized
+                    ? (() => {
+                        let n = 0;
+                        // Top-level: tasks that survive hide-completed
+                        // but have no priority AND no prioritized
+                        // subtask (the same predicate the "Only
+                        // prioritized" branch filtered out above).
+                        for (const t of topLevelTasks) {
+                          if (hideForGoal && isSettled(t)) continue;
+                          if (hasPriority(t.priority)) continue;
+                          const subs = subtasksByParent[t.id] || [];
+                          if (subs.some((s) => hasPriority(s.priority))) continue;
+                          n++;
+                        }
+                        // Subtasks: per-parent, subs that survive
+                        // hide-completed but have no priority. Use
+                        // the same per-parent reveal toggle so
+                        // showing a parent's hidden doesn't double-
+                        // count.
+                        for (const parentId of Object.keys(subtasksByParent)) {
+                          const all = subtasksByParent[parentId];
+                          const showingHidden = revealedHiddenSubsParents.has(parentId);
+                          const survivors = hideForGoal && !showingHidden
+                            ? all.filter((t) => !isSettled(t))
+                            : all;
+                          n += survivors.filter((t) => !hasPriority(t.priority)).length;
+                        }
+                        return n;
+                      })()
+                    : 0;
                   return (<>
-                    {completedCount > 0 && (
-                      <div className="px-4 py-1.5 flex items-center justify-end">
-                        <button
-                          onClick={() => setHideCompletedPerGoal((prev) => { const next = { ...prev, [goal.id]: !hideForGoal }; localStorage.setItem("coaching:hideCompletedPerGoal", JSON.stringify(next)); return next; })}
-                          className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          {hideForGoal ? `Show ${hiddenCount} completed` : "Hide completed"}
-                        </button>
+                    {(completedCount > 0 || unprioritizedHiddenCount > 0) && (
+                      <div className="px-4 py-1.5 flex items-center justify-end gap-3">
+                        {unprioritizedHiddenCount > 0 && (
+                          <button
+                            onClick={() => updateOnlyPrioritized(false)}
+                            className="text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
+                            title="Turn off the Only-prioritized filter to show these tasks"
+                          >
+                            {unprioritizedHiddenCount} unprioritized hidden
+                          </button>
+                        )}
+                        {completedCount > 0 && (
+                          <button
+                            onClick={() => setHideCompletedPerGoal((prev) => { const next = { ...prev, [goal.id]: !hideForGoal }; localStorage.setItem("coaching:hideCompletedPerGoal", JSON.stringify(next)); return next; })}
+                            className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            {hideForGoal ? `Show ${completedCount} completed` : "Hide completed"}
+                          </button>
+                        )}
                       </div>
                     )}
                     {visibleTopLevel.map((task) => {
