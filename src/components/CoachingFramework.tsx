@@ -503,6 +503,42 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     const qs = params.toString();
     router.replace(qs ? `?${qs}` : "?", { scroll: false });
   };
+
+  // "Only show prioritized" filter — when on, a task is kept iff it
+  // has a P0/P1/P2 priority set OR has a prioritized subtask (so a
+  // prioritized subtask still surfaces under its parent in the
+  // manual/grouped view). Subtasks are kept iff their own priority
+  // is set. Lives alongside taskSort because it shapes the same
+  // task surface. Persists to localStorage + ?prioritized=1 on the
+  // URL so shareable links round-trip.
+  const [onlyPrioritized, setOnlyPrioritized] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const fromUrl = searchParams.get("prioritized");
+    if (fromUrl != null) return fromUrl === "1" || fromUrl === "true";
+    return localStorage.getItem("coaching:onlyPrioritized") === "1";
+  });
+  useEffect(() => {
+    const fromUrl = searchParams.get("prioritized");
+    if (fromUrl != null) {
+      const next = fromUrl === "1" || fromUrl === "true";
+      if (next !== onlyPrioritized) setOnlyPrioritized(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const updateOnlyPrioritized = (next: boolean) => {
+    setOnlyPrioritized(next);
+    try { localStorage.setItem("coaching:onlyPrioritized", next ? "1" : "0"); } catch {}
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) {
+      params.set("prioritized", "1");
+    } else {
+      params.delete("prioritized");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+  };
+  const hasPriority = (p: string | null | undefined) =>
+    p === "P0" || p === "P1" || p === "P2";
   // Up Next state
   const [nextGoals, setNextGoals] = useState<NextGoal[]>([]);
   const [newNextGoalTitle, setNewNextGoalTitle] = useState("");
@@ -2133,6 +2169,10 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
       for (const t of goal.tasks) {
         if (hideForGoal && isSettledRow(t)) continue;
+        // "Only prioritized" — in the flat sorted view every row is
+        // a peer (no parent-as-anchor needed), so a row is kept iff
+        // its own priority is set.
+        if (onlyPrioritized && !hasPriority(t.priority)) continue;
         const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
         rows.push({ task: t, goal, parent });
       }
@@ -2941,6 +2981,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 </select>
               </label>
             )}
+            {goals.length > 0 && (
+              <label
+                className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-100"
+                title="Hide tasks and subtasks with no P0/P1/P2 priority set"
+              >
+                <input
+                  type="checkbox"
+                  checked={onlyPrioritized}
+                  onChange={(e) => updateOnlyPrioritized(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-purple-600 cursor-pointer"
+                />
+                <span>Only prioritized</span>
+              </label>
+            )}
             {goals.length > 0 && (() => {
               const visibleIds = goals
                 .filter((g) => !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized")))
@@ -3453,9 +3507,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     subtasksByParent[k].sort((a, b) => a.order - b.order);
                   }
 
-                  const visibleTopLevel = hideForGoal
+                  let visibleTopLevel = hideForGoal
                     ? topLevelTasks.filter((t) => !isSettled(t))
                     : topLevelTasks;
+                  // "Only prioritized" — a top-level task is kept iff
+                  // it has a priority OR any of its subtasks does
+                  // (so a prioritized subtask still surfaces under
+                  // its parent as anchor).
+                  if (onlyPrioritized) {
+                    visibleTopLevel = visibleTopLevel.filter((t) => {
+                      if (hasPriority(t.priority)) return true;
+                      const subs = subtasksByParent[t.id] || [];
+                      return subs.some((s) => hasPriority(s.priority));
+                    });
+                  }
                   // Per-parent visible subtasks, settled count, and a
                   // currently-hidden count. The user can override the
                   // filter for a single parent by clicking its
@@ -3470,7 +3535,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     const settled = all.filter(isSettled).length;
                     settledSubsByParent[parentId] = settled;
                     const showingHidden = revealedHiddenSubsParents.has(parentId);
-                    const visible = hideForGoal && !showingHidden ? all.filter((t) => !isSettled(t)) : all;
+                    let visible = hideForGoal && !showingHidden ? all.filter((t) => !isSettled(t)) : all;
+                    // "Only prioritized" — subtasks are kept iff
+                    // their own priority is set.
+                    if (onlyPrioritized) {
+                      visible = visible.filter((t) => hasPriority(t.priority));
+                    }
                     visibleSubsByParent[parentId] = visible;
                     hiddenSubsByParent[parentId] = all.length - visible.length;
                   }
