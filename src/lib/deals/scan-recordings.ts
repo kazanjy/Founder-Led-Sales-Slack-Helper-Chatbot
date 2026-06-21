@@ -29,6 +29,14 @@ export interface ScanSummary {
   potentials: number;
   skipped: number;
   errors: number;
+  // IDs of EXISTING deals that got a new call_summary entry attached
+  // during this scan. The cron route uses this to fire one
+  // runDealAnalysis per deal via after() so the deal's Mikey Health /
+  // next-step suggestions factor in the new evidence. Newly-created
+  // Potential deals are intentionally excluded — they re-analyze when
+  // the user clicks Validate, and burning tokens before the user has
+  // even confirmed the deal is wasteful.
+  attachedExistingDealIds: string[];
 }
 
 function domainFromEmail(email: string | undefined | null): string | null {
@@ -189,7 +197,8 @@ async function postMeetingAttachedAlert(opts: {
  * unique index.
  */
 export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
-  const out: ScanSummary = { userId, scanned: 0, attached: 0, potentials: 0, skipped: 0, errors: 0 };
+  const out: ScanSummary = { userId, scanned: 0, attached: 0, potentials: 0, skipped: 0, errors: 0, attachedExistingDealIds: [] };
+  const attachedSet = new Set<string>();
 
   const conn = await prisma.meetingRecorderConnection.findFirst({
     where: { userId, status: "active" },
@@ -361,8 +370,15 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
           notes: isNew ? null : entry.id,
         },
       });
-      if (isNew) out.potentials++;
-      else out.attached++;
+      if (isNew) {
+        out.potentials++;
+      } else {
+        out.attached++;
+        // Track for post-scan re-analysis. Dedupes via Set so a deal
+        // that gets multiple calls landed in the same tick only
+        // triggers one analyzer run.
+        attachedSet.add(deal.id);
+      }
 
       if (botToken && dmChannelId) {
         if (isNew) {
@@ -399,5 +415,6 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
     where: { id: conn.id },
     data: { lastSyncedAt: new Date() },
   });
+  out.attachedExistingDealIds = Array.from(attachedSet);
   return out;
 }
