@@ -371,9 +371,10 @@ const PRIORITY_OPTIONS: Array<{ value: string | null; label: string; color: stri
 ];
 
 // Compact priority pill rendered next to the status pill on each
-// task and subtask. Click flips through P0 → P1 → P2 → None when
-// canEdit is true; renders as a static badge for viewers. Cycling
-// is the lightest-weight affordance — no dropdown, no extra DOM.
+// task and subtask. Click opens a small dropdown of P0 / P1 / P2 /
+// None when canEdit is true; renders as a static badge for viewers.
+// The old behavior cycled on click — fine for keyboard-first power
+// users but annoying when you knew the priority you wanted.
 function PriorityPill({
   priority,
   canEdit,
@@ -385,8 +386,29 @@ function PriorityPill({
   onChange: (next: string | null) => void;
   compact?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const cur = PRIORITY_OPTIONS.find((o) => o.value === priority);
   const sizeClass = compact ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5";
+
+  // Outside-click + escape close so the dropdown behaves like the
+  // rest of the inline pickers on this page.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   if (!canEdit) {
     if (!priority) return null;
     return (
@@ -395,19 +417,45 @@ function PriorityPill({
       </span>
     );
   }
-  const cycle = () => {
-    const idx = PRIORITY_OPTIONS.findIndex((o) => o.value === priority);
-    const next = PRIORITY_OPTIONS[(idx + 1) % PRIORITY_OPTIONS.length];
-    onChange(next.value);
-  };
+
   return (
-    <button
-      onClick={cycle}
-      title="Click to cycle priority (P0 → P1 → P2 → None)"
-      className={`font-medium rounded-full border-0 cursor-pointer ${sizeClass} ${cur?.color || PRIORITY_OPTIONS[3].color} hover:ring-2 hover:ring-purple-300 transition`}
-    >
-      {cur?.label || "—"}
-    </button>
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Set priority"
+        className={`font-medium rounded-full border-0 cursor-pointer ${sizeClass} ${cur?.color || PRIORITY_OPTIONS[3].color} hover:ring-2 hover:ring-purple-300 transition`}
+      >
+        {cur?.label || "—"}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-30 min-w-[88px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
+          {PRIORITY_OPTIONS.map((opt) => {
+            const active = opt.value === priority;
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-2.5 py-1 text-xs flex items-center gap-2 ${
+                  active
+                    ? "bg-purple-50 dark:bg-purple-900/30"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <span className={`inline-flex items-center justify-center font-medium rounded-full px-1.5 py-0.5 text-[10px] ${opt.color}`}>
+                  {opt.label}
+                </span>
+                {active && <span className="ml-auto text-purple-600 text-xs">✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
