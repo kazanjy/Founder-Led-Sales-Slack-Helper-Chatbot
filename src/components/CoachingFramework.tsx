@@ -915,12 +915,45 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   const copyAllGoalsAsMarkdown = () => {
     let md = "";
 
+    // Reuse the same visibility rules the on-screen render applies:
+    //   - Hide-completed (global + per-goal override) for settled
+    //     tasks (done / not_doing / deprioritized).
+    //   - Only-prioritized filter + per-goal reveal override for
+    //     unprioritized tasks. Recently-added tasks get the same
+    //     grace period as on screen.
+    // Without this, "Copy All" would dump everything regardless of
+    // what the user has chosen to look at — defeats the point of
+    // the filters.
+    const isSettledCopy = (t: Task) =>
+      t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+    const subtasksOf = (goal: Goal, parentId: string) =>
+      goal.tasks.filter((t) => t.parentTaskId === parentId);
+    const isVisibleTopLevel = (goal: Goal, t: Task): boolean => {
+      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+      if (hideForGoal && isSettledCopy(t)) return false;
+      if (onlyPrioritized && !revealedUnprioritizedGoals.has(goal.id)) {
+        if (hasPriority(t.priority)) return true;
+        if (recentlyAddedTaskIds.has(t.id)) return true;
+        const subs = subtasksOf(goal, t.id);
+        if (subs.some((s) => hasPriority(s.priority))) return true;
+        if (subs.some((s) => recentlyAddedTaskIds.has(s.id))) return true;
+        return false;
+      }
+      return true;
+    };
+    const isVisibleSubtask = (goal: Goal, t: Task): boolean => {
+      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+      if (hideForGoal && isSettledCopy(t)) return false;
+      if (onlyPrioritized && !revealedUnprioritizedGoals.has(goal.id)) {
+        return hasPriority(t.priority) || recentlyAddedTaskIds.has(t.id);
+      }
+      return true;
+    };
+
     if (taskSort !== "manual") {
       // Flat-sorted view: mirror the rendered order. Each row is a
       // task or subtask with a goal (and optionally parent-task)
       // breadcrumb so the reader doesn't lose context.
-      const isSettledCopy = (t: Task) =>
-        t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
       const priorityRank = (p: string | null | undefined): number => {
         if (p === "P0") return 0;
         if (p === "P1") return 1;
@@ -935,7 +968,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       for (const goal of visibleGoals) {
         const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
         for (const t of goal.tasks) {
-          if (isSettledCopy(t)) continue;
+          // Use the same per-row visibility predicate the flat
+          // render uses: settled rows hidden when hide-completed
+          // is on, unprioritized rows hidden under Only-prioritized
+          // (with the recently-added grace).
+          if (t.parentTaskId) {
+            if (!isVisibleSubtask(goal, t)) continue;
+          } else {
+            if (!isVisibleTopLevel(goal, t)) continue;
+          }
           rows.push({ task: t, goal, parent: t.parentTaskId ? taskById.get(t.parentTaskId) || null : null });
         }
       }
@@ -965,15 +1006,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       // Grouped view: goals → tasks → subtasks in manual order.
       for (const goal of goals) {
         if (goal.status === "done" || goal.status === "not_doing") continue;
+        // Skip goals the global hide-completed filter is hiding.
+        if (hideCompletedGlobal && goal.status === "deprioritized") continue;
+        const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
+        const visibleTops = topLevel.filter((t) => isVisibleTopLevel(goal, t));
+        if (visibleTops.length === 0) continue;
         md += `## ${goal.title}\n`;
         if (goal.description) md += `${goal.description}\n`;
         md += `\n`;
-        const topLevel = goal.tasks.filter((t) => !t.parentTaskId);
-        for (const task of topLevel) {
-          if (task.status === "done" || task.status === "not_doing") continue;
+        for (const task of visibleTops) {
           md += formatTaskAsMarkdown(task, 0);
           const subs = goal.tasks
-            .filter((t) => t.parentTaskId === task.id && t.status !== "done" && t.status !== "not_doing")
+            .filter((t) => t.parentTaskId === task.id && isVisibleSubtask(goal, t))
             .sort((a, b) => a.order - b.order);
           for (const sub of subs) {
             md += formatTaskAsMarkdown(sub, 1);
