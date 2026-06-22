@@ -432,6 +432,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // explicitly revealed despite the hide-completed filter being on.
   // Cleared whenever the master Hide/Show All toggle flips.
   const [revealedHiddenSubsParents, setRevealedHiddenSubsParents] = useState<Set<string>>(new Set());
+  // Per-goal override for the "Only prioritized" filter. When a goal
+  // id is in this set, that goal renders its unprioritized tasks
+  // and subtasks even though the global filter is on. Toggled from
+  // the "N unprioritized hidden" affordance at the bottom of each
+  // goal — keeps the override scoped to that goal instead of
+  // flipping the global filter off everywhere.
+  const [revealedUnprioritizedGoals, setRevealedUnprioritizedGoals] = useState<Set<string>>(new Set());
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
@@ -3513,8 +3520,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   // "Only prioritized" — a top-level task is kept iff
                   // it has a priority OR any of its subtasks does
                   // (so a prioritized subtask still surfaces under
-                  // its parent as anchor).
-                  if (onlyPrioritized) {
+                  // its parent as anchor). Per-goal override:
+                  // revealedUnprioritizedGoals lets the user reveal
+                  // unprioritized work inside a single goal without
+                  // turning off the global filter for every other
+                  // goal.
+                  const filterPrioritizedForThisGoal =
+                    onlyPrioritized && !revealedUnprioritizedGoals.has(goal.id);
+                  if (filterPrioritizedForThisGoal) {
                     visibleTopLevel = visibleTopLevel.filter((t) => {
                       if (hasPriority(t.priority)) return true;
                       const subs = subtasksByParent[t.id] || [];
@@ -3537,8 +3550,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     const showingHidden = revealedHiddenSubsParents.has(parentId);
                     let visible = hideForGoal && !showingHidden ? all.filter((t) => !isSettled(t)) : all;
                     // "Only prioritized" — subtasks are kept iff
-                    // their own priority is set.
-                    if (onlyPrioritized) {
+                    // their own priority is set. Same per-goal
+                    // reveal override as the top-level pass above.
+                    if (filterPrioritizedForThisGoal) {
                       visible = visible.filter((t) => hasPriority(t.priority));
                     }
                     visibleSubsByParent[parentId] = visible;
@@ -3547,19 +3561,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   const hiddenCount = goal.tasks.length
                     - visibleTopLevel.length
                     - Object.values(visibleSubsByParent).reduce((s, v) => s + v.length, 0);
-                  // Count of tasks/subtasks this goal would surface
-                  // if "Only prioritized" was off but everything else
-                  // (hide-completed, per-goal overrides) stayed the
-                  // same. Drives the "X unprioritized hidden"
-                  // affordance below so the founder sees what the
-                  // filter is suppressing on THIS goal.
-                  const unprioritizedHiddenCount = onlyPrioritized
+                  // Count of tasks/subtasks the Only-prioritized
+                  // filter would suppress on THIS goal — same number
+                  // whether or not the goal is currently revealed.
+                  // Drives both flavors of the affordance below:
+                  //   - filter on, not revealed: "N unprioritized hidden"
+                  //   - filter on, revealed:     "Hide N unprioritized"
+                  const unprioritizedSuppressible = onlyPrioritized
                     ? (() => {
                         let n = 0;
                         // Top-level: tasks that survive hide-completed
                         // but have no priority AND no prioritized
                         // subtask (the same predicate the "Only
-                        // prioritized" branch filtered out above).
+                        // prioritized" branch filters out).
                         for (const t of topLevelTasks) {
                           if (hideForGoal && isSettled(t)) continue;
                           if (hasPriority(t.priority)) continue;
@@ -3583,16 +3597,26 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         return n;
                       })()
                     : 0;
+                  const goalRevealedUnprioritized = revealedUnprioritizedGoals.has(goal.id);
                   return (<>
-                    {(completedCount > 0 || unprioritizedHiddenCount > 0) && (
+                    {(completedCount > 0 || unprioritizedSuppressible > 0) && (
                       <div className="px-4 py-1.5 flex items-center justify-end gap-3">
-                        {unprioritizedHiddenCount > 0 && (
+                        {unprioritizedSuppressible > 0 && (
                           <button
-                            onClick={() => updateOnlyPrioritized(false)}
+                            onClick={() => setRevealedUnprioritizedGoals((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(goal.id)) next.delete(goal.id);
+                              else next.add(goal.id);
+                              return next;
+                            })}
                             className="text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
-                            title="Turn off the Only-prioritized filter to show these tasks"
+                            title={goalRevealedUnprioritized
+                              ? "Re-apply the Only-prioritized filter to this goal"
+                              : "Reveal unprioritized tasks on this goal only"}
                           >
-                            {unprioritizedHiddenCount} unprioritized hidden
+                            {goalRevealedUnprioritized
+                              ? `Hide ${unprioritizedSuppressible} unprioritized`
+                              : `${unprioritizedSuppressible} unprioritized hidden`}
                           </button>
                         )}
                         {completedCount > 0 && (
