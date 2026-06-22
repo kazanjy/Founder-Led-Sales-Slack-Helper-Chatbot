@@ -13,6 +13,7 @@ import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { decodeHtmlEntities, htmlToMarkdown } from "@/lib/html-entities";
+import { computeClosedDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
 
 interface Participant {
   id: string;
@@ -1802,6 +1803,86 @@ If you're torn between two actions, name both and tell me how to choose.`;
             )}
           </div>
         </div>
+
+        {/* Closed-deal retrospective summary. Renders only when the
+            deal is closed_won / closed_lost. Stats are derived from
+            the data the page already has loaded — counts call_summary
+            entries for recorded meetings, dedupes attendee emails
+            from those entries for engaged stakeholders. */}
+        {isClosedStatus(deal.status) && (() => {
+          const recordedCallCount = deal.entries.filter((e) => e.type === "call_summary").length;
+          // Engaged stakeholders = unique external attendee emails
+          // surfaced across call_summary entries' metadata. Falls
+          // back to the deal's own participants list when no call
+          // metadata is available (e.g. user-created deals with
+          // imported recap notes but no calls). Lowercased for the
+          // dedupe key.
+          const engagedSet = new Set<string>();
+          for (const e of deal.entries) {
+            if (e.type !== "call_summary" || !e.metadata) continue;
+            try {
+              const m = JSON.parse(e.metadata) as { attendeeEmails?: unknown };
+              if (Array.isArray(m.attendeeEmails)) {
+                for (const raw of m.attendeeEmails) {
+                  if (typeof raw === "string" && raw.includes("@")) {
+                    engagedSet.add(raw.toLowerCase());
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          const engagedStakeholders = engagedSet.size > 0
+            ? engagedSet.size
+            : deal.participants.length;
+          const stats = computeClosedDealStats({
+            createdAt: deal.createdAt,
+            closeDate: deal.closeDate,
+            recordedCallCount,
+            engagedStakeholders,
+          });
+          const won = deal.status === "closed_won";
+          const headerBg = won
+            ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700"
+            : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700";
+          const headerText = won
+            ? "text-green-800 dark:text-green-200"
+            : "text-red-800 dark:text-red-200";
+          return (
+            <div className={`border rounded-xl p-4 mb-5 ${headerBg}`}>
+              <div className={`text-xs font-semibold uppercase tracking-wide mb-3 ${headerText}`}>
+                {won ? "✅ Closed Won — Retrospective" : "❌ Closed Lost — Retrospective"}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Created</div>
+                  <div className="text-gray-900 dark:text-gray-100">{formatClosedDealDate(stats.createdAt)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Closed</div>
+                  <div className="text-gray-900 dark:text-gray-100">{formatClosedDealDate(stats.closeDate)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Cycle</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold">
+                    {stats.cycleDays != null ? `${stats.cycleDays} day${stats.cycleDays === 1 ? "" : "s"}` : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Meetings</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold">
+                    {stats.recordedCallCount} recorded
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Stakeholders</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold">
+                    {stats.engagedStakeholders} engaged
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Upcoming Meetings — calendar events in the next 90 days
             for this deal's domain. Imported via enrichDeal during

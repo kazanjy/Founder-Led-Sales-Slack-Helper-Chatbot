@@ -11,6 +11,7 @@ import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRole
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { parseDealAnalysis } from "@/lib/deals/parse-analysis";
 import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
+import { computeClosedDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -31,6 +32,13 @@ interface Deal {
   // last analysis. Drives the "N new entries since last analysis"
   // affordance on the right rail.
   newEntriesSinceAnalysis: number;
+  // Count of call_summary timeline entries on this deal. Drives the
+  // "Meetings recorded" stat on the closed-deal summary block; always
+  // present from the API.
+  recordedCallCount: number;
+  // Set when the deal hits closed_won / closed_lost. Drives the
+  // "Closed" + "Cycle" stats on the closed-deal summary block.
+  closeDate: string | null;
   dealValue: number | null;
   mikeyHealth: string | null;
   projectedCloseDate: string | null;
@@ -2021,50 +2029,70 @@ function DealsPageContent() {
                       className="group/rail relative w-72 flex-shrink-0 flex flex-col gap-2 border-l border-gray-100 dark:border-gray-700 pl-4 self-stretch"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <AnalysisStatusBlock
-                        lastAnalyzedAt={deal.lastAnalyzedAt}
-                        newEntriesSinceAnalysis={deal.newEntriesSinceAnalysis}
-                        updating={updatingAnalysis}
-                        onUpdate={runUpdateAnalysis}
-                      />
-                      <AnalysisWidget
-                        label="Current State"
-                        section={parsedAnalysis.currentState}
-                        emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
-                      />
-                      <AnalysisWidget
-                        label="Last Meaningful Interaction"
-                        section={parsedAnalysis.lastInteraction}
-                        emptyHint={
-                          deal.lastAnalysis
-                            ? "Re-analyze to populate this section"
-                            : "Run analysis to populate"
-                        }
-                      />
-                      <AnalysisWidget
-                        label="Next Best Action"
-                        section={parsedAnalysis.nextBestAction}
-                        emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
-                      />
-                      {/* Rail-level popover — one hover target covering
-                          the whole right rail, surfacing all three
-                          sections rendered as markdown. Replaces the
-                          older per-widget popovers so the user gets
-                          the full picture in a single hover. Anchored
-                          to the rail's right edge so it pops outward
-                          past the card. */}
-                      {(parsedAnalysis.currentState || parsedAnalysis.lastInteraction || parsedAnalysis.nextBestAction) && (
-                        <div className="hidden group-hover/rail:block absolute right-full top-0 mr-2 z-40 w-[28rem] max-w-[80vw] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-4 max-h-[70vh] overflow-y-auto">
-                          {parsedAnalysis.currentState && (
-                            <RailPopoverSection label="Current State" markdown={parsedAnalysis.currentState.full} />
+                      {isClosedStatus(deal.status) ? (
+                        // Closed deal → swap the live "what to do
+                        // next" widgets for a retrospective stats
+                        // block. The analyzer widgets are about
+                        // active-deal management and aren't useful
+                        // here; the user wants cycle / meetings /
+                        // stakeholders at a glance.
+                        <ClosedDealStatsBlock
+                          stats={computeClosedDealStats({
+                            createdAt: deal.createdAt,
+                            closeDate: deal.closeDate,
+                            recordedCallCount: deal.recordedCallCount,
+                            engagedStakeholders: deal._count.participants,
+                          })}
+                          status={deal.status}
+                        />
+                      ) : (
+                        <>
+                          <AnalysisStatusBlock
+                            lastAnalyzedAt={deal.lastAnalyzedAt}
+                            newEntriesSinceAnalysis={deal.newEntriesSinceAnalysis}
+                            updating={updatingAnalysis}
+                            onUpdate={runUpdateAnalysis}
+                          />
+                          <AnalysisWidget
+                            label="Current State"
+                            section={parsedAnalysis.currentState}
+                            emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
+                          />
+                          <AnalysisWidget
+                            label="Last Meaningful Interaction"
+                            section={parsedAnalysis.lastInteraction}
+                            emptyHint={
+                              deal.lastAnalysis
+                                ? "Re-analyze to populate this section"
+                                : "Run analysis to populate"
+                            }
+                          />
+                          <AnalysisWidget
+                            label="Next Best Action"
+                            section={parsedAnalysis.nextBestAction}
+                            emptyHint={deal.lastAnalysis ? null : "Run analysis to populate"}
+                          />
+                          {/* Rail-level popover — one hover target covering
+                              the whole right rail, surfacing all three
+                              sections rendered as markdown. Replaces the
+                              older per-widget popovers so the user gets
+                              the full picture in a single hover. Anchored
+                              to the rail's right edge so it pops outward
+                              past the card. */}
+                          {(parsedAnalysis.currentState || parsedAnalysis.lastInteraction || parsedAnalysis.nextBestAction) && (
+                            <div className="hidden group-hover/rail:block absolute right-full top-0 mr-2 z-40 w-[28rem] max-w-[80vw] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-4 max-h-[70vh] overflow-y-auto">
+                              {parsedAnalysis.currentState && (
+                                <RailPopoverSection label="Current State" markdown={parsedAnalysis.currentState.full} />
+                              )}
+                              {parsedAnalysis.lastInteraction && (
+                                <RailPopoverSection label="Last Meaningful Interaction" markdown={parsedAnalysis.lastInteraction.full} />
+                              )}
+                              {parsedAnalysis.nextBestAction && (
+                                <RailPopoverSection label="Next Best Action" markdown={parsedAnalysis.nextBestAction.full} />
+                              )}
+                            </div>
                           )}
-                          {parsedAnalysis.lastInteraction && (
-                            <RailPopoverSection label="Last Meaningful Interaction" markdown={parsedAnalysis.lastInteraction.full} />
-                          )}
-                          {parsedAnalysis.nextBestAction && (
-                            <RailPopoverSection label="Next Best Action" markdown={parsedAnalysis.nextBestAction.full} />
-                          )}
-                        </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -2456,6 +2484,57 @@ interface PillOption {
   value: string;
   label: string;
   color: string;
+}
+
+// Right-rail block surfaced on closed_won / closed_lost cards.
+// Replaces the live analysis widgets with a retrospective summary:
+// create / close dates, deal-cycle length, recorded meetings, and
+// engaged stakeholder count. Compact 2-col stat grid so it slots
+// into the same 288px rail width the analysis widgets use.
+function ClosedDealStatsBlock({
+  stats,
+  status,
+}: {
+  stats: ReturnType<typeof computeClosedDealStats>;
+  status: string;
+}) {
+  const won = status === "closed_won";
+  const headerBg = won
+    ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700 text-green-800 dark:text-green-200"
+    : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700 text-red-800 dark:text-red-200";
+  return (
+    <div className="flex flex-col gap-2">
+      <div className={`rounded-md border px-2 py-1.5 text-[11px] font-medium ${headerBg}`}>
+        {won ? "Closed Won — retrospective" : "Closed Lost — retrospective"}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] leading-snug">
+        <Stat label="Created" value={formatClosedDealDate(stats.createdAt)} />
+        <Stat label="Closed" value={formatClosedDealDate(stats.closeDate)} />
+        <Stat
+          label="Cycle"
+          value={stats.cycleDays != null ? `${stats.cycleDays} day${stats.cycleDays === 1 ? "" : "s"}` : "—"}
+        />
+        <Stat
+          label="Meetings"
+          value={`${stats.recordedCallCount} recorded`}
+        />
+        <Stat
+          label="Stakeholders"
+          value={`${stats.engagedStakeholders} engaged`}
+          className="col-span-2"
+        />
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={className}>
+      <div className="font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px]">{label}</div>
+      <div className="text-gray-700 dark:text-gray-200">{value}</div>
+    </div>
+  );
 }
 
 // Mini-header at the top of the right rail showing when the deal

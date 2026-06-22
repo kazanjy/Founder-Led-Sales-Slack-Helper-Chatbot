@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const [deals, lastActivity, nextMeeting, newSinceAnalysis] = await Promise.all([
+    const [deals, lastActivity, nextMeeting, newSinceAnalysis, recordedCalls] = await Promise.all([
       prisma.deal.findMany({
         where: { userId: user.id },
         orderBy: { updatedAt: "desc" },
@@ -74,17 +74,31 @@ export async function GET() {
           AND t.type != 'chat'
         GROUP BY t."dealId"
       `,
+      // Count of recorded calls (call_summary entries) per deal —
+      // drives the "Meetings recorded" stat on the closed-deal summary
+      // block. Computed unconditionally per deal so closed_won /
+      // closed_lost cards can surface it without a per-card fetch.
+      prisma.dealTimelineEntry.groupBy({
+        by: ["dealId"],
+        where: {
+          deal: { userId: user.id },
+          type: "call_summary",
+        },
+        _count: { _all: true },
+      }),
     ]);
 
     const lastById = new Map(lastActivity.map((r) => [r.dealId, r._max.entryDate]));
     const nextById = new Map(nextMeeting.map((r) => [r.dealId, r._min.entryDate]));
     const newSinceById = new Map(newSinceAnalysis.map((r) => [r.deal_id, Number(r.cnt)]));
+    const recordedCallsById = new Map(recordedCalls.map((r) => [r.dealId, r._count._all]));
 
     const enriched = deals.map((d) => ({
       ...d,
       lastActivityAt: lastById.get(d.id) || null,
       nextMeetingAt: nextById.get(d.id) || null,
       newEntriesSinceAnalysis: newSinceById.get(d.id) || 0,
+      recordedCallCount: recordedCallsById.get(d.id) || 0,
     }));
 
     return NextResponse.json({ deals: enriched });
