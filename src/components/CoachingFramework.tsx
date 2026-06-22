@@ -2753,7 +2753,17 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   onBlur={() => {
                     const val = parseFloat(metricInputValue) || 0;
                     setMetricEntries((prev) =>
-                      prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
+                      prev.map((me) => me.id === entry.id
+                        // Recompute addedSinceLastSession optimistically
+                        // off the new currentValue so the "since last"
+                        // line refreshes immediately. Without this the
+                        // delta keeps showing the stale stored value
+                        // (which was computed against whatever
+                        // currentValue used to be) until the next page
+                        // load — the bug that made a 14 → 15 update
+                        // render as "-14 since last".
+                        ? { ...me, currentValue: val, addedSinceLastSession: me.previousValue != null ? val - me.previousValue : 0 }
+                        : me)
                     );
                     updateMetricValue(entry.id, entry.metricDefinition.id, val);
                     setFocusedMetric(null);
@@ -2765,7 +2775,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                       // Save current value
                       const val = parseFloat(metricInputValue) || 0;
                       setMetricEntries((prev) =>
-                        prev.map((me) => me.id === entry.id ? { ...me, currentValue: val } : me)
+                        prev.map((me) => me.id === entry.id
+                          ? { ...me, currentValue: val, addedSinceLastSession: me.previousValue != null ? val - me.previousValue : 0 }
+                          : me)
                       );
                       updateMetricValue(entry.id, entry.metricDefinition.id, val);
                       // Find next metric in the list
