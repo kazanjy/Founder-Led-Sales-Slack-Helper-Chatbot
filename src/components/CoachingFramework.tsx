@@ -439,6 +439,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // goal — keeps the override scoped to that goal instead of
   // flipping the global filter off everywhere.
   const [revealedUnprioritizedGoals, setRevealedUnprioritizedGoals] = useState<Set<string>>(new Set());
+  // Task ids the user just created this session. While they're in
+  // this set, they get exempted from the "Only prioritized" filter
+  // so a brand-new unprioritized task doesn't vanish before the user
+  // has a chance to set a priority on it. We never remove from this
+  // set during the session — once the user prioritizes a task it
+  // passes the filter naturally; until then they keep the task
+  // visible and editable. Resets on page reload.
+  const [recentlyAddedTaskIds, setRecentlyAddedTaskIds] = useState<Set<string>>(new Set());
   const [addingMetric, setAddingMetric] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
   const [newMetricDefinition, setNewMetricDefinition] = useState("");
@@ -1506,6 +1514,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         const done = g.tasks.filter((t) => t.status === "done");
         return { ...g, tasks: [data.task, ...active, ...done] };
       }));
+      // Keep the new task visible under the "Only prioritized" filter
+      // until the user gets a chance to assign it a priority — see
+      // recentlyAddedTaskIds.
+      if (data.task?.id) {
+        setRecentlyAddedTaskIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.task.id);
+          return next;
+        });
+      }
     }
   };
 
@@ -1530,6 +1548,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         updated.splice(parentIdx >= 0 ? parentIdx + 1 : updated.length, 0, data.task);
         return { ...g, tasks: updated };
       }));
+      // Same grace-period exemption as addTask — keeps the new
+      // subtask visible until the user has a chance to prioritize it.
+      if (data.task?.id) {
+        setRecentlyAddedTaskIds((prev) => {
+          const next = new Set(prev);
+          next.add(data.task.id);
+          return next;
+        });
+      }
     }
   };
 
@@ -2178,8 +2205,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         if (hideForGoal && isSettledRow(t)) continue;
         // "Only prioritized" — in the flat sorted view every row is
         // a peer (no parent-as-anchor needed), so a row is kept iff
-        // its own priority is set.
-        if (onlyPrioritized && !hasPriority(t.priority)) continue;
+        // its own priority is set. Recently-added tasks (set on
+        // create) get exempted until the user prioritizes them.
+        if (onlyPrioritized && !hasPriority(t.priority) && !recentlyAddedTaskIds.has(t.id)) continue;
         const parent = t.parentTaskId ? taskById.get(t.parentTaskId) || null : null;
         rows.push({ task: t, goal, parent });
       }
@@ -3530,8 +3558,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   if (filterPrioritizedForThisGoal) {
                     visibleTopLevel = visibleTopLevel.filter((t) => {
                       if (hasPriority(t.priority)) return true;
+                      // Newly-added tasks get a grace period — stay
+                      // visible until the user prioritizes them or
+                      // reloads the page.
+                      if (recentlyAddedTaskIds.has(t.id)) return true;
                       const subs = subtasksByParent[t.id] || [];
-                      return subs.some((s) => hasPriority(s.priority));
+                      return subs.some((s) => hasPriority(s.priority)) ||
+                        subs.some((s) => recentlyAddedTaskIds.has(s.id));
                     });
                   }
                   // Per-parent visible subtasks, settled count, and a
@@ -3553,7 +3586,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                     // their own priority is set. Same per-goal
                     // reveal override as the top-level pass above.
                     if (filterPrioritizedForThisGoal) {
-                      visible = visible.filter((t) => hasPriority(t.priority));
+                      visible = visible.filter((t) =>
+                        hasPriority(t.priority) || recentlyAddedTaskIds.has(t.id)
+                      );
                     }
                     visibleSubsByParent[parentId] = visible;
                     hiddenSubsByParent[parentId] = all.length - visible.length;
@@ -3577,8 +3612,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                         for (const t of topLevelTasks) {
                           if (hideForGoal && isSettled(t)) continue;
                           if (hasPriority(t.priority)) continue;
+                          // Recently-added tasks aren't suppressed,
+                          // so they don't count toward the "hidden"
+                          // tally either.
+                          if (recentlyAddedTaskIds.has(t.id)) continue;
                           const subs = subtasksByParent[t.id] || [];
                           if (subs.some((s) => hasPriority(s.priority))) continue;
+                          if (subs.some((s) => recentlyAddedTaskIds.has(s.id))) continue;
                           n++;
                         }
                         // Subtasks: per-parent, subs that survive
@@ -3592,7 +3632,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           const survivors = hideForGoal && !showingHidden
                             ? all.filter((t) => !isSettled(t))
                             : all;
-                          n += survivors.filter((t) => !hasPriority(t.priority)).length;
+                          n += survivors.filter((t) =>
+                            !hasPriority(t.priority) && !recentlyAddedTaskIds.has(t.id)
+                          ).length;
                         }
                         return n;
                       })()
