@@ -51,16 +51,21 @@ export function formatClosedDealDate(iso: string | null): string {
 
 // Count UNIQUE recorded meetings on a deal. A single meeting can
 // produce both a call_summary entry AND a call_transcript entry
-// (the recorder gives us the summary; a user might separately
-// paste the transcript) — naïvely counting either type alone
-// undercounts, and counting both double-counts. Dedupe key:
-//   1) metadata.providerCallId when present (most reliable —
-//      written by scan-recordings + the bulk-import flow)
-//   2) Otherwise normalized title + minute-precision entryDate
-//      (good enough fallback for hand-pasted entries from the
-//      same call)
-//   3) Otherwise the entry's own id (never collides — last
-//      resort so we don't drop a real meeting).
+// (often with different titles — "Pete / Rami Catch Up" from a
+// calendar invite vs "Fathom Recording" from the recorder) and a
+// time gap of a few minutes-to-hours between landing. Title-match
+// or exact-time match misses these; we cluster instead:
+//
+//   1) Entries sharing a metadata.providerCallId always collapse to
+//      one meeting, even if the time gap is huge.
+//   2) Otherwise: walk entries by entryDate and merge into the
+//      previous cluster if within CLUSTER_WINDOW_MS — currently
+//      4 hours — of the cluster's most recent entry. 4h is long
+//      enough to catch a transcript landing after the summary but
+//      short enough that two separate same-day calls stay distinct.
+//   3) Falls through to a fresh cluster otherwise.
+const CLUSTER_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 export function countUniqueMeetings(entries: Array<{
   id: string;
   type: string;
@@ -68,35 +73,64 @@ export function countUniqueMeetings(entries: Array<{
   entryDate: string | Date;
   metadata: string | null;
 }>): number {
-  const seen = new Set<string>();
+  type Eligible = { id: string; ts: number; providerCallId: string | null };
+  const eligible: Eligible[] = [];
   for (const e of entries) {
     if (e.type !== "call_summary" && e.type !== "call_transcript") continue;
-    let key: string | null = null;
+    const when = typeof e.entryDate === "string" ? new Date(e.entryDate) : e.entryDate;
+    const ts = when.getTime();
+    if (!Number.isFinite(ts)) continue;
+    let providerCallId: string | null = null;
     if (e.metadata) {
       try {
         const m = JSON.parse(e.metadata) as { providerCallId?: unknown };
         if (typeof m.providerCallId === "string" && m.providerCallId.trim()) {
-          key = `pcid:${m.providerCallId.trim()}`;
+          providerCallId = m.providerCallId.trim();
         }
       } catch { /* ignore */ }
     }
-    if (!key) {
-      const when = typeof e.entryDate === "string" ? new Date(e.entryDate) : e.entryDate;
-      // Round to the minute — call_summary + call_transcript from
-      // the same import flow share entryDate exactly, but a user
-      // hand-pasting a transcript later might be off by seconds.
-      const minuteIso = isNaN(when.getTime())
-        ? "invalid"
-        : new Date(Math.floor(when.getTime() / 60000) * 60000).toISOString();
-      const title = (e.title || "").trim().toLowerCase();
-      if (title) {
-        key = `tm:${minuteIso}|${title}`;
-      }
-    }
-    if (!key) key = `id:${e.id}`;
-    seen.add(key);
+    eligible.push({ id: e.id, ts, providerCallId });
   }
-  return seen.size;
+  if (eligible.length === 0) return 0;
+
+  // Pre-collapse by providerCallId so the time-window pass treats
+  // them as one logical event regardless of when each entry landed.
+  const byProviderId = new Map<string, number>();
+  const clusterTimes: number[][] = []; // cluster idx → list of entry ts
+  for (const e of eligible) {
+    if (e.providerCallId) {
+      const existing = byProviderId.get(e.providerCallId);
+      if (existing != null) {
+        clusterTimes[existing].push(e.ts);
+        continue;
+      }
+      const idx = clusterTimes.length;
+      byProviderId.set(e.providerCallId, idx);
+      clusterTimes.push([e.ts]);
+    } else {
+      clusterTimes.push([e.ts]);
+    }
+  }
+
+  // Second pass: merge clusters whose time ranges overlap within the
+  // 4-hour window. Each cluster's "footprint" is [min, max] of its
+  // entries; two clusters merge if their footprints come within
+  // CLUSTER_WINDOW_MS of each other.
+  const clusters = clusterTimes
+    .map((times) => ({ min: Math.min(...times), max: Math.max(...times) }))
+    .sort((a, b) => a.min - b.min);
+
+  let merged = 0;
+  let prev: { min: number; max: number } | null = null;
+  for (const c of clusters) {
+    if (prev && c.min - prev.max <= CLUSTER_WINDOW_MS) {
+      prev.max = Math.max(prev.max, c.max);
+      continue;
+    }
+    merged++;
+    prev = { min: c.min, max: c.max };
+  }
+  return merged;
 }
 
 // Open-deal stats — operational rather than retrospective. Surfaced

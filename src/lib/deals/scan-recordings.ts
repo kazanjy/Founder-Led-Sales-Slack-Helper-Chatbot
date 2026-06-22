@@ -225,12 +225,40 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   if (calls.length === 0) return out;
 
   // Dedupe: drop any callIds we've already processed for this user.
+  // Two sources of truth — both have to be consulted because manual
+  // imports (the bulk-import flow, pasted entries) write straight to
+  // dealTimelineEntry.metadata.providerCallId WITHOUT leaving a
+  // processedRecording row. Looking only at processed_recordings
+  // would re-import every call the user already imported by hand.
   const callIds = calls.map((c) => c.id);
-  const alreadyDone = await prisma.processedRecording.findMany({
-    where: { userId, providerCallId: { in: callIds } },
-    select: { providerCallId: true },
-  });
-  const doneSet = new Set(alreadyDone.map((r) => r.providerCallId));
+  const [alreadyDone, manualEntries] = await Promise.all([
+    prisma.processedRecording.findMany({
+      where: { userId, providerCallId: { in: callIds } },
+      select: { providerCallId: true },
+    }),
+    // Pull every call_summary / call_transcript entry on this user's
+    // deals; parse providerCallId out of metadata. Bounded by total
+    // call entries across the user's deals — well under hundreds
+    // even for active founders. Storing metadata as text means we
+    // can't filter inside Prisma, but the cost is fine in practice.
+    prisma.dealTimelineEntry.findMany({
+      where: {
+        deal: { userId },
+        type: { in: ["call_summary", "call_transcript"] },
+      },
+      select: { metadata: true },
+    }),
+  ]);
+  const doneSet = new Set<string>(alreadyDone.map((r) => r.providerCallId));
+  for (const e of manualEntries) {
+    if (!e.metadata) continue;
+    try {
+      const m = JSON.parse(e.metadata) as { providerCallId?: unknown };
+      if (typeof m.providerCallId === "string" && m.providerCallId.trim()) {
+        doneSet.add(m.providerCallId.trim());
+      }
+    } catch { /* ignore */ }
+  }
   const fresh = calls.filter((c) => !doneSet.has(c.id));
   if (fresh.length === 0) return out;
 
