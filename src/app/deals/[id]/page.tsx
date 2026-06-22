@@ -13,7 +13,7 @@ import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { decodeHtmlEntities, htmlToMarkdown } from "@/lib/html-entities";
-import { computeClosedDealStats, computeOpenDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
+import { computeClosedDealStats, computeOpenDealStats, countUniqueMeetings, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
 
 interface Participant {
   id: string;
@@ -1811,7 +1811,11 @@ If you're torn between two actions, name both and tell me how to choose.`;
             entries for recorded meetings, dedupes attendee emails
             from those entries for engaged stakeholders. */}
         {isClosedStatus(deal.status) && (() => {
-          const recordedCallCount = deal.entries.filter((e) => e.type === "call_summary").length;
+          // Count UNIQUE recorded meetings — a single call can land
+          // as both a call_summary AND a call_transcript entry, so
+          // we dedupe via providerCallId / (date+title) before
+          // counting (see countUniqueMeetings).
+          const recordedCallCount = countUniqueMeetings(deal.entries);
           // Engaged stakeholders = unique external attendee emails
           // surfaced across call_summary entries' metadata. Falls
           // back to the deal's own participants list when no call
@@ -1820,7 +1824,7 @@ If you're torn between two actions, name both and tell me how to choose.`;
           // dedupe key.
           const engagedSet = new Set<string>();
           for (const e of deal.entries) {
-            if (e.type !== "call_summary" || !e.metadata) continue;
+            if ((e.type !== "call_summary" && e.type !== "call_transcript") || !e.metadata) continue;
             try {
               const m = JSON.parse(e.metadata) as { attendeeEmails?: unknown };
               if (Array.isArray(m.attendeeEmails)) {
@@ -1891,7 +1895,11 @@ If you're torn between two actions, name both and tell me how to choose.`;
             it, how stalled the current stage is, and how deep the
             engagement is without scrolling into the timeline. */}
         {!isClosedStatus(deal.status) && (() => {
-          const recordedCallCount = deal.entries.filter((e) => e.type === "call_summary").length;
+          // Count UNIQUE recorded meetings — a single call can land
+          // as both a call_summary AND a call_transcript entry, so
+          // we dedupe via providerCallId / (date+title) before
+          // counting (see countUniqueMeetings).
+          const recordedCallCount = countUniqueMeetings(deal.entries);
           // Most recent stage_change entry's date → days in current
           // stage. Falls back to createdAt when the deal never moved
           // stages.
@@ -1907,7 +1915,7 @@ If you're torn between two actions, name both and tell me how to choose.`;
           // version above.
           const engagedSet = new Set<string>();
           for (const e of deal.entries) {
-            if (e.type !== "call_summary" || !e.metadata) continue;
+            if ((e.type !== "call_summary" && e.type !== "call_transcript") || !e.metadata) continue;
             try {
               const m = JSON.parse(e.metadata) as { attendeeEmails?: unknown };
               if (Array.isArray(m.attendeeEmails)) {

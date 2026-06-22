@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { countUniqueMeetings } from "@/lib/deals/closed-stats";
 
 // GET — list user's deals (newest first)
 export async function GET() {
@@ -74,17 +75,19 @@ export async function GET() {
           AND t.type != 'chat'
         GROUP BY t."dealId"
       `,
-      // Count of recorded calls (call_summary entries) per deal —
-      // drives the "Meetings recorded" stat on the closed-deal summary
-      // block. Computed unconditionally per deal so closed_won /
-      // closed_lost cards can surface it without a per-card fetch.
-      prisma.dealTimelineEntry.groupBy({
-        by: ["dealId"],
+      // Recorded-call entries (call_summary + call_transcript) per
+      // deal, fetched in full so we can dedupe per-deal — a single
+      // meeting often produces both a summary AND a transcript entry
+      // and the user wants ONE count per unique meeting. See
+      // countUniqueMeetings in lib/deals/closed-stats. Bounded by
+      // total call entries across all of the user's deals — well
+      // under hundreds even for active founders.
+      prisma.dealTimelineEntry.findMany({
         where: {
           deal: { userId: user.id },
-          type: "call_summary",
+          type: { in: ["call_summary", "call_transcript"] },
         },
-        _count: { _all: true },
+        select: { id: true, dealId: true, type: true, title: true, entryDate: true, metadata: true },
       }),
       // Most recent stage_change entry per deal → "stage entered at".
       // Drives the "Days in stage" stat on the open-deal summary
@@ -103,7 +106,30 @@ export async function GET() {
     const lastById = new Map(lastActivity.map((r) => [r.dealId, r._max.entryDate]));
     const nextById = new Map(nextMeeting.map((r) => [r.dealId, r._min.entryDate]));
     const newSinceById = new Map(newSinceAnalysis.map((r) => [r.deal_id, Number(r.cnt)]));
-    const recordedCallsById = new Map(recordedCalls.map((r) => [r.dealId, r._count._all]));
+    // Bucket the recorded-call entries by dealId, then run the
+    // shared dedupe helper so summary + transcript pairs for the
+    // same meeting only count once.
+    const callEntriesByDeal = new Map<string, typeof recordedCalls>();
+    for (const e of recordedCalls) {
+      const bucket = callEntriesByDeal.get(e.dealId) ?? [];
+      bucket.push(e);
+      callEntriesByDeal.set(e.dealId, bucket);
+    }
+    const recordedCallsById = new Map<string, number>();
+    for (const [dealId, bucket] of callEntriesByDeal) {
+      recordedCallsById.set(
+        dealId,
+        countUniqueMeetings(
+          bucket.map((e) => ({
+            id: e.id,
+            type: e.type,
+            title: e.title,
+            entryDate: e.entryDate,
+            metadata: e.metadata,
+          }))
+        )
+      );
+    }
     const stageEnteredById = new Map(latestStageChange.map((r) => [r.dealId, r._max.entryDate]));
 
     const enriched = deals.map((d) => ({
