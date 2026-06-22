@@ -48,3 +48,42 @@ export function formatClosedDealDate(iso: string | null): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+
+// Open-deal stats — operational rather than retrospective. Surfaced
+// on both /deals (right rail) and /deals/[id] (top of detail) for
+// deals whose status isn't closed_won / closed_lost. Each stat is
+// chosen to be a glance-able health signal:
+//   - daysOpen:           overall age. Sets context.
+//   - daysInStage:        single best stall signal. Computed from
+//                         the most recent stage_change entry; falls
+//                         back to daysOpen when the deal never
+//                         moved stages.
+//   - recordedCallCount:  engagement depth.
+//   - engagedStakeholders: single-threaded risk signal.
+export interface OpenDealStats {
+  daysOpen: number;
+  daysInStage: number;
+  recordedCallCount: number;
+  engagedStakeholders: number;
+}
+
+export function computeOpenDealStats(input: {
+  createdAt: string | Date;
+  stageEnteredAt: string | Date | null;
+  recordedCallCount: number;
+  engagedStakeholders: number;
+}): OpenDealStats {
+  const now = new Date();
+  const created = typeof input.createdAt === "string" ? new Date(input.createdAt) : input.createdAt;
+  const stageEntered = input.stageEnteredAt
+    ? typeof input.stageEnteredAt === "string"
+      ? new Date(input.stageEnteredAt)
+      : input.stageEnteredAt
+    : created;
+  return {
+    daysOpen: diffDays(now, created),
+    daysInStage: diffDays(now, stageEntered),
+    recordedCallCount: input.recordedCallCount,
+    engagedStakeholders: input.engagedStakeholders,
+  };
+}

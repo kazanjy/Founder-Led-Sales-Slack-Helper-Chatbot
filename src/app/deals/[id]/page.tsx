@@ -13,7 +13,7 @@ import BulkImportCallsModal from "@/components/BulkImportCallsModal";
 import { DEAL_STATUSES, PARTICIPANT_ROLES, ENTRY_TYPES, CLOSED_LOST_REASONS, getStatusInfo, getRoleInfo, getEntryTypeInfo, getHealthInfo } from "@/lib/deals/constants";
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { decodeHtmlEntities, htmlToMarkdown } from "@/lib/html-entities";
-import { computeClosedDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
+import { computeClosedDealStats, computeOpenDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
 
 interface Participant {
   id: string;
@@ -64,6 +64,7 @@ interface Deal {
   mikeyHealth: string | null;
   closeDate: string | null;
   closedLostReason: string | null;
+  createdAt: string;
   participants: Participant[];
   entries: TimelineEntry[];
   project: { id: string; name: string } | null;
@@ -1878,6 +1879,73 @@ If you're torn between two actions, name both and tell me how to choose.`;
                   <div className="text-gray-900 dark:text-gray-100 font-semibold">
                     {stats.engagedStakeholders} engaged
                   </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Open-deal summary — at-a-glance health stats for any deal
+            that isn't closed_won / closed_lost. Renders below the
+            header so the founder sees how long they've been working
+            it, how stalled the current stage is, and how deep the
+            engagement is without scrolling into the timeline. */}
+        {!isClosedStatus(deal.status) && (() => {
+          const recordedCallCount = deal.entries.filter((e) => e.type === "call_summary").length;
+          // Most recent stage_change entry's date → days in current
+          // stage. Falls back to createdAt when the deal never moved
+          // stages.
+          const stageChanges = deal.entries
+            .filter((e) => e.type === "stage_change")
+            .map((e) => new Date(e.entryDate).getTime());
+          const stageEnteredAt = stageChanges.length > 0
+            ? new Date(Math.max(...stageChanges)).toISOString()
+            : null;
+          // Engaged stakeholders — unique external attendee emails
+          // across all call_summary entries, falling back to the
+          // deal's participants list. Same logic as the closed-deal
+          // version above.
+          const engagedSet = new Set<string>();
+          for (const e of deal.entries) {
+            if (e.type !== "call_summary" || !e.metadata) continue;
+            try {
+              const m = JSON.parse(e.metadata) as { attendeeEmails?: unknown };
+              if (Array.isArray(m.attendeeEmails)) {
+                for (const raw of m.attendeeEmails) {
+                  if (typeof raw === "string" && raw.includes("@")) {
+                    engagedSet.add(raw.toLowerCase());
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          const engagedStakeholders = engagedSet.size > 0
+            ? engagedSet.size
+            : deal.participants.length;
+          const stats = computeOpenDealStats({
+            createdAt: deal.createdAt,
+            stageEnteredAt,
+            recordedCallCount,
+            engagedStakeholders,
+          });
+          return (
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Days open</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold text-base">{stats.daysOpen}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Days in stage</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold text-base">{stats.daysInStage}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Meetings recorded</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold text-base">{stats.recordedCallCount}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Stakeholders engaged</div>
+                  <div className="text-gray-900 dark:text-gray-100 font-semibold text-base">{stats.engagedStakeholders}</div>
                 </div>
               </div>
             </div>

@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const [deals, lastActivity, nextMeeting, newSinceAnalysis, recordedCalls] = await Promise.all([
+    const [deals, lastActivity, nextMeeting, newSinceAnalysis, recordedCalls, latestStageChange] = await Promise.all([
       prisma.deal.findMany({
         where: { userId: user.id },
         orderBy: { updatedAt: "desc" },
@@ -86,12 +86,25 @@ export async function GET() {
         },
         _count: { _all: true },
       }),
+      // Most recent stage_change entry per deal → "stage entered at".
+      // Drives the "Days in stage" stat on the open-deal summary
+      // block. Deals that never moved stages get null here and the
+      // client falls back to createdAt.
+      prisma.dealTimelineEntry.groupBy({
+        by: ["dealId"],
+        where: {
+          deal: { userId: user.id },
+          type: "stage_change",
+        },
+        _max: { entryDate: true },
+      }),
     ]);
 
     const lastById = new Map(lastActivity.map((r) => [r.dealId, r._max.entryDate]));
     const nextById = new Map(nextMeeting.map((r) => [r.dealId, r._min.entryDate]));
     const newSinceById = new Map(newSinceAnalysis.map((r) => [r.deal_id, Number(r.cnt)]));
     const recordedCallsById = new Map(recordedCalls.map((r) => [r.dealId, r._count._all]));
+    const stageEnteredById = new Map(latestStageChange.map((r) => [r.dealId, r._max.entryDate]));
 
     const enriched = deals.map((d) => ({
       ...d,
@@ -99,6 +112,7 @@ export async function GET() {
       nextMeetingAt: nextById.get(d.id) || null,
       newEntriesSinceAnalysis: newSinceById.get(d.id) || 0,
       recordedCallCount: recordedCallsById.get(d.id) || 0,
+      stageEnteredAt: stageEnteredById.get(d.id) || null,
     }));
 
     return NextResponse.json({ deals: enriched });

@@ -11,7 +11,7 @@ import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRole
 import { mergePipeline, resolveStage, type CustomStage } from "@/lib/deals/stages";
 import { parseDealAnalysis } from "@/lib/deals/parse-analysis";
 import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
-import { computeClosedDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
+import { computeClosedDealStats, computeOpenDealStats, formatClosedDealDate, isClosedStatus } from "@/lib/deals/closed-stats";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -39,6 +39,11 @@ interface Deal {
   // Set when the deal hits closed_won / closed_lost. Drives the
   // "Closed" + "Cycle" stats on the closed-deal summary block.
   closeDate: string | null;
+  // Most recent stage_change entry's entryDate, null if the deal
+  // has never moved stages. Drives the "Days in stage" stat on the
+  // open-deal summary block; client falls back to createdAt when
+  // null.
+  stageEnteredAt: string | null;
   dealValue: number | null;
   mikeyHealth: string | null;
   projectedCloseDate: string | null;
@@ -2092,6 +2097,20 @@ function DealsPageContent() {
                               )}
                             </div>
                           )}
+                          {/* Open-deal stats strip — sits at the
+                              bottom of the rail with a thin top
+                              border to visually separate it from
+                              the analyzer widgets above. Always
+                              visible (no hover) since these are
+                              quick-glance health numbers. */}
+                          <OpenDealStatsBlock
+                            stats={computeOpenDealStats({
+                              createdAt: deal.createdAt,
+                              stageEnteredAt: deal.stageEnteredAt,
+                              recordedCallCount: deal.recordedCallCount,
+                              engagedStakeholders: deal._count.participants,
+                            })}
+                          />
                         </>
                       )}
                     </div>
@@ -2533,6 +2552,25 @@ function Stat({ label, value, className }: { label: string; value: string; class
     <div className={className}>
       <div className="font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px]">{label}</div>
       <div className="text-gray-700 dark:text-gray-200">{value}</div>
+    </div>
+  );
+}
+
+// At-a-glance health stats for OPEN deals — appended below the
+// analyzer widgets on the right rail. Compact 2x2 grid: days open /
+// days in stage / meetings recorded / engaged stakeholders. Not
+// hover-gated since these are meant for quick scanning down a list.
+function OpenDealStatsBlock({
+  stats,
+}: {
+  stats: ReturnType<typeof computeOpenDealStats>;
+}) {
+  return (
+    <div className="border-t border-gray-100 dark:border-gray-700 pt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] leading-snug">
+      <Stat label="Days open" value={`${stats.daysOpen}`} />
+      <Stat label="Days in stage" value={`${stats.daysInStage}`} />
+      <Stat label="Meetings" value={`${stats.recordedCallCount}`} />
+      <Stat label="Stakeholders" value={`${stats.engagedStakeholders}`} />
     </div>
   );
 }
