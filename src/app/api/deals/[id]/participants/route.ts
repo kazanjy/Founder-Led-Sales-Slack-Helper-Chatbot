@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { getAccountUserEmails } from "@/lib/deals/auto-detect";
 
 async function verifyDeal(dealId: string, userId: string) {
   const deal = await prisma.deal.findUnique({ where: { id: dealId } });
@@ -62,6 +63,15 @@ export async function POST(
         if (internalDomain && participantDomain === internalDomain) {
           return NextResponse.json({ participant: null, skipped: true, reason: "internal" });
         }
+      }
+      // Also check the exact email against the set of users in this
+      // account — catches sellers / teammates on free domains
+      // (gmail, etc.) that the domain check above can't filter
+      // because matching by domain would also drop external buyers
+      // who happen to be on the same domain.
+      const internalEmails = await getAccountUserEmails(user.id);
+      if (internalEmails.has(cleanEmail)) {
+        return NextResponse.json({ participant: null, skipped: true, reason: "internal" });
       }
     }
 

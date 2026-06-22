@@ -121,3 +121,46 @@ export async function getSelfDomains(userId: string): Promise<Set<string>> {
   }
   return set;
 }
+
+/**
+ * Returns the lowercased set of email addresses that belong to
+ * "internal" users — i.e., people who are themselves Mikey users
+ * inside the same account as `userId`. Used to make sure seller-side
+ * attendees on a calendar event or call recording don't get added to
+ * the deal's external-stakeholder list.
+ *
+ * Covers two cases the older self-domain check missed:
+ *  - Co-founders / teammates in the same Mikey account, even when
+ *    they don't share the seller's email domain.
+ *  - Sellers whose own email is on a public domain (gmail.com etc.).
+ *    The self-domain check skips public domains entirely so it
+ *    can't filter the seller; matching by exact email handles them.
+ *
+ * Pulls both User.email and User.slackEmail since a teammate may
+ * appear on calendar invites under either.
+ */
+export async function getAccountUserEmails(userId: string): Promise<Set<string>> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, slackEmail: true, accountId: true },
+  });
+  const set = new Set<string>();
+  const add = (email: string | null | undefined) => {
+    if (!email) return;
+    const cleaned = email.trim().toLowerCase();
+    if (cleaned) set.add(cleaned);
+  };
+  add(user?.email);
+  add(user?.slackEmail);
+  if (user?.accountId) {
+    const teammates = await prisma.user.findMany({
+      where: { accountId: user.accountId },
+      select: { email: true, slackEmail: true },
+    });
+    for (const t of teammates) {
+      add(t.email);
+      add(t.slackEmail);
+    }
+  }
+  return set;
+}

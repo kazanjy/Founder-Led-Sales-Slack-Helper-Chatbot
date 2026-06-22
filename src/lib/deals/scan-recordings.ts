@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import type { Deal } from "@prisma/client";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { getSlackClient } from "@/lib/slack/client";
-import { ensurePotentialDealForDomain, getSelfDomains } from "@/lib/deals/auto-detect";
+import { ensurePotentialDealForDomain, getSelfDomains, getAccountUserEmails } from "@/lib/deals/auto-detect";
 import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 
 /**
@@ -235,6 +235,12 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   if (fresh.length === 0) return out;
 
   const self = await getSelfDomains(userId);
+  // Internal Mikey user emails (the seller + any teammates in the
+  // same account). Used to keep sellers off of deals as
+  // "participants" — important when the seller's own email is on
+  // gmail.com or another public domain that the self-domain check
+  // can't catch.
+  const internalEmails = await getAccountUserEmails(userId);
 
   // Slack target: user's MikeyBot DM. Resolved once per user.
   const userRow = await prisma.user.findUnique({
@@ -354,6 +360,13 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
         for (const a of call.attendees || []) {
           const d = domainFromEmail(a.email);
           if (!d || self.has(d) || PUBLIC_EMAIL_DOMAINS.has(d)) continue;
+          // Belt-and-suspenders: even if the domain check let the
+          // email through, drop it when the address belongs to a
+          // Mikey user in this account. Catches sellers / teammates
+          // whose email lives on a custom domain that didn't make
+          // the public-domain list.
+          const emailLower = a.email?.trim().toLowerCase();
+          if (emailLower && internalEmails.has(emailLower)) continue;
           await prisma.dealParticipant.create({
             data: { dealId: deal.id, name: a.name, email: a.email },
           });
