@@ -16,6 +16,7 @@ const contentItems: NavItem[] = [
   { href: "/linkedin-sequence", label: "💼 LinkedIn Outbound", statusKey: "linkedInSequence" },
   { href: "/social-content", label: "📱 Social Posts", statusKey: "socialContent" },
   { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
+  { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
 ];
 
 const callExecutionItems: NavItem[] = [
@@ -27,7 +28,6 @@ const callExecutionItems: NavItem[] = [
 ];
 
 const standaloneItems: NavItem[] = [
-  { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
   { href: "/sales-metrics", label: "📈 Metrics", statusKey: "salesMetrics" },
   { href: "/coaching-history", label: "🎓 Coaching", statusKey: "coachingHistory" },
 ];
