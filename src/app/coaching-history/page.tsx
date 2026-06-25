@@ -113,6 +113,27 @@ function formatEnrichedContext(session: CoachingSession, enriched: EnrichedSessi
   return text;
 }
 
+// Seeded prompt for the "🧪 Synthesize Takeaways" CTA on a single
+// coaching session. Sits at the END of the user message after the
+// full enriched context (notes / transcript / goals / tasks / next-
+// up queue), so the model has everything it needs to summarize
+// against. Asks for a terse three-part synthesis — discussion ->
+// agreed outcomes -> top priorities until the next session — that
+// the founder can paste into a doc, share with a co-founder, or use
+// as a starting point for the next session's prep.
+const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into a terse, scannable takeaway doc with EXACTLY these three sections. Use the actual content of the session — names, deals, numbers, decisions — not generic coach-speak.
+
+## What we discussed
+3-6 bullets capturing the substantive topics, in the order they shaped the conversation. Cite specifics: which deals, which metrics, which obstacles, which questions. Skip throat-clearing and tangents.
+
+## What we agreed
+3-6 bullets of the explicit decisions, commitments, or shifts in thinking that landed during the session. Phrase as resolved statements ("we'll move X to Y", "I'll stop doing Z"), not as "we discussed". If there was no real agreement on a topic, omit it rather than hedging.
+
+## Top priorities until next session
+3-5 bullets ordered by priority. For each: the concrete action, the owner (default: the founder), and the success signal that says it's done. Be specific enough that a stranger reading this could pick up the work. No "continue working on X" — name the next move.
+
+Keep the whole thing under ~250 words total. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;
+
 async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<string> {
   const sorted = [...sessions].sort(
     (a, b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime()
@@ -1367,6 +1388,15 @@ function CoachingHistoryContent() {
                         title={`Coaching: ${selectedSession.title}`}
                         getContext={() => buildEnrichedChatContext([selectedSession])}
                         label="Chat About This"
+                        compact={headerCompact}
+                      />
+                      <ChatAboutButton
+                        title={`Takeaways: ${selectedSession.title}`}
+                        getContext={async () => {
+                          const ctx = await buildEnrichedChatContext([selectedSession]);
+                          return `${ctx}\n\n---\n\n${TAKEAWAYS_SYNTHESIS_PROMPT}`;
+                        }}
+                        label="🧪 Synthesize Takeaways"
                         compact={headerCompact}
                       />
                       {selectedSession.recordingUrl && (
