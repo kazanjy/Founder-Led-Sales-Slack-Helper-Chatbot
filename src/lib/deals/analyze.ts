@@ -297,14 +297,38 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
 - poor: multiple risks compounding (champion silent, no upcoming meeting AND long dwell, lost competitor signal, key stakeholder churned, etc.). This deal is in trouble.
 - Anchor the rating in the SAME evidence you cited in Strengths and Risks & Gaps — don't grade easier than the prose suggests.`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.5",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: (dealContext + priorAnalysisBlock).substring(0, 30000) },
-    ],
-    max_completion_tokens: 2000,
-  });
+  // Explicit AbortController + checkpoint logs so a slow OpenAI run
+  // surfaces as a logged error before Vercel terminates the function.
+  // 270s ceiling sits just under the route's maxDuration so we can
+  // produce a clean failure response instead of getting killed
+  // mid-await with zero log output.
+  const OPENAI_TIMEOUT_MS = 270_000;
+  const tag = `[runDealAnalysis ${Date.now()}]`;
+  const openaiStart = Date.now();
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  const promptChars = (dealContext + priorAnalysisBlock).length;
+  console.log(`${tag} deal=${dealId} promptChars=${promptChars} starting openai (timeout=${OPENAI_TIMEOUT_MS}ms)`);
+  let response: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+  try {
+    response = await openai.chat.completions.create(
+      {
+        model: "gpt-5.5",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: (dealContext + priorAnalysisBlock).substring(0, 30000) },
+        ],
+        max_completion_tokens: 2000,
+      },
+      { signal: controller.signal }
+    );
+    console.log(`${tag} deal=${dealId} openai responded in ${Date.now() - openaiStart}ms`);
+  } catch (err) {
+    console.error(`${tag} deal=${dealId} openai failed after ${Date.now() - openaiStart}ms:`, err);
+    throw err;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
   const { roles: suggestedRoles, cleaned: afterRoles } = extractParticipantRoles(rawAnalysis);
