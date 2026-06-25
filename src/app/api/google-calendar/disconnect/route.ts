@@ -19,7 +19,7 @@ export async function POST() {
     }
     await prisma.user.update({
       where: { id: user.id },
-      data: { googleRefreshToken: null, googleScopes: [] },
+      data: { googleRefreshToken: null, googleScopes: null },
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
