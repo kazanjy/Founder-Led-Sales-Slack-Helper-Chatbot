@@ -11,9 +11,18 @@ interface ChatAboutButtonProps {
   label?: string;
   /** Render in a smaller, denser style (e.g. inside a sticky header) */
   compact?: boolean;
+  /**
+   * Conversation mode for the new chat. "CHATBASE" (default) routes
+   * through the RAG path with a 7,500-char/message ceiling.
+   * "DIRECT" sends straight to gpt-5.5 — use when the seeded
+   * context is bigger than the Chatbase ceiling or when you need
+   * full-fidelity reasoning over a large blob (transcripts, deal
+   * history, coaching session content).
+   */
+  mode?: "CHATBASE" | "DIRECT";
 }
 
-export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false }: ChatAboutButtonProps) {
+export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE" }: ChatAboutButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -23,7 +32,7 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, context }),
+        body: JSON.stringify({ title, context, mode }),
       });
       const data = await res.json();
       if (data.conversationId) {

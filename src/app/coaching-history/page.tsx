@@ -1395,10 +1395,21 @@ function CoachingHistoryContent() {
                       />
                       <ChatAboutButton
                         title={`Takeaways: ${selectedSession.title}`}
+                        // Prompt FIRST, then the session context. The
+                        // synthesis instructions need to anchor the
+                        // model's reading of everything below — putting
+                        // them at the bottom risks them getting
+                        // out-weighted by the transcript's bulk.
                         getContext={async () => {
                           const ctx = await buildEnrichedChatContext([selectedSession]);
-                          return `${ctx}\n\n---\n\n${TAKEAWAYS_SYNTHESIS_PROMPT}`;
+                          return `${TAKEAWAYS_SYNTHESIS_PROMPT}\n\n---\n\n${ctx}`;
                         }}
+                        // DIRECT mode: the enriched session context
+                        // (notes + transcript + goals/tasks) regularly
+                        // blows past Chatbase's 7,500-char ceiling, and
+                        // synthesis quality depends on the model seeing
+                        // the full transcript not a RAG-retrieved slice.
+                        mode="DIRECT"
                         label="🧪 Synthesize Takeaways"
                         compact={headerCompact}
                       />
