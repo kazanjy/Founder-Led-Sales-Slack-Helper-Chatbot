@@ -29,14 +29,28 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
     setLoading(true);
     try {
       const context = await getContext();
+      // autoSend: true creates an EMPTY conversation server-side
+      // (no pre-seeded USER message). We then write the context to
+      // sessionStorage and open the chat page with ?autoSend=true,
+      // which triggers its existing autoSend effect to fire
+      // sendMessage(context) on mount — that creates the USER
+      // message AND drives the assistant response. Without this,
+      // the new tab would just show the pre-seeded USER message
+      // sitting there with no reply.
+      //
+      // Modern browsers copy sessionStorage to the new tab when
+      // window.open is called without noopener, which is why
+      // every other autoSend caller in the app uses the same
+      // setItem-then-window.open pattern.
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, context, mode }),
+        body: JSON.stringify({ title, context, mode, autoSend: true }),
       });
       const data = await res.json();
       if (data.conversationId) {
-        window.open(`/chat/${data.conversationId}`, "_blank");
+        sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
+        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
       }
     } catch (error) {
       console.error("Failed to create chat:", error);
