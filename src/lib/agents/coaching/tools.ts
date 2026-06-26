@@ -1,29 +1,17 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
+import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
+
+// Re-export so existing code that pulled these from this module keeps
+// working without touching every callsite.
+export type { ToolContext, ToolEntry };
 
 /**
  * Tool registry for the per-account Mikey coaching agent (phase 1).
- *
- * Each entry pairs an OpenAI tool/function definition with a handler
- * that runs server-side. The handler ALWAYS receives the userId from
- * the trusted server context — never from the LLM — so a hallucinated
- * tool call can't read another user's coaching data.
- *
- * Companion to src/lib/agents/deals/tools.ts. Eventually these two
- * (plus playbook RAG) should fold into a single GTM agent, but for
- * now we keep them separate so we can ship + tune the coaching
- * surface independently.
+ * See companion src/lib/agents/deals/tools.ts. Shared handler types
+ * live in src/lib/agents/shared/types.ts so the GTM agent can
+ * compose tools across modules.
  */
-
-export interface ToolContext {
-  userId: string;
-}
-
-export interface ToolEntry {
-  definition: ChatCompletionTool;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (args: any, ctx: ToolContext) => Promise<unknown>;
-}
 
 // ── Helpers ─────────────────────────────────────────────────────────
 

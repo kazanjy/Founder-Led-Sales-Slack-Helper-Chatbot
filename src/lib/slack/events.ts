@@ -6,6 +6,7 @@ import { markdownToSlack } from "./markdown";
 import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseResearchCommand } from "./commands";
 import { tryHandleWithDealAgent } from "./deal-agent-router";
 import { tryHandleWithCoachingAgent } from "./coaching-agent-router";
+import { tryHandleWithGtmAgent } from "./gtm-agent-router";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -658,6 +659,25 @@ async function handleMention(
       threadRootTs: thread_ts,
     });
     if (handledByCoachingAgent) return;
+    // Then the GTM agent — the everything-else catch-all. It has
+    // Chatbase's playbook as a TOOL (searchFounderLedSalesPlaybook)
+    // plus all the personal-data tools (narrative / ICP / discovery
+    // questions / etc.), so this replaces the legacy Chatbase send
+    // path for text-only messages. Falls through (returns false)
+    // when files are attached so the existing image/PDF/OCR
+    // pipeline downstream still runs for those.
+    const handledByGtmAgent = await tryHandleWithGtmAgent({
+      speakerUserId: dbUser.id,
+      text,
+      hasFiles: !!(files && files.length > 0),
+      client,
+      channel,
+      threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
+    });
+    if (handledByGtmAgent) return;
   }
 
   // Strip the bot mention from the message
@@ -847,6 +867,22 @@ async function handleDirectMessage(
       threadRootTs: thread_ts,
     });
     if (handledByCoachingAgent) return;
+    // GTM agent — everything-else catch-all. See handleMention
+    // comment for details. Hashtag commands and the legacy
+    // Chatbase pipeline still run as fallbacks below if this
+    // returns false (file attachments, exceptions, etc.).
+    const handledByGtmAgent = await tryHandleWithGtmAgent({
+      speakerUserId: dbUser.id,
+      text,
+      hasFiles: !!(files && files.length > 0),
+      client,
+      channel,
+      threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
+    });
+    if (handledByGtmAgent) return;
   }
 
   // Check for hashtag commands (e.g. #instructions)

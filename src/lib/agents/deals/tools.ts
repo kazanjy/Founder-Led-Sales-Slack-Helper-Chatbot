@@ -1,29 +1,18 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
 import { runDealAnalysis } from "@/lib/deals/analyze";
+import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
+
+// Re-export so existing imports of these names from this module keep
+// working — types are now centralized in shared/types.
+export type { ToolContext, ToolEntry };
 
 /**
- * Tool registry for the per-deal Mikey agent (phase 1).
- *
- * Each entry pairs an OpenAI tool/function definition with a handler
- * that runs server-side. The handler ALWAYS receives the userId from
- * the trusted server context — never from the LLM — so a hallucinated
- * tool call can't read another user's deal data.
- *
- * Pipeline tools (listDeals, findDealsByPerson, dealsNeedingAttention,
- * etc.) are phase 2 and intentionally absent here. See
- * docs/deal-agent-plan.md.
+ * Tool registry for the per-deal Mikey agent (phase 1). Pipeline tools
+ * are phase 2 — see docs/deal-agent-plan.md. Shared handler types
+ * live in src/lib/agents/shared/types.ts so the GTM agent can compose
+ * tools across modules.
  */
-
-export interface ToolContext {
-  userId: string;
-}
-
-export interface ToolEntry {
-  definition: ChatCompletionTool;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (args: any, ctx: ToolContext) => Promise<unknown>;
-}
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
