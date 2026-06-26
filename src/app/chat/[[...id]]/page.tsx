@@ -1432,13 +1432,19 @@ export default function ChatPage() {
   }, [messages]);
 
   // If the URL points at a specific message via #msg-<id>, jump there
-  // once the message exists in the DOM. Runs whenever messages land
-  // (the initial fetch resolves, or the user follows an internal anchor
-  // copied from another tab).
+  // once the message exists in the DOM. Two triggers:
+  //   1. messages change — handles the initial load case (user opens
+  //      /chat/<id>#msg-X in a fresh tab; messages fetch resolves,
+  //      effect fires, we scroll).
+  //   2. hashchange event — handles the in-app navigation case (user
+  //      is already on /chat/<id> and clicks an anchor link going to
+  //      #msg-Y; the conversation isn't re-fetched so messages doesn't
+  //      change and the messages-dep effect alone wouldn't re-fire).
+  // The shared ref-based dedupe makes sure each unique hash scrolls
+  // exactly once regardless of which trigger fired it.
   const lastScrolledHashRef = useRef<string | null>(null);
-  useEffect(() => {
+  const tryScrollToHash = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (messages.length === 0) return;
     const hash = window.location.hash;
     if (!hash.startsWith("#msg-")) return;
     if (lastScrolledHashRef.current === hash) return;
@@ -1447,7 +1453,23 @@ export default function ChatPage() {
     if (!el) return;
     lastScrolledHashRef.current = hash;
     setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-  }, [messages]);
+  }, []);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    tryScrollToHash();
+  }, [messages, tryScrollToHash]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onHashChange = () => {
+      // Clear the dedupe ref so re-clicking the same anchor (or
+      // toggling between two anchors) always re-fires the scroll
+      // instead of being remembered as "already done".
+      lastScrolledHashRef.current = null;
+      tryScrollToHash();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [tryScrollToHash]);
 
   // Detect mobile viewport
   useEffect(() => {
