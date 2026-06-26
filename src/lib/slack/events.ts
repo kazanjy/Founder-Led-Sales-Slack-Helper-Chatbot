@@ -5,6 +5,7 @@ import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMI
 import { markdownToSlack } from "./markdown";
 import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseResearchCommand } from "./commands";
 import { tryHandleWithDealAgent } from "./deal-agent-router";
+import { tryHandleWithCoachingAgent } from "./coaching-agent-router";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -631,7 +632,7 @@ async function handleMention(
   // through silently if no match — Chatbase still handles everything
   // else. See lib/slack/deal-agent-router.ts.
   if (text) {
-    const handled = await tryHandleWithDealAgent({
+    const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
       text,
       client,
@@ -641,7 +642,22 @@ async function handleMention(
       messageTs: ts,
       threadRootTs: thread_ts,
     });
-    if (handled) return;
+    if (handledByDealAgent) return;
+    // Then check coaching keywords. Order matters: an explicit
+    // deal-name mention beats coaching keywords (someone asking
+    // "what's the status of the Sourcebot deal?" mentioning the
+    // word "deal" should still go to the deal agent).
+    const handledByCoachingAgent = await tryHandleWithCoachingAgent({
+      speakerUserId: dbUser.id,
+      text,
+      client,
+      channel,
+      threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
+    });
+    if (handledByCoachingAgent) return;
   }
 
   // Strip the bot mention from the message
@@ -805,7 +821,7 @@ async function handleDirectMessage(
   // against the user's deal names hands deal-shaped DMs to the
   // tool-using agent; everything else falls through to Chatbase.
   if (text) {
-    const handled = await tryHandleWithDealAgent({
+    const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
       text,
       client,
@@ -815,7 +831,22 @@ async function handleDirectMessage(
       messageTs: ts,
       threadRootTs: thread_ts,
     });
-    if (handled) return;
+    if (handledByDealAgent) return;
+    // Then check coaching keywords. Order matters: an explicit
+    // deal-name mention beats coaching keywords (someone asking
+    // "what's the status of the Sourcebot deal?" mentioning the
+    // word "deal" should still go to the deal agent).
+    const handledByCoachingAgent = await tryHandleWithCoachingAgent({
+      speakerUserId: dbUser.id,
+      text,
+      client,
+      channel,
+      threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
+    });
+    if (handledByCoachingAgent) return;
   }
 
   // Check for hashtag commands (e.g. #instructions)

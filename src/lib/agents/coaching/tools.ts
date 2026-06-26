@@ -1,0 +1,744 @@
+import type { ChatCompletionTool } from "openai/resources/chat/completions";
+import { prisma } from "@/lib/db";
+
+/**
+ * Tool registry for the per-account Mikey coaching agent (phase 1).
+ *
+ * Each entry pairs an OpenAI tool/function definition with a handler
+ * that runs server-side. The handler ALWAYS receives the userId from
+ * the trusted server context — never from the LLM — so a hallucinated
+ * tool call can't read another user's coaching data.
+ *
+ * Companion to src/lib/agents/deals/tools.ts. Eventually these two
+ * (plus playbook RAG) should fold into a single GTM agent, but for
+ * now we keep them separate so we can ship + tune the coaching
+ * surface independently.
+ */
+
+export interface ToolContext {
+  userId: string;
+}
+
+export interface ToolEntry {
+  definition: ChatCompletionTool;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: (args: any, ctx: ToolContext) => Promise<unknown>;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+async function loadSessionForUser(userId: string, sessionId: string) {
+  return prisma.coachingSession.findFirst({
+    where: { id: sessionId, userId },
+  });
+}
+
+function diffDays(later: Date, earlier: Date): number {
+  return Math.max(0, Math.round((later.getTime() - earlier.getTime()) / 86_400_000));
+}
+
+function isSettled(status: string | null | undefined): boolean {
+  return status === "done" || status === "not_doing" || status === "deprioritized";
+}
+
+// ── Tools ───────────────────────────────────────────────────────────
+
+const findCoachingSession: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "findCoachingSession",
+      description:
+        "Resolve a loose reference to a coaching session (a date, a title fragment, 'most recent', 'last week', 'the one where we talked about hiring', etc.) into one or more candidate sessionIds. ALWAYS call this first when the user references a specific session — every other per-session tool needs a sessionId. Returns up to 5 candidates ordered most-recent first with a confidence score.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "The user's reference — e.g. 'last session', 'most recent', '2026-06-15', 'sprint review', 'the one about pricing'. Pass an empty string when the user just wants the most recent session.",
+          },
+          startDate: {
+            type: "string",
+            description: "Optional ISO yyyy-mm-dd lower bound for sessionDate.",
+          },
+          endDate: {
+            type: "string",
+            description: "Optional ISO yyyy-mm-dd upper bound for sessionDate.",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  handler: async (
+    { query, startDate, endDate }: { query: string; startDate?: string; endDate?: string },
+    { userId }
+  ) => {
+    const where: Record<string, unknown> = {
+      userId,
+      // Filter out draft sessions — they're auto-created placeholders
+      // with notes: "(draft)" and don't represent real coaching.
+      NOT: { notes: "(draft)" },
+    };
+    if (startDate || endDate) {
+      const filter: Record<string, Date> = {};
+      if (startDate) filter.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate) filter.lte = new Date(`${endDate}T23:59:59.999Z`);
+      where.sessionDate = filter;
+    }
+    const sessions = await prisma.coachingSession.findMany({
+      where,
+      orderBy: { sessionDate: "desc" },
+      take: 60,
+      select: {
+        id: true,
+        title: true,
+        sessionDate: true,
+        sessionStatus: true,
+        notes: true,
+      },
+    });
+    if (sessions.length === 0) return { candidates: [], note: "No sessions match." };
+
+    const q = (query || "").trim().toLowerCase();
+    // Heuristic scoring. Recency is the base signal; substring
+    // matches on title/notes bump the score.
+    const now = Date.now();
+    const scored = sessions.map((s, idx) => {
+      let score = Math.max(0, 100 - idx * 2); // recency base
+      if (q) {
+        const hay = `${s.title} ${(s.notes || "").slice(0, 600)}`.toLowerCase();
+        if (s.title.toLowerCase() === q) score += 100;
+        else if (s.title.toLowerCase().includes(q)) score += 60;
+        else if (hay.includes(q)) score += 30;
+      }
+      // Phrase intent: "most recent" / "last session" → first row.
+      if (q && /\b(most\s*recent|latest|last\s+session|previous)\b/.test(q) && idx === 0) {
+        score += 80;
+      }
+      return { s, score };
+    });
+    const top = scored
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ s, score }) => ({
+        sessionId: s.id,
+        title: s.title,
+        date: s.sessionDate.toISOString(),
+        daysAgo: diffDays(new Date(now), s.sessionDate),
+        status: s.sessionStatus,
+        confidence: score >= 130 ? "high" : score >= 80 ? "medium" : "low",
+      }));
+    return { candidates: top, totalChecked: sessions.length };
+  },
+};
+
+const getCoachingSession: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getCoachingSession",
+      description:
+        "Fetch the full contents of one coaching session: title, date, lifecycle status, the markdown notes, the optional pasted transcript, attached recording URL, and a count of goals/tasks attached. Use for any 'what was discussed', 'summarize this session', 'what was decided' question. For goals/tasks lists call getCoachingGoalsAndTasks instead (it returns more structured data).",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionId: { type: "string", description: "The session's id (from findCoachingSession)." },
+        },
+        required: ["sessionId"],
+      },
+    },
+  },
+  handler: async ({ sessionId }: { sessionId: string }, { userId }) => {
+    const s = await loadSessionForUser(userId, sessionId);
+    if (!s) return { error: "Session not found or not accessible." };
+    const [goalsCount, tasksCount] = await Promise.all([
+      prisma.coachingGoal.count({ where: { sessionId } }),
+      prisma.coachingTask.count({ where: { goal: { sessionId } } }),
+    ]);
+    return {
+      sessionId: s.id,
+      title: s.title,
+      date: s.sessionDate.toISOString(),
+      status: s.sessionStatus,
+      maturityStageSnapshot: s.maturityStage,
+      notes: s.notes,
+      transcript: s.transcript,
+      recordingUrl: s.recordingUrl,
+      goalCount: goalsCount,
+      taskCount: tasksCount,
+      createdAt: s.createdAt.toISOString(),
+    };
+  },
+};
+
+const getCoachingGoalsAndTasks: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getCoachingGoalsAndTasks",
+      description:
+        "List the user's coaching goals + tasks. `scope` controls what's returned: 'session' (only goals/tasks attached to a specific session — pass sessionId), 'active' (all currently-active goals across every session — default), or 'all' (every goal regardless of status). Each goal includes its tasks + subtasks with status, priority, and the date the status last changed. Use for any 'what goals are we working on', 'what's still active', 'what's done', or 'what's the queue' question.",
+      parameters: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["session", "active", "all"],
+            description: "Which goals to return. Default: 'active'.",
+          },
+          sessionId: {
+            type: "string",
+            description: "Required when scope = 'session'. Ignored otherwise.",
+          },
+        },
+      },
+    },
+  },
+  handler: async (
+    { scope, sessionId }: { scope?: "session" | "active" | "all"; sessionId?: string },
+    { userId }
+  ) => {
+    const effectiveScope = scope || "active";
+    const where: Record<string, unknown> = { userId };
+    if (effectiveScope === "session") {
+      if (!sessionId) return { error: "scope='session' requires a sessionId." };
+      where.sessionId = sessionId;
+    } else if (effectiveScope === "active") {
+      where.status = "active";
+    }
+    const goals = await prisma.coachingGoal.findMany({
+      where,
+      orderBy: [{ status: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+      include: {
+        tasks: {
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            priority: true,
+            parentTaskId: true,
+            statusChangedAt: true,
+            createdAt: true,
+          },
+        },
+        session: { select: { id: true, title: true, sessionDate: true } },
+      },
+      take: 40,
+    });
+    return {
+      scope: effectiveScope,
+      goals: goals.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        description: g.description,
+        status: g.status,
+        statusChangedAt: g.statusChangedAt?.toISOString() || null,
+        createdAt: g.createdAt.toISOString(),
+        nativeSessionId: g.sessionId,
+        nativeSessionTitle: g.session.title,
+        nativeSessionDate: g.session.sessionDate.toISOString(),
+        tasks: g.tasks.map((t) => ({
+          taskId: t.id,
+          title: t.title,
+          description: t.description,
+          status: t.status,
+          priority: t.priority,
+          parentTaskId: t.parentTaskId,
+          statusChangedAt: t.statusChangedAt?.toISOString() || null,
+          createdAt: t.createdAt.toISOString(),
+        })),
+      })),
+    };
+  },
+};
+
+const getRecentCoachingActivity: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getRecentCoachingActivity",
+      description:
+        "What has actually happened in coaching recently? Returns the most recent N sessions (default 4) with each session's date, title, locked-or-live status, a count of goals/tasks attached, and a peek at the first ~400 chars of the notes. Use for 'what's been going on', 'what have we been working on', 'how often do we meet' kinds of questions.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "How many recent sessions to return. Default 4, max 12.",
+          },
+        },
+      },
+    },
+  },
+  handler: async ({ limit }: { limit?: number }, { userId }) => {
+    const cap = Math.min(Math.max(limit ?? 4, 1), 12);
+    const sessions = await prisma.coachingSession.findMany({
+      where: { userId, NOT: { notes: "(draft)" } },
+      orderBy: { sessionDate: "desc" },
+      take: cap,
+      select: {
+        id: true,
+        title: true,
+        sessionDate: true,
+        sessionStatus: true,
+        notes: true,
+        _count: { select: { goals: true } },
+      },
+    });
+    return {
+      sessions: sessions.map((s) => ({
+        sessionId: s.id,
+        title: s.title,
+        date: s.sessionDate.toISOString(),
+        status: s.sessionStatus,
+        goalCount: s._count.goals,
+        notesPreview:
+          (s.notes || "").substring(0, 400) + ((s.notes?.length || 0) > 400 ? "…" : ""),
+      })),
+    };
+  },
+};
+
+const getMaturityStage: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getMaturityStage",
+      description:
+        "The user's current GTM maturity stage. Returns one of PROBLEM_VALIDATION, VALUE_VALIDATION, FIRST_REVENUE, REPEATABLE_REVENUE, FIRST_SALES_HIRE, SCALING_SALES, or null if never set. Use whenever the user asks about their stage, where they are in the journey, or what the right priorities for their stage are.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  handler: async (_args: Record<string, never>, { userId }) => {
+    const row = await prisma.salesMaturityStage.findUnique({
+      where: { userId },
+      select: { currentStage: true, updatedAt: true },
+    });
+    return {
+      currentStage: row?.currentStage || null,
+      setAt: row?.updatedAt?.toISOString() || null,
+    };
+  },
+};
+
+const getLatestSalesMetrics: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getLatestSalesMetrics",
+      description:
+        "Most recent values for each of the user's coaching metrics (ARR, customer count, pipeline, MQLs, etc.) plus the prior session's value + delta. Use for 'what's our latest ARR', 'how many customers do we have', 'how have the numbers moved'. Optionally filter to a subset of metrics by name.",
+      parameters: {
+        type: "object",
+        properties: {
+          metricNames: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional filter: substring match (case-insensitive) on metric name.",
+          },
+        },
+      },
+    },
+  },
+  handler: async ({ metricNames }: { metricNames?: string[] }, { userId }) => {
+    const defs = await prisma.coachingMetricDefinition.findMany({
+      where: { userId, archived: false, kind: { not: "section" } },
+      orderBy: { order: "asc" },
+      select: { id: true, name: true, definition: true, format: true },
+    });
+    const filtered = metricNames && metricNames.length > 0
+      ? defs.filter((d) => {
+          const lc = d.name.toLowerCase();
+          return metricNames.some((q) => lc.includes(q.toLowerCase()));
+        })
+      : defs;
+    if (filtered.length === 0) {
+      return { metrics: [], note: metricNames ? "No matching metrics." : "No metrics defined yet." };
+    }
+    // For each metric, pull the two most recent entries (current + prior).
+    const out = await Promise.all(
+      filtered.map(async (d) => {
+        const recent = await prisma.coachingMetricEntry.findMany({
+          where: { metricDefinitionId: d.id, session: { notes: { not: "(draft)" } } },
+          orderBy: [
+            { session: { sessionDate: "desc" } },
+            { session: { createdAt: "desc" } },
+          ],
+          take: 2,
+          select: {
+            currentValue: true,
+            session: { select: { sessionDate: true } },
+          },
+        });
+        const latest = recent[0];
+        const prior = recent[1];
+        return {
+          name: d.name,
+          definition: d.definition,
+          format: d.format,
+          latestValue: latest?.currentValue ?? null,
+          latestSessionDate: latest?.session.sessionDate.toISOString() || null,
+          priorValue: prior?.currentValue ?? null,
+          priorSessionDate: prior?.session.sessionDate.toISOString() || null,
+          delta:
+            latest != null && prior != null
+              ? latest.currentValue - prior.currentValue
+              : null,
+        };
+      })
+    );
+    return { metrics: out };
+  },
+};
+
+const summarizeCoachingSession: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "summarizeCoachingSession",
+      description:
+        "Gather the full context of a coaching session — notes, transcript, attached goals/tasks/maturity stage — and return it with a synthesis directive instructing YOU to write the takeaway doc in four sections: ## What we discussed, ## What we agreed, ## Top priorities until next session, ## What we'll turn to after immediate priorities. Same shape as the in-app 'Synthesize Takeaways' button. Use when the user asks to summarize, write up, or pull takeaways from a session.",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionId: { type: "string" },
+        },
+        required: ["sessionId"],
+      },
+    },
+  },
+  handler: async ({ sessionId }: { sessionId: string }, { userId }) => {
+    const s = await loadSessionForUser(userId, sessionId);
+    if (!s) return { error: "Session not found or not accessible." };
+    const goals = await prisma.coachingGoal.findMany({
+      where: { sessionId },
+      include: {
+        tasks: {
+          select: {
+            title: true,
+            status: true,
+            priority: true,
+            parentTaskId: true,
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+      orderBy: { order: "asc" },
+    });
+    return {
+      session: {
+        title: s.title,
+        date: s.sessionDate.toISOString(),
+        notes: s.notes,
+        transcript: s.transcript,
+        maturityStageSnapshot: s.maturityStage,
+      },
+      goals: goals.map((g) => ({
+        title: g.title,
+        status: g.status,
+        tasks: g.tasks.map((t) => ({
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          isSubtask: !!t.parentTaskId,
+        })),
+      })),
+      directive: `Write the takeaway doc now with EXACTLY these four sections, no preamble, no sign-off. Specifics from the session — names, deals, numbers — not generic coach-speak.
+
+## What we discussed
+3-6 bullets of the substantive topics in the order they shaped the conversation.
+
+## What we agreed
+3-6 bullets of explicit decisions/commitments. Phrase as resolved statements ("we'll move X to Y") not "we discussed". Omit topics that didn't land.
+
+## Top priorities until next session
+3-5 bullets ordered by priority. Each: concrete action, owner (default: founder), success signal that says it's done. No "continue working on X" — name the next move.
+
+## What we'll turn to after immediate priorities
+2-4 bullets of work queued for "after we land the top priorities". Each: what it is + the trigger/readiness signal that says it's time. Write "Nothing queued — re-evaluate next session." if there's nothing on deck.
+
+Under ~300 words total.`,
+    };
+  },
+};
+
+const whereDidWeLeaveOff: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "whereDidWeLeaveOff",
+      description:
+        "Composite 'state of things' tool. Returns the most recent session's title/date/notes preview, the user's current active goals + top-priority tasks, the queued 'Up Next' goals + tasks, and current maturity stage — everything needed to answer 'where did we leave off and what's next' in a single tool call. Don't call this in addition to the other tools; use it INSTEAD of chaining them.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  handler: async (_args: Record<string, never>, { userId }) => {
+    const [latestSession, activeGoals, nextGoals, maturity] = await Promise.all([
+      prisma.coachingSession.findFirst({
+        where: { userId, NOT: { notes: "(draft)" } },
+        orderBy: { sessionDate: "desc" },
+        select: {
+          id: true,
+          title: true,
+          sessionDate: true,
+          sessionStatus: true,
+          notes: true,
+        },
+      }),
+      prisma.coachingGoal.findMany({
+        where: { userId, status: "active" },
+        orderBy: { order: "asc" },
+        include: {
+          tasks: {
+            where: { status: "active" },
+            orderBy: [{ priority: "asc" }, { order: "asc" }],
+            select: { title: true, priority: true, parentTaskId: true },
+            take: 8,
+          },
+          session: { select: { title: true, sessionDate: true } },
+        },
+        take: 15,
+      }),
+      prisma.coachingNextGoal.findMany({
+        where: { userId },
+        orderBy: { order: "asc" },
+        include: {
+          tasks: { select: { title: true }, orderBy: { order: "asc" } },
+        },
+        take: 12,
+      }),
+      prisma.salesMaturityStage.findUnique({
+        where: { userId },
+        select: { currentStage: true },
+      }),
+    ]);
+    return {
+      latestSession: latestSession
+        ? {
+            sessionId: latestSession.id,
+            title: latestSession.title,
+            date: latestSession.sessionDate.toISOString(),
+            status: latestSession.sessionStatus,
+            notesPreview:
+              (latestSession.notes || "").substring(0, 600) +
+              ((latestSession.notes?.length || 0) > 600 ? "…" : ""),
+          }
+        : null,
+      currentMaturityStage: maturity?.currentStage || null,
+      activeGoals: activeGoals.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        nativeSessionTitle: g.session.title,
+        nativeSessionDate: g.session.sessionDate.toISOString(),
+        topActiveTasks: g.tasks.map((t) => ({
+          title: t.title,
+          priority: t.priority,
+          isSubtask: !!t.parentTaskId,
+        })),
+      })),
+      upNext: nextGoals.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        description: g.description,
+        tasks: g.tasks.map((t) => t.title),
+      })),
+    };
+  },
+};
+
+const searchCoachingHistory: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "searchCoachingHistory",
+      description:
+        "Keyword search across coaching session notes + transcripts + goal/task titles for the user. Use when the user asks 'did we ever talk about X', 'when did we decide Y', 'has Z come up before'. Returns up to 8 matches with snippet + session reference. Substring match is case-insensitive — for the best recall pass distinct words rather than full phrases.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search terms." },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  handler: async ({ query }: { query: string }, { userId }) => {
+    const q = (query || "").trim();
+    if (!q) return { matches: [] };
+    // Search sessions, goals, tasks in parallel. Cap results per
+    // bucket so a session with the query repeated 30 times doesn't
+    // drown out matches elsewhere.
+    const [sessionHits, goalHits, taskHits] = await Promise.all([
+      prisma.coachingSession.findMany({
+        where: {
+          userId,
+          NOT: { notes: "(draft)" },
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { notes: { contains: q, mode: "insensitive" } },
+            { transcript: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        orderBy: { sessionDate: "desc" },
+        take: 4,
+        select: { id: true, title: true, sessionDate: true, notes: true },
+      }),
+      prisma.coachingGoal.findMany({
+        where: {
+          userId,
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          session: { select: { id: true, title: true, sessionDate: true } },
+        },
+      }),
+      prisma.coachingTask.findMany({
+        where: {
+          userId,
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          goal: {
+            select: { title: true, session: { select: { id: true, title: true, sessionDate: true } } },
+          },
+        },
+      }),
+    ]);
+    const snippet = (text: string | null) => {
+      if (!text) return "";
+      const lc = text.toLowerCase();
+      const idx = lc.indexOf(q.toLowerCase());
+      if (idx < 0) return text.substring(0, 240);
+      const start = Math.max(0, idx - 80);
+      const end = Math.min(text.length, idx + q.length + 160);
+      return (start > 0 ? "…" : "") + text.substring(start, end) + (end < text.length ? "…" : "");
+    };
+    return {
+      sessionMatches: sessionHits.map((s) => ({
+        sessionId: s.id,
+        title: s.title,
+        date: s.sessionDate.toISOString(),
+        snippet: snippet(s.notes),
+      })),
+      goalMatches: goalHits.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        status: g.status,
+        nativeSessionId: g.session.id,
+        nativeSessionTitle: g.session.title,
+        nativeSessionDate: g.session.sessionDate.toISOString(),
+      })),
+      taskMatches: taskHits.map((t) => ({
+        taskId: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        goalTitle: t.goal.title,
+        nativeSessionId: t.goal.session.id,
+        nativeSessionTitle: t.goal.session.title,
+        nativeSessionDate: t.goal.session.sessionDate.toISOString(),
+      })),
+    };
+  },
+};
+
+const addCoachingNote: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "addCoachingNote",
+      description:
+        "Append a note to a coaching session. Defaults to the most recent live (non-locked) session if no sessionId is given. Refuses to write to a locked session. Use when the user says 'jot this down', 'log that we agreed X', 'remember Y for next session'. This is the ONLY mutating tool in the coaching surface. After calling, tell the user what was written.",
+      parameters: {
+        type: "object",
+        properties: {
+          sessionId: {
+            type: "string",
+            description: "Optional. If omitted, the most recent live session is used.",
+          },
+          content: { type: "string", description: "The text to append." },
+        },
+        required: ["content"],
+      },
+    },
+  },
+  handler: async (
+    { sessionId, content }: { sessionId?: string; content: string },
+    { userId }
+  ) => {
+    let session = sessionId
+      ? await loadSessionForUser(userId, sessionId)
+      : await prisma.coachingSession.findFirst({
+          where: { userId, sessionStatus: { not: "locked" }, NOT: { notes: "(draft)" } },
+          orderBy: { sessionDate: "desc" },
+        });
+    if (!session) {
+      return {
+        error:
+          "No accessible non-locked session found. The user may want to create a new session first.",
+      };
+    }
+    if (session.sessionStatus === "locked") {
+      return { error: `Session "${session.title}" is locked — notes can't be appended.` };
+    }
+    const appended = (session.notes || "") +
+      ((session.notes && !session.notes.endsWith("\n")) ? "\n\n" : "") +
+      content.trim();
+    session = await prisma.coachingSession.update({
+      where: { id: session.id },
+      data: { notes: appended },
+    });
+    return {
+      sessionId: session.id,
+      sessionTitle: session.title,
+      sessionDate: session.sessionDate.toISOString(),
+      noteAppended: content.trim(),
+      confirmation: `Appended to "${session.title}".`,
+    };
+  },
+};
+
+// Silence unused-helper warnings until we lean on isSettled in a
+// future tool.
+void isSettled;
+
+// ── Registry ────────────────────────────────────────────────────────
+
+export const COACHING_TOOLS: Record<string, ToolEntry> = {
+  findCoachingSession,
+  getCoachingSession,
+  getCoachingGoalsAndTasks,
+  getRecentCoachingActivity,
+  getMaturityStage,
+  getLatestSalesMetrics,
+  summarizeCoachingSession,
+  whereDidWeLeaveOff,
+  searchCoachingHistory,
+  addCoachingNote,
+};
+
+export function getToolDefinitions(): ChatCompletionTool[] {
+  return Object.values(COACHING_TOOLS).map((t) => t.definition);
+}
