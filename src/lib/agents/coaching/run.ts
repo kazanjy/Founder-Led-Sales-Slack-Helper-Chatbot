@@ -43,7 +43,9 @@ function buildSystemPrompt(seller: { narrative: string; valueProp100w: string })
         (seller.valueProp100w ? `\nValue prop (100w):\n${seller.valueProp100w}\n` : "") +
         (seller.narrative ? `\nSales narrative:\n${seller.narrative}\n` : "")
       : "";
-  return `${BASE_SYSTEM_PROMPT}${sellerBlock}`;
+  const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  const linkBlock = `\n\nSESSION DEEP LINKS — when your answer references one specific coaching session (you cited it, summarized it, pulled notes from it, etc.), include an inline markdown link to it on FIRST mention so the founder can jump straight to it:\n\n  [<session title> — <YYYY-MM-DD>](${appBase}/coaching-history?session=<sessionId>)\n\nUse the sessionId returned by your tools — never invent one. If the answer spans multiple sessions, link each one inline. If the answer is general (no specific session), skip the link — the Slack reply already has a generic "Open Coaching" link at the top.`;
+  return `${BASE_SYSTEM_PROMPT}${sellerBlock}${linkBlock}`;
 }
 
 const BASE_SYSTEM_PROMPT = `You are Mikey, a sales coach answering questions about a founder's coaching practice via tool calls.
@@ -76,6 +78,9 @@ HIGH-LEVERAGE TOOL ROUTING:
 
 — "What goals are active" / "what's done" / "what's stalled" →
   Call getCoachingGoalsAndTasks with the right scope ('active' is the default).
+
+— "Pull together themes across all our coaching" / "how has my thinking evolved" / "what have we worked on over time" / "summarize everything we've done in coaching" →
+  Call getFullCoachingHistory ONCE — it returns every session's notes + every goal/task + the queue + maturity + metrics in one payload. Reach for it when the question genuinely spans the whole corpus; don't chain it with other tools. Leave includeTranscripts off unless the user wants verbatim dialogue.
 
 Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 

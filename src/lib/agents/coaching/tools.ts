@@ -652,6 +652,164 @@ const searchCoachingHistory: ToolEntry = {
   },
 };
 
+const getFullCoachingHistory: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getFullCoachingHistory",
+      description:
+        "Pull the ENTIRE coaching corpus in one shot — every non-draft session with its title/date/status/notes, every goal across every session with its full task list (any status), the Up Next queue, the current maturity stage, and recent metric snapshots. Use when the user wants to chat with the totality of their coaching history: 'what themes have come up across all our sessions?', 'how has my thinking evolved?', 'pull together everything we've discussed about hiring'. The payload can be large — only use this when the question genuinely spans all of history. Transcripts are EXCLUDED by default to keep token cost manageable; set includeTranscripts=true if the user explicitly wants transcript-level detail.",
+      parameters: {
+        type: "object",
+        properties: {
+          includeTranscripts: {
+            type: "boolean",
+            description:
+              "Default false. When true, pasted transcripts are included alongside notes. Transcripts can be 30K+ chars each — only set true when the user is asking about literal dialogue, exact quotes, or transcript-level evidence.",
+          },
+          sessionLimit: {
+            type: "number",
+            description:
+              "Max number of sessions to return (most-recent first). Default 50. Most accounts have well under this.",
+          },
+        },
+      },
+    },
+  },
+  handler: async (
+    { includeTranscripts, sessionLimit }: { includeTranscripts?: boolean; sessionLimit?: number },
+    { userId }
+  ) => {
+    const cap = Math.min(Math.max(sessionLimit ?? 50, 1), 100);
+    const [sessions, goals, nextGoals, maturity, metricDefs] = await Promise.all([
+      prisma.coachingSession.findMany({
+        where: { userId, NOT: { notes: "(draft)" } },
+        orderBy: { sessionDate: "desc" },
+        take: cap,
+        select: {
+          id: true,
+          title: true,
+          sessionDate: true,
+          sessionStatus: true,
+          maturityStage: true,
+          notes: true,
+          // Only pull transcript when asked — it's the biggest field
+          // by far and Prisma will skip the column read when omitted.
+          ...(includeTranscripts ? { transcript: true } : {}),
+          recordingUrl: true,
+        },
+      }),
+      prisma.coachingGoal.findMany({
+        where: { userId },
+        orderBy: [{ status: "asc" }, { order: "asc" }, { createdAt: "asc" }],
+        include: {
+          tasks: {
+            orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              status: true,
+              priority: true,
+              parentTaskId: true,
+              statusChangedAt: true,
+              createdAt: true,
+            },
+          },
+          session: { select: { id: true, title: true, sessionDate: true } },
+        },
+      }),
+      prisma.coachingNextGoal.findMany({
+        where: { userId },
+        orderBy: { order: "asc" },
+        include: { tasks: { select: { title: true, description: true }, orderBy: { order: "asc" } } },
+      }),
+      prisma.salesMaturityStage.findUnique({
+        where: { userId },
+        select: { currentStage: true, updatedAt: true },
+      }),
+      prisma.coachingMetricDefinition.findMany({
+        where: { userId, archived: false, kind: { not: "section" } },
+        orderBy: { order: "asc" },
+        select: { id: true, name: true, format: true },
+      }),
+    ]);
+
+    // For each metric, pull the latest two entries so we can show the
+    // current value + the delta from the prior session.
+    const metrics = await Promise.all(
+      metricDefs.map(async (d) => {
+        const recent = await prisma.coachingMetricEntry.findMany({
+          where: { metricDefinitionId: d.id, session: { notes: { not: "(draft)" } } },
+          orderBy: [
+            { session: { sessionDate: "desc" } },
+            { session: { createdAt: "desc" } },
+          ],
+          take: 2,
+          select: { currentValue: true, session: { select: { sessionDate: true } } },
+        });
+        const latest = recent[0];
+        const prior = recent[1];
+        return {
+          name: d.name,
+          format: d.format,
+          latestValue: latest?.currentValue ?? null,
+          latestSessionDate: latest?.session.sessionDate.toISOString() || null,
+          priorValue: prior?.currentValue ?? null,
+          delta:
+            latest != null && prior != null
+              ? latest.currentValue - prior.currentValue
+              : null,
+        };
+      })
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shapedSessions = sessions.map((s: any) => ({
+      sessionId: s.id,
+      title: s.title,
+      date: s.sessionDate.toISOString(),
+      status: s.sessionStatus,
+      maturityStageSnapshot: s.maturityStage,
+      notes: s.notes,
+      transcript: includeTranscripts ? s.transcript ?? null : undefined,
+      recordingUrl: s.recordingUrl,
+    }));
+
+    return {
+      sessionCount: shapedSessions.length,
+      includeTranscripts: !!includeTranscripts,
+      currentMaturityStage: maturity?.currentStage || null,
+      sessions: shapedSessions,
+      goals: goals.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        description: g.description,
+        status: g.status,
+        statusChangedAt: g.statusChangedAt?.toISOString() || null,
+        nativeSessionId: g.session.id,
+        nativeSessionTitle: g.session.title,
+        nativeSessionDate: g.session.sessionDate.toISOString(),
+        tasks: g.tasks.map((t) => ({
+          taskId: t.id,
+          title: t.title,
+          description: t.description,
+          status: t.status,
+          priority: t.priority,
+          parentTaskId: t.parentTaskId,
+        })),
+      })),
+      upNext: nextGoals.map((g) => ({
+        goalId: g.id,
+        title: g.title,
+        description: g.description,
+        tasks: g.tasks.map((t) => ({ title: t.title, description: t.description })),
+      })),
+      metrics,
+    };
+  },
+};
+
 const addCoachingNote: ToolEntry = {
   definition: {
     type: "function",
@@ -724,6 +882,7 @@ export const COACHING_TOOLS: Record<string, ToolEntry> = {
   summarizeCoachingSession,
   whereDidWeLeaveOff,
   searchCoachingHistory,
+  getFullCoachingHistory,
   addCoachingNote,
 };
 
