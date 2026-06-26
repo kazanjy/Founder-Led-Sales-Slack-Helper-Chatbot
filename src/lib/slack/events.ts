@@ -632,7 +632,7 @@ async function handleMention(
   // else. See lib/slack/deal-agent-router.ts.
   if (text) {
     const handled = await tryHandleWithDealAgent({
-      userId: dbUser.id,
+      speakerUserId: dbUser.id,
       text,
       client,
       channel,
@@ -803,7 +803,7 @@ async function handleDirectMessage(
   // tool-using agent; everything else falls through to Chatbase.
   if (text) {
     const handled = await tryHandleWithDealAgent({
-      userId: dbUser.id,
+      speakerUserId: dbUser.id,
       text,
       client,
       channel,
