@@ -93,6 +93,14 @@ const findCoachingSession: ToolEntry = {
     // Heuristic scoring. Recency is the base signal; substring
     // matches on title/notes bump the score.
     const now = Date.now();
+    // "Give me the most recent" intent — fires on empty query, or
+    // when the query carries a recency word ("last", "latest", "most
+    // recent", "previous", "recent") regardless of what sits between
+    // it and "session"/"coaching"/etc. The old regex required `last`
+    // to butt up against `session`, which missed obvious phrasings
+    // like "our last coaching session" or just "the last one".
+    const wantsMostRecent =
+      q === "" || /\b(most\s*recent|latest|previous|recent|last)\b/.test(q);
     const scored = sessions.map((s, idx) => {
       let score = Math.max(0, 100 - idx * 2); // recency base
       if (q) {
@@ -101,8 +109,7 @@ const findCoachingSession: ToolEntry = {
         else if (s.title.toLowerCase().includes(q)) score += 60;
         else if (hay.includes(q)) score += 30;
       }
-      // Phrase intent: "most recent" / "last session" → first row.
-      if (q && /\b(most\s*recent|latest|last\s+session|previous)\b/.test(q) && idx === 0) {
+      if (wantsMostRecent && idx === 0) {
         score += 80;
       }
       return { s, score };
