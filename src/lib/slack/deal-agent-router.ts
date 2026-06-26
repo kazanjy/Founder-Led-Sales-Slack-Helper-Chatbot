@@ -77,7 +77,7 @@ export async function tryHandleWithDealAgent(opts: {
 
     const deals = await prisma.deal.findMany({
       where: { userId: contextUserId, status: { notIn: ["dismissed"] } },
-      select: { name: true, companyName: true },
+      select: { id: true, name: true, companyName: true },
       orderBy: { updatedAt: "desc" },
       take: 200,
     });
@@ -139,7 +139,7 @@ export async function tryHandleWithDealAgent(opts: {
       matchedDeal = findDealNameInText(combined, deals);
       if (matchedDeal) {
         console.log(
-          `[slack→deal-agent] matched deal "${matchedDeal}" from thread context, not current message`
+          `[slack→deal-agent] matched deal "${matchedDeal.label}" from thread context, not current message`
         );
       }
     }
@@ -160,14 +160,14 @@ export async function tryHandleWithDealAgent(opts: {
       return false;
     }
 
-    console.log(`[slack→deal-agent] user=${contextUserId} matched=${matchedDeal} text=${cleaned.substring(0, 120)}`);
+    console.log(`[slack→deal-agent] user=${contextUserId} matched=${matchedDeal.label} dealId=${matchedDeal.id} text=${cleaned.substring(0, 120)}`);
 
     // Brief "thinking" status so the user sees Mikey received the
     // message during the multi-turn tool loop.
     await sendSlackMessage(
       client,
       channel,
-      `_:wave: Looking into the ${matchedDeal} deal…_`,
+      `_:wave: Looking into the ${matchedDeal.label} deal…_`,
       threadTs
     );
 
@@ -180,7 +180,14 @@ export async function tryHandleWithDealAgent(opts: {
       userMessage: cleaned,
       conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
     });
-    const slackReply = markdownToSlack(result.reply);
+
+    // Prepend a Slack-mrkdwn link to the deal so the user can jump
+    // straight into the web app for the full timeline / analysis /
+    // analyze CTA. Always-first-line on agent replies, by request.
+    const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+    const dealUrl = `${appBase}/deals/${matchedDeal.id}`;
+    const linkLine = `<${dealUrl}|:link: Open ${matchedDeal.label} in Mikey ↗>`;
+    const slackReply = `${linkLine}\n\n${markdownToSlack(result.reply)}`;
     await sendSlackMessage(client, channel, slackReply, threadTs);
 
     console.log(
@@ -206,17 +213,19 @@ function stripSlackMentions(text: string): string {
 
 /**
  * Substring-match the message against the user's deal names and
- * company names. Returns the longest-matching label so we report
+ * company names. Returns the longest-matching deal so we report
  * "Acme Corp" instead of "Acme" when both are deal names. Token-
  * bounded match — e.g. "Acme" doesn't accidentally match "Acmeology"
- * mid-word.
+ * mid-word. Returns the id + the matched label string so the caller
+ * can both link to the deal in the web app AND show the user which
+ * label was matched.
  */
 function findDealNameInText(
   text: string,
-  deals: Array<{ name: string; companyName: string }>
-): string | null {
+  deals: Array<{ id: string; name: string; companyName: string }>
+): { id: string; label: string } | null {
   const haystack = ` ${text.toLowerCase().replace(/[^\w\s]/g, " ")} `;
-  const candidates: string[] = [];
+  const candidates: Array<{ id: string; label: string }> = [];
   for (const d of deals) {
     for (const raw of [d.name, d.companyName]) {
       const normalized = raw.trim();
@@ -231,11 +240,11 @@ function findDealNameInText(
         .filter((t) => t.length > 2);
       if (tokens.length === 0) continue;
       const allPresent = tokens.every((t) => haystack.includes(` ${t} `));
-      if (allPresent) candidates.push(normalized);
+      if (allPresent) candidates.push({ id: d.id, label: normalized });
     }
   }
   if (candidates.length === 0) return null;
   // Prefer longest match — handles overlapping deal/company labels.
-  candidates.sort((a, b) => b.length - a.length);
+  candidates.sort((a, b) => b.label.length - a.label.length);
   return candidates[0];
 }
