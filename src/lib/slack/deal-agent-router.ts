@@ -1,8 +1,14 @@
 import type { WebClient } from "@slack/web-api";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
-import { sendSlackMessage } from "./client";
+import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
 import { runDealAgent } from "@/lib/agents/deals/run";
+
+// Cap thread history we feed back to the agent so a 50-message thread
+// doesn't blow up tokens. Most relevant context lives in the most
+// recent exchanges anyway.
+const MAX_THREAD_HISTORY = 12;
 
 /**
  * Decide whether an inbound Slack message should be handled by the
@@ -29,8 +35,18 @@ export async function tryHandleWithDealAgent(opts: {
   client: WebClient;
   channel: string;
   threadTs: string | undefined;
+  // The bot's Slack user id so we can label its prior thread
+  // replies as "assistant" turns in the agent history.
+  botUserId: string;
+  // Slack ts of the current message — used to skip it when reading
+  // thread history (it's already passed in as `text`).
+  messageTs: string;
+  // The thread parent's ts. When this differs from messageTs, the
+  // user mentioned Mikey in an existing thread and we need to load
+  // the prior turns for both deal-name detection AND agent context.
+  threadRootTs: string | undefined;
 }): Promise<boolean> {
-  const { speakerUserId, text, client, channel, threadTs } = opts;
+  const { speakerUserId, text, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
@@ -69,7 +85,62 @@ export async function tryHandleWithDealAgent(opts: {
       return false;
     }
 
-    const matchedDeal = findDealNameInText(cleaned, deals);
+    // Thread context. When the user @mentions Mikey in an existing
+    // thread, the new message might be a follow-up ("what contacts
+    // are involved?") that doesn't itself name the deal — but the
+    // thread parent or earlier turns do. Pull thread history so:
+    //   (a) deal-name detection runs against the full thread, not
+    //       just the current message — fixes the "thread is clearly
+    //       about MongoDB but the follow-up doesn't say MongoDB"
+    //       case the user just hit.
+    //   (b) the agent gets prior turns in its conversation history
+    //       and can answer with the right deal context loaded.
+    let priorThread: Array<{
+      role: "user" | "assistant";
+      text: string;
+    }> = [];
+    if (threadRootTs && threadRootTs !== messageTs) {
+      try {
+        const raw = await getThreadMessages(client, channel, threadRootTs);
+        for (const m of raw) {
+          if (m.ts === messageTs) continue; // skip the current msg
+          const txt = stripSlackMentions(m.text || "").trim();
+          if (!txt) continue;
+          // Treat anything from the bot as assistant; everything
+          // else (including teammates in a claimed channel) as user
+          // input so the agent has full conversational context.
+          const role = m.bot_id || m.user === botUserId ? "assistant" : "user";
+          priorThread.push({ role, text: txt });
+        }
+        // Cap to the most recent N turns to bound token cost.
+        if (priorThread.length > MAX_THREAD_HISTORY) {
+          priorThread = priorThread.slice(-MAX_THREAD_HISTORY);
+        }
+        if (priorThread.length > 0) {
+          console.log(
+            `[slack→deal-agent] loaded ${priorThread.length} prior thread turns for deal context`
+          );
+        }
+      } catch (err) {
+        console.error("[slack→deal-agent] failed to load thread history:", err);
+      }
+    }
+
+    // Detect deal names against the CURRENT message first; if no
+    // match, retry against current + prior thread text combined.
+    // Order matters because we want to prefer a fresh deal mention
+    // ("now about Acme") over a deal named further up the thread.
+    let matchedDeal = findDealNameInText(cleaned, deals);
+    if (!matchedDeal && priorThread.length > 0) {
+      const combined = [cleaned, ...priorThread.map((m) => m.text)].join(" ");
+      matchedDeal = findDealNameInText(combined, deals);
+      if (matchedDeal) {
+        console.log(
+          `[slack→deal-agent] matched deal "${matchedDeal}" from thread context, not current message`
+        );
+      }
+    }
+
     if (!matchedDeal) {
       // Log enough to diagnose "the agent should have fired but
       // didn't" cases. Shows the user, the message we were
@@ -97,7 +168,15 @@ export async function tryHandleWithDealAgent(opts: {
       threadTs
     );
 
-    const result = await runDealAgent({ userId: contextUserId, userMessage: cleaned });
+    const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
+      role: m.role,
+      content: m.text,
+    }));
+    const result = await runDealAgent({
+      userId: contextUserId,
+      userMessage: cleaned,
+      conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+    });
     const slackReply = markdownToSlack(result.reply);
     await sendSlackMessage(client, channel, slackReply, threadTs);
 

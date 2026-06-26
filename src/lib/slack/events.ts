@@ -637,6 +637,9 @@ async function handleMention(
       client,
       channel,
       threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
     });
     if (handled) return;
   }
@@ -808,6 +811,9 @@ async function handleDirectMessage(
       client,
       channel,
       threadTs,
+      botUserId: workspace.botUserId,
+      messageTs: ts,
+      threadRootTs: thread_ts,
     });
     if (handled) return;
   }
