@@ -7,6 +7,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 interface RecorderProvider {
   slug: string;
   name: string;
+  authType: "api_key" | "oauth2";
   connected: boolean;
 }
 
@@ -142,19 +143,35 @@ function MeetingRecorderCard() {
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {providers.map((p) => (
-            <button
-              key={p.slug}
-              onClick={() => {
-                setShowConnect(p.slug);
-                setApiKey("");
-                setError(null);
-              }}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
-            >
-              Connect {p.name}
-            </button>
-          ))}
+          {providers.map((p) => {
+            // OAuth-flavored providers (Circleback, Fathom) redirect
+            // straight into the existing /api/meeting-recorder/oauth
+            // route instead of opening the API-key modal.
+            if (p.authType === "oauth2") {
+              return (
+                <a
+                  key={p.slug}
+                  href={`/api/meeting-recorder/oauth?provider=${p.slug}&returnTo=/integrations`}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 inline-block"
+                >
+                  Connect {p.name}
+                </a>
+              );
+            }
+            return (
+              <button
+                key={p.slug}
+                onClick={() => {
+                  setShowConnect(p.slug);
+                  setApiKey("");
+                  setError(null);
+                }}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50"
+              >
+                Connect {p.name}
+              </button>
+            );
+          })}
         </div>
       )}
 
