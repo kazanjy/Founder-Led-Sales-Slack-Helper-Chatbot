@@ -2,7 +2,40 @@ import { openai } from "@/lib/openai";
 import type {
   ChatCompletionMessageParam,
 } from "openai/resources/chat/completions";
+import { prisma } from "@/lib/db";
 import { DEAL_TOOLS, getToolDefinitions, type ToolContext } from "./tools";
+
+/**
+ * Pull the user's sales narrative + 100-word value prop from the
+ * gtm_variables table (same source the {{SALES_NARRATIVE}} merge
+ * field expands from in the chat-stream route). Used to seed the
+ * agent's system prompt with ambient seller context so draft
+ * emails, meeting prep, and next-best-action recommendations all
+ * inherit the founder's voice / positioning instead of producing
+ * generic coach-speak.
+ *
+ * Returns "" for any field that's not set so the prompt builder
+ * can just skip empty sections cleanly.
+ */
+async function loadSellerContext(userId: string): Promise<{
+  narrative: string;
+  valueProp100w: string;
+}> {
+  const [narrativeRow, vp100Row] = await Promise.all([
+    prisma.gtmVariable.findFirst({
+      where: { userId, mergeField: "SALES_NARRATIVE" },
+      select: { value: true },
+    }),
+    prisma.gtmVariable.findFirst({
+      where: { userId, mergeField: "VALUE_PROP_100W" },
+      select: { value: true },
+    }),
+  ]);
+  return {
+    narrative: (narrativeRow?.value || "").trim(),
+    valueProp100w: (vp100Row?.value || "").trim(),
+  };
+}
 
 /**
  * Agent loop for the per-deal Mikey agent (phase 1).
@@ -16,7 +49,17 @@ import { DEAL_TOOLS, getToolDefinitions, type ToolContext } from "./tools";
 
 export const MAX_TURNS = 8;
 
-const SYSTEM_PROMPT = `You are Mikey, a sales coach answering questions about a founder's specific deals via tool calls.
+function buildSystemPrompt(seller: { narrative: string; valueProp100w: string }): string {
+  const sellerBlock =
+    seller.narrative || seller.valueProp100w
+      ? `\n\nSELLER CONTEXT — this is the founder's own positioning. Use it to ground voice, choose verbiage in email drafts, and align next-best-action recommendations with the way they actually pitch:\n` +
+        (seller.valueProp100w ? `\nValue prop (100w):\n${seller.valueProp100w}\n` : "") +
+        (seller.narrative ? `\nSales narrative:\n${seller.narrative}\n` : "")
+      : "";
+  return `${BASE_SYSTEM_PROMPT}${sellerBlock}`;
+}
+
+const BASE_SYSTEM_PROMPT = `You are Mikey, a sales coach answering questions about a founder's specific deals via tool calls.
 
 You have read access to the founder's deals: stage / status / dates / value / participants / timeline entries (calls, emails, notes) / Mikey Health analysis / upcoming meetings. You can also draft follow-up emails and log new entries.
 
@@ -74,8 +117,17 @@ export async function runDealAgent(opts: {
 }): Promise<AgentResult> {
   const ctx: ToolContext = { userId: opts.userId };
   const trace: ToolCallTrace[] = [];
+  // Load the seller's narrative + value-prop once at the top of the
+  // run so every turn (including tool-result follow-ups) sees the
+  // same ambient seller context. Mirrors the {{SALES_NARRATIVE}}
+  // merge-field pattern the chat-stream route uses.
+  const seller = await loadSellerContext(opts.userId);
+  const systemPrompt = buildSystemPrompt(seller);
+  console.log(
+    `[deal-agent] seller context — narrative=${seller.narrative.length}c valueProp100w=${seller.valueProp100w.length}c`
+  );
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     ...(opts.conversationHistory ?? []),
     { role: "user", content: opts.userMessage },
   ];
