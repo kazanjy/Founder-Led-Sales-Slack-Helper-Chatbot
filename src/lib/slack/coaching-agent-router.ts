@@ -22,7 +22,7 @@ import { runCoachingAgent } from "@/lib/agents/coaching/run";
  * agent doesn't black-hole the user's message.
  */
 
-const COACHING_TRIGGERS: RegExp[] = [
+export const COACHING_TRIGGERS: RegExp[] = [
   /\bcoaching\b/i,
   /\bsession\b/i,
   /\bsprint(?:\s*(?:review|plan))?\b/i,
@@ -147,7 +147,7 @@ export async function tryHandleWithCoachingAgent(opts: {
   }
 }
 
-function hasCoachingKeyword(text: string): boolean {
+export function hasCoachingKeyword(text: string): boolean {
   return COACHING_TRIGGERS.some((re) => re.test(text));
 }
 

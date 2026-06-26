@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
 import { runDealAgent } from "@/lib/agents/deals/run";
+import { hasCoachingKeyword } from "./coaching-agent-router";
 
 // Cap thread history we feed back to the agent so a 50-message thread
 // doesn't blow up tokens. Most relevant context lives in the most
@@ -141,6 +142,24 @@ export async function tryHandleWithDealAgent(opts: {
         console.log(
           `[slack→deal-agent] matched deal "${matchedDeal.label}" from thread context, not current message`
         );
+      }
+    }
+
+    // Coaching-context guard. If the user mentions a deal but the
+    // message (or thread context) ALSO carries a coaching signal —
+    // "session", "notes from", "where did we leave off", "sprint",
+    // "coaching", etc. — they're asking about the coaching discussion
+    // OF that deal, not the deal's own state. Bail out so the next
+    // router (coaching) can pick it up; its searchCoachingHistory
+    // tool can pull the relevant session content keyed off the deal
+    // name.
+    if (matchedDeal) {
+      const combinedForCoachingCheck = [cleaned, ...priorThread.map((m) => m.text)].join(" ");
+      if (hasCoachingKeyword(combinedForCoachingCheck)) {
+        console.log(
+          `[slack→deal-agent] deal "${matchedDeal.label}" matched but coaching keyword present; deferring to coaching router`
+        );
+        return false;
       }
     }
 
