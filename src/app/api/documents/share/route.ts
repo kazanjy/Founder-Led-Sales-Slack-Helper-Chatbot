@@ -17,7 +17,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const validTypes = ["salesNarrative", "discoveryQuestions", "firstCallChecklist", "preCallPlanning", "preCallResearch", "emailSequence", "linkedInSequence", "callReview", "coldCallScript", "salesDeck", "adCreator", "objectionLibrary", "socialContent"];
+    // Whitelist of shareable document types. The seven appended below
+    // (hiringProfile, salesLeaderProfile, preHireAssessment, icp,
+    // callRecap, salesMetrics, salesMotion) were rendered via
+    // ShareDocumentButton on their respective pages but were never
+    // added here, so every "share link" click 400'd as "Invalid
+    // document type". Keeping the whitelist (vs. removing it) so a
+    // malformed payload from somewhere else doesn't accidentally
+    // create public share rows.
+    const validTypes = [
+      "salesNarrative",
+      "discoveryQuestions",
+      "firstCallChecklist",
+      "preCallPlanning",
+      "preCallResearch",
+      "emailSequence",
+      "linkedInSequence",
+      "callReview",
+      "coldCallScript",
+      "salesDeck",
+      "adCreator",
+      "objectionLibrary",
+      "socialContent",
+      "hiringProfile",
+      "salesLeaderProfile",
+      "preHireAssessment",
+      "icp",
+      "callRecap",
+      "salesMetrics",
+      "salesMotion",
+    ];
     if (!validTypes.includes(documentType)) {
       return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
     }

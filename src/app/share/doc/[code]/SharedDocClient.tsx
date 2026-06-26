@@ -34,6 +34,17 @@ const typeLabels: Record<string, string> = {
   callReview: "Call Review Scorecard",
   adCreator: "Ad Creator",
   objectionLibrary: "Objection Library",
+  // Added alongside the share-route whitelist fix so the new
+  // document types render with a real heading instead of the raw
+  // slug. All seven flow through the generic ReactMarkdown render
+  // path further down — no special-case rendering needed.
+  hiringProfile: "AE Hiring Profile",
+  salesLeaderProfile: "Sales Leader Profile",
+  preHireAssessment: "Pre-Hire Assessment",
+  icp: "Ideal Customer Profile",
+  callRecap: "Call Recap Email",
+  salesMetrics: "Sales Metrics",
+  salesMotion: "Sales Motion",
 };
 
 const validTabs = ["qa", "narrative", "1000w", "100w", "50w", "25w"] as const;
