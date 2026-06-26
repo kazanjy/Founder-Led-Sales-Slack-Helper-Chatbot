@@ -397,6 +397,120 @@ const getUpcomingMeetings: ToolEntry = {
   },
 };
 
+const summarizeCall: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "summarizeCall",
+      description:
+        "Pick one specific recorded call on a deal and return its FULL content so you can write a summary. Three ways to point at the call (in priority order): (1) pass entryId if you already know it from another tool; (2) pass startDate + endDate (ISO yyyy-mm-dd) to scope to a date range — e.g. 'first week of June 2026' → 2026-06-01 through 2026-06-07 — and the latest call in that range is returned; (3) omit all of those and the MOST RECENT call on the deal is returned. After receiving the content, write a tight summary: 4-6 bullets covering what was discussed, decisions or commitments made, open questions, and any agreed next steps. Use specifics from the call (names, numbers, dates) — no generic summary-speak.",
+      parameters: {
+        type: "object",
+        properties: {
+          dealId: { type: "string" },
+          entryId: {
+            type: "string",
+            description: "Optional. The specific call entry to summarize, if you already have its id.",
+          },
+          startDate: {
+            type: "string",
+            description: "Optional. ISO date (yyyy-mm-dd) — inclusive lower bound of the search window.",
+          },
+          endDate: {
+            type: "string",
+            description: "Optional. ISO date (yyyy-mm-dd) — inclusive upper bound of the search window.",
+          },
+        },
+        required: ["dealId"],
+      },
+    },
+  },
+  handler: async (
+    { dealId, entryId, startDate, endDate }: { dealId: string; entryId?: string; startDate?: string; endDate?: string },
+    { userId }
+  ) => {
+    const deal = await loadDealForUser(userId, dealId);
+    if (!deal) return { error: "Deal not found or not accessible." };
+
+    // Priority 1: a specific entryId was passed in.
+    if (entryId) {
+      const entry = await prisma.dealTimelineEntry.findFirst({
+        where: { id: entryId, dealId, type: { in: ["call_summary", "call_transcript"] } },
+        select: { id: true, type: true, title: true, entryDate: true, content: true },
+      });
+      if (!entry) return { error: "Entry not found, not on this deal, or not a recorded call." };
+      return {
+        match: "by entryId",
+        call: {
+          entryId: entry.id,
+          type: entry.type,
+          title: entry.title,
+          date: entry.entryDate.toISOString(),
+          content: entry.content,
+        },
+        directive:
+          "Write the summary now in 4-6 bullets — what was discussed, commitments, open questions, next steps. Specifics only; no preamble.",
+      };
+    }
+
+    // Priority 2: date range. If only one bound is provided, treat
+    // the other as open. Returns the LATEST call within the range so
+    // "this morning's call" or "the early-June call" both resolve to
+    // the right one when only one matches.
+    const where: Record<string, unknown> = {
+      dealId,
+      type: { in: ["call_summary", "call_transcript"] },
+    };
+    if (startDate || endDate) {
+      const dateFilter: Record<string, Date> = {};
+      if (startDate) dateFilter.gte = new Date(`${startDate}T00:00:00.000Z`);
+      if (endDate) dateFilter.lte = new Date(`${endDate}T23:59:59.999Z`);
+      where.entryDate = dateFilter;
+    }
+
+    // Pull a small candidate set so we can both return the latest AND
+    // hint to the agent when the range was ambiguous (multiple calls
+    // matched, agent may want to ask the user to narrow it down).
+    const candidates = await prisma.dealTimelineEntry.findMany({
+      where,
+      orderBy: { entryDate: "desc" },
+      take: 5,
+      select: { id: true, type: true, title: true, entryDate: true, content: true },
+    });
+
+    if (candidates.length === 0) {
+      return {
+        error:
+          startDate || endDate
+            ? "No recorded calls on this deal in that date range."
+            : "No recorded calls on this deal yet.",
+      };
+    }
+
+    const top = candidates[0];
+    const others = candidates.slice(1).map((c) => ({
+      entryId: c.id,
+      type: c.type,
+      title: c.title,
+      date: c.entryDate.toISOString(),
+    }));
+
+    return {
+      match: startDate || endDate ? "by date range (latest in range)" : "most recent",
+      call: {
+        entryId: top.id,
+        type: top.type,
+        title: top.title,
+        date: top.entryDate.toISOString(),
+        content: top.content,
+      },
+      otherCandidatesInRange: others,
+      directive:
+        "Write the summary now in 4-6 bullets — what was discussed, commitments, open questions, next steps. Use the specifics of the call (names, numbers, dates), not generic summary-speak. If otherCandidatesInRange has entries, briefly note at the end which other calls in the range you could summarize next.",
+    };
+  },
+};
+
 // prepForMeeting and nextBestAction are NOT separate tools. The agent
 // composes those answers itself by calling the structured read tools
 // (getDealCore + getRecentActivity + getParticipants + getHealthAndRisks
@@ -552,6 +666,7 @@ export const DEAL_TOOLS: Record<string, ToolEntry> = {
   getParticipants,
   getHealthAndRisks,
   getUpcomingMeetings,
+  summarizeCall,
   draftFollowUpEmail,
   addTimelineEntry,
 };

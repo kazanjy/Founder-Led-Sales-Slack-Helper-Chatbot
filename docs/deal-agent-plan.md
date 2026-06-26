@@ -53,6 +53,12 @@ Reading:
 - `getHealthAndRisks(dealId)` — Mikey Health + the "Risks & Gaps"
   section from latest analysis.
 - `getUpcomingMeetings(dealId)` — future calendar entries on the deal.
+- `summarizeCall(dealId, entryId? | startDate? + endDate?)` — pick
+  one specific call (most recent by default, or a date range, or
+  by explicit entryId) and return its full content + a summary
+  directive. Collapses the common findCall → getCallDetail
+  sequence for the "summarize the most recent call" / "what did we
+  talk about in the first week of June" question shape.
 
 Synthesis (specific format):
 - `prepForMeeting(dealId)` — same prompt as the /deals/[id] CTA.
