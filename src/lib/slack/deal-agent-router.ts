@@ -62,10 +62,29 @@ export async function tryHandleWithDealAgent(opts: {
       orderBy: { updatedAt: "desc" },
       take: 200,
     });
-    if (deals.length === 0) return false;
+    if (deals.length === 0) {
+      console.log(
+        `[slack→deal-agent] no deals in account for contextUser=${contextUserId}; falling through`
+      );
+      return false;
+    }
 
     const matchedDeal = findDealNameInText(cleaned, deals);
-    if (!matchedDeal) return false;
+    if (!matchedDeal) {
+      // Log enough to diagnose "the agent should have fired but
+      // didn't" cases. Shows the user, the message we were
+      // matching against, and the first few deal labels we tried
+      // — so if the user's deal is called "Mongo Inc." they'll
+      // see why "MongoDB" didn't match.
+      const sample = deals
+        .slice(0, 8)
+        .map((d) => `${d.companyName} / ${d.name}`)
+        .join(" | ");
+      console.log(
+        `[slack→deal-agent] no deal match for user=${contextUserId} text="${cleaned.substring(0, 140)}" — first ${Math.min(deals.length, 8)} of ${deals.length} deals: ${sample}`
+      );
+      return false;
+    }
 
     console.log(`[slack→deal-agent] user=${contextUserId} matched=${matchedDeal} text=${cleaned.substring(0, 120)}`);
 
