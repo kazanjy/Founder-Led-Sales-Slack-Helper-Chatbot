@@ -4,6 +4,7 @@ import { sendToChatbase } from "@/lib/chatbase/client";
 import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMIT } from "@/lib/chatbase/chunking";
 import { markdownToSlack } from "./markdown";
 import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseResearchCommand } from "./commands";
+import { tryHandleWithDealAgent } from "./deal-agent-router";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -624,6 +625,22 @@ async function handleMention(
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
+  // Deal-agent auto-route: if the message clearly references one of
+  // the user's deals (substring match on deal name / company name),
+  // hand it to the tool-using agent instead of Chatbase. Falls
+  // through silently if no match — Chatbase still handles everything
+  // else. See lib/slack/deal-agent-router.ts.
+  if (text) {
+    const handled = await tryHandleWithDealAgent({
+      userId: dbUser.id,
+      text,
+      client,
+      channel,
+      threadTs,
+    });
+    if (handled) return;
+  }
+
   // Strip the bot mention from the message
   const cleanText = (text || "").replace(/<@[A-Z0-9]+>/g, "").trim();
   console.log("Clean text:", cleanText);
@@ -779,6 +796,20 @@ async function handleDirectMessage(
   // Send welcome message for first-time users
   if (canSend.welcomeMessage) {
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
+  }
+
+  // Deal-agent auto-route (same as handleMention). Substring match
+  // against the user's deal names hands deal-shaped DMs to the
+  // tool-using agent; everything else falls through to Chatbase.
+  if (text) {
+    const handled = await tryHandleWithDealAgent({
+      userId: dbUser.id,
+      text,
+      client,
+      channel,
+      threadTs,
+    });
+    if (handled) return;
   }
 
   // Check for hashtag commands (e.g. #instructions)

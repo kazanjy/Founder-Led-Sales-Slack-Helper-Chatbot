@@ -117,21 +117,35 @@ Once deals work, the same agent loop gets a wider tool surface:
 - Cross-surface actions ("apply this coaching insight to all stalled
   deals") get safer once the per-deal action layer is battle-tested.
 
-## Slack integration plan
+## Slack integration
 
-Phase 1 ships with a plain HTTP endpoint (`POST /api/agents/deals`) so we
-can drive it from curl / a test page and inspect the tool-call trace.
-Slack wiring lands once the agent reliably handles the per-deal question
-set:
+Live as of the phase-1 round, see `src/lib/slack/deal-agent-router.ts`.
 
-- Slack message → existing events handler → detect "deal-ish" intent
-  (simple regex on deal names + a few keywords initially, since the agent
-  itself can decide to just answer from training if no deal is named).
-- Route to `run-deal-agent`, stream tool-call status to Slack as
-  thinking messages ("Looking up MongoDB deal…", "Reading recent
-  calls…") so the user sees the work happening.
-- Final answer posted as a threaded reply. Drafts get posted as
-  attachments / blocks with copy buttons.
+Routing heuristic (first cut):
+- Substring match the inbound Slack message against the user's own
+  deal names + company names (tokens of 3+ chars must ALL appear in
+  the message). When any deal label matches, hand the message to
+  the agent; otherwise fall through to the existing Chatbase path.
+- Applied at the top of both `handleMention` (channel @mentions)
+  and `handleDirectMessage` (DMs to Mikey).
+- A small "_Looking into the X deal…_" status reply posts before
+  the agent loop runs so the user sees activity during the multi-
+  turn tool call.
+- Final answer goes through `markdownToSlack` before sending so the
+  agent's markdown renders as Slack mrkdwn (single-asterisk bold,
+  bullets, etc.).
+
+Open items the prototype will surface:
+- The "the X deal" with no other context routes to the agent. The
+  "what does our playbook say about X" question with X being a deal
+  name ALSO routes to the agent. We'll see the false-positive rate
+  in practice and tighten if needed (probably add deal-keyword
+  signal: "deal", "pipeline", "follow-up", "next best action" etc.
+  AND deal-name match).
+- No streaming yet — full reply lands when the agent loop finishes.
+  Fine at current latency (~5-15s), revisit if it climbs.
+- Drafts (follow-up emails) post as plain text inside the threaded
+  reply. Could become blocks / copy buttons later.
 
 ## Open design choices
 
