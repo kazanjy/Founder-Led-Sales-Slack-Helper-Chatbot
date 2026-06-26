@@ -166,14 +166,26 @@ const getColdCallScripts: ToolEntry = {
     const latest = await prisma.coldCallScriptVersion.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, createdAt: true },
+      // ColdCallScriptVersion has no `title` — describe it via the
+      // scriptType (outbound/inbound) and the persona it's tuned for
+      // so the agent knows what flavor it's looking at.
+      select: {
+        id: true,
+        scriptType: true,
+        orgPersona: true,
+        humanPersona: true,
+        content: true,
+        createdAt: true,
+      },
     });
     if (!latest) {
       return { error: "No cold call scripts authored yet. The founder can create them at /call-scripts." };
     }
     return {
       versionId: latest.id,
-      title: latest.title,
+      scriptType: latest.scriptType,
+      orgPersona: latest.orgPersona,
+      humanPersona: latest.humanPersona,
       createdAt: latest.createdAt.toISOString(),
       content: latest.content,
     };
@@ -228,14 +240,24 @@ const getSalesDeck: ToolEntry = {
     const latest = await prisma.salesDeckVersion.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, createdAt: true },
+      // SalesDeckVersion has no `title` either — describe via
+      // deckMode (fresh / existing / gamma) and the source PDF
+      // name when relevant.
+      select: {
+        id: true,
+        deckMode: true,
+        sourcePdfName: true,
+        content: true,
+        createdAt: true,
+      },
     });
     if (!latest) {
       return { error: "No sales deck authored yet. The founder can create one at /sales-deck." };
     }
     return {
       deckVersionId: latest.id,
-      title: latest.title,
+      deckMode: latest.deckMode,
+      sourcePdfName: latest.sourcePdfName,
       createdAt: latest.createdAt.toISOString(),
       content: latest.content,
     };
