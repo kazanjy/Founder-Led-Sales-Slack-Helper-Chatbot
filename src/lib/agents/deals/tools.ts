@@ -133,7 +133,7 @@ const getDealCore: ToolEntry = {
     function: {
       name: "getDealCore",
       description:
-        "Get the structured facts about a deal: stage, status, deal value, projected close date, Mikey Health, days open, days in current stage, count of timeline entries, count of participants. Use this for any question about deal METADATA. Do NOT use for participant lists, timeline content, or analysis prose — call the dedicated tools for those.",
+        "Get the structured facts about a deal in one shot — stage, status, deal value, projected close date, Mikey Health, days open, days in current stage, last meaningful activity date (and what type of entry it was), the next upcoming meeting (date + title), count of timeline entries, count of participants. Use this for any 'what's the status with X' / 'where are we on X' question — it's the one tool that covers the full deal snapshot. Do NOT use for participant lists, timeline content, or analysis prose — call the dedicated tools for those.",
       parameters: {
         type: "object",
         properties: {
@@ -146,18 +146,42 @@ const getDealCore: ToolEntry = {
   handler: async ({ dealId }: { dealId: string }, { userId }) => {
     const deal = await loadDealForUser(userId, dealId);
     if (!deal) return { error: "Deal not found or not accessible." };
-    // Find the most recent stage_change entry to compute days-in-stage.
-    const lastStageChange = await prisma.dealTimelineEntry.findFirst({
-      where: { dealId, type: "stage_change" },
-      orderBy: { entryDate: "desc" },
-      select: { entryDate: true },
-    });
-    const stageEnteredAt = lastStageChange?.entryDate || deal.createdAt;
     const now = new Date();
-    const [entryCount, participantCount] = await Promise.all([
+    // Parallelize the timeline lookups — they're independent and
+    // each is a single-row query.
+    const [lastStageChange, entryCount, participantCount, lastActivity, nextMeeting] = await Promise.all([
+      prisma.dealTimelineEntry.findFirst({
+        where: { dealId, type: "stage_change" },
+        orderBy: { entryDate: "desc" },
+        select: { entryDate: true },
+      }),
       prisma.dealTimelineEntry.count({ where: { dealId } }),
       prisma.dealParticipant.count({ where: { dealId } }),
+      // Most recent past entry (excludes chat breadcrumbs + future
+      // calendar meetings). Mirrors the lastActivityAt the list
+      // endpoint surfaces on each deal card.
+      prisma.dealTimelineEntry.findFirst({
+        where: {
+          dealId,
+          entryDate: { lte: now },
+          type: { not: "chat" },
+        },
+        orderBy: { entryDate: "desc" },
+        select: { entryDate: true, type: true, title: true },
+      }),
+      // Earliest upcoming meeting (type=meeting, entryDate in the
+      // future). Mirrors nextMeetingAt on the list cards.
+      prisma.dealTimelineEntry.findFirst({
+        where: {
+          dealId,
+          type: "meeting",
+          entryDate: { gt: now },
+        },
+        orderBy: { entryDate: "asc" },
+        select: { entryDate: true, title: true },
+      }),
     ]);
+    const stageEnteredAt = lastStageChange?.entryDate || deal.createdAt;
     return {
       dealId: deal.id,
       name: deal.name,
@@ -174,6 +198,21 @@ const getDealCore: ToolEntry = {
       lastAnalyzedAt: deal.lastAnalyzedAt?.toISOString() || null,
       entryCount,
       participantCount,
+      lastActivity: lastActivity
+        ? {
+            date: lastActivity.entryDate.toISOString(),
+            daysAgo: diffDays(now, lastActivity.entryDate),
+            type: lastActivity.type,
+            title: lastActivity.title,
+          }
+        : null,
+      nextUpcomingMeeting: nextMeeting
+        ? {
+            date: nextMeeting.entryDate.toISOString(),
+            daysFromNow: diffDays(nextMeeting.entryDate, now),
+            title: nextMeeting.title,
+          }
+        : null,
       createdAt: deal.createdAt.toISOString(),
     };
   },
