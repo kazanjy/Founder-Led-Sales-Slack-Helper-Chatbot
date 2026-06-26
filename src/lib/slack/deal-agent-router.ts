@@ -36,8 +36,11 @@ export async function tryHandleWithDealAgent(opts: {
   channel: string;
   threadTs: string | undefined;
   // The bot's Slack user id so we can label its prior thread
-  // replies as "assistant" turns in the agent history.
-  botUserId: string;
+  // replies as "assistant" turns in the agent history. Nullable
+  // because Workspace.botUserId is nullable in the schema; when
+  // null we still tag assistant turns via the message's bot_id
+  // field, which is always set for bot replies.
+  botUserId: string | null;
   // Slack ts of the current message — used to skip it when reading
   // thread history (it's already passed in as `text`).
   messageTs: string;
