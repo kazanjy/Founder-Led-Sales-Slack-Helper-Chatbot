@@ -1383,8 +1383,12 @@ export default function ChatPage() {
       const conv = conversations.find(c => c.id === conversationId);
       setConversationMode(conv?.mode || "CHATBASE");
     }
-    // Use pushState to update URL without triggering Next.js navigation
-    const newUrl = conversationId ? `/chat/${conversationId}` : '/chat';
+    // Use pushState to update URL without triggering Next.js
+    // navigation. Preserves the current URL hash so an anchor link
+    // that switches conversation (e.g. /chat/<id>#msg-X) still
+    // scrolls to the right message after the conversation loads.
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const newUrl = (conversationId ? `/chat/${conversationId}` : '/chat') + hash;
     window.history.pushState({}, '', newUrl);
     // Close mobile sidebar when a conversation is selected
     if (isMobile) {
@@ -1449,10 +1453,27 @@ export default function ChatPage() {
     if (!hash.startsWith("#msg-")) return;
     if (lastScrolledHashRef.current === hash) return;
     const id = hash.slice(1);
-    const el = document.getElementById(id);
-    if (!el) return;
-    lastScrolledHashRef.current = hash;
-    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    // Poll for up to ~3s in case the target message hasn't been
+    // mounted yet when the effect first fires. This was the main
+    // failure mode under impersonation: the messages state landed
+    // but the DOM nodes hadn't paint-committed by the time the
+    // single-shot scroll fired. Retries are cheap — bail as soon
+    // as we either find the element or run out of attempts.
+    let attempts = 0;
+    const maxAttempts = 30;
+    const tick = () => {
+      attempts++;
+      const el = document.getElementById(id);
+      if (el) {
+        lastScrolledHashRef.current = hash;
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (attempts < maxAttempts) {
+        setTimeout(tick, 100);
+      }
+    };
+    setTimeout(tick, 60);
   }, []);
   useEffect(() => {
     if (messages.length === 0) return;
@@ -1634,8 +1655,10 @@ export default function ChatPage() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("startAssessment") === "true") {
       setShowMaturityModal(true);
-      // Remove the query param from URL without reload
-      const newUrl = window.location.pathname;
+      // Remove the query param from URL without reload — but
+      // PRESERVE the hash so a /chat/<id>?startAssessment=true#msg-X
+      // link still scrolls to the right message after the modal pops.
+      const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, "", newUrl);
     }
   }, [loading, user]);
@@ -1651,7 +1674,10 @@ export default function ChatPage() {
     if (!context) return;
     autoSendTriggered.current = true;
     sessionStorage.removeItem(`autoSend-${selectedConversation}`);
-    window.history.replaceState({}, "", window.location.pathname);
+    // Strip ?autoSend=true from the URL but preserve the hash so a
+    // /chat/<id>?autoSend=true#msg-X link still scrolls to the
+    // right message after the auto-sent reply lands.
+    window.history.replaceState({}, "", window.location.pathname + window.location.hash);
     // Send the message (creates user message + triggers response)
     sendMessage(context);
   }, [loading, user, selectedConversation]); // eslint-disable-line react-hooks/exhaustive-deps
