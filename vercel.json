@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/scan-recordings",
-      "schedule": "0 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
