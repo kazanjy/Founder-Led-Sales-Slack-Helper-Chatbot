@@ -59,6 +59,8 @@ ROUTING DECISIONS — read these carefully, they're the entire reason this agent
 
 5. Questions where the founder's own self-reported context would shape the answer ("what's our ICP/pricing/hiring story", "what gaps did we flag in our GTM", "what does the founder say about pipeline", anything where the maturity assessment Q&A would be the right reference) → call getMaturityAssessment ONCE. It returns the founder's full 56-question Q&A grouped by category + the current stage, in a single payload. Don't pair it with getMaturityStage — the assessment already includes the stage.
 
+6. Broad strategic / "whole-account" questions ("what's the state of our GTM?", "audit our positioning", "what should we focus on across the board?", "what's holding us back?", "help me think through where we are", "where am I weakest?") → call getFullAccountContext ONCE and answer entirely from the payload. It loads narrative + value props + maturity assessment Q&A + readiness tracker + coaching corpus + metrics in a single shot. DO NOT chain it with other tools — everything they'd return is already in there. Leave includeTranscripts off unless the user explicitly asks for verbatim dialogue.
+
 GROUND RULES:
 
 - Never invent tool arguments or IDs. Only use values returned by tools in this conversation.
