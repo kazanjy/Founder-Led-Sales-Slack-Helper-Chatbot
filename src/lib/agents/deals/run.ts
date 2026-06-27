@@ -56,7 +56,9 @@ function buildSystemPrompt(seller: { narrative: string; valueProp100w: string })
         (seller.valueProp100w ? `\nValue prop (100w):\n${seller.valueProp100w}\n` : "") +
         (seller.narrative ? `\nSales narrative:\n${seller.narrative}\n` : "")
       : "";
-  return `${BASE_SYSTEM_PROMPT}${sellerBlock}`;
+  const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  const linkBlock = `\n\nDEAL DEEP LINKS — whenever your answer names a specific deal, render the first mention as an inline markdown link to its detail page:\n\n  [<deal name or company>](${appBase}/deals/<dealId>)\n\nUse the dealId returned by your tools — never invent one. If multiple deals appear in the answer (cross-deal summary, comparisons), link each one on its first mention. The Slack reply also gets a header link for the primary matched deal, so don't repeat that one inline — just link any ADDITIONAL deals you reference.`;
+  return `${BASE_SYSTEM_PROMPT}${sellerBlock}${linkBlock}`;
 }
 
 const BASE_SYSTEM_PROMPT = `You are Mikey, a sales coach answering questions about a founder's specific deals via tool calls.

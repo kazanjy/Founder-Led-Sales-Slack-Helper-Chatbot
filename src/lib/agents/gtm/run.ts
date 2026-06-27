@@ -40,7 +40,9 @@ function buildSystemPrompt(seller: { narrative: string; valueProp100w: string })
         (seller.valueProp100w ? `\nValue prop (100w):\n${seller.valueProp100w}\n` : "") +
         (seller.narrative ? `\nSales narrative:\n${seller.narrative}\n` : "")
       : "";
-  return `${BASE_SYSTEM_PROMPT}${sellerBlock}`;
+  const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  const linkBlock = `\n\nDEEP LINKS — your reply will go to Slack via markdown, so emit inline markdown links the founder can click to jump into the app. Use IDs returned by your tools; never invent them. Three rules:\n\n  • Specific deal mentioned → link first mention to [<deal name or company>](${appBase}/deals/<dealId>). If multiple deals appear (pipeline summaries, comparisons), link each on its first mention.\n  • Pipeline-level answer (listPipeline / getPipelineSummary / getDealsLikelyToClose / getDealsNeedingHelp / getUpcomingDealActivity) → end the reply with a line linking the pipeline overview: [Open pipeline in Mikey ↗](${appBase}/deals).\n  • Specific coaching session referenced → link first mention to [<session title> — <YYYY-MM-DD>](${appBase}/coaching-history?session=<sessionId>). Link each session if multiple appear.\n\nIf the answer is generic (no specific deal or session), skip the inline links — don't bolt on a link just to have one.`;
+  return `${BASE_SYSTEM_PROMPT}${sellerBlock}${linkBlock}`;
 }
 
 const BASE_SYSTEM_PROMPT = `You are Mikey, an AI-powered founder-led-sales coach. You're the catch-all agent for questions the dedicated deal and coaching agents don't already handle.
