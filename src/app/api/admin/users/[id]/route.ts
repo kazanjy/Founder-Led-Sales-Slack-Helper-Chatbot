@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
+import { hasGoogleCalendarScope } from "@/lib/google";
+import { providers as RECORDER_PROVIDERS } from "@/lib/meeting-recorder/providers";
 
 export async function GET(
   request: NextRequest,
@@ -49,6 +51,18 @@ export async function GET(
             messages: true,
             referralsMade: true,
           },
+        },
+        meetingRecorderConnections: {
+          select: {
+            id: true,
+            provider: true,
+            status: true,
+            tokenExpiresAt: true,
+            providerAccountId: true,
+            connectedAt: true,
+            lastSyncedAt: true,
+          },
+          orderBy: { connectedAt: "desc" },
         },
       },
     });
@@ -329,6 +343,26 @@ export async function GET(
         avatarUrl: user.avatarUrl,
         googleId: user.googleId,
         slackUserId: user.slackUserId,
+        // Integrations
+        googleCalendar: {
+          // Google identity is enough for sign-in but not for reading
+          // calendar — the scope has to be granted via the re-consent
+          // flow that the pre-call applet triggers.
+          hasCalendarScope: hasGoogleCalendarScope(user.googleScopes),
+          grantedScopes: user.googleScopes,
+        },
+        meetingRecorderConnections: user.meetingRecorderConnections.map((c) => ({
+          id: c.id,
+          provider: c.provider,
+          providerLabel: RECORDER_PROVIDERS[c.provider]?.name || c.provider,
+          providerIcon: RECORDER_PROVIDERS[c.provider]?.icon || null,
+          status: c.status,
+          providerAccountId: c.providerAccountId,
+          connectedAt: c.connectedAt.toISOString(),
+          lastSyncedAt: c.lastSyncedAt?.toISOString() || null,
+          tokenExpiresAt: c.tokenExpiresAt?.toISOString() || null,
+          tokenExpired: c.tokenExpiresAt ? c.tokenExpiresAt < new Date() : false,
+        })),
         // Status
         licenseStatus: user.licenseStatus,
         trialStartedAt: user.trialStartedAt,

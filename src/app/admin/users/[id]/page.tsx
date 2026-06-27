@@ -16,6 +16,22 @@ interface UserDetail {
   avatarUrl: string | null;
   googleId: string | null;
   slackUserId: string | null;
+  googleCalendar: {
+    hasCalendarScope: boolean;
+    grantedScopes: string | null;
+  };
+  meetingRecorderConnections: {
+    id: string;
+    provider: string;
+    providerLabel: string;
+    providerIcon: string | null;
+    status: string;
+    providerAccountId: string | null;
+    connectedAt: string;
+    lastSyncedAt: string | null;
+    tokenExpiresAt: string | null;
+    tokenExpired: boolean;
+  }[];
   licenseStatus: string;
   trialStartedAt: string | null;
   trialDaysRemaining: number | null;
@@ -606,6 +622,88 @@ export default function AdminUserDetailPage() {
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Integrations — calendar + call recorders */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Integrations</h2>
+
+            {/* Google Calendar — derives from Google identity + scope. */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Calendar</h3>
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-base">📅</div>
+                <div className="flex-1">
+                  <div className="font-medium">Google Calendar</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {!user.googleId
+                      ? "No Google identity connected"
+                      : user.googleCalendar.hasCalendarScope
+                        ? "Calendar scope granted — pre-call applet can read events"
+                        : "Google connected, but calendar scope NOT granted (re-consent required)"}
+                  </div>
+                </div>
+                <span
+                  className={
+                    !user.googleId
+                      ? "px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300"
+                      : user.googleCalendar.hasCalendarScope
+                        ? "px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                        : "px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                  }
+                >
+                  {!user.googleId ? "n/a" : user.googleCalendar.hasCalendarScope ? "Connected" : "Scope missing"}
+                </span>
+              </div>
+            </div>
+
+            {/* Call recording providers — MeetingRecorderConnection rows. */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Call Recording</h3>
+              {user.meetingRecorderConnections.length === 0 ? (
+                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400">
+                  No call recording providers connected.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {user.meetingRecorderConnections.map((c) => (
+                    <div key={c.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-base">
+                        {c.providerIcon || "🎙️"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{c.providerLabel}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Connected {new Date(c.connectedAt).toLocaleDateString()}
+                          {c.lastSyncedAt && ` · last sync ${new Date(c.lastSyncedAt).toLocaleString()}`}
+                          {!c.lastSyncedAt && " · never synced"}
+                          {c.tokenExpiresAt && (
+                            <>
+                              {" · token "}
+                              <span className={c.tokenExpired ? "text-red-600 dark:text-red-400 font-medium" : ""}>
+                                {c.tokenExpired ? "EXPIRED" : `valid until ${new Date(c.tokenExpiresAt).toLocaleString()}`}
+                              </span>
+                            </>
+                          )}
+                          {c.providerAccountId && ` · acct ${c.providerAccountId}`}
+                        </div>
+                      </div>
+                      <span
+                        className={
+                          c.status === "active" && !c.tokenExpired
+                            ? "px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : c.status === "expired" || c.tokenExpired
+                              ? "px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                              : "px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                        }
+                      >
+                        {c.status === "active" && c.tokenExpired ? "token expired" : c.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
