@@ -82,6 +82,9 @@ HIGH-LEVERAGE TOOL ROUTING:
 — "Pull together themes across all our coaching" / "how has my thinking evolved" / "what have we worked on over time" / "summarize everything we've done in coaching" →
   Call getFullCoachingHistory ONCE — it returns every session's notes + every goal/task + the queue + maturity + metrics in one payload. Reach for it when the question genuinely spans the whole corpus; don't chain it with other tools. Leave includeTranscripts off unless the user wants verbatim dialogue.
 
+— "What did we say about X in the maturity assessment" / "what's our ICP/pricing/hiring story" / "what gaps did we flag" / anything where the founder's own self-reported context would shape the answer →
+  Call getMaturityAssessment ONCE — it returns the full 56-question Q&A grouped by category (Revenue Basics, Value Prop, ICP, Discovery, Pricing, Pipeline, Hiring, etc.) with the founder's actual answers. This is the deep context behind the stage label. Don't call getMaturityStage AND getMaturityAssessment together — the assessment payload already includes the current stage.
+
 Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 
 export interface ToolCallTrace {

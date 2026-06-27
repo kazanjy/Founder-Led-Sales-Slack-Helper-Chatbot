@@ -321,6 +321,105 @@ const getMaturityStage: ToolEntry = {
   },
 };
 
+const getMaturityAssessment: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getMaturityAssessment",
+      description:
+        "Pull the founder's most recent GTM maturity assessment — the 56-question Q&A across Revenue Basics, Value Prop, ICP, Discovery, Pricing, Pipeline, Hiring, etc. — with their actual answers, grouped by category. This is the deep context behind the stage label that getMaturityStage returns. Use whenever the question would benefit from knowing what the founder said about their business: 'what's our ICP-fit story', 'how did we describe pricing', 'what hiring gaps did we flag', or anytime you'd otherwise want to ask the founder a question the assessment already answered. Optionally returns the list of all prior assessments (history) for trend / evolution questions.",
+      parameters: {
+        type: "object",
+        properties: {
+          assessmentId: {
+            type: "string",
+            description: "Specific assessment id to load. Default: most recent assessment.",
+          },
+          includeHistory: {
+            type: "boolean",
+            description:
+              "When true, also returns a list of all prior assessments (id, title, completedAt) so you can ask follow-up about earlier ones. Default false.",
+          },
+        },
+      },
+    },
+  },
+  handler: async (
+    { assessmentId, includeHistory }: { assessmentId?: string; includeHistory?: boolean },
+    { userId }
+  ) => {
+    const target = assessmentId
+      ? await prisma.maturityAssessment.findFirst({
+          where: { id: assessmentId, userId },
+          select: { id: true, title: true, completedAt: true },
+        })
+      : await prisma.maturityAssessment.findFirst({
+          where: { userId },
+          orderBy: { completedAt: "desc" },
+          select: { id: true, title: true, completedAt: true },
+        });
+    if (!target) {
+      return {
+        error:
+          "No maturity assessment found. The founder can take one at /maturity-assessment.",
+      };
+    }
+    const [answers, stageRow, history] = await Promise.all([
+      prisma.maturityAnswer.findMany({
+        where: { assessmentId: target.id },
+        select: {
+          answer: true,
+          question: { select: { category: true, globalOrder: true, question: true } },
+        },
+        orderBy: { question: { globalOrder: "asc" } },
+      }),
+      prisma.salesMaturityStage.findUnique({
+        where: { userId },
+        select: { currentStage: true },
+      }),
+      includeHistory
+        ? prisma.maturityAssessment.findMany({
+            where: { userId },
+            orderBy: { completedAt: "desc" },
+            select: { id: true, title: true, completedAt: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    // Group Q&A by category so the agent gets a structure that maps
+    // to the assessment UI (Revenue Basics / Value Prop / ICP / etc.).
+    const byCategory = new Map<string, Array<{ globalOrder: number; question: string; answer: string }>>();
+    for (const a of answers) {
+      const cat = a.question.category;
+      const arr = byCategory.get(cat) || [];
+      arr.push({
+        globalOrder: a.question.globalOrder,
+        question: a.question.question,
+        answer: a.answer,
+      });
+      byCategory.set(cat, arr);
+    }
+    return {
+      assessmentId: target.id,
+      title: target.title || "Untitled assessment",
+      completedAt: target.completedAt.toISOString(),
+      currentStage: stageRow?.currentStage || null,
+      categories: Array.from(byCategory.entries()).map(([category, qa]) => ({
+        category,
+        questionAndAnswers: qa,
+      })),
+      ...(includeHistory && history
+        ? {
+            history: history.map((h) => ({
+              assessmentId: h.id,
+              title: h.title || "Untitled assessment",
+              completedAt: h.completedAt.toISOString(),
+            })),
+          }
+        : {}),
+    };
+  },
+};
+
 const getLatestSalesMetrics: ToolEntry = {
   definition: {
     type: "function",
@@ -885,6 +984,7 @@ export const COACHING_TOOLS: Record<string, ToolEntry> = {
   getCoachingGoalsAndTasks,
   getRecentCoachingActivity,
   getMaturityStage,
+  getMaturityAssessment,
   getLatestSalesMetrics,
   summarizeCoachingSession,
   whereDidWeLeaveOff,

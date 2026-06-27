@@ -333,6 +333,7 @@ export const GTM_TOOLS: Record<string, ToolEntry> = {
   // Shared handlers reused from the coaching agent (one
   // implementation per concept; we just point at it here)
   getMaturityStage: COACHING_TOOLS.getMaturityStage,
+  getMaturityAssessment: COACHING_TOOLS.getMaturityAssessment,
   getLatestSalesMetrics: COACHING_TOOLS.getLatestSalesMetrics,
   // Composite wrapper that delegates to coaching
   getCoachingState,

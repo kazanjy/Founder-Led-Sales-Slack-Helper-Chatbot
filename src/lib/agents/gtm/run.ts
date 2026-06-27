@@ -57,6 +57,8 @@ ROUTING DECISIONS — read these carefully, they're the entire reason this agent
 
 4. State / orientation questions ("what should I focus on this week?", "where are things at?") → call getCoachingState (composite). Don't chain individual coaching tools.
 
+5. Questions where the founder's own self-reported context would shape the answer ("what's our ICP/pricing/hiring story", "what gaps did we flag in our GTM", "what does the founder say about pipeline", anything where the maturity assessment Q&A would be the right reference) → call getMaturityAssessment ONCE. It returns the founder's full 56-question Q&A grouped by category + the current stage, in a single payload. Don't pair it with getMaturityStage — the assessment already includes the stage.
+
 GROUND RULES:
 
 - Never invent tool arguments or IDs. Only use values returned by tools in this conversation.
