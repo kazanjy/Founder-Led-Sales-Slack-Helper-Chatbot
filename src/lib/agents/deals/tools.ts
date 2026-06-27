@@ -684,6 +684,547 @@ const addTimelineEntry: ToolEntry = {
   },
 };
 
+// ── Pipeline tools — cross-deal aggregates ──────────────────────────
+//
+// These tools operate across the user's whole pipeline rather than
+// any single deal. The deal Slack router only fires when a deal name
+// matches the message, so pipeline questions ("what's at risk?",
+// "what's likely to close?") naturally fall through to the GTM agent
+// — which re-exports these handlers via DEAL_TOOLS.
+
+// Settled statuses that should be excluded from "open pipeline" views.
+const PIPELINE_OPEN_STATUS_FILTER = {
+  notIn: ["closed_won", "closed_lost", "dismissed"],
+};
+
+// Healths considered "good enough to ride" — used by getDealsLikelyToClose.
+const HEALTHY_HEALTHS = ["good", "excellent"];
+// Late-pipeline stages — used by getDealsLikelyToClose.
+const LATE_STAGES = ["negotiation", "closing", "proposal"];
+
+// Build a summary row used by listPipeline + the risk/close tools.
+// One round-trip per deal to grab the most-recent-past timeline entry
+// for the daysSinceLastActivity signal.
+async function summarizeDealRows(
+  deals: Array<{
+    id: string;
+    name: string;
+    companyName: string;
+    stage: string;
+    status: string;
+    dealValue: number | null;
+    projectedCloseDate: Date | null;
+    mikeyHealth: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>
+) {
+  const now = new Date();
+  const lastActivities = await Promise.all(
+    deals.map((d) =>
+      prisma.dealTimelineEntry.findFirst({
+        where: { dealId: d.id, entryDate: { lte: now }, type: { not: "chat" } },
+        orderBy: { entryDate: "desc" },
+        select: { entryDate: true, type: true, title: true },
+      })
+    )
+  );
+  return deals.map((d, idx) => {
+    const la = lastActivities[idx];
+    return {
+      dealId: d.id,
+      name: d.name,
+      companyName: d.companyName,
+      stage: d.stage,
+      status: d.status,
+      dealValue: d.dealValue,
+      projectedCloseDate: d.projectedCloseDate?.toISOString() || null,
+      daysToProjectedClose: d.projectedCloseDate
+        ? Math.round((d.projectedCloseDate.getTime() - now.getTime()) / 86_400_000)
+        : null,
+      mikeyHealth: d.mikeyHealth,
+      daysOpen: diffDays(now, d.createdAt),
+      lastActivity: la
+        ? {
+            date: la.entryDate.toISOString(),
+            daysAgo: diffDays(now, la.entryDate),
+            type: la.type,
+            title: la.title,
+          }
+        : null,
+      daysSinceLastActivity: la ? diffDays(now, la.entryDate) : diffDays(now, d.createdAt),
+    };
+  });
+}
+
+const listPipeline: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "listPipeline",
+      description:
+        "List deals across the founder's pipeline with optional filters and sort. Default: open deals (excludes closed_won / closed_lost / dismissed), sorted by most recently updated, cap 25. Use for any 'show me deals where X' / 'what deals do I have' / 'list deals in X stage' question. Returns summary rows (name, company, stage, status, value, projected close, Mikey health, days since last activity) — call getDealCore for full per-deal detail.",
+      parameters: {
+        type: "object",
+        properties: {
+          stage: {
+            type: "string",
+            description: "Filter by exact stage slug (prospecting / discovery / demo / proposal / negotiation / closing / won / lost, or a custom stage slug).",
+          },
+          status: {
+            type: "string",
+            enum: ["active", "stalled", "potential", "closed_won", "closed_lost", "dismissed", "any_open"],
+            description:
+              "Filter by status. Default 'any_open' (all open statuses, excludes closed/dismissed). Pass an explicit value to override.",
+          },
+          mikeyHealth: {
+            type: "string",
+            enum: ["poor", "fair", "good", "excellent"],
+            description: "Filter by Mikey health rating.",
+          },
+          minValue: { type: "number", description: "Minimum dealValue (whole dollars)." },
+          maxValue: { type: "number", description: "Maximum dealValue (whole dollars)." },
+          closingWithinDays: {
+            type: "number",
+            description: "Only deals with projectedCloseDate within the next N days from today.",
+          },
+          sortBy: {
+            type: "string",
+            enum: ["updatedAt", "createdAt", "projectedCloseDate", "dealValue", "mikeyHealth"],
+            description: "Sort key. Default 'updatedAt' (most recent first). mikeyHealth sorts excellent→good→fair→poor.",
+          },
+          limit: { type: "number", description: "Max rows to return. Default 25, max 100." },
+        },
+      },
+    },
+  },
+  handler: async (
+    args: {
+      stage?: string;
+      status?: "active" | "stalled" | "potential" | "closed_won" | "closed_lost" | "dismissed" | "any_open";
+      mikeyHealth?: string;
+      minValue?: number;
+      maxValue?: number;
+      closingWithinDays?: number;
+      sortBy?: "updatedAt" | "createdAt" | "projectedCloseDate" | "dealValue" | "mikeyHealth";
+      limit?: number;
+    },
+    { userId }
+  ) => {
+    const cap = Math.min(Math.max(args.limit ?? 25, 1), 100);
+    const where: Record<string, unknown> = { userId };
+    if (args.status && args.status !== "any_open") where.status = args.status;
+    else where.status = PIPELINE_OPEN_STATUS_FILTER;
+    if (args.stage) where.stage = args.stage;
+    if (args.mikeyHealth) where.mikeyHealth = args.mikeyHealth;
+    if (args.minValue != null || args.maxValue != null) {
+      const valueFilter: Record<string, number> = {};
+      if (args.minValue != null) valueFilter.gte = args.minValue;
+      if (args.maxValue != null) valueFilter.lte = args.maxValue;
+      where.dealValue = valueFilter;
+    }
+    if (args.closingWithinDays != null) {
+      const now = new Date();
+      const horizon = new Date(now.getTime() + args.closingWithinDays * 86_400_000);
+      where.projectedCloseDate = { gte: now, lte: horizon };
+    }
+    const orderBy = (() => {
+      switch (args.sortBy) {
+        case "createdAt":
+          return { createdAt: "desc" as const };
+        case "projectedCloseDate":
+          // null projectedCloseDate sorts last — Prisma default for asc.
+          return { projectedCloseDate: "asc" as const };
+        case "dealValue":
+          return { dealValue: "desc" as const };
+        case "mikeyHealth":
+          // Lexical sort happens to put excellent>good>fair>poor in
+          // the right order desc — but only because of the letters.
+          // Re-sort in JS below for correctness.
+          return { updatedAt: "desc" as const };
+        case "updatedAt":
+        default:
+          return { updatedAt: "desc" as const };
+      }
+    })();
+    const deals = await prisma.deal.findMany({
+      where,
+      orderBy,
+      take: cap,
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        stage: true,
+        status: true,
+        dealValue: true,
+        projectedCloseDate: true,
+        mikeyHealth: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (args.sortBy === "mikeyHealth") {
+      const rank: Record<string, number> = { excellent: 0, good: 1, fair: 2, poor: 3 };
+      deals.sort((a, b) => {
+        const ra = a.mikeyHealth ? rank[a.mikeyHealth] ?? 99 : 99;
+        const rb = b.mikeyHealth ? rank[b.mikeyHealth] ?? 99 : 99;
+        return ra - rb;
+      });
+    }
+    const rows = await summarizeDealRows(deals);
+    return { count: rows.length, deals: rows };
+  },
+};
+
+const getPipelineSummary: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getPipelineSummary",
+      description:
+        "Aggregate view of the open pipeline: count + total deal value by stage, breakdown by Mikey health, breakdown by status, and a coarse forecast for deals projected to close in the next 30 / 60 / 90 days. Use for 'how big is my pipeline', 'show me the funnel', 'what's my forecast', 'pipeline by stage'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  handler: async (_args: Record<string, never>, { userId }) => {
+    const now = new Date();
+    const horizons = {
+      d30: new Date(now.getTime() + 30 * 86_400_000),
+      d60: new Date(now.getTime() + 60 * 86_400_000),
+      d90: new Date(now.getTime() + 90 * 86_400_000),
+    };
+    const deals = await prisma.deal.findMany({
+      where: { userId, status: PIPELINE_OPEN_STATUS_FILTER },
+      select: {
+        stage: true,
+        status: true,
+        mikeyHealth: true,
+        dealValue: true,
+        projectedCloseDate: true,
+      },
+    });
+    const byStage = new Map<string, { count: number; valueSum: number; valueKnown: number }>();
+    const byHealth = new Map<string, number>();
+    const byStatus = new Map<string, number>();
+    let totalCount = 0;
+    let totalValueSum = 0;
+    let totalValueKnown = 0;
+    const forecast = { next30: 0, next60: 0, next90: 0 };
+    const forecastValue = { next30: 0, next60: 0, next90: 0 };
+    for (const d of deals) {
+      totalCount += 1;
+      const s = byStage.get(d.stage) || { count: 0, valueSum: 0, valueKnown: 0 };
+      s.count += 1;
+      if (d.dealValue != null) {
+        s.valueSum += d.dealValue;
+        s.valueKnown += 1;
+        totalValueSum += d.dealValue;
+        totalValueKnown += 1;
+      }
+      byStage.set(d.stage, s);
+      byHealth.set(d.mikeyHealth || "(unrated)", (byHealth.get(d.mikeyHealth || "(unrated)") || 0) + 1);
+      byStatus.set(d.status, (byStatus.get(d.status) || 0) + 1);
+      if (d.projectedCloseDate && d.projectedCloseDate >= now) {
+        if (d.projectedCloseDate <= horizons.d30) {
+          forecast.next30 += 1;
+          if (d.dealValue != null) forecastValue.next30 += d.dealValue;
+        }
+        if (d.projectedCloseDate <= horizons.d60) {
+          forecast.next60 += 1;
+          if (d.dealValue != null) forecastValue.next60 += d.dealValue;
+        }
+        if (d.projectedCloseDate <= horizons.d90) {
+          forecast.next90 += 1;
+          if (d.dealValue != null) forecastValue.next90 += d.dealValue;
+        }
+      }
+    }
+    return {
+      totalOpenDeals: totalCount,
+      totalKnownPipelineValue: totalValueSum,
+      dealsWithValueSet: totalValueKnown,
+      dealsWithoutValueSet: totalCount - totalValueKnown,
+      byStage: Array.from(byStage.entries()).map(([stage, v]) => ({
+        stage,
+        count: v.count,
+        knownValueSum: v.valueSum,
+        dealsWithValueSet: v.valueKnown,
+      })),
+      byMikeyHealth: Object.fromEntries(byHealth),
+      byStatus: Object.fromEntries(byStatus),
+      projectedClosingForecast: {
+        next30Days: { dealCount: forecast.next30, knownValueSum: forecastValue.next30 },
+        next60Days: { dealCount: forecast.next60, knownValueSum: forecastValue.next60 },
+        next90Days: { dealCount: forecast.next90, knownValueSum: forecastValue.next90 },
+      },
+    };
+  },
+};
+
+const getDealsLikelyToClose: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getDealsLikelyToClose",
+      description:
+        "Deals most likely to close near-term. Heuristic: stage in {proposal, negotiation, closing} AND Mikey health in {good, excellent} AND (no projected close set, OR projected close within the horizon). Returns top N sorted by projected close date ascending (soonest first), with the signals that fired. Use for 'what's likely to close', 'what's hot', 'what's near the finish line'.",
+      parameters: {
+        type: "object",
+        properties: {
+          horizonDays: {
+            type: "number",
+            description: "Window for projected close. Default 60.",
+          },
+          limit: { type: "number", description: "Max rows. Default 10, max 30." },
+        },
+      },
+    },
+  },
+  handler: async (
+    { horizonDays, limit }: { horizonDays?: number; limit?: number },
+    { userId }
+  ) => {
+    const cap = Math.min(Math.max(limit ?? 10, 1), 30);
+    const window = Math.max(horizonDays ?? 60, 1);
+    const now = new Date();
+    const horizon = new Date(now.getTime() + window * 86_400_000);
+    const deals = await prisma.deal.findMany({
+      where: {
+        userId,
+        status: PIPELINE_OPEN_STATUS_FILTER,
+        stage: { in: LATE_STAGES },
+        mikeyHealth: { in: HEALTHY_HEALTHS },
+        OR: [
+          { projectedCloseDate: null },
+          { projectedCloseDate: { gte: now, lte: horizon } },
+        ],
+      },
+      orderBy: [{ projectedCloseDate: "asc" }, { updatedAt: "desc" }],
+      take: cap,
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        stage: true,
+        status: true,
+        dealValue: true,
+        projectedCloseDate: true,
+        mikeyHealth: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    const rows = await summarizeDealRows(deals);
+    return {
+      horizonDays: window,
+      count: rows.length,
+      // Restate the signals so the agent can echo them back without
+      // having to reconstruct the heuristic in prose.
+      signalsApplied: ["late-stage (proposal/negotiation/closing)", "Mikey health good or excellent", `projected close within ${window} days (or unset)`],
+      deals: rows,
+    };
+  },
+};
+
+const getDealsNeedingHelp: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getDealsNeedingHelp",
+      description:
+        "Open deals that are flashing risk signals — Mikey health poor, status stalled, no logged activity in N days (default 14), or projected close date slipped past today. Returns the top N most-concerning deals, each with the LIST of signals that fired (so the agent can explain WHY each one needs help, not just that it does). Use for 'what's at risk', 'what needs attention', 'what's stalled', 'what's slipping'.",
+      parameters: {
+        type: "object",
+        properties: {
+          staleDays: {
+            type: "number",
+            description: "Treat 'no logged activity in N days' as a risk signal. Default 14.",
+          },
+          limit: { type: "number", description: "Max rows. Default 10, max 30." },
+        },
+      },
+    },
+  },
+  handler: async (
+    { staleDays, limit }: { staleDays?: number; limit?: number },
+    { userId }
+  ) => {
+    const cap = Math.min(Math.max(limit ?? 10, 1), 30);
+    const staleAfterDays = Math.max(staleDays ?? 14, 1);
+    const now = new Date();
+
+    // Pull the candidate set with any of: poor health, stalled status,
+    // or projectedCloseDate slipped past. We score the stale-activity
+    // signal in JS after the lastActivity lookup since the SQL would
+    // require a left-join + correlated NOT EXISTS.
+    const candidates = await prisma.deal.findMany({
+      where: {
+        userId,
+        status: PIPELINE_OPEN_STATUS_FILTER,
+        OR: [
+          { mikeyHealth: "poor" },
+          { status: "stalled" },
+          { projectedCloseDate: { lt: now } },
+          // Always include the rest of the pipeline so the stale-
+          // activity check below can flag deals that wouldn't otherwise
+          // appear. Bound to reasonable size; founder pipelines are
+          // small. Filter cap is just for safety.
+          {},
+        ],
+      },
+      orderBy: { updatedAt: "asc" },
+      take: 200,
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        stage: true,
+        status: true,
+        dealValue: true,
+        projectedCloseDate: true,
+        mikeyHealth: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    const rows = await summarizeDealRows(candidates);
+    const flagged = rows
+      .map((r) => {
+        const signals: string[] = [];
+        const original = candidates.find((c) => c.id === r.dealId)!;
+        if (original.mikeyHealth === "poor") signals.push("Mikey health: poor");
+        if (original.status === "stalled") signals.push("status: stalled");
+        if (
+          original.projectedCloseDate &&
+          original.projectedCloseDate < now
+        ) {
+          signals.push(
+            `projected close slipped past (${original.projectedCloseDate.toISOString().slice(0, 10)})`
+          );
+        }
+        if (r.daysSinceLastActivity >= staleAfterDays) {
+          const refDate = r.lastActivity?.date
+            ? `last activity ${r.daysSinceLastActivity}d ago`
+            : `no logged activity (deal ${r.daysOpen}d old)`;
+          signals.push(`stale: ${refDate}`);
+        }
+        return { ...r, riskSignals: signals };
+      })
+      .filter((r) => r.riskSignals.length > 0);
+    // Rank by signal count desc, then by daysSinceLastActivity desc.
+    flagged.sort((a, b) => {
+      if (b.riskSignals.length !== a.riskSignals.length) {
+        return b.riskSignals.length - a.riskSignals.length;
+      }
+      return b.daysSinceLastActivity - a.daysSinceLastActivity;
+    });
+    return {
+      staleDaysThreshold: staleAfterDays,
+      count: flagged.length,
+      deals: flagged.slice(0, cap),
+    };
+  },
+};
+
+const getUpcomingDealActivity: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getUpcomingDealActivity",
+      description:
+        "Future-dated activity (meetings primarily) across ALL deals in a date window. Default: next 14 days. Use for 'what meetings do I have this week', 'what's on my calendar deal-wise', 'what's coming up'. Groups events by deal so the agent can write 'You have X with Acme on Mon, Y with Globex on Wed'.",
+      parameters: {
+        type: "object",
+        properties: {
+          horizonDays: {
+            type: "number",
+            description: "How many days forward to look. Default 14, max 90.",
+          },
+          limit: { type: "number", description: "Max events to return. Default 30, max 100." },
+        },
+      },
+    },
+  },
+  handler: async (
+    { horizonDays, limit }: { horizonDays?: number; limit?: number },
+    { userId }
+  ) => {
+    const window = Math.min(Math.max(horizonDays ?? 14, 1), 90);
+    const cap = Math.min(Math.max(limit ?? 30, 1), 100);
+    const now = new Date();
+    const horizon = new Date(now.getTime() + window * 86_400_000);
+    const events = await prisma.dealTimelineEntry.findMany({
+      where: {
+        deal: { userId, status: PIPELINE_OPEN_STATUS_FILTER },
+        type: "meeting",
+        entryDate: { gte: now, lte: horizon },
+      },
+      orderBy: { entryDate: "asc" },
+      take: cap,
+      select: {
+        id: true,
+        title: true,
+        entryDate: true,
+        sourceUrl: true,
+        content: true,
+        deal: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            stage: true,
+            mikeyHealth: true,
+          },
+        },
+      },
+    });
+    // Group by deal so the agent can write one line per deal.
+    const byDeal = new Map<
+      string,
+      {
+        dealId: string;
+        dealName: string;
+        companyName: string;
+        stage: string;
+        mikeyHealth: string | null;
+        events: Array<{
+          entryId: string;
+          title: string;
+          date: string;
+          daysFromNow: number;
+          sourceUrl: string | null;
+          descriptionPreview: string;
+        }>;
+      }
+    >();
+    for (const e of events) {
+      const group = byDeal.get(e.deal.id) || {
+        dealId: e.deal.id,
+        dealName: e.deal.name,
+        companyName: e.deal.companyName,
+        stage: e.deal.stage,
+        mikeyHealth: e.deal.mikeyHealth,
+        events: [],
+      };
+      group.events.push({
+        entryId: e.id,
+        title: e.title,
+        date: e.entryDate.toISOString(),
+        daysFromNow: diffDays(e.entryDate, now),
+        sourceUrl: e.sourceUrl,
+        descriptionPreview: (e.content || "").substring(0, 240),
+      });
+      byDeal.set(e.deal.id, group);
+    }
+    return {
+      horizonDays: window,
+      totalEvents: events.length,
+      deals: Array.from(byDeal.values()),
+    };
+  },
+};
+
 // ── Registry ────────────────────────────────────────────────────────
 
 export const DEAL_TOOLS: Record<string, ToolEntry> = {
@@ -697,6 +1238,13 @@ export const DEAL_TOOLS: Record<string, ToolEntry> = {
   summarizeCall,
   draftFollowUpEmail,
   addTimelineEntry,
+  // Pipeline (cross-deal) tools — used by the GTM catch-all agent
+  // when a question doesn't anchor on a single deal.
+  listPipeline,
+  getPipelineSummary,
+  getDealsLikelyToClose,
+  getDealsNeedingHelp,
+  getUpcomingDealActivity,
 };
 
 export function getToolDefinitions(): ChatCompletionTool[] {

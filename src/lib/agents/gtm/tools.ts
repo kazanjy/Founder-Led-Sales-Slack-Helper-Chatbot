@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 import { COACHING_TOOLS } from "@/lib/agents/coaching/tools";
+import { DEAL_TOOLS } from "@/lib/agents/deals/tools";
 
 /**
  * Tool registry for the GTM agent — the default "everything else"
@@ -630,6 +631,15 @@ export const GTM_TOOLS: Record<string, ToolEntry> = {
   // Fat-context tool — load everything in one shot, let the model
   // synthesize. Use for broad strategic questions.
   getFullAccountContext,
+  // Pipeline (cross-deal) tools delegated to the deal agent's
+  // registry — questions like "what's likely to close", "what's at
+  // risk", "show me the funnel" land here because they don't name
+  // a specific deal, so the deal router doesn't fire.
+  listPipeline: DEAL_TOOLS.listPipeline,
+  getPipelineSummary: DEAL_TOOLS.getPipelineSummary,
+  getDealsLikelyToClose: DEAL_TOOLS.getDealsLikelyToClose,
+  getDealsNeedingHelp: DEAL_TOOLS.getDealsNeedingHelp,
+  getUpcomingDealActivity: DEAL_TOOLS.getUpcomingDealActivity,
 };
 
 export function getToolDefinitions(): ChatCompletionTool[] {
