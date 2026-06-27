@@ -1209,7 +1209,7 @@ const getUpcomingDealActivity: ToolEntry = {
       };
       group.events.push({
         entryId: e.id,
-        title: e.title,
+        title: e.title || "(untitled meeting)",
         date: e.entryDate.toISOString(),
         daysFromNow: diffDays(e.entryDate, now),
         sourceUrl: e.sourceUrl,
