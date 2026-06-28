@@ -193,7 +193,20 @@ export class McpClient {
         reply.error
       );
     }
-    return reply?.result || {};
+    const result = reply?.result || {};
+    // The MCP spec lets tools surface result-level errors via
+    // { isError: true, content: [{ type: "text", text: "<msg>" }] }
+    // instead of the JSON-RPC error envelope. Treat them as throws so
+    // callers don't quietly try to parse error text as data (which
+    // bit us during the Circleback schema-mismatch debug).
+    if (result?.isError) {
+      const text =
+        Array.isArray(result.content) && result.content[0]?.text
+          ? result.content[0].text
+          : JSON.stringify(result);
+      throw new McpProtocolError(`tools/call ${name} returned isError: ${text}`);
+    }
+    return result;
   }
 }
 

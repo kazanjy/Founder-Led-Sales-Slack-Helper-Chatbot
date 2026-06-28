@@ -339,8 +339,16 @@ export const circlebackProvider: MeetingRecorderProvider = {
 
   async getCallDetail(accessToken: string, callId: string): Promise<MeetingCallDetail> {
     const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
-    const readArgs = { meeting_ids: [callId] };
-    const transcriptArgs = { meeting_ids: [callId] };
+    // Circleback's MCP schema is camelCase and requires `intent` on
+    // every call (same shape we discovered on SearchMeetings).
+    const readArgs = {
+      intent: `Read full meeting record for meeting id ${callId}`,
+      meetingIds: [callId],
+    };
+    const transcriptArgs = {
+      intent: `Get the full transcript for meeting id ${callId}`,
+      meetingIds: [callId],
+    };
     console.log("[circleback.getCallDetail] calling ReadMeetings with args:", JSON.stringify(readArgs));
     console.log("[circleback.getCallDetail] calling GetTranscriptsForMeetings with args:", JSON.stringify(transcriptArgs));
     const [readRes, transcriptRes] = await Promise.all([
