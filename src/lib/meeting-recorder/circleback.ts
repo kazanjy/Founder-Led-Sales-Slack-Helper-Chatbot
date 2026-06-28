@@ -247,6 +247,10 @@ export const circlebackProvider: MeetingRecorderProvider = {
     try {
       const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
       const tools = await client.listTools();
+      console.log(
+        "[circleback.validateKey] tools exposed by Circleback MCP:",
+        tools.map((t) => t.name).join(", ")
+      );
       const hasSearch = tools.some((t) => t.name === "SearchMeetings");
       if (!hasSearch) {
         return {
@@ -278,16 +282,55 @@ export const circlebackProvider: MeetingRecorderProvider = {
     if (since) {
       args.start_date = since.toISOString();
     }
+    console.log("[circleback.listCalls] calling SearchMeetings with args:", JSON.stringify(args));
     const result = await client.callTool("SearchMeetings", args);
+    // TEMP diagnostic logging — once we've nailed the response shape
+    // we'll trim these. JSON.stringify the full result so we can see
+    // exactly what Circleback's MCP server returns.
+    try {
+      const resultStr = JSON.stringify(result);
+      console.log(
+        "[circleback.listCalls] raw MCP result (truncated to 2000c):",
+        resultStr.length > 2000 ? resultStr.substring(0, 2000) + "…[truncated]" : resultStr
+      );
+    } catch (e) {
+      console.log("[circleback.listCalls] raw MCP result was unstringifiable:", e);
+    }
     const payload = extractJsonFromMcpResult(result);
+    try {
+      const payloadStr = JSON.stringify(payload);
+      console.log(
+        "[circleback.listCalls] extracted payload type:",
+        Array.isArray(payload) ? `array(${payload.length})` : typeof payload,
+        "value (truncated):",
+        payloadStr.length > 1500 ? payloadStr.substring(0, 1500) + "…[truncated]" : payloadStr
+      );
+    } catch {
+      // ignore — we already logged the result above
+    }
     // Accept either an array of meetings or an object wrapping them
-    // under common keys.
+    // under common keys. Added items/records/list/events to widen
+    // recognition before we know the real shape.
     let meetings: unknown[] = [];
     if (Array.isArray(payload)) meetings = payload;
     else if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
-      meetings = (obj.meetings || obj.results || obj.data || []) as unknown[];
+      meetings = (obj.meetings ||
+        obj.results ||
+        obj.data ||
+        obj.items ||
+        obj.records ||
+        obj.list ||
+        obj.events ||
+        []) as unknown[];
+      if (meetings.length === 0) {
+        console.log(
+          "[circleback.listCalls] payload object had no recognized meetings key. Top-level keys:",
+          Object.keys(obj).join(", ")
+        );
+      }
     }
+    console.log(`[circleback.listCalls] parsed ${meetings.length} meetings`);
     return meetings.map(toMeetingCall);
   },
 
