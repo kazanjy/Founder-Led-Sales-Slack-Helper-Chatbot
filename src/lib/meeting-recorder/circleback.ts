@@ -273,15 +273,18 @@ export const circlebackProvider: MeetingRecorderProvider = {
   async listCalls(accessToken: string, opts?: number | ListCallsOptions) {
     const { limit, since } = normalizeListCallsOpts(opts, 25);
     const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
-    // Circleback's SearchMeetings supports date-range filtering. We
-    // pass start_date (and an open end_date) when `since` is given,
-    // and a `limit` regardless. Field names are best-effort — see
-    // toMeetingCall comment.
+    // Circleback's SearchMeetings requires:
+    //   intent: string  — semantic description of what we're after
+    //   pageIndex: number — zero-based pagination
+    // and optionally accepts a `limit` (kept from our earlier guess).
+    // When `since` is provided we weave a date hint into the intent
+    // string since structured date filters aren't part of the
+    // documented schema.
+    const intent = since
+      ? `All meetings since ${since.toISOString().slice(0, 10)}, most recent first`
+      : "All recent meetings, most recent first";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const args: Record<string, any> = { limit };
-    if (since) {
-      args.start_date = since.toISOString();
-    }
+    const args: Record<string, any> = { intent, pageIndex: 0, limit };
     console.log("[circleback.listCalls] calling SearchMeetings with args:", JSON.stringify(args));
     const result = await client.callTool("SearchMeetings", args);
     // TEMP diagnostic logging — once we've nailed the response shape
