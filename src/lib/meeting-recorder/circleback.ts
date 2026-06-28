@@ -339,10 +339,31 @@ export const circlebackProvider: MeetingRecorderProvider = {
 
   async getCallDetail(accessToken: string, callId: string): Promise<MeetingCallDetail> {
     const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
+    const readArgs = { meeting_ids: [callId] };
+    const transcriptArgs = { meeting_ids: [callId] };
+    console.log("[circleback.getCallDetail] calling ReadMeetings with args:", JSON.stringify(readArgs));
+    console.log("[circleback.getCallDetail] calling GetTranscriptsForMeetings with args:", JSON.stringify(transcriptArgs));
     const [readRes, transcriptRes] = await Promise.all([
-      client.callTool("ReadMeetings", { meeting_ids: [callId] }),
-      client.callTool("GetTranscriptsForMeetings", { meeting_ids: [callId] }),
+      client.callTool("ReadMeetings", readArgs),
+      client.callTool("GetTranscriptsForMeetings", transcriptArgs),
     ]);
+    // TEMP diagnostic logging — full MCP responses so we can pin down
+    // the right field names for transcript/url before trimming.
+    try {
+      const r = JSON.stringify(readRes);
+      console.log(
+        "[circleback.getCallDetail] raw ReadMeetings result (truncated 2000c):",
+        r.length > 2000 ? r.substring(0, 2000) + "…[truncated]" : r
+      );
+    } catch {}
+    try {
+      const t = JSON.stringify(transcriptRes);
+      console.log(
+        "[circleback.getCallDetail] raw GetTranscriptsForMeetings result (truncated 2000c):",
+        t.length > 2000 ? t.substring(0, 2000) + "…[truncated]" : t
+      );
+    } catch {}
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readPayload = extractJsonFromMcpResult(readRes) as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,12 +374,20 @@ export const circlebackProvider: MeetingRecorderProvider = {
     const pickFromArray = (p: any) => {
       if (!p) return null;
       if (Array.isArray(p)) return p[0];
-      const arr = p.meetings || p.results || p.data;
+      const arr = p.meetings || p.results || p.data || p.items || p.records;
       if (Array.isArray(arr)) return arr[0];
       return p;
     };
     const meeting = pickFromArray(readPayload) || {};
     const transcriptObj = pickFromArray(transcriptPayload) || {};
+    try {
+      console.log(
+        "[circleback.getCallDetail] meeting keys:",
+        Object.keys(meeting).join(", "),
+        "transcript keys:",
+        Object.keys(transcriptObj).join(", ")
+      );
+    } catch {}
 
     const base = toMeetingCall({ ...meeting, id: callId });
     const transcript =
