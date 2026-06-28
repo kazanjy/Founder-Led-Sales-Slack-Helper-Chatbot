@@ -204,15 +204,21 @@ function extractJsonFromMcpResult(result: { content?: Array<{ type: string; text
 }
 
 // Normalize a Circleback meeting payload to our MeetingCall shape.
-// Field names are best-effort — Circleback's MCP schemas aren't
-// publicly documented, so we accept several plausible aliases. The
-// first time we run against a real workspace and log the raw
-// response, we'll tighten these.
+// Field names confirmed against a live ReadMeetings/SearchMeetings
+// response — Circleback's MCP is camelCase: createdAt, recordingUrl,
+// actionItems, linkId. We keep snake_case aliases too for safety
+// in case the public surface ever shifts.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toMeetingCall(raw: any): MeetingCall {
   const id = String(raw.id || raw.meeting_id || raw.uuid || "");
   const title = String(raw.title || raw.name || "Untitled meeting");
-  const startedAt = raw.started_at || raw.start_time || raw.startTime || raw.date || raw.created_at;
+  const startedAt =
+    raw.createdAt ||
+    raw.started_at ||
+    raw.start_time ||
+    raw.startTime ||
+    raw.date ||
+    raw.created_at;
   const date = startedAt ? new Date(startedAt).toISOString() : new Date().toISOString();
   const duration =
     typeof raw.duration_seconds === "number"
@@ -225,6 +231,19 @@ function toMeetingCall(raw: any): MeetingCall {
   const attendees = attendeesRaw
     .map((a) => ({ name: String(a.name || a.email || "Unknown"), email: a.email }))
     .filter((a) => !!a.name);
+  // recordingUrl is the watchable video; `url` falls back to the
+  // Circleback meeting page. Prefer the recording so the Call Review
+  // "Call Recording URL" field gets the playable link.
+  const providerUrl =
+    raw.recordingUrl || raw.url || raw.web_url || raw.share_url;
+  // ReadMeetings exposes the markdown summary under `notes`; older
+  // shape sometimes uses `summary`. Either works.
+  const summary =
+    typeof raw.notes === "string"
+      ? raw.notes
+      : typeof raw.summary === "string"
+        ? raw.summary
+        : undefined;
   return {
     id,
     title,
@@ -232,8 +251,8 @@ function toMeetingCall(raw: any): MeetingCall {
     duration,
     participants: attendees.map((a) => a.name),
     attendees,
-    providerUrl: raw.url || raw.web_url || raw.share_url,
-    summary: typeof raw.summary === "string" ? raw.summary : undefined,
+    providerUrl,
+    summary,
   };
 }
 
@@ -247,10 +266,6 @@ export const circlebackProvider: MeetingRecorderProvider = {
     try {
       const client = new McpClient({ endpoint: CIRCLEBACK_MCP_ENDPOINT, accessToken });
       const tools = await client.listTools();
-      console.log(
-        "[circleback.validateKey] tools exposed by Circleback MCP:",
-        tools.map((t) => t.name).join(", ")
-      );
       const hasSearch = tools.some((t) => t.name === "SearchMeetings");
       if (!hasSearch) {
         return {
@@ -285,35 +300,10 @@ export const circlebackProvider: MeetingRecorderProvider = {
       : "All recent meetings, most recent first";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const args: Record<string, any> = { intent, pageIndex: 0, limit };
-    console.log("[circleback.listCalls] calling SearchMeetings with args:", JSON.stringify(args));
     const result = await client.callTool("SearchMeetings", args);
-    // TEMP diagnostic logging — once we've nailed the response shape
-    // we'll trim these. JSON.stringify the full result so we can see
-    // exactly what Circleback's MCP server returns.
-    try {
-      const resultStr = JSON.stringify(result);
-      console.log(
-        "[circleback.listCalls] raw MCP result (truncated to 2000c):",
-        resultStr.length > 2000 ? resultStr.substring(0, 2000) + "…[truncated]" : resultStr
-      );
-    } catch (e) {
-      console.log("[circleback.listCalls] raw MCP result was unstringifiable:", e);
-    }
     const payload = extractJsonFromMcpResult(result);
-    try {
-      const payloadStr = JSON.stringify(payload);
-      console.log(
-        "[circleback.listCalls] extracted payload type:",
-        Array.isArray(payload) ? `array(${payload.length})` : typeof payload,
-        "value (truncated):",
-        payloadStr.length > 1500 ? payloadStr.substring(0, 1500) + "…[truncated]" : payloadStr
-      );
-    } catch {
-      // ignore — we already logged the result above
-    }
-    // Accept either an array of meetings or an object wrapping them
-    // under common keys. Added items/records/list/events to widen
-    // recognition before we know the real shape.
+    // SearchMeetings returns a bare array; the wrapper-key branch is
+    // kept for safety in case the shape ever shifts.
     let meetings: unknown[] = [];
     if (Array.isArray(payload)) meetings = payload;
     else if (payload && typeof payload === "object") {
@@ -323,15 +313,7 @@ export const circlebackProvider: MeetingRecorderProvider = {
         obj.data ||
         obj.items ||
         obj.records ||
-        obj.list ||
-        obj.events ||
         []) as unknown[];
-      if (meetings.length === 0) {
-        console.log(
-          "[circleback.listCalls] payload object had no recognized meetings key. Top-level keys:",
-          Object.keys(obj).join(", ")
-        );
-      }
     }
     console.log(`[circleback.listCalls] parsed ${meetings.length} meetings`);
     return meetings.map(toMeetingCall);
@@ -349,35 +331,18 @@ export const circlebackProvider: MeetingRecorderProvider = {
       intent: `Get the full transcript for meeting id ${callId}`,
       meetingIds: [callId],
     };
-    console.log("[circleback.getCallDetail] calling ReadMeetings with args:", JSON.stringify(readArgs));
-    console.log("[circleback.getCallDetail] calling GetTranscriptsForMeetings with args:", JSON.stringify(transcriptArgs));
     const [readRes, transcriptRes] = await Promise.all([
       client.callTool("ReadMeetings", readArgs),
       client.callTool("GetTranscriptsForMeetings", transcriptArgs),
     ]);
-    // TEMP diagnostic logging — full MCP responses so we can pin down
-    // the right field names for transcript/url before trimming.
-    try {
-      const r = JSON.stringify(readRes);
-      console.log(
-        "[circleback.getCallDetail] raw ReadMeetings result (truncated 2000c):",
-        r.length > 2000 ? r.substring(0, 2000) + "…[truncated]" : r
-      );
-    } catch {}
-    try {
-      const t = JSON.stringify(transcriptRes);
-      console.log(
-        "[circleback.getCallDetail] raw GetTranscriptsForMeetings result (truncated 2000c):",
-        t.length > 2000 ? t.substring(0, 2000) + "…[truncated]" : t
-      );
-    } catch {}
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readPayload = extractJsonFromMcpResult(readRes) as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transcriptPayload = extractJsonFromMcpResult(transcriptRes) as any;
 
-    // Both tools return arrays keyed by meeting; pick our id.
+    // Both tools return arrays; pick the first match (we only request
+    // one meetingId at a time so the first row is ours).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pickFromArray = (p: any) => {
       if (!p) return null;
@@ -388,29 +353,31 @@ export const circlebackProvider: MeetingRecorderProvider = {
     };
     const meeting = pickFromArray(readPayload) || {};
     const transcriptObj = pickFromArray(transcriptPayload) || {};
-    try {
-      console.log(
-        "[circleback.getCallDetail] meeting keys:",
-        Object.keys(meeting).join(", "),
-        "transcript keys:",
-        Object.keys(transcriptObj).join(", ")
-      );
-    } catch {}
 
     const base = toMeetingCall({ ...meeting, id: callId });
-    const transcript =
-      typeof transcriptObj.transcript === "string"
-        ? transcriptObj.transcript
-        : typeof transcriptObj.text === "string"
-          ? transcriptObj.text
-          : Array.isArray(transcriptObj.segments)
-            ? transcriptObj.segments
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .map((s: any) => `${s.speaker || s.name || "?"}: ${s.text || ""}`)
-                .join("\n")
-            : "";
-    const summary = typeof meeting.summary === "string" ? meeting.summary : typeof meeting.notes === "string" ? meeting.notes : "";
-    const actionItemsRaw = meeting.action_items || meeting.actionItems || [];
+    // Circleback's GetTranscriptsForMeetings returns transcript as an
+    // ARRAY of { speaker, text, timestamp } segments — not a string.
+    // Render to `Speaker: text` lines so the Call Review textarea can
+    // accept it. Keep the string/text/segments fallbacks for safety.
+    const transcript = (() => {
+      if (typeof transcriptObj.transcript === "string") return transcriptObj.transcript;
+      if (Array.isArray(transcriptObj.transcript)) {
+        return transcriptObj.transcript
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => `${s.speaker || s.name || "?"}: ${s.text || ""}`)
+          .join("\n");
+      }
+      if (typeof transcriptObj.text === "string") return transcriptObj.text;
+      if (Array.isArray(transcriptObj.segments)) {
+        return transcriptObj.segments
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => `${s.speaker || s.name || "?"}: ${s.text || ""}`)
+          .join("\n");
+      }
+      return "";
+    })();
+    const summary = typeof meeting.notes === "string" ? meeting.notes : typeof meeting.summary === "string" ? meeting.summary : "";
+    const actionItemsRaw = meeting.actionItems || meeting.action_items || [];
     const actionItems = Array.isArray(actionItemsRaw)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? actionItemsRaw.map((a: any) => (typeof a === "string" ? a : a.text || a.title || JSON.stringify(a)))
