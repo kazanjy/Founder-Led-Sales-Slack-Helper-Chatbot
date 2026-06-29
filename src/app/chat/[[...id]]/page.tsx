@@ -238,12 +238,14 @@ export default function ChatPage() {
   const [streamingMessage, setStreamingMessage] = useState("");
   // "Agent mode" — when on, sends to /api/chat/agent (the unified web
   // agent with tool calling) instead of the streaming Chatbase/raw-GPT
-  // path. Persisted to localStorage so it sticks across reloads.
-  const [agentMode, setAgentMode] = useState(false);
+  // path. Default is ON; the toggle is an opt-OUT for users who want
+  // to fall back to the streaming path. Persisted to localStorage so
+  // the user's choice sticks across reloads.
+  const [agentMode, setAgentMode] = useState(true);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("mikey-agent-mode");
-      if (stored === "1") setAgentMode(true);
+      if (stored === "0") setAgentMode(false);
     } catch { /* ignore */ }
   }, []);
   const toggleAgentMode = () => {
