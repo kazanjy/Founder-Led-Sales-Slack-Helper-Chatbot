@@ -29,7 +29,7 @@ export async function POST(
 
   const { id } = await params;
   const body = await request.json();
-  const { message } = body;
+  const { message, attachments } = body;
 
   if (!message || typeof message !== "string") {
     return NextResponse.json(
@@ -37,6 +37,15 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  // Sales narrative is default-on. Body-supplied `attachments` (even an
+  // empty array) is an explicit choice; an omitted `attachments` field
+  // resolves to the default. Matches the stream-route semantics so the
+  // Chatbase + raw-GPT paths share one invariant: server loads, user
+  // opts out.
+  const requestedAttachments: string[] = Array.isArray(attachments)
+    ? (attachments as string[]).filter((a) => a === "salesNarrative")
+    : ["salesNarrative"];
 
   const conversation = await prisma.conversation.findUnique({
     where: { id },
@@ -73,6 +82,32 @@ export async function POST(
     missingVariables = expansion.missingVariables;
   }
 
+  // Per-conversation attachment lock: first message decides, subsequent
+  // messages respect the lock. Sales narrative is the only attachment
+  // that flows through Chatbase (the other context types live behind
+  // the raw-GPT path's attachment picker).
+  const existingAttachments = conversation.attachmentsIncluded as string[] | null;
+  const isFirstChoiceForConversation = existingAttachments == null;
+  const effectiveAttachments = isFirstChoiceForConversation
+    ? requestedAttachments
+    : existingAttachments;
+  const shouldInjectNarrative =
+    isFirstChoiceForConversation &&
+    effectiveAttachments.includes("salesNarrative") &&
+    !conversation.chatbaseConversationId;
+
+  if (shouldInjectNarrative) {
+    const narrativeVar = await prisma.gtmVariable.findFirst({
+      where: { userId: user.id, mergeField: "SALES_NARRATIVE" },
+      select: { value: true },
+    });
+    const narrative = (narrativeVar?.value || "").trim();
+    if (narrative) {
+      expandedMessage = `${expandedMessage}\n\n--- SALES NARRATIVE (Context about the user's product/service) ---\n\n${narrative}\n\n--- END SALES NARRATIVE ---`;
+      console.log(`[Chat -> Chatbase] Appended Sales Narrative context for user ${user.id}`);
+    }
+  }
+
   // Save user message (store original with merge fields for display)
   await prisma.message.create({
     data: {
@@ -87,10 +122,18 @@ export async function POST(
   const isFirstMessage = !conversation.firstMessagePreview;
 
   if (isFirstMessage) {
-    // Update preview immediately
+    // Persist the attachment decision alongside the preview — locks
+    // the per-conversation opt-out (or opt-in) for every subsequent
+    // message.
+    const update: Record<string, unknown> = {
+      firstMessagePreview: message.substring(0, 100),
+    };
+    if (isFirstChoiceForConversation) {
+      update.attachmentsIncluded = effectiveAttachments;
+    }
     await prisma.conversation.update({
       where: { id: conversation.id },
-      data: { firstMessagePreview: message.substring(0, 100) },
+      data: update,
     });
 
     // Fire-and-forget: Start AI title generation (saves to DB when done)

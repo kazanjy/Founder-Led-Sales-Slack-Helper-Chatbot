@@ -49,9 +49,16 @@ export async function POST(
     "firstCallChecklist", "preCallPlanning", "salesDeck",
     "coachingHistory", "salesAssetLibrary",
   ];
+  // Sales narrative is the one always-on default. When the request omits
+  // `attachments` entirely we treat it as "use the default" and inject
+  // the narrative; when the request sends an empty array we treat it as
+  // an explicit opt-out and inject nothing. This matches the Slack
+  // path's "#noattachments" semantics and gives non-UI clients
+  // (programmatic API consumers) the same default behavior the chat
+  // page provides via its auto-select on first message.
   const requestedAttachments: string[] = Array.isArray(attachments)
     ? attachments.filter((a: string) => validAttachments.includes(a))
-    : [];
+    : ["salesNarrative"];
 
   const conversation = await prisma.conversation.findUnique({
     where: { id },
@@ -95,17 +102,25 @@ export async function POST(
     missingVariables = expansion.missingVariables;
   }
 
-  // Check if attachments can be added (only once per conversation)
+  // Per-conversation attachment lock — once a conversation has its
+  // first message, the attachment set is frozen. Subsequent messages
+  // ignore the request body's `attachments` field entirely and use
+  // whatever was locked at first send. An explicit opt-out (locked to
+  // []) sticks for the lifetime of the conversation.
   const existingAttachments = conversation.attachmentsIncluded as string[] | null;
-  const canAddAttachments = !existingAttachments?.length && requestedAttachments.length > 0;
+  const isFirstChoiceForConversation = existingAttachments == null;
+  const effectiveAttachments = isFirstChoiceForConversation
+    ? requestedAttachments
+    : existingAttachments;
+  const shouldInject = isFirstChoiceForConversation && effectiveAttachments.length > 0;
   const isFirstMessage = !conversation.firstMessagePreview;
   let attachmentContent = "";
 
   // Fetch and prepend attachment content if this is the first time adding attachments
-  if (canAddAttachments) {
+  if (shouldInject) {
     const attachmentParts: string[] = [];
 
-    for (const attachmentId of requestedAttachments) {
+    for (const attachmentId of effectiveAttachments) {
       try {
         const content = await fetchAttachmentContent(user.id, attachmentId);
         if (content) {
@@ -121,7 +136,7 @@ export async function POST(
       console.log(
         `[stream] Attachment content: ${attachmentParts.length} parts, ` +
           `${attachmentContent.length} chars total. ` +
-          `Requested: [${requestedAttachments.join(", ")}]`
+          `Effective: [${effectiveAttachments.join(", ")}]`
       );
     }
   }
@@ -146,8 +161,11 @@ export async function POST(
   if (isFirstMessage) {
     updateData.firstMessagePreview = message.substring(0, 100);
   }
-  if (canAddAttachments) {
-    updateData.attachmentsIncluded = requestedAttachments;
+  // Persist the attachment decision on first encounter — even if empty
+  // (an explicit opt-out). This is what makes the per-conversation lock
+  // stick across subsequent messages.
+  if (isFirstChoiceForConversation) {
+    updateData.attachmentsIncluded = effectiveAttachments;
   }
 
   if (Object.keys(updateData).length > 0) {

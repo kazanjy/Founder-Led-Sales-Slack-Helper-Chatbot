@@ -2346,7 +2346,11 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: finalMessage,
-          attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
+          // When the picker is shown, ALWAYS send the explicit list
+          // (even when empty — that's the opt-out signal). Only omit
+          // the field when the picker is hidden (lock already set);
+          // the server will fall back to the locked value.
+          attachments: canAddAttachments ? attachmentsToSend : undefined,
         }),
       });
 
