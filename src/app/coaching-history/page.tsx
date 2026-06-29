@@ -11,6 +11,10 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import SyncReviewOverlay from "@/components/SyncReviewOverlay";
+// Synthesis prompt lives in a shared module so the server-side
+// auto-on-save synthesizer and this client-side "🧪 Synthesize
+// Takeaways" CTA use the same text — one source of truth.
+import { TAKEAWAYS_SYNTHESIS_PROMPT } from "@/lib/coaching/synthesis-prompt";
 
 interface CoachingSession {
   id: string;
@@ -21,6 +25,10 @@ interface CoachingSession {
   recordingUrl: string | null;
   sessionStatus: string;
   maturityStage: string | null;
+  // Auto-generated synthesis — regenerated on every save by the
+  // /synthesize endpoint. Null until the first save completes.
+  synthesis: string | null;
+  synthesisAt: string | null;
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -112,30 +120,6 @@ function formatEnrichedContext(session: CoachingSession, enriched: EnrichedSessi
 
   return text;
 }
-
-// Seeded prompt for the "🧪 Synthesize Takeaways" CTA on a single
-// coaching session. Sits at the END of the user message after the
-// full enriched context (notes / transcript / goals / tasks / next-
-// up queue), so the model has everything it needs to summarize
-// against. Asks for a terse three-part synthesis — discussion ->
-// agreed outcomes -> top priorities until the next session — that
-// the founder can paste into a doc, share with a co-founder, or use
-// as a starting point for the next session's prep.
-const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into a terse, scannable takeaway doc with EXACTLY these four sections. Use the actual content of the session — names, deals, numbers, decisions — not generic coach-speak.
-
-## What we discussed
-3-6 bullets capturing the substantive topics, in the order they shaped the conversation. Cite specifics: which deals, which metrics, which obstacles, which questions. Skip throat-clearing and tangents.
-
-## What we agreed
-3-6 bullets of the explicit decisions, commitments, or shifts in thinking that landed during the session. Phrase as resolved statements ("we'll move X to Y", "I'll stop doing Z"), not as "we discussed". If there was no real agreement on a topic, omit it rather than hedging.
-
-## Top priorities until next session
-3-5 bullets ordered by priority. For each: the concrete action, the owner (default: the founder), and the success signal that says it's done. Be specific enough that a stranger reading this could pick up the work. No "continue working on X" — name the next move.
-
-## What we'll turn to after immediate priorities
-2-4 bullets naming the next layer of work that's queued up but explicitly NOT being tackled this cycle — things flagged for "after we land the top priorities". Pull from the Up Next queue and any "we'll get to X later" moments in the session. For each: what it is and the trigger / readiness signal that says it's time to pick it up (e.g. "once the first AE is hitting quota", "after the new pricing page ships"). If nothing was queued for later, write "Nothing queued — re-evaluate next session." instead of forcing bullets.
-
-Keep the whole thing under ~300 words total. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;
 
 async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<string> {
   const sorted = [...sessions].sort(
@@ -263,6 +247,10 @@ function CoachingHistoryContent() {
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("session"));
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"view" | "create" | "edit">("view");
+  // Tracks which session id has a synthesis-in-flight so the view
+  // panel can render a "Generating synthesis…" placeholder beneath
+  // the notes/transcript area until the background job lands.
+  const [synthesizingSessionId, setSynthesizingSessionId] = useState<string | null>(null);
   const [headerCompact, setHeaderCompact] = useState(false);
 
   useEffect(() => {
@@ -279,6 +267,7 @@ function CoachingHistoryContent() {
   const [formTranscript, setFormTranscript] = useState("");
   // Brief "Copied" badge next to the transcript label after a copy.
   const [transcriptCopied, setTranscriptCopied] = useState(false);
+  const [synthesisCopied, setSynthesisCopied] = useState(false);
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
@@ -465,6 +454,26 @@ function CoachingHistoryContent() {
         await loadSessions();
         selectSession(data.session.id);
         setMode("view");
+        // Fire-and-forget synthesis. We don't await it — the save UX
+        // completes immediately; the synthesis panel renders its own
+        // "Generating..." state until this resolves, then refreshes.
+        const sid = data.session.id as string;
+        setSynthesizingSessionId(sid);
+        fetch(`/api/coaching-sessions/${sid}/synthesize`, { method: "POST" })
+          .then(async (r) => {
+            if (r.ok) {
+              // Refresh sessions so the new synthesis lands in state.
+              await loadSessions();
+            } else {
+              console.error("[synthesize] non-200 from synthesize endpoint:", r.status);
+            }
+          })
+          .catch((err) => {
+            console.error("[synthesize] background synthesis failed:", err);
+          })
+          .finally(() => {
+            setSynthesizingSessionId((cur) => (cur === sid ? null : cur));
+          });
       }
     } catch (error) {
       console.error("Failed to save session:", error);
@@ -1460,6 +1469,74 @@ function CoachingHistoryContent() {
                       }}
                     />
 
+
+                    {/* Session Synthesis — auto-generated after every save
+                        using the same prompt as the manual "Synthesize
+                        Takeaways" CTA. Renders an inline placeholder while
+                        the background job runs; hides entirely when there's
+                        no synthesis yet AND no job in flight (e.g. legacy
+                        sessions saved before this feature). */}
+                    {(selectedSession.synthesis ||
+                      synthesizingSessionId === selectedSession.id) && (
+                      <div className="mb-8 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-semibold text-purple-700 dark:text-purple-200 uppercase tracking-wider inline-flex items-center gap-2">
+                            🧪 Session Synthesis
+                            {synthesizingSessionId === selectedSession.id && (
+                              <span className="text-xs text-purple-500 dark:text-purple-300 font-normal normal-case inline-flex items-center gap-1">
+                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                Generating…
+                              </span>
+                            )}
+                            {selectedSession.synthesisAt && synthesizingSessionId !== selectedSession.id && (
+                              <span className="text-[11px] text-purple-500 dark:text-purple-400 font-normal normal-case">
+                                · updated {new Date(selectedSession.synthesisAt).toLocaleString()}
+                              </span>
+                            )}
+                          </h3>
+                          {selectedSession.synthesis && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(selectedSession.synthesis || "");
+                                setSynthesisCopied(true);
+                                setTimeout(() => setSynthesisCopied(false), 1500);
+                              }}
+                              className="text-xs text-purple-600 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-100 inline-flex items-center gap-1"
+                              title="Copy synthesis to clipboard"
+                            >
+                              {synthesisCopied ? (
+                                <>
+                                  <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        {selectedSession.synthesis ? (
+                          <div className="prose dark:prose-invert max-w-none prose-sm prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1.5 prose-li:my-0">
+                            <ReactMarkdown>{selectedSession.synthesis}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-purple-600 dark:text-purple-300 italic">
+                            Synthesizing what you discussed, agreed, and what's next…
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Notes */}
                     <div className="mb-8">

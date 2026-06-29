@@ -1605,6 +1605,14 @@ model CoachingSession {
   transcript   String?  @db.Text // Optional pasted call transcript
   recordingUrl String? // Optional link to meeting recording
 
+  // Auto-generated synthesis — same prompt as the "Synthesize
+  // Takeaways" CTA, regenerated server-side on every save so the
+  // founder always has a fresh "what we discussed / agreed / will do
+  // next" rollup without clicking. Null until the first save (or
+  // until the synthesis job finishes for in-flight saves).
+  synthesis    String?   @db.Text
+  synthesisAt  DateTime?
+
   // Session lifecycle
   sessionStatus String  @default("new") // "new" | "in_progress" | "locked"
   maturityStage String? // Snapshot of sales maturity stage at session creation
