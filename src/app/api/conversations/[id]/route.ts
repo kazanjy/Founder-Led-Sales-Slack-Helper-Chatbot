@@ -27,6 +27,9 @@ export async function GET(
           role: true,
           content: true,
           createdAt: true,
+          // Surface the metadata bag so agent-mode tool traces render
+          // beneath the assistant message on reload.
+          metadata: true,
         },
       },
     },

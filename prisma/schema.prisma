@@ -490,6 +490,13 @@ model Message {
   // Slack reference
   slackMessageTs String?
 
+  // Arbitrary metadata bag — used by the unified web agent to stash
+  // the per-message tool-call trace (so the chat UI can render a
+  // collapsible "tool calls" disclosure beneath the assistant reply).
+  // Shape: { agent?: "web", turns?: number, hitTurnCap?: boolean,
+  //          trace?: Array<{ name, argsJson, durationMs, resultPreview, error? }> }
+  metadata Json?
+
   createdAt DateTime @default(now())
 
   @@map("messages")

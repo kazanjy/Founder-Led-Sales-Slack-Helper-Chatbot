@@ -102,11 +102,27 @@ interface User {
   missingEmail?: boolean;
 }
 
+interface MessageTraceEntry {
+  name: string;
+  argsJson: string;
+  durationMs: number;
+  resultPreview: string;
+  error?: string;
+}
+
+interface MessageMetadata {
+  agent?: string;
+  turns?: number;
+  hitTurnCap?: boolean;
+  trace?: MessageTraceEntry[];
+}
+
 interface Message {
   id: string;
   role: "USER" | "ASSISTANT";
   content: string;
   createdAt: string;
+  metadata?: MessageMetadata | null;
 }
 
 // Stored file reference from database (storage paths, not base64)
@@ -220,6 +236,25 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
+  // "Agent mode" — when on, sends to /api/chat/agent (the unified web
+  // agent with tool calling) instead of the streaming Chatbase/raw-GPT
+  // path. Persisted to localStorage so it sticks across reloads.
+  const [agentMode, setAgentMode] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("mikey-agent-mode");
+      if (stored === "1") setAgentMode(true);
+    } catch { /* ignore */ }
+  }, []);
+  const toggleAgentMode = () => {
+    setAgentMode((cur) => {
+      const next = !cur;
+      try {
+        localStorage.setItem("mikey-agent-mode", next ? "1" : "0");
+      } catch { /* ignore */ }
+      return next;
+    });
+  };
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [toast, setToast] = useState<{ message: string; position: "left" | "right" | "bottom" } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -2340,6 +2375,57 @@ export default function ChatPage() {
     }
 
     try {
+      // Agent-mode branch — buffered POST to the unified web agent
+      // with tool calling. Bypasses the streaming SSE path entirely.
+      // The trace returned with the assistant message gets rendered
+      // as a "Tool calls" disclosure beneath the reply.
+      if (agentMode) {
+        const agentRes = await fetch(`/api/chat/agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            message: finalMessage,
+          }),
+        });
+        if (!agentRes.ok) {
+          const data = await agentRes.json().catch(() => ({}));
+          await showAlert({
+            title: "Error",
+            message: data.error || "Agent failed to respond",
+            variant: "danger",
+          });
+          setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+          return;
+        }
+        const data = await agentRes.json();
+        const assistant = data.message;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistant.id,
+            role: "ASSISTANT",
+            content: assistant.content,
+            createdAt: assistant.createdAt,
+            metadata: assistant.metadata ?? null,
+          },
+        ]);
+        if (data.pollForTitle) {
+          // Refresh the sidebar so the AI-generated title shows up
+          // once it lands.
+          setTimeout(async () => {
+            try {
+              const convsRes = await fetch("/api/conversations");
+              if (convsRes.ok) {
+                const convsData = await convsRes.json();
+                setConversations(convsData.conversations || []);
+              }
+            } catch { /* ignore */ }
+          }, 1500);
+        }
+        return;
+      }
+
       // Use streaming endpoint
       const res = await fetch(`/api/conversations/${conversationId}/messages/stream`, {
         method: "POST",
@@ -4312,6 +4398,22 @@ export default function ChatPage() {
                               </svg>
                             </button>
                             <button
+                              type="button"
+                              onClick={toggleAgentMode}
+                              className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                                agentMode
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200"
+                                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              }`}
+                              title={
+                                agentMode
+                                  ? "Agent mode ON — routes to the unified web agent with tool calling (deals, coaching, pipeline, playbook). Click to turn off."
+                                  : "Agent mode OFF — uses the streaming chat path. Click to enable tool-calling agent."
+                              }
+                            >
+                              {agentMode ? "🛠️ Agent" : "Agent"}
+                            </button>
+                            <button
                               type="submit"
                               disabled={!inputMessage.trim() || sending || processingImages}
                               className="p-2 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
@@ -4589,6 +4691,30 @@ export default function ChatPage() {
                       <div className="prose dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-4 text-[17px]">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{children}</a> }}>{msg.content}</ReactMarkdown>
                       </div>
+                      {/* Tool-call trace — only on assistant messages
+                          produced by the unified web agent (Agent mode).
+                          Collapsed by default; click to expand. */}
+                      {msg.metadata?.trace && msg.metadata.trace.length > 0 && (
+                        <details className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none">
+                            🛠️ {msg.metadata.trace.length} tool call{msg.metadata.trace.length === 1 ? "" : "s"}
+                            {msg.metadata.turns && ` · ${msg.metadata.turns} turn${msg.metadata.turns === 1 ? "" : "s"}`}
+                            {msg.metadata.hitTurnCap && " · ⚠ hit turn cap"}
+                          </summary>
+                          <ol className="mt-2 space-y-1 list-decimal list-inside">
+                            {msg.metadata.trace.map((t, i) => (
+                              <li key={i} className="border border-gray-100 dark:border-gray-700 rounded-md p-2">
+                                <div className="flex items-baseline justify-between gap-2 mb-1">
+                                  <code className="font-semibold text-purple-700 dark:text-purple-300">{t.name}</code>
+                                  <span className="text-gray-400">{t.durationMs}ms{t.error ? " · error" : ""}</span>
+                                </div>
+                                <div className="text-gray-500 break-all"><span className="text-gray-400">args: </span><code className="text-gray-700 dark:text-gray-300">{t.argsJson}</code></div>
+                                <div className="text-gray-500 break-all"><span className="text-gray-400">→ </span><code className="text-gray-700 dark:text-gray-300">{t.resultPreview}</code></div>
+                              </li>
+                            ))}
+                          </ol>
+                        </details>
+                      )}
                       {/* Copy/Share buttons for this response */}
                       <div className="flex items-center gap-1 mt-2">
                         <div className="relative group/btn">
