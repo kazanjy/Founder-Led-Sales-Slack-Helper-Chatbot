@@ -2375,10 +2375,11 @@ export default function ChatPage() {
     }
 
     try {
-      // Agent-mode branch — buffered POST to the unified web agent
-      // with tool calling. Bypasses the streaming SSE path entirely.
-      // The trace returned with the assistant message gets rendered
-      // as a "Tool calls" disclosure beneath the reply.
+      // Agent-mode branch — SSE-streaming POST to the unified web
+      // agent. Token chunks come through `chunk` events; tool-call
+      // boundaries come through `tool_call_start` / `tool_call_end`;
+      // the `done` event carries the final messageId + trace for the
+      // collapsible disclosure beneath the assistant reply.
       if (agentMode) {
         const agentRes = await fetch(`/api/chat/agent`, {
           method: "POST",
@@ -2398,21 +2399,70 @@ export default function ChatPage() {
           setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
           return;
         }
-        const data = await agentRes.json();
-        const assistant = data.message;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: assistant.id,
-            role: "ASSISTANT",
-            content: assistant.content,
-            createdAt: assistant.createdAt,
-            metadata: assistant.metadata ?? null,
-          },
-        ]);
-        if (data.pollForTitle) {
-          // Refresh the sidebar so the AI-generated title shows up
-          // once it lands.
+        const reader = agentRes.body?.getReader();
+        if (!reader) {
+          throw new Error("No response body");
+        }
+        const decoder = new TextDecoder();
+        let buf = "";
+        let fullText = "";
+        let messageId: string | null = null;
+        let createdAt: string | null = null;
+        let metadata: MessageMetadata | null = null;
+        let pollForTitle = false;
+        // Stream loop — same shape as the existing path: events come
+        // in pairs of `event: <name>` / `data: <json>`. We don't track
+        // the event name; we route by the data payload shape (chunk
+        // has .text, done has .messageId, error has .error).
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const raw = line.slice(6);
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.text) {
+                fullText += parsed.text;
+                setStreamingMessage(fullText);
+              } else if (parsed.messageId) {
+                messageId = parsed.messageId;
+                createdAt = parsed.createdAt;
+                metadata = {
+                  agent: parsed.agent || "web",
+                  turns: parsed.turns,
+                  hitTurnCap: parsed.hitTurnCap,
+                  trace: parsed.trace,
+                };
+                pollForTitle = !!parsed.pollForTitle;
+              } else if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+              // tool_call_start / tool_call_end events are
+              // forward-compatible — when we have UI for them we'll
+              // route them here. For now they're ignored.
+            } catch {
+              // non-JSON data, ignore
+            }
+          }
+        }
+        setStreamingMessage("");
+        if (fullText) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: messageId || `msg-${Date.now()}`,
+              role: "ASSISTANT",
+              content: fullText,
+              createdAt: createdAt || new Date().toISOString(),
+              metadata,
+            },
+          ]);
+        }
+        if (pollForTitle) {
           setTimeout(async () => {
             try {
               const convsRes = await fetch("/api/conversations");

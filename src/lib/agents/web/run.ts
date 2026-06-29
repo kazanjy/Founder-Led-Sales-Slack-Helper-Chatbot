@@ -110,11 +110,34 @@ export interface AgentResult {
   hitTurnCap: boolean;
 }
 
-export async function runWebAgent(opts: {
-  userId: string;
-  userMessage: string;
-  conversationHistory?: ChatCompletionMessageParam[];
-}): Promise<AgentResult> {
+export interface AgentStreamCallbacks {
+  /**
+   * Fired BEFORE each tool call is dispatched. Lets the UI show
+   * "Calling getDealCore…" indicators while the agent is in
+   * tool-using mode. Optional — no-op for buffered callers.
+   */
+  onToolCallStart?: (name: string, argsJson: string) => void;
+  /**
+   * Fired AFTER each tool call resolves with the result preview +
+   * duration. Same trace entry that ends up in AgentResult.trace.
+   */
+  onToolCallEnd?: (entry: ToolCallTrace) => void;
+  /**
+   * Fired for each streaming token on the final assistant turn.
+   * When omitted, the final turn is fetched buffered and the full
+   * reply is returned in AgentResult.reply.
+   */
+  onTextChunk?: (chunk: string) => void;
+}
+
+export async function runWebAgent(
+  opts: {
+    userId: string;
+    userMessage: string;
+    conversationHistory?: ChatCompletionMessageParam[];
+  },
+  cbs: AgentStreamCallbacks = {}
+): Promise<AgentResult> {
   const ctx: ToolContext = { userId: opts.userId };
   const trace: ToolCallTrace[] = [];
   const seller = await loadSellerContext(opts.userId);
@@ -128,7 +151,39 @@ export async function runWebAgent(opts: {
     { role: "user", content: opts.userMessage },
   ];
 
+  // Stream a chat completion and return the assembled string. Token
+  // chunks are forwarded to cbs.onTextChunk as they arrive. Used for
+  // the final assistant turn so the UI gets tokens-as-typed instead
+  // of waiting for the full reply.
+  const streamFinalResponse = async (): Promise<string> => {
+    if (!cbs.onTextChunk) {
+      // No streaming callback — fall back to buffered fetch.
+      const r = await openai.chat.completions.create({
+        model: "gpt-5.5",
+        messages,
+      });
+      return r.choices[0].message.content?.trim() || "";
+    }
+    const stream = await openai.chat.completions.create({
+      model: "gpt-5.5",
+      messages,
+      stream: true,
+    });
+    let full = "";
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content || "";
+      if (delta) {
+        full += delta;
+        cbs.onTextChunk(delta);
+      }
+    }
+    return full.trim();
+  };
+
   for (let turn = 0; turn < MAX_TURNS; turn++) {
+    // Tool-using turns stay buffered. We only know whether the model
+    // wants to call a tool after the response lands, and tools can't
+    // run mid-stream anyway.
     const response = await openai.chat.completions.create({
       model: "gpt-5.5",
       messages,
@@ -140,6 +195,19 @@ export async function runWebAgent(opts: {
     const msg = choice.message;
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
+      // Final turn — the model returned text instead of a tool call.
+      // If a streaming callback was supplied, re-issue this turn with
+      // streaming so the UI gets tokens incrementally. Otherwise the
+      // already-buffered content is the reply.
+      if (cbs.onTextChunk) {
+        const streamed = await streamFinalResponse();
+        return {
+          reply: streamed || msg.content?.trim() || "(no reply produced)",
+          trace,
+          turns: turn + 1,
+          hitTurnCap: false,
+        };
+      }
       return {
         reply: msg.content?.trim() || "(no reply produced)",
         trace,
@@ -158,6 +226,7 @@ export async function runWebAgent(opts: {
       if (call.type !== "function") continue;
       const name = call.function.name;
       const argsJson = call.function.arguments || "{}";
+      cbs.onToolCallStart?.(name, argsJson);
       const startedAt = Date.now();
       const entry = WEB_TOOLS[name];
       let resultPayload: unknown;
@@ -183,7 +252,9 @@ export async function runWebAgent(opts: {
           return String(resultPayload);
         }
       })();
-      trace.push({ name, argsJson, durationMs, resultPreview: preview, error: errorMessage });
+      const traceEntry: ToolCallTrace = { name, argsJson, durationMs, resultPreview: preview, error: errorMessage };
+      trace.push(traceEntry);
+      cbs.onToolCallEnd?.(traceEntry);
       messages.push({
         role: "tool",
         tool_call_id: call.id,
@@ -196,12 +267,9 @@ export async function runWebAgent(opts: {
     role: "user",
     content: "(Turn cap reached. Stop calling tools and give the best answer you can with what you have.)",
   });
-  const final = await openai.chat.completions.create({
-    model: "gpt-5.5",
-    messages,
-  });
+  const finalText = await streamFinalResponse();
   return {
-    reply: final.choices[0].message.content?.trim() || "(no reply produced after turn cap)",
+    reply: finalText || "(no reply produced after turn cap)",
     trace,
     turns: MAX_TURNS,
     hitTurnCap: true,
