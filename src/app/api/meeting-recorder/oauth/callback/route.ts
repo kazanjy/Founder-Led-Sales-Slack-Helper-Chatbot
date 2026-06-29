@@ -67,6 +67,12 @@ export async function GET(request: NextRequest) {
     let accessToken: string;
     let refreshToken: string | undefined;
     let expiresIn: number | undefined;
+    // Per-user OAuth client credentials for providers that use RFC 7591
+    // dynamic client registration (Circleback). We persist them on the
+    // connection row so the refresh flow can use them later. null for
+    // static-clientId providers like Fathom.
+    let providerClientId: string | null = null;
+    let providerClientSecret: string | null = null;
 
     // Exchange code for tokens based on provider
     switch (state.provider) {
@@ -102,6 +108,10 @@ export async function GET(request: NextRequest) {
         accessToken = tokens.access_token;
         refreshToken = tokens.refresh_token;
         expiresIn = tokens.expires_in;
+        // Hold onto the registered client creds — auth.ts will read them
+        // off the row when it refreshes the token down the line.
+        providerClientId = pkcePayload.clientId;
+        providerClientSecret = pkcePayload.clientSecret;
         break;
       }
       default:
@@ -113,6 +123,9 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + expiresIn * 1000)
       : null;
 
+    const clientIdEnc = providerClientId ? encrypt(providerClientId) : null;
+    const clientSecretEnc = providerClientSecret ? encrypt(providerClientSecret) : null;
+
     await prisma.meetingRecorderConnection.upsert({
       where: {
         userId_provider: { userId: user.id, provider: state.provider },
@@ -121,6 +134,8 @@ export async function GET(request: NextRequest) {
         accessToken: encrypt(accessToken),
         refreshToken: refreshToken ? encrypt(refreshToken) : null,
         tokenExpiresAt,
+        providerClientId: clientIdEnc,
+        providerClientSecret: clientSecretEnc,
         status: "active",
         connectedAt: new Date(),
       },
@@ -130,6 +145,8 @@ export async function GET(request: NextRequest) {
         accessToken: encrypt(accessToken),
         refreshToken: refreshToken ? encrypt(refreshToken) : null,
         tokenExpiresAt,
+        providerClientId: clientIdEnc,
+        providerClientSecret: clientSecretEnc,
         status: "active",
       },
     });

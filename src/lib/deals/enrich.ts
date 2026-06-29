@@ -261,26 +261,30 @@ async function enrichRecorder(opts: {
 }): Promise<EnrichDealSummary["recorderCalls"]> {
   const out = { scanned: 0, added: 0, skipped: 0 };
 
-  const conn = await prisma.meetingRecorderConnection.findFirst({
+  // Loop over every active recorder the user has connected so deals get
+  // enriched from all sources — not just the most-recently-synced one.
+  const conns = await prisma.meetingRecorderConnection.findMany({
     where: { userId: opts.userId, status: "active" },
     orderBy: { lastSyncedAt: "desc" },
   });
-  if (!conn) return out;
-  const provider = getProvider(conn.provider);
-  if (!provider) return out;
-
-  let calls;
-  try {
-    calls = await withRecorderTokenRefresh(conn, (apiKey) =>
-      provider.listCalls(apiKey, RECORDER_CALL_LIMIT)
-    );
-  } catch (err) {
-    console.error(`[enrich] recorder listCalls failed for ${opts.userId}:`, err);
-    return out;
-  }
-  out.scanned = calls.length;
+  if (conns.length === 0) return out;
 
   const seenCallIds = await existingCallIds(opts.dealId);
+
+  for (const conn of conns) {
+    const provider = getProvider(conn.provider);
+    if (!provider) continue;
+
+    let calls;
+    try {
+      calls = await withRecorderTokenRefresh(conn, (apiKey) =>
+        provider.listCalls(apiKey, RECORDER_CALL_LIMIT)
+      );
+    } catch (err) {
+      console.error(`[enrich] ${conn.provider} listCalls failed for ${opts.userId}:`, err);
+      continue;
+    }
+    out.scanned += calls.length;
 
   for (const call of calls) {
     const hasMatch = (call.attendees || []).some((a) => domainFromEmail(a.email) === opts.domain);
@@ -336,6 +340,7 @@ async function enrichRecorder(opts: {
     } catch (err) {
       console.error(`[enrich] getCallDetail failed for ${call.id}:`, err);
     }
+  }
   }
 
   return out;

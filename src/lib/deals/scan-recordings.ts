@@ -200,68 +200,17 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   const out: ScanSummary = { userId, scanned: 0, attached: 0, potentials: 0, skipped: 0, errors: 0, attachedExistingDealIds: [] };
   const attachedSet = new Set<string>();
 
-  const conn = await prisma.meetingRecorderConnection.findFirst({
+  // Scan every active recorder the user has connected — not just one.
+  // Same physical meeting captured by two recorders gets two different
+  // providerCallIds, so it lands as two timeline entries. We accept
+  // that for now; users rarely run multiple recorders simultaneously.
+  const conns = await prisma.meetingRecorderConnection.findMany({
     where: { userId, status: "active" },
     orderBy: { lastSyncedAt: "desc" },
   });
-  if (!conn) return out;
+  if (conns.length === 0) return out;
 
-  const provider = getProvider(conn.provider);
-  if (!provider) return out;
-
-  let calls;
-  try {
-    // Bumped from 50 → 75 because founders typically run ~10 calls/week
-    // and a daily sweep at 50 leaves zero headroom for a missed run or a
-    // burst week. 75 is ~1.5 weeks of coverage at typical volume.
-    calls = await withRecorderTokenRefresh(conn, (apiKey) => provider.listCalls(apiKey, 75));
-  } catch (err) {
-    console.error(`[scan-recordings] ${conn.provider} listCalls failed for ${userId}:`, err);
-    out.errors++;
-    return out;
-  }
-  out.scanned = calls.length;
-
-  if (calls.length === 0) return out;
-
-  // Dedupe: drop any callIds we've already processed for this user.
-  // Two sources of truth — both have to be consulted because manual
-  // imports (the bulk-import flow, pasted entries) write straight to
-  // dealTimelineEntry.metadata.providerCallId WITHOUT leaving a
-  // processedRecording row. Looking only at processed_recordings
-  // would re-import every call the user already imported by hand.
-  const callIds = calls.map((c) => c.id);
-  const [alreadyDone, manualEntries] = await Promise.all([
-    prisma.processedRecording.findMany({
-      where: { userId, providerCallId: { in: callIds } },
-      select: { providerCallId: true },
-    }),
-    // Pull every call_summary / call_transcript entry on this user's
-    // deals; parse providerCallId out of metadata. Bounded by total
-    // call entries across the user's deals — well under hundreds
-    // even for active founders. Storing metadata as text means we
-    // can't filter inside Prisma, but the cost is fine in practice.
-    prisma.dealTimelineEntry.findMany({
-      where: {
-        deal: { userId },
-        type: { in: ["call_summary", "call_transcript"] },
-      },
-      select: { metadata: true },
-    }),
-  ]);
-  const doneSet = new Set<string>(alreadyDone.map((r) => r.providerCallId));
-  for (const e of manualEntries) {
-    if (!e.metadata) continue;
-    try {
-      const m = JSON.parse(e.metadata) as { providerCallId?: unknown };
-      if (typeof m.providerCallId === "string" && m.providerCallId.trim()) {
-        doneSet.add(m.providerCallId.trim());
-      }
-    } catch { /* ignore */ }
-  }
-  const fresh = calls.filter((c) => !doneSet.has(c.id));
-  if (fresh.length === 0) return out;
-
+  // Hoist out shared per-user setup so we don't repeat it per provider.
   const self = await getSelfDomains(userId);
   // Internal Mikey user emails (the seller + any teammates in the
   // same account). Used to keep sellers off of deals as
@@ -289,7 +238,83 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
   }
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
 
-  for (const call of fresh) {
+  for (const conn of conns) {
+    const provider = getProvider(conn.provider);
+    if (!provider) continue;
+
+    let calls;
+    try {
+      // 75 calls ≈ 1.5 weeks of coverage at ~10 calls/week — leaves
+      // headroom for a missed run or a burst week.
+      calls = await withRecorderTokenRefresh(conn, (apiKey) => provider.listCalls(apiKey, 75));
+    } catch (err) {
+      console.error(`[scan-recordings] ${conn.provider} listCalls failed for ${userId}:`, err);
+      out.errors++;
+      continue;
+    }
+    out.scanned += calls.length;
+
+    if (calls.length === 0) {
+      // Still bump lastSyncedAt so we know the cron made contact even
+      // when there were no new calls to fetch.
+      await prisma.meetingRecorderConnection.update({
+        where: { id: conn.id },
+        data: { lastSyncedAt: new Date() },
+      }).catch(() => {});
+      continue;
+    }
+
+    // Dedupe: drop any callIds we've already processed for this user.
+    // Two sources of truth — both have to be consulted because manual
+    // imports (the bulk-import flow, pasted entries) write straight to
+    // dealTimelineEntry.metadata.providerCallId WITHOUT leaving a
+    // processedRecording row. Looking only at processed_recordings
+    // would re-import every call the user already imported by hand.
+    // Scoped to this provider — providerCallIds aren't unique across
+    // providers, so a Fathom id "abc" and a Circleback id "abc" would
+    // be unrelated. processedRecording's unique index covers
+    // (userId, providerCallId) anyway; we filter at the JS level.
+    const callIds = calls.map((c) => c.id);
+    const [alreadyDone, manualEntries] = await Promise.all([
+      prisma.processedRecording.findMany({
+        where: { userId, provider: conn.provider, providerCallId: { in: callIds } },
+        select: { providerCallId: true },
+      }),
+      prisma.dealTimelineEntry.findMany({
+        where: {
+          deal: { userId },
+          type: { in: ["call_summary", "call_transcript"] },
+        },
+        select: { metadata: true },
+      }),
+    ]);
+    const doneSet = new Set<string>(alreadyDone.map((r) => r.providerCallId));
+    for (const e of manualEntries) {
+      if (!e.metadata) continue;
+      try {
+        const m = JSON.parse(e.metadata) as { provider?: unknown; providerCallId?: unknown };
+        // Only treat the manual entry as "done" for this provider if
+        // its metadata.provider matches — different providers issue
+        // different IDs for the same physical call.
+        if (
+          typeof m.providerCallId === "string" &&
+          m.providerCallId.trim() &&
+          (typeof m.provider !== "string" || m.provider === conn.provider)
+        ) {
+          doneSet.add(m.providerCallId.trim());
+        }
+      } catch { /* ignore */ }
+    }
+    const fresh = calls.filter((c) => !doneSet.has(c.id));
+    if (fresh.length === 0) {
+      await prisma.meetingRecorderConnection.update({
+        where: { id: conn.id },
+        data: { lastSyncedAt: new Date() },
+      }).catch(() => {});
+      continue;
+    }
+
+    for (const call of fresh) {
     try {
       const attendeeDomains = (call.attendees || [])
         .map((a) => domainFromEmail(a.email))
@@ -450,12 +475,14 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       console.error(`[scan-recordings] processing failed for call ${call.id}:`, err);
       out.errors++;
     }
+    }
+
+    await prisma.meetingRecorderConnection.update({
+      where: { id: conn.id },
+      data: { lastSyncedAt: new Date() },
+    }).catch(() => {});
   }
 
-  await prisma.meetingRecorderConnection.update({
-    where: { id: conn.id },
-    data: { lastSyncedAt: new Date() },
-  });
   out.attachedExistingDealIds = Array.from(attachedSet);
   return out;
 }

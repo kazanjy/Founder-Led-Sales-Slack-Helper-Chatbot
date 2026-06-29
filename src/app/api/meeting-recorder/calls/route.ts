@@ -4,15 +4,39 @@ import { getCurrentUser } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/meeting-recorder/encryption";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { refreshFathomToken } from "@/lib/meeting-recorder/fathom";
+import { refreshCirclebackToken } from "@/lib/meeting-recorder/circleback";
 
-// Helper: try to refresh an OAuth token, returns new access token or null
-async function tryRefreshToken(conn: { id: string; provider: string; refreshToken: string | null }): Promise<string | null> {
+// Helper: try to refresh an OAuth token, returns new access token or null.
+// Mirrors lib/meeting-recorder/auth.ts:tryRefresh — kept inline here
+// because this route also re-encrypts and rewrites the row directly.
+async function tryRefreshToken(conn: {
+  id: string;
+  provider: string;
+  refreshToken: string | null;
+  providerClientId: string | null;
+  providerClientSecret: string | null;
+}): Promise<string | null> {
   if (!conn.refreshToken) return null;
   try {
     console.log(`[MeetingRecorder] Refreshing token for ${conn.provider}...`);
-    const refreshed = conn.provider === "fathom"
-      ? await refreshFathomToken(decrypt(conn.refreshToken))
-      : null;
+    let refreshed: { access_token: string; refresh_token?: string; expires_in?: number } | null = null;
+    if (conn.provider === "fathom") {
+      refreshed = await refreshFathomToken(decrypt(conn.refreshToken));
+    } else if (conn.provider === "circleback") {
+      if (!conn.providerClientId) {
+        console.warn(
+          `[MeetingRecorder] circleback refresh skipped — no providerClientId on ${conn.id}; user must reconnect`
+        );
+        return null;
+      }
+      refreshed = await refreshCirclebackToken({
+        refreshToken: decrypt(conn.refreshToken),
+        clientId: decrypt(conn.providerClientId),
+        clientSecret: conn.providerClientSecret
+          ? decrypt(conn.providerClientSecret)
+          : undefined,
+      });
+    }
 
     if (refreshed) {
       await prisma.meetingRecorderConnection.update({

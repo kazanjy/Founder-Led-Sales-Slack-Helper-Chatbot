@@ -153,55 +153,66 @@ async function findPriorRecordedCalls(
   const domain = normalizeDomain(prospectDomain);
   if (!domain) return { calls: [], provider: null };
 
-  const conn = await prisma.meetingRecorderConnection.findFirst({
+  // Walk every active recorder connection so prior calls land in the
+  // briefing regardless of which provider captured them.
+  const conns = await prisma.meetingRecorderConnection.findMany({
     where: { userId, status: "active" },
     orderBy: { lastSyncedAt: "desc" },
   });
-  if (!conn) return { calls: [], provider: null };
-
-  const provider = getProvider(conn.provider);
-  if (!provider) return { calls: [], provider: conn.provider };
-
-  let candidates;
-  try {
-    candidates = await provider.listCalls(conn.accessToken, 50);
-  } catch (err) {
-    console.error(`[follow-up] ${conn.provider} listCalls failed:`, err);
-    return { calls: [], provider: conn.provider };
-  }
+  if (conns.length === 0) return { calls: [], provider: null };
 
   const cutoff = Date.now() - LOOKBACK_DAYS_RECORDER * 24 * 60 * 60 * 1000;
-  const matches = candidates.filter((c) => {
-    const t = c.date ? new Date(c.date).getTime() : 0;
-    if (t < cutoff) return false;
-    const emails = (c.attendees || [])
-      .map((a) => domainFromEmail(a.email))
-      .filter(Boolean) as string[];
-    return emails.includes(domain);
-  });
-
   const out: PriorRecordedCall[] = [];
-  for (const c of matches) {
+
+  for (const conn of conns) {
+    const provider = getProvider(conn.provider);
+    if (!provider) continue;
+
+    let candidates;
     try {
-      const detail = await provider.getCallDetail(conn.accessToken, c.id);
-      out.push({
-        callId: c.id,
-        provider: conn.provider,
-        title: c.title,
-        date: c.date,
-        participants: c.participants || [],
-        transcript: detail.transcript || "",
-        summary: detail.summary || undefined,
-        url: c.providerUrl,
-      });
+      candidates = await provider.listCalls(conn.accessToken, 50);
     } catch (err) {
-      console.error(`[follow-up] ${conn.provider} getCallDetail failed for ${c.id}:`, err);
+      console.error(`[follow-up] ${conn.provider} listCalls failed:`, err);
+      continue;
+    }
+
+    const matches = candidates.filter((c) => {
+      const t = c.date ? new Date(c.date).getTime() : 0;
+      if (t < cutoff) return false;
+      const emails = (c.attendees || [])
+        .map((a) => domainFromEmail(a.email))
+        .filter(Boolean) as string[];
+      return emails.includes(domain);
+    });
+
+    for (const c of matches) {
+      try {
+        const detail = await provider.getCallDetail(conn.accessToken, c.id);
+        out.push({
+          callId: c.id,
+          provider: conn.provider,
+          title: c.title,
+          date: c.date,
+          participants: c.participants || [],
+          transcript: detail.transcript || "",
+          summary: detail.summary || undefined,
+          url: c.providerUrl,
+        });
+      } catch (err) {
+        console.error(`[follow-up] ${conn.provider} getCallDetail failed for ${c.id}:`, err);
+      }
     }
   }
 
   // Most-recent first so the LLM weights latest interactions higher.
   out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  return { calls: out, provider: conn.provider };
+  // Return the set of providers that contributed (or null if none).
+  // Joining them gives the caller a label like "fathom+circleback".
+  const contributingProviders = Array.from(new Set(out.map((c) => c.provider)));
+  return {
+    calls: out,
+    provider: contributingProviders.length ? contributingProviders.join("+") : conns[0].provider,
+  };
 }
 
 export async function detectFollowUpContext(

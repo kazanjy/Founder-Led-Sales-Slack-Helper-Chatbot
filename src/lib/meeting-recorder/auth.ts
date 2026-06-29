@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/meeting-recorder/encryption";
 import { refreshFathomToken } from "@/lib/meeting-recorder/fathom";
+import { refreshCirclebackToken } from "@/lib/meeting-recorder/circleback";
 import type { MeetingRecorderConnection } from "@prisma/client";
 
 /**
@@ -51,10 +52,27 @@ export async function withRecorderTokenRefresh<T>(
 async function tryRefresh(conn: MeetingRecorderConnection): Promise<string | null> {
   if (!conn.refreshToken) return null;
   try {
-    const refreshed =
-      conn.provider === "fathom"
-        ? await refreshFathomToken(decrypt(conn.refreshToken))
-        : null;
+    let refreshed: { access_token: string; refresh_token?: string; expires_in?: number } | null = null;
+    if (conn.provider === "fathom") {
+      refreshed = await refreshFathomToken(decrypt(conn.refreshToken));
+    } else if (conn.provider === "circleback") {
+      // Circleback uses RFC 7591 dynamic client registration — the
+      // per-user clientId (and optional secret) live on the connection
+      // row, persisted at OAuth-callback time.
+      if (!conn.providerClientId) {
+        console.warn(
+          `[recorder] circleback refresh skipped — no providerClientId on connection ${conn.id}; user must reconnect`
+        );
+        return null;
+      }
+      refreshed = await refreshCirclebackToken({
+        refreshToken: decrypt(conn.refreshToken),
+        clientId: decrypt(conn.providerClientId),
+        clientSecret: conn.providerClientSecret
+          ? decrypt(conn.providerClientSecret)
+          : undefined,
+      });
+    }
     if (!refreshed) return null;
     await prisma.meetingRecorderConnection.update({
       where: { id: conn.id },

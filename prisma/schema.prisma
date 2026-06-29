@@ -583,11 +583,16 @@ model MeetingRecorderConnection {
   userId String
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  provider         String   // "granola" | "fireflies" | "fathom" | "gong"
+  provider         String   // "granola" | "fireflies" | "fathom" | "circleback"
   accessToken      String   @db.Text // Encrypted API key or OAuth token
-  refreshToken     String?  @db.Text // Encrypted OAuth refresh token (future)
+  refreshToken     String?  @db.Text // Encrypted OAuth refresh token
   tokenExpiresAt   DateTime?
   providerAccountId String? // Provider's user/account ID
+  // Per-user OAuth client credentials for providers that use RFC 7591
+  // dynamic client registration (Circleback). null for providers with
+  // a static, app-level clientId (Fathom). Encrypted at rest.
+  providerClientId     String? @db.Text
+  providerClientSecret String? @db.Text
   status           String   @default("active") // "active" | "expired" | "revoked"
 
   connectedAt  DateTime @default(now())
