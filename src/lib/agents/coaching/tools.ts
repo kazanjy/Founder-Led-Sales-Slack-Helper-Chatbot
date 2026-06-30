@@ -136,7 +136,7 @@ const getCoachingSession: ToolEntry = {
     function: {
       name: "getCoachingSession",
       description:
-        "Fetch the full contents of one coaching session: title, date, lifecycle status, the markdown notes, the optional pasted transcript, attached recording URL, and a count of goals/tasks attached. Use for any 'what was discussed', 'summarize this session', 'what was decided' question. For goals/tasks lists call getCoachingGoalsAndTasks instead (it returns more structured data).",
+        "Fetch the full contents of one coaching session: title, date, lifecycle status, the auto-generated Session Synthesis (the four-section 'What we discussed / agreed / top priorities / what's next' rollup that lives on the coaching page), the markdown notes, the optional pasted transcript, attached recording URL, and a count of goals/tasks attached. Use for any 'what was discussed', 'summarize this session', 'what was decided' question — and lean on the synthesis first if it's present (it's a tight curated rollup; notes/transcript are the raw source). For goals/tasks lists call getCoachingGoalsAndTasks instead.",
       parameters: {
         type: "object",
         properties: {
@@ -159,6 +159,11 @@ const getCoachingSession: ToolEntry = {
       date: s.sessionDate.toISOString(),
       status: s.sessionStatus,
       maturityStageSnapshot: s.maturityStage,
+      // Surfaced first so the agent reads the curated rollup before
+      // the raw notes/transcript when both exist. Null until the
+      // session is saved with the synthesizer enabled.
+      synthesis: s.synthesis,
+      synthesisAt: s.synthesisAt?.toISOString() || null,
       notes: s.notes,
       transcript: s.transcript,
       recordingUrl: s.recordingUrl,
@@ -282,6 +287,7 @@ const getRecentCoachingActivity: ToolEntry = {
         sessionDate: true,
         sessionStatus: true,
         notes: true,
+        synthesis: true,
         _count: { select: { goals: true } },
       },
     });
@@ -292,6 +298,11 @@ const getRecentCoachingActivity: ToolEntry = {
         date: s.sessionDate.toISOString(),
         status: s.sessionStatus,
         goalCount: s._count.goals,
+        // Auto-generated synthesis is ~300 words so we return it in
+        // full when present — it's the curated rollup the founder
+        // sees on the coaching page. notesPreview stays as a raw
+        // fallback for sessions saved before the synthesizer existed.
+        synthesis: s.synthesis,
         notesPreview:
           (s.notes || "").substring(0, 400) + ((s.notes?.length || 0) > 400 ? "…" : ""),
       })),
@@ -582,6 +593,7 @@ const whereDidWeLeaveOff: ToolEntry = {
           sessionDate: true,
           sessionStatus: true,
           notes: true,
+          synthesis: true,
         },
       }),
       prisma.coachingGoal.findMany({
@@ -618,6 +630,11 @@ const whereDidWeLeaveOff: ToolEntry = {
             title: latestSession.title,
             date: latestSession.sessionDate.toISOString(),
             status: latestSession.sessionStatus,
+            // Synthesis is the curated rollup the founder reads on
+            // the coaching page — lean on it for "where did we leave
+            // off" answers. notesPreview is the raw fallback for
+            // sessions without a synthesis yet.
+            synthesis: latestSession.synthesis,
             notesPreview:
               (latestSession.notes || "").substring(0, 600) +
               ((latestSession.notes?.length || 0) > 600 ? "…" : ""),
@@ -676,11 +693,16 @@ const searchCoachingHistory: ToolEntry = {
             { title: { contains: q, mode: "insensitive" } },
             { notes: { contains: q, mode: "insensitive" } },
             { transcript: { contains: q, mode: "insensitive" } },
+            // The auto-generated synthesis often phrases things more
+            // concisely than the raw notes ("we agreed to drop X")
+            // and is a strong match surface for "did we ever talk
+            // about Y" / "when did we decide Z" queries.
+            { synthesis: { contains: q, mode: "insensitive" } },
           ],
         },
         orderBy: { sessionDate: "desc" },
         take: 4,
-        select: { id: true, title: true, sessionDate: true, notes: true },
+        select: { id: true, title: true, sessionDate: true, notes: true, synthesis: true },
       }),
       prisma.coachingGoal.findMany({
         where: {
@@ -730,12 +752,23 @@ const searchCoachingHistory: ToolEntry = {
       return (start > 0 ? "…" : "") + text.substring(start, end) + (end < text.length ? "…" : "");
     };
     return {
-      sessionMatches: sessionHits.map((s) => ({
-        sessionId: s.id,
-        title: s.title,
-        date: s.sessionDate.toISOString(),
-        snippet: snippet(s.notes),
-      })),
+      sessionMatches: sessionHits.map((s) => {
+        // Prefer a snippet from the synthesis when the query lives
+        // there (tighter language); fall back to the raw notes
+        // otherwise. The agent gets both fields so it can decide.
+        const lc = s.synthesis?.toLowerCase() || "";
+        const matchedSynthesis =
+          lc && lc.indexOf(q.toLowerCase()) >= 0
+            ? snippet(s.synthesis)
+            : null;
+        return {
+          sessionId: s.id,
+          title: s.title,
+          date: s.sessionDate.toISOString(),
+          snippet: matchedSynthesis || snippet(s.notes),
+          matchedFrom: matchedSynthesis ? "synthesis" : "notes",
+        };
+      }),
       goalMatches: goalHits.map((g) => ({
         goalId: g.id,
         title: g.title,
@@ -799,6 +832,11 @@ const getFullCoachingHistory: ToolEntry = {
           sessionStatus: true,
           maturityStage: true,
           notes: true,
+          // Auto-generated synthesis — included on every session in
+          // the corpus tool because it's the curated rollup the agent
+          // should reach for first when summarizing across history.
+          synthesis: true,
+          synthesisAt: true,
           // Only pull transcript when asked — it's the biggest field
           // by far and Prisma will skip the column read when omitted.
           ...(includeTranscripts ? { transcript: true } : {}),
@@ -877,6 +915,11 @@ const getFullCoachingHistory: ToolEntry = {
       date: s.sessionDate.toISOString(),
       status: s.sessionStatus,
       maturityStageSnapshot: s.maturityStage,
+      // Synthesis is the curated rollup; surfaced ahead of notes/
+      // transcript so the agent leans on it first for cross-session
+      // summarization.
+      synthesis: s.synthesis ?? null,
+      synthesisAt: s.synthesisAt ? s.synthesisAt.toISOString() : null,
       notes: s.notes,
       transcript: includeTranscripts ? s.transcript ?? null : undefined,
       recordingUrl: s.recordingUrl,

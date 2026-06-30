@@ -362,6 +362,12 @@ const getFullAccountContext: ToolEntry = {
           sessionStatus: true,
           maturityStage: true,
           notes: true,
+          // Auto-generated synthesis is the curated rollup per
+          // session — included on every row of the super-context
+          // dump so the agent can summarize across all of coaching
+          // without re-reading the raw notes.
+          synthesis: true,
+          synthesisAt: true,
           recordingUrl: true,
           ...(includeTranscripts ? { transcript: true } : {}),
         },
@@ -551,6 +557,10 @@ const getFullAccountContext: ToolEntry = {
           date: s.sessionDate.toISOString(),
           status: s.sessionStatus,
           maturityStageSnapshot: s.maturityStage,
+          // Synthesis surfaced ahead of notes so the agent can read
+          // the curated rollup first across the full corpus.
+          synthesis: s.synthesis ?? null,
+          synthesisAt: s.synthesisAt ? s.synthesisAt.toISOString() : null,
           notes: s.notes,
           transcript: includeTranscripts ? s.transcript ?? null : undefined,
           recordingUrl: s.recordingUrl,
