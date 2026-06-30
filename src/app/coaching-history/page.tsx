@@ -1480,16 +1480,23 @@ function CoachingHistoryContent() {
                             <button
                               type="button"
                               onClick={async () => {
-                                // Rich-text copy: the synthesis is
-                                // markdown, but the founder typically
-                                // pastes it into Gmail / Docs / Notion
-                                // — those want formatted output, not
-                                // raw "## Heading" / "- bullet"
-                                // syntax. copyMarkdownAsRichText sets
-                                // both text/html and text/plain on the
-                                // clipboard so the destination picks
-                                // the right one.
-                                await copyMarkdownAsRichText(selectedSession.synthesis || "");
+                                // Build a sharable rollup: header line
+                                // (MM/DD/YY + session title), session
+                                // deep link, then the synthesis body.
+                                // The founder typically pastes this
+                                // into Gmail / Docs / Notion — using
+                                // copyMarkdownAsRichText so the H2s +
+                                // bullets render formatted there, but
+                                // also lands as readable plaintext in
+                                // a terminal.
+                                const dateStr = new Date(selectedSession.sessionDate).toLocaleDateString("en-US", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  year: "2-digit",
+                                });
+                                const sessionUrl = `${window.location.origin}/coaching-history?session=${selectedSession.id}`;
+                                const header = `# ${dateStr} Coaching Session Topics & Outcomes: ${selectedSession.title}\n\n[Open this session in Mikey](${sessionUrl})\n\n---\n\n`;
+                                await copyMarkdownAsRichText(header + (selectedSession.synthesis || ""));
                                 setSynthesisCopied(true);
                                 setTimeout(() => setSynthesisCopied(false), 1500);
                               }}
