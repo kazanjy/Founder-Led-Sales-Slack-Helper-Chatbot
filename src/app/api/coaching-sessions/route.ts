@@ -31,6 +31,12 @@ export async function GET() {
         recordingUrl: true,
         sessionStatus: true,
         maturityStage: true,
+        // Synthesis fields — without these on the list response the
+        // page state never sees the auto-generated synthesis and the
+        // panel won't render in the view UI even after the background
+        // job lands.
+        synthesis: true,
+        synthesisAt: true,
         createdAt: true,
         updatedAt: true,
         userId: true,

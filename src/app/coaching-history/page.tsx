@@ -1443,39 +1443,17 @@ function CoachingHistoryContent() {
                   </div>
 
                   <div className="p-6">
-                    {/* Coaching Framework — Maturity Stage, Metrics, Goals & Tasks */}
-                    <CoachingFramework
-                      sessionId={selectedSession.id}
-                      sessionStatus={selectedSession.sessionStatus || "new"}
-                      // Account members can now edit each other's
-                      // sessions, so any visible session in the list
-                      // grants edit rights. The API still enforces
-                      // same-account membership per request.
-                      isOwner={true}
-                      sessionCreatedAt={selectedSession.createdAt}
-                      sessionUpdatedAt={selectedSession.updatedAt}
-                      sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
-                      onNavigateToItem={({ sessionId: targetId, anchorId }) => {
-                        // Switch to the target session, then scroll to
-                        // the goal/task/subtask anchor once it's
-                        // rendered. The framework re-mounts on
-                        // sessionId change, so we wait a beat for the
-                        // new render before scrolling.
-                        if (targetId !== selectedSession.id) selectSession(targetId);
-                        setTimeout(() => {
-                          const el = document.getElementById(anchorId);
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                        }, targetId !== selectedSession.id ? 400 : 50);
-                      }}
-                    />
-
-
                     {/* Session Synthesis — auto-generated after every save
                         using the same prompt as the manual "Synthesize
-                        Takeaways" CTA. Renders an inline placeholder while
-                        the background job runs; hides entirely when there's
-                        no synthesis yet AND no job in flight (e.g. legacy
-                        sessions saved before this feature). */}
+                        Takeaways" CTA. Sits between the session header
+                        and the Coaching Framework (which carries Up Next
+                        + Goals/Tasks below) so the founder sees the
+                        rollup of "what we discussed / agreed / will do
+                        next" before any of the working surface. Renders
+                        an inline placeholder while the background job
+                        runs; hides entirely when there's no synthesis
+                        yet AND no job in flight (legacy sessions saved
+                        before this feature). */}
                     {(selectedSession.synthesis ||
                       synthesizingSessionId === selectedSession.id) && (
                       <div className="mb-8 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900 rounded-xl p-4">
@@ -1537,6 +1515,33 @@ function CoachingHistoryContent() {
                         )}
                       </div>
                     )}
+
+                    {/* Coaching Framework — Maturity Stage, Metrics, Goals & Tasks */}
+                    <CoachingFramework
+                      sessionId={selectedSession.id}
+                      sessionStatus={selectedSession.sessionStatus || "new"}
+                      // Account members can now edit each other's
+                      // sessions, so any visible session in the list
+                      // grants edit rights. The API still enforces
+                      // same-account membership per request.
+                      isOwner={true}
+                      sessionCreatedAt={selectedSession.createdAt}
+                      sessionUpdatedAt={selectedSession.updatedAt}
+                      sessionUserId={selectedSession.userId !== currentUserId ? selectedSession.userId : undefined}
+                      onNavigateToItem={({ sessionId: targetId, anchorId }) => {
+                        // Switch to the target session, then scroll to
+                        // the goal/task/subtask anchor once it's
+                        // rendered. The framework re-mounts on
+                        // sessionId change, so we wait a beat for the
+                        // new render before scrolling.
+                        if (targetId !== selectedSession.id) selectSession(targetId);
+                        setTimeout(() => {
+                          const el = document.getElementById(anchorId);
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, targetId !== selectedSession.id ? 400 : 50);
+                      }}
+                    />
+
 
                     {/* Notes */}
                     <div className="mb-8">
