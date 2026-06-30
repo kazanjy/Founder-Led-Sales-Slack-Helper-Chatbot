@@ -11,6 +11,7 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import SyncReviewOverlay from "@/components/SyncReviewOverlay";
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 // Synthesis prompt lives in a shared module so the server-side
 // auto-on-save synthesizer and this client-side "🧪 Synthesize
 // Takeaways" CTA use the same text — one source of truth.
@@ -1478,13 +1479,22 @@ function CoachingHistoryContent() {
                           {selectedSession.synthesis && (
                             <button
                               type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(selectedSession.synthesis || "");
+                              onClick={async () => {
+                                // Rich-text copy: the synthesis is
+                                // markdown, but the founder typically
+                                // pastes it into Gmail / Docs / Notion
+                                // — those want formatted output, not
+                                // raw "## Heading" / "- bullet"
+                                // syntax. copyMarkdownAsRichText sets
+                                // both text/html and text/plain on the
+                                // clipboard so the destination picks
+                                // the right one.
+                                await copyMarkdownAsRichText(selectedSession.synthesis || "");
                                 setSynthesisCopied(true);
                                 setTimeout(() => setSynthesisCopied(false), 1500);
                               }}
                               className="text-xs text-purple-600 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-100 inline-flex items-center gap-1"
-                              title="Copy synthesis to clipboard"
+                              title="Copy synthesis as rich text (formatted in Gmail / Docs / Notion)"
                             >
                               {synthesisCopied ? (
                                 <>
