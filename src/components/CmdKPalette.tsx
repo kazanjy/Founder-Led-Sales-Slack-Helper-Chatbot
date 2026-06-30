@@ -34,7 +34,6 @@ export default function CmdKPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [deals, setDeals] = useState<DealRow[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -64,9 +63,15 @@ export default function CmdKPalette() {
     };
   }, [open]);
 
-  // Lazy-load the deals list on first open. Cached for the session.
+  // Re-fetch the deals list every time the palette opens. The
+  // previous "load once per session" cache made newly-created deals
+  // invisible until the user reloaded the tab — surprising and
+  // hard to diagnose. The list is bounded by the user's own deals
+  // (typically dozens, not thousands), the endpoint is cheap, and
+  // keeping the previously-rendered list visible during the refetch
+  // (we don't clear `deals`) avoids a flash of empty state.
   useEffect(() => {
-    if (!open || loaded) return;
+    if (!open) return;
     let cancelled = false;
     setLoading(true);
     fetch("/api/deals")
@@ -74,15 +79,12 @@ export default function CmdKPalette() {
         if (cancelled) return;
         if (res.status === 401) {
           setUnauthorized(true);
-          setLoaded(true);
           return;
         }
-        if (!res.ok) {
-          setLoaded(true);
-          return;
-        }
+        if (!res.ok) return;
         const data: { deals?: DealRow[] } = await res.json();
         if (cancelled) return;
+        setUnauthorized(false);
         setDeals(
           (data.deals || []).map((d) => ({
             id: d.id,
@@ -92,10 +94,10 @@ export default function CmdKPalette() {
             status: d.status,
           }))
         );
-        setLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) setLoaded(true);
+        // Network blip — leave the previously-rendered list in place
+        // so the user can keep searching what they had.
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -103,7 +105,7 @@ export default function CmdKPalette() {
     return () => {
       cancelled = true;
     };
-  }, [open, loaded]);
+  }, [open]);
 
   // Focus + reset on open. Don't clear query on close so re-opening
   // mid-search keeps the prior query (matches Notion's behavior).
