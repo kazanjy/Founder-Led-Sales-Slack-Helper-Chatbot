@@ -5,6 +5,34 @@ import { TAKEAWAYS_SYNTHESIS_PROMPT } from "./synthesis-prompt";
 export { TAKEAWAYS_SYNTHESIS_PROMPT };
 
 /**
+ * Pull the seller's positioning (sales narrative + value prop) so
+ * the model can render the synthesis in the founder's voice and
+ * recognize their terminology. Same shape as loadSellerContext in
+ * the agent surfaces — keeps the narrative-default-on invariant
+ * consistent across every model call that touches a founder's
+ * content.
+ */
+async function loadSellerContext(userId: string): Promise<{
+  narrative: string;
+  valueProp100w: string;
+}> {
+  const [narrativeRow, vp100Row] = await Promise.all([
+    prisma.gtmVariable.findFirst({
+      where: { userId, mergeField: "SALES_NARRATIVE" },
+      select: { value: true },
+    }),
+    prisma.gtmVariable.findFirst({
+      where: { userId, mergeField: "VALUE_PROP_100W" },
+      select: { value: true },
+    }),
+  ]);
+  return {
+    narrative: (narrativeRow?.value || "").trim(),
+    valueProp100w: (vp100Row?.value || "").trim(),
+  };
+}
+
+/**
  * Pull the session + everything the synthesis prompt benefits from
  * seeing — notes, transcript, attached goals/tasks, metric entries,
  * the user's current active goals and Up Next queue, and the
@@ -55,8 +83,27 @@ async function buildSessionContext(
     }),
   ]);
 
+  const seller = await loadSellerContext(userId);
+
   const formatDate = (d: Date) => d.toISOString().slice(0, 10);
-  let ctx = `## Coaching Session — ${session.title}\n\n`;
+  let ctx = "";
+
+  // Lead with the seller's positioning so the model interprets the
+  // session content through the founder's lens (their value prop,
+  // their narrative, their terminology). Without this, takeaways
+  // read as generic coach-speak.
+  if (seller.narrative || seller.valueProp100w) {
+    ctx += `## Seller Context\n\n_The founder's own positioning. Use this to ground voice, terminology, and what's important to them — then synthesize the session below in this lens._\n\n`;
+    if (seller.valueProp100w) {
+      ctx += `### Value prop (100w)\n${seller.valueProp100w}\n\n`;
+    }
+    if (seller.narrative) {
+      ctx += `### Sales narrative\n${seller.narrative}\n\n`;
+    }
+    ctx += `---\n\n`;
+  }
+
+  ctx += `## Coaching Session — ${session.title}\n\n`;
   ctx += `**Date:** ${formatDate(session.sessionDate)}\n`;
   ctx += `**Status:** ${session.sessionStatus}\n\n`;
 
