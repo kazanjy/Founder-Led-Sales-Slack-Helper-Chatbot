@@ -1029,8 +1029,8 @@ export default function AdminUserDetailPage() {
                   </div>
                   <div>
                     <label className="text-sm text-gray-500 dark:text-gray-400">Extend Trial</label>
-                    <div className="flex space-x-2 mt-1">
-                      {[7, 14, 30, 90].map((days) => (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {[7, 14, 30, 90, 180].map((days) => (
                         <button
                           key={days}
                           onClick={() => updateUser({ extendTrialDays: days })}

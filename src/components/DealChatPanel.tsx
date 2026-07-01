@@ -575,14 +575,19 @@ export default function DealChatPanel({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                sendMessage(input);
+                // Guard the send at submit time — but leave the
+                // textarea itself editable during in-flight streaming
+                // so the user can compose their next question while
+                // the current answer is still coming back. sendMessage
+                // is already a no-op when sending=true (see the guard
+                // at the top of the function).
+                if (!sending) sendMessage(input);
               }
             }}
             placeholder="Ask about this deal…"
             rows={2}
-            disabled={sending}
             style={{ minHeight: "52px", maxHeight: "240px" }}
-            className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-60 overflow-y-auto"
+            className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none overflow-y-auto"
           />
           <button
             type="button"
