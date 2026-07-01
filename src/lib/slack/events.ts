@@ -312,8 +312,18 @@ async function processSlackFiles(
   // lives in the message context; the raw .docx blob is preserved
   // in Supabase Storage so the user can re-download the original.
   for (const file of docxFiles) {
+    let fileBuffer: Buffer | null = null;
     try {
-      const fileBuffer = await downloadSlackFile(file.url_private, botToken);
+      // url_private_download forces Content-Disposition: attachment
+      // so Slack serves the raw file bytes instead of a preview HTML
+      // wrapper. Fall back to url_private if the download URL isn't
+      // provided (older payloads).
+      const downloadUrl = file.url_private_download || file.url_private;
+      fileBuffer = await downloadSlackFile(downloadUrl, botToken);
+      console.log(
+        `[Slack DOCX] Downloaded ${file.name} — ${fileBuffer.length}b, first-4=${fileBuffer.subarray(0, 4).toString("hex")}`
+      );
+
       const { text, truncated, rawCharCount, warnings } = await extractDocxText(fileBuffer);
 
       if (!text) {
@@ -342,8 +352,21 @@ async function processSlackFiles(
       });
       storedFiles.push(storedRef);
     } catch (error) {
-      console.error(`[Slack] Error processing Word doc ${file.name}:`, error);
-      descriptions.push(`[Word doc: ${file.name}] (Error reading file — mammoth threw during extraction.)`);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[Slack] Error processing Word doc ${file.name}:`,
+        errMsg,
+        fileBuffer ? `(buffer=${fileBuffer.length}b, head=${fileBuffer.subarray(0, 8).toString("hex")})` : "(no buffer)"
+      );
+      // Surface a hint that lets Mikey nudge the user toward a fix
+      // (paste content or re-upload as PDF) rather than a black-box
+      // failure. If the buffer looks like HTML/JSON, it was likely
+      // an auth failure on the Slack download — flag differently.
+      const looksLikeHtml = fileBuffer && fileBuffer.subarray(0, 5).toString("utf-8").startsWith("<");
+      const userHint = looksLikeHtml
+        ? "Slack didn't return the raw .docx bytes — the bot may be missing the files:read scope, or the file was too large. Try pasting the content directly or re-uploading as PDF."
+        : "The .docx couldn't be parsed. It may be encrypted, corrupted, or an unusual variant. Try re-saving as .docx from Word or exporting to PDF.";
+      descriptions.push(`[Word doc: ${file.name}] ${userHint}`);
     }
   }
 

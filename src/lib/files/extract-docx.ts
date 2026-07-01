@@ -52,11 +52,42 @@ export interface DocxExtractResult {
 }
 
 /**
+ * Sniff the .docx magic bytes. Every .docx file is a ZIP archive
+ * (Office Open XML) and starts with `PK\x03\x04`. If the buffer we
+ * were handed isn't a zip, mammoth will throw a cryptic error deep
+ * in its parser; catching it up front lets us give the caller a
+ * clear "not a real .docx" message. Common cause: Slack download
+ * returned an HTML redirect / login page because the bot token
+ * lacked `files:read` scope, or the wrong URL was fetched.
+ */
+export function looksLikeDocxBuffer(buffer: Buffer): boolean {
+  if (buffer.length < 4) return false;
+  return (
+    buffer[0] === 0x50 && // 'P'
+    buffer[1] === 0x4b && // 'K'
+    buffer[2] === 0x03 &&
+    buffer[3] === 0x04
+  );
+}
+
+/**
  * Parse a .docx buffer to plain text. Throws on unparseable input
  * (encrypted docs, corrupted zip, non-.docx bytes). Callers should
  * try/catch and fall through to a "couldn't parse" user message.
+ * The thrown Error carries mammoth's own message when the failure
+ * happens inside the parser, so callers can log it for diagnosis.
  */
 export async function extractDocxText(buffer: Buffer): Promise<DocxExtractResult> {
+  if (!looksLikeDocxBuffer(buffer)) {
+    // Sniff the first ~100 bytes so a diagnostic log surfaces WHAT
+    // we actually got instead of the docx we expected. Common
+    // patterns: "<html" (auth redirect), "<!DOC" (login page), or
+    // "%PDF" (wrong file passed in).
+    const preview = buffer.subarray(0, 100).toString("utf-8").replace(/\s+/g, " ");
+    throw new Error(
+      `Input is not a .docx ZIP archive (buffer=${buffer.length}b, head="${preview.substring(0, 80)}")`
+    );
+  }
   const result = await mammoth.extractRawText({ buffer });
   const raw = (result.value || "").trim();
   const truncated = raw.length > MAX_EXTRACTED_CHARS;
