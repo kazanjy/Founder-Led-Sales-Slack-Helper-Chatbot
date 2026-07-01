@@ -24,9 +24,19 @@ function isCSVFile(file: File): boolean {
   return file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
 }
 
-// Check if file is supported (image, PDF, or CSV)
+// Check if file is a modern Word doc (.docx). Legacy .doc is a
+// separate binary format we don't support (needs native tooling that
+// doesn't run in Vercel's serverless env); users get a message from
+// the extraction endpoint asking them to save as .docx.
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+function isDocxFile(file: File): boolean {
+  return file.type === DOCX_MIME || file.name.toLowerCase().endsWith(".docx");
+}
+
+// Check if file is supported (image, PDF, CSV, or DOCX)
 function isSupportedFile(file: File): boolean {
-  return isImageFile(file) || isPDFFile(file) || isCSVFile(file);
+  return isImageFile(file) || isPDFFile(file) || isCSVFile(file) || isDocxFile(file);
 }
 
 export function FileAttachmentButton({
@@ -43,6 +53,7 @@ export function FileAttachmentButton({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const docxInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -72,6 +83,16 @@ export function FileAttachmentButton({
     const filesToAdd = csvFiles.slice(0, remaining);
     if (filesToAdd.length > 0) onFilesChange(filesToAdd);
     if (csvInputRef.current) csvInputRef.current.value = "";
+  };
+
+  const handleDocxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const docxFiles = files.filter(isDocxFile);
+    const remaining = maxFiles - currentCount;
+    const filesToAdd = docxFiles.slice(0, remaining);
+    if (filesToAdd.length > 0) onFilesChange(filesToAdd);
+    if (docxInputRef.current) docxInputRef.current.value = "";
   };
 
   const isMaxReached = currentCount >= maxFiles;
@@ -104,6 +125,15 @@ export function FileAttachmentButton({
         multiple
         className="hidden"
         onChange={handleCSVChange}
+        disabled={isDisabled}
+      />
+      <input
+        ref={docxInputRef}
+        type="file"
+        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        multiple
+        className="hidden"
+        onChange={handleDocxChange}
         disabled={isDisabled}
       />
       {/* Image upload button */}
@@ -166,6 +196,24 @@ export function FileAttachmentButton({
           <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">CSV</text>
         </svg>
       </button>
+      {/* DOCX upload button */}
+      <button
+        type="button"
+        onClick={() => docxInputRef.current?.click()}
+        disabled={isDisabled}
+        className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+          isDisabled
+            ? "text-gray-400 opacity-50 cursor-not-allowed"
+            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+        }`}
+        title={isMaxReached ? `Maximum ${maxFiles} files` : "Attach Word doc (.docx)"}
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+          <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="#1565C0"/>
+          <path d="M14 2V8H20L14 2Z" fill="#BBDEFB"/>
+          <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">DOC</text>
+        </svg>
+      </button>
     </>
   );
 }
@@ -188,6 +236,7 @@ export function FilePreviewChips({
       url: isImageFile(file) ? URL.createObjectURL(file) : null,
       isPDF: isPDFFile(file),
       isCSV: isCSVFile(file),
+      isDOCX: isDocxFile(file),
     }));
   }, [files]);
 
@@ -209,16 +258,17 @@ export function FilePreviewChips({
           key={`${preview.file.name}-${index}`}
           className="relative group"
         >
-          {preview.isPDF || preview.isCSV ? (
-            // PDF/CSV preview - show icon and filename
+          {preview.isPDF || preview.isCSV || preview.isDOCX ? (
+            // PDF/CSV/DOCX preview - show icon + filename with a
+            // color coded document icon (red PDF, green CSV, blue DOCX).
             <div
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 ${processing ? "opacity-50" : "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
               onClick={() => !processing && onPreview?.(index)}
             >
               <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={preview.isCSV ? "#2E7D32" : "#E53935"}/>
-                <path d="M14 2V8H20L14 2Z" fill={preview.isCSV ? "#C8E6C9" : "#FFCDD2"}/>
-                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{preview.isCSV ? "CSV" : "PDF"}</text>
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={preview.isCSV ? "#2E7D32" : preview.isDOCX ? "#1565C0" : "#E53935"}/>
+                <path d="M14 2V8H20L14 2Z" fill={preview.isCSV ? "#C8E6C9" : preview.isDOCX ? "#BBDEFB" : "#FFCDD2"}/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{preview.isCSV ? "CSV" : preview.isDOCX ? "DOC" : "PDF"}</text>
               </svg>
               <span className="text-sm text-gray-700 dark:text-gray-200 max-w-[120px] truncate">{preview.file.name}</span>
               {processing && (
@@ -299,13 +349,14 @@ export function ImageAttachment({
   );
 }
 
-// AttachedFile interface for stored image/PDF/CSV data
+// AttachedFile interface for stored image/PDF/CSV/DOCX data
 export interface AttachedFile {
   name: string;
-  type: "image" | "pdf" | "csv";
-  dataUrl: string; // base64 data URL for images, first page for PDFs, empty for CSVs
+  type: "image" | "pdf" | "csv" | "docx";
+  dataUrl: string; // base64 data URL for images, first page for PDFs, empty for CSVs/DOCX
   pdfPages?: string[]; // All page data URLs for PDFs
   csvText?: string; // Parsed text content for CSVs
+  docxText?: string; // Server-extracted plain text for .docx files
 }
 
 // Read-only chips showing attached images/PDFs (after sending) - clickable for lightbox
@@ -323,17 +374,18 @@ export function ImageChipsReadOnly({
       {files.map((file, index) => {
         const isPDF = file.type === "pdf";
         const isCSV = file.type === "csv";
+        const isDOCX = file.type === "docx";
         return (
           <div
             key={`${file.name}-${index}`}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 text-sm text-gray-600 dark:text-gray-300 ${onPreview ? "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" : ""}`}
             onClick={() => onPreview?.(index)}
           >
-            {isPDF || isCSV ? (
+            {isPDF || isCSV || isDOCX ? (
               <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={isCSV ? "#2E7D32" : "#E53935"}/>
-                <path d="M14 2V8H20L14 2Z" fill={isCSV ? "#C8E6C9" : "#FFCDD2"}/>
-                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{isCSV ? "CSV" : "PDF"}</text>
+                <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill={isCSV ? "#2E7D32" : isDOCX ? "#1565C0" : "#E53935"}/>
+                <path d="M14 2V8H20L14 2Z" fill={isCSV ? "#C8E6C9" : isDOCX ? "#BBDEFB" : "#FFCDD2"}/>
+                <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold" fontFamily="Arial, sans-serif">{isCSV ? "CSV" : isDOCX ? "DOC" : "PDF"}</text>
               </svg>
             ) : (
               <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -349,4 +401,4 @@ export function ImageChipsReadOnly({
 }
 
 // Export helper functions
-export { isImageFile, isPDFFile, isCSVFile, isSupportedFile };
+export { isImageFile, isPDFFile, isCSVFile, isDocxFile, isSupportedFile };

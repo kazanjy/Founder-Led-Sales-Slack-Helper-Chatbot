@@ -18,7 +18,7 @@ import IntegrationsRow from "@/components/IntegrationsRow";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
-import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isCSVFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
+import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isCSVFile, isDocxFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
 import Papa from "papaparse";
 import { convertPDFToImages } from "@/lib/pdf-to-images";
 import { Lightbox, type LightboxImage } from "@/components/Lightbox";
@@ -136,7 +136,7 @@ interface StoredFileRef {
 // Loaded file with signed URLs (for display)
 interface LoadedFile {
   name: string;
-  type: "image" | "pdf" | "csv";
+  type: "image" | "pdf" | "csv" | "docx";
   url?: string; // For images
   pageUrls?: string[]; // For PDFs
   pageCount?: number;
@@ -1845,9 +1845,15 @@ export default function ChatPage() {
   const handleImageDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Check if any of the dragged items are images, PDFs, or CSVs
+    // Check if any of the dragged items are images, PDFs, CSVs, or Word docs
     const hasSupportedFiles = Array.from(e.dataTransfer.items).some(
-      (item) => item.kind === "file" && (item.type.startsWith("image/") || item.type === "application/pdf" || item.type === "text/csv" || (item.type === "" && item.kind === "file"))
+      (item) =>
+        item.kind === "file" &&
+        (item.type.startsWith("image/") ||
+          item.type === "application/pdf" ||
+          item.type === "text/csv" ||
+          item.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          (item.type === "" && item.kind === "file"))
     );
     if (hasSupportedFiles) {
       setIsDraggingImage(true);
@@ -1925,7 +1931,21 @@ export default function ChatPage() {
 
     for (const file of files) {
       try {
-        if (isCSVFile(file)) {
+        if (isDocxFile(file)) {
+          // Word .docx — extract server-side via mammoth (it's Node-only).
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await fetch("/api/files/extract-docx", { method: "POST", body: fd });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            descriptions.push(`[Word doc: ${file.name}] ${data.error || "(Error extracting text)"}`);
+            continue;
+          }
+          const data = (await res.json()) as { text: string; truncated: boolean; rawCharCount: number };
+          descriptions.push(
+            `[Word doc: ${file.name}${data.truncated ? " (truncated)" : ""}] (${data.rawCharCount} chars)\n${data.text}`
+          );
+        } else if (isCSVFile(file)) {
           // Parse CSV and convert to readable text
           const csvText = await file.text();
           const parsed = Papa.parse<Record<string, string>>(csvText, {
@@ -1993,7 +2013,7 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error("Error processing file:", file.name, error);
-        const fileType = isCSVFile(file) ? "CSV" : isPDFFile(file) ? "PDF" : "Image";
+        const fileType = isCSVFile(file) ? "CSV" : isPDFFile(file) ? "PDF" : isDocxFile(file) ? "Word doc" : "Image";
         descriptions.push(`[${fileType}: ${file.name}] (Error processing)`);
       }
     }
@@ -2276,14 +2296,35 @@ export default function ChatPage() {
     if (imagesToProcess.length > 0) {
       setProcessingImages(true);
       const fileCount = imagesToProcess.length;
-      const hasNonImage = imagesToProcess.some(f => f.type === "application/pdf" || isCSVFile(f));
+      const hasNonImage = imagesToProcess.some(f => f.type === "application/pdf" || isCSVFile(f) || isDocxFile(f));
       const fileType = hasNonImage ? "files" : "images";
       setProcessingStatus(`Analyzing ${fileCount} ${fileType}...`);
       try {
         // Convert files to base64 data URLs for storage before processing
         attachedFiles = await Promise.all(
           imagesToProcess.map(async (file): Promise<AttachedFile> => {
-            if (isCSVFile(file)) {
+            if (isDocxFile(file)) {
+              // Word .docx — extract text server-side. Same "text
+              // blob attached, no visual" shape as CSV: dataUrl stays
+              // empty; extracted text lands in docxText for
+              // downstream storage + re-display.
+              const fd = new FormData();
+              fd.append("file", file);
+              let docxText = "";
+              try {
+                const res = await fetch("/api/files/extract-docx", { method: "POST", body: fd });
+                if (res.ok) {
+                  const data = (await res.json()) as { text: string };
+                  docxText = data.text || "";
+                }
+              } catch { /* extractor down — leave docxText empty */ }
+              return {
+                name: file.name,
+                type: "docx",
+                dataUrl: "",
+                docxText,
+              };
+            } else if (isCSVFile(file)) {
               // CSV files: store the parsed text, no base64 image needed
               const csvText = await file.text();
               return {

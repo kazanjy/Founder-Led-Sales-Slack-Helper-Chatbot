@@ -10,6 +10,7 @@ import { tryHandleWithGtmAgent } from "./gtm-agent-router";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
+import { extractDocxText, isDocxFile, isLegacyDocMime } from "@/lib/files/extract-docx";
 
 // Slack file object structure (subset of fields we need)
 interface SlackFile {
@@ -49,6 +50,12 @@ const SUPPORTED_IMAGE_TYPES = [
 
 // Supported PDF mime type
 const PDF_MIME_TYPE = "application/pdf";
+
+// MIME used when uploading the raw .docx blob to Supabase Storage.
+// Kept alongside PDF_MIME_TYPE so both binary attachment paths sit
+// next to each other and stay easy to grep for.
+const DOCX_STORAGE_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Text/markdown file detection (by extension or MIME type)
 const isTextFile = (name: string, mimetype: string) =>
@@ -164,7 +171,7 @@ async function processSlackFiles(
     size: f.size,
   })));
 
-  // Separate images, PDFs, and markdown files
+  // Separate images, PDFs, markdown, and Word docs
   const imageFiles = files.filter((f) =>
     SUPPORTED_IMAGE_TYPES.includes(f.mimetype)
   );
@@ -174,21 +181,40 @@ async function processSlackFiles(
   const markdownFiles = files.filter((f) =>
     isTextFile(f.name, f.mimetype)
   );
+  const docxFiles = files.filter((f) => isDocxFile(f.name, f.mimetype));
+  // Legacy .doc — we can't parse them serverlessly. Surface a
+  // one-line hint in the model context so Mikey knows to ask the
+  // user to re-save as .docx rather than silently ignoring.
+  const legacyDocFiles = files.filter((f) => isLegacyDocMime(f.name, f.mimetype));
 
   console.log("[Slack Files] Filtered:", {
     imageCount: imageFiles.length,
     pdfCount: pdfFiles.length,
     markdownCount: markdownFiles.length,
+    docxCount: docxFiles.length,
+    legacyDocCount: legacyDocFiles.length,
     unsupportedFiles: files.filter(f =>
-      !SUPPORTED_IMAGE_TYPES.includes(f.mimetype) && !isPDFMimeType(f.mimetype) && !isTextFile(f.name, f.mimetype)
+      !SUPPORTED_IMAGE_TYPES.includes(f.mimetype) &&
+      !isPDFMimeType(f.mimetype) &&
+      !isTextFile(f.name, f.mimetype) &&
+      !isDocxFile(f.name, f.mimetype) &&
+      !isLegacyDocMime(f.name, f.mimetype)
     ).map(f => ({ name: f.name, mimetype: f.mimetype })),
   });
 
-  if (imageFiles.length === 0 && pdfFiles.length === 0 && markdownFiles.length === 0) {
+  if (
+    imageFiles.length === 0 &&
+    pdfFiles.length === 0 &&
+    markdownFiles.length === 0 &&
+    docxFiles.length === 0 &&
+    legacyDocFiles.length === 0
+  ) {
     return { descriptions, storedFiles, imageCount: 0, pdfCount: 0 };
   }
 
-  console.log(`[Slack] Processing ${imageFiles.length} image(s), ${pdfFiles.length} PDF(s), and ${markdownFiles.length} markdown file(s)`);
+  console.log(
+    `[Slack] Processing ${imageFiles.length} image(s), ${pdfFiles.length} PDF(s), ${markdownFiles.length} markdown file(s), ${docxFiles.length} Word doc(s)`
+  );
 
   // Process images through Vision API
   for (const file of imageFiles) {
@@ -279,6 +305,55 @@ async function processSlackFiles(
       console.error(`[Slack] Error processing markdown ${file.name}:`, error);
       descriptions.push(`[Markdown: ${file.name}] (Error reading file)`);
     }
+  }
+
+  // Word .docx files — parse to text via mammoth, then feed into the
+  // model context the same way markdown files do. Extracted text
+  // lives in the message context; the raw .docx blob is preserved
+  // in Supabase Storage so the user can re-download the original.
+  for (const file of docxFiles) {
+    try {
+      const fileBuffer = await downloadSlackFile(file.url_private, botToken);
+      const { text, truncated, rawCharCount, warnings } = await extractDocxText(fileBuffer);
+
+      if (!text) {
+        descriptions.push(`[Word doc: ${file.name}] (Could not extract text — file may be empty, encrypted, or corrupted.)`);
+        console.warn(`[Slack] Empty extraction from ${file.name}`);
+      } else {
+        descriptions.push(
+          `[Word doc: ${file.name}${truncated ? " (truncated)" : ""}]\n\n${text}`
+        );
+        console.log(
+          `[Slack] Processed Word doc: ${file.name} (${rawCharCount} chars${truncated ? ", truncated" : ""}${warnings.length ? `, ${warnings.length} parser warnings` : ""})`
+        );
+      }
+
+      const base64 = fileBuffer.toString("base64");
+      const dataUrl = `data:${DOCX_STORAGE_MIME};base64,${base64}`;
+      const storedRef = await uploadFile(userId, conversationId, {
+        name: file.name,
+        // Reuse the pdf storage type — supabase.ts's uploader
+        // handles pdf/text/binary the same way (blob + signed URL).
+        // A dedicated "docx" type would be cleaner but requires an
+        // uploader signature change; can revisit if we grow more
+        // formats.
+        type: "pdf",
+        data: dataUrl,
+      });
+      storedFiles.push(storedRef);
+    } catch (error) {
+      console.error(`[Slack] Error processing Word doc ${file.name}:`, error);
+      descriptions.push(`[Word doc: ${file.name}] (Error reading file — mammoth threw during extraction.)`);
+    }
+  }
+
+  // Legacy .doc — surface a one-line note so the model can nudge the
+  // user to re-save as .docx. Nothing extracted, nothing stored.
+  for (const file of legacyDocFiles) {
+    descriptions.push(
+      `[Word doc: ${file.name}] Legacy .doc format is not supported. Please save the document as .docx and re-upload.`
+    );
+    console.log(`[Slack] Skipped legacy .doc file: ${file.name}`);
   }
 
   return { descriptions, storedFiles, imageCount: imageFiles.length, pdfCount: pdfFiles.length };
