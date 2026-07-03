@@ -957,7 +957,14 @@ function CoachingHistoryContent() {
                 access to recent sessions without the full sidebar
                 taking up real estate. Mobile ignores this state. */}
             {!historyOpen && (
-              <div className="hidden md:flex flex-col flex-shrink-0 gap-2 w-16">
+              // Sticky rail: the container itself pins to the viewport
+              // top and takes the full remaining viewport height so
+              // the date list can flex-fill instead of being capped at
+              // a fragile magic offset. `top-4` matches the page's
+              // top padding; `h-[calc(100vh-2rem)]` keeps 1rem of
+              // breathing room at top + bottom so the last chip isn't
+              // flush against the viewport edge.
+              <div className="hidden md:flex flex-col flex-shrink-0 gap-2 w-16 sticky top-4 self-start h-[calc(100vh-2rem)]">
                 <button
                   onClick={() => toggleHistory(true)}
                   title="Show history"
@@ -968,7 +975,12 @@ function CoachingHistoryContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                <div className="space-y-2 max-h-[calc(100vh-240px)] overflow-y-auto pr-0.5">
+                {/* flex-1 + min-h-0 lets this list fill the rail's
+                    remaining vertical space then scroll internally
+                    when the sessions overflow. min-h-0 is required
+                    because flex items default to min-height:auto
+                    which would break the overflow. */}
+                <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-0.5">
                   {sessions
                     .filter((s) => {
                       if (s.notes === "(draft)" && s.id !== autoSavedId) return false;
