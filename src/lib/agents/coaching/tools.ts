@@ -15,9 +15,29 @@ export type { ToolContext, ToolEntry };
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-async function loadSessionForUser(userId: string, sessionId: string) {
+/**
+ * Scoping helper for coaching-tied reads (CoachingSession /
+ * CoachingGoal / CoachingTask / CoachingNextGoal). When the caller
+ * belongs to an account we scope by user.accountId so account
+ * teammates' sessions are visible in claimed Slack channels — same
+ * behavior the web /coaching-history page has. Solo users (no
+ * accountId) fall back to the per-user filter.
+ *
+ * NOTE: personal-state models (SalesMaturityStage, MaturityAssessment,
+ * CoachingMetricDefinition, GtmVariable) stay userId-scoped even when
+ * accountId is present, because each teammate has their own stage /
+ * assessment / metrics / narrative and pulling teammates' rows in
+ * a claimed channel would confuse the model.
+ */
+function coachingScope(ctx: ToolContext): { userId: string } | { user: { accountId: string } } {
+  return ctx.accountId
+    ? { user: { accountId: ctx.accountId } }
+    : { userId: ctx.userId };
+}
+
+async function loadSessionForUser(ctx: ToolContext, sessionId: string) {
   return prisma.coachingSession.findFirst({
-    where: { id: sessionId, userId },
+    where: { id: sessionId, ...coachingScope(ctx) },
   });
 }
 
@@ -61,10 +81,10 @@ const findCoachingSession: ToolEntry = {
   },
   handler: async (
     { query, startDate, endDate }: { query: string; startDate?: string; endDate?: string },
-    { userId }
+    ctx
   ) => {
     const where: Record<string, unknown> = {
-      userId,
+      ...coachingScope(ctx),
       // Filter out draft sessions — they're auto-created placeholders
       // with notes: "(draft)" and don't represent real coaching.
       NOT: { notes: "(draft)" },
@@ -146,8 +166,8 @@ const getCoachingSession: ToolEntry = {
       },
     },
   },
-  handler: async ({ sessionId }: { sessionId: string }, { userId }) => {
-    const s = await loadSessionForUser(userId, sessionId);
+  handler: async ({ sessionId }: { sessionId: string }, ctx) => {
+    const s = await loadSessionForUser(ctx, sessionId);
     if (!s) return { error: "Session not found or not accessible." };
     const [goalsCount, tasksCount] = await Promise.all([
       prisma.coachingGoal.count({ where: { sessionId } }),
@@ -199,10 +219,10 @@ const getCoachingGoalsAndTasks: ToolEntry = {
   },
   handler: async (
     { scope, sessionId }: { scope?: "session" | "active" | "all"; sessionId?: string },
-    { userId }
+    ctx
   ) => {
     const effectiveScope = scope || "active";
-    const where: Record<string, unknown> = { userId };
+    const where: Record<string, unknown> = { ...coachingScope(ctx) };
     if (effectiveScope === "session") {
       if (!sessionId) return { error: "scope='session' requires a sessionId." };
       where.sessionId = sessionId;
@@ -275,10 +295,10 @@ const getRecentCoachingActivity: ToolEntry = {
       },
     },
   },
-  handler: async ({ limit }: { limit?: number }, { userId }) => {
+  handler: async ({ limit }: { limit?: number }, ctx) => {
     const cap = Math.min(Math.max(limit ?? 4, 1), 12);
     const sessions = await prisma.coachingSession.findMany({
-      where: { userId, NOT: { notes: "(draft)" } },
+      where: { ...coachingScope(ctx), NOT: { notes: "(draft)" } },
       orderBy: { sessionDate: "desc" },
       take: cap,
       select: {
@@ -517,8 +537,8 @@ const summarizeCoachingSession: ToolEntry = {
       },
     },
   },
-  handler: async ({ sessionId }: { sessionId: string }, { userId }) => {
-    const s = await loadSessionForUser(userId, sessionId);
+  handler: async ({ sessionId }: { sessionId: string }, ctx) => {
+    const s = await loadSessionForUser(ctx, sessionId);
     if (!s) return { error: "Session not found or not accessible." };
     const goals = await prisma.coachingGoal.findMany({
       where: { sessionId },
@@ -582,10 +602,11 @@ const whereDidWeLeaveOff: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
+  handler: async (_args: Record<string, never>, ctx) => {
+    const scope = coachingScope(ctx);
     const [latestSession, activeGoals, nextGoals, maturity] = await Promise.all([
       prisma.coachingSession.findFirst({
-        where: { userId, NOT: { notes: "(draft)" } },
+        where: { ...scope, NOT: { notes: "(draft)" } },
         orderBy: { sessionDate: "desc" },
         select: {
           id: true,
@@ -597,7 +618,7 @@ const whereDidWeLeaveOff: ToolEntry = {
         },
       }),
       prisma.coachingGoal.findMany({
-        where: { userId, status: "active" },
+        where: { ...scope, status: "active" },
         orderBy: { order: "asc" },
         include: {
           tasks: {
@@ -611,15 +632,17 @@ const whereDidWeLeaveOff: ToolEntry = {
         take: 15,
       }),
       prisma.coachingNextGoal.findMany({
-        where: { userId },
+        where: scope,
         orderBy: { order: "asc" },
         include: {
           tasks: { select: { title: true }, orderBy: { order: "asc" } },
         },
         take: 12,
       }),
+      // Maturity stage stays user-scoped — each teammate has their
+      // own stage; in a claimed channel we want the channel owner's.
       prisma.salesMaturityStage.findUnique({
-        where: { userId },
+        where: { userId: ctx.userId },
         select: { currentStage: true },
       }),
     ]);
@@ -678,16 +701,17 @@ const searchCoachingHistory: ToolEntry = {
       },
     },
   },
-  handler: async ({ query }: { query: string }, { userId }) => {
+  handler: async ({ query }: { query: string }, ctx) => {
     const q = (query || "").trim();
     if (!q) return { matches: [] };
+    const scope = coachingScope(ctx);
     // Search sessions, goals, tasks in parallel. Cap results per
     // bucket so a session with the query repeated 30 times doesn't
     // drown out matches elsewhere.
     const [sessionHits, goalHits, taskHits] = await Promise.all([
       prisma.coachingSession.findMany({
         where: {
-          userId,
+          ...scope,
           NOT: { notes: "(draft)" },
           OR: [
             { title: { contains: q, mode: "insensitive" } },
@@ -706,7 +730,7 @@ const searchCoachingHistory: ToolEntry = {
       }),
       prisma.coachingGoal.findMany({
         where: {
-          userId,
+          ...scope,
           OR: [
             { title: { contains: q, mode: "insensitive" } },
             { description: { contains: q, mode: "insensitive" } },
@@ -723,7 +747,7 @@ const searchCoachingHistory: ToolEntry = {
       }),
       prisma.coachingTask.findMany({
         where: {
-          userId,
+          ...scope,
           OR: [
             { title: { contains: q, mode: "insensitive" } },
             { description: { contains: q, mode: "insensitive" } },
@@ -817,12 +841,13 @@ const getFullCoachingHistory: ToolEntry = {
   },
   handler: async (
     { includeTranscripts, sessionLimit }: { includeTranscripts?: boolean; sessionLimit?: number },
-    { userId }
+    ctx
   ) => {
     const cap = Math.min(Math.max(sessionLimit ?? 50, 1), 100);
+    const scope = coachingScope(ctx);
     const [sessions, goals, nextGoals, maturity, metricDefs] = await Promise.all([
       prisma.coachingSession.findMany({
-        where: { userId, NOT: { notes: "(draft)" } },
+        where: { ...scope, NOT: { notes: "(draft)" } },
         orderBy: { sessionDate: "desc" },
         take: cap,
         select: {
@@ -844,7 +869,7 @@ const getFullCoachingHistory: ToolEntry = {
         },
       }),
       prisma.coachingGoal.findMany({
-        where: { userId },
+        where: scope,
         orderBy: [{ status: "asc" }, { order: "asc" }, { createdAt: "asc" }],
         include: {
           tasks: {
@@ -864,16 +889,18 @@ const getFullCoachingHistory: ToolEntry = {
         },
       }),
       prisma.coachingNextGoal.findMany({
-        where: { userId },
+        where: scope,
         orderBy: { order: "asc" },
         include: { tasks: { select: { title: true, description: true }, orderBy: { order: "asc" } } },
       }),
+      // Maturity + metric definitions stay user-scoped (personal
+      // state; teammates have their own).
       prisma.salesMaturityStage.findUnique({
-        where: { userId },
+        where: { userId: ctx.userId },
         select: { currentStage: true, updatedAt: true },
       }),
       prisma.coachingMetricDefinition.findMany({
-        where: { userId, archived: false, kind: { not: "section" } },
+        where: { userId: ctx.userId, archived: false, kind: { not: "section" } },
         orderBy: { order: "asc" },
         select: { id: true, name: true, format: true },
       }),
@@ -981,10 +1008,15 @@ const addCoachingNote: ToolEntry = {
   },
   handler: async (
     { sessionId, content }: { sessionId?: string; content: string },
-    { userId }
+    ctx
   ) => {
+    const { userId } = ctx;
+    // Explicit-id path is account-scoped (a teammate's session id is
+    // valid if the caller belongs to the same account); implicit
+    // fallback stays user-scoped so "jot this down" writes to the
+    // context user's most recent live session, not some teammate's.
     let session = sessionId
-      ? await loadSessionForUser(userId, sessionId)
+      ? await loadSessionForUser(ctx, sessionId)
       : await prisma.coachingSession.findFirst({
           where: { userId, sessionStatus: { not: "locked" }, NOT: { notes: "(draft)" } },
           orderBy: { sessionDate: "desc" },

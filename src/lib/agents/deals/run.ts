@@ -117,7 +117,11 @@ export async function runDealAgent(opts: {
   userMessage: string;
   conversationHistory?: ChatCompletionMessageParam[];
 }): Promise<AgentResult> {
-  const ctx: ToolContext = { userId: opts.userId };
+  const userRow = await prisma.user.findUnique({
+    where: { id: opts.userId },
+    select: { accountId: true },
+  });
+  const ctx: ToolContext = { userId: opts.userId, accountId: userRow?.accountId ?? null };
   const trace: ToolCallTrace[] = [];
   // Load the seller's narrative + value-prop once at the top of the
   // run so every turn (including tool-result follow-ups) sees the

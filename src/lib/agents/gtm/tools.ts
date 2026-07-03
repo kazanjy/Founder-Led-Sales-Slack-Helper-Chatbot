@@ -353,7 +353,13 @@ const getFullAccountContext: ToolEntry = {
         select: { currentStage: true, updatedAt: true },
       }),
       prisma.coachingSession.findMany({
-        where: { userId, NOT: { notes: "(draft)" } },
+        // Account-scoped so teammates' coaching sessions are visible
+        // in a claimed Slack channel / super-context grab. Falls
+        // back to userId for legacy solo users with no accountId.
+        where: {
+          ...(accountId ? { user: { accountId } } : { userId }),
+          NOT: { notes: "(draft)" },
+        },
         orderBy: { sessionDate: "desc" },
         select: {
           id: true,
@@ -373,7 +379,7 @@ const getFullAccountContext: ToolEntry = {
         },
       }),
       prisma.coachingGoal.findMany({
-        where: { userId },
+        where: accountId ? { user: { accountId } } : { userId },
         orderBy: [{ status: "asc" }, { order: "asc" }, { createdAt: "asc" }],
         include: {
           tasks: {
@@ -392,7 +398,7 @@ const getFullAccountContext: ToolEntry = {
         },
       }),
       prisma.coachingNextGoal.findMany({
-        where: { userId },
+        where: accountId ? { user: { accountId } } : { userId },
         orderBy: { order: "asc" },
         include: { tasks: { select: { title: true, description: true }, orderBy: { order: "asc" } } },
       }),

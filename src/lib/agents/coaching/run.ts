@@ -107,7 +107,11 @@ export async function runCoachingAgent(opts: {
   userMessage: string;
   conversationHistory?: ChatCompletionMessageParam[];
 }): Promise<AgentResult> {
-  const ctx: ToolContext = { userId: opts.userId };
+  const userRow = await prisma.user.findUnique({
+    where: { id: opts.userId },
+    select: { accountId: true },
+  });
+  const ctx: ToolContext = { userId: opts.userId, accountId: userRow?.accountId ?? null };
   const trace: ToolCallTrace[] = [];
   const seller = await loadSellerContext(opts.userId);
   const systemPrompt = buildSystemPrompt(seller);
