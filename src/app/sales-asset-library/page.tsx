@@ -724,7 +724,7 @@ export default function SalesAssetLibraryPage() {
                                 onClick={() => openEditModal(asset)}
                                 className="w-full mt-1 px-3 py-2 text-sm text-purple-600 border border-dashed border-purple-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors"
                               >
-                                + Add URL
+                                + Add URL or Upload File
                               </button>
                             )}
                           </>
@@ -945,7 +945,9 @@ export default function SalesAssetLibraryPage() {
               </div>
               <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-2">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider font-medium">
-                  {editingAsset.currentUrl ? "Update URL (optional — creates a new version)" : "Add URL"}
+                  {editingAsset.currentUrl
+                    ? "Update — link a URL or upload a file (creates a new version)"
+                    : "Add — link a URL or upload a file"}
                 </p>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">URL</label>
                 <input
