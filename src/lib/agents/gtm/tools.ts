@@ -295,6 +295,121 @@ const searchFounderLedSalesPlaybook: ToolEntry = {
   },
 };
 
+// ── Collateral library search ─────────────────────────────────────
+
+const searchCollateral: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "searchCollateral",
+      description:
+        "Search the account's Collateral Library — the founder's uploaded sales assets (PDFs, docs, one-pagers, case studies, order forms, contracts, etc.). Each asset has extracted text the agent can read. Use for 'what does our order form say', 'find the case study about X', 'pull the pricing terms from the MSA', or anything that references a specific document the founder has uploaded. Returns matching assets with title + category + extracted-text snippet + a public URL to the file. Prefer this over the playbook RAG when the user is asking about THEIR OWN uploaded material.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The user's search phrase — matched against asset name, description, and extracted text (case-insensitive).",
+          },
+          limit: {
+            type: "number",
+            description: "Max matches to return. Default 5, max 20.",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  handler: async (
+    { query, limit }: { query: string; limit?: number },
+    ctx: ToolContext
+  ) => {
+    const q = (query || "").trim();
+    if (!q) return { matches: [] };
+    const user = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { accountId: true },
+    });
+    const accountId = user?.accountId ?? null;
+    if (!accountId) return { matches: [], note: "No account — collateral library is per-account." };
+
+    const cap = Math.min(Math.max(limit ?? 5, 1), 20);
+
+    // Assets whose name/description/current-version extracted text
+    // contains the query. Scoped to the caller's account. Postgres
+    // ILIKE via Prisma's `mode: "insensitive"` — no FTS index yet;
+    // fine at founder-scale (dozens of assets, not thousands).
+    const assets = await prisma.salesAsset.findMany({
+      where: {
+        accountId,
+        archived: false,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+          {
+            versions: {
+              some: { extractedText: { contains: q, mode: "insensitive" } },
+            },
+          },
+        ],
+      },
+      take: cap,
+      orderBy: { order: "asc" },
+      include: {
+        versions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            url: true,
+            label: true,
+            notes: true,
+            extractedText: true,
+            pageCount: true,
+            fileMimeType: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    const snippet = (text: string | null | undefined): string => {
+      if (!text) return "";
+      const lc = text.toLowerCase();
+      const idx = lc.indexOf(q.toLowerCase());
+      if (idx < 0) return text.substring(0, 400);
+      const start = Math.max(0, idx - 120);
+      const end = Math.min(text.length, idx + q.length + 300);
+      return (start > 0 ? "…" : "") + text.substring(start, end) + (end < text.length ? "…" : "");
+    };
+
+    return {
+      matches: assets.map((a) => {
+        const v = a.versions[0] || null;
+        return {
+          assetId: a.id,
+          name: a.name,
+          category: a.category,
+          description: a.description,
+          currentVersion: v
+            ? {
+                versionId: v.id,
+                label: v.label,
+                notes: v.notes,
+                url: v.url,
+                pageCount: v.pageCount,
+                mimeType: v.fileMimeType,
+                createdAt: v.createdAt.toISOString(),
+                snippet: snippet(v.extractedText),
+                hasExtractedText: !!v.extractedText,
+              }
+            : null,
+        };
+      }),
+    };
+  },
+};
+
 // ── Fat-context tool — load everything, let the model synthesize ──
 
 const getFullAccountContext: ToolEntry = {
@@ -338,6 +453,7 @@ const getFullAccountContext: ToolEntry = {
       nextGoals,
       readinessAccountItems,
       metricDefs,
+      collateralAssets,
     ] = await Promise.all([
       loadGtmVariable(userId, "SALES_NARRATIVE"),
       loadGtmVariable(userId, "VALUE_PROP_100W"),
@@ -429,6 +545,36 @@ const getFullAccountContext: ToolEntry = {
         orderBy: { order: "asc" },
         select: { id: true, name: true, format: true },
       }),
+      // Collateral library assets (account-scoped). Only title +
+      // description + category + a preview of the current version's
+      // extracted text land in the super-context. Full text lives
+      // behind searchCollateral / getCollateralContent — dumping every
+      // asset's full text here would blow up the payload.
+      accountId
+        ? prisma.salesAsset.findMany({
+            where: { accountId, archived: false },
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              category: true,
+              slotKey: true,
+              currentUrl: true,
+              versions: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  label: true,
+                  extractedText: true,
+                  pageCount: true,
+                  fileMimeType: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     // Assessment Q&A — grouped by category, only loaded if there's an
@@ -597,6 +743,39 @@ const getFullAccountContext: ToolEntry = {
         })),
       },
       metrics,
+      // Collateral library index. First ~500 chars of extracted text
+      // per asset (preview only — full text stays behind
+      // searchCollateral). Gives the agent enough context to know
+      // WHICH document to reach for without ballooning the payload.
+      collateral: {
+        assetCount: collateralAssets.length,
+        assets: collateralAssets.map((a) => {
+          const v = a.versions[0] || null;
+          const preview =
+            v && v.extractedText
+              ? v.extractedText.substring(0, 500) +
+                (v.extractedText.length > 500 ? "…" : "")
+              : null;
+          return {
+            assetId: a.id,
+            name: a.name,
+            category: a.category,
+            slotKey: a.slotKey,
+            description: a.description,
+            currentUrl: a.currentUrl,
+            currentVersion: v
+              ? {
+                  versionId: v.id,
+                  label: v.label,
+                  pageCount: v.pageCount,
+                  mimeType: v.fileMimeType,
+                  extractedTextPreview: preview,
+                  hasExtractedText: !!v.extractedText,
+                }
+              : null,
+          };
+        }),
+      },
     };
   },
 };
@@ -637,6 +816,8 @@ export const GTM_TOOLS: Record<string, ToolEntry> = {
   getColdCallScripts,
   getObjectionLibrary,
   getSalesDeck,
+  // Collateral library — uploaded PDFs / docs with extracted text.
+  searchCollateral,
   // Shared handlers reused from the coaching agent (one
   // implementation per concept; we just point at it here)
   getMaturityStage: COACHING_TOOLS.getMaturityStage,

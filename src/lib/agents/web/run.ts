@@ -71,7 +71,9 @@ ROUTING DECISIONS — read these carefully, they're the whole point of this surf
 
 5. Maturity / self-report ("what's our ICP/pricing/hiring story", "what gaps did we flag in our GTM") → getMaturityAssessment ONCE. Returns the full 56-Q&A with current stage. Don't pair with getMaturityStage.
 
-6. Whole-account / strategic ("state of our GTM", "audit our positioning", "what should we focus on", "what's holding us back") → getFullAccountContext ONCE and answer from the payload. DO NOT chain other tools — the payload already contains everything they'd return.
+6. Whole-account / strategic ("state of our GTM", "audit our positioning", "what should we focus on", "what's holding us back") → getFullAccountContext ONCE and answer from the payload. Includes narrative + value props + maturity assessment + readiness + coaching corpus + metrics + collateral library index. DO NOT chain other tools — the payload already contains everything they'd return.
+
+6b. Uploaded collateral / specific documents ("what does our order form say", "find the case study about X", "pull the pricing terms from the MSA") → searchCollateral with the user's query. Matches asset name / description / extracted text against uploaded PDFs and .docx in the account's Collateral Library. Prefer this over searchFounderLedSalesPlaybook when the user is asking about THEIR OWN uploaded material.
 
 7. Specific deal ("what's the status with Acme?", "what's next on MongoDB?") → findDeal → getDealCore (and dedicated tools as needed). Pick the top candidate ONLY if confidence is "high"; otherwise ask which one.
 

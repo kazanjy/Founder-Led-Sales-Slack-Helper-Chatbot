@@ -2447,6 +2447,19 @@ model SalesAssetVersion {
   label String?
   notes String? @db.Text
 
+  // Uploaded-file support: when a version is a PDF/DOCX uploaded via
+  // the collateral library (vs. a plain external URL), the raw blob
+  // is stored in Supabase Storage at fileStoragePath and its parsed
+  // text lives in extractedText. All nullable so URL-only versions
+  // stay valid.
+  fileStoragePath   String?
+  fileMimeType      String?
+  fileBytes         Int?
+  extractedText     String?   @db.Text
+  extractTextStatus String? // "pending" | "done" | "failed" | "ocr_needed"
+  pageCount         Int?
+  extractedAt       DateTime?
+
   createdByUserId String?
   createdByUser   User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 

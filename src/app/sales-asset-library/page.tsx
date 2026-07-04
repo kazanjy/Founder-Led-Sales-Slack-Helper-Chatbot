@@ -64,6 +64,8 @@ export default function SalesAssetLibraryPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editUploadFile, setEditUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
@@ -299,11 +301,14 @@ export default function SalesAssetLibraryPage() {
     setEditUrl(asset.currentUrl || "");
     setEditLabel("");
     setEditNotes("");
+    setEditUploadFile(null);
+    setUploadError(null);
   };
 
   const saveVersion = async () => {
     if (!editingAsset) return;
     setSaving(true);
+    setUploadError(null);
     try {
       // 1) Update name/description if changed
       const nameChanged = editName.trim() !== editingAsset.name;
@@ -319,24 +324,49 @@ export default function SalesAssetLibraryPage() {
         });
       }
 
-      // 2) Create a new version if URL changed (or it's a new URL)
-      const urlChanged = editUrl.trim() !== (editingAsset.currentUrl || "");
-      if (editUrl.trim() && urlChanged) {
-        await fetch(`/api/sales-asset-library/${editingAsset.id}/versions`, {
+      // 2a) If a file was picked, POST to the upload endpoint. This
+      //     stores the blob in Supabase, extracts text (for the
+      //     agent's searchCollateral / getFullAccountContext), and
+      //     creates the version row with the signed URL as its
+      //     `url` field.
+      if (editUploadFile) {
+        const fd = new FormData();
+        fd.append("file", editUploadFile);
+        if (editLabel.trim()) fd.append("label", editLabel.trim());
+        if (editNotes.trim()) fd.append("notes", editNotes.trim());
+        const res = await fetch(`/api/sales-asset-library/${editingAsset.id}/versions/upload`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: editUrl.trim(),
-            label: editLabel.trim() || undefined,
-            notes: editNotes.trim() || undefined,
-          }),
+          body: fd,
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setUploadError(data.error || `Upload failed: ${res.status}`);
+          setSaving(false);
+          return;
+        }
+      } else {
+        // 2b) URL-only branch — legacy path. Only fires if no file
+        //     was uploaded AND the URL actually changed.
+        const urlChanged = editUrl.trim() !== (editingAsset.currentUrl || "");
+        if (editUrl.trim() && urlChanged) {
+          await fetch(`/api/sales-asset-library/${editingAsset.id}/versions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: editUrl.trim(),
+              label: editLabel.trim() || undefined,
+              notes: editNotes.trim() || undefined,
+            }),
+          });
+        }
       }
 
       setEditingAsset(null);
+      setEditUploadFile(null);
       await loadAssets();
     } catch (error) {
       console.error("Failed to save:", error);
+      setUploadError(error instanceof Error ? error.message : "Save failed");
     }
     setSaving(false);
   };
@@ -926,6 +956,45 @@ export default function SalesAssetLibraryPage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
+                {/* File upload alternative — PDF / DOCX. When a file
+                    is picked, the URL field is ignored and the
+                    upload endpoint handles storage + text extraction
+                    so Mikey can interrogate the doc later. */}
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    Or upload a file <span className="text-gray-400 font-normal">(PDF or .docx — text is extracted so the agent can search it)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setEditUploadFile(file);
+                        setUploadError(null);
+                      }}
+                      className="text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:px-3 file:py-1.5 file:rounded file:border-0 file:bg-purple-50 file:text-purple-700 file:text-xs file:font-medium hover:file:bg-purple-100"
+                    />
+                    {editUploadFile && (
+                      <button
+                        type="button"
+                        onClick={() => setEditUploadFile(null)}
+                        className="text-xs text-gray-500 hover:text-red-600"
+                        title="Clear selection"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {editUploadFile && (
+                    <p className="mt-1 text-xs text-purple-600 dark:text-purple-300">
+                      Selected: {editUploadFile.name} ({Math.round(editUploadFile.size / 1024)}KB) — will replace URL on save.
+                    </p>
+                  )}
+                  {uploadError && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
