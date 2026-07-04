@@ -66,6 +66,8 @@ export default function SalesAssetLibraryPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editUploadFile, setEditUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [modalDragOver, setModalDragOver] = useState(false);
+  const [dragOverAssetIdForFile, setDragOverAssetIdForFile] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
@@ -279,6 +281,55 @@ export default function SalesAssetLibraryPage() {
     const next = [...sectionOrder];
     [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
     saveSectionOrder(next);
+  };
+
+  // True when a DataTransfer carries a real filesystem drag — used to
+  // route the existing card-reorder drag handlers OFF and the file-
+  // upload path ON when the user drags a PDF/DOCX in from their OS.
+  const isFileDrag = (dt: DataTransfer): boolean =>
+    Array.from(dt.types || []).includes("Files");
+
+  const DOCX_MIME_ANY = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const isUploadableFile = (f: File): boolean => {
+    const lc = f.name.toLowerCase();
+    return (
+      f.type === "application/pdf" ||
+      f.type === DOCX_MIME_ANY ||
+      lc.endsWith(".pdf") ||
+      lc.endsWith(".docx")
+    );
+  };
+
+  // Direct-drop path for the library cards. Skips the modal — uploads
+  // the file straight to the target asset via the multipart endpoint,
+  // then reloads. Users who want to add a label / notes can still
+  // click into the modal.
+  const uploadFileToAsset = async (assetId: string, file: File) => {
+    if (!isUploadableFile(file)) {
+      setUploadError(`Unsupported file type. Only .pdf and .docx are accepted.`);
+      return;
+    }
+    setSaving(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/sales-asset-library/${assetId}/versions/upload`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setUploadError(data.error || `Upload failed: ${res.status}`);
+        return;
+      }
+      await loadAssets();
+    } catch (error) {
+      console.error("Direct-drop upload failed:", error);
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSectionDrop = (targetKey: string) => {
@@ -535,11 +586,21 @@ export default function SalesAssetLibraryPage() {
                 onDragStart={(e) => { setDragSectionKey(category); e.dataTransfer.effectAllowed = "move"; }}
                 onDragEnd={() => { setDragSectionKey(null); setDragOverSectionKey(null); }}
                 onDragOver={(e) => {
+                  // File drags: preventDefault so the browser doesn't
+                  // navigate to the dropped file when it lands on the
+                  // section container instead of a specific card.
+                  // Actual upload routing happens on the card
+                  // handlers below.
+                  if (isFileDrag(e.dataTransfer)) { e.preventDefault(); return; }
                   if (dragSectionKey && dragSectionKey !== category && !dragAssetId) { e.preventDefault(); setDragOverSectionKey(category); }
                   if (dragAssetId) { e.preventDefault(); }
                 }}
                 onDragLeave={() => setDragOverSectionKey(null)}
-                onDrop={() => {
+                onDrop={(e) => {
+                  // If a file drop bubbles up here without being
+                  // caught by a card, swallow it — better than
+                  // letting the browser open the file directly.
+                  if (isFileDrag(e.dataTransfer)) { e.preventDefault(); return; }
                   if (dragSectionKey) handleSectionDrop(category);
                   if (dragAssetId) handleAssetDropOnSection(category);
                 }}
@@ -586,13 +647,49 @@ export default function SalesAssetLibraryPage() {
                         draggable
                         onDragStart={(e) => { e.stopPropagation(); setDragAssetId(asset.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragEnd={() => { setDragAssetId(null); setDragOverAssetId(null); }}
-                        onDragOver={(e) => { if (dragAssetId && dragAssetId !== asset.id) { e.preventDefault(); e.stopPropagation(); setDragOverAssetId(asset.id); } }}
-                        onDragLeave={(e) => { e.stopPropagation(); setDragOverAssetId(null); }}
-                        onDrop={(e) => { e.stopPropagation(); handleAssetDrop(asset.id, category); }}
+                        onDragOver={(e) => {
+                          // Route between two drag modes:
+                          //   1) File drag from OS → become an upload dropzone
+                          //   2) Reorder drag from another card → existing behavior
+                          if (isFileDrag(e.dataTransfer)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.dataTransfer.dropEffect = "copy";
+                            setDragOverAssetIdForFile(asset.id);
+                            return;
+                          }
+                          if (dragAssetId && dragAssetId !== asset.id) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDragOverAssetId(asset.id);
+                          }
+                        }}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                          setDragOverAssetId(null);
+                          setDragOverAssetIdForFile((cur) => (cur === asset.id ? null : cur));
+                        }}
+                        onDrop={(e) => {
+                          e.stopPropagation();
+                          if (isFileDrag(e.dataTransfer)) {
+                            e.preventDefault();
+                            setDragOverAssetIdForFile(null);
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) void uploadFileToAsset(asset.id, file);
+                            return;
+                          }
+                          handleAssetDrop(asset.id, category);
+                        }}
                         id={`asset-${asset.slotKey || asset.id}`}
                         className={`bg-white dark:bg-gray-800 border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
                           dragAssetId === asset.id ? "opacity-40" : ""
-                        } ${dragOverAssetId === asset.id ? "border-purple-400 shadow-md" : "border-gray-200 dark:border-gray-700"}`}
+                        } ${
+                          dragOverAssetIdForFile === asset.id
+                            ? "border-purple-500 border-dashed border-2 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                            : dragOverAssetId === asset.id
+                              ? "border-purple-400 shadow-md"
+                              : "border-gray-200 dark:border-gray-700"
+                        }`}
                       >
                         {editingMetaId === asset.id ? (
                           <div className="space-y-2">
@@ -958,13 +1055,40 @@ export default function SalesAssetLibraryPage() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                   autoFocus
                 />
-                {/* File upload alternative — PDF / DOCX. When a file
-                    is picked, the URL field is ignored and the
-                    upload endpoint handles storage + text extraction
-                    so Mikey can interrogate the doc later. */}
-                <div className="mt-3">
+                {/* File upload alternative — PDF / DOCX. Accepts
+                    either a click-to-pick file OR a drag-and-drop
+                    from the OS. Drop-zone styling activates while a
+                    file is being dragged over. On save, if a file
+                    is set, the URL branch is skipped and the multipart
+                    upload endpoint handles storage + text extraction. */}
+                <div
+                  className={`mt-3 rounded-lg border-2 border-dashed p-3 transition-colors ${
+                    modalDragOver
+                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                      : "border-gray-300 dark:border-gray-700"
+                  }`}
+                  onDragOver={(e) => {
+                    if (!isFileDrag(e.dataTransfer)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                    setModalDragOver(true);
+                  }}
+                  onDragLeave={() => setModalDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setModalDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (!file) return;
+                    if (!isUploadableFile(file)) {
+                      setUploadError("Unsupported file type. Only .pdf and .docx are accepted.");
+                      return;
+                    }
+                    setEditUploadFile(file);
+                    setUploadError(null);
+                  }}
+                >
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                    Or upload a file <span className="text-gray-400 font-normal">(PDF or .docx — text is extracted so the agent can search it)</span>
+                    Or upload a file <span className="text-gray-400 font-normal">(drag & drop, or click — PDF / .docx, text is extracted so the agent can search it)</span>
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -991,6 +1115,11 @@ export default function SalesAssetLibraryPage() {
                   {editUploadFile && (
                     <p className="mt-1 text-xs text-purple-600 dark:text-purple-300">
                       Selected: {editUploadFile.name} ({Math.round(editUploadFile.size / 1024)}KB) — will replace URL on save.
+                    </p>
+                  )}
+                  {modalDragOver && !editUploadFile && (
+                    <p className="mt-1 text-xs text-purple-600 dark:text-purple-300">
+                      Drop file to upload…
                     </p>
                   )}
                   {uploadError && (
