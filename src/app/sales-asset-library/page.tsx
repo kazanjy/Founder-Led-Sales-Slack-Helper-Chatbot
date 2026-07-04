@@ -582,6 +582,72 @@ export default function SalesAssetLibraryPage() {
           </div>
         ) : (
           <>
+            {/* Add Custom Asset — moved to the top of the library so
+                the primary "create new thing" affordance is visible
+                without scrolling past every existing section. */}
+            <div className="mb-6">
+              {showAddCustom ? (
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Custom Asset</h3>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      placeholder="Asset name (e.g., Security Questionnaire)"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                      autoFocus
+                    />
+                    <input
+                      type="url"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="URL (optional — paste link now or add later)"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                      type="text"
+                      value={customDescription}
+                      onChange={(e) => setCustomDescription(e.target.value)}
+                      placeholder="Description (optional)"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    />
+                    <select
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    >
+                      {[...CATEGORY_ORDER, ...customCategories].map((cat) => (
+                        <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => addCustomAsset()}
+                        disabled={!customName.trim() || addingCustom}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        {addingCustom ? "Adding..." : "Add Asset"}
+                      </button>
+                      <button
+                        onClick={() => setShowAddCustom(false)}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddCustom(true)}
+                  className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
+                >
+                  + Add Custom Asset
+                </button>
+              )}
+            </div>
+
             {sectionOrder.filter((cat) => grouped[cat]?.length).map((category) => {
               const categoryLabel = CATEGORY_LABELS[category] || category;
               return (
@@ -913,67 +979,6 @@ export default function SalesAssetLibraryPage() {
             })}
 
             <div className="mt-8">
-              {showAddCustom ? (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Add Custom Asset</h3>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder="Asset name (e.g., Security Questionnaire)"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                      autoFocus
-                    />
-                    <input
-                      type="url"
-                      value={customUrl}
-                      onChange={(e) => setCustomUrl(e.target.value)}
-                      placeholder="URL (optional — paste link now or add later)"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                    />
-                    <input
-                      type="text"
-                      value={customDescription}
-                      onChange={(e) => setCustomDescription(e.target.value)}
-                      placeholder="Description (optional)"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                    />
-                    <select
-                      value={customCategory}
-                      onChange={(e) => setCustomCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                    >
-                      {[...CATEGORY_ORDER, ...customCategories].map((cat) => (
-                        <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => addCustomAsset()}
-                        disabled={!customName.trim() || addingCustom}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-                      >
-                        {addingCustom ? "Adding..." : "Add Asset"}
-                      </button>
-                      <button
-                        onClick={() => setShowAddCustom(false)}
-                        className="px-4 py-2 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAddCustom(true)}
-                  className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
-                >
-                  + Add Custom Asset
-                </button>
-              )}
-
               {showAddSection ? (
                 <div className="mt-3 flex items-center gap-2">
                   <input
