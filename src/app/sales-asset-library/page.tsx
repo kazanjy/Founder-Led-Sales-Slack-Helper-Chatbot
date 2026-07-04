@@ -68,6 +68,11 @@ export default function SalesAssetLibraryPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [modalDragOver, setModalDragOver] = useState(false);
   const [dragOverAssetIdForFile, setDragOverAssetIdForFile] = useState<string | null>(null);
+  // Per-card upload state so each card can show its own "Uploading…"
+  // spinner without conflating with the page-wide `saving` used by
+  // the modal save flow.
+  const [uploadingAssetId, setUploadingAssetId] = useState<string | null>(null);
+  const [uploadingAssetName, setUploadingAssetName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
@@ -309,7 +314,8 @@ export default function SalesAssetLibraryPage() {
       setUploadError(`Unsupported file type. Only .pdf and .docx are accepted.`);
       return;
     }
-    setSaving(true);
+    setUploadingAssetId(assetId);
+    setUploadingAssetName(file.name);
     setUploadError(null);
     try {
       const fd = new FormData();
@@ -328,7 +334,8 @@ export default function SalesAssetLibraryPage() {
       console.error("Direct-drop upload failed:", error);
       setUploadError(error instanceof Error ? error.message : "Upload failed");
     } finally {
-      setSaving(false);
+      setUploadingAssetId(null);
+      setUploadingAssetName(null);
     }
   };
 
@@ -681,16 +688,36 @@ export default function SalesAssetLibraryPage() {
                           handleAssetDrop(asset.id, category);
                         }}
                         id={`asset-${asset.slotKey || asset.id}`}
-                        className={`bg-white dark:bg-gray-800 border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
+                        className={`relative bg-white dark:bg-gray-800 border rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all group scroll-mt-24 ${
                           dragAssetId === asset.id ? "opacity-40" : ""
                         } ${
-                          dragOverAssetIdForFile === asset.id
-                            ? "border-purple-500 border-dashed border-2 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                            : dragOverAssetId === asset.id
-                              ? "border-purple-400 shadow-md"
-                              : "border-gray-200 dark:border-gray-700"
+                          uploadingAssetId === asset.id
+                            ? "border-purple-500 border-2 shadow-md"
+                            : dragOverAssetIdForFile === asset.id
+                              ? "border-purple-500 border-dashed border-2 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                              : dragOverAssetId === asset.id
+                                ? "border-purple-400 shadow-md"
+                                : "border-gray-200 dark:border-gray-700"
                         }`}
                       >
+                        {/* Per-card uploading overlay — surfaces during
+                            the direct-drop path (dragging a file onto
+                            a card outside the modal). Skips render
+                            when the card isn't the active upload
+                            target. */}
+                        {uploadingAssetId === asset.id && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/85 dark:bg-gray-800/85 backdrop-blur-sm">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 text-white text-sm font-medium shadow-sm">
+                              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                              </svg>
+                              <span>
+                                Uploading{uploadingAssetName ? ` ${uploadingAssetName}` : ""}…
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         {editingMetaId === asset.id ? (
                           <div className="space-y-2">
                             <input
