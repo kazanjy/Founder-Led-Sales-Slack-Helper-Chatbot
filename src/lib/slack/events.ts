@@ -1,3 +1,4 @@
+import type { WebClient } from "@slack/web-api";
 import { prisma } from "@/lib/db";
 import { getSlackClient, sendSlackMessage, getThreadMessages } from "./client";
 import { sendToChatbase } from "@/lib/chatbase/client";
@@ -158,7 +159,12 @@ async function processSlackFiles(
   files: SlackFile[],
   botToken: string,
   userId: string,
-  conversationId: string
+  // Nullable: when null, we extract text only and skip blob storage.
+  // The pre-router file-context step passes null (no conversation
+  // exists yet, and the agents only need the extracted TEXT). The
+  // legacy Chatbase path passes a real conversation id so the raw
+  // blob is preserved for the web-app view.
+  conversationId: string | null
 ): Promise<{ descriptions: string[]; storedFiles: StoredFileReference[]; imageCount: number; pdfCount: number }> {
   const descriptions: string[] = [];
   const storedFiles: StoredFileReference[] = [];
@@ -231,15 +237,18 @@ async function processSlackFiles(
       const description = await processImageThroughVision(dataUrl, file.name);
       descriptions.push(`[Image: ${file.name}]\n${description}`);
 
-      // Upload to Supabase storage
-      const storedRef = await uploadFile(userId, conversationId, {
-        name: file.name,
-        type: "image",
-        data: dataUrl,
-      });
-      storedFiles.push(storedRef);
+      // Upload to Supabase storage (only when a conversation exists —
+      // the pre-router extraction step passes conversationId=null).
+      if (conversationId) {
+        const storedRef = await uploadFile(userId, conversationId, {
+          name: file.name,
+          type: "image",
+          data: dataUrl,
+        });
+        storedFiles.push(storedRef);
+      }
 
-      console.log(`[Slack] Processed and stored image: ${file.name}`);
+      console.log(`[Slack] Processed image: ${file.name}${conversationId ? " (stored)" : ""}`);
     } catch (error) {
       console.error(`[Slack] Error processing image ${file.name}:`, error);
       descriptions.push(`[Image: ${file.name}] (Error processing image)`);
@@ -260,17 +269,20 @@ async function processSlackFiles(
       console.log(`[Slack PDF] Extracted ${pdfResult.fullText.length} chars from ${file.name}${ocrNote} (${pdfResult.totalPages} pages), formatted to ${formattedContent.length} chars`);
       descriptions.push(formattedContent);
 
-      // Store PDF in Supabase (as base64)
-      const base64 = fileBuffer.toString("base64");
-      const dataUrl = `data:application/pdf;base64,${base64}`;
-      const storedRef = await uploadFile(userId, conversationId, {
-        name: file.name,
-        type: "pdf",
-        data: dataUrl,
-      });
-      storedFiles.push(storedRef);
+      // Store PDF in Supabase (as base64) — only when a conversation
+      // exists (pre-router extraction passes conversationId=null).
+      if (conversationId) {
+        const base64 = fileBuffer.toString("base64");
+        const dataUrl = `data:application/pdf;base64,${base64}`;
+        const storedRef = await uploadFile(userId, conversationId, {
+          name: file.name,
+          type: "pdf",
+          data: dataUrl,
+        });
+        storedFiles.push(storedRef);
+      }
 
-      console.log(`[Slack] Processed and stored PDF: ${file.name} (${pdfResult.totalPages} pages${ocrNote})`);
+      console.log(`[Slack] Processed PDF: ${file.name} (${pdfResult.totalPages} pages${ocrNote})${conversationId ? " (stored)" : ""}`);
     } catch (error) {
       console.error(`[Slack] Error processing PDF ${file.name}:`, error);
       descriptions.push(`[PDF: ${file.name}] (Error processing PDF)`);
@@ -290,15 +302,17 @@ async function processSlackFiles(
 
       descriptions.push(`[Markdown: ${file.name}${truncated ? " (truncated)" : ""}]\n\n${content}`);
 
-      // Store in Supabase
-      const base64 = fileBuffer.toString("base64");
-      const dataUrl = `data:text/markdown;base64,${base64}`;
-      const storedRef = await uploadFile(userId, conversationId, {
-        name: file.name,
-        type: "pdf", // reuse pdf type for text files in storage
-        data: dataUrl,
-      });
-      storedFiles.push(storedRef);
+      // Store in Supabase — only when a conversation exists.
+      if (conversationId) {
+        const base64 = fileBuffer.toString("base64");
+        const dataUrl = `data:text/markdown;base64,${base64}`;
+        const storedRef = await uploadFile(userId, conversationId, {
+          name: file.name,
+          type: "pdf", // reuse pdf type for text files in storage
+          data: dataUrl,
+        });
+        storedFiles.push(storedRef);
+      }
 
       console.log(`[Slack] Processed markdown file: ${file.name} (${textContent.length} chars${truncated ? ", truncated" : ""})`);
     } catch (error) {
@@ -338,19 +352,22 @@ async function processSlackFiles(
         );
       }
 
-      const base64 = fileBuffer.toString("base64");
-      const dataUrl = `data:${DOCX_STORAGE_MIME};base64,${base64}`;
-      const storedRef = await uploadFile(userId, conversationId, {
-        name: file.name,
-        // Reuse the pdf storage type — supabase.ts's uploader
-        // handles pdf/text/binary the same way (blob + signed URL).
-        // A dedicated "docx" type would be cleaner but requires an
-        // uploader signature change; can revisit if we grow more
-        // formats.
-        type: "pdf",
-        data: dataUrl,
-      });
-      storedFiles.push(storedRef);
+      // Store the raw .docx blob — only when a conversation exists.
+      if (conversationId) {
+        const base64 = fileBuffer.toString("base64");
+        const dataUrl = `data:${DOCX_STORAGE_MIME};base64,${base64}`;
+        const storedRef = await uploadFile(userId, conversationId, {
+          name: file.name,
+          // Reuse the pdf storage type — supabase.ts's uploader
+          // handles pdf/text/binary the same way (blob + signed URL).
+          // A dedicated "docx" type would be cleaner but requires an
+          // uploader signature change; can revisit if we grow more
+          // formats.
+          type: "pdf",
+          data: dataUrl,
+        });
+        storedFiles.push(storedRef);
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error(
@@ -380,6 +397,48 @@ async function processSlackFiles(
   }
 
   return { descriptions, storedFiles, imageCount: imageFiles.length, pdfCount: pdfFiles.length };
+}
+
+/**
+ * Pre-router file extraction. Runs BEFORE the deal/coaching/GTM
+ * cascade so attached file text can be folded into agent routing +
+ * context. Extracts text only (conversationId=null → no blob
+ * storage; the agents need the text, not the stored file). Sends a
+ * brief "processing" ack when files are present since OCR/Vision can
+ * take several seconds. Returns "" when there are no files or
+ * extraction yields nothing.
+ */
+async function extractFileContextForAgents(
+  files: SlackFile[],
+  botToken: string,
+  userId: string,
+  client: WebClient,
+  channel: string,
+  threadTs: string
+): Promise<string> {
+  if (files.length === 0) return "";
+
+  // Acknowledge receipt — extraction can take 10-30s for scanned PDFs.
+  const imageCount = files.filter((f) => SUPPORTED_IMAGE_TYPES.includes(f.mimetype)).length;
+  const pdfCount = files.filter((f) => isPDFMimeType(f.mimetype)).length;
+  const otherCount = files.length - imageCount - pdfCount;
+  const parts: string[] = [];
+  if (imageCount > 0) parts.push(`${imageCount} image${imageCount > 1 ? "s" : ""}`);
+  if (pdfCount > 0) parts.push(`${pdfCount} PDF${pdfCount > 1 ? "s" : ""}`);
+  if (otherCount > 0) parts.push(`${otherCount} file${otherCount > 1 ? "s" : ""}`);
+  if (parts.length > 0) {
+    await sendSlackMessage(client, channel, `📎 Reading ${parts.join(" and ")}…`, threadTs).catch(
+      (e) => console.error("[slack] file-ack send failed:", e)
+    );
+  }
+
+  try {
+    const { descriptions } = await processSlackFiles(files, botToken, userId, null);
+    return descriptions.join("\n\n").trim();
+  } catch (err) {
+    console.error("[slack] extractFileContextForAgents failed:", err);
+    return "";
+  }
 }
 
 /**
@@ -725,15 +784,31 @@ async function handleMention(
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
-  // Deal-agent auto-route: if the message clearly references one of
-  // the user's deals (substring match on deal name / company name),
-  // hand it to the tool-using agent instead of Chatbase. Falls
-  // through silently if no match — Chatbase still handles everything
-  // else. See lib/slack/deal-agent-router.ts.
-  if (text) {
+  // File-context pre-step: extract text from any attached files ONCE,
+  // up front, so it can flow into the agent router cascade. Before
+  // A1, file messages skipped all three agents (GTM bailed on
+  // hasFiles) and fell to legacy Chatbase with no deal/coaching
+  // tools. Now the extracted text is folded into detection + the
+  // agent message so "here's the contract [pdf] — how does this
+  // affect the Acme deal?" answers with full deal context.
+  // conversationId=null → extract text only, no blob storage.
+  const fileContext = await extractFileContextForAgents(
+    files && files.length > 0 ? files : [],
+    workspace.botToken,
+    dbUser.id,
+    client,
+    channel,
+    threadTs
+  );
+
+  // Deal-agent auto-route: if the message (or attached file text)
+  // clearly references one of the user's deals, hand it to the
+  // tool-using agent. Falls through silently if no match.
+  if (text || fileContext) {
     const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
-      text,
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,
@@ -748,7 +823,8 @@ async function handleMention(
     // word "deal" should still go to the deal agent).
     const handledByCoachingAgent = await tryHandleWithCoachingAgent({
       speakerUserId: dbUser.id,
-      text,
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,
@@ -759,15 +835,13 @@ async function handleMention(
     if (handledByCoachingAgent) return;
     // Then the GTM agent — the everything-else catch-all. It has
     // Chatbase's playbook as a TOOL (searchFounderLedSalesPlaybook)
-    // plus all the personal-data tools (narrative / ICP / discovery
-    // questions / etc.), so this replaces the legacy Chatbase send
-    // path for text-only messages. Falls through (returns false)
-    // when files are attached so the existing image/PDF/OCR
-    // pipeline downstream still runs for those.
+    // plus all the personal-data tools, and now reads attached file
+    // text too, so this replaces the legacy Chatbase send path for
+    // file messages as well as text-only ones.
     const handledByGtmAgent = await tryHandleWithGtmAgent({
       speakerUserId: dbUser.id,
-      text,
-      hasFiles: !!(files && files.length > 0),
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,
@@ -935,13 +1009,26 @@ async function handleDirectMessage(
     await sendSlackMessage(client, channel, canSend.welcomeMessage, threadTs);
   }
 
+  // File-context pre-step (same as handleMention) — extract attached
+  // file text once so the agent cascade can read it. conversationId
+  // =null → text only, no blob storage.
+  const fileContext = await extractFileContextForAgents(
+    files && files.length > 0 ? files : [],
+    workspace.botToken,
+    dbUser.id,
+    client,
+    channel,
+    threadTs
+  );
+
   // Deal-agent auto-route (same as handleMention). Substring match
-  // against the user's deal names hands deal-shaped DMs to the
-  // tool-using agent; everything else falls through to Chatbase.
-  if (text) {
+  // against the user's deal names (or attached file text) hands
+  // deal-shaped DMs to the tool-using agent.
+  if (text || fileContext) {
     const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
-      text,
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,
@@ -956,7 +1043,8 @@ async function handleDirectMessage(
     // word "deal" should still go to the deal agent).
     const handledByCoachingAgent = await tryHandleWithCoachingAgent({
       speakerUserId: dbUser.id,
-      text,
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,
@@ -965,14 +1053,14 @@ async function handleDirectMessage(
       threadRootTs: thread_ts,
     });
     if (handledByCoachingAgent) return;
-    // GTM agent — everything-else catch-all. See handleMention
-    // comment for details. Hashtag commands and the legacy
-    // Chatbase pipeline still run as fallbacks below if this
-    // returns false (file attachments, exceptions, etc.).
+    // GTM agent — everything-else catch-all. Now reads attached file
+    // text too, so file messages route here instead of falling to
+    // legacy Chatbase. Hashtag commands + legacy pipeline remain
+    // fallbacks below only for the rare agent-exception case.
     const handledByGtmAgent = await tryHandleWithGtmAgent({
       speakerUserId: dbUser.id,
-      text,
-      hasFiles: !!(files && files.length > 0),
+      text: text || "",
+      fileContext,
       client,
       channel,
       threadTs,

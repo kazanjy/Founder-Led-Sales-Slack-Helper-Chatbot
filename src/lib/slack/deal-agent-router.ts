@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
+import { appendFileContext, detectionText } from "./file-context";
 import { runDealAgent } from "@/lib/agents/deals/run";
 import { hasCoachingKeyword } from "./coaching-agent-router";
 
@@ -33,6 +34,10 @@ export async function tryHandleWithDealAgent(opts: {
   // claimed channel — we swap to the channel owner below.
   speakerUserId: string;
   text: string;
+  // Extracted text from any attached files (empty when none). Folded
+  // into deal-name detection AND the agent message so a deal named
+  // only inside an attached PDF still routes here.
+  fileContext?: string;
   client: WebClient;
   channel: string;
   threadTs: string | undefined;
@@ -50,11 +55,13 @@ export async function tryHandleWithDealAgent(opts: {
   // the prior turns for both deal-name detection AND agent context.
   threadRootTs: string | undefined;
 }): Promise<boolean> {
-  const { speakerUserId, text, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
-    if (!cleaned) return false;
+    if (!cleaned && !(fileContext || "").trim()) return false;
+    // Text used for deal-name matching: message + attached file text.
+    const cleanedForDetection = detectionText(cleaned, fileContext);
 
     // Resolve the context user. When the channel is claimed by an
     // account, Mikey acts on behalf of the CHANNEL OWNER, not the
@@ -134,9 +141,9 @@ export async function tryHandleWithDealAgent(opts: {
     // match, retry against current + prior thread text combined.
     // Order matters because we want to prefer a fresh deal mention
     // ("now about Acme") over a deal named further up the thread.
-    let matchedDeal = findDealNameInText(cleaned, deals);
+    let matchedDeal = findDealNameInText(cleanedForDetection, deals);
     if (!matchedDeal && priorThread.length > 0) {
-      const combined = [cleaned, ...priorThread.map((m) => m.text)].join(" ");
+      const combined = [cleanedForDetection, ...priorThread.map((m) => m.text)].join(" ");
       matchedDeal = findDealNameInText(combined, deals);
       if (matchedDeal) {
         console.log(
@@ -154,7 +161,7 @@ export async function tryHandleWithDealAgent(opts: {
     // tool can pull the relevant session content keyed off the deal
     // name.
     if (matchedDeal) {
-      const combinedForCoachingCheck = [cleaned, ...priorThread.map((m) => m.text)].join(" ");
+      const combinedForCoachingCheck = [cleanedForDetection, ...priorThread.map((m) => m.text)].join(" ");
       if (hasCoachingKeyword(combinedForCoachingCheck)) {
         console.log(
           `[slack→deal-agent] deal "${matchedDeal.label}" matched but coaching keyword present; deferring to coaching router`
@@ -196,7 +203,7 @@ export async function tryHandleWithDealAgent(opts: {
     }));
     const result = await runDealAgent({
       userId: contextUserId,
-      userMessage: cleaned,
+      userMessage: appendFileContext(cleaned, fileContext),
       conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
     });
 

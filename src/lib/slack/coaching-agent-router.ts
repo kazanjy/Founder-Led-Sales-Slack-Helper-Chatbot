@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
+import { appendFileContext, detectionText } from "./file-context";
 import { runCoachingAgent } from "@/lib/agents/coaching/run";
 
 /**
@@ -47,6 +48,9 @@ const MAX_THREAD_HISTORY = 12;
 export async function tryHandleWithCoachingAgent(opts: {
   speakerUserId: string;
   text: string;
+  // Extracted text from any attached files (empty when none). Folded
+  // into coaching-keyword detection AND the agent message.
+  fileContext?: string;
   client: WebClient;
   channel: string;
   threadTs: string | undefined;
@@ -54,11 +58,12 @@ export async function tryHandleWithCoachingAgent(opts: {
   messageTs: string;
   threadRootTs: string | undefined;
 }): Promise<boolean> {
-  const { speakerUserId, text, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
-    if (!cleaned) return false;
+    if (!cleaned && !(fileContext || "").trim()) return false;
+    const cleanedForDetection = detectionText(cleaned, fileContext);
 
     // Same channel-claim swap as the deal router: in a claimed
     // channel Mikey acts on behalf of the channel owner, not the
@@ -94,7 +99,7 @@ export async function tryHandleWithCoachingAgent(opts: {
     }
 
     const triggered =
-      hasCoachingKeyword(cleaned) ||
+      hasCoachingKeyword(cleanedForDetection) ||
       priorThread.some((m) => m.role === "user" && hasCoachingKeyword(m.text));
     if (!triggered) return false;
 
@@ -128,7 +133,7 @@ export async function tryHandleWithCoachingAgent(opts: {
     }));
     const result = await runCoachingAgent({
       userId: contextUserId,
-      userMessage: cleaned,
+      userMessage: appendFileContext(cleaned, fileContext),
       conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
     });
 

@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
+import { appendFileContext } from "./file-context";
 import { runGtmAgent } from "@/lib/agents/gtm/run";
 
 /**
@@ -14,10 +15,10 @@ import { runGtmAgent } from "@/lib/agents/gtm/run";
  * question resolves to one tool call against the same playbook
  * content — just routed through the agent loop now.
  *
- * Falls through (returns false) for messages with file attachments
- * so Chatbase's existing image/PDF/OCR pipeline keeps running for
- * those. Eventually we'd fold file handling into the GTM agent's
- * tool surface, but not in this commit.
+ * As of A1, attached file text is extracted up front in events.ts
+ * and passed in as `fileContext`; this router folds it into the
+ * agent message so file messages get full personal-data/tool
+ * context instead of falling to legacy Chatbase.
  */
 
 const MAX_THREAD_HISTORY = 12;
@@ -25,7 +26,8 @@ const MAX_THREAD_HISTORY = 12;
 export async function tryHandleWithGtmAgent(opts: {
   speakerUserId: string;
   text: string;
-  hasFiles: boolean;
+  // Extracted text from any attached files (empty when none).
+  fileContext?: string;
   client: WebClient;
   channel: string;
   threadTs: string | undefined;
@@ -33,16 +35,12 @@ export async function tryHandleWithGtmAgent(opts: {
   messageTs: string;
   threadRootTs: string | undefined;
 }): Promise<boolean> {
-  const { speakerUserId, text, hasFiles, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
 
   try {
-    // Files attached → fall through to Chatbase's existing OCR /
-    // image-attachment plumbing. The GTM agent doesn't have file
-    // tools yet.
-    if (hasFiles) return false;
-
     const cleaned = stripSlackMentions(text || "").trim();
-    if (!cleaned) return false;
+    // Nothing to answer if there's neither a message nor file text.
+    if (!cleaned && !(fileContext || "").trim()) return false;
 
     // Channel-claim swap — same as deal + coaching routers.
     const channelClaim = await prisma.channelClaim.findUnique({
@@ -82,7 +80,7 @@ export async function tryHandleWithGtmAgent(opts: {
     }));
     const result = await runGtmAgent({
       userId: contextUserId,
-      userMessage: cleaned,
+      userMessage: appendFileContext(cleaned, fileContext),
       conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
     });
 
