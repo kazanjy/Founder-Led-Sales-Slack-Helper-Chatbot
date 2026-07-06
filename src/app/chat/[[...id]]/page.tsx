@@ -1976,29 +1976,56 @@ export default function ChatPage() {
 
           descriptions.push(`[CSV: ${file.name}] (${parsed.data.length} rows)\n${truncated}`);
         } else if (isPDFFile(file)) {
-          // Convert PDF to images and process each page
-          console.log(`[PDF] Converting ${file.name} to images...`);
-          const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
+          // Verbatim text extraction server-side (unpdf text layer +
+          // OCR fallback for scans) — the SAME core as the Slack
+          // pipeline and the collateral library. The previous path
+          // rendered each page to an image and ran Vision on it, which
+          // produced a paraphrased *summary* of the page, not the
+          // document's actual text. For proposals/contracts that lost
+          // fidelity; now the model gets the real text to quote from.
+          let handled = false;
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/files/extract-pdf", { method: "POST", body: fd });
+            if (res.ok) {
+              const data = (await res.json()) as { content: string };
+              descriptions.push(data.content); // already headered + full text
+              handled = true;
+            } else {
+              const err = (await res.json().catch(() => ({}))) as { error?: string; empty?: boolean };
+              // Non-"empty" errors (size/type/server) are terminal —
+              // note and stop. An `empty` 422 means image-only PDF, so
+              // fall through to the Vision visual-description fallback.
+              if (!err.empty) {
+                descriptions.push(`[PDF: ${file.name}] (${err.error || "text extraction failed"})`);
+                handled = true;
+              }
+            }
+          } catch (e) {
+            console.error("[PDF] server text extraction failed, falling back to Vision:", e);
+          }
 
-          // Process all pages in parallel for speed
-          console.log(`[PDF] Processing ${pdfResult.pages.length} pages in parallel...`);
-          const pageResults = await Promise.all(
-            pdfResult.pages.map(async (page) => {
-              const pageDesc = await processImageThroughVision(page.dataUrl, `${file.name} (page ${page.pageNumber})`);
-              return { pageNumber: page.pageNumber, description: pageDesc };
-            })
-          );
-
-          // Sort by page number and format
-          const pageDescriptions = pageResults
-            .sort((a, b) => a.pageNumber - b.pageNumber)
-            .map((r) => `--- Page ${r.pageNumber} ---\n${r.description}`);
-
-          const truncatedNote = pdfResult.totalPages > pdfResult.pages.length
-            ? `\n\n(Showing ${pdfResult.pages.length} of ${pdfResult.totalPages} pages)`
-            : "";
-
-          descriptions.push(`[PDF: ${file.name}]\n${pageDescriptions.join("\n\n")}${truncatedNote}`);
+          if (!handled) {
+            // Fallback for image-only PDFs (no text layer, OCR miss) or
+            // a network error: render pages → Vision describe. Best we
+            // can do when there's genuinely no extractable text.
+            console.log(`[PDF] no extractable text — falling back to Vision page description for ${file.name}`);
+            const pdfResult = await convertPDFToImages(file, { maxPages: 50 });
+            const pageResults = await Promise.all(
+              pdfResult.pages.map(async (page) => {
+                const pageDesc = await processImageThroughVision(page.dataUrl, `${file.name} (page ${page.pageNumber})`);
+                return { pageNumber: page.pageNumber, description: pageDesc };
+              })
+            );
+            const pageDescriptions = pageResults
+              .sort((a, b) => a.pageNumber - b.pageNumber)
+              .map((r) => `--- Page ${r.pageNumber} ---\n${r.description}`);
+            const truncatedNote = pdfResult.totalPages > pdfResult.pages.length
+              ? `\n\n(Showing ${pdfResult.pages.length} of ${pdfResult.totalPages} pages)`
+              : "";
+            descriptions.push(`[PDF: ${file.name} — visual description (no text layer)]\n${pageDescriptions.join("\n\n")}${truncatedNote}`);
+          }
         } else {
           // Process regular image
           const base64 = await new Promise<string>((resolve, reject) => {
