@@ -593,6 +593,15 @@ export default function SalesAssetLibraryPage() {
           <p className="text-gray-600 dark:text-gray-300">
             Your team&apos;s current production GTM assets. Update links here as assets evolve — all changes are tracked in version history.
           </p>
+          {/* Agent-access callout — makes it explicit that the library
+              isn't just storage; Mikey reads it in chat + Slack. */}
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-purple-100 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/20 px-3 py-2 text-sm text-purple-800 dark:text-purple-200">
+            <span className="text-base leading-none mt-0.5">🤖</span>
+            <p>
+              <span className="font-medium">Mikey can search and reference these assets in chat and Slack.</span>{" "}
+              Uploaded files (PDF / .docx) are fully readable — their text is extracted so Mikey can quote and reason over the contents. Linked URLs are surfaced by name and description.
+            </p>
+          </div>
         </div>
 
         {loading ? (
