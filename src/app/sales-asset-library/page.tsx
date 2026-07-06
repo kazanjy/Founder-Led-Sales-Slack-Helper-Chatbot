@@ -41,6 +41,27 @@ function userDisplay(u: AssetUser | null): string {
   return u.name || u.slackUserName || u.email?.split("@")[0] || "Someone";
 }
 
+// Human-friendly name for an asset's current link. Prefers the
+// version label (which is the filename for uploaded files), falls
+// back to the URL's hostname for external links, and finally to a
+// generic "Open" when neither is available. Keeps the raw signed
+// storage URL out of the UI.
+function assetLinkName(currentUrl: string, currentLabel: string | null): string {
+  if (currentLabel && currentLabel.trim()) return currentLabel.trim();
+  try {
+    return new URL(currentUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return "Open";
+  }
+}
+
+// True when the current link is an uploaded file (Supabase storage
+// signed URL) rather than an external web link — used to pick the
+// document vs. link icon.
+function isUploadedFile(currentUrl: string): boolean {
+  return /\/storage\/v1\/object\//.test(currentUrl);
+}
+
 function formatRelative(dateStr: string): string {
   const date = new Date(dateStr);
   const diffMs = Date.now() - date.getTime();
@@ -74,6 +95,9 @@ export default function SalesAssetLibraryPage() {
   const [uploadingAssetId, setUploadingAssetId] = useState<string | null>(null);
   const [uploadingAssetName, setUploadingAssetName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Tracks which asset's URL was just copied, for the transient
+  // "Copied!" affordance on the Copy Link button.
+  const [copiedUrlAssetId, setCopiedUrlAssetId] = useState<string | null>(null);
   const [historyAssetId, setHistoryAssetId] = useState<string | null>(null);
   const [historyVersions, setHistoryVersions] = useState<AssetVersion[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -832,7 +856,7 @@ export default function SalesAssetLibraryPage() {
                                     window.history.replaceState({}, "", `#${anchor}`);
                                   }}
                                   className="p-1 text-gray-400 hover:text-purple-600"
-                                  title="Copy link"
+                                  title="Copy a link to this row in the library"
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                 </button>
@@ -863,21 +887,49 @@ export default function SalesAssetLibraryPage() {
                             {hasUrl ? (
                               <>
                                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                                  <span className="text-gray-400 text-sm flex-shrink-0">🔗</span>
+                                  {/* Open button — labeled with the filename /
+                                      hostname, not the raw signed URL. */}
                                   <a
                                     href={asset.currentUrl!}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 min-w-0"
+                                    className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 dark:text-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 px-3 py-1.5 rounded-lg transition-colors min-w-0"
                                     title={asset.currentUrl!}
                                   >
-                                    {asset.currentUrl!.replace(/^https?:\/\/(www\.)?/, "")}
+                                    {isUploadedFile(asset.currentUrl!) ? (
+                                      <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                                        <path d="M6 2C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2H6Z" fill="currentColor" opacity="0.25"/>
+                                        <path d="M14 2V8H20L14 2Z" fill="currentColor" opacity="0.5"/>
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                    )}
+                                    <span className="truncate">{assetLinkName(asset.currentUrl!, asset.currentLabel)}</span>
+                                    <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                   </a>
-                                  {asset.currentLabel && (
-                                    <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full flex-shrink-0">
-                                      {asset.currentLabel}
-                                    </span>
-                                  )}
+                                  {/* Copy Link — copies the actual asset URL. */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(asset.currentUrl!);
+                                      setCopiedUrlAssetId(asset.id);
+                                      setTimeout(() => setCopiedUrlAssetId((cur) => (cur === asset.id ? null : cur)), 1500);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                                    title="Copy link to clipboard"
+                                  >
+                                    {copiedUrlAssetId === asset.id ? (
+                                      <>
+                                        <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                        Copied
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        Copy Link
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
                                 {latestVersion?.notes && (
                                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic whitespace-pre-wrap"><Linkify>{latestVersion.notes}</Linkify></p>
