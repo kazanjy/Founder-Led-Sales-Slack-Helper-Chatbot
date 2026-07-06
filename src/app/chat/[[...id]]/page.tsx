@@ -1510,83 +1510,38 @@ export default function ChatPage() {
     if (!hash.startsWith("#msg-")) return;
     const id = hash.slice(1);
 
-    // Deterministically bring `el` to the top of its scroll container.
-    // We compute + SET scrollTop directly rather than using
-    // scrollIntoView, because (a) scrollIntoView can target the wrong
-    // ancestor in a nested-flex layout, and (b) we need an idempotent
-    // operation we can re-assert to beat Next.js's scroll-restoration
-    // (which yanks the page to the top after hydration) and late
-    // content reflow.
-    const scrollElToTop = (el: HTMLElement) => {
-      // Nearest vertically-scrollable ancestor.
-      let node: HTMLElement | null = el.parentElement;
-      let container: HTMLElement | null = null;
-      while (node) {
-        const oy = getComputedStyle(node).overflowY;
-        if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight) {
-          container = node;
-          break;
-        }
-        node = node.parentElement;
-      }
-      if (container) {
-        const delta = el.getBoundingClientRect().top - container.getBoundingClientRect().top;
-        container.scrollTop += delta - 12; // 12px breathing room
-      } else {
-        // No scrollable ancestor found → the window scrolls.
-        el.scrollIntoView({ behavior: "auto", block: "start" });
-      }
-    };
-
-    // Poll for the target (it may not be mounted yet — messages can
-    // populate while the loading spinner is still shown), then
-    // re-assert the scroll repeatedly for ~2.5s so it OUTLASTS the
-    // two things that fight it on a hard load / refresh:
-    //   1. Content reflow — markdown, KaTeX, images, PDF thumbnails,
-    //      and tool-trace disclosures render progressively, so the
-    //      container keeps growing and the target keeps moving for a
-    //      second or two after the messages first mount.
-    //   2. Next.js App Router's post-hydration scroll-to-top.
-    // We cancel the re-assert loop the moment the user scrolls, so we
-    // never fight a deliberate scroll. (Soft-nav — re-entering the URL
-    // on an already-loaded page — works today precisely because none
-    // of this timing applies; this makes hard load behave the same.)
-    let cancelled = false;
-    const onUserScroll = () => { cancelled = true; };
-    window.addEventListener("wheel", onUserScroll, { passive: true });
-    window.addEventListener("touchmove", onUserScroll, { passive: true });
-    window.addEventListener("keydown", onUserScroll, { passive: true });
-    const cleanup = () => {
-      window.removeEventListener("wheel", onUserScroll);
-      window.removeEventListener("touchmove", onUserScroll);
-      window.removeEventListener("keydown", onUserScroll);
-    };
-
-    let attempts = 0;
-    const maxAttempts = 40;
+    // Re-apply scrollIntoView repeatedly for ~3s. scrollIntoView is
+    // exactly what the browser's native hash scroll does (which we
+    // know works once the element exists — re-entering the URL jumps
+    // correctly). The only reason first-load / refresh fails is
+    // timing: the message nodes mount async and their content
+    // (markdown/images/PDF thumbnails/tool-trace) reflows for a
+    // second or two, and Next.js resets scroll to top after
+    // hydration. Repeating the scroll keeps it correct through all of
+    // that. No cancel-on-event — an early stray wheel/scroll event
+    // during load must NOT kill the scroll. Logs are prefixed
+    // [anchor-scroll] for diagnosis.
+    console.log("[anchor-scroll] start for", hash);
+    let n = 0;
+    const N = 24; // 24 × 130ms ≈ 3.1s
+    let everFound = false;
     const tick = () => {
-      if (cancelled) { cleanup(); return; }
-      attempts++;
       const el = document.getElementById(id);
       if (el) {
+        everFound = true;
         lastScrolledHashRef.current = hash;
-        scrollElToTop(el);
-        let reassert = 0;
-        const hold = () => {
-          if (cancelled) { cleanup(); return; }
-          const again = document.getElementById(id);
-          if (again) scrollElToTop(again);
-          reassert++;
-          if (reassert < 20) setTimeout(hold, 120);
-          else cleanup();
-        };
-        setTimeout(hold, 80);
-        return;
+        el.scrollIntoView({ block: "start" });
+        if (n % 4 === 0) {
+          console.log(`[anchor-scroll] applied #${n} → top=${Math.round(el.getBoundingClientRect().top)}`);
+        }
+      } else if (n === 0 || n === 10) {
+        console.log(`[anchor-scroll] element ${id} not in DOM yet (attempt ${n})`);
       }
-      if (attempts < maxAttempts) setTimeout(tick, 100);
-      else cleanup();
+      n++;
+      if (n < N) setTimeout(tick, 130);
+      else console.log(`[anchor-scroll] done (${everFound ? "found+scrolled" : "NEVER FOUND element"})`);
     };
-    setTimeout(tick, 60);
+    setTimeout(tick, 50);
   }, []);
   useEffect(() => {
     if (messages.length === 0) return;
