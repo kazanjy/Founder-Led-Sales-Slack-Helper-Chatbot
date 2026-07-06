@@ -1544,6 +1544,15 @@ export default function ChatPage() {
     setTimeout(tick, 50);
   }, []);
   useEffect(() => {
+    // Diagnostic: log the state every time this fires so we can see
+    // whether the anchored message is actually in the loaded set.
+    if (typeof window !== "undefined" && window.location.hash.startsWith("#msg-")) {
+      const targetId = window.location.hash.slice(5); // strip "#msg-"
+      const present = messages.some((m) => m.id === targetId);
+      console.log(
+        `[anchor-scroll] state — selectedConversation=${selectedConversation} loadingMessages=${loadingMessages} messages=${messages.length} targetPresent=${present} target=${targetId}`
+      );
+    }
     if (messages.length === 0) return;
     tryScrollToHash();
     // Also re-attempt once the message-loading spinner clears — on a
@@ -1551,7 +1560,7 @@ export default function ChatPage() {
     // loadingMessages is still true (so the .map isn't rendered yet
     // and getElementById misses); this dep re-fires the scroll the
     // moment the messages actually mount.
-  }, [messages, loadingMessages, tryScrollToHash]);
+  }, [messages, loadingMessages, selectedConversation, tryScrollToHash]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onHashChange = () => {
