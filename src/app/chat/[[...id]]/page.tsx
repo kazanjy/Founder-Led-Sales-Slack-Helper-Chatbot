@@ -1503,75 +1503,70 @@ export default function ChatPage() {
   //      change and the messages-dep effect alone wouldn't re-fire).
   // The shared ref-based dedupe makes sure each unique hash scrolls
   // exactly once regardless of which trigger fired it.
-  const lastScrolledHashRef = useRef<string | null>(null);
+  const anchorObserverRef = useRef<MutationObserver | null>(null);
   const tryScrollToHash = useCallback(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash;
     if (!hash.startsWith("#msg-")) return;
     const id = hash.slice(1);
 
-    // Re-apply scrollIntoView repeatedly for ~3s. scrollIntoView is
-    // exactly what the browser's native hash scroll does (which we
-    // know works once the element exists — re-entering the URL jumps
-    // correctly). The only reason first-load / refresh fails is
-    // timing: the message nodes mount async and their content
-    // (markdown/images/PDF thumbnails/tool-trace) reflows for a
-    // second or two, and Next.js resets scroll to top after
-    // hydration. Repeating the scroll keeps it correct through all of
-    // that. No cancel-on-event — an early stray wheel/scroll event
-    // during load must NOT kill the scroll. Logs are prefixed
-    // [anchor-scroll] for diagnosis.
-    console.log("[anchor-scroll] start for", hash);
-    let n = 0;
-    const N = 24; // 24 × 130ms ≈ 3.1s
-    let everFound = false;
-    const tick = () => {
+    // Scroll the target to the top, then re-apply twice more to
+    // absorb late content reflow (markdown / images / PDF thumbnails /
+    // tool-trace disclosures render progressively and shift the
+    // target) and Next.js's post-hydration scroll-to-top.
+    const scrollTo = (el: HTMLElement) => {
+      el.scrollIntoView({ block: "start" });
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 200);
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 600);
+    };
+
+    // Tear down any watcher from a previous hash.
+    anchorObserverRef.current?.disconnect();
+    anchorObserverRef.current = null;
+
+    // Fast path: element is already in the DOM.
+    const existing = document.getElementById(id);
+    if (existing) {
+      scrollTo(existing);
+      return;
+    }
+
+    // Slow path: the message element mounts LATE — under a slow /
+    // impersonated load the whole chat panel sits behind a page-level
+    // loading gate, so the message nodes aren't in the DOM even though
+    // `messages` state is already populated (this was the actual bug:
+    // the scroll effect fired, found nothing, and never re-fired
+    // because its React deps didn't change when the panel finally
+    // rendered). A MutationObserver waits for the node to appear no
+    // matter what gated it, then scrolls. Self-disconnects on success
+    // or after a 20s safety cap.
+    const obs = new MutationObserver(() => {
       const el = document.getElementById(id);
       if (el) {
-        everFound = true;
-        lastScrolledHashRef.current = hash;
-        el.scrollIntoView({ block: "start" });
-        if (n % 4 === 0) {
-          console.log(`[anchor-scroll] applied #${n} → top=${Math.round(el.getBoundingClientRect().top)}`);
-        }
-      } else if (n === 0 || n === 10) {
-        console.log(`[anchor-scroll] element ${id} not in DOM yet (attempt ${n})`);
+        obs.disconnect();
+        if (anchorObserverRef.current === obs) anchorObserverRef.current = null;
+        scrollTo(el);
       }
-      n++;
-      if (n < N) setTimeout(tick, 130);
-      else console.log(`[anchor-scroll] done (${everFound ? "found+scrolled" : "NEVER FOUND element"})`);
-    };
-    setTimeout(tick, 50);
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    anchorObserverRef.current = obs;
+    setTimeout(() => {
+      obs.disconnect();
+      if (anchorObserverRef.current === obs) anchorObserverRef.current = null;
+    }, 20000);
   }, []);
+  // Kick once on mount and whenever the hash changes (in-app anchor
+  // clicks). The MutationObserver inside handles the async element
+  // mount, so we no longer depend on messages/loadingMessages.
   useEffect(() => {
-    // Diagnostic: log the state every time this fires so we can see
-    // whether the anchored message is actually in the loaded set.
-    if (typeof window !== "undefined" && window.location.hash.startsWith("#msg-")) {
-      const targetId = window.location.hash.slice(5); // strip "#msg-"
-      const present = messages.some((m) => m.id === targetId);
-      console.log(
-        `[anchor-scroll] state — selectedConversation=${selectedConversation} loadingMessages=${loadingMessages} messages=${messages.length} targetPresent=${present} target=${targetId}`
-      );
-    }
-    if (messages.length === 0) return;
     tryScrollToHash();
-    // Also re-attempt once the message-loading spinner clears — on a
-    // fresh tab the `messages` array can populate while
-    // loadingMessages is still true (so the .map isn't rendered yet
-    // and getElementById misses); this dep re-fires the scroll the
-    // moment the messages actually mount.
-  }, [messages, loadingMessages, selectedConversation, tryScrollToHash]);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onHashChange = () => {
-      // Clear the dedupe ref so re-clicking the same anchor (or
-      // toggling between two anchors) always re-fires the scroll
-      // instead of being remembered as "already done".
-      lastScrolledHashRef.current = null;
-      tryScrollToHash();
-    };
+    const onHashChange = () => tryScrollToHash();
     window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    return () => {
+      window.removeEventListener("hashchange", onHashChange);
+      anchorObserverRef.current?.disconnect();
+      anchorObserverRef.current = null;
+    };
   }, [tryScrollToHash]);
 
   // Detect mobile viewport
