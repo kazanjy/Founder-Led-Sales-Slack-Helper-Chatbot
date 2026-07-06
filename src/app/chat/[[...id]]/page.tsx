@@ -85,6 +85,26 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
+// Timestamp shown under each chat message. Clock time for today,
+// "Yesterday 3:24 PM" for yesterday, "Jul 1, 3:24 PM" for older
+// (with year only when it isn't the current year).
+function formatMessageTime(dateString: string): string {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "";
+  const now = new Date();
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (date.toDateString() === now.toDateString()) return time;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
+  const datePart = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  });
+  return `${datePart}, ${time}`;
+}
+
 interface User {
   id: string;
   name: string | null;
@@ -4785,6 +4805,9 @@ export default function ChatPage() {
                               content={expandMergeFieldsInText(msg.content, gtmVariables)}
                               maxLines={20}
                             />
+                            <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5 text-right">
+                              {formatMessageTime(msg.createdAt)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -4870,6 +4893,9 @@ export default function ChatPage() {
                             Create public share link to this answer
                           </span>
                         </div>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 ml-1.5">
+                          {formatMessageTime(msg.createdAt)}
+                        </span>
                       </div>
                     </div>
                   )}
