@@ -1508,40 +1508,83 @@ export default function ChatPage() {
     if (typeof window === "undefined") return;
     const hash = window.location.hash;
     if (!hash.startsWith("#msg-")) return;
-    if (lastScrolledHashRef.current === hash) return;
     const id = hash.slice(1);
-    // Poll for up to ~3s in case the target message hasn't been
-    // mounted yet when the effect first fires — the messages state
-    // can land before the DOM nodes paint-commit (especially under
-    // impersonation, or while the loadingMessages gate is still
-    // showing the spinner). Retries are cheap.
+
+    // Deterministically bring `el` to the top of its scroll container.
+    // We compute + SET scrollTop directly rather than using
+    // scrollIntoView, because (a) scrollIntoView can target the wrong
+    // ancestor in a nested-flex layout, and (b) we need an idempotent
+    // operation we can re-assert to beat Next.js's scroll-restoration
+    // (which yanks the page to the top after hydration) and late
+    // content reflow.
+    const scrollElToTop = (el: HTMLElement) => {
+      // Nearest vertically-scrollable ancestor.
+      let node: HTMLElement | null = el.parentElement;
+      let container: HTMLElement | null = null;
+      while (node) {
+        const oy = getComputedStyle(node).overflowY;
+        if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight) {
+          container = node;
+          break;
+        }
+        node = node.parentElement;
+      }
+      if (container) {
+        const delta = el.getBoundingClientRect().top - container.getBoundingClientRect().top;
+        container.scrollTop += delta - 12; // 12px breathing room
+      } else {
+        // No scrollable ancestor found → the window scrolls.
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+      }
+    };
+
+    // Poll for the target (it may not be mounted yet — messages can
+    // populate while the loading spinner is still shown), then
+    // re-assert the scroll repeatedly for ~2.5s so it OUTLASTS the
+    // two things that fight it on a hard load / refresh:
+    //   1. Content reflow — markdown, KaTeX, images, PDF thumbnails,
+    //      and tool-trace disclosures render progressively, so the
+    //      container keeps growing and the target keeps moving for a
+    //      second or two after the messages first mount.
+    //   2. Next.js App Router's post-hydration scroll-to-top.
+    // We cancel the re-assert loop the moment the user scrolls, so we
+    // never fight a deliberate scroll. (Soft-nav — re-entering the URL
+    // on an already-loaded page — works today precisely because none
+    // of this timing applies; this makes hard load behave the same.)
+    let cancelled = false;
+    const onUserScroll = () => { cancelled = true; };
+    window.addEventListener("wheel", onUserScroll, { passive: true });
+    window.addEventListener("touchmove", onUserScroll, { passive: true });
+    window.addEventListener("keydown", onUserScroll, { passive: true });
+    const cleanup = () => {
+      window.removeEventListener("wheel", onUserScroll);
+      window.removeEventListener("touchmove", onUserScroll);
+      window.removeEventListener("keydown", onUserScroll);
+    };
+
     let attempts = 0;
     const maxAttempts = 40;
     const tick = () => {
+      if (cancelled) { cleanup(); return; }
       attempts++;
       const el = document.getElementById(id);
       if (el) {
         lastScrolledHashRef.current = hash;
-        // Instant (not smooth) jump: smooth animation is unreliable
-        // here because the message content — markdown, images, PDF
-        // thumbnails, tool-trace disclosures — is often still
-        // reflowing, so a smooth scroll animates toward a stale
-        // offset and appears to "not scroll". An instant jump lands
-        // deterministically.
-        el.scrollIntoView({ behavior: "auto", block: "start" });
-        // Fire a second instant jump after layout settles, to
-        // correct for late reflow (content above the target growing
-        // taller after images/markdown finish rendering shifts the
-        // target's final position).
-        setTimeout(() => {
+        scrollElToTop(el);
+        let reassert = 0;
+        const hold = () => {
+          if (cancelled) { cleanup(); return; }
           const again = document.getElementById(id);
-          if (again) again.scrollIntoView({ behavior: "auto", block: "start" });
-        }, 350);
+          if (again) scrollElToTop(again);
+          reassert++;
+          if (reassert < 20) setTimeout(hold, 120);
+          else cleanup();
+        };
+        setTimeout(hold, 80);
         return;
       }
-      if (attempts < maxAttempts) {
-        setTimeout(tick, 100);
-      }
+      if (attempts < maxAttempts) setTimeout(tick, 100);
+      else cleanup();
     };
     setTimeout(tick, 60);
   }, []);
