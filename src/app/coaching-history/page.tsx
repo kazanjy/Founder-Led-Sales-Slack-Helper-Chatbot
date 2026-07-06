@@ -883,6 +883,8 @@ function CoachingHistoryContent() {
                 title="Coaching History — All Sessions"
                 getContext={() => buildEnrichedChatContext(sessions)}
                 label="Chat All Sessions"
+                primeOnly
+                mode="DIRECT"
               />
             )}
             <button
@@ -914,6 +916,8 @@ function CoachingHistoryContent() {
                 title={`Coaching History — ${checkedSessions.length} Sessions`}
                 getContext={() => buildEnrichedChatContext(checkedSessions)}
                 label={`Chat About ${checkedSessions.length} Sessions`}
+                primeOnly
+                mode="DIRECT"
               />
             </div>
           </div>
@@ -1414,6 +1418,8 @@ function CoachingHistoryContent() {
                         getContext={() => buildEnrichedChatContext([selectedSession])}
                         label="Chat About This"
                         compact={headerCompact}
+                        primeOnly
+                        mode="DIRECT"
                       />
                       <ChatAboutButton
                         title={`Takeaways: ${selectedSession.title}`}

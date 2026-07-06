@@ -20,37 +20,57 @@ interface ChatAboutButtonProps {
    * history, coaching session content).
    */
   mode?: "CHATBASE" | "DIRECT";
+  /**
+   * When true, the artifact is loaded into the conversation as
+   * context but NO assistant reply is generated — the chat opens
+   * with the context primed and the input focused so the user can
+   * ask their own question first. Use for plain "Chat about X"
+   * entry points where auto-answering a question the user never
+   * asked is surprising.
+   *
+   * When false (default), the context is auto-sent and the
+   * assistant responds immediately — use for directive-style seeds
+   * (e.g. "Synthesize Takeaways", where the context itself contains
+   * the instruction to act on).
+   */
+  primeOnly?: boolean;
 }
 
-export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE" }: ChatAboutButtonProps) {
+export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE", primeOnly = false }: ChatAboutButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
     setLoading(true);
     try {
       const context = await getContext();
-      // autoSend: true creates an EMPTY conversation server-side
-      // (no pre-seeded USER message). We then write the context to
-      // sessionStorage and open the chat page with ?autoSend=true,
-      // which triggers its existing autoSend effect to fire
-      // sendMessage(context) on mount — that creates the USER
-      // message AND drives the assistant response. Without this,
-      // the new tab would just show the pre-seeded USER message
-      // sitting there with no reply.
+      // Two behaviors:
       //
-      // Modern browsers copy sessionStorage to the new tab when
-      // window.open is called without noopener, which is why
-      // every other autoSend caller in the app uses the same
-      // setItem-then-window.open pattern.
+      // primeOnly=true → autoSend:false. The server pre-seeds the
+      //   context as a USER message with NO assistant reply. We open
+      //   the chat plainly (no ?autoSend), so the user lands in a
+      //   conversation with the context already loaded and can type
+      //   their own question. Their next message becomes a normal
+      //   turn with the context available in history.
+      //
+      // primeOnly=false → autoSend:true creates an EMPTY conversation;
+      //   we stash the context in sessionStorage and open with
+      //   ?autoSend=true, which fires sendMessage(context) on mount —
+      //   creating the USER message AND driving the assistant reply.
+      //   (Modern browsers copy sessionStorage to the new tab when
+      //   window.open is called without noopener.)
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, context, mode, autoSend: true }),
+        body: JSON.stringify({ title, context, mode, autoSend: !primeOnly }),
       });
       const data = await res.json();
       if (data.conversationId) {
-        sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
-        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+        if (primeOnly) {
+          window.open(`/chat/${data.conversationId}`, "_blank");
+        } else {
+          sessionStorage.setItem(`autoSend-${data.conversationId}`, context);
+          window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+        }
       }
     } catch (error) {
       console.error("Failed to create chat:", error);
