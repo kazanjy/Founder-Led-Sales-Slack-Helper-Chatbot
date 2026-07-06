@@ -1511,19 +1511,32 @@ export default function ChatPage() {
     if (lastScrolledHashRef.current === hash) return;
     const id = hash.slice(1);
     // Poll for up to ~3s in case the target message hasn't been
-    // mounted yet when the effect first fires. This was the main
-    // failure mode under impersonation: the messages state landed
-    // but the DOM nodes hadn't paint-committed by the time the
-    // single-shot scroll fired. Retries are cheap — bail as soon
-    // as we either find the element or run out of attempts.
+    // mounted yet when the effect first fires — the messages state
+    // can land before the DOM nodes paint-commit (especially under
+    // impersonation, or while the loadingMessages gate is still
+    // showing the spinner). Retries are cheap.
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 40;
     const tick = () => {
       attempts++;
       const el = document.getElementById(id);
       if (el) {
         lastScrolledHashRef.current = hash;
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Instant (not smooth) jump: smooth animation is unreliable
+        // here because the message content — markdown, images, PDF
+        // thumbnails, tool-trace disclosures — is often still
+        // reflowing, so a smooth scroll animates toward a stale
+        // offset and appears to "not scroll". An instant jump lands
+        // deterministically.
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+        // Fire a second instant jump after layout settles, to
+        // correct for late reflow (content above the target growing
+        // taller after images/markdown finish rendering shifts the
+        // target's final position).
+        setTimeout(() => {
+          const again = document.getElementById(id);
+          if (again) again.scrollIntoView({ behavior: "auto", block: "start" });
+        }, 350);
         return;
       }
       if (attempts < maxAttempts) {
@@ -1535,7 +1548,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (messages.length === 0) return;
     tryScrollToHash();
-  }, [messages, tryScrollToHash]);
+    // Also re-attempt once the message-loading spinner clears — on a
+    // fresh tab the `messages` array can populate while
+    // loadingMessages is still true (so the .map isn't rendered yet
+    // and getElementById misses); this dep re-fires the scroll the
+    // moment the messages actually mount.
+  }, [messages, loadingMessages, tryScrollToHash]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onHashChange = () => {
