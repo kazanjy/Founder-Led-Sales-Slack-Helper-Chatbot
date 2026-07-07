@@ -1071,6 +1071,25 @@ Tell me:
 
 If you're torn between two actions, name both and tell me how to choose.`;
 
+  const SYNTHESIZE_DISCOVERY_PROMPT = `Synthesize everything we've discovered about this deal so far. Pull from the full deal history — every call, email, note, and timeline entry — the participants and their roles, the current stage and status, and my sales narrative. Give me a structured discovery synthesis:
+
+## What we've learned about them
+The account's situation, current state, and the specific pains / goals / triggers that are driving this — cite where in the timeline each point came from.
+
+## Who's involved
+Each stakeholder we know about, their apparent role (champion / decision-maker / economic buyer / influencer / blocker / unknown), and what we know about what each one cares about.
+
+## Why they're looking (and why now)
+The compelling event or motivation, if we've surfaced it — and if we haven't, say so plainly.
+
+## Fit against our narrative
+How what we've learned maps to my value proposition — where it's a strong fit, and where it's a stretch or unproven.
+
+## Discovery gaps
+The important things we still DON'T know — unanswered qualification questions (budget, authority, timeline, decision process, success criteria, competition) that I should close on next.
+
+Be specific and ground every point in what's actually in this deal's history — no generic B2B filler. If the deal has thin history, say what's missing rather than inventing.`;
+
   const closeChatPanel = () => {
     setChatPanelOpen(false);
     setFocusedEntryId(null);
@@ -1655,6 +1674,13 @@ If you're torn between two actions, name both and tell me how to choose.`;
                 title="Open Deal Chat and have Mikey suggest the single highest-leverage next action on this deal"
               >
                 🎯 Next Best Action
+              </button>
+              <button
+                onClick={() => launchDealChatWithPrompt(SYNTHESIZE_DISCOVERY_PROMPT)}
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
+                title="Open Deal Chat and have Mikey synthesize everything discovered on this deal — what we've learned, who's involved, fit against your narrative, and open qualification gaps"
+              >
+                🔎 Synthesize Discovery
               </button>
               <button
                 onClick={startDealChat}
