@@ -404,6 +404,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [focusedEntryId, setFocusedEntryId] = useState<string | null>(null);
   const [autoSendQuestion, setAutoSendQuestion] = useState<string | undefined>(undefined);
   const [autoSendNonce, setAutoSendNonce] = useState(0);
+  // The founder's own discovery framework (latest discovery questions +
+  // first-call checklist), fetched once and folded into Deal Chat
+  // context so Mikey can assess coverage against THEIR questions — not
+  // generic BANT. Empty string when the founder hasn't authored either.
+  const [discoveryFramework, setDiscoveryFramework] = useState<string>("");
   const [askMikeyPrompt, setAskMikeyPrompt] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [revealedTranscripts, setRevealedTranscripts] = useState<Set<string>>(new Set());
@@ -420,6 +425,48 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // circuits to loading / not-found states before that point, so the
   // sentinel ref doesn't exist on first paint. Without this dep the
   // observer would attach to a null ref and never fire.
+  // Fetch the founder's discovery framework once (latest discovery
+  // questions + first-call checklist) so buildDealChatContext can
+  // include it. Best-effort — a missing artifact just omits that part.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [dqRes, fccRes] = await Promise.all([
+          fetch("/api/discovery-questions/latest"),
+          fetch("/api/first-call-checklist/latest"),
+        ]);
+        const parts: string[] = [];
+        if (dqRes.ok) {
+          const d = await dqRes.json();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cats: any[] = d?.version?.content?.categories || [];
+          const lines: string[] = [];
+          for (const c of cats) {
+            const catName = c?.name || c?.category || c?.title;
+            const qs: unknown[] = c?.questions || [];
+            if (!qs.length) continue;
+            if (catName) lines.push(`### ${catName}`);
+            for (const q of qs) {
+              const text = typeof q === "string" ? q : ((q as Record<string, string>)?.question || (q as Record<string, string>)?.text || "");
+              if (text) lines.push(`- ${text}`);
+            }
+          }
+          if (lines.length) parts.push(`## Your Discovery Questions\n${lines.join("\n")}`);
+        }
+        if (fccRes.ok) {
+          const f = await fccRes.json();
+          const content = f?.version?.content;
+          if (typeof content === "string" && content.trim()) {
+            parts.push(`## Your First Call Checklist\n${content.trim()}`);
+          }
+        }
+        if (!cancelled) setDiscoveryFramework(parts.join("\n\n"));
+      } catch { /* best-effort — omit framework on failure */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (!deal) return;
     const el = headerSentinelRef.current;
@@ -976,6 +1023,12 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
       sections.push("");
     }
 
+    if (discoveryFramework) {
+      sections.push("## Your Discovery Framework (reference — the discovery questions and first-call checklist you use)");
+      sections.push(discoveryFramework);
+      sections.push("");
+    }
+
     sections.push("{{SALES_NARRATIVE}}");
     sections.push("");
     if (!trimmedQuestion) {
@@ -1086,7 +1139,7 @@ The compelling event or motivation, if we've surfaced it — and if we haven't, 
 How what we've learned maps to my value proposition — where it's a strong fit, and where it's a stretch or unproven.
 
 ## Discovery gaps
-The important things we still DON'T know — unanswered qualification questions (budget, authority, timeline, decision process, success criteria, competition) that I should close on next.
+The important things we still DON'T know that I should close on next. If my Discovery Framework (my own discovery questions and first-call checklist) is included above, work through IT specifically — call out which of MY questions are still unanswered rather than generic BANT. Only fall back to standard qualification gaps (budget, authority, timeline, decision process, success criteria, competition) if I haven't provided my own framework.
 
 Be specific and ground every point in what's actually in this deal's history — no generic B2B filler. If the deal has thin history, say what's missing rather than inventing.`;
 
