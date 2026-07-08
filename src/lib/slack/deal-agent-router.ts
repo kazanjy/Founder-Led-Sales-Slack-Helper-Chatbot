@@ -197,28 +197,46 @@ export async function tryHandleWithDealAgent(opts: {
       threadTs
     );
 
-    const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
-    const result = await runDealAgent({
-      userId: contextUserId,
-      userMessage: appendFileContext(cleaned, fileContext),
-      conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
-    });
+    // From here on the message is OURS. If the agent run or the reply
+    // post fails, apologize in-channel and stop — falling through to
+    // the legacy Chatbase path after we've said "Looking into the
+    // deal…" produced a context-free non-answer that read as the bot
+    // breaking (which, to be fair, it was).
+    try {
+      const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
+        role: m.role,
+        content: m.text,
+      }));
+      const result = await runDealAgent({
+        userId: contextUserId,
+        userMessage: appendFileContext(cleaned, fileContext),
+        conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+      });
 
-    // Prepend a Slack-mrkdwn link to the deal so the user can jump
-    // straight into the web app for the full timeline / analysis /
-    // analyze CTA. Always-first-line on agent replies, by request.
-    const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
-    const dealUrl = `${appBase}/deals/${matchedDeal.id}`;
-    const linkLine = `<${dealUrl}|:link: Open ${matchedDeal.label} in Mikey ↗>`;
-    const slackReply = `${linkLine}\n\n${markdownToSlack(result.reply)}`;
-    await sendSlackMessage(client, channel, slackReply, threadTs);
+      // Prepend a Slack-mrkdwn link to the deal so the user can jump
+      // straight into the web app for the full timeline / analysis /
+      // analyze CTA. Always-first-line on agent replies, by request.
+      const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+      const dealUrl = `${appBase}/deals/${matchedDeal.id}`;
+      const linkLine = `<${dealUrl}|:link: Open ${matchedDeal.label} in Mikey ↗>`;
+      const slackReply = `${linkLine}\n\n${markdownToSlack(result.reply)}`;
+      await sendSlackMessage(client, channel, slackReply, threadTs);
 
-    console.log(
-      `[slack→deal-agent] user=${contextUserId} turns=${result.turns} tools=${result.trace.length}${result.hitTurnCap ? " hitTurnCap" : ""}`
-    );
+      console.log(
+        `[slack→deal-agent] user=${contextUserId} turns=${result.turns} tools=${result.trace.length}${result.hitTurnCap ? " hitTurnCap" : ""}`
+      );
+    } catch (err) {
+      console.error(`[slack→deal-agent] agent run/reply failed for deal=${matchedDeal.id}:`, err);
+      try {
+        const appBase = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+        await sendSlackMessage(
+          client,
+          channel,
+          `:warning: I hit a snag pulling that together for *${matchedDeal.label}*. Try again in a minute, or open the deal directly: ${appBase}/deals/${matchedDeal.id}`,
+          threadTs
+        );
+      } catch { /* even the apology failed — nothing more to do */ }
+    }
     return true;
   } catch (err) {
     console.error("[slack→deal-agent] handler threw, falling through:", err);
