@@ -27,6 +27,8 @@ interface ActiveGoalOption {
 interface RowDecision {
   action?: "accept" | "reject";
   title?: string;
+  /** Edited description — the founder adds context before accepting. */
+  description?: string;
   goalId?: string;
 }
 
@@ -198,6 +200,11 @@ export function OutcomeReviewPanel({
             ...(d.title && d.title.trim() && d.title.trim() !== c.title
               ? { title: d.title.trim() }
               : {}),
+            // Send description whenever the founder touched the field —
+            // including clearing it (server maps "" → null).
+            ...(d.description !== undefined && d.description !== (c.description || "")
+              ? { description: d.description }
+              : {}),
             ...(d.goalId && d.goalId !== c.goalId ? { goalId: d.goalId } : {}),
           };
         });
@@ -226,6 +233,19 @@ export function OutcomeReviewPanel({
       value={decisions[c.id]?.title ?? c.title ?? ""}
       onChange={(e) => setRow(c.id, { title: e.target.value })}
       className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+    />
+  );
+
+  // Free-text context on a proposed item — lands as the created
+  // goal/task's description. Auto-grows via rows=2; prefilled with
+  // whatever the extractor pulled from the session.
+  const renderEditableDescription = (c: OutcomeCandidate) => (
+    <textarea
+      value={decisions[c.id]?.description ?? c.description ?? ""}
+      onChange={(e) => setRow(c.id, { description: e.target.value })}
+      rows={2}
+      placeholder="Add context / description (optional)…"
+      className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-400 resize-y"
     />
   );
 
@@ -348,6 +368,7 @@ export function OutcomeReviewPanel({
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1 space-y-1.5">
                             {renderEditableTitle(c)}
+                            {renderEditableDescription(c)}
                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                               <span>under goal</span>
                               <select
@@ -401,9 +422,7 @@ export function OutcomeReviewPanel({
                                 <ConfidenceBadge level={g.confidence} />
                               </div>
                               {renderEditableTitle(g)}
-                              {g.description && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{g.description}</p>
-                              )}
+                              {renderEditableDescription(g)}
                               <Evidence quote={g.evidence} />
                             </div>
                             <AcceptRejectToggle
@@ -415,7 +434,10 @@ export function OutcomeReviewPanel({
                             <div className="ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-600 space-y-2">
                               {kids.map((t) => (
                                 <div key={t.id} className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0 flex-1">{renderEditableTitle(t)}</div>
+                                  <div className="min-w-0 flex-1 space-y-1.5">
+                                    {renderEditableTitle(t)}
+                                    {renderEditableDescription(t)}
+                                  </div>
                                   <AcceptRejectToggle
                                     value={goalRejected ? "reject" : decisions[t.id]?.action}
                                     onChange={(v) => setRow(t.id, { action: v })}
