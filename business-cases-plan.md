@@ -183,7 +183,7 @@ Takeaways CTA after auto-synthesis shipped.
 
 ## Phasing — Discovery Summary first
 
-**Phase 1 — Discovery Summary end-to-end (M/L, ~2-3 days)**
+**Phase 1 — Discovery Summary end-to-end — ✅ SHIPPED**
 1. Migration: both tables (one migration, even though ROI/BC wait).
 2. Template: generate route + prompt (discovery-framework-shaped), applet page
    with template card + editor.
