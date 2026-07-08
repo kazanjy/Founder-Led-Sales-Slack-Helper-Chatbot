@@ -176,6 +176,8 @@ model User {
   pendingResearchRequests    PendingResearchRequest[]
   emailSequenceVersions      EmailSequenceVersion[]
   linkedInSequenceVersions   LinkedInSequenceVersion[]
+  businessCaseTemplates      BusinessCaseTemplate[]
+  businessCaseInstances      BusinessCaseInstance[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2535,6 +2537,7 @@ model Deal {
   participants DealParticipant[]
   entries      DealTimelineEntry[]
   analyses     DealAnalysis[]
+  businessCaseInstances BusinessCaseInstance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2687,4 +2690,68 @@ model DealAnalysis {
 
   @@index([dealId, createdAt(sort: Desc)])
   @@map("deal_analyses")
+}
+
+// ============================================
+// BUSINESS CASES SUITE
+// Discovery Summary · ROI Model · Business Case
+// ============================================
+//
+// Three sibling artifact types share ONE discriminated pair of tables
+// (see business-cases-plan.md) instead of three more near-identical
+// Version tables. `type` is the discriminator everywhere:
+//   "discovery_summary" | "roi_model" | "business_case"
+
+// Per-user template, versioned by row (newest row of a type = current).
+// Generated from playbook assets (sales narrative, value prop,
+// discovery questions, first-call checklist) then hand-edited until it
+// reflects the founder's economic argument and discovery structure.
+model BusinessCaseTemplate {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // "discovery_summary" | "roi_model" | "business_case"
+  content String @db.Text // markdown, {{PLACEHOLDER}} slots for instance fill
+
+  // Provenance: which playbook inputs seeded the generation
+  // (ids + labels as JSON), so regenerate can diff/refresh when the
+  // narrative changes. Null for hand-authored templates.
+  sourceInputs Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt(sort: Desc)])
+  @@map("business_case_templates")
+}
+
+// A generated + user-edited artifact. dealId null = ad-hoc run (pasted
+// transcripts / picked calls with no deal attached). Instances are the
+// source of truth — deal-triggered runs ALSO mirror into a
+// DealTimelineEntry (metadata.instanceId links the pair; edits here
+// sync the entry).
+model BusinessCaseInstance {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type       String // same discriminator as BusinessCaseTemplate
+  templateId String? // template version used at generation time
+
+  dealId String?
+  deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  title   String // e.g. "Acme Corp — Discovery Summary"
+  content String @db.Text // markdown; editable in place
+
+  // What we fed the model (transcript titles/dates, deal snapshot
+  // summary) — for regeneration and "what was this based on?" display.
+  sourceContext String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type, createdAt(sort: Desc)])
+  @@index([dealId, type])
+  @@map("business_case_instances")
 }

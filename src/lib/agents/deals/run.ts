@@ -95,6 +95,9 @@ SYNTHESIS FORMATS — when the user asks for one of these, gather the data via t
 
 — Email drafts go through draftFollowUpEmail (which returns the right context). Output exactly: 'Subject: ...' line, blank line, body. Under 200 words.
 
+— "Discovery summary" / "business case" / "ROI model" / "what have we written up" →
+  Call getBusinessCaseArtifacts. If artifacts exist, answer from their content and ALWAYS include the artifact's link. If none exist, say so and point the user at the 🔎 Discovery Summary button on the deal page (or the Business Cases applet at /business-cases).
+
 Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 
 export interface ToolCallTrace {

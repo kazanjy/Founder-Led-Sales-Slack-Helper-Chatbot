@@ -425,6 +425,61 @@ const getUpcomingMeetings: ToolEntry = {
   },
 };
 
+const getBusinessCaseArtifacts: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "getBusinessCaseArtifacts",
+      description:
+        "List the generated Business Case artifacts on a deal — Discovery Summaries, ROI Models, Business Cases — with their full content. Use when the user asks about the discovery summary, business case, ROI model, or 'what have we written up' for a deal. Each artifact includes a link (/business-cases?instance=<id>) — include it when referencing one. Returns an empty list if none have been generated (suggest the 'Discovery Summary' button on the deal page, or the Business Cases applet).",
+      parameters: {
+        type: "object",
+        properties: {
+          dealId: { type: "string" },
+          type: {
+            type: "string",
+            enum: ["discovery_summary", "roi_model", "business_case"],
+            description: "Optional filter to one artifact type.",
+          },
+        },
+        required: ["dealId"],
+      },
+    },
+  },
+  handler: async (
+    { dealId, type }: { dealId: string; type?: string },
+    { userId }
+  ) => {
+    const deal = await loadDealForUser(userId, dealId);
+    if (!deal) return { error: "Deal not found or not accessible." };
+    const artifacts = await prisma.businessCaseInstance.findMany({
+      where: { dealId, ...(type ? { type } : {}) },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        content: true,
+        sourceContext: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    return {
+      artifacts: artifacts.map((a) => ({
+        id: a.id,
+        type: a.type,
+        title: a.title,
+        content: a.content,
+        basedOn: a.sourceContext,
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        link: `/business-cases?tab=${a.type}&instance=${a.id}`,
+      })),
+    };
+  },
+};
+
 const summarizeCall: ToolEntry = {
   definition: {
     type: "function",
@@ -1235,6 +1290,7 @@ export const DEAL_TOOLS: Record<string, ToolEntry> = {
   getParticipants,
   getHealthAndRisks,
   getUpcomingMeetings,
+  getBusinessCaseArtifacts,
   summarizeCall,
   draftFollowUpEmail,
   addTimelineEntry,

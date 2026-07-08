@@ -348,6 +348,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // syncs can produce a dozen identical rows that bury the rest of the
   // deal page. "Show more" reveals the rest.
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [generatingDiscovery, setGeneratingDiscovery] = useState(false);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
@@ -1128,24 +1129,35 @@ Tell me:
 
 If you're torn between two actions, name both and tell me how to choose.`;
 
-  const SYNTHESIZE_DISCOVERY_PROMPT = `Synthesize everything we've discovered about this deal so far. Pull from the full deal history — every call, email, note, and timeline entry — the participants and their roles, the current stage and status, and my sales narrative. Give me a structured discovery synthesis:
-
-## What we've learned about them
-The account's situation, current state, and the specific pains / goals / triggers that are driving this — cite where in the timeline each point came from.
-
-## Who's involved
-Each stakeholder we know about, their apparent role (champion / decision-maker / economic buyer / influencer / blocker / unknown), and what we know about what each one cares about.
-
-## Why they're looking (and why now)
-The compelling event or motivation, if we've surfaced it — and if we haven't, say so plainly.
-
-## Fit against our narrative
-How what we've learned maps to my value proposition — where it's a strong fit, and where it's a stretch or unproven.
-
-## Discovery gaps
-The important things we still DON'T know that I should close on next. If my Discovery Framework (my own discovery questions and first-call checklist) is included above, work through IT specifically — call out which of MY questions are still unanswered rather than generic BANT. Only fall back to standard qualification gaps (budget, authority, timeline, decision process, success criteria, competition) if I haven't provided my own framework.
-
-Be specific and ground every point in what's actually in this deal's history — no generic B2B filler. If the deal has thin history, say what's missing rather than inventing.`;
+  // Generate a Discovery Summary ARTIFACT for this deal via the
+  // Business Cases applet (validated template + full timeline as
+  // evidence). Replaces the old "Synthesize Discovery" chat prompt —
+  // the result is a persisted, versioned document that also lands on
+  // the timeline, with chat exploration available FROM the artifact.
+  const generateDiscoverySummary = async () => {
+    if (generatingDiscovery) return;
+    setGeneratingDiscovery(true);
+    try {
+      const res = await fetch("/api/business-cases/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "discovery_summary", dealId: id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Generation failed (${res.status})`);
+      // Refresh so the mirrored timeline entry appears, then open the
+      // artifact editor in a new tab.
+      await loadDeal();
+      window.open(
+        `/business-cases?tab=discovery_summary&instance=${data.instance.id}`,
+        "_blank"
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate discovery summary");
+    } finally {
+      setGeneratingDiscovery(false);
+    }
+  };
 
   const closeChatPanel = () => {
     setChatPanelOpen(false);
@@ -1733,11 +1745,19 @@ Be specific and ground every point in what's actually in this deal's history —
                 🎯 Next Best Action
               </button>
               <button
-                onClick={() => launchDealChatWithPrompt(SYNTHESIZE_DISCOVERY_PROMPT)}
-                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
-                title="Open Deal Chat and have Mikey synthesize everything discovered on this deal — what we've learned, who's involved, fit against your narrative, and open qualification gaps"
+                onClick={generateDiscoverySummary}
+                disabled={generatingDiscovery}
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5 disabled:opacity-60"
+                title="Generate a Discovery Summary document from this deal's full history using your validated template — saved to the Business Cases library and this deal's timeline"
               >
-                🔎 Synthesize Discovery
+                {generatingDiscovery ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    Summarizing…
+                  </>
+                ) : (
+                  "🔎 Discovery Summary"
+                )}
               </button>
               <button
                 onClick={startDealChat}

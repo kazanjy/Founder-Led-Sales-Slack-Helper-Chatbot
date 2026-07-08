@@ -84,6 +84,21 @@ export function getRoleInfo(role: string) {
   return PARTICIPANT_ROLES.find((r) => r.value === role) || PARTICIPANT_ROLES[5];
 }
 
+// System-generated entry types — rendered on the timeline (label +
+// emoji) but deliberately NOT offered in the manual Add Entry picker,
+// which maps over ENTRY_TYPES. These are written by machinery (calendar
+// sync, business-case generation), never typed in by hand.
+export const SYSTEM_ENTRY_TYPES = [
+  { value: "meeting", label: "Meeting", emoji: "📅" },
+  { value: "discovery_summary", label: "Discovery Summary", emoji: "🔎" },
+  { value: "roi_model", label: "ROI Model", emoji: "💰" },
+  { value: "business_case", label: "Business Case", emoji: "📈" },
+] as const;
+
 export function getEntryTypeInfo(type: string) {
-  return ENTRY_TYPES.find((t) => t.value === type) || { value: type, label: type, emoji: "📄" };
+  return (
+    ENTRY_TYPES.find((t) => t.value === type) ||
+    SYSTEM_ENTRY_TYPES.find((t) => t.value === type) ||
+    { value: type, label: type, emoji: "📄" }
+  );
 }
