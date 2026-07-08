@@ -344,6 +344,10 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [newReasonLabel, setNewReasonLabel] = useState("");
   const [savingReason, setSavingReason] = useState(false);
   const [refreshingUpcoming, setRefreshingUpcoming] = useState(false);
+  // Upcoming Meetings collapses to the first 2 by default — recurring
+  // syncs can produce a dozen identical rows that bury the rest of the
+  // deal page. "Show more" reveals the rest.
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
   const [dealSearchOpen, setDealSearchOpen] = useState(false);
@@ -2073,7 +2077,8 @@ Be specific and ground every point in what's actually in this deal's history —
                 <ul className="space-y-1.5">
                   {(() => {
                     const participantsById = new Map(deal.participants.map((p) => [p.id, p]));
-                    return upcoming.map((e) => {
+                    const visible = showAllUpcoming ? upcoming : upcoming.slice(0, 2);
+                    return visible.map((e) => {
                     const when = new Date(e.entryDate);
                     const dateLabel = when.toLocaleDateString(undefined, {
                       weekday: "short",
@@ -2230,6 +2235,19 @@ Be specific and ground every point in what's actually in this deal's history —
                     );
                     });
                   })()}
+                  {upcoming.length > 2 && (
+                    <li className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllUpcoming((v) => !v)}
+                        className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium"
+                      >
+                        {showAllUpcoming
+                          ? "Show less"
+                          : `Show ${upcoming.length - 2} more`}
+                      </button>
+                    </li>
+                  )}
                 </ul>
               )}
             </div>
