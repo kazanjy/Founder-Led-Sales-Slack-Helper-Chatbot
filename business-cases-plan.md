@@ -126,6 +126,38 @@ deal's latest Discovery Summary + ROI Model instances and feeds them as primary
 inputs (compose, don't re-derive). Missing pieces → generate from raw evidence
 and note it.
 
+## Deal timeline integration
+
+When generated for a deal (entry points 1–2), the artifact ALSO lands as a
+timeline entry — it's part of the deal's engagement record and automatically
+flows into Deal Chat context and deal analysis:
+
+- New `DealTimelineEntry.type` values: `"discovery_summary" | "roi_model" |
+  "business_case"`. Entry content = the artifact markdown; `metadata` carries
+  `{ instanceId, templateId }`; `sourceUrl` deep-links to the applet editor.
+- **Edit sync**: the instance is the source of truth. Saving an edit in the
+  applet updates the linked timeline entry's content (matched via
+  `metadata.instanceId`) so the timeline never shows a stale artifact.
+  Regeneration creates a new instance AND a new timeline entry (the old pair
+  stays as history).
+- **Feedback-loop guard**: evidence assembly for generating an artifact EXCLUDES
+  artifact-type timeline entries. Otherwise the next Discovery Summary would
+  read the previous Discovery Summary as "evidence" and compound its own
+  errors. Primary sources only (transcripts, notes, emails, documents);
+  intentional reuse happens only through the explicit composition rule above.
+
+## Migrating the deal page's "Synthesize Discovery" button
+
+The current button (ships a one-shot prompt into Deal Chat) is superseded in
+Phase 1: the deal-page CTA becomes **"Generate Discovery Summary"** — producing
+the versioned artifact from the founder's validated template, writing the
+timeline entry, and opening the result inline (with edit / Copy / open-in-applet
+affordances). "Chat about this" remains available FROM the generated artifact
+(ChatAboutButton, DIRECT mode) for exploration on top of it. The
+SYNTHESIZE_DISCOVERY_PROMPT constant and its button are removed once the
+artifact path lands — same retirement pattern as the manual Synthesize
+Takeaways CTA after auto-synthesis shipped.
+
 ## UI
 
 - **Route**: `/business-cases` with three tabs: Discovery Summary · ROI Models ·
@@ -159,7 +191,10 @@ and note it.
    normalization; deal-context assembly server-side.
 4. UI: `/business-cases` route (tabs scaffolded, only tab 1 live), deal-page
    generate button + instance list, editor + Copy + Chat About This.
-5. Nav item + deal agent `getBusinessCaseArtifacts` tool.
+5. Timeline integration: new entry types, write-on-generate, edit sync,
+   evidence-exclusion guard; replace the Synthesize Discovery chat button with
+   the artifact CTA.
+6. Nav item + deal agent `getBusinessCaseArtifacts` tool.
 
 **Phase 2 — ROI Model (M)**
 Template prompt (value-driver extraction), instance fill (numbers from
