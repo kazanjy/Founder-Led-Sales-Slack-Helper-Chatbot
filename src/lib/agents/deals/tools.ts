@@ -360,7 +360,7 @@ const getHealthAndRisks: ToolEntry = {
     function: {
       name: "getHealthAndRisks",
       description:
-        "Get the Mikey Health rating and the latest analyzer's 'Risks & Gaps' + 'Strengths' sections for a deal. Use when the user asks how the deal is doing, what's wrong, or what's working. Returns null sections if the deal has never been analyzed.",
+        "Get the Mikey Health rating and the latest analyzer's 'Risks & Gaps', 'Strengths', and 'Discovery Gaps' sections for a deal. Use when the user asks how the deal is doing, what's wrong, what's working, or what's still unknown / undiscovered. Returns null sections if the deal has never been analyzed.",
       parameters: {
         type: "object",
         properties: {
@@ -378,6 +378,7 @@ const getHealthAndRisks: ToolEntry = {
       lastAnalyzedAt: deal.lastAnalyzedAt?.toISOString() || null,
       strengths: summarizeAnalysisSection(deal.lastAnalysis, "Strengths"),
       risksAndGaps: summarizeAnalysisSection(deal.lastAnalysis, "Risks & Gaps"),
+      discoveryGaps: summarizeAnalysisSection(deal.lastAnalysis, "Discovery Gaps"),
       stakeholderMap: summarizeAnalysisSection(deal.lastAnalysis, "Stakeholder Map"),
     };
   },

@@ -1,6 +1,7 @@
 import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/db";
 import { loadSellerContext, formatSellerContext } from "@/lib/seller-context";
+import { loadDiscoveryFramework } from "@/lib/discovery-framework";
 import type { BusinessCaseType } from "./constants";
 import {
   DEFAULT_DISCOVERY_SUMMARY_TEMPLATE,
@@ -55,44 +56,6 @@ export async function getLatestTemplate(userId: string, type: BusinessCaseType) 
 }
 
 /**
- * Format the founder's latest discovery questions as a markdown
- * listing ("### Category / - question"), or "" when none exist.
- */
-async function loadDiscoveryQuestionsListing(
-  userId: string
-): Promise<{ listing: string; versionId: string | null }> {
-  const version = await prisma.discoveryQuestionsVersion.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, content: true },
-  });
-  if (!version) return { listing: "", versionId: null };
-  let parsed: { categories?: Array<Record<string, unknown>> };
-  try {
-    parsed = JSON.parse(version.content);
-  } catch {
-    return { listing: "", versionId: null };
-  }
-  const lines: string[] = [];
-  for (const c of parsed.categories || []) {
-    const catName = (c.name || c.category || c.title) as string | undefined;
-    const qs = Array.isArray(c.questions) ? c.questions : [];
-    if (!qs.length) continue;
-    if (catName) lines.push(`### ${catName}`);
-    for (const q of qs) {
-      const text =
-        typeof q === "string"
-          ? q
-          : ((q as Record<string, string>)?.question ||
-             (q as Record<string, string>)?.text ||
-             "");
-      if (text) lines.push(`- ${text}`);
-    }
-  }
-  return { listing: lines.join("\n"), versionId: lines.length ? version.id : null };
-}
-
-/**
  * Generate (and persist) a fresh template of the given type from the
  * founder's playbook assets. Phase 1: discovery_summary only.
  */
@@ -101,20 +64,15 @@ export async function generateTemplate(userId: string, type: BusinessCaseType) {
     throw new Error(`Template generation for ${type} is not available yet`);
   }
 
-  const [seller, dq, fcc] = await Promise.all([
+  const [seller, framework] = await Promise.all([
     loadSellerContext(userId),
-    loadDiscoveryQuestionsListing(userId),
-    prisma.firstCallChecklistVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, content: true },
-    }),
+    loadDiscoveryFramework(userId),
   ]);
 
   const prompt = buildDiscoveryTemplatePrompt({
     sellerContext: formatSellerContext(seller),
-    discoveryQuestions: dq.listing,
-    firstCallChecklist: (fcc?.content || "").trim(),
+    discoveryQuestions: framework.questionsListing,
+    firstCallChecklist: framework.checklist,
   });
 
   const completion = await openai.chat.completions.create({
@@ -130,8 +88,8 @@ export async function generateTemplate(userId: string, type: BusinessCaseType) {
       type,
       content,
       sourceInputs: {
-        discoveryQuestionsVersionId: dq.versionId,
-        firstCallChecklistVersionId: fcc?.id ?? null,
+        discoveryQuestionsVersionId: framework.questionsVersionId,
+        firstCallChecklistVersionId: framework.checklistVersionId,
         hasNarrative: !!seller.narrative,
         hasValueProp: !!seller.valueProp100w,
       },

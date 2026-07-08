@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { openai } from "@/lib/openai";
+import { loadDiscoveryFramework, formatDiscoveryFramework } from "@/lib/discovery-framework";
 
 /**
  * Deal analysis pipeline shared by the on-demand POST handler at
@@ -202,6 +203,18 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
     }
   } catch { /* ignore */ }
 
+  // The founder's discovery framework (their discovery questions +
+  // first-call checklist) — the Discovery Gaps section audits the deal
+  // against THIS, not generic BANT. Empty string when unauthored.
+  let frameworkContext = "";
+  try {
+    const framework = await loadDiscoveryFramework(userId);
+    const formatted = formatDiscoveryFramework(framework);
+    if (formatted) {
+      frameworkContext = `\n${formatted.substring(0, 4000)}\n`;
+    }
+  } catch { /* ignore — section falls back to generic dimensions */ }
+
   const dealContext = sections.join("\n") + narrativeContext;
 
   const isReanalysis = Boolean(deal.lastAnalysis?.trim());
@@ -213,6 +226,14 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
   const newEntryCount = isReanalysis && deal.lastAnalyzedAt
     ? analyzableEntries.filter((e) => new Date(e.createdAt) > deal.lastAnalyzedAt!).length
     : 0;
+
+  // Shared between both variants — sits right after Risks & Gaps.
+  // Deal risks ("champion going quiet") and discovery gaps ("we never
+  // quantified the cost of the status quo") are different findings;
+  // keeping them separate stops the model from burying unknowns
+  // inside general risk prose.
+  const discoveryGapsSection = `## Discovery Gaps
+What we have NOT discovered yet that would strengthen an eventual ROI case / business case. ${frameworkContext ? "Audit the timeline against the Founder's Discovery Framework provided in the context — which of THEIR discovery questions and checklist items remain unanswered? Do not substitute a generic checklist." : "Use standard qualification dimensions (pain, quantified impact, budget, authority, timeline, decision process, success criteria, competition)."} List the 3-5 most consequential unknowns, prioritized by how much closing each would strengthen the economic case (missing baseline costs, volumes, team sizes, budget authority, decision process). For each: what we don't know + the ready-to-ask question that closes it. If discovery coverage is essentially complete, say so in one line instead.`;
 
   const sectionRequirements = isReanalysis
     ? `## What's Changed
@@ -232,6 +253,8 @@ What's going well — champion engagement, urgency signals, technical fit, etc.
 
 ## Risks & Gaps
 What could derail this deal — missing stakeholders, stalled momentum, unaddressed objections, competitive threats.
+
+${discoveryGapsSection}
 
 ## Stakeholder Map
 For each participant, assess their likely role (champion, decision maker, blocker, influencer) and engagement level based on the evidence.
@@ -253,6 +276,8 @@ What's going well — champion engagement, urgency signals, technical fit, etc.
 ## Risks & Gaps
 What could derail this deal — missing stakeholders, stalled momentum, unaddressed objections, competitive threats, etc.
 
+${discoveryGapsSection}
+
 ## Stakeholder Map
 For each participant, assess their likely role (champion, decision maker, blocker, influencer) and engagement level based on the evidence.
 
@@ -265,7 +290,7 @@ Based on the evidence, recommend what pipeline stage this deal should be in and 
 ## Mikey Health
 A single-line overall verdict: Excellent / Good / Fair / Poor + one sentence justifying it. This must match the MIKEY_HEALTH footer below and reflect the same evidence cited in Strengths and Risks & Gaps.`;
 
-  const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}${stageChanges.length > 0 ? "stage history with time-in-stage durations, " : ""}and optionally the seller's sales narrative${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
+  const systemPrompt = `You are an expert B2B sales strategist analyzing a founder's active deal. Given the deal's timeline (calls, emails, notes), participants, ${upcomingMeetings.length > 0 ? "upcoming meetings scheduled in the next 90 days, " : ""}${stageChanges.length > 0 ? "stage history with time-in-stage durations, " : ""}and optionally the seller's sales narrative and discovery framework${isReanalysis ? ", plus the previous analysis for comparison" : ""}, provide a comprehensive analysis.
 ${isReanalysis ? `\nThis is a RE-ANALYSIS — the founder has added new context since the last run. Lead with what's changed and what they should do next, then follow with the full assessment.\n` : ""}${upcomingMeetings.length > 0 ? `\nThe deal has ${upcomingMeetings.length} upcoming meeting${upcomingMeetings.length === 1 ? "" : "s"} on the calendar. Treat them as committed pipeline — your "What's Next" / "Recommended Next Steps" should explicitly tee up what to prepare for, ask in, or follow up after those meetings. Flag in "Risks & Gaps" if the calendar is empty when it shouldn't be (e.g. a deal in proposal stage with no next meeting scheduled is a momentum risk).\n` : `\nThe deal has NO upcoming meetings on the calendar. Call this out as a momentum signal in "Risks & Gaps" if the deal is past the prospecting stage — a live deal with no scheduled next meeting is usually a problem.\n`}${stageChanges.length > 0 ? `\nThe Stage History section shows each pipeline transition with how long the deal sat in each stage. Use these durations to assess velocity in "Risks & Gaps" — long dwells in a single stage (especially Discovery, Proposal, or Negotiation) are a stall signal; quick transitions can be a positive momentum signal.\n` : ""}
 Your analysis MUST include these sections, in this exact order:
 
@@ -316,9 +341,18 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
         model: "gpt-5.5",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: (dealContext + priorAnalysisBlock).substring(0, 30000) },
+          // Reserve room for the framework block so it survives the
+          // context cap even on transcript-heavy deals — it's appended
+          // AFTER truncation. Without this, a big timeline silently
+          // ate the tail and the Discovery Gaps audit went generic.
+          {
+            role: "user",
+            content:
+              (dealContext + priorAnalysisBlock).substring(0, 30000 - frameworkContext.length) +
+              frameworkContext,
+          },
         ],
-        max_completion_tokens: 2000,
+        max_completion_tokens: 2500,
       },
       { signal: controller.signal }
     );
