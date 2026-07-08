@@ -1129,6 +1129,24 @@ Tell me:
 
 If you're torn between two actions, name both and tell me how to choose.`;
 
+  const DISCOVERY_GAPS_PROMPT = `Run a discovery-gap analysis on this deal: what do we NOT yet know that we'd need to build a strong ROI case and, eventually, a full business case?
+
+If my Discovery Framework (my own discovery questions and first-call checklist) is included in the context above, work through IT item by item against the deal history — this is an audit of MY framework's coverage, not a generic checklist. Only fall back to standard qualification dimensions (pain, impact, budget, authority, timeline, decision process, success criteria, competition) if no framework is provided.
+
+## What we've covered
+A quick rundown of the framework areas that ARE answered — one line each, naming the evidence (which call, which email).
+
+## Discovery gaps — prioritized
+The unanswered items, ordered by how much closing each would strengthen an ROI case / business case. For each gap:
+- **What we don't know** — the specific missing information.
+- **Why it matters** — what it unlocks (quantifying the cost of the status quo, sizing a value driver, confirming budget authority, de-risking the decision process…).
+- **How to close it** — the exact question to ask, phrased ready-to-use, plus who to ask and the natural moment (next call, async email, intro request).
+
+## Economic-case blockers
+Call out the 2-3 gaps that most block a credible ROI model right now — missing baseline numbers, current costs, volumes, team sizes, timelines. These are the ones to chase first.
+
+Ground everything in what's actually in this deal's history — if the deal is thin, say so plainly rather than inventing coverage. Keep it tight and actionable: I should be able to walk into the next call with this list.`;
+
   // Generate a Discovery Summary ARTIFACT for this deal via the
   // Business Cases applet (validated template + full timeline as
   // evidence). Replaces the old "Synthesize Discovery" chat prompt —
@@ -1544,6 +1562,13 @@ If you're torn between two actions, name both and tell me how to choose.`;
             🎯 Next Action
           </button>
           <button
+            onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT)}
+            className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
+            title="What haven't we discovered yet on this deal"
+          >
+            🕳️ Gaps
+          </button>
+          <button
             onClick={startDealChat}
             className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
           >
@@ -1758,6 +1783,13 @@ If you're torn between two actions, name both and tell me how to choose.`;
                 ) : (
                   "🔎 Discovery Summary"
                 )}
+              </button>
+              <button
+                onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT)}
+                className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
+                title="Audit this deal against your discovery questions and first-call checklist — what haven't we found out yet that would strengthen an ROI case or business case, and how to close each gap"
+              >
+                🕳️ Discovery Gaps
               </button>
               <button
                 onClick={startDealChat}
