@@ -543,8 +543,9 @@ function BusinessCasesPageInner() {
                 {template ? ` (last updated ${formatDate(template.createdAt)})` : ""}.
                 {!template && templateLoaded && (
                   <span className="block mt-1 text-amber-600 dark:text-amber-400">
-                    No template yet — generation will fall back to a generic discovery
-                    structure until you create one.
+                    No template yet — your first generation will auto-create one from
+                    your playbook (it&rsquo;ll appear here to review and edit), or
+                    generate it now to shape it first.
                   </span>
                 )}
               </p>

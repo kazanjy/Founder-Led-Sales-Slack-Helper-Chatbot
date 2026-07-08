@@ -224,9 +224,28 @@ export async function generateInstance(opts: {
     throw new Error(`Generation for ${type} is not available yet`);
   }
 
-  // Template: latest authored/generated version, or the built-in
-  // default skeleton so first-run works before template setup.
-  const template = await getLatestTemplate(userId, type);
+  // Template: latest authored/generated version. First run with no
+  // template AUTO-BOOTSTRAPS one from the founder's playbook (one
+  // extra model call, ~20s) so even the very first summary is shaped
+  // by their discovery framework rather than a generic skeleton — the
+  // bootstrapped template lands in the applet for review/edit like
+  // any other version. The built-in default skeleton remains only as
+  // the last-resort fallback if bootstrap itself fails (e.g. OpenAI
+  // hiccup) — evidence-filling should never die on the template step.
+  let template = await getLatestTemplate(userId, type);
+  if (!template) {
+    try {
+      template = await generateTemplate(userId, type);
+      console.log(
+        `[business-cases] auto-bootstrapped ${type} template for user ${userId}`
+      );
+    } catch (err) {
+      console.error(
+        `[business-cases] template bootstrap failed, using default skeleton:`,
+        err
+      );
+    }
+  }
   const templateContent = template?.content || DEFAULT_DISCOVERY_SUMMARY_TEMPLATE;
 
   const seller = await loadSellerContext(userId);
