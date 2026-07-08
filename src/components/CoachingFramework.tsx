@@ -9,6 +9,10 @@ import { TaskComments } from "@/components/TaskComments";
 import { RowActionsMenu, type RowAction } from "@/components/RowActionsMenu";
 import ReadinessTray from "@/components/ReadinessTray";
 import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
+// Copy handlers write BOTH clipboard flavors — text/html (rendered)
+// and text/plain (the raw markdown) — so Docs/Notion/Gmail paste
+// formatted while editors/terminals get clean markdown.
+import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 // Loaded only on the client — TipTap pulls in a chunk we don't want to
 // pay for on SSR. Same pattern used by TaskComments for its comment
@@ -887,7 +891,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         md += formatTaskAsMarkdown(sub, 1);
       }
     }
-    navigator.clipboard.writeText(md.trim());
+    copyMarkdownAsRichText(md.trim());
     showCopied(`goal-${goal.id}`);
   };
 
@@ -908,7 +912,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         md += formatTaskAsMarkdown(sub, 1);
       }
     }
-    navigator.clipboard.writeText(md.trim());
+    copyMarkdownAsRichText(md.trim());
     showCopied(`task-${task.id}`);
   };
 
@@ -1027,7 +1031,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       }
     }
 
-    navigator.clipboard.writeText(md.trim());
+    copyMarkdownAsRichText(md.trim());
     showCopied("all-goals");
   };
 
@@ -3177,7 +3181,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
             <button
               onClick={copyAllGoalsAsMarkdown}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              title="Copy all goals & tasks as markdown"
+              title="Copy all goals & tasks — pastes formatted in Docs/Notion/Gmail, as markdown in plain-text editors"
             >
               {copiedId === "all-goals" ? (
                 <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -3402,7 +3406,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             triggerLabel={`Actions for ${task.title}`}
                             groups={[
                               [
-                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
+                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
                                 { key: "copy-link", label: copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${task.id}`) },
                               ] as RowAction[],
                             ]}
@@ -3570,7 +3574,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                           ] as RowAction[]]
                         : []),
                       [
-                        { key: "copy-md", label: copiedId === `goal-${goal.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyGoalAsMarkdown(goal) },
+                        { key: "copy-md", label: copiedId === `goal-${goal.id}` ? "Copied!" : "Copy", icon: ICON_COPY, onClick: () => copyGoalAsMarkdown(goal) },
                         { key: "copy-link", label: copiedId === `anchor-goal-${goal.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`goal-${goal.id}`) },
                       ] as RowAction[],
                       ...(canEdit
@@ -3907,7 +3911,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                   ] as RowAction[]]
                                 : []),
                               [
-                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
+                                { key: "copy-md", label: copiedId === `task-${task.id}` ? "Copied!" : "Copy", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(task) },
                                 { key: "copy-link", label: copiedId === `anchor-task-${task.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${task.id}`) },
                               ] as RowAction[],
                               ...(canEdit
@@ -4106,7 +4110,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                                           ] as RowAction[]]
                                         : []),
                                       [
-                                        { key: "copy-md", label: copiedId === `task-${sub.id}` ? "Copied!" : "Copy as markdown", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(sub) },
+                                        { key: "copy-md", label: copiedId === `task-${sub.id}` ? "Copied!" : "Copy", icon: ICON_COPY, onClick: () => copyTaskAsMarkdown(sub) },
                                         { key: "copy-link", label: copiedId === `anchor-task-${sub.id}` ? "Copied!" : "Copy link", icon: ICON_LINK, onClick: () => copyAnchorLink(`task-${sub.id}`) },
                                       ] as RowAction[],
                                       ...(canEdit
