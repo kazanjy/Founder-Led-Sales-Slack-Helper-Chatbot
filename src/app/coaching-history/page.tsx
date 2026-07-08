@@ -12,10 +12,6 @@ const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ss
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import SyncReviewOverlay from "@/components/SyncReviewOverlay";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
-// Synthesis prompt lives in a shared module so the server-side
-// auto-on-save synthesizer and this client-side "🧪 Synthesize
-// Takeaways" CTA use the same text — one source of truth.
-import { TAKEAWAYS_SYNTHESIS_PROMPT } from "@/lib/coaching/synthesis-prompt";
 
 interface CoachingSession {
   id: string;
@@ -1421,26 +1417,11 @@ function CoachingHistoryContent() {
                         primeOnly
                         mode="DIRECT"
                       />
-                      <ChatAboutButton
-                        title={`Takeaways: ${selectedSession.title}`}
-                        // Prompt FIRST, then the session context. The
-                        // synthesis instructions need to anchor the
-                        // model's reading of everything below — putting
-                        // them at the bottom risks them getting
-                        // out-weighted by the transcript's bulk.
-                        getContext={async () => {
-                          const ctx = await buildEnrichedChatContext([selectedSession]);
-                          return `${TAKEAWAYS_SYNTHESIS_PROMPT}\n\n---\n\n${ctx}`;
-                        }}
-                        // DIRECT mode: the enriched session context
-                        // (notes + transcript + goals/tasks) regularly
-                        // blows past Chatbase's 7,500-char ceiling, and
-                        // synthesis quality depends on the model seeing
-                        // the full transcript not a RAG-retrieved slice.
-                        mode="DIRECT"
-                        label="🧪 Synthesize Takeaways"
-                        compact={headerCompact}
-                      />
+                      {/* The manual "Synthesize Takeaways" CTA used to
+                          live here — retired once the Session Synthesis
+                          began auto-generating on every save (same
+                          prompt, server-side). See
+                          /api/coaching-sessions/[id]/synthesize. */}
                       {selectedSession.recordingUrl && (
                         <a
                           href={selectedSession.recordingUrl}

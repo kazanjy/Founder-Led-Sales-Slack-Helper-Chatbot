@@ -1,13 +1,13 @@
 /**
- * Shared synthesis prompt for coaching sessions. Imported by both the
- * server-side auto-on-save synthesizer (lib/coaching/synthesize.ts)
- * and the client-side manual "🧪 Synthesize Takeaways" CTA on the
- * coaching page. One copy = one source of truth for what
- * "synthesizing a session" means; edits here propagate to both
- * surfaces without drift.
+ * Synthesis prompt for coaching sessions, used by the server-side
+ * auto-on-save synthesizer (lib/coaching/synthesize.ts). One copy =
+ * one source of truth for what "synthesizing a session" means.
+ * (The client-side manual "🧪 Synthesize Takeaways" CTA that also
+ * imported this was retired once auto-synthesis shipped.)
  *
- * Standalone file (no other imports) so the client bundle can import
- * it without dragging server-only modules along.
+ * Standalone file (no other imports) so client bundles could import
+ * it without dragging server-only modules along, should a client
+ * surface need it again.
  */
 export const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into a terse, scannable takeaway doc with EXACTLY these four sections. Use the actual content of the session — names, deals, numbers, decisions — not generic coach-speak.
 
