@@ -47,6 +47,11 @@ export interface OutcomeCandidate {
   targetId?: string;
   targetTitle?: string;
   newStatus?: "done" | "not_doing" | "deprioritized";
+  // Where an update_task's target lives, so the review UI can show
+  // context ("under Goal › Parent task"). Goal title for any task;
+  // parent-task title only when the target is itself a subtask.
+  parentGoalTitle?: string;
+  parentTaskTitle?: string;
   // new_* — the proposed record:
   title?: string;
   description?: string;
@@ -185,7 +190,7 @@ export async function extractSessionOutcomes(
         id: true,
         title: true,
         status: true,
-        tasks: { select: { id: true, title: true, status: true } },
+        tasks: { select: { id: true, title: true, status: true, parentTaskId: true } },
       },
     }),
     prisma.coachingNextGoal.findMany({
@@ -196,6 +201,16 @@ export async function extractSessionOutcomes(
   const goalIds = new Set(goals.map((g) => g.id));
   const activeGoalIds = new Set(goals.filter((g) => g.status === "active").map((g) => g.id));
   const taskIds = new Set(goals.flatMap((g) => g.tasks.map((t) => t.id)));
+
+  // taskId → { goalTitle, parentTaskId } so an update_task candidate
+  // can render its home ("under Goal › Parent task"). Parent-task
+  // title is resolved via titleById below.
+  const taskParent = new Map<string, { goalTitle: string; parentTaskId: string | null }>();
+  for (const g of goals) {
+    for (const t of g.tasks) {
+      taskParent.set(t.id, { goalTitle: g.title, parentTaskId: t.parentTaskId });
+    }
+  }
   const existingTitles = new Set<string>();
   for (const g of goals) {
     existingTitles.add(normTitle(g.title));
@@ -243,12 +258,18 @@ export async function extractSessionOutcomes(
     if (isTask && !taskIds.has(raw.id)) continue;
     if (isGoal && !goalIds.has(raw.id)) continue;
     if (!isTask && !isGoal) continue;
+    // For a task, resolve where it lives so the UI can show context.
+    const home = isTask ? taskParent.get(raw.id) : undefined;
+    const parentTaskTitle =
+      home?.parentTaskId ? titleById.get(home.parentTaskId) : undefined;
     candidates.push({
       id: randomUUID(),
       kind: isTask ? "update_task" : "update_goal",
       targetId: raw.id,
       targetTitle: titleById.get(raw.id),
       newStatus: raw.newStatus as OutcomeCandidate["newStatus"],
+      parentGoalTitle: home?.goalTitle,
+      parentTaskTitle,
       evidence,
       confidence: normConfidence(raw.confidence),
       status: "pending",

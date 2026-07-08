@@ -309,6 +309,22 @@ export function OutcomeReviewPanel({
                             </span>{" "}
                             <ConfidenceBadge level={c.confidence} />
                           </p>
+                          {/* Where the task lives, so the founder can
+                              tell apart same-named tasks under different
+                              goals. Goal › parent-task when it's a
+                              subtask, just the goal otherwise. Goals
+                              themselves are top-level — no breadcrumb. */}
+                          {c.kind === "update_task" && c.parentGoalTitle && (
+                            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
+                              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                              </svg>
+                              <span className="truncate">
+                                {c.parentGoalTitle}
+                                {c.parentTaskTitle ? ` › ${c.parentTaskTitle}` : ""}
+                              </span>
+                            </p>
+                          )}
                           <Evidence quote={c.evidence} />
                         </div>
                         <AcceptRejectToggle
