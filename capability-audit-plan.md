@@ -30,8 +30,8 @@ The stream route injects `user.promptGuidance` and expands `{{merge_fields}}`; `
 **A8. Schedule the activity-broadcast digest (S).**
 Watermark-based, built for periodic sending, but only fires on manual admin POST. Add a weekly cron to `vercel.json`.
 
-**A9. Outcome synthesis → Goals/Tasks persistence (L) — already designed.**
-Extract candidate goals/tasks from session content → match against open goals → candidate review modal (accept/reject/re-parent) → transactional commit. Makes coaching sessions self-maintaining.
+**A9. Outcome synthesis → Goals/Tasks persistence — ✅ SHIPPED (implicit goal tracking).**
+Post-save extraction (rides the synthesis job) infers completions/status changes/new goals+tasks from notes+transcript with verbatim evidence quotes; candidates persist on the session (`outcomeCandidates` blob); review chip + modal → transactional commit. Rejected/committed decisions carry forward across re-saves. See `lib/coaching/extract-outcomes.ts`, `/api/coaching-sessions/[id]/outcomes`, `OutcomeReviewPanel`.
 
 ---
 
@@ -85,7 +85,7 @@ The `providerClientId` prod incident happened because migrations don't auto-appl
 1. **Quick wins:** C3, C5, C7, A6, A8
 2. **Foundations (make everything after cheaper):** C1, C2, A3
 3. **Integrations:** A2, A4, B4, A7
-4. **By appetite:** B1, A5, B3, A9, B2, C4, C6
+4. **By appetite:** B1, A5, B3, B2, C4, C6 (A9 shipped)
 
 ## Verification per tranche
 

@@ -39,11 +39,21 @@ async function loadSellerContext(userId: string): Promise<{
  * current maturity stage. Mirrors what buildEnrichedChatContext
  * assembles on the client for the manual "Synthesize Takeaways"
  * button so both surfaces feed the model the same context.
+ *
+ * Exported because the outcome-extraction pass (extract-outcomes.ts)
+ * needs the exact same context — extraction quality depends on the
+ * model seeing precisely what synthesis saw. `includeIds` threads
+ * `[id: …]` markers onto every goal/task line so the extraction
+ * model can reference existing records in its verdicts; the prose
+ * synthesis leaves it off to keep IDs out of the founder-facing text.
  */
-async function buildSessionContext(
+export async function buildSessionContext(
   userId: string,
-  sessionId: string
+  sessionId: string,
+  opts?: { includeIds?: boolean }
 ): Promise<string | null> {
+  const includeIds = opts?.includeIds ?? false;
+  const idTag = (id: string) => (includeIds ? ` [id: ${id}]` : "");
   const session = await prisma.coachingSession.findFirst({
     where: { id: sessionId, userId },
     include: {
@@ -129,13 +139,14 @@ async function buildSessionContext(
   if (session.goals.length > 0) {
     ctx += `### Goals + Tasks created in this session\n\n`;
     for (const g of session.goals) {
-      ctx += `**${g.title}** [${g.status}]\n`;
+      ctx += `**${g.title}** [${g.status}]${idTag(g.id)}\n`;
       if (g.description) ctx += `${g.description}\n`;
       for (const t of g.tasks) {
         const check = t.status === "done" ? "x" : " ";
         ctx += `- [${check}] ${t.title}`;
         if (t.status === "not_doing") ctx += ` ~~(not doing)~~`;
         if (t.status === "deprioritized") ctx += ` *(deprioritized)*`;
+        ctx += idTag(t.id);
         ctx += `\n`;
         if (t.description) ctx += `  ${t.description}\n`;
       }
@@ -146,11 +157,11 @@ async function buildSessionContext(
   if (activeGoals.length > 0) {
     ctx += `---\n\n### Active goals across all sessions (carry-forward state)\n\n`;
     for (const g of activeGoals) {
-      ctx += `**${g.title}** [${g.status}]\n`;
+      ctx += `**${g.title}** [${g.status}]${idTag(g.id)}\n`;
       if (g.description) ctx += `${g.description}\n`;
       for (const t of g.tasks) {
         const check = t.status === "done" ? "x" : " ";
-        ctx += `- [${check}] ${t.title}\n`;
+        ctx += `- [${check}] ${t.title}${idTag(t.id)}\n`;
       }
       ctx += `\n`;
     }
@@ -159,10 +170,10 @@ async function buildSessionContext(
   if (nextGoals.length > 0) {
     ctx += `---\n\n### Up Next (queued for after priorities land)\n\n`;
     for (const g of nextGoals) {
-      ctx += `**${g.title}**\n`;
+      ctx += `**${g.title}**${idTag(g.id)}\n`;
       if (g.description) ctx += `${g.description}\n`;
       for (const t of g.tasks) {
-        ctx += `- ${t.title}\n`;
+        ctx += `- ${t.title}${idTag(t.id)}\n`;
       }
       ctx += `\n`;
     }

@@ -37,6 +37,12 @@ export async function GET() {
         // job lands.
         synthesis: true,
         synthesisAt: true,
+        // Outcome-candidate blob — the review chip/panel reads pending
+        // candidates straight off the session list, same pattern as
+        // synthesis above.
+        outcomeCandidates: true,
+        outcomeCandidatesAt: true,
+        outcomesReviewedAt: true,
         createdAt: true,
         updatedAt: true,
         userId: true,

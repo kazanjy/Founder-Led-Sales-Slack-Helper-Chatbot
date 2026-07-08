@@ -11,6 +11,8 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import SyncReviewOverlay from "@/components/SyncReviewOverlay";
+import { OutcomeReviewPanel } from "@/components/OutcomeReviewPanel";
+import type { OutcomeCandidatesBlob } from "@/lib/coaching/extract-outcomes";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 
 interface CoachingSession {
@@ -26,6 +28,12 @@ interface CoachingSession {
   // /synthesize endpoint. Null until the first save completes.
   synthesis: string | null;
   synthesisAt: string | null;
+  // Implicit goal tracking — candidate goal/task updates extracted
+  // from the session by the same post-save job. Reviewed via the
+  // OutcomeReviewPanel chip; null for legacy/never-extracted sessions.
+  outcomeCandidates: OutcomeCandidatesBlob | null;
+  outcomeCandidatesAt: string | null;
+  outcomesReviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -248,6 +256,9 @@ function CoachingHistoryContent() {
   // panel can render a "Generating synthesis…" placeholder beneath
   // the notes/transcript area until the background job lands.
   const [synthesizingSessionId, setSynthesizingSessionId] = useState<string | null>(null);
+  // Bumped after an outcome-review commit to force CoachingFramework
+  // (keyed on this) to remount and refetch goals/tasks it didn't create.
+  const [frameworkNonce, setFrameworkNonce] = useState(0);
   const [headerCompact, setHeaderCompact] = useState(false);
 
   useEffect(() => {
@@ -1443,6 +1454,26 @@ function CoachingHistoryContent() {
                   </div>
 
                   <div className="p-6">
+                    {/* Implicit goal tracking — chip + review modal for
+                        candidate goal/task updates the post-save
+                        extraction inferred from this session. Sits
+                        above the synthesis so the actionable ask comes
+                        before the prose rollup. Renders nothing when
+                        there are no pending candidates. */}
+                    <OutcomeReviewPanel
+                      sessionId={selectedSession.id}
+                      sessionUserId={selectedSession.userId}
+                      blob={selectedSession.outcomeCandidates}
+                      extracting={synthesizingSessionId === selectedSession.id}
+                      onCommitted={async () => {
+                        // Pull the updated blob into page state and
+                        // remount the framework so accepted goals/
+                        // tasks/status changes appear immediately.
+                        await loadSessions();
+                        setFrameworkNonce((n) => n + 1);
+                      }}
+                    />
+
                     {/* Session Synthesis — auto-generated after every save
                         using the same prompt as the manual "Synthesize
                         Takeaways" CTA. Sits between the session header
@@ -1532,8 +1563,12 @@ function CoachingHistoryContent() {
                       </div>
                     )}
 
-                    {/* Coaching Framework — Maturity Stage, Metrics, Goals & Tasks */}
+                    {/* Coaching Framework — Maturity Stage, Metrics, Goals & Tasks.
+                        Keyed on frameworkNonce so an outcome-review
+                        commit (which creates goals/tasks outside the
+                        framework's own state) forces a clean refetch. */}
                     <CoachingFramework
+                      key={`${selectedSession.id}-${frameworkNonce}`}
                       sessionId={selectedSession.id}
                       sessionStatus={selectedSession.sessionStatus || "new"}
                       // Account members can now edit each other's

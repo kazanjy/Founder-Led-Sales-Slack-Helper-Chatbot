@@ -1613,6 +1613,19 @@ model CoachingSession {
   synthesis    String?   @db.Text
   synthesisAt  DateTime?
 
+  // Implicit goal tracking — candidate goal/task updates inferred from
+  // the session's notes + transcript by the post-save extraction job.
+  // Shape: { version, extractedAt, candidates: OutcomeCandidate[] }
+  // (see lib/coaching/extract-outcomes.ts). Candidates persist here —
+  // NOT in memory — so the review moment survives navigation and can
+  // surface later (chip on the session, agent tools, Slack). Nothing
+  // in this blob touches real goals/tasks until the founder accepts
+  // it through the review panel's commit endpoint.
+  outcomeCandidates   Json?
+  outcomeCandidatesAt DateTime?
+  // Stamped when the founder completes a review (accept/reject) pass.
+  outcomesReviewedAt  DateTime?
+
   // Session lifecycle
   sessionStatus String  @default("new") // "new" | "in_progress" | "locked"
   maturityStage String? // Snapshot of sales maturity stage at session creation
