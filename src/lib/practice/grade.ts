@@ -18,6 +18,10 @@ export interface PracticeScore {
   dimensions: PracticeScoreDimension[];
   modelAnswer: string; // what great looks like, concretely
   nextRep: string; // the ONE thing to fix on the next attempt
+  /** Ick flags (rapport drill): named fouls like "fake flattery". */
+  flags?: string[];
+  /** Alternative approaches the founder could have taken. */
+  alternatives?: string[];
 }
 
 export interface PrecallAnswers {
@@ -50,6 +54,83 @@ Return ONLY a JSON object:
   "modelAnswer": "<4-6 sentences: the ideal plan for this exact buyer — the persona call, the angle you'd open with, which props to lead with and which to keep holstered. Concrete, second person ('lead with…'), grounded in the card's signals.>",
   "nextRep": "<ONE sentence: the single highest-leverage thing to do differently next attempt>"
 }`;
+
+const RAPPORT_GRADING_PROMPT = `You are grading a founder's RAPPORT drill attempt. They were shown a synthetic buyer's public card (bio + rapport breadcrumbs) and delivered an ICEBREAKER — the first 15-45 seconds of a call, before business starts. You have the full persona and their icebreaker (voice-transcribed or typed; ignore transcription artifacts like missing punctuation).
+
+Grade these four dimensions, each 0-5:
+
+1. "Authenticity" — does it sound like a human being talking, or a LinkedIn bot? Conversational rhythm, natural word choice, something only a person who actually read the card would say. Scripted-sounding corporate warmth scores low.
+2. "Breadcrumb choice" — did they use an appropriate hook from the card? Some breadcrumbs are better openers than others (a recent post or talk = great; alma mater = fine; anything that implies deep personal research = risky). Using NO breadcrumb (generic "how's your week") scores 1-2. Using the riskiest one gracefully can still score well.
+3. "Brevity" — an icebreaker is 1-3 sentences. Word count matters: under ~60 words is right; 60-100 is pushing it; 100+ is a monologue and scores 0-2 regardless of quality.
+4. "The pivot" — does it bridge naturally toward business ("...anyway, I know we've only got 30 minutes—")? An icebreaker that strands the conversation in small talk with no exit scores low on this dimension even if charming.
+
+ICK FLAGS — list any that apply (empty list if clean): "fake flattery", "over-familiarity", "creepy-specific research", "self-centered opener", "interview-question opener", "apology opener". Each flag present should also depress the relevant dimension score.
+
+FAIRNESS: grade only against the card they saw. Do not invent context.
+
+Return ONLY a JSON object:
+{
+  "overall": "<letter grade A/A-/B+/B/B-/C+/C/D/F>",
+  "dimensions": [
+    { "name": "Authenticity", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Breadcrumb choice", "score": 0-5, "max": 5, "comment": "<name the breadcrumb they used and whether it was the right pick>" },
+    { "name": "Brevity", "score": 0-5, "max": 5, "comment": "<include the word count>" },
+    { "name": "The pivot", "score": 0-5, "max": 5, "comment": "..." }
+  ],
+  "flags": ["<ick flags, or empty array>"],
+  "modelAnswer": "<the icebreaker YOU would deliver to this exact buyer, written out verbatim in first person, 1-3 sentences including the pivot>",
+  "alternatives": ["<a second icebreaker taking a DIFFERENT breadcrumb/angle, verbatim>", "<a third, different again>"],
+  "nextRep": "<ONE sentence: the single highest-leverage fix for next attempt>"
+}`;
+
+/**
+ * Grade a rapport (icebreaker) attempt against the persona card.
+ */
+export async function gradeRapport(
+  persona: PracticePersona,
+  icebreaker: string
+): Promise<PracticeScore> {
+  const payload = {
+    persona: { public: persona.public, hidden: persona.hidden },
+    icebreaker,
+  };
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: `${RAPPORT_GRADING_PROMPT}\n\n---\n\n${JSON.stringify(payload, null, 2)}`,
+      },
+    ],
+  });
+  let parsed: Partial<PracticeScore>;
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Grader returned unparseable JSON");
+  }
+  if (!parsed.overall || !Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) {
+    throw new Error("Grader returned an incomplete score");
+  }
+  return {
+    overall: parsed.overall,
+    dimensions: parsed.dimensions.map((d) => ({
+      name: String(d.name || "Dimension"),
+      score: typeof d.score === "number" ? d.score : 0,
+      max: typeof d.max === "number" ? d.max : 5,
+      comment: String(d.comment || ""),
+    })),
+    flags: Array.isArray(parsed.flags)
+      ? parsed.flags.filter((f): f is string => typeof f === "string")
+      : [],
+    alternatives: Array.isArray(parsed.alternatives)
+      ? parsed.alternatives.filter((a): a is string => typeof a === "string")
+      : [],
+    modelAnswer: String(parsed.modelAnswer || ""),
+    nextRep: String(parsed.nextRep || ""),
+  };
+}
 
 /**
  * Grade a pre-call planning attempt. Returns the uniform score shape;

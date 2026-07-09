@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { gradePrecallPlan, PrecallAnswers } from "@/lib/practice/grade";
+import { gradePrecallPlan, gradeRapport, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 import type { PracticePersona } from "@/lib/practice/persona";
 
@@ -36,30 +36,39 @@ export async function POST(
     if (session.status === "completed") {
       return NextResponse.json({ session: serializePracticeSession(session) });
     }
-    if (session.drill !== "precall_plan") {
-      return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });
-    }
-
     const body = await request.json().catch(() => null);
     const a = body?.answers;
-    if (
-      !a ||
-      typeof a.orgPersona !== "string" ||
-      typeof a.humanPersona !== "string" ||
-      typeof a.angle !== "string" ||
-      !Array.isArray(a.valuePropsLand)
-    ) {
-      return NextResponse.json({ error: "answers {orgPersona, humanPersona, angle, valuePropsLand[]} required" }, { status: 400 });
-    }
-    const answers: PrecallAnswers = {
-      orgPersona: a.orgPersona,
-      humanPersona: a.humanPersona,
-      angle: a.angle,
-      valuePropsLand: a.valuePropsLand.filter((v: unknown): v is string => typeof v === "string"),
-    };
-
     const persona = session.persona as unknown as PracticePersona;
-    const score = await gradePrecallPlan(persona, answers);
+
+    let answers: Record<string, unknown>;
+    let score: PracticeScore;
+    if (session.drill === "precall_plan") {
+      if (
+        !a ||
+        typeof a.orgPersona !== "string" ||
+        typeof a.humanPersona !== "string" ||
+        typeof a.angle !== "string" ||
+        !Array.isArray(a.valuePropsLand)
+      ) {
+        return NextResponse.json({ error: "answers {orgPersona, humanPersona, angle, valuePropsLand[]} required" }, { status: 400 });
+      }
+      const precall: PrecallAnswers = {
+        orgPersona: a.orgPersona,
+        humanPersona: a.humanPersona,
+        angle: a.angle,
+        valuePropsLand: a.valuePropsLand.filter((v: unknown): v is string => typeof v === "string"),
+      };
+      answers = precall as unknown as Record<string, unknown>;
+      score = await gradePrecallPlan(persona, precall);
+    } else if (session.drill === "rapport") {
+      if (!a || typeof a.icebreaker !== "string" || !a.icebreaker.trim()) {
+        return NextResponse.json({ error: "answers {icebreaker} required" }, { status: 400 });
+      }
+      answers = { icebreaker: a.icebreaker.trim() };
+      score = await gradeRapport(persona, a.icebreaker.trim());
+    } else {
+      return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });
+    }
 
     const updated = await prisma.practiceSession.update({
       where: { id: session.id },

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 
 /**
  * Practice suite home + drill runner (see practice-suite-plan.md).
@@ -44,12 +45,14 @@ interface SessionShape {
     quiz: { orgPersonaOptions: string[]; humanPersonaOptions: string[]; valueProps: string[] };
     hidden?: PersonaHidden;
   };
-  answers: { orgPersona: string; humanPersona: string; angle: string; valuePropsLand: string[] } | null;
+  answers: Record<string, unknown> | null;
   score: {
     overall: string;
     dimensions: Array<{ name: string; score: number; max: number; comment: string }>;
     modelAnswer: string;
     nextRep: string;
+    flags?: string[];
+    alternatives?: string[];
   } | null;
   createdAt: string;
   completedAt: string | null;
@@ -68,8 +71,8 @@ const DRILLS = [
     key: "rapport",
     emoji: "🤝",
     label: "Rapport",
-    description: "Deliver your icebreaker against a fresh buyer card. Graded on authenticity, relevance, and the pivot to business.",
-    available: false,
+    description: "Deliver your icebreaker against a fresh buyer card — out loud or typed. Graded on authenticity, breadcrumb choice, brevity, and the pivot to business.",
+    available: true,
   },
   {
     key: "agenda",
@@ -103,6 +106,53 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Letter grade → 0-4.3 points for trend math (display stays letters).
+function gradePoints(overall: string): number {
+  const base: Record<string, number> = { A: 4, B: 3, C: 2, D: 1, F: 0 };
+  const letter = overall.charAt(0).toUpperCase();
+  let pts = base[letter] ?? 0;
+  if (overall.includes("+")) pts += 0.3;
+  if (overall.includes("-")) pts -= 0.3;
+  return Math.max(0, pts);
+}
+
+/** Tiny inline trend line of recent grades, oldest → newest. */
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const w = 72;
+  const h = 20;
+  const max = 4.3;
+  const step = w / (points.length - 1);
+  const coords = points
+    .map((p, i) => `${(i * step).toFixed(1)},${(h - (p / max) * (h - 2) - 1).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} className="text-purple-400 dark:text-purple-500" aria-hidden>
+      <polyline points={coords} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Consecutive-day streak (ending today or yesterday) over completed
+// sessions. Day-granular and timezone-local — good enough for a gym.
+function computeStreak(sessions: Array<{ completedAt: string | null }>): number {
+  const days = new Set(
+    sessions
+      .filter((s) => s.completedAt)
+      .map((s) => new Date(s.completedAt!).toDateString())
+  );
+  if (days.size === 0) return 0;
+  let streak = 0;
+  const cursor = new Date();
+  // Allow the streak to survive if today has no rep yet.
+  if (!days.has(cursor.toDateString())) cursor.setDate(cursor.getDate() - 1);
+  while (days.has(cursor.toDateString())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 function PracticePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,8 +171,24 @@ function PracticePageInner() {
   const [humanPersona, setHumanPersona] = useState("");
   const [angle, setAngle] = useState("");
   const [propsLand, setPropsLand] = useState<Set<string>>(new Set());
+  // Rapport drill state
+  const [icebreaker, setIcebreaker] = useState("");
+  const [recording, setRecording] = useState(false);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
+
+  const streak = useMemo(() => computeStreak(history), [history]);
+  const sparkByDrill = useMemo(() => {
+    const map = new Map<string, number[]>();
+    // History arrives newest-first; sparkline wants oldest → newest.
+    for (const s of [...history].reverse()) {
+      if (!s.score) continue;
+      const arr = map.get(s.drill) || [];
+      arr.push(gradePoints(s.score.overall));
+      map.set(s.drill, arr.slice(-10));
+    }
+    return map;
+  }, [history]);
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -155,6 +221,8 @@ function PracticePageInner() {
     setHumanPersona("");
     setAngle("");
     setPropsLand(new Set());
+    setIcebreaker("");
+    setRecording(false);
     setGradeError(null);
     (async () => {
       try {
@@ -197,23 +265,31 @@ function PracticePageInner() {
   const submitAnswers = async () => {
     if (!session) return;
     setGradeError(null);
-    if (!orgPersona || !humanPersona || !angle.trim()) {
-      setGradeError("Pick both personas and write your angle before submitting.");
-      return;
+    let answers: Record<string, unknown>;
+    if (session.drill === "rapport") {
+      if (!icebreaker.trim()) {
+        setGradeError("Deliver your icebreaker (record it or type it) before submitting.");
+        return;
+      }
+      answers = { icebreaker: icebreaker.trim() };
+    } else {
+      if (!orgPersona || !humanPersona || !angle.trim()) {
+        setGradeError("Pick both personas and write your angle before submitting.");
+        return;
+      }
+      answers = {
+        orgPersona,
+        humanPersona,
+        angle: angle.trim(),
+        valuePropsLand: [...propsLand],
+      };
     }
     setGrading(true);
     try {
       const res = await fetch(`/api/practice/sessions/${session.id}/grade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          answers: {
-            orgPersona,
-            humanPersona,
-            angle: angle.trim(),
-            valuePropsLand: [...propsLand],
-          },
-        }),
+        body: JSON.stringify({ answers }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Grading failed (${res.status})`);
@@ -234,7 +310,14 @@ function PracticePageInner() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🥊 Practice</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 inline-flex items-center gap-3">
+              🥊 Practice
+              {streak >= 2 && (
+                <span className="text-sm font-semibold bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 px-2.5 py-1 rounded-full">
+                  🔥 {streak}-day streak
+                </span>
+              )}
+            </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Drills against synthetic buyers built from YOUR playbook, graded against YOUR
               value props and discovery framework.
@@ -272,7 +355,9 @@ function PracticePageInner() {
                     <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                       {d.emoji} {d.label}
                     </h2>
-                    {!d.available && (
+                    {d.available ? (
+                      <Sparkline points={sparkByDrill.get(d.key) || []} />
+                    ) : (
                       <span className="text-[10px] uppercase tracking-wide bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">
                         soon
                       </span>
@@ -377,8 +462,66 @@ function PracticePageInner() {
               </div>
             )}
 
-            {session.status !== "completed" ? (
-              /* ── Quiz form ──────────────────────────────────── */
+            {session.status !== "completed" && session.drill === "rapport" ? (
+              /* ── Rapport form ───────────────────────────────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    You&rsquo;re opening the call with {pub?.name.split(" ")[0]}. Deliver your icebreaker.
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    The first 15–45 seconds before business starts — say it out loud like you would
+                    on the call, or type it. Include your pivot to business.
+                  </p>
+                </div>
+                {recording ? (
+                  <VoiceRecordingInput
+                    isActive={recording}
+                    onCancel={() => setRecording(false)}
+                    onTranscriptionComplete={(text) => {
+                      setIcebreaker((prev) => (prev ? `${prev} ${text}` : text));
+                      setRecording(false);
+                    }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setRecording(true)}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    Record it
+                  </button>
+                )}
+                <textarea
+                  value={icebreaker}
+                  onChange={(e) => setIcebreaker(e.target.value)}
+                  rows={4}
+                  placeholder='e.g. "Hey Sarah — before we dive in, I caught your post on…"'
+                  className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                />
+                {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                <button
+                  onClick={submitAnswers}
+                  disabled={grading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                >
+                  {grading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Grading…
+                    </>
+                  ) : (
+                    "Submit icebreaker for grading"
+                  )}
+                </button>
+              </div>
+            ) : session.status !== "completed" ? (
+              /* ── Pre-call quiz form ─────────────────────────── */
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-5">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
@@ -513,6 +656,18 @@ function PracticePageInner() {
                         </div>
                       ))}
                     </div>
+                    {(session.score.flags?.length ?? 0) > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {session.score.flags!.map((f) => (
+                          <span
+                            key={f}
+                            className="text-[11px] font-medium bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full"
+                          >
+                            🚩 {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {session.score.nextRep && (
                       <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
                         <strong>Next rep:</strong> {session.score.nextRep}
@@ -528,6 +683,20 @@ function PracticePageInner() {
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                         {session.score.modelAnswer}
                       </p>
+                      {(session.score.alternatives?.length ?? 0) > 0 && (
+                        <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+                          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                            Other angles you could have taken
+                          </h4>
+                          <ul className="space-y-2">
+                            {session.score.alternatives!.map((alt, i) => (
+                              <li key={i} className="text-sm text-gray-600 dark:text-gray-400 italic border-l-2 border-purple-200 dark:border-purple-800 pl-3">
+                                {alt}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
 

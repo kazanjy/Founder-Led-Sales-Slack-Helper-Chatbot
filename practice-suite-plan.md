@@ -258,12 +258,12 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
 
 ## Phasing
 
-- **Phase 1 — foundation + Drill 1 (M/L)**: PracticeSession model, persona
+- **Phase 1 — foundation + Drill 1 — ✅ SHIPPED**: PracticeSession model, persona
   synthesizer (two-layer card + fairness rule), grading engine + report-card
   component, `/practice` home with history, Pre-Call Planning drill
   end-to-end. Forms only — no voice dependency, fastest path to feeling the
   loop (generate → attempt → reveal → rotate).
-- **Phase 2 — Rapport (S/M)**: first voice-in drill; streaks + sparklines.
+- **Phase 2 — Rapport — ✅ SHIPPED**: first voice-in drill; streaks + sparklines.
 - **Phase 3 — Agenda Setting (M)**: script modes, duration/pace/filler
   metrics, save-back-to-checklist.
 - **Phase 4 — Discovery (L)**: two-level drill, then freestyle with the TTS

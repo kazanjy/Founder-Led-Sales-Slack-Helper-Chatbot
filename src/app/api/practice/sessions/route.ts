@@ -17,9 +17,9 @@ import { serializePracticeSession } from "@/lib/practice/serialize";
 export const maxDuration = 120;
 
 const VALID_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery"]);
-// Phase 1 ships the pre-call drill only; the others 400 until their
-// phases land so the UI's coming-soon cards can't create orphans.
-const LIVE_DRILLS = new Set(["precall_plan"]);
+// Drills go live phase by phase; the rest 400 until their phases land
+// so the UI's coming-soon cards can't create orphans.
+const LIVE_DRILLS = new Set(["precall_plan", "rapport"]);
 
 export async function POST(request: NextRequest) {
   try {
