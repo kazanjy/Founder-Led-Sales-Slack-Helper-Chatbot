@@ -1,0 +1,633 @@
+"use client";
+
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import SalesNavBar from "@/components/SalesNavBar";
+
+/**
+ * Practice suite home + drill runner (see practice-suite-plan.md).
+ * Phase 1: Pre-Call Planning drill end-to-end; Rapport / Agenda /
+ * Discovery render as coming-soon cards.
+ *
+ * Flow: start drill → POST /api/practice/sessions (persona
+ * synthesized server-side, hidden dossier NOT sent) → founder answers
+ * the quiz off the public card → POST grade → report card + reveal.
+ */
+
+interface PersonaPublic {
+  name: string;
+  title: string;
+  company: { name: string; industry: string; size: string; blurb: string };
+  bio: string;
+  breadcrumbs: string[];
+}
+
+interface PersonaHidden {
+  orgPersona: string;
+  humanPersona: string;
+  pains: string[];
+  currentState: string;
+  compellingEvent: string;
+  valuePropsThatLand: string[];
+  valuePropsThatDont: string[];
+  temperament: string;
+  objections: string[];
+}
+
+interface SessionShape {
+  id: string;
+  drill: string;
+  mode: string | null;
+  status: string;
+  persona: {
+    public: PersonaPublic;
+    quiz: { orgPersonaOptions: string[]; humanPersonaOptions: string[]; valueProps: string[] };
+    hidden?: PersonaHidden;
+  };
+  answers: { orgPersona: string; humanPersona: string; angle: string; valuePropsLand: string[] } | null;
+  score: {
+    overall: string;
+    dimensions: Array<{ name: string; score: number; max: number; comment: string }>;
+    modelAnswer: string;
+    nextRep: string;
+  } | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+const DRILLS = [
+  {
+    key: "precall_plan",
+    emoji: "🗺️",
+    label: "Pre-Call Planning",
+    description:
+      "A meeting just landed on your calendar. Read the buyer's card, call the persona, pick your angle, and map which value props land — then see how you did.",
+    available: true,
+  },
+  {
+    key: "rapport",
+    emoji: "🤝",
+    label: "Rapport",
+    description: "Deliver your icebreaker against a fresh buyer card. Graded on authenticity, relevance, and the pivot to business.",
+    available: false,
+  },
+  {
+    key: "agenda",
+    emoji: "📋",
+    label: "Agenda Setting",
+    description: "Run your agenda set + elevator pitch out loud — script visible or from memory — against the clock.",
+    available: false,
+  },
+  {
+    key: "discovery",
+    emoji: "🔍",
+    label: "Discovery",
+    description: "Live discovery roleplay: ask questions by voice, the buyer answers in character, get graded on second-level digging.",
+    available: false,
+  },
+];
+
+function drillInfo(key: string) {
+  return DRILLS.find((d) => d.key === key) || DRILLS[0];
+}
+
+function gradeColor(overall: string): string {
+  const letter = overall.charAt(0).toUpperCase();
+  if (letter === "A") return "text-green-600 dark:text-green-400";
+  if (letter === "B") return "text-emerald-600 dark:text-emerald-400";
+  if (letter === "C") return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function PracticePageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("session");
+
+  const [history, setHistory] = useState<SessionShape[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  const [session, setSession] = useState<SessionShape | null>(null);
+  const [loadingSession, setLoadingSession] = useState(false);
+
+  // Quiz form state
+  const [orgPersona, setOrgPersona] = useState("");
+  const [humanPersona, setHumanPersona] = useState("");
+  const [angle, setAngle] = useState("");
+  const [propsLand, setPropsLand] = useState<Set<string>>(new Set());
+  const [grading, setGrading] = useState(false);
+  const [gradeError, setGradeError] = useState<string | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("/api/practice/sessions?limit=30");
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.sessions || []);
+      }
+    } catch {
+      /* empty history */
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  // Load the session in focus; reset quiz state on change.
+  useEffect(() => {
+    if (!sessionId) {
+      setSession(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSession(true);
+    setOrgPersona("");
+    setHumanPersona("");
+    setAngle("");
+    setPropsLand(new Set());
+    setGradeError(null);
+    (async () => {
+      try {
+        const res = await fetch(`/api/practice/sessions/${sessionId}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setSession(data.session);
+        }
+      } catch {
+        /* stays null */
+      } finally {
+        if (!cancelled) setLoadingSession(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const startDrill = async (drill: string) => {
+    setStarting(true);
+    setStartError(null);
+    try {
+      const res = await fetch("/api/practice/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drill }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Failed to start (${res.status})`);
+      await loadHistory();
+      router.push(`/practice?session=${data.session.id}`);
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : "Failed to start drill");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const submitAnswers = async () => {
+    if (!session) return;
+    setGradeError(null);
+    if (!orgPersona || !humanPersona || !angle.trim()) {
+      setGradeError("Pick both personas and write your angle before submitting.");
+      return;
+    }
+    setGrading(true);
+    try {
+      const res = await fetch(`/api/practice/sessions/${session.id}/grade`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers: {
+            orgPersona,
+            humanPersona,
+            angle: angle.trim(),
+            valuePropsLand: [...propsLand],
+          },
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Grading failed (${res.status})`);
+      setSession(data.session);
+      await loadHistory();
+    } catch (err) {
+      setGradeError(err instanceof Error ? err.message : "Grading failed");
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const pub = session?.persona.public;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <SalesNavBar />
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🥊 Practice</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Drills against synthetic buyers built from YOUR playbook, graded against YOUR
+              value props and discovery framework.
+            </p>
+          </div>
+          {sessionId && (
+            <button
+              onClick={() => router.push("/practice")}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              ← All drills
+            </button>
+          )}
+        </div>
+
+        {!sessionId ? (
+          /* ── Home: drill cards + history ─────────────────────── */
+          <div className="space-y-6">
+            {startError && (
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2.5">
+                {startError}
+              </p>
+            )}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {DRILLS.map((d) => (
+                <div
+                  key={d.key}
+                  className={`bg-white dark:bg-gray-800 border rounded-xl p-5 ${
+                    d.available
+                      ? "border-purple-200 dark:border-purple-800"
+                      : "border-gray-200 dark:border-gray-700 opacity-70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                      {d.emoji} {d.label}
+                    </h2>
+                    {!d.available && (
+                      <span className="text-[10px] uppercase tracking-wide bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">
+                        soon
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{d.description}</p>
+                  {d.available && (
+                    <button
+                      onClick={() => startDrill(d.key)}
+                      disabled={starting}
+                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {starting ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Building your buyer…
+                        </>
+                      ) : (
+                        "Start drill"
+                      )}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-3">
+                Recent sessions
+              </h2>
+              {loadingHistory ? (
+                <p className="text-sm text-gray-400">Loading…</p>
+              ) : history.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  No reps yet — start your first drill above.
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {history.map((s) => {
+                    const info = drillInfo(s.drill);
+                    return (
+                      <li key={s.id}>
+                        <button
+                          onClick={() => router.push(`/practice?session=${s.id}`)}
+                          className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded-lg px-2 -mx-2"
+                        >
+                          <span>{info.emoji}</span>
+                          <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-gray-200 truncate">
+                            {info.label} — {s.persona.public.name}, {s.persona.public.company.name}
+                          </span>
+                          <span className="text-xs text-gray-400">{formatDate(s.createdAt)}</span>
+                          {s.score ? (
+                            <span className={`text-sm font-bold ${gradeColor(s.score.overall)}`}>
+                              {s.score.overall}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] uppercase text-amber-600 dark:text-amber-400">
+                              unfinished
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : loadingSession || !session ? (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-10 text-center text-sm text-gray-400">
+            {loadingSession ? "Loading…" : "Session not found."}
+          </div>
+        ) : (
+          /* ── Drill runner ─────────────────────────────────────── */
+          <div className="space-y-5">
+            {/* Persona public card */}
+            {pub && (
+              <div className="bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-xl p-5">
+                <div className="text-xs uppercase tracking-wide text-purple-500 dark:text-purple-400 font-semibold mb-2">
+                  📅 New meeting on your calendar
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {pub.name} <span className="font-normal text-gray-500 dark:text-gray-400">— {pub.title}</span>
+                </h2>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                  <strong>{pub.company.name}</strong> · {pub.company.industry} · {pub.company.size}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{pub.company.blurb}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">{pub.bio}</p>
+                {pub.breadcrumbs?.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                    {pub.breadcrumbs.map((b, i) => (
+                      <li key={i} className="text-[11px] bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {session.status !== "completed" ? (
+              /* ── Quiz form ──────────────────────────────────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    1. Which of your org personas is this company?
+                  </h3>
+                  <div className="space-y-1.5">
+                    {session.persona.quiz.orgPersonaOptions.map((opt) => (
+                      <label key={opt} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="orgPersona"
+                          checked={orgPersona === opt}
+                          onChange={() => setOrgPersona(opt)}
+                          className="mt-0.5"
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    2. What&rsquo;s {pub?.name.split(" ")[0]}&rsquo;s role in a deal?
+                  </h3>
+                  <div className="space-y-1.5">
+                    {session.persona.quiz.humanPersonaOptions.map((opt) => (
+                      <label key={opt} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="humanPersona"
+                          checked={humanPersona === opt}
+                          onChange={() => setHumanPersona(opt)}
+                          className="mt-0.5"
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    3. What&rsquo;s your angle?
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    The pain you&rsquo;d hypothesize, why NOW, and how you&rsquo;d open the conversation.
+                  </p>
+                  <textarea
+                    value={angle}
+                    onChange={(e) => setAngle(e.target.value)}
+                    rows={4}
+                    placeholder="e.g. They just raised a Series B and are hiring SDRs fast — I'd bet onboarding consistency is breaking…"
+                    className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    4. Which of your value props LAND for this buyer?
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Check the ones that land. Leaving one unchecked means you&rsquo;d keep it holstered —
+                    picking a prop they don&rsquo;t care about costs points, same as it costs credibility on a real call.
+                  </p>
+                  <div className="space-y-1.5">
+                    {session.persona.quiz.valueProps.map((vp) => (
+                      <label key={vp} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={propsLand.has(vp)}
+                          onChange={() =>
+                            setPropsLand((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(vp)) next.delete(vp);
+                              else next.add(vp);
+                              return next;
+                            })
+                          }
+                          className="mt-0.5"
+                        />
+                        {vp}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                <button
+                  onClick={submitAnswers}
+                  disabled={grading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                >
+                  {grading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Grading…
+                    </>
+                  ) : (
+                    "Submit plan for grading"
+                  )}
+                </button>
+              </div>
+            ) : (
+              /* ── Report card + reveal ───────────────────────── */
+              session.score && (
+                <div className="space-y-5">
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+                        Report card
+                      </h3>
+                      <span className={`text-3xl font-black ${gradeColor(session.score.overall)}`}>
+                        {session.score.overall}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {session.score.dimensions.map((d) => (
+                        <div key={d.name}>
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{d.name}</span>
+                            <span className="text-gray-500 dark:text-gray-400">
+                              {d.score}/{d.max}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                              style={{ width: `${(d.score / Math.max(d.max, 1)) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{d.comment}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {session.score.nextRep && (
+                      <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                        <strong>Next rep:</strong> {session.score.nextRep}
+                      </div>
+                    )}
+                  </div>
+
+                  {session.score.modelAnswer && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
+                        What great looks like
+                      </h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                        {session.score.modelAnswer}
+                      </p>
+                    </div>
+                  )}
+
+                  {session.persona.hidden && (
+                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-5">
+                      <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-200 uppercase tracking-wide mb-3">
+                        🃏 The reveal — who {pub?.name.split(" ")[0]} really was
+                      </h3>
+                      <dl className="space-y-2 text-sm">
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300 inline">Org persona: </dt>
+                          <dd className="inline text-gray-700 dark:text-gray-300">{session.persona.hidden.orgPersona}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300 inline">Human persona: </dt>
+                          <dd className="inline text-gray-700 dark:text-gray-300">{session.persona.hidden.humanPersona}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300">Their pains:</dt>
+                          <dd>
+                            <ul className="list-disc ml-5 text-gray-700 dark:text-gray-300">
+                              {session.persona.hidden.pains.map((p, i) => (
+                                <li key={i}>{p}</li>
+                              ))}
+                            </ul>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300 inline">Why now: </dt>
+                          <dd className="inline text-gray-700 dark:text-gray-300">{session.persona.hidden.compellingEvent}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300">Value props that land:</dt>
+                          <dd>
+                            <ul className="list-disc ml-5 text-green-700 dark:text-green-400">
+                              {session.persona.hidden.valuePropsThatLand.map((p, i) => (
+                                <li key={i}>{p}</li>
+                              ))}
+                            </ul>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300">Value props to keep holstered:</dt>
+                          <dd>
+                            <ul className="list-disc ml-5 text-gray-500 dark:text-gray-400">
+                              {session.persona.hidden.valuePropsThatDont.map((p, i) => (
+                                <li key={i}>{p}</li>
+                              ))}
+                            </ul>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-purple-800 dark:text-purple-300 inline">Temperament: </dt>
+                          <dd className="inline text-gray-700 dark:text-gray-300">{session.persona.hidden.temperament}</dd>
+                        </div>
+                        {session.persona.hidden.objections?.length > 0 && (
+                          <div>
+                            <dt className="font-medium text-purple-800 dark:text-purple-300">Objections they&rsquo;re carrying:</dt>
+                            <dd>
+                              <ul className="list-disc ml-5 text-gray-700 dark:text-gray-300">
+                                {session.persona.hidden.objections.map((o, i) => (
+                                  <li key={i}>{o}</li>
+                                ))}
+                              </ul>
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => startDrill(session.drill)}
+                      disabled={starting}
+                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {starting ? "Building your next buyer…" : "🔁 Practice again"}
+                    </button>
+                    <button
+                      onClick={() => router.push("/practice")}
+                      className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                      Back to drills
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function PracticePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900" />}>
+      <PracticePageInner />
+    </Suspense>
+  );
+}

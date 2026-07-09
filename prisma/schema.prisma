@@ -178,6 +178,7 @@ model User {
   linkedInSequenceVersions   LinkedInSequenceVersion[]
   businessCaseTemplates      BusinessCaseTemplate[]
   businessCaseInstances      BusinessCaseInstance[]
+  practiceSessions           PracticeSession[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2762,4 +2763,39 @@ model BusinessCaseInstance {
   @@index([userId, type, createdAt(sort: Desc)])
   @@index([dealId, type])
   @@map("business_case_instances")
+}
+
+// ============================================
+// PRACTICE SUITE
+// ============================================
+
+// One drill attempt (see practice-suite-plan.md). The synthetic buyer
+// is snapshotted into `persona` as { public, hidden, quiz } — the
+// hidden dossier is STRIPPED from API responses until the session is
+// completed (graded), then revealed alongside the report card.
+// dealId / meetingEntryId are reserved for Live-Fire mode (Phase 6):
+// practice anchored to a real upcoming call on a real deal.
+model PracticeSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  drill String // "precall_plan" | "rapport" | "agenda" | "discovery"
+  mode  String? // drill-specific: "script_visible" | "script_hidden" | "two_level" | "freestyle"
+
+  persona Json // { public: {...}, hidden: {...}, quiz: {...}, voice?: string }
+  turns   Json? // [{ role: "user"|"persona"|"coach", text, audioDurationMs?, at }]
+  answers Json? // structured quiz answers (pre-call drill)
+  score   Json? // { overall, dimensions: [{name, score, max, comment}], modelAnswer, nextRep }
+
+  status String @default("active") // "active" | "completed" | "abandoned"
+
+  dealId         String?
+  meetingEntryId String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([userId, drill, createdAt(sort: Desc)])
+  @@map("practice_sessions")
 }
