@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
@@ -30,6 +30,7 @@ interface PersonaPublic {
   company: { name: string; industry: string; size: string; blurb: string };
   bio: string;
   breadcrumbs: string[];
+  intro?: string;
 }
 
 interface PersonaHidden {
@@ -54,6 +55,7 @@ interface SessionShape {
     quiz: { orgPersonaOptions: string[]; humanPersonaOptions: string[]; valueProps: string[] };
     script?: string;
     scriptSource?: string;
+    voice?: string;
     hidden?: PersonaHidden;
   };
   turns: Array<{ role: string; text: string }> | null;
@@ -97,8 +99,8 @@ const DRILLS = [
     key: "discovery",
     emoji: "🔍",
     label: "Discovery",
-    description: "Live discovery roleplay: ask questions by voice, the buyer answers in character, get graded on second-level digging.",
-    available: false,
+    description: "Live discovery roleplay — the buyer speaks back. Two-Level drill (one question + the follow-up) or full Freestyle conversation, graded on second-level digging and pulling the gold threads.",
+    available: true,
   },
 ];
 
@@ -208,7 +210,7 @@ function PracticePageInner() {
   // responds → pivot. Voice recording targets whichever step is live.
   const [icebreaker, setIcebreaker] = useState("");
   const [pivot, setPivot] = useState("");
-  const [recordingFor, setRecordingFor] = useState<"icebreaker" | "pivot" | "agenda" | null>(null);
+  const [recordingFor, setRecordingFor] = useState<"icebreaker" | "pivot" | "agenda" | "discovery" | null>(null);
   const [sendingTurn, setSendingTurn] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [loadingHint, setLoadingHint] = useState(false);
@@ -220,6 +222,14 @@ function PracticePageInner() {
   const [agendaDurationMs, setAgendaDurationMs] = useState<number | null>(null);
   const [savingScript, setSavingScript] = useState(false);
   const [scriptSaved, setScriptSaved] = useState(false);
+  // Discovery drill state — mode pick → live conversation → grade.
+  const [discMode, setDiscMode] = useState<"two_level" | "freestyle">("two_level");
+  const [discStarted, setDiscStarted] = useState(false);
+  const [discInput, setDiscInput] = useState("");
+  const [discQuestionsVisible, setDiscQuestionsVisible] = useState(false);
+  const [myQuestions, setMyQuestions] = useState<string | null>(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
   // Next-scenario prefetch: as soon as a grade lands we generate the
@@ -283,6 +293,10 @@ function PracticePageInner() {
     setAgendaTranscript("");
     setAgendaDurationMs(null);
     setScriptSaved(false);
+    setDiscStarted(false);
+    setDiscInput("");
+    audioRef.current?.pause();
+    audioRef.current = null;
     setGradeError(null);
     (async () => {
       try {
@@ -430,6 +444,85 @@ function PracticePageInner() {
     }
   };
 
+  // Lazy-load the founder's discovery questions for the side panel
+  // (questions-visible mode). Cached after first fetch.
+  const loadMyQuestions = async () => {
+    if (myQuestions !== null) return;
+    try {
+      const res = await fetch("/api/discovery-questions/latest");
+      if (!res.ok) {
+        setMyQuestions("");
+        return;
+      }
+      const d = await res.json();
+      const cats: Array<Record<string, unknown>> = d?.version?.content?.categories || [];
+      const lines: string[] = [];
+      for (const c of cats) {
+        const name = (c.name || c.category || c.title) as string | undefined;
+        const qs = Array.isArray(c.questions) ? c.questions : [];
+        if (!qs.length) continue;
+        if (name) lines.push(`▸ ${name}`);
+        for (const q of qs) {
+          const text = typeof q === "string" ? q : ((q as Record<string, string>)?.question || (q as Record<string, string>)?.text || "");
+          if (text) lines.push(`   • ${text}`);
+        }
+      }
+      setMyQuestions(lines.join("\n"));
+    } catch {
+      setMyQuestions("");
+    }
+  };
+
+  // Speak persona text in the persona's own TTS voice. Best-effort —
+  // audio failure never blocks the drill; the text is always on screen.
+  const speakAsPersona = useCallback(
+    async (text: string, voice?: string) => {
+      if (!voiceOn || !text) return;
+      try {
+        audioRef.current?.pause();
+        const res = await fetch("/api/voice/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice }),
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        audioRef.current = audio;
+        void audio.play();
+      } catch {
+        /* silent — text is visible regardless */
+      }
+    },
+    [voiceOn]
+  );
+
+  // Discovery: send the founder's question, get the in-character
+  // answer, speak it.
+  const sendDiscoveryTurn = async () => {
+    if (!session || sendingTurn || !discInput.trim()) return;
+    setGradeError(null);
+    setSendingTurn(true);
+    try {
+      const res = await fetch(`/api/practice/sessions/${session.id}/turn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: discInput.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Turn failed (${res.status})`);
+      setDiscInput("");
+      setSession(data.session);
+      const turns: Array<{ role: string; text: string }> = data.session?.turns || [];
+      const lastReply = [...turns].reverse().find((t) => t.role === "persona");
+      if (lastReply) void speakAsPersona(lastReply.text, data.session?.persona?.voice);
+    } catch (err) {
+      setGradeError(err instanceof Error ? err.message : "Failed to send");
+    } finally {
+      setSendingTurn(false);
+    }
+  };
+
   const submitAnswers = async () => {
     if (!session) return;
     setGradeError(null);
@@ -451,6 +544,8 @@ function PracticePageInner() {
         mode: agendaMode,
         script: agendaScript.trim(),
       };
+    } else if (session.drill === "discovery") {
+      answers = { mode: discMode, questionsVisible: discQuestionsVisible };
     } else {
       if (!orgPersona || !humanPersona || !angle.trim()) {
         setGradeError("Pick both personas and write your angle before submitting.");
@@ -668,7 +763,216 @@ function PracticePageInner() {
               </div>
             )}
 
-            {session.status !== "completed" && session.drill === "agenda" ? (
+            {session.status !== "completed" && session.drill === "discovery" ? (
+              /* ── Discovery: setup → live conversation ───────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                {!discStarted ? (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Discovery with {pub?.name.split(" ")[0]} — pick your rep.
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {pub?.name.split(" ")[0]} answers in character and speaks — information is
+                        earned. Sharp, open questions get substance; weak ones get polite fluff.
+                        Listen for dangled threads and pull them.
+                      </p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setDiscMode("two_level")}
+                        className={`text-left p-3 rounded-lg border ${
+                          discMode === "two_level"
+                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
+                            : "border-gray-200 dark:border-gray-600 hover:border-purple-300"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">🎯 Two-Level Drill</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          One question, her answer, your follow-up. Graded on digging deeper, not
+                          topic-hopping.
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => setDiscMode("freestyle")}
+                        className={`text-left p-3 rounded-lg border ${
+                          discMode === "freestyle"
+                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/30"
+                            : "border-gray-200 dark:border-gray-600 hover:border-purple-300"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">🌊 Freestyle</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Full discovery conversation — wrap up when you&rsquo;ve got what you need.
+                          Graded on coverage, ratios, and the numbers you earned.
+                        </p>
+                      </button>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={discQuestionsVisible}
+                        onChange={(e) => {
+                          setDiscQuestionsVisible(e.target.checked);
+                          if (e.target.checked) void loadMyQuestions();
+                        }}
+                      />
+                      Show my discovery questions in a side panel (train with the sheet, then wean off)
+                    </label>
+                    <button
+                      onClick={() => {
+                        setDiscStarted(true);
+                        if (pub?.intro) void speakAsPersona(pub.intro, session.persona.voice);
+                      }}
+                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm"
+                    >
+                      📞 Start the conversation
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {discMode === "two_level" ? "🎯 Two-Level Drill" : "🌊 Freestyle discovery"} with {pub?.name.split(" ")[0]}
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setVoiceOn((v) => !v);
+                          if (voiceOn) audioRef.current?.pause();
+                        }}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                        title={voiceOn ? "Mute the buyer's voice" : "Unmute the buyer's voice"}
+                      >
+                        {voiceOn ? "🔊 Voice on" : "🔇 Muted"}
+                      </button>
+                    </div>
+                    {discQuestionsVisible && myQuestions && (
+                      <details className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2" open>
+                        <summary className="text-xs font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">
+                          📋 My discovery questions
+                        </summary>
+                        <pre className="text-[11px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap mt-2 font-sans max-h-48 overflow-y-auto">{myQuestions}</pre>
+                      </details>
+                    )}
+                    {/* Conversation */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      <div className="text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">
+                          {pub?.name}
+                        </span>
+                        {pub?.intro ||
+                          `Hi, I'm ${pub?.name.split(" ")[0]} — ${pub?.title} at ${pub?.company.name}. Happy to chat.`}
+                      </div>
+                      {(session.turns || []).map((t, i) => (
+                        <div
+                          key={i}
+                          className={`text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] ${
+                            t.role === "user"
+                              ? "bg-purple-600 text-white ml-auto"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                          }`}
+                        >
+                          {t.role !== "user" && (
+                            <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">
+                              {pub?.name}
+                            </span>
+                          )}
+                          {t.text}
+                        </div>
+                      ))}
+                      {sendingTurn && (
+                        <div className="text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] bg-gray-100 dark:bg-gray-700 text-gray-400 italic">
+                          {pub?.name.split(" ")[0]} is thinking…
+                        </div>
+                      )}
+                    </div>
+                    {(() => {
+                      const userTurns = (session.turns || []).filter((t) => t.role === "user").length;
+                      const twoLevelDone = discMode === "two_level" && userTurns >= 2;
+                      return (
+                        <>
+                          {!twoLevelDone && (
+                            <>
+                              {discMode === "two_level" && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {userTurns === 0
+                                    ? "Ask your opening discovery question."
+                                    : "Now the follow-up — dig into what she just said. Don't change topics."}
+                                </p>
+                              )}
+                              {recordingFor === "discovery" ? (
+                                <VoiceRecordingInput
+                                  isActive
+                                  onCancel={() => setRecordingFor(null)}
+                                  onTranscriptionComplete={(text) => {
+                                    setDiscInput((prev) => (prev ? `${prev} ${text}` : text));
+                                    setRecordingFor(null);
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex items-end gap-2">
+                                  <button
+                                    onClick={() => setRecordingFor("discovery")}
+                                    className="shrink-0 p-2.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                                    title="Ask by voice"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                    </svg>
+                                  </button>
+                                  <textarea
+                                    value={discInput}
+                                    onChange={(e) => setDiscInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        void sendDiscoveryTurn();
+                                      }
+                                    }}
+                                    rows={2}
+                                    placeholder="Ask your question…"
+                                    className="flex-1 text-sm p-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                  />
+                                  <button
+                                    onClick={sendDiscoveryTurn}
+                                    disabled={sendingTurn || !discInput.trim()}
+                                    className="shrink-0 px-3.5 py-2.5 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
+                                  >
+                                    Ask
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                          {(twoLevelDone || (discMode === "freestyle" && userTurns > 0)) && (
+                            <button
+                              onClick={submitAnswers}
+                              disabled={grading || sendingTurn}
+                              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                            >
+                              {grading ? (
+                                <>
+                                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                  Grading…
+                                </>
+                              ) : twoLevelDone ? (
+                                "Get my grade"
+                              ) : (
+                                "🏁 Wrap up & grade"
+                              )}
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            ) : session.status !== "completed" && session.drill === "agenda" ? (
               /* ── Agenda drill: setup → deliver ──────────────── */
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
                 {!agendaDelivering ? (
@@ -1137,14 +1441,15 @@ function PracticePageInner() {
                 <div className="space-y-5">
                   {/* The exchange as it happened (roleplay drills) —
                       turns + the graded pivot from answers. */}
-                  {session.drill === "rapport" && (session.turns?.length ?? 0) > 0 && (
+                  {(session.drill === "rapport" || session.drill === "discovery") &&
+                    (session.turns?.length ?? 0) > 0 && (
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-2">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-1">
-                        The exchange
+                        {session.drill === "discovery" ? "The conversation" : "The exchange"}
                       </h3>
                       {[
                         ...session.turns!,
-                        ...(typeof session.answers?.pivot === "string"
+                        ...(session.drill === "rapport" && typeof session.answers?.pivot === "string"
                           ? [{ role: "user", text: session.answers.pivot as string }]
                           : []),
                       ].map((t, i) => (

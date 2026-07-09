@@ -33,6 +33,7 @@ export function serializePracticeSession<
       quiz: persona.quiz,
       // The agenda script is the founder's own material — never hidden.
       ...(persona.script ? { script: persona.script, scriptSource: persona.scriptSource } : {}),
+      ...(persona.voice ? { voice: persona.voice } : {}),
       ...(completed ? { hidden: persona.hidden } : {}),
     },
     // Roleplay exchange — user + persona turns only, nothing hidden.

@@ -34,6 +34,8 @@ export interface PracticePersonaPublic {
   };
   bio: string;
   breadcrumbs: string[];
+  /** 2-3 sentence spoken self-intro — opens the discovery roleplay. */
+  intro?: string;
 }
 
 export interface PracticePersonaHidden {
@@ -62,6 +64,9 @@ export interface PracticePersona {
    *  (snapshotted at creation; session-local edits update it). */
   script?: string;
   scriptSource?: "saved_default" | "generated" | "fallback";
+  /** TTS voice for roleplay playback — gender-matched at casting time
+   *  so the buyer never sounds like Mikey-the-coach (nova). */
+  voice?: string;
 }
 
 const SYNTH_PROMPT = `You are building a SYNTHETIC buyer persona for a founder's sales-practice drill. Using the founder's playbook below (positioning, ICP, discovery framework), invent ONE realistic prospect they might meet next week.
@@ -74,7 +79,8 @@ Return ONLY a JSON object with this exact shape:
     "title": "<their job title>",
     "company": { "name": "<invented company>", "industry": "...", "size": "<e.g. '~140 employees, Series B'>", "blurb": "<2-3 sentence company description>" },
     "bio": "<3-4 sentence LinkedIn-style bio>",
-    "breadcrumbs": ["<3-5 rapport-surface details: a recent post topic, alma mater, a talk they gave, a hobby hint, a shared-context hook>"]
+    "breadcrumbs": ["<3-5 rapport-surface details: a recent post topic, alma mater, a talk they gave, a hobby hint, a shared-context hook>"],
+    "intro": "<2-3 sentence SPOKEN self-introduction this person would give at the top of a call — role, what their world looks like, in their own voice and temperament. No pains volunteered.>"
   },
   "hidden": {
     "orgPersona": "<which of the founder's org personas this company truly is — use the ICP's own language>",
@@ -151,10 +157,20 @@ const COMPANY_NAME_STYLES = [
   "legacy-sounding (founded decades ago)",
 ] as const;
 
-function buildCastingNote(recentNames: string[], recentCompanies: string[]): string {
+// TTS voices by gender so roleplay playback matches the card. nova is
+// reserved for Mikey-the-coach.
+const VOICES_MALE = ["onyx", "echo", "fable"] as const;
+const VOICES_FEMALE = ["shimmer", "alloy"] as const;
+
+function buildCastingNote(
+  recentNames: string[],
+  recentCompanies: string[]
+): { note: string; voice: string } {
+  const gender = pick(GENDERS);
+  const voice = gender === "a man" ? pick(VOICES_MALE) : pick(VOICES_FEMALE);
   const lines = [
     `CASTING NOTE — follow strictly:`,
-    `- The buyer is ${pick(GENDERS)}, ${pick(AGE_BANDS)}.`,
+    `- The buyer is ${gender}, ${pick(AGE_BANDS)}.`,
     `- Give them a realistic ${pick(NAME_STYLES)} name (first + last). It should sound like a real colleague, not a novel character.`,
     `- Company name style: ${pick(COMPANY_NAME_STYLES)}.`,
     `- hidden.temperament must be "${pick(TEMPERAMENTS)}".`,
@@ -169,7 +185,7 @@ function buildCastingNote(recentNames: string[], recentCompanies: string[]): str
       `- DO NOT reuse or echo these recently used company names: ${recentCompanies.join(", ")}.`
     );
   }
-  return lines.join("\n");
+  return { note: lines.join("\n"), voice };
 }
 
 /**
@@ -234,7 +250,7 @@ export async function synthesizePersona(userId: string): Promise<PracticePersona
     .map((s) => (s.persona as unknown as PracticePersona)?.public?.company?.name)
     .filter((n): n is string => typeof n === "string" && n.length > 0);
 
-  const castingNote = buildCastingNote(
+  const { note: castingNote, voice } = buildCastingNote(
     [...new Set(recentNames)],
     [...new Set(recentCompanies)]
   );
@@ -286,5 +302,6 @@ export async function synthesizePersona(userId: string): Promise<PracticePersona
       humanPersonaOptions: shuffle([...humanOptions]),
       valueProps,
     },
+    voice,
   };
 }

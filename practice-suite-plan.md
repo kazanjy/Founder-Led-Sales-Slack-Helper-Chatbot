@@ -268,9 +268,10 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   (AGENDA_SCRIPT merge field) > first-call checklist > skeleton; script
   visible/hidden modes; real duration clock (speech-end aware); beat/
   fidelity/time/delivery grading with filler counting.
-- **Phase 4 — Discovery (L)**: two-level drill, then freestyle with the TTS
-  persona voice loop. The flagship — lands last on purpose, everything it
-  needs (persona engine, turn loop, grading, voice) is proven by then.
+- **Phase 4 — Discovery — ✅ SHIPPED**: two-level drill + freestyle with the
+  gender-matched TTS persona voice (nova stays the coach); information-is-
+  earned roleplay (gold dangled, not dumped); questions visible/hidden
+  panel; framework-coverage grading with the Discovery-Summary-fill kicker.
 - **Phase 5 — integrations (M)**: coaching tool + readiness evidence +
   objection drill.
 - **Phase 6 — Live-Fire mode (L)**: deal-anchored variants of Pre-Call

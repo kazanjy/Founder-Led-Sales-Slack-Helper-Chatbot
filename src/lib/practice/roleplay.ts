@@ -38,3 +38,50 @@ Reply IN CHARACTER as ${persona.public.name} — how this person would actually 
   if (!reply) throw new Error("Persona reply generation returned empty");
   return reply;
 }
+
+/**
+ * Discovery roleplay reply: the buyer answers a discovery question in
+ * character. The core mechanic — information is EARNED: a sharp, open
+ * question that hits a real pain gets substance (with numbers if the
+ * dossier has them); a weak, closed, or off-target question gets a
+ * true-but-thin answer. Gold threads get dangled, not dumped.
+ */
+export async function generateDiscoveryReply(
+  persona: PracticePersona,
+  priorTurns: Array<{ role: string; text: string }>,
+  founderText: string
+): Promise<string> {
+  const transcript = priorTurns
+    .map((t) => `${t.role === "user" ? "FOUNDER" : persona.public.name.toUpperCase()}: ${t.text}`)
+    .join("\n");
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    messages: [
+      {
+        role: "user",
+        content: `You are roleplaying ${persona.public.name}, ${persona.public.title} at ${persona.public.company.name}, on a discovery call with a founder selling a product. Your FULL character (the founder can only see the public part):
+
+${JSON.stringify({ public: persona.public, hidden: persona.hidden }, null, 2)}
+
+CONVERSATION SO FAR:
+${transcript || "(the call just started — you gave your intro)"}
+
+FOUNDER'S LATEST QUESTION/STATEMENT:
+"${founderText}"
+
+Reply IN CHARACTER as ${persona.public.name}. The rules of the game:
+- 1-4 sentences. Real buyers are brief and don't monologue.
+- INFORMATION IS EARNED. A sharp, open question that touches one of your real pains earns a substantive answer — share the pain, and a number from your dossier if one fits. A vague, closed, or off-target question gets a true but THIN answer ("yeah, it's fine mostly") — the way real buyers underexplain.
+- Dangle gold, don't dump it: when a question gets close to something big (your compelling event, a failed workaround, a frustration), HINT at it in passing ("...we tried building something ourselves, that was an adventure") and let them pull the thread. Only elaborate if they follow up on it.
+- Your temperament is "${persona.hidden.temperament}" — let it shape cooperativeness and tone throughout.
+- Stay consistent with everything you've already said in the conversation.
+- Never mention the product being sold, never sell yourself, never break character.
+- Return ONLY the spoken reply, no quotes, no stage directions.`,
+      },
+    ],
+  });
+  const reply = (completion.choices[0]?.message?.content || "").trim();
+  if (!reply) throw new Error("Discovery reply generation returned empty");
+  return reply;
+}

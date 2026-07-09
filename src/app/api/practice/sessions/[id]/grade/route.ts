@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { gradePrecallPlan, gradeRapport, gradeAgendaSet, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
+import { gradePrecallPlan, gradeRapport, gradeAgendaSet, gradeDiscovery, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
+import { loadDiscoveryFramework } from "@/lib/discovery-framework";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 import type { PracticePersona } from "@/lib/practice/persona";
 
@@ -100,6 +101,20 @@ export async function POST(
         transcript: a.transcript.trim(),
         durationMs,
         mode,
+      });
+    } else if (session.drill === "discovery") {
+      const turns = (session.turns as Array<{ role: string; text: string }> | null) || [];
+      if (!turns.some((t) => t.role === "user")) {
+        return NextResponse.json({ error: "Ask at least one discovery question before grading" }, { status: 400 });
+      }
+      const mode = a?.mode === "freestyle" ? "freestyle" : "two_level";
+      const questionsVisible = a?.questionsVisible === true;
+      const framework = await loadDiscoveryFramework(session.userId);
+      answers = { mode, questionsVisible };
+      score = await gradeDiscovery(persona, turns, {
+        mode,
+        questionsVisible,
+        frameworkListing: framework.questionsListing,
       });
     } else {
       return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });

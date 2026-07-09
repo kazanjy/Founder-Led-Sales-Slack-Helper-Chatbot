@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { text } = await request.json();
+    const { text, voice } = await request.json();
 
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
@@ -18,10 +18,20 @@ export async function POST(request: NextRequest) {
     // Limit text length to avoid excessive costs
     const truncatedText = text.slice(0, 4096);
 
+    // Voice selection: nova (the coach) by default; practice-roleplay
+    // personas pass their gender-matched voice so the synthetic buyer
+    // doesn't sound like Mikey.
+    const VALID_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
+    type TtsVoice = (typeof VALID_VOICES)[number];
+    const selectedVoice: TtsVoice =
+      typeof voice === "string" && (VALID_VOICES as readonly string[]).includes(voice)
+        ? (voice as TtsVoice)
+        : "nova";
+
     // Generate speech using OpenAI TTS
     const mp3Response = await openai.audio.speech.create({
       model: "tts-1",
-      voice: "nova", // Warm, friendly voice - good for a coach
+      voice: selectedVoice,
       input: truncatedText,
     });
 

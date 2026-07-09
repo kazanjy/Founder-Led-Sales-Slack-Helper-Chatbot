@@ -219,6 +219,117 @@ export async function gradeAgendaSet(
   };
 }
 
+const DISCOVERY_TWO_LEVEL_PROMPT = `You are grading a founder's DISCOVERY drill (TWO-LEVEL mode): the buyer introduced themselves, the founder asked ONE discovery question, the buyer answered in character, and the founder asked a SECOND-LEVEL FOLLOW-UP. You have the full persona (public + hidden dossier), the conversation, and the founder's discovery framework (their authored questions) when provided.
+
+Grade these four dimensions, each 0-5:
+
+1. "Opening question" — open-ended, specific, aimed at a real pain area? Aligned with the founder's own discovery framework when provided (paraphrase counts)? Closed yes/no questions, multi-part question stacks, and thinly-veiled pitches score low.
+2. "Second-level follow-up" — the core skill. Did the follow-up dig INTO the answer (quantify it, ask for a concrete example, probe the impact, ask "what have you tried")? A first-level topic-hop (new subject, framework-next-question autopilot) scores 0-2 no matter how good the new question is.
+3. "Gold thread detection" — did the buyer's answer dangle something valuable (a hinted workaround, a tossed-off frustration, a number) and did the founder notice? If there was gold and they pulled it: 5. Gold ignored: 0-2, and NAME the missed thread. If the answer genuinely had no gold, grade on attentiveness and say so.
+4. "Listening & economy" — do the founder's turns build on what was actually said (echoing her words, not a script)? Are the questions tight (one question, under ~30 words) rather than rambles with three questions buried inside?
+
+FAIRNESS: the founder cannot see the hidden dossier — grade their choices against what was knowable from the card and the conversation.
+
+Return ONLY a JSON object:
+{
+  "overall": "<letter grade A/A-/B+/B/B-/C+/C/D/F>",
+  "dimensions": [
+    { "name": "Opening question", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Second-level follow-up", "score": 0-5, "max": 5, "comment": "<was it second-level or a topic-hop — be direct>" },
+    { "name": "Gold thread detection", "score": 0-5, "max": 5, "comment": "<name the gold that was there, pulled or missed>" },
+    { "name": "Listening & economy", "score": 0-5, "max": 5, "comment": "..." }
+  ],
+  "flags": ["<any of: 'closed question', 'question stack', 'topic-hop follow-up', 'missed gold', 'pitched instead of asked', 'leading question' — or empty>"],
+  "modelAnswer": "<given her ACTUAL answer to the opening question, the second-level follow-up YOU would have asked, written verbatim — plus one sentence on why>",
+  "alternatives": ["<a different strong follow-up angle, verbatim>", "<another, verbatim>"],
+  "nextRep": "<ONE sentence: the single highest-leverage fix for next attempt>"
+}`;
+
+const DISCOVERY_FREESTYLE_PROMPT = `You are grading a founder's DISCOVERY drill (FREESTYLE mode): a full discovery conversation with a synthetic buyer. You have the full persona (public + hidden dossier), the complete conversation transcript, and the founder's discovery framework (their authored questions) when provided.
+
+Grade these five dimensions, each 0-5:
+
+1. "Framework coverage" — how much of the founder's own discovery framework got ANSWERED (not just asked)? Name the framework areas covered and the important ones never touched. Without a framework, grade against standard dimensions (pain, impact, budget, authority, timeline, process, competition).
+2. "Second-level ratio" — what fraction of their questions dug into previous answers vs. hopped to new topics? Discovery that never goes a level deep is an interview, not a conversation.
+3. "Gold thread pulling" — count the threads the buyer dangled (hinted workarounds, tossed-off numbers, frustrations) vs. how many the founder pulled. Name the biggest missed one.
+4. "Listening & economy" — did questions build on her actual words? One question at a time, tight phrasing, no pitching mid-discovery?
+5. "Impact quantification" — did they turn pains into NUMBERS (cost, time, frequency, headcount)? An ROI case needs numbers; "that sounds painful" doesn't move a business case.
+
+Also compute for the modelAnswer: which sections of a Discovery Summary (situation, pains, quantified impact, stakeholders, decision process, competition, why-now) this conversation could actually FILL, and what's still missing.
+
+FAIRNESS: the founder cannot see the hidden dossier — grade against what was earnable through questioning.
+
+Return ONLY a JSON object:
+{
+  "overall": "<letter grade A/A-/B+/B/B-/C+/C/D/F>",
+  "dimensions": [
+    { "name": "Framework coverage", "score": 0-5, "max": 5, "comment": "<areas covered / missed by name>" },
+    { "name": "Second-level ratio", "score": 0-5, "max": 5, "comment": "<estimate the ratio>" },
+    { "name": "Gold thread pulling", "score": 0-5, "max": 5, "comment": "<pulled X of Y; name the biggest miss>" },
+    { "name": "Listening & economy", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Impact quantification", "score": 0-5, "max": 5, "comment": "<what numbers they got, what they left on the table>" }
+  ],
+  "flags": ["<any of: 'interview mode', 'question stacks', 'pitched mid-discovery', 'missed gold', 'no numbers', 'talked too much' — or empty>"],
+  "modelAnswer": "<2 parts: (1) 'From this conversation you could fill: …' — the Discovery Summary sections this call earned, and the ones still empty with the question that would fill each. (2) The 2-3 questions you'd have asked that they didn't, verbatim.>",
+  "nextRep": "<ONE sentence: the single highest-leverage fix for next attempt>"
+}`;
+
+/**
+ * Grade a discovery conversation (two-level or freestyle).
+ */
+export async function gradeDiscovery(
+  persona: PracticePersona,
+  turns: Array<{ role: string; text: string }>,
+  opts: {
+    mode: "two_level" | "freestyle";
+    questionsVisible: boolean;
+    frameworkListing: string; // "" when the founder has none
+  }
+): Promise<PracticeScore> {
+  const payload = {
+    persona: { public: persona.public, hidden: persona.hidden },
+    conversation: turns,
+    questionsVisibleDuringDrill: opts.questionsVisible,
+    foundersDiscoveryFramework: opts.frameworkListing || "(none authored)",
+  };
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: `${opts.mode === "two_level" ? DISCOVERY_TWO_LEVEL_PROMPT : DISCOVERY_FREESTYLE_PROMPT}\n\n---\n\n${JSON.stringify(payload, null, 2)}`,
+      },
+    ],
+  });
+  let parsed: Partial<PracticeScore>;
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Grader returned unparseable JSON");
+  }
+  if (!parsed.overall || !Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) {
+    throw new Error("Grader returned an incomplete score");
+  }
+  return {
+    overall: parsed.overall,
+    dimensions: parsed.dimensions.map((d) => ({
+      name: String(d.name || "Dimension"),
+      score: typeof d.score === "number" ? d.score : 0,
+      max: typeof d.max === "number" ? d.max : 5,
+      comment: String(d.comment || ""),
+    })),
+    flags: Array.isArray(parsed.flags)
+      ? parsed.flags.filter((f): f is string => typeof f === "string")
+      : [],
+    alternatives: Array.isArray(parsed.alternatives)
+      ? parsed.alternatives.filter((a): a is string => typeof a === "string")
+      : [],
+    modelAnswer: String(parsed.modelAnswer || ""),
+    nextRep: String(parsed.nextRep || ""),
+  };
+}
+
 /**
  * Grade a pre-call planning attempt. Returns the uniform score shape;
  * throws on model failure (caller surfaces the error, session stays
