@@ -563,6 +563,14 @@ function PracticePageInner() {
       const turns: Array<{ role: string; text: string }> = data.session?.turns || [];
       const lastReply = [...turns].reverse().find((t) => t.role === "persona");
       if (lastReply) void speakAsPersona(lastReply.text, data.session?.persona?.voice);
+      // Two-level: the follow-up's reply IS the end of the rep — grade
+      // immediately (while the reply plays) instead of making the
+      // founder click a button. Failure leaves the manual button as a
+      // retry path.
+      const userTurns = turns.filter((t) => t.role === "user").length;
+      if (discMode === "two_level" && userTurns >= 2) {
+        void submitAnswers();
+      }
     } catch (err) {
       setGradeError(err instanceof Error ? err.message : "Failed to send");
     } finally {
