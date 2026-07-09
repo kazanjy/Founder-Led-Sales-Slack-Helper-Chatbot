@@ -358,23 +358,45 @@ function PracticePageInner() {
   // instant as Practice Again after a grade. Self-limiting — we only
   // warm a drill that has no active (unattempted) session, and
   // starting a drill consumes the warm session, so steady state is
-  // ~1 spare per drill.
+  // ~1 spare per drill. In LIVE-FIRE mode this pre-builds all three
+  // deal-anchored scenarios for THIS meeting the moment the founder
+  // lands (real-attendee personas take ~15-25s each — that wait
+  // belongs in the background, not between click and drill).
   const warmingRef = useMemo(() => new Set<string>(), []);
   useEffect(() => {
-    if (loadingHistory || liveFire) return;
+    if (loadingHistory) return;
     const liveDrills = DRILLS.filter(
-      (d) => d.available && (!focusedDrill || d.key === focusedDrill)
+      (d) =>
+        d.available &&
+        (!focusedDrill || d.key === focusedDrill) &&
+        (!liveFire || ["precall_plan", "agenda", "discovery"].includes(d.key))
     );
     for (const d of liveDrills) {
-      const hasActive = history.some((s) => s.drill === d.key && s.status === "active" && !s.dealId);
-      if (hasActive || warmingRef.has(d.key)) continue;
-      warmingRef.add(d.key);
+      // Match the anchoring startDrill consumes: gym sessions for gym
+      // mode, this exact deal+meeting for live-fire.
+      const hasActive = history.some(
+        (s) =>
+          s.drill === d.key &&
+          s.status === "active" &&
+          (liveFire
+            ? s.dealId === lfDealId && s.meetingEntryId === lfMeetingId
+            : !s.dealId)
+      );
+      const warmKey = `${d.key}:${liveFire ? `${lfDealId}/${lfMeetingId ?? ""}` : "gym"}`;
+      if (hasActive || warmingRef.has(warmKey)) continue;
+      warmingRef.add(warmKey);
       (async () => {
         try {
           const res = await fetch("/api/practice/sessions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ drill: d.key, mode: "warm" }),
+            body: JSON.stringify({
+              drill: d.key,
+              mode: "warm",
+              ...(liveFire
+                ? { dealId: lfDealId, meetingEntryId: lfMeetingId || undefined }
+                : {}),
+            }),
           });
           const data = await res.json().catch(() => null);
           if (res.ok && data?.session) {
@@ -383,11 +405,11 @@ function PracticePageInner() {
         } catch {
           /* warm-up is best-effort */
         } finally {
-          warmingRef.delete(d.key);
+          warmingRef.delete(warmKey);
         }
       })();
     }
-  }, [loadingHistory, history, focusedDrill, liveFire, warmingRef]);
+  }, [loadingHistory, history, focusedDrill, liveFire, lfDealId, lfMeetingId, warmingRef]);
 
   const startDrill = async (drill: string) => {
     setStartError(null);
@@ -727,25 +749,49 @@ function PracticePageInner() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{d.description}</p>
-                  {d.available && (
-                    <button
-                      onClick={() => startDrill(d.key)}
-                      disabled={starting === d.key}
-                      className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
-                    >
-                      {starting === d.key ? (
-                        <>
-                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                          Building your buyer…
-                        </>
-                      ) : (
-                        "Start drill"
-                      )}
-                    </button>
-                  )}
+                  {d.available && (() => {
+                    const ready = history.some(
+                      (s) =>
+                        s.drill === d.key &&
+                        s.status === "active" &&
+                        (liveFire
+                          ? s.dealId === lfDealId && s.meetingEntryId === lfMeetingId
+                          : !s.dealId)
+                    );
+                    return (
+                      <button
+                        onClick={() => startDrill(d.key)}
+                        disabled={starting === d.key}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm disabled:opacity-50 ${
+                          ready
+                            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                            : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        }`}
+                      >
+                        {starting === d.key ? (
+                          <>
+                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Building your buyer…
+                          </>
+                        ) : ready ? (
+                          "✨ Ready — start drill"
+                        ) : liveFire ? (
+                          <>
+                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Preparing scenario…
+                          </>
+                        ) : (
+                          "Start drill"
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
