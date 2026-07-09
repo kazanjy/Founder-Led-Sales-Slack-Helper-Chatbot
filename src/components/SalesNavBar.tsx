@@ -26,7 +26,15 @@ const callExecutionItems: NavItem[] = [
   { href: "/call-scripts", label: "🎯 Cold Call Scripts", statusKey: "coldCallScript" },
   { href: "/objection-library", label: "🛡️ Objections", statusKey: "objectionLibrary" },
   { href: "/business-cases", label: "📈 Business Cases", statusKey: "businessCases" },
-  { href: "/practice", label: "🥊 Practice", statusKey: "practice" },
+];
+
+// Practice drills — top-level menu; each drill has its own shareable
+// URL ("go do this" links for Slack).
+const practiceItems: NavItem[] = [
+  { href: "/practice/precall-planning", label: "🗺️ Pre-Call Planning", statusKey: "practicePrecall" },
+  { href: "/practice/rapport", label: "🤝 Rapport", statusKey: "practiceRapport" },
+  { href: "/practice/agenda-setting", label: "📋 Agenda Setting", statusKey: "practiceAgenda" },
+  { href: "/practice/discovery", label: "🔍 Discovery", statusKey: "practiceDiscovery" },
 ];
 
 const standaloneItems: NavItem[] = [
@@ -68,6 +76,7 @@ export default function SalesNavBar() {
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [callExecOpen, setCallExecOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [hiringOpen, setHiringOpen] = useState(false);
   const [gtmMaturityOpen, setGtmMaturityOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -83,6 +92,7 @@ export default function SalesNavBar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contentDropdownRef = useRef<HTMLDivElement>(null);
   const callExecDropdownRef = useRef<HTMLDivElement>(null);
+  const practiceDropdownRef = useRef<HTMLDivElement>(null);
   const hiringDropdownRef = useRef<HTMLDivElement>(null);
   const gtmMaturityDropdownRef = useRef<HTMLDivElement>(null);
   const dealsSearchDropdownRef = useRef<HTMLDivElement>(null);
@@ -143,7 +153,7 @@ export default function SalesNavBar() {
           fetch("/api/sales-asset-library").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/deals").then(r => r.ok ? r.json() : null).catch(() => null),
           fetch("/api/business-cases/instances").then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch("/api/practice/sessions?limit=1").then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch("/api/practice/sessions?limit=50").then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 
         setStatus({
@@ -165,7 +175,10 @@ export default function SalesNavBar() {
           salesAssetLibrary: !!(assetLibraryRes?.assets?.some((a: { currentUrl?: string }) => a.currentUrl)),
           deals: !!(dealsRes?.deals?.length),
           businessCases: !!(businessCasesRes?.instances?.length),
-          practice: !!(practiceRes?.sessions?.length),
+          practicePrecall: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "precall_plan" && s.status === "completed")),
+          practiceRapport: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "rapport" && s.status === "completed")),
+          practiceAgenda: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "agenda" && s.status === "completed")),
+          practiceDiscovery: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "discovery" && s.status === "completed")),
         });
       } catch {
         // silently fail - indicators just won't show
@@ -186,6 +199,9 @@ export default function SalesNavBar() {
       if (callExecDropdownRef.current && !callExecDropdownRef.current.contains(e.target as Node)) {
         setCallExecOpen(false);
       }
+      if (practiceDropdownRef.current && !practiceDropdownRef.current.contains(e.target as Node)) {
+        setPracticeOpen(false);
+      }
       if (hiringDropdownRef.current && !hiringDropdownRef.current.contains(e.target as Node)) {
         setHiringOpen(false);
       }
@@ -196,11 +212,11 @@ export default function SalesNavBar() {
         setDealsSearchOpen(false);
       }
     }
-    if (playbookOpen || contentOpen || callExecOpen || hiringOpen || gtmMaturityOpen || dealsSearchOpen) {
+    if (playbookOpen || contentOpen || callExecOpen || practiceOpen || hiringOpen || gtmMaturityOpen || dealsSearchOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [playbookOpen, contentOpen, callExecOpen, hiringOpen, gtmMaturityOpen, dealsSearchOpen]);
+  }, [playbookOpen, contentOpen, callExecOpen, practiceOpen, hiringOpen, gtmMaturityOpen, dealsSearchOpen]);
 
   // Lazy-load the deals list the first time the search dropdown opens
   // — keeps the cost off every nav mount. Re-fetches on each open so
@@ -254,6 +270,7 @@ export default function SalesNavBar() {
   const playbookCompletedCount = playbookItems.filter((item) => status[item.statusKey]).length;
   const isContentActive = contentItems.some((item) => isActive(item.href));
   const isCallExecActive = callExecutionItems.some((item) => isActive(item.href));
+  const isPracticeActive = practiceItems.some((item) => isActive(item.href)) || isActive("/practice");
   const isHiringActive = hiringItems.some((item) => isActive(item.href));
   const isGtmMaturityActive = gtmMaturityItems.some((item) => isActive(item.href));
 
@@ -718,6 +735,54 @@ export default function SalesNavBar() {
               {item.label}
             </Link>
           ))}
+
+          {/* Practice dropdown */}
+          <div className="relative" ref={practiceDropdownRef}>
+            <button
+              onClick={() => { setPracticeOpen(!practiceOpen); setPlaybookOpen(false); setContentOpen(false); setCallExecOpen(false); setHiringOpen(false); setGtmMaturityOpen(false); }}
+              className={`px-2 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-1 ${
+                isPracticeActive
+                  ? "border-purple-600 text-purple-600"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"
+              }`}
+            >
+              🥊 Practice
+              <svg className={`w-3.5 h-3.5 transition-transform ${practiceOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {practiceOpen && (
+              <div className="absolute top-full left-0 mt-px bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-50 min-w-[220px]">
+                <Link
+                  href="/practice"
+                  onClick={() => setPracticeOpen(false)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors border-b border-gray-100 dark:border-gray-800 ${
+                    isActive("/practice")
+                      ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                      : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <span className="flex-1">🥊 All Drills</span>
+                </Link>
+                {practiceItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setPracticeOpen(false)}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      isActive(item.href)
+                        ? "bg-purple-50 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
+                        : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <span className="flex-1">{item.label}</span>
+                    {status[item.statusKey] && <span className="text-green-500 text-xs">✔️</span>}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Hiring dropdown */}
           <div className="relative" ref={hiringDropdownRef}>

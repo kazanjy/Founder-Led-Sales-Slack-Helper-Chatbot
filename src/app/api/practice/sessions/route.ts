@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { synthesizePersona } from "@/lib/practice/persona";
+import { synthesizePersona, PracticePersona } from "@/lib/practice/persona";
 import { getAgendaScript } from "@/lib/practice/agenda";
+import { buildLiveFirePersona } from "@/lib/practice/livefire";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 
 /**
- * POST /api/practice/sessions { drill, mode? }
- *   Create a drill session: synthesize a persona from the founder's
- *   playbook, snapshot it, return the session (hidden dossier
- *   stripped — see serialize.ts).
+ * POST /api/practice/sessions { drill, mode?, dealId?, meetingEntryId?, rematchSessionId? }
+ *   Create a drill session. Persona source, in priority order:
+ *   - rematchSessionId → copy the persona snapshot from a prior
+ *     session (re-drill the same buyer);
+ *   - dealId (+ optional meetingEntryId) → Live-Fire: build the
+ *     persona from the REAL deal's evidence;
+ *   - otherwise → synthesize a fresh gym buyer from the playbook.
+ *   Hidden dossier stripped from the response — see serialize.ts.
  *
  * GET /api/practice/sessions?drill=…&limit=…
  *   History, newest first.
@@ -37,14 +42,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "This drill isn't available yet" }, { status: 400 });
     }
 
-    const persona = await synthesizePersona(user.id);
-    // Agenda drill scenarios carry the script to practice against —
-    // saved default > generated from checklist > generic skeleton.
-    if (drill === "agenda") {
-      const { script, source } = await getAgendaScript(user.id, persona.public);
-      persona.script = script;
-      persona.scriptSource = source;
+    const rematchSessionId =
+      typeof body?.rematchSessionId === "string" ? body.rematchSessionId : null;
+    const dealId = typeof body?.dealId === "string" ? body.dealId : null;
+    const meetingEntryId =
+      typeof body?.meetingEntryId === "string" ? body.meetingEntryId : null;
+
+    let persona: PracticePersona;
+    let sessionDealId: string | null = dealId;
+    let sessionMeetingEntryId: string | null = meetingEntryId;
+
+    if (rematchSessionId) {
+      // Rematch: same buyer, fresh attempt. Persona snapshot (incl.
+      // any agenda script) copies verbatim; live-fire anchoring rides
+      // along so a rematched real-call rehearsal stays deal-linked.
+      const prior = await prisma.practiceSession.findFirst({
+        where: { id: rematchSessionId, userId: user.id },
+        select: { persona: true, drill: true, dealId: true, meetingEntryId: true },
+      });
+      if (!prior) {
+        return NextResponse.json({ error: "Session to rematch not found" }, { status: 404 });
+      }
+      if (prior.drill !== drill) {
+        return NextResponse.json({ error: "Rematch must use the same drill" }, { status: 400 });
+      }
+      persona = prior.persona as unknown as PracticePersona;
+      sessionDealId = prior.dealId;
+      sessionMeetingEntryId = prior.meetingEntryId;
+    } else if (dealId) {
+      // Live-Fire: real deal, real attendee, evidence-grounded card.
+      persona = await buildLiveFirePersona(user.id, dealId, meetingEntryId, drill);
+    } else {
+      persona = await synthesizePersona(user.id);
+      // Agenda drill scenarios carry the script to practice against —
+      // saved default > generated from checklist > generic skeleton.
+      if (drill === "agenda") {
+        const { script, source } = await getAgendaScript(user.id, persona.public);
+        persona.script = script;
+        persona.scriptSource = source;
+      }
     }
+
     const session = await prisma.practiceSession.create({
       data: {
         userId: user.id,
@@ -52,6 +90,8 @@ export async function POST(request: NextRequest) {
         mode: typeof body?.mode === "string" ? body.mode : null,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         persona: persona as any,
+        dealId: sessionDealId,
+        meetingEntryId: sessionMeetingEntryId,
       },
     });
     return NextResponse.json({ session: serializePracticeSession(session) });

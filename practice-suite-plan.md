@@ -274,7 +274,12 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   panel; framework-coverage grading with the Discovery-Summary-fill kicker.
 - **Phase 5 — integrations (M)**: coaching tool + readiness evidence +
   objection drill.
-- **Phase 6 — Live-Fire mode (L)**: deal-anchored variants of Pre-Call
+- **Phase 6 — Live-Fire mode — ✅ SHIPPED (v1)**: deal-anchored Pre-Call
+  Planning / Agenda / Discovery via 🥊 Practice on upcoming-meeting rows;
+  evidence-grounded real-attendee personas with honest unknowns;
+  meeting-specific agenda scripts; rematch keeps deal anchoring. Remaining
+  from the full vision: PDL enrichment on thin participants, practice
+  summary to the deal timeline. Original scope: deal-anchored variants of Pre-Call
   Planning, Agenda Setting, and Discovery — real-persona assembly (PDL +
   participant + prior-call behavior), deal-page entry point on upcoming
   meetings, Discovery-Gaps-sourced question proposals, optional practice

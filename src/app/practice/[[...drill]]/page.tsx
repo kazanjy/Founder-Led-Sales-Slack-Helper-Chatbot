@@ -68,6 +68,8 @@ interface SessionShape {
     flags?: string[];
     alternatives?: string[];
   } | null;
+  dealId: string | null;
+  meetingEntryId: string | null;
   createdAt: string;
   completedAt: string | null;
 }
@@ -184,6 +186,12 @@ function PracticePageInner() {
   const searchParams = useSearchParams();
   const params = useParams<{ drill?: string[] }>();
   const sessionId = searchParams.get("session");
+  // Live-Fire mode: arrived from a deal's upcoming-meeting row —
+  // drills run against the REAL attendee, grounded in deal evidence.
+  const lfDealId = searchParams.get("deal");
+  const lfMeetingId = searchParams.get("meeting");
+  const lfLabel = searchParams.get("label");
+  const liveFire = !!lfDealId;
 
   // Focused-drill mode when the URL carries a slug
   // (/practice/rapport). Unknown slugs fall back to the home view.
@@ -317,16 +325,22 @@ function PracticePageInner() {
     };
   }, [sessionId]);
 
-  const prefetchNext = useCallback(async (drill: string) => {
+  const prefetchNext = useCallback(async (drill: string, rematchOf?: SessionShape) => {
     setPrefetching(true);
     setNextSession(null);
     try {
       // mode:"warm" marks background-created sessions so the history
-      // list can hide them until they're actually attempted.
+      // list can hide them until they're actually attempted. For a
+      // live-fire session the "next scenario" is a REMATCH of the same
+      // real buyer — fresh synthetic strangers don't help you prep.
       const res = await fetch("/api/practice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drill, mode: "warm" }),
+        body: JSON.stringify(
+          rematchOf?.dealId
+            ? { drill, mode: "warm", rematchSessionId: rematchOf.id }
+            : { drill, mode: "warm" }
+        ),
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.session) setNextSession(data.session);
@@ -347,12 +361,12 @@ function PracticePageInner() {
   // ~1 spare per drill.
   const warmingRef = useMemo(() => new Set<string>(), []);
   useEffect(() => {
-    if (loadingHistory) return;
+    if (loadingHistory || liveFire) return;
     const liveDrills = DRILLS.filter(
       (d) => d.available && (!focusedDrill || d.key === focusedDrill)
     );
     for (const d of liveDrills) {
-      const hasActive = history.some((s) => s.drill === d.key && s.status === "active");
+      const hasActive = history.some((s) => s.drill === d.key && s.status === "active" && !s.dealId);
       if (hasActive || warmingRef.has(d.key)) continue;
       warmingRef.add(d.key);
       (async () => {
@@ -373,13 +387,21 @@ function PracticePageInner() {
         }
       })();
     }
-  }, [loadingHistory, history, focusedDrill, warmingRef]);
+  }, [loadingHistory, history, focusedDrill, liveFire, warmingRef]);
 
   const startDrill = async (drill: string) => {
     setStartError(null);
-    // Instant path: consume an existing active session (warm-pooled or
-    // previously abandoned — either way it's ungraded and unrevealed).
-    const ready = history.find((s) => s.drill === drill && s.status === "active");
+    // Instant path: consume an existing active session — but only one
+    // that matches the anchoring (gym sessions for gym mode, this
+    // exact deal+meeting for live-fire).
+    const ready = history.find(
+      (s) =>
+        s.drill === drill &&
+        s.status === "active" &&
+        (liveFire
+          ? s.dealId === lfDealId && s.meetingEntryId === lfMeetingId
+          : !s.dealId)
+    );
     if (ready) {
       router.push(`${basePath}?session=${ready.id}`);
       return;
@@ -391,7 +413,10 @@ function PracticePageInner() {
       const res = await fetch("/api/practice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drill }),
+        body: JSON.stringify({
+          drill,
+          ...(liveFire ? { dealId: lfDealId, meetingEntryId: lfMeetingId || undefined } : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Failed to start (${res.status})`);
@@ -523,6 +548,27 @@ function PracticePageInner() {
     }
   };
 
+  // Re-drill the exact same buyer (persona snapshot copies verbatim).
+  const rematch = async (of: { id: string; drill: string }) => {
+    setStarting(of.drill);
+    setStartError(null);
+    try {
+      const res = await fetch("/api/practice/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drill: of.drill, rematchSessionId: of.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Rematch failed (${res.status})`);
+      await loadHistory();
+      router.push(`${basePath}?session=${data.session.id}`);
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : "Rematch failed");
+    } finally {
+      setStarting(null);
+    }
+  };
+
   const submitAnswers = async () => {
     if (!session) return;
     setGradeError(null);
@@ -570,7 +616,7 @@ function PracticePageInner() {
       setSession(data.session);
       // Grade is in — immediately start building the next scenario in
       // the background (not awaited) so Practice Again loads instantly.
-      void prefetchNext(session.drill);
+      void prefetchNext(session.drill, session);
       await loadHistory();
     } catch (err) {
       setGradeError(err instanceof Error ? err.message : "Grading failed");
@@ -625,8 +671,26 @@ function PracticePageInner() {
                 {startError}
               </p>
             )}
+            {liveFire && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  🎯 Live-Fire: practicing for {lfLabel ? `"${lfLabel}"` : "a real upcoming call"}
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                  Drills run against the REAL attendee, built from this deal&rsquo;s actual
+                  history. Unknowns are flagged honestly — the reveal doubles as call prep.
+                </p>
+              </div>
+            )}
             <div className={focusedDrill ? "" : "grid sm:grid-cols-2 gap-4"}>
-              {DRILLS.filter((d) => !focusedDrill || d.key === focusedDrill).map((d) => (
+              {DRILLS.filter(
+                (d) =>
+                  (!focusedDrill || d.key === focusedDrill) &&
+                  // Live-fire offers the three call-prep drills; rapport
+                  // breadcrumbs are synthetic-only by design (we don't
+                  // invent personal details about real people).
+                  (!liveFire || ["precall_plan", "agenda", "discovery"].includes(d.key))
+              ).map((d) => (
                 <div
                   key={d.key}
                   className={`bg-white dark:bg-gray-800 border rounded-xl p-5 ${
@@ -704,14 +768,33 @@ function PracticePageInner() {
                     const info = drillInfo(s.drill);
                     return (
                       <li key={s.id}>
-                        <button
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => router.push(`${basePath}?session=${s.id}`)}
-                          className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded-lg px-2 -mx-2"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") router.push(`${basePath}?session=${s.id}`);
+                          }}
+                          className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded-lg px-2 -mx-2 cursor-pointer group/hrow"
                         >
                           <span>{info.emoji}</span>
                           <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-gray-200 truncate">
                             {info.label} — {s.persona.public.name}, {s.persona.public.company.name}
+                            {s.dealId && <span className="text-amber-600 dark:text-amber-400"> · 🎯 live-fire</span>}
                           </span>
+                          {s.status === "completed" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void rematch(s);
+                              }}
+                              disabled={starting === s.drill}
+                              className="text-[11px] font-medium text-purple-600 dark:text-purple-300 hover:underline opacity-0 group-hover/hrow:opacity-100 transition-opacity disabled:opacity-50"
+                              title={`Practice against ${s.persona.public.name.split(" ")[0]} again — same buyer, fresh attempt`}
+                            >
+                              ↻ Rematch
+                            </button>
+                          )}
                           <span className="text-xs text-gray-400">{formatDate(s.createdAt)}</span>
                           {s.score ? (
                             <span className={`text-sm font-bold ${gradeColor(s.score.overall)}`}>
@@ -722,7 +805,7 @@ function PracticePageInner() {
                               unfinished
                             </span>
                           )}
-                        </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -741,7 +824,7 @@ function PracticePageInner() {
             {pub && (
               <div className="bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-xl p-5">
                 <div className="text-xs uppercase tracking-wide text-purple-500 dark:text-purple-400 font-semibold mb-2">
-                  📅 New meeting on your calendar
+                  {session.dealId ? "🎯 Live-Fire — your real buyer, from the deal's evidence" : "📅 New meeting on your calendar"}
                 </div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {pub.name} <span className="font-normal text-gray-500 dark:text-gray-400">— {pub.title}</span>
@@ -1663,6 +1746,14 @@ function PracticePageInner() {
                         {starting === session.drill ? "Building your next buyer…" : "🔁 Practice again"}
                       </button>
                     )}
+                    <button
+                      onClick={() => rematch(session)}
+                      disabled={starting === session.drill}
+                      className="px-4 py-2.5 text-sm font-medium border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 disabled:opacity-50"
+                      title="Same buyer, fresh attempt"
+                    >
+                      ↻ Rematch this buyer
+                    </button>
                     <button
                       onClick={() => router.push(basePath)}
                       className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"

@@ -2232,6 +2232,26 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                           >
                             🔬 Pre-Call Plan
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Live-Fire practice: rehearse THIS call
+                              // against a simulation of the real
+                              // attendee, built from the deal's
+                              // evidence. Opens the Practice applet in
+                              // live-fire mode (new tab — the deal page
+                              // stays put).
+                              const label = `${e.title || "Meeting"} (${dateLabel})`;
+                              window.open(
+                                `/practice?deal=${deal.id}&meeting=${e.id}&label=${encodeURIComponent(label)}`,
+                                "_blank"
+                              );
+                            }}
+                            className="text-[11px] text-amber-600 hover:underline flex-shrink-0 font-medium"
+                            title="Rehearse this call: practice pre-call planning, your agenda set, and discovery against a simulation of the real attendee built from this deal's history"
+                          >
+                            🥊 Practice
+                          </button>
                         </div>
                         {(() => {
                           // Surface "With Alice, Bob, charlie@…" so the

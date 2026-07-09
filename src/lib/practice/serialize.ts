@@ -17,6 +17,8 @@ export function serializePracticeSession<
     answers: unknown;
     score: unknown;
     status: string;
+    dealId: string | null;
+    meetingEntryId: string | null;
     createdAt: Date;
     completedAt: Date | null;
   },
@@ -40,6 +42,9 @@ export function serializePracticeSession<
     turns: session.turns ?? null,
     answers: session.answers ?? null,
     score: session.score ?? null,
+    // Live-Fire anchoring (null for gym sessions).
+    dealId: session.dealId,
+    meetingEntryId: session.meetingEntryId,
     createdAt: session.createdAt.toISOString(),
     completedAt: session.completedAt?.toISOString() ?? null,
   };
