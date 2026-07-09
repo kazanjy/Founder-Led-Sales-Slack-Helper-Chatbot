@@ -277,6 +277,18 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   meetings, Discovery-Gaps-sourced question proposals, optional practice
   summary to the deal timeline. Lands after the gym proves the drill loops;
   everything it adds is persona sourcing + deal grounding.
+- **Phase 7 — Full Call (L) — the capstone.** One persona, one continuous
+  session, all four drills in call order: pre-call quiz (plan the approach)
+  → rapport (icebreaker → response → pivot) → agenda set (delivered off the
+  pivot) → discovery (freestyle roleplay) → wrap-up. Graded per-stage with
+  the existing rubrics PLUS a whole-call synthesis: did the plan survive
+  contact (did they pitch the value props they said would land?), did
+  rapport insights carry into discovery, arc coherence, and one overall
+  letter grade. Reuses everything — persona engine, turn loop, per-drill
+  graders — the new work is stage orchestration on one session (mode:
+  "full_call", stage markers in turns) and the cross-stage synthesis
+  grader. Works in gym mode AND Live-Fire (full rehearsal of a real
+  upcoming call). Deliberately last: it's an assembly of proven parts.
 
 ## Design decisions (made — flag if you disagree)
 
