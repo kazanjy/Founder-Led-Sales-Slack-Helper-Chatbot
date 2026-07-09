@@ -2173,55 +2173,62 @@ Ground everything in what's actually in this deal's history — if the deal is t
                           <button
                             type="button"
                             onClick={() => {
-                              // Hand off a minimal UpcomingEvent-shaped
-                              // payload to /pre-call-planning/research.
-                              // It picks this up from sessionStorage on
-                              // mount, prefills the form, and either
-                              // jumps to an existing brief or runs a
-                              // fresh research pass.
-                              let calendarEventId: string | null = null;
+                              // Meeting-specific prep, in Deal Chat: build
+                              // a prompt anchored to THIS meeting (title,
+                              // time, actual attendees with roles, invite
+                              // agenda) — buildDealChatContext supplies
+                              // the full timeline, participants, sales
+                              // narrative, and discovery framework around
+                              // it.
+                              let linkedIds: string[] = [];
                               let attendeeEmails: string[] = [];
                               if (e.metadata) {
                                 try {
                                   const m = JSON.parse(e.metadata);
-                                  if (typeof m.calendarEventId === "string") calendarEventId = m.calendarEventId;
+                                  if (Array.isArray(m.linkedParticipantIds)) {
+                                    linkedIds = m.linkedParticipantIds.filter((x: unknown): x is string => typeof x === "string");
+                                  }
                                   if (Array.isArray(m.attendeeEmails)) {
                                     attendeeEmails = m.attendeeEmails.filter((x: unknown): x is string => typeof x === "string");
                                   }
                                 } catch { /* ignore */ }
                               }
-                              const payload = {
-                                id: calendarEventId || e.id,
-                                title: e.title || "Meeting",
-                                startsAt: e.entryDate,
-                                endsAt: null,
-                                meetingUrl: e.sourceUrl || null,
-                                eventUrl: e.sourceUrl || null,
-                                description: e.content || null,
-                                location: null,
-                                prefill: {
-                                  companyName: deal.companyName || "",
-                                  contactName: "",
-                                  contactTitle: "",
-                                  contactLinkedIn: "",
-                                  companyUrl: deal.companyUrl || "",
-                                },
-                                attendees: attendeeEmails.map((email) => ({ email, name: null, external: true })),
-                                // Round-trip the deal context so the
-                                // research page can attach a timeline
-                                // entry back to this deal once the brief
-                                // saves. Without these, the brief lives
-                                // only on the research page.
-                                attachToDealId: deal.id,
-                                attachToDealEntryDate: e.entryDate,
-                              };
-                              try {
-                                window.sessionStorage.setItem("precallPlanPrefill", JSON.stringify(payload));
-                              } catch { /* quota — fall through */ }
-                              window.open("/pre-call-planning/research", "_blank", "noopener,noreferrer");
+                              const linked = linkedIds
+                                .map((pid) => participantsById.get(pid))
+                                .filter((p): p is NonNullable<typeof p> => !!p);
+                              const linkedEmails = new Set(
+                                linked.map((p) => p.email?.toLowerCase()).filter((x): x is string => !!x)
+                              );
+                              const attendeeLabels = [
+                                ...linked.map((p) => {
+                                  const name = p.name.includes("@") ? (nameFromEmail(p.name) || p.name) : titleCase(p.name);
+                                  return p.title ? `${name} (${p.title})` : name;
+                                }),
+                                ...attendeeEmails
+                                  .filter((email) => !linkedEmails.has(email.toLowerCase()))
+                                  .map((email) => nameFromEmail(email) || email),
+                              ];
+                              const prompt = `I have a specific upcoming meeting on this deal — prep me for THIS one.
+
+**Meeting:** ${e.title || "Meeting"}
+**When:** ${dateLabel}
+${attendeeLabels.length > 0 ? `**Attendees:** ${attendeeLabels.join(", ")}` : ""}
+${inviteDesc ? `**Invite notes:**\n${inviteDesc}` : ""}
+
+Using the full deal history, my sales narrative, and my discovery framework, give me a prep tuned to this meeting and these attendees:
+
+1. Where the deal stands going into this meeting, and what this specific meeting needs to accomplish given the stage and what's happened since the last touch.
+2. For EACH attendee above: what we know about them from the deal history, their likely state of mind walking in, and what they'll care about in this meeting. Flag anyone we've never engaged before and how to read them.
+3. The two or three highest-leverage outcomes to drive for.
+4. The specific questions I should ask — tuned to these attendees and this meeting type, working in my open discovery gaps where they fit naturally.
+5. The questions or objections I should expect FROM these attendees, given their roles and everything they've said before.
+6. The smartest next-step ask to land at the end.
+
+Be specific to this meeting — use what's actually in the deal history, and call out anything important that's missing so I can fill it in before the call.`;
+                              launchDealChatWithPrompt(prompt);
                             }}
                             className="text-[11px] text-purple-600 hover:underline flex-shrink-0 font-medium"
-                            title="Open pre-call research for this meeting in a new tab"
+                            title="Prep for this specific meeting in Deal Chat — its attendees, the invite agenda, and the full deal context"
                           >
                             🔬 Pre-Call Plan
                           </button>
