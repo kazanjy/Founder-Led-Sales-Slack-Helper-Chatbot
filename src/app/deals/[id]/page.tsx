@@ -1088,6 +1088,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   }, [searchParams]);
 
   const startDealChat = () => {
+    pendingChatKindRef.current = null;
     // "Chat With Deal Timeline" — whole-deal chat, no specific focus.
     setFocusedEntryId(null);
     setChatPanelOpen(true);
@@ -1100,7 +1101,14 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // pattern the panel already supports. The full deal context +
   // {{SALES_NARRATIVE}} merge field are built by buildDealChatContext
   // on the first turn — same path as a normal Deal Chat send.
-  const launchDealChatWithPrompt = (question: string) => {
+  // Which canned CTA (if any) is about to create a conversation — the
+  // timeline breadcrumb uses it so entries read "Deal Chat — Meeting
+  // Prep" instead of a generic label. Ad-hoc chats (null) get a terse
+  // summary of the first question instead.
+  const pendingChatKindRef = useRef<string | null>(null);
+
+  const launchDealChatWithPrompt = (question: string, kind?: string) => {
+    pendingChatKindRef.current = kind ?? null;
     setFocusedEntryId(null);
     setPanelConversationId(null);
     syncChatUrl(null);
@@ -1548,21 +1556,21 @@ Ground everything in what's actually in this deal's history — if the deal is t
             ) : "🧠 Analyze"}
           </button>
           <button
-            onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT)}
+            onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT, "Meeting Prep")}
             className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
             title="Prep me for an upcoming meeting on this deal"
           >
             📋 Prep
           </button>
           <button
-            onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT)}
+            onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT, "Next Best Action")}
             className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
             title="Suggest the next best action on this deal"
           >
             🎯 Next Action
           </button>
           <button
-            onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT)}
+            onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT, "Discovery Gaps")}
             className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 dark:text-purple-300 rounded-md text-[11px] font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30"
             title="What haven't we discovered yet on this deal"
           >
@@ -1756,14 +1764,14 @@ Ground everything in what's actually in this deal's history — if the deal is t
                 ) : "🧠 Analyze Deal"}
               </button>
               <button
-                onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT)}
+                onClick={() => launchDealChatWithPrompt(PREP_FOR_MEETING_PROMPT, "Meeting Prep")}
                 className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
                 title="Open Deal Chat and have Mikey prep you for an upcoming meeting using the full deal context and your sales narrative"
               >
                 📋 Prep for a Meeting
               </button>
               <button
-                onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT)}
+                onClick={() => launchDealChatWithPrompt(NEXT_BEST_ACTION_PROMPT, "Next Best Action")}
                 className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
                 title="Open Deal Chat and have Mikey suggest the single highest-leverage next action on this deal"
               >
@@ -1785,7 +1793,7 @@ Ground everything in what's actually in this deal's history — if the deal is t
                 )}
               </button>
               <button
-                onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT)}
+                onClick={() => launchDealChatWithPrompt(DISCOVERY_GAPS_PROMPT, "Discovery Gaps")}
                 className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-300 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-50 flex items-center gap-1.5"
                 title="Audit this deal against your discovery questions and first-call checklist — what haven't we found out yet that would strengthen an ROI case or business case, and how to close each gap"
               >
@@ -2225,7 +2233,7 @@ Using the full deal history, my sales narrative, and my discovery framework, giv
 6. The smartest next-step ask to land at the end.
 
 Be specific to this meeting — use what's actually in the deal history, and call out anything important that's missing so I can fill it in before the call.`;
-                              launchDealChatWithPrompt(prompt);
+                              launchDealChatWithPrompt(prompt, `Pre-Call Plan: ${e.title || "Meeting"}`);
                             }}
                             className="text-[11px] text-purple-600 hover:underline flex-shrink-0 font-medium"
                             title="Prep for this specific meeting in Deal Chat — its attendees, the invite agenda, and the full deal context"
@@ -3604,9 +3612,14 @@ Be specific to this meeting — use what's actually in the deal history, and cal
             //   Started a conversation: "What should I do next?"
             // Pull the question out; fall back to the first line of content.
             const qMatch = e.content.match(/Started a conversation:\s*"([\s\S]*?)"/);
-            const label = qMatch
-              ? qMatch[1]
-              : (e.content.split("\n")[0] || "Deal Chat").slice(0, 60);
+            // Canned CTAs write `Started a "<kind>" conversation.` —
+            // the kind is the cleanest thread label.
+            const kindMatch = e.content.match(/^Started a "([^"]+)" conversation\./);
+            const label = kindMatch
+              ? kindMatch[1]
+              : qMatch
+                ? qMatch[1]
+                : (e.content.split("\n")[0] || "Deal Chat").slice(0, 60);
             return {
               conversationId: match[1],
               label,
@@ -3633,14 +3646,29 @@ Be specific to this meeting — use what's actually in the deal history, and cal
         onConversationCreated={(convId, firstQuestion) => {
           setPanelConversationId(convId);
           syncChatUrl(convId);
-          // Leave a timeline breadcrumb so the deal history shows the chat
-          // was started, matching the previous new-tab flow's behavior.
+          // Leave a timeline breadcrumb so the deal history shows the
+          // chat was started. Canned CTAs (Meeting Prep, Next Best
+          // Action, …) label the entry with their kind; ad-hoc chats
+          // get a terse summary of the first question so entries are
+          // tellable-apart when scanning the timeline.
+          const kind = pendingChatKindRef.current;
+          pendingChatKindRef.current = null;
+          const terse = (firstQuestion || "").replace(/\s+/g, " ").trim();
+          const title = kind
+            ? `Deal Chat — ${kind}`
+            : terse
+              ? `Deal Chat: "${terse.slice(0, 70)}${terse.length > 70 ? "…" : ""}"`
+              : `Deal Chat: ${deal.name}`;
           addEntry({
             type: "chat",
-            title: `Deal Chat: ${deal.name}`,
-            content: firstQuestion
-              ? `Started a conversation: "${firstQuestion}"`
-              : `Started a conversation about this deal.`,
+            title,
+            // Keep the 'Started a conversation: "…"' shape for ad-hoc
+            // chats — the panel's thread list parses it for labels.
+            content: kind
+              ? `Started a "${kind}" conversation.`
+              : firstQuestion
+                ? `Started a conversation: "${firstQuestion}"`
+                : `Started a conversation about this deal.`,
             sourceUrl: `/chat/${convId}`,
           } as Partial<TimelineEntry>).catch((err) =>
             console.error("Failed to leave chat breadcrumb:", err)
