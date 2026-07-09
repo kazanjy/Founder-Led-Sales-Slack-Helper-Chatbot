@@ -330,6 +330,97 @@ export async function gradeDiscovery(
   };
 }
 
+const FULL_CALL_SYNTHESIS_PROMPT = `You are grading the WHOLE-CALL synthesis of a founder's FULL CALL practice rep — they ran an entire simulated sales call against one buyer: pre-call plan → rapport open → agenda set → discovery. Each stage has already been graded on its own rubric (scores provided). Your job is to grade what NO single stage can see: coherence across the call.
+
+Grade these three dimensions, each 0-5:
+
+1. "Plan → execution" — did the call follow the plan they committed to in the pre-call quiz? Specifically: did they steer toward the value props they PREDICTED would land and keep the ones they said don't holstered? Did their stated angle actually show up in their questions? A great plan abandoned on contact scores low here even if the execution was decent.
+2. "Carry-through" — did information flow ACROSS stages? Rapport details acknowledged later, the agenda honored during discovery, discovery questions building on what the buyer said during the open and agenda beats. Each stage played as an island scores low.
+3. "Arc & control" — did the call have a shape: warm open → agreed agenda → earned discovery → clean wrap? Who was driving? Did momentum build or stall?
+
+Then produce the OVERALL letter grade for the whole call: weigh the four stage grades and your three synthesis dimensions together — synthesis failures cap the overall at B- even with strong stages, because a sales call is a system, not four exercises.
+
+Return ONLY a JSON object:
+{
+  "overall": "<letter grade for the WHOLE CALL>",
+  "dimensions": [
+    { "name": "Plan → execution", "score": 0-5, "max": 5, "comment": "<cite the specific props/angle from their plan and what actually happened>" },
+    { "name": "Carry-through", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Arc & control", "score": 0-5, "max": 5, "comment": "..." }
+  ],
+  "flags": ["<any of: 'abandoned the plan', 'stage islands', 'lost control', 'ran long', 'no wrap' — or empty>"],
+  "modelAnswer": "<3-5 sentences: the single narrative of what a great version of THIS call would have looked like, start to finish, given this buyer>",
+  "nextRep": "<ONE sentence: the highest-leverage whole-call fix>"
+}`;
+
+export interface FullCallStageScore {
+  stage: string;
+  label: string;
+  score: PracticeScore;
+}
+
+/**
+ * Whole-call synthesis for the Full Call capstone — runs AFTER the
+ * four per-stage graders and sees their results.
+ */
+export async function gradeFullCallSynthesis(
+  persona: PracticePersona,
+  payload: {
+    precallAnswers: Record<string, unknown>;
+    agendaScript: string;
+    turns: Array<{ role: string; text: string; stage?: string }>;
+    stageScores: FullCallStageScore[];
+  }
+): Promise<PracticeScore> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: `${FULL_CALL_SYNTHESIS_PROMPT}\n\n---\n\n${JSON.stringify(
+          {
+            persona: { public: persona.public, hidden: persona.hidden },
+            precallPlan: payload.precallAnswers,
+            agendaScript: payload.agendaScript,
+            fullCallTranscript: payload.turns,
+            stageGrades: payload.stageScores.map((s) => ({
+              stage: s.label,
+              overall: s.score.overall,
+              dimensions: s.score.dimensions.map((d) => `${d.name}: ${d.score}/${d.max}`),
+            })),
+          },
+          null,
+          2
+        )}`,
+      },
+    ],
+  });
+  let parsed: Partial<PracticeScore>;
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Synthesis grader returned unparseable JSON");
+  }
+  if (!parsed.overall || !Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) {
+    throw new Error("Synthesis grader returned an incomplete score");
+  }
+  return {
+    overall: parsed.overall,
+    dimensions: parsed.dimensions.map((d) => ({
+      name: String(d.name || "Dimension"),
+      score: typeof d.score === "number" ? d.score : 0,
+      max: typeof d.max === "number" ? d.max : 5,
+      comment: String(d.comment || ""),
+    })),
+    flags: Array.isArray(parsed.flags)
+      ? parsed.flags.filter((f): f is string => typeof f === "string")
+      : [],
+    modelAnswer: String(parsed.modelAnswer || ""),
+    nextRep: String(parsed.nextRep || ""),
+  };
+}
+
 /**
  * Grade a pre-call planning attempt. Returns the uniform score shape;
  * throws on model failure (caller surfaces the error, session stays

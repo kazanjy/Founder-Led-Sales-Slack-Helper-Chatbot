@@ -197,9 +197,10 @@ export async function buildLiveFirePersona(
     voice: voicePool[Math.floor(Math.random() * voicePool.length)],
   };
 
-  // Agenda drill: meeting-specific script proposed from the deal state
-  // (NOT the generic first-call default — this call has history).
-  if (drill === "agenda") {
+  // Agenda drill (and the Full Call's agenda stage): meeting-specific
+  // script proposed from the deal state (NOT the generic first-call
+  // default — this call has history).
+  if (drill === "agenda" || drill === "full_call") {
     const scriptCompletion = await openai.chat.completions.create({
       model: "gpt-5.5",
       messages: [

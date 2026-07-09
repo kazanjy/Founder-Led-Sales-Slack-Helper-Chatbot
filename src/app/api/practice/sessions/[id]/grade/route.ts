@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { gradePrecallPlan, gradeRapport, gradeAgendaSet, gradeDiscovery, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
+import {
+  gradePrecallPlan,
+  gradeRapport,
+  gradeAgendaSet,
+  gradeDiscovery,
+  gradeFullCallSynthesis,
+  PrecallAnswers,
+  PracticeScore,
+  FullCallStageScore,
+} from "@/lib/practice/grade";
 import { loadDiscoveryFramework } from "@/lib/discovery-framework";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 import type { PracticePersona } from "@/lib/practice/persona";
@@ -116,6 +125,72 @@ export async function POST(
         questionsVisible,
         frameworkListing: framework.questionsListing,
       });
+    } else if (session.drill === "full_call") {
+      // Full Call: grade all four stages in parallel, then run the
+      // whole-call synthesis over the stage results. Stage answers
+      // were persisted by the /stage endpoint as the call progressed.
+      const turns =
+        (session.turns as Array<{ role: string; text: string; stage?: string }> | null) || [];
+      const stored = (session.answers as Record<string, unknown> | null) || {};
+      const precall = stored.precall as PrecallAnswers | undefined;
+      const rapportAns = stored.rapport as { pivot?: string } | undefined;
+      const agendaAns = stored.agenda as
+        | { transcript?: string; durationMs?: number | null; mode?: string }
+        | undefined;
+      const rapportTurns = turns.filter((t) => t.stage === "rapport");
+      const discoveryTurns = turns.filter((t) => t.stage === "discovery");
+      const icebreaker = rapportTurns.find((t) => t.role === "user")?.text;
+      const personaReply = rapportTurns.find((t) => t.role === "persona")?.text;
+
+      if (!precall?.orgPersona) {
+        return NextResponse.json({ error: "The pre-call plan stage is missing" }, { status: 400 });
+      }
+      if (!icebreaker || !personaReply || !rapportAns?.pivot) {
+        return NextResponse.json({ error: "The rapport stage is incomplete" }, { status: 400 });
+      }
+      if (!agendaAns?.transcript) {
+        return NextResponse.json({ error: "The agenda stage is missing" }, { status: 400 });
+      }
+      if (!discoveryTurns.some((t) => t.role === "user")) {
+        return NextResponse.json({ error: "Ask at least one discovery question before wrapping" }, { status: 400 });
+      }
+
+      const questionsVisible = a?.questionsVisible === true;
+      const framework = await loadDiscoveryFramework(session.userId);
+      const agendaScript = persona.script || "";
+
+      const [s1, s2, s3, s4] = await Promise.all([
+        gradePrecallPlan(persona, precall),
+        gradeRapport(persona, { icebreaker, personaReply, pivot: rapportAns.pivot }),
+        gradeAgendaSet({
+          script: agendaScript,
+          transcript: agendaAns.transcript,
+          durationMs:
+            typeof agendaAns.durationMs === "number" && agendaAns.durationMs > 0
+              ? agendaAns.durationMs
+              : null,
+          mode: agendaAns.mode === "script_hidden" ? "script_hidden" : "script_visible",
+        }),
+        gradeDiscovery(persona, discoveryTurns, {
+          mode: "freestyle",
+          questionsVisible,
+          frameworkListing: framework.questionsListing,
+        }),
+      ]);
+      const stages: FullCallStageScore[] = [
+        { stage: "precall", label: "Pre-Call Plan", score: s1 },
+        { stage: "rapport", label: "Rapport", score: s2 },
+        { stage: "agenda", label: "Agenda Set", score: s3 },
+        { stage: "discovery", label: "Discovery", score: s4 },
+      ];
+      const synthesis = await gradeFullCallSynthesis(persona, {
+        precallAnswers: precall as unknown as Record<string, unknown>,
+        agendaScript,
+        turns,
+        stageScores: stages,
+      });
+      answers = { ...stored, questionsVisible };
+      score = { ...synthesis, stages } as PracticeScore & { stages: FullCallStageScore[] };
     } else {
       return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });
     }

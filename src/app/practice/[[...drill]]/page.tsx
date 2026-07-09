@@ -45,6 +45,15 @@ interface PersonaHidden {
   objections: string[];
 }
 
+interface ScoreShape {
+  overall: string;
+  dimensions: Array<{ name: string; score: number; max: number; comment: string }>;
+  modelAnswer: string;
+  nextRep: string;
+  flags?: string[];
+  alternatives?: string[];
+}
+
 interface SessionShape {
   id: string;
   drill: string;
@@ -58,16 +67,9 @@ interface SessionShape {
     voice?: string;
     hidden?: PersonaHidden;
   };
-  turns: Array<{ role: string; text: string }> | null;
+  turns: Array<{ role: string; text: string; stage?: string }> | null;
   answers: Record<string, unknown> | null;
-  score: {
-    overall: string;
-    dimensions: Array<{ name: string; score: number; max: number; comment: string }>;
-    modelAnswer: string;
-    nextRep: string;
-    flags?: string[];
-    alternatives?: string[];
-  } | null;
+  score: (ScoreShape & { stages?: Array<{ stage: string; label: string; score: ScoreShape }> }) | null;
   dealId: string | null;
   meetingEntryId: string | null;
   createdAt: string;
@@ -98,6 +100,14 @@ const DRILLS = [
     available: true,
   },
   {
+    key: "full_call",
+    emoji: "📞",
+    label: "Full Call",
+    description:
+      "The capstone: one buyer, the whole call — plan it, open it, set the agenda, run discovery — then get graded per stage PLUS a whole-call synthesis: did your plan survive contact?",
+    available: true,
+  },
+  {
     key: "discovery",
     emoji: "🔍",
     label: "Discovery",
@@ -117,6 +127,7 @@ const DRILL_SLUGS: Record<string, string> = {
   rapport: "rapport",
   "agenda-setting": "agenda",
   discovery: "discovery",
+  "full-call": "full_call",
 };
 const SLUG_BY_DRILL: Record<string, string> = Object.fromEntries(
   Object.entries(DRILL_SLUGS).map(([slug, key]) => [key, slug])
@@ -369,7 +380,7 @@ function PracticePageInner() {
       (d) =>
         d.available &&
         (!focusedDrill || d.key === focusedDrill) &&
-        (!liveFire || ["precall_plan", "agenda", "discovery"].includes(d.key))
+        (!liveFire || ["precall_plan", "agenda", "discovery", "full_call"].includes(d.key))
     );
     for (const d of liveDrills) {
       // Match the anchoring startDrill consumes: gym sessions for gym
@@ -479,7 +490,10 @@ function PracticePageInner() {
       const res = await fetch(`/api/practice/sessions/${session.id}/turn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: icebreaker.trim() }),
+        body: JSON.stringify({
+          text: icebreaker.trim(),
+          ...(session.drill === "full_call" ? { stage: "rapport" } : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Turn failed (${res.status})`);
@@ -554,7 +568,10 @@ function PracticePageInner() {
       const res = await fetch(`/api/practice/sessions/${session.id}/turn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: discInput.trim() }),
+        body: JSON.stringify({
+          text: discInput.trim(),
+          ...(session.drill === "full_call" ? { stage: "discovery" } : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Turn failed (${res.status})`);
@@ -568,7 +585,7 @@ function PracticePageInner() {
       // founder click a button. Failure leaves the manual button as a
       // retry path.
       const userTurns = turns.filter((t) => t.role === "user").length;
-      if (discMode === "two_level" && userTurns >= 2) {
+      if (session.drill === "discovery" && discMode === "two_level" && userTurns >= 2) {
         void submitAnswers();
       }
     } catch (err) {
@@ -576,6 +593,43 @@ function PracticePageInner() {
     } finally {
       setSendingTurn(false);
     }
+  };
+
+  // Full Call: persist one stage's answers and advance (no grading
+  // until the wrap — you don't get a report card mid-call).
+  const submitStage = async (stage: string, stageAnswers: Record<string, unknown>) => {
+    if (!session || sendingTurn) return;
+    setGradeError(null);
+    setSendingTurn(true);
+    try {
+      const res = await fetch(`/api/practice/sessions/${session.id}/stage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage, answers: stageAnswers }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Failed to save stage (${res.status})`);
+      setSession(data.session);
+    } catch (err) {
+      setGradeError(err instanceof Error ? err.message : "Failed to save stage");
+    } finally {
+      setSendingTurn(false);
+    }
+  };
+
+  // Full Call stage 1: lock in the plan (same fields as the pre-call
+  // drill, but no grading — it grades with the whole call).
+  const submitPrecallStage = async () => {
+    if (!orgPersona || !humanPersona || !angle.trim()) {
+      setGradeError("Pick both personas and write your angle before locking in.");
+      return;
+    }
+    await submitStage("precall", {
+      orgPersona,
+      humanPersona,
+      angle: angle.trim(),
+      valuePropsLand: [...propsLand],
+    });
   };
 
   // Re-drill the exact same buyer (persona snapshot copies verbatim).
@@ -622,6 +676,8 @@ function PracticePageInner() {
       };
     } else if (session.drill === "discovery") {
       answers = { mode: discMode, questionsVisible: discQuestionsVisible };
+    } else if (session.drill === "full_call") {
+      answers = { questionsVisible: discQuestionsVisible };
     } else {
       if (!orgPersona || !humanPersona || !angle.trim()) {
         setGradeError("Pick both personas and write your angle before submitting.");
@@ -656,6 +712,12 @@ function PracticePageInner() {
   };
 
   const pub = session?.persona.public;
+  // Full Call stage pointer — server-persisted in answers.stage so a
+  // refresh resumes exactly where the call left off.
+  const fcStage: string | null =
+    session?.drill === "full_call"
+      ? ((session.answers?.stage as string | undefined) ?? "precall")
+      : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -719,7 +781,7 @@ function PracticePageInner() {
                   // Live-fire offers the three call-prep drills; rapport
                   // breadcrumbs are synthetic-only by design (we don't
                   // invent personal details about real people).
-                  (!liveFire || ["precall_plan", "agenda", "discovery"].includes(d.key))
+                  (!liveFire || ["precall_plan", "agenda", "discovery", "full_call"].includes(d.key))
               ).map((d) => (
                 <div
                   key={d.key}
@@ -900,7 +962,347 @@ function PracticePageInner() {
               </div>
             )}
 
-            {session.status !== "completed" && session.drill === "discovery" ? (
+            {session.drill === "full_call" && session.status !== "completed" && (
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                {[
+                  { key: "precall", label: "1 · Plan" },
+                  { key: "rapport", label: "2 · Rapport" },
+                  { key: "agenda", label: "3 · Agenda" },
+                  { key: "discovery", label: "4 · Discovery" },
+                ].map((st, i, arr) => {
+                  const order = ["precall", "rapport", "agenda", "discovery"];
+                  const cur = order.indexOf(fcStage || "precall");
+                  const idx = order.indexOf(st.key);
+                  return (
+                    <span key={st.key} className="inline-flex items-center gap-1.5">
+                      <span
+                        className={`px-2.5 py-1 rounded-full font-medium ${
+                          idx < cur
+                            ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                            : idx === cur
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                        }`}
+                      >
+                        {idx < cur ? "✓ " : ""}{st.label}
+                      </span>
+                      {i < arr.length - 1 && <span className="text-gray-300 dark:text-gray-600">→</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {session.status !== "completed" && session.drill === "full_call" && fcStage === "rapport" ? (
+              /* ── Full Call · stage 2: rapport exchange ────────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                {(session.turns || []).filter((t) => t.stage === "rapport").length === 0 ? (
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        The call connects. Open with {pub?.name.split(" ")[0]} — personal, warm, end with a question.
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Business topics are research, not rapport. They&rsquo;ll respond; you&rsquo;ll pivot after.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {recordingFor !== "icebreaker" && (
+                        <button
+                          onClick={() => setRecordingFor("icebreaker")}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                        >
+                          🎤 Record it
+                        </button>
+                      )}
+                      <button
+                        onClick={fetchHint}
+                        disabled={loadingHint}
+                        className="px-3 py-2 text-sm font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60 rounded-lg disabled:opacity-60"
+                      >
+                        {loadingHint ? "Thinking…" : "💡 Give me a hint"}
+                      </button>
+                    </div>
+                    {hint && (
+                      <p className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3.5 py-2.5 text-sm text-amber-900 dark:text-amber-200 italic">&ldquo;{hint}&rdquo;</p>
+                    )}
+                    {recordingFor === "icebreaker" && (
+                      <VoiceRecordingInput
+                        isActive
+                        onCancel={() => setRecordingFor(null)}
+                        onTranscriptionComplete={(text) => {
+                          setIcebreaker((prev) => (prev ? `${prev} ${text}` : text));
+                          setRecordingFor(null);
+                        }}
+                      />
+                    )}
+                    <textarea
+                      value={icebreaker}
+                      onChange={(e) => setIcebreaker(e.target.value)}
+                      rows={3}
+                      placeholder="Your icebreaker…"
+                      className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                    <button
+                      onClick={deliverIcebreaker}
+                      disabled={sendingTurn}
+                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {sendingTurn ? `${pub?.name.split(" ")[0]} is responding…` : "Deliver icebreaker"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {(session.turns || [])
+                        .filter((t) => t.stage === "rapport")
+                        .map((t, i) => (
+                          <div
+                            key={i}
+                            className={`text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] ${
+                              t.role === "user"
+                                ? "bg-purple-600 text-white ml-auto"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            }`}
+                          >
+                            {t.role !== "user" && (
+                              <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">{pub?.name}</span>
+                            )}
+                            {t.text}
+                          </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Now ride the response into your pivot — next you&rsquo;ll set the agenda.
+                    </p>
+                    {recordingFor === "pivot" ? (
+                      <VoiceRecordingInput
+                        isActive
+                        onCancel={() => setRecordingFor(null)}
+                        onTranscriptionComplete={(text) => {
+                          setPivot((prev) => (prev ? `${prev} ${text}` : text));
+                          setRecordingFor(null);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setRecordingFor("pivot")}
+                        className="px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                      >
+                        🎤 Record it
+                      </button>
+                    )}
+                    <textarea
+                      value={pivot}
+                      onChange={(e) => setPivot(e.target.value)}
+                      rows={2}
+                      placeholder="React to what they said, then bridge…"
+                      className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                    <button
+                      onClick={() => {
+                        if (!pivot.trim()) {
+                          setGradeError("Deliver your pivot first.");
+                          return;
+                        }
+                        void submitStage("rapport", { pivot: pivot.trim() });
+                      }}
+                      disabled={sendingTurn}
+                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {sendingTurn ? "Saving…" : "Lock in pivot → set the agenda"}
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : session.status !== "completed" && session.drill === "full_call" && fcStage === "agenda" ? (
+              /* ── Full Call · stage 3: agenda set ──────────────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Set the agenda — aim under 90 seconds.
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setAgendaMode("script_visible")}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
+                        agendaMode === "script_visible"
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      }`}
+                    >
+                      📜 Script visible
+                    </button>
+                    <button
+                      onClick={() => setAgendaMode("script_hidden")}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
+                        agendaMode === "script_hidden"
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      }`}
+                    >
+                      🧠 From memory
+                    </button>
+                  </div>
+                </div>
+                {agendaMode === "script_visible" && session.persona.script && (
+                  <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-[15px] leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                    {session.persona.script}
+                  </div>
+                )}
+                {recordingFor === "agenda" ? (
+                  <VoiceRecordingInput
+                    isActive
+                    onCancel={() => setRecordingFor(null)}
+                    onDuration={(ms) => setAgendaDurationMs((prev) => (prev ? prev + ms : ms))}
+                    onTranscriptionComplete={(text) => {
+                      setAgendaTranscript((prev) => (prev ? `${prev} ${text}` : text));
+                      setRecordingFor(null);
+                    }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setRecordingFor("agenda")}
+                    className="px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                  >
+                    🎤 {agendaTranscript ? "Record more" : "Record delivery"}
+                  </button>
+                )}
+                {agendaDurationMs !== null && (
+                  <span className="inline-block text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-full">
+                    ⏱ {Math.round(agendaDurationMs / 1000)}s{agendaDurationMs > 90_000 ? " — over target" : ""}
+                  </span>
+                )}
+                <textarea
+                  value={agendaTranscript}
+                  onChange={(e) => setAgendaTranscript(e.target.value)}
+                  rows={4}
+                  placeholder="Your transcript lands here — or type your delivery (no clock when typed)."
+                  className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                />
+                {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                <button
+                  onClick={() => {
+                    if (!agendaTranscript.trim()) {
+                      setGradeError("Deliver your agenda set first.");
+                      return;
+                    }
+                    void submitStage("agenda", {
+                      transcript: agendaTranscript.trim(),
+                      durationMs: agendaDurationMs,
+                      mode: agendaMode,
+                    });
+                  }}
+                  disabled={sendingTurn}
+                  className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                >
+                  {sendingTurn ? "Saving…" : "Lock in agenda → run discovery"}
+                </button>
+              </div>
+            ) : session.status !== "completed" && session.drill === "full_call" && (fcStage === "discovery" || fcStage === "wrap") ? (
+              /* ── Full Call · stage 4: freestyle discovery ─────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Agenda&rsquo;s agreed — run your discovery.
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setVoiceOn((v) => !v);
+                      if (voiceOn) audioRef.current?.pause();
+                    }}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  >
+                    {voiceOn ? "🔊 Voice on" : "🔇 Muted"}
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {(session.turns || [])
+                    .filter((t) => t.stage === "discovery")
+                    .map((t, i) => (
+                      <div
+                        key={i}
+                        className={`text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] ${
+                          t.role === "user"
+                            ? "bg-purple-600 text-white ml-auto"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        {t.role !== "user" && (
+                          <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">{pub?.name}</span>
+                        )}
+                        {t.text}
+                      </div>
+                    ))}
+                  {sendingTurn && (
+                    <div className="text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] bg-gray-100 dark:bg-gray-700 text-gray-400 italic">
+                      {pub?.name.split(" ")[0]} is thinking…
+                    </div>
+                  )}
+                </div>
+                {recordingFor === "discovery" ? (
+                  <VoiceRecordingInput
+                    isActive
+                    onCancel={() => setRecordingFor(null)}
+                    onTranscriptionComplete={(text) => {
+                      setDiscInput((prev) => (prev ? `${prev} ${text}` : text));
+                      setRecordingFor(null);
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-end gap-2">
+                    <button
+                      onClick={() => setRecordingFor("discovery")}
+                      className="shrink-0 p-2.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                    >
+                      🎤
+                    </button>
+                    <textarea
+                      value={discInput}
+                      onChange={(e) => setDiscInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void sendDiscoveryTurn();
+                        }
+                      }}
+                      rows={2}
+                      placeholder="Ask your question…"
+                      className="flex-1 text-sm p-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    <button
+                      onClick={sendDiscoveryTurn}
+                      disabled={sendingTurn || !discInput.trim()}
+                      className="shrink-0 px-3.5 py-2.5 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
+                    >
+                      Ask
+                    </button>
+                  </div>
+                )}
+                {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                {(session.turns || []).some((t) => t.stage === "discovery" && t.role === "user") && (
+                  <button
+                    onClick={submitAnswers}
+                    disabled={grading || sendingTurn}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                  >
+                    {grading ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Grading the whole call…
+                      </>
+                    ) : (
+                      "🏁 Wrap up the call & get graded"
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : session.status !== "completed" && session.drill === "discovery" ? (
               /* ── Discovery: setup → live conversation ───────── */
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
                 {!discStarted ? (
@@ -1555,18 +1957,22 @@ function PracticePageInner() {
                 </div>
                 {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
                 <button
-                  onClick={submitAnswers}
-                  disabled={grading}
+                  onClick={() =>
+                    session.drill === "full_call" ? void submitPrecallStage() : void submitAnswers()
+                  }
+                  disabled={grading || sendingTurn}
                   className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
                 >
-                  {grading ? (
+                  {grading || sendingTurn ? (
                     <>
                       <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Grading…
+                      {session.drill === "full_call" ? "Saving…" : "Grading…"}
                     </>
+                  ) : session.drill === "full_call" ? (
+                    "🔒 Lock in plan → the call connects"
                   ) : (
                     "Submit plan for grading"
                   )}
@@ -1578,11 +1984,11 @@ function PracticePageInner() {
                 <div className="space-y-5">
                   {/* The exchange as it happened (roleplay drills) —
                       turns + the graded pivot from answers. */}
-                  {(session.drill === "rapport" || session.drill === "discovery") &&
+                  {(session.drill === "rapport" || session.drill === "discovery" || session.drill === "full_call") &&
                     (session.turns?.length ?? 0) > 0 && (
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-2">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-1">
-                        {session.drill === "discovery" ? "The conversation" : "The exchange"}
+                        {session.drill === "rapport" ? "The exchange" : "The conversation"}
                       </h3>
                       {[
                         ...session.turns!,
@@ -1675,10 +2081,59 @@ function PracticePageInner() {
                     )}
                   </div>
 
+                  {(session.score.stages?.length ?? 0) > 0 && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-3">
+                        Stage by stage
+                      </h3>
+                      <div className="space-y-2">
+                        {session.score.stages!.map((st) => (
+                          <details key={st.stage} className="border border-gray-100 dark:border-gray-700 rounded-lg px-3.5 py-2.5">
+                            <summary className="cursor-pointer flex items-center justify-between text-sm">
+                              <span className="font-medium text-gray-800 dark:text-gray-200">{st.label}</span>
+                              <span className={`font-bold ${gradeColor(st.score.overall)}`}>{st.score.overall}</span>
+                            </summary>
+                            <div className="mt-3 space-y-3">
+                              {st.score.dimensions.map((d) => (
+                                <div key={d.name}>
+                                  <div className="flex items-center justify-between text-xs mb-0.5">
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">{d.name}</span>
+                                    <span className="text-gray-500 dark:text-gray-400">{d.score}/{d.max}</span>
+                                  </div>
+                                  <div className="h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                                      style={{ width: `${(d.score / Math.max(d.max, 1)) * 100}%` }}
+                                    />
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{d.comment}</p>
+                                </div>
+                              ))}
+                              {(st.score.flags?.length ?? 0) > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {st.score.flags!.map((f) => (
+                                    <span key={f} className="text-[10px] font-medium bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 px-1.5 py-0.5 rounded-full">
+                                      🚩 {f}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {st.score.modelAnswer && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 italic border-l-2 border-purple-200 dark:border-purple-800 pl-2">
+                                  {st.score.modelAnswer}
+                                </p>
+                              )}
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {session.score.modelAnswer && (
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-2">
-                        What great looks like
+                        {session.drill === "full_call" ? "What a great version of this call looks like" : "What great looks like"}
                       </h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                         {session.score.modelAnswer}

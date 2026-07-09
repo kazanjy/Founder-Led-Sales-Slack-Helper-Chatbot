@@ -34,7 +34,7 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (session.drill !== "rapport") {
+    if (session.drill !== "rapport" && session.drill !== "full_call") {
       return NextResponse.json({ error: "Hints aren't available for this drill yet" }, { status: 400 });
     }
     if (session.status !== "active") {

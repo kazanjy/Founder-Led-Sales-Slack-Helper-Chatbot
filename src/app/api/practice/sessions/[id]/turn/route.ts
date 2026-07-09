@@ -38,15 +38,20 @@ export async function POST(
     if (session.status !== "active") {
       return NextResponse.json({ error: "Session already completed" }, { status: 400 });
     }
-    if (session.drill !== "rapport" && session.drill !== "discovery") {
+    if (
+      session.drill !== "rapport" &&
+      session.drill !== "discovery" &&
+      session.drill !== "full_call"
+    ) {
       return NextResponse.json({ error: "Turns aren't available for this drill yet" }, { status: 400 });
     }
-    const existingTurns = (session.turns as Array<{ role: string; text: string }> | null) || [];
+    const existingTurns =
+      (session.turns as Array<{ role: string; text: string; stage?: string }> | null) || [];
     if (session.drill === "rapport" && existingTurns.length > 0) {
       return NextResponse.json({ error: "The exchange already happened — submit your pivot for grading" }, { status: 400 });
     }
-    if (session.drill === "discovery" && existingTurns.length >= DISCOVERY_MAX_TURNS) {
-      return NextResponse.json({ error: "That's plenty of discovery — wrap up and grade" }, { status: 400 });
+    if (existingTurns.length >= DISCOVERY_MAX_TURNS) {
+      return NextResponse.json({ error: "That's plenty — wrap up and grade" }, { status: 400 });
     }
 
     const body = await request.json().catch(() => null);
@@ -54,17 +59,35 @@ export async function POST(
     if (!text) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
+    // Full Call tags each turn with its stage so the graders can split
+    // the transcript ("rapport" exchange vs "discovery" loop).
+    const stage =
+      session.drill === "full_call" && typeof body?.stage === "string"
+        ? body.stage
+        : undefined;
+    if (session.drill === "full_call" && stage !== "rapport" && stage !== "discovery") {
+      return NextResponse.json({ error: "Full Call turns need stage: rapport | discovery" }, { status: 400 });
+    }
+    if (
+      session.drill === "full_call" &&
+      stage === "rapport" &&
+      existingTurns.some((t) => t.stage === "rapport")
+    ) {
+      return NextResponse.json({ error: "The rapport exchange already happened" }, { status: 400 });
+    }
 
     const persona = session.persona as unknown as PracticePersona;
-    const reply =
-      session.drill === "discovery"
-        ? await generateDiscoveryReply(persona, existingTurns, text)
-        : await generatePersonaReply(persona, "rapport_icebreaker", text);
+    const isRapportTurn =
+      session.drill === "rapport" || (session.drill === "full_call" && stage === "rapport");
+    const reply = isRapportTurn
+      ? await generatePersonaReply(persona, "rapport_icebreaker", text)
+      : await generateDiscoveryReply(persona, existingTurns, text);
 
+    const now = new Date().toISOString();
     const turns = [
       ...existingTurns,
-      { role: "user", text, at: new Date().toISOString() },
-      { role: "persona", text: reply, at: new Date().toISOString() },
+      { role: "user", text, at: now, ...(stage ? { stage } : {}) },
+      { role: "persona", text: reply, at: now, ...(stage ? { stage } : {}) },
     ];
     const updated = await prisma.practiceSession.update({
       where: { id: session.id },

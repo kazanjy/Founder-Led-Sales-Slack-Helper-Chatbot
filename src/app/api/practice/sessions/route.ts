@@ -22,10 +22,10 @@ import { serializePracticeSession } from "@/lib/practice/serialize";
 
 export const maxDuration = 120;
 
-const VALID_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery"]);
+const VALID_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery", "full_call"]);
 // Drills go live phase by phase; the rest 400 until their phases land
 // so the UI's coming-soon cards can't create orphans.
-const LIVE_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery"]);
+const LIVE_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery", "full_call"]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       persona = await synthesizePersona(user.id);
       // Agenda drill scenarios carry the script to practice against —
       // saved default > generated from checklist > generic skeleton.
-      if (drill === "agenda") {
+      if (drill === "agenda" || drill === "full_call") {
         const { script, source } = await getAgendaScript(user.id, persona.public);
         persona.script = script;
         persona.scriptSource = source;

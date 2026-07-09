@@ -2248,7 +2248,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                               );
                             }}
                             className="text-[11px] text-amber-600 hover:underline flex-shrink-0 font-medium"
-                            title="Rehearse this call: practice pre-call planning, your agenda set, and discovery against a simulation of the real attendee built from this deal's history"
+                            title="Rehearse this call against a simulation of the real attendee built from this deal's history — pre-call planning, agenda set, discovery, or the full call end-to-end"
                           >
                             🥊 Practice
                           </button>

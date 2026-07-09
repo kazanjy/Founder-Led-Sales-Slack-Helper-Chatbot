@@ -35,6 +35,7 @@ const practiceItems: NavItem[] = [
   { href: "/practice/rapport", label: "🤝 Rapport", statusKey: "practiceRapport" },
   { href: "/practice/agenda-setting", label: "📋 Agenda Setting", statusKey: "practiceAgenda" },
   { href: "/practice/discovery", label: "🔍 Discovery", statusKey: "practiceDiscovery" },
+  { href: "/practice/full-call", label: "📞 Full Call", statusKey: "practiceFullCall" },
 ];
 
 const standaloneItems: NavItem[] = [
@@ -179,6 +180,7 @@ export default function SalesNavBar() {
           practiceRapport: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "rapport" && s.status === "completed")),
           practiceAgenda: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "agenda" && s.status === "completed")),
           practiceDiscovery: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "discovery" && s.status === "completed")),
+          practiceFullCall: !!(practiceRes?.sessions?.some((s: { drill: string; status: string }) => s.drill === "full_call" && s.status === "completed")),
         });
       } catch {
         // silently fail - indicators just won't show

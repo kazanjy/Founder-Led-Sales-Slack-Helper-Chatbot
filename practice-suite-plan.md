@@ -285,7 +285,7 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   meetings, Discovery-Gaps-sourced question proposals, optional practice
   summary to the deal timeline. Lands after the gym proves the drill loops;
   everything it adds is persona sourcing + deal grounding.
-- **Phase 7 — Full Call (L) — the capstone.** One persona, one continuous
+- **Phase 7 — Full Call — ✅ SHIPPED — the capstone.** One persona, one continuous
   session, all four drills in call order: pre-call quiz (plan the approach)
   → rapport (icebreaker → response → pivot) → agenda set (delivered off the
   pivot) → discovery (freestyle roleplay) → wrap-up. Graded per-stage with
