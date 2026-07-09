@@ -188,7 +188,9 @@ function PracticePageInner() {
 
   const [history, setHistory] = useState<SessionShape[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [starting, setStarting] = useState(false);
+  // Which drill's Start button is working (per-drill so one click
+  // doesn't throb every card).
+  const [starting, setStarting] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
 
   const [session, setSession] = useState<SessionShape | null>(null);
@@ -282,10 +284,12 @@ function PracticePageInner() {
     setPrefetching(true);
     setNextSession(null);
     try {
+      // mode:"warm" marks background-created sessions so the history
+      // list can hide them until they're actually attempted.
       const res = await fetch("/api/practice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drill }),
+        body: JSON.stringify({ drill, mode: "warm" }),
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.session) setNextSession(data.session);
@@ -298,9 +302,54 @@ function PracticePageInner() {
     }
   }, []);
 
+  // Warm-pool: pre-generate one scenario per live drill in the
+  // background when the page loads, so the FIRST click of Start is as
+  // instant as Practice Again after a grade. Self-limiting — we only
+  // warm a drill that has no active (unattempted) session, and
+  // starting a drill consumes the warm session, so steady state is
+  // ~1 spare per drill.
+  const warmingRef = useMemo(() => new Set<string>(), []);
+  useEffect(() => {
+    if (loadingHistory) return;
+    const liveDrills = DRILLS.filter(
+      (d) => d.available && (!focusedDrill || d.key === focusedDrill)
+    );
+    for (const d of liveDrills) {
+      const hasActive = history.some((s) => s.drill === d.key && s.status === "active");
+      if (hasActive || warmingRef.has(d.key)) continue;
+      warmingRef.add(d.key);
+      (async () => {
+        try {
+          const res = await fetch("/api/practice/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ drill: d.key, mode: "warm" }),
+          });
+          const data = await res.json().catch(() => null);
+          if (res.ok && data?.session) {
+            setHistory((prev) => [data.session, ...prev]);
+          }
+        } catch {
+          /* warm-up is best-effort */
+        } finally {
+          warmingRef.delete(d.key);
+        }
+      })();
+    }
+  }, [loadingHistory, history, focusedDrill, warmingRef]);
+
   const startDrill = async (drill: string) => {
-    setStarting(true);
     setStartError(null);
+    // Instant path: consume an existing active session (warm-pooled or
+    // previously abandoned — either way it's ungraded and unrevealed).
+    const ready = history.find((s) => s.drill === drill && s.status === "active");
+    if (ready) {
+      router.push(`${basePath}?session=${ready.id}`);
+      return;
+    }
+    // Cold path: nothing warm yet (first-ever visit or warm-up still
+    // in flight) — generate on click with the per-drill throbber.
+    setStarting(drill);
     try {
       const res = await fetch("/api/practice/sessions", {
         method: "POST",
@@ -314,7 +363,7 @@ function PracticePageInner() {
     } catch (err) {
       setStartError(err instanceof Error ? err.message : "Failed to start drill");
     } finally {
-      setStarting(false);
+      setStarting(null);
     }
   };
 
@@ -448,10 +497,10 @@ function PracticePageInner() {
                   {d.available && (
                     <button
                       onClick={() => startDrill(d.key)}
-                      disabled={starting}
+                      disabled={starting === d.key}
                       className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
                     >
-                      {starting ? (
+                      {starting === d.key ? (
                         <>
                           <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -480,7 +529,9 @@ function PracticePageInner() {
                 </p>
               ) : (
                 <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {history.map((s) => {
+                  {/* Warm-pooled sessions that were never attempted are
+                      plumbing, not history — hide them until used. */}
+                  {history.filter((s) => !(s.status === "active" && s.mode === "warm")).map((s) => {
                     const info = drillInfo(s.drill);
                     return (
                       <li key={s.id}>
@@ -875,10 +926,10 @@ function PracticePageInner() {
                     ) : (
                       <button
                         onClick={() => startDrill(session.drill)}
-                        disabled={starting}
+                        disabled={starting === session.drill}
                         className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
                       >
-                        {starting ? "Building your next buyer…" : "🔁 Practice again"}
+                        {starting === session.drill ? "Building your next buyer…" : "🔁 Practice again"}
                       </button>
                     )}
                     <button
