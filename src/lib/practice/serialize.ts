@@ -13,6 +13,7 @@ export function serializePracticeSession<
     drill: string;
     mode: string | null;
     persona: unknown;
+    turns: unknown;
     answers: unknown;
     score: unknown;
     status: string;
@@ -32,6 +33,8 @@ export function serializePracticeSession<
       quiz: persona.quiz,
       ...(completed ? { hidden: persona.hidden } : {}),
     },
+    // Roleplay exchange — user + persona turns only, nothing hidden.
+    turns: session.turns ?? null,
     answers: session.answers ?? null,
     score: session.score ?? null,
     createdAt: session.createdAt.toISOString(),

@@ -54,6 +54,7 @@ interface SessionShape {
     quiz: { orgPersonaOptions: string[]; humanPersonaOptions: string[]; valueProps: string[] };
     hidden?: PersonaHidden;
   };
+  turns: Array<{ role: string; text: string }> | null;
   answers: Record<string, unknown> | null;
   score: {
     overall: string;
@@ -80,7 +81,7 @@ const DRILLS = [
     key: "rapport",
     emoji: "🤝",
     label: "Rapport",
-    description: "Deliver your icebreaker against a fresh buyer card — out loud or typed. Graded on authenticity, breadcrumb choice, brevity, and the pivot to business.",
+    description: "Deliver your icebreaker against a fresh buyer card — out loud or typed. Graded on warmth, humor, and picking a PERSONAL thread (business topics are research, not rapport).",
     available: true,
   },
   {
@@ -201,9 +202,14 @@ function PracticePageInner() {
   const [humanPersona, setHumanPersona] = useState("");
   const [angle, setAngle] = useState("");
   const [propsLand, setPropsLand] = useState<Set<string>>(new Set());
-  // Rapport drill state
+  // Rapport drill state — two-turn roleplay: icebreaker → buyer
+  // responds → pivot. Voice recording targets whichever step is live.
   const [icebreaker, setIcebreaker] = useState("");
-  const [recording, setRecording] = useState(false);
+  const [pivot, setPivot] = useState("");
+  const [recordingFor, setRecordingFor] = useState<"icebreaker" | "pivot" | null>(null);
+  const [sendingTurn, setSendingTurn] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [loadingHint, setLoadingHint] = useState(false);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
   // Next-scenario prefetch: as soon as a grade lands we generate the
@@ -260,7 +266,9 @@ function PracticePageInner() {
     setAngle("");
     setPropsLand(new Set());
     setIcebreaker("");
-    setRecording(false);
+    setPivot("");
+    setRecordingFor(null);
+    setHint(null);
     setGradeError(null);
     (async () => {
       try {
@@ -367,16 +375,56 @@ function PracticePageInner() {
     }
   };
 
+  const fetchHint = async () => {
+    if (!session || loadingHint) return;
+    setLoadingHint(true);
+    try {
+      const res = await fetch(`/api/practice/sessions/${session.id}/hint`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.hint) setHint(data.hint);
+    } catch {
+      /* hint is best-effort */
+    } finally {
+      setLoadingHint(false);
+    }
+  };
+
+  // Rapport step 1: deliver the icebreaker; the buyer responds in
+  // character and the exchange lands in session.turns.
+  const deliverIcebreaker = async () => {
+    if (!session || sendingTurn) return;
+    setGradeError(null);
+    if (!icebreaker.trim()) {
+      setGradeError("Deliver your icebreaker (record it or type it) first.");
+      return;
+    }
+    setSendingTurn(true);
+    try {
+      const res = await fetch(`/api/practice/sessions/${session.id}/turn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: icebreaker.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Turn failed (${res.status})`);
+      setSession(data.session);
+    } catch (err) {
+      setGradeError(err instanceof Error ? err.message : "Failed to deliver icebreaker");
+    } finally {
+      setSendingTurn(false);
+    }
+  };
+
   const submitAnswers = async () => {
     if (!session) return;
     setGradeError(null);
     let answers: Record<string, unknown>;
     if (session.drill === "rapport") {
-      if (!icebreaker.trim()) {
-        setGradeError("Deliver your icebreaker (record it or type it) before submitting.");
+      if (!pivot.trim()) {
+        setGradeError("Deliver your pivot (record it or type it) before submitting.");
         return;
       }
-      answers = { icebreaker: icebreaker.trim() };
+      answers = { pivot: pivot.trim() };
     } else {
       if (!orgPersona || !humanPersona || !angle.trim()) {
         setGradeError("Pick both personas and write your angle before submitting.");
@@ -595,62 +643,175 @@ function PracticePageInner() {
             )}
 
             {session.status !== "completed" && session.drill === "rapport" ? (
-              /* ── Rapport form ───────────────────────────────── */
+              /* ── Rapport: two-turn roleplay ─────────────────── */
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                    You&rsquo;re opening the call with {pub?.name.split(" ")[0]}. Deliver your icebreaker.
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    The first 15–45 seconds before business starts — say it out loud like you would
-                    on the call, or type it. Include your pivot to business.
+                {/* Guidance — the philosophy, up front, every time. */}
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-900 rounded-lg px-3.5 py-2.5 text-xs text-purple-900 dark:text-purple-200 space-y-1">
+                  <p className="font-semibold">What good rapport looks like:</p>
+                  <p>
+                    Pick something <strong>personal</strong> from their card — a hobby, a joke they
+                    made, a human detail. Be warm and light; a laugh is the goal. Keep it to 1–3
+                    sentences and <strong>end with an easy question, then wait</strong> — they&rsquo;ll
+                    respond, and you&rsquo;ll pivot to business after. Business topics (their posts,
+                    panels, initiatives) are pre-call research, <em>not</em> rapport.
                   </p>
                 </div>
-                {recording ? (
-                  <VoiceRecordingInput
-                    isActive={recording}
-                    onCancel={() => setRecording(false)}
-                    onTranscriptionComplete={(text) => {
-                      setIcebreaker((prev) => (prev ? `${prev} ${text}` : text));
-                      setRecording(false);
-                    }}
-                  />
+
+                {(session.turns?.length ?? 0) === 0 ? (
+                  /* Step 1 — the icebreaker */
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        You&rsquo;re opening the call with {pub?.name.split(" ")[0]}. Deliver your icebreaker.
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Say it out loud like you would on the call, or type it. End with your
+                        question — {pub?.name.split(" ")[0]} will answer, then you&rsquo;ll pivot.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {recordingFor !== "icebreaker" && (
+                        <button
+                          onClick={() => setRecordingFor("icebreaker")}
+                          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                          </svg>
+                          Record it
+                        </button>
+                      )}
+                      <button
+                        onClick={fetchHint}
+                        disabled={loadingHint}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60 rounded-lg disabled:opacity-60"
+                        title="Get an example icebreaker for this buyer — read it into the recorder to practice the delivery"
+                      >
+                        {loadingHint ? "Thinking…" : "💡 Give me a hint"}
+                      </button>
+                    </div>
+                    {hint && (
+                      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3.5 py-2.5">
+                        <p className="text-sm text-amber-900 dark:text-amber-200 italic">&ldquo;{hint}&rdquo;</p>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                          Read it into the recorder — the rep is in the delivery, not the writing.
+                        </p>
+                      </div>
+                    )}
+                    {recordingFor === "icebreaker" && (
+                      <VoiceRecordingInput
+                        isActive
+                        onCancel={() => setRecordingFor(null)}
+                        onTranscriptionComplete={(text) => {
+                          setIcebreaker((prev) => (prev ? `${prev} ${text}` : text));
+                          setRecordingFor(null);
+                        }}
+                      />
+                    )}
+                    <textarea
+                      value={icebreaker}
+                      onChange={(e) => setIcebreaker(e.target.value)}
+                      rows={3}
+                      placeholder='e.g. "Hey Mara — I have to ask about the gravel cycling…"'
+                      className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                    <button
+                      onClick={deliverIcebreaker}
+                      disabled={sendingTurn}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {sendingTurn ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          {pub?.name.split(" ")[0]} is responding…
+                        </>
+                      ) : (
+                        "Deliver icebreaker"
+                      )}
+                    </button>
+                  </>
                 ) : (
-                  <button
-                    onClick={() => setRecording(true)}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                    Record it
-                  </button>
+                  /* Step 2 — the buyer responded; now the pivot */
+                  <>
+                    <div className="space-y-2">
+                      {session.turns!.map((t, i) => (
+                        <div
+                          key={i}
+                          className={`text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] ${
+                            t.role === "user"
+                              ? "bg-purple-600 text-white ml-auto"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                          }`}
+                        >
+                          {t.role !== "user" && (
+                            <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">
+                              {pub?.name}
+                            </span>
+                          )}
+                          {t.text}
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Now ride {pub?.name.split(" ")[0]}&rsquo;s response into business.
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        React to what they actually said — a genuine beat, then a graceful
+                        transition ("anyway — I know we&rsquo;ve only got 30 minutes…").
+                      </p>
+                    </div>
+                    {recordingFor === "pivot" ? (
+                      <VoiceRecordingInput
+                        isActive
+                        onCancel={() => setRecordingFor(null)}
+                        onTranscriptionComplete={(text) => {
+                          setPivot((prev) => (prev ? `${prev} ${text}` : text));
+                          setRecordingFor(null);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setRecordingFor("pivot")}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        Record it
+                      </button>
+                    )}
+                    <textarea
+                      value={pivot}
+                      onChange={(e) => setPivot(e.target.value)}
+                      rows={3}
+                      placeholder='e.g. "Ha, that&apos;s exactly what I&apos;d expect — anyway, I know we&apos;ve only got 30 minutes…"'
+                      className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                    <button
+                      onClick={submitAnswers}
+                      disabled={grading}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {grading ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Grading…
+                        </>
+                      ) : (
+                        "Submit pivot for grading"
+                      )}
+                    </button>
+                  </>
                 )}
-                <textarea
-                  value={icebreaker}
-                  onChange={(e) => setIcebreaker(e.target.value)}
-                  rows={4}
-                  placeholder='e.g. "Hey Sarah — before we dive in, I caught your post on…"'
-                  className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                />
-                {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
-                <button
-                  onClick={submitAnswers}
-                  disabled={grading}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
-                >
-                  {grading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Grading…
-                    </>
-                  ) : (
-                    "Submit icebreaker for grading"
-                  )}
-                </button>
               </div>
             ) : session.status !== "completed" ? (
               /* ── Pre-call quiz form ─────────────────────────── */
@@ -760,6 +921,37 @@ function PracticePageInner() {
               /* ── Report card + reveal ───────────────────────── */
               session.score && (
                 <div className="space-y-5">
+                  {/* The exchange as it happened (roleplay drills) —
+                      turns + the graded pivot from answers. */}
+                  {session.drill === "rapport" && (session.turns?.length ?? 0) > 0 && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-2">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-1">
+                        The exchange
+                      </h3>
+                      {[
+                        ...session.turns!,
+                        ...(typeof session.answers?.pivot === "string"
+                          ? [{ role: "user", text: session.answers.pivot as string }]
+                          : []),
+                      ].map((t, i) => (
+                        <div
+                          key={i}
+                          className={`text-sm rounded-lg px-3.5 py-2.5 max-w-[85%] ${
+                            t.role === "user"
+                              ? "bg-purple-600 text-white ml-auto"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                          }`}
+                        >
+                          {t.role !== "user" && (
+                            <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-0.5">
+                              {pub?.name}
+                            </span>
+                          )}
+                          {t.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">

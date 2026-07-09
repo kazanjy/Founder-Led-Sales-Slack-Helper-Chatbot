@@ -55,44 +55,54 @@ Return ONLY a JSON object:
   "nextRep": "<ONE sentence: the single highest-leverage thing to do differently next attempt>"
 }`;
 
-const RAPPORT_GRADING_PROMPT = `You are grading a founder's RAPPORT drill attempt. They were shown a synthetic buyer's public card (bio + rapport breadcrumbs) and delivered an ICEBREAKER — the first 15-45 seconds of a call, before business starts. You have the full persona and their icebreaker (voice-transcribed or typed; ignore transcription artifacts like missing punctuation).
+// The rapport philosophy, shared verbatim between the grader, the
+// hint generator, the persona-reply generator, and the pre-attempt
+// guidance shown in the UI — one definition of what good looks like.
+export const RAPPORT_PHILOSOPHY = `Rapport is about making the other person feel COMFORTABLE and AT EASE before business starts — warmth, lightness, ideally a laugh. The best icebreakers pick up a PERSONAL thread (a hobby, a joke they made, a shared human experience), engage with it like a fellow human, and END WITH AN EASY QUESTION — then WAIT. The buyer responds, and only THEN do you pivot to business, riding whatever they said. Business topics — their company's posts, panels, initiatives — are pre-call research material, NOT rapport: opening on work signals "I'm here to extract value," keeps their guard up, and skips the whole point. Personal, warm, and brief beats clever and professional every time.`;
 
-Grade these four dimensions, each 0-5:
+const RAPPORT_GRADING_PROMPT = `You are grading a founder's RAPPORT drill attempt — a TWO-TURN exchange. They were shown a synthetic buyer's public card (bio + rapport breadcrumbs), delivered an ICEBREAKER (turn 1), the buyer RESPONDED in character, and the founder then delivered their PIVOT to business (turn 2). Inputs are voice-transcribed or typed; ignore transcription artifacts like missing punctuation.
 
-1. "Authenticity" — does it sound like a human being talking, or a LinkedIn bot? Conversational rhythm, natural word choice, something only a person who actually read the card would say. Scripted-sounding corporate warmth scores low.
-2. "Breadcrumb choice" — did they use an appropriate hook from the card? Some breadcrumbs are better openers than others (a recent post or talk = great; alma mater = fine; anything that implies deep personal research = risky). Using NO breadcrumb (generic "how's your week") scores 1-2. Using the riskiest one gracefully can still score well.
-3. "Brevity" — an icebreaker is 1-3 sentences. Word count matters: under ~60 words is right; 60-100 is pushing it; 100+ is a monologue and scores 0-2 regardless of quality.
-4. "The pivot" — does it bridge naturally toward business ("...anyway, I know we've only got 30 minutes—")? An icebreaker that strands the conversation in small talk with no exit scores low on this dimension even if charming.
+THE PHILOSOPHY YOU ARE GRADING AGAINST:
+${RAPPORT_PHILOSOPHY}
 
-ICK FLAGS — list any that apply (empty list if clean): "fake flattery", "over-familiarity", "creepy-specific research", "self-centered opener", "interview-question opener", "apology opener". Each flag present should also depress the relevant dimension score.
+Grade these five dimensions, each 0-5:
 
-FAIRNESS: grade only against the card they saw. Do not invent context.
+1. "Warmth & humor" (icebreaker) — does it create ease? Lightness, playfulness, a genuine human moment that would make the buyer smile or relax? Stiff professional politeness scores 1-2 even when flawless.
+2. "Personal connection" (icebreaker) — did they pick a PERSONAL breadcrumb (hobby, humor, life detail, shared experience) and engage with it genuinely? Business-content breadcrumbs (posts, panels, company initiatives) score 0-2 on this dimension — that's research material, not rapport. Alma mater is mid: only strong with a genuine angle, and turning it into a quiz question is a foul. No breadcrumb at all scores 1.
+3. "Invites a response" (icebreaker) — does it end with an easy, open, personal question and hand the mic over? A statement that leaves the buyer nowhere to go, a closed yes/no dead-end, or a question buried mid-ramble scores low. Brevity folds in here: 1-3 sentences ending in the question is right; a monologue before the question caps this at 2.
+4. "Reading the response" (pivot) — does the pivot actually ACKNOWLEDGE what the buyer just said? A genuine beat of reaction (laugh, callback, one-line follow-on) before transitioning scores high. Ignoring her answer and bulldozing into the agenda scores 0-1.
+5. "The pivot" (pivot) — after the human beat, does it transition into business gracefully and briefly ("anyway — I know we've only got 30 minutes, I'd love to…")? The handoff should feel like a comma, not a gear change; stranding the call in small talk with no transition also scores low.
+
+ICK FLAGS — list any that apply (empty list if clean): "business-topic opener", "fake flattery", "over-familiarity", "creepy-specific research", "self-centered opener", "interview-question opener", "apology opener", "ignored their response". Each flag present should also depress the relevant dimension score.
+
+FAIRNESS: grade only against the card they saw and the exchange as it happened. Do not invent context.
 
 Return ONLY a JSON object:
 {
   "overall": "<letter grade A/A-/B+/B/B-/C+/C/D/F>",
   "dimensions": [
-    { "name": "Authenticity", "score": 0-5, "max": 5, "comment": "..." },
-    { "name": "Breadcrumb choice", "score": 0-5, "max": 5, "comment": "<name the breadcrumb they used and whether it was the right pick>" },
-    { "name": "Brevity", "score": 0-5, "max": 5, "comment": "<include the word count>" },
+    { "name": "Warmth & humor", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Personal connection", "score": 0-5, "max": 5, "comment": "<name the breadcrumb they used and whether it was a personal or business thread>" },
+    { "name": "Invites a response", "score": 0-5, "max": 5, "comment": "<include the word count>" },
+    { "name": "Reading the response", "score": 0-5, "max": 5, "comment": "..." },
     { "name": "The pivot", "score": 0-5, "max": 5, "comment": "..." }
   ],
   "flags": ["<ick flags, or empty array>"],
-  "modelAnswer": "<the icebreaker YOU would deliver to this exact buyer, written out verbatim in first person, 1-3 sentences including the pivot>",
-  "alternatives": ["<a second icebreaker taking a DIFFERENT breadcrumb/angle, verbatim>", "<a third, different again>"],
+  "modelAnswer": "<the full exchange YOU would run with this exact buyer: your icebreaker (personal thread, warm, ends in a question), then — given what she actually replied — your pivot. Written verbatim, first person.>",
+  "alternatives": ["<a second icebreaker taking a DIFFERENT personal thread, verbatim>", "<a third, different again>"],
   "nextRep": "<ONE sentence: the single highest-leverage fix for next attempt>"
 }`;
 
 /**
- * Grade a rapport (icebreaker) attempt against the persona card.
+ * Grade a rapport exchange: icebreaker → persona response → pivot.
  */
 export async function gradeRapport(
   persona: PracticePersona,
-  icebreaker: string
+  exchange: { icebreaker: string; personaReply: string; pivot: string }
 ): Promise<PracticeScore> {
   const payload = {
     persona: { public: persona.public, hidden: persona.hidden },
-    icebreaker,
+    exchange,
   };
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",

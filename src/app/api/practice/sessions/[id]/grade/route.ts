@@ -61,11 +61,23 @@ export async function POST(
       answers = precall as unknown as Record<string, unknown>;
       score = await gradePrecallPlan(persona, precall);
     } else if (session.drill === "rapport") {
-      if (!a || typeof a.icebreaker !== "string" || !a.icebreaker.trim()) {
-        return NextResponse.json({ error: "answers {icebreaker} required" }, { status: 400 });
+      // The exchange lives in turns (icebreaker + persona reply from
+      // the /turn endpoint); the grade call carries only the pivot.
+      const turns = (session.turns as Array<{ role: string; text: string }> | null) || [];
+      const icebreaker = turns.find((t) => t.role === "user")?.text;
+      const personaReply = turns.find((t) => t.role === "persona")?.text;
+      if (!icebreaker || !personaReply) {
+        return NextResponse.json({ error: "Deliver your icebreaker first — the buyer needs to respond before you pivot" }, { status: 400 });
       }
-      answers = { icebreaker: a.icebreaker.trim() };
-      score = await gradeRapport(persona, a.icebreaker.trim());
+      if (!a || typeof a.pivot !== "string" || !a.pivot.trim()) {
+        return NextResponse.json({ error: "answers {pivot} required" }, { status: 400 });
+      }
+      answers = { icebreaker, personaReply, pivot: a.pivot.trim() };
+      score = await gradeRapport(persona, {
+        icebreaker,
+        personaReply,
+        pivot: a.pivot.trim(),
+      });
     } else {
       return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });
     }
