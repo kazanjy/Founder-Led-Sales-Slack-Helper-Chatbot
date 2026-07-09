@@ -1,18 +1,27 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 
 /**
  * Practice suite home + drill runner (see practice-suite-plan.md).
- * Phase 1: Pre-Call Planning drill end-to-end; Rapport / Agenda /
- * Discovery render as coming-soon cards.
+ * Live drills: Pre-Call Planning, Rapport; Agenda / Discovery render
+ * as coming-soon cards.
+ *
+ * Routes (optional catch-all): /practice is the home; each drill has
+ * its own SHAREABLE page — /practice/precall-planning,
+ * /practice/rapport, … — drop one in Slack as a "do this" link. The
+ * drill page shows the description, a big Start button, and that
+ * drill's full history (scenario + grade, click to reopen the report
+ * card + reveal).
  *
  * Flow: start drill → POST /api/practice/sessions (persona
  * synthesized server-side, hidden dossier NOT sent) → founder answers
  * the quiz off the public card → POST grade → report card + reveal.
+ * On grade, the NEXT scenario prefetches in the background so
+ * "Practice Again" is instant.
  */
 
 interface PersonaPublic {
@@ -94,6 +103,18 @@ function drillInfo(key: string) {
   return DRILLS.find((d) => d.key === key) || DRILLS[0];
 }
 
+// URL slugs for shareable per-drill pages — /practice/precall-planning
+// etc. Slug → drill key, plus the reverse for building links.
+const DRILL_SLUGS: Record<string, string> = {
+  "precall-planning": "precall_plan",
+  rapport: "rapport",
+  "agenda-setting": "agenda",
+  discovery: "discovery",
+};
+const SLUG_BY_DRILL: Record<string, string> = Object.fromEntries(
+  Object.entries(DRILL_SLUGS).map(([slug, key]) => [key, slug])
+);
+
 function gradeColor(overall: string): string {
   const letter = overall.charAt(0).toUpperCase();
   if (letter === "A") return "text-green-600 dark:text-green-400";
@@ -156,7 +177,14 @@ function computeStreak(sessions: Array<{ completedAt: string | null }>): number 
 function PracticePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams<{ drill?: string[] }>();
   const sessionId = searchParams.get("session");
+
+  // Focused-drill mode when the URL carries a slug
+  // (/practice/rapport). Unknown slugs fall back to the home view.
+  const slug = params.drill?.[0] || null;
+  const focusedDrill = slug ? DRILL_SLUGS[slug] || null : null;
+  const basePath = focusedDrill ? `/practice/${SLUG_BY_DRILL[focusedDrill]}` : "/practice";
 
   const [history, setHistory] = useState<SessionShape[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -176,6 +204,11 @@ function PracticePageInner() {
   const [recording, setRecording] = useState(false);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
+  // Next-scenario prefetch: as soon as a grade lands we generate the
+  // next session in the background so "Practice again" is instant —
+  // persona synthesis takes ~10-20s and shouldn't sit between reps.
+  const [nextSession, setNextSession] = useState<SessionShape | null>(null);
+  const [prefetching, setPrefetching] = useState(false);
 
   const streak = useMemo(() => computeStreak(history), [history]);
   const sparkByDrill = useMemo(() => {
@@ -193,7 +226,10 @@ function PracticePageInner() {
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const res = await fetch("/api/practice/sessions?limit=30");
+      // Focused drill pages show that drill's full history; the home
+      // shows a recent cross-drill slice.
+      const query = focusedDrill ? `drill=${focusedDrill}&limit=100` : "limit=30";
+      const res = await fetch(`/api/practice/sessions?${query}`);
       if (res.ok) {
         const data = await res.json();
         setHistory(data.sessions || []);
@@ -203,7 +239,7 @@ function PracticePageInner() {
     } finally {
       setLoadingHistory(false);
     }
-  }, []);
+  }, [focusedDrill]);
 
   useEffect(() => {
     loadHistory();
@@ -242,6 +278,26 @@ function PracticePageInner() {
     };
   }, [sessionId]);
 
+  const prefetchNext = useCallback(async (drill: string) => {
+    setPrefetching(true);
+    setNextSession(null);
+    try {
+      const res = await fetch("/api/practice/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drill }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.session) setNextSession(data.session);
+      // Failure is silent — the button just falls back to generating
+      // on click, same as before prefetch existed.
+    } catch {
+      /* fall back to on-click generation */
+    } finally {
+      setPrefetching(false);
+    }
+  }, []);
+
   const startDrill = async (drill: string) => {
     setStarting(true);
     setStartError(null);
@@ -254,7 +310,7 @@ function PracticePageInner() {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Failed to start (${res.status})`);
       await loadHistory();
-      router.push(`/practice?session=${data.session.id}`);
+      router.push(`${basePath}?session=${data.session.id}`);
     } catch (err) {
       setStartError(err instanceof Error ? err.message : "Failed to start drill");
     } finally {
@@ -294,6 +350,9 @@ function PracticePageInner() {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || `Grading failed (${res.status})`);
       setSession(data.session);
+      // Grade is in — immediately start building the next scenario in
+      // the background (not awaited) so Practice Again loads instantly.
+      void prefetchNext(session.drill);
       await loadHistory();
     } catch (err) {
       setGradeError(err instanceof Error ? err.message : "Grading failed");
@@ -323,26 +382,33 @@ function PracticePageInner() {
               value props and discovery framework.
             </p>
           </div>
-          {sessionId && (
+          {sessionId ? (
+            <button
+              onClick={() => router.push(basePath)}
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              ← {focusedDrill ? drillInfo(focusedDrill).label : "All drills"}
+            </button>
+          ) : focusedDrill ? (
             <button
               onClick={() => router.push("/practice")}
               className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
             >
               ← All drills
             </button>
-          )}
+          ) : null}
         </div>
 
         {!sessionId ? (
-          /* ── Home: drill cards + history ─────────────────────── */
+          /* ── Home / focused-drill landing: cards + history ────── */
           <div className="space-y-6">
             {startError && (
               <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2.5">
                 {startError}
               </p>
             )}
-            <div className="grid sm:grid-cols-2 gap-4">
-              {DRILLS.map((d) => (
+            <div className={focusedDrill ? "" : "grid sm:grid-cols-2 gap-4"}>
+              {DRILLS.filter((d) => !focusedDrill || d.key === focusedDrill).map((d) => (
                 <div
                   key={d.key}
                   className={`bg-white dark:bg-gray-800 border rounded-xl p-5 ${
@@ -353,7 +419,22 @@ function PracticePageInner() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      {d.emoji} {d.label}
+                      {d.available && !focusedDrill ? (
+                        // Card titles deep-link to the shareable drill
+                        // page (/practice/<slug>) — copy that URL into
+                        // Slack as a "do this" assignment.
+                        <button
+                          onClick={() => router.push(`/practice/${SLUG_BY_DRILL[d.key]}`)}
+                          className="hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
+                          title={`Open the ${d.label} page (shareable link)`}
+                        >
+                          {d.emoji} {d.label} <span className="text-gray-300 dark:text-gray-600">→</span>
+                        </button>
+                      ) : (
+                        <>
+                          {d.emoji} {d.label}
+                        </>
+                      )}
                     </h2>
                     {d.available ? (
                       <Sparkline points={sparkByDrill.get(d.key) || []} />
@@ -389,7 +470,7 @@ function PracticePageInner() {
 
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide mb-3">
-                Recent sessions
+                {focusedDrill ? `${drillInfo(focusedDrill).label} history` : "Recent sessions"}
               </h2>
               {loadingHistory ? (
                 <p className="text-sm text-gray-400">Loading…</p>
@@ -404,7 +485,7 @@ function PracticePageInner() {
                     return (
                       <li key={s.id}>
                         <button
-                          onClick={() => router.push(`/practice?session=${s.id}`)}
+                          onClick={() => router.push(`${basePath}?session=${s.id}`)}
                           className="w-full text-left py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 rounded-lg px-2 -mx-2"
                         >
                           <span>{info.emoji}</span>
@@ -769,15 +850,39 @@ function PracticePageInner() {
                   )}
 
                   <div className="flex gap-3">
+                    {prefetching ? (
+                      <button
+                        disabled
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg shadow-sm opacity-70"
+                      >
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Generating Next Scenario…
+                      </button>
+                    ) : nextSession && nextSession.drill === session.drill ? (
+                      <button
+                        onClick={() => {
+                          const id = nextSession.id;
+                          setNextSession(null);
+                          router.push(`${basePath}?session=${id}`);
+                        }}
+                        className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg shadow-sm"
+                      >
+                        ✨ Next Scenario Ready: Practice Again
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => startDrill(session.drill)}
+                        disabled={starting}
+                        className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                      >
+                        {starting ? "Building your next buyer…" : "🔁 Practice again"}
+                      </button>
+                    )}
                     <button
-                      onClick={() => startDrill(session.drill)}
-                      disabled={starting}
-                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
-                    >
-                      {starting ? "Building your next buyer…" : "🔁 Practice again"}
-                    </button>
-                    <button
-                      onClick={() => router.push("/practice")}
+                      onClick={() => router.push(basePath)}
                       className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                     >
                       Back to drills
