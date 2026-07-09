@@ -58,6 +58,10 @@ export interface PracticePersona {
   public: PracticePersonaPublic;
   hidden: PracticePersonaHidden;
   quiz: PracticePersonaQuiz;
+  /** Agenda drill: the script this scenario practices against
+   *  (snapshotted at creation; session-local edits update it). */
+  script?: string;
+  scriptSource?: "saved_default" | "generated" | "fallback";
 }
 
 const SYNTH_PROMPT = `You are building a SYNTHETIC buyer persona for a founder's sales-practice drill. Using the founder's playbook below (positioning, ICP, discovery framework), invent ONE realistic prospect they might meet next week.

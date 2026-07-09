@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { synthesizePersona } from "@/lib/practice/persona";
+import { getAgendaScript } from "@/lib/practice/agenda";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 
 /**
@@ -19,7 +20,7 @@ export const maxDuration = 120;
 const VALID_DRILLS = new Set(["precall_plan", "rapport", "agenda", "discovery"]);
 // Drills go live phase by phase; the rest 400 until their phases land
 // so the UI's coming-soon cards can't create orphans.
-const LIVE_DRILLS = new Set(["precall_plan", "rapport"]);
+const LIVE_DRILLS = new Set(["precall_plan", "rapport", "agenda"]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,13 @@ export async function POST(request: NextRequest) {
     }
 
     const persona = await synthesizePersona(user.id);
+    // Agenda drill scenarios carry the script to practice against —
+    // saved default > generated from checklist > generic skeleton.
+    if (drill === "agenda") {
+      const { script, source } = await getAgendaScript(user.id, persona.public);
+      persona.script = script;
+      persona.scriptSource = source;
+    }
     const session = await prisma.practiceSession.create({
       data: {
         userId: user.id,

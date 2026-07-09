@@ -10,6 +10,12 @@ interface VoiceRecordingInputProps {
   onCancel: () => void;
   onTranscriptionComplete: (text: string) => void;
   onStopSpeaking?: () => void; // Stop TTS playback
+  /**
+   * Reports how long the user actually recorded (mic start → stop,
+   * excluding transcription time). Used by drills that grade against
+   * the clock (agenda setting: "agenda set in under 60 seconds").
+   */
+  onDuration?: (ms: number) => void;
 }
 
 const SILENCE_COMMIT_DELAY = 2000; // ms of silence before committing
@@ -21,6 +27,7 @@ export function VoiceRecordingInput({
   onCancel,
   onTranscriptionComplete,
   onStopSpeaking,
+  onDuration,
 }: VoiceRecordingInputProps) {
   const [state, setState] = useState<RecordingState>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
@@ -39,6 +46,10 @@ export function VoiceRecordingInput({
   const commitAnimationRef = useRef<number | null>(null);
   const isRecordingRef = useRef(false); // Track recording state for callbacks
   const hasSpokenRef = useRef(false); // Track if user has spoken at least once
+  const recordStartRef = useRef<number | null>(null); // For onDuration
+  // When the silence auto-commit fires, the last ~3s were dead air —
+  // this pins the duration to when speech actually stopped.
+  const speechEndRef = useRef<number | null>(null);
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -174,6 +185,7 @@ export function VoiceRecordingInput({
       if (silenceDuration >= totalDelay) {
         // Commit after total delay (1s warning + 2s commit)
         isRecordingRef.current = false;
+        speechEndRef.current = silenceStartRef.current;
         stopAndProcess();
         return;
       }
@@ -211,12 +223,19 @@ export function VoiceRecordingInput({
       };
 
       mediaRecorder.onstop = async () => {
+        if (recordStartRef.current !== null && onDuration) {
+          const end = speechEndRef.current ?? Date.now();
+          onDuration(Math.max(0, end - recordStartRef.current));
+        }
+        recordStartRef.current = null;
+        speechEndRef.current = null;
         const audioBlob = new Blob(audioChunksRef.current, {
           type: mediaRecorder.mimeType,
         });
         await processRecording(audioBlob);
       };
 
+      recordStartRef.current = Date.now();
       mediaRecorder.start(100);
       setState("recording");
       isRecordingRef.current = true;

@@ -52,6 +52,8 @@ interface SessionShape {
   persona: {
     public: PersonaPublic;
     quiz: { orgPersonaOptions: string[]; humanPersonaOptions: string[]; valueProps: string[] };
+    script?: string;
+    scriptSource?: string;
     hidden?: PersonaHidden;
   };
   turns: Array<{ role: string; text: string }> | null;
@@ -88,8 +90,8 @@ const DRILLS = [
     key: "agenda",
     emoji: "📋",
     label: "Agenda Setting",
-    description: "Run your agenda set + elevator pitch out loud — script visible or from memory — against the clock.",
-    available: false,
+    description: "Run your agenda set + elevator pitch out loud — script visible or from memory — against the clock. Graded on beats, time, pace, and filler words.",
+    available: true,
   },
   {
     key: "discovery",
@@ -206,10 +208,18 @@ function PracticePageInner() {
   // responds → pivot. Voice recording targets whichever step is live.
   const [icebreaker, setIcebreaker] = useState("");
   const [pivot, setPivot] = useState("");
-  const [recordingFor, setRecordingFor] = useState<"icebreaker" | "pivot" | null>(null);
+  const [recordingFor, setRecordingFor] = useState<"icebreaker" | "pivot" | "agenda" | null>(null);
   const [sendingTurn, setSendingTurn] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [loadingHint, setLoadingHint] = useState(false);
+  // Agenda drill state — setup (edit script, pick mode) → deliver.
+  const [agendaScript, setAgendaScript] = useState("");
+  const [agendaMode, setAgendaMode] = useState<"script_visible" | "script_hidden">("script_visible");
+  const [agendaDelivering, setAgendaDelivering] = useState(false);
+  const [agendaTranscript, setAgendaTranscript] = useState("");
+  const [agendaDurationMs, setAgendaDurationMs] = useState<number | null>(null);
+  const [savingScript, setSavingScript] = useState(false);
+  const [scriptSaved, setScriptSaved] = useState(false);
   const [grading, setGrading] = useState(false);
   const [gradeError, setGradeError] = useState<string | null>(null);
   // Next-scenario prefetch: as soon as a grade lands we generate the
@@ -269,6 +279,10 @@ function PracticePageInner() {
     setPivot("");
     setRecordingFor(null);
     setHint(null);
+    setAgendaDelivering(false);
+    setAgendaTranscript("");
+    setAgendaDurationMs(null);
+    setScriptSaved(false);
     setGradeError(null);
     (async () => {
       try {
@@ -276,6 +290,7 @@ function PracticePageInner() {
         if (res.ok && !cancelled) {
           const data = await res.json();
           setSession(data.session);
+          setAgendaScript(data.session?.persona?.script || "");
         }
       } catch {
         /* stays null */
@@ -425,6 +440,17 @@ function PracticePageInner() {
         return;
       }
       answers = { pivot: pivot.trim() };
+    } else if (session.drill === "agenda") {
+      if (!agendaTranscript.trim()) {
+        setGradeError("Deliver your agenda set (record it or type it) before submitting.");
+        return;
+      }
+      answers = {
+        transcript: agendaTranscript.trim(),
+        durationMs: agendaDurationMs,
+        mode: agendaMode,
+        script: agendaScript.trim(),
+      };
     } else {
       if (!orgPersona || !humanPersona || !angle.trim()) {
         setGradeError("Pick both personas and write your angle before submitting.");
@@ -642,7 +668,195 @@ function PracticePageInner() {
               </div>
             )}
 
-            {session.status !== "completed" && session.drill === "rapport" ? (
+            {session.status !== "completed" && session.drill === "agenda" ? (
+              /* ── Agenda drill: setup → deliver ──────────────── */
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
+                {!agendaDelivering ? (
+                  /* Setup: approve the script, pick the mode */
+                  <>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Your script — agenda set + elevator pitch for the call with {pub?.name.split(" ")[0]}.
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {session.persona.scriptSource === "saved_default"
+                          ? "Loaded from your saved default."
+                          : session.persona.scriptSource === "generated"
+                            ? "Drafted from your first-call checklist and value prop."
+                            : "Starter skeleton — edit it into your own words."}{" "}
+                        Edit freely; you&rsquo;ll be graded against what&rsquo;s in this box.
+                      </p>
+                    </div>
+                    <textarea
+                      value={agendaScript}
+                      onChange={(e) => {
+                        setAgendaScript(e.target.value);
+                        setScriptSaved(false);
+                      }}
+                      rows={10}
+                      className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={async () => {
+                          if (savingScript || !agendaScript.trim()) return;
+                          setSavingScript(true);
+                          try {
+                            const res = await fetch("/api/practice/agenda-script", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ script: agendaScript.trim() }),
+                            });
+                            if (res.ok) setScriptSaved(true);
+                          } finally {
+                            setSavingScript(false);
+                          }
+                        }}
+                        disabled={savingScript}
+                        className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg disabled:opacity-60"
+                        title="Future agenda drills will start from this script"
+                      >
+                        {scriptSaved ? "✓ Saved as default" : savingScript ? "Saving…" : "Save as my default"}
+                      </button>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5">Mode</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setAgendaMode("script_visible")}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
+                            agendaMode === "script_visible"
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                        >
+                          📜 Script visible
+                        </button>
+                        <button
+                          onClick={() => setAgendaMode("script_hidden")}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
+                            agendaMode === "script_hidden"
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          }`}
+                        >
+                          🧠 From memory
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                        Graduate to from-memory once script-visible runs score well — the modes
+                        trend separately.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!agendaScript.trim()) {
+                          setGradeError("Write your script first.");
+                          return;
+                        }
+                        setGradeError(null);
+                        setAgendaDelivering(true);
+                      }}
+                      className="px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm"
+                    >
+                      🎬 Start delivery
+                    </button>
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                  </>
+                ) : (
+                  /* Deliver: teleprompter (or memory), record, submit */
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Deliver it to {pub?.name.split(" ")[0]} — aim for under 90 seconds.
+                      </h3>
+                      <button
+                        onClick={() => setAgendaDelivering(false)}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                      >
+                        ← Back to script
+                      </button>
+                    </div>
+                    {agendaMode === "script_visible" ? (
+                      <div className="bg-gray-900 text-gray-100 rounded-lg p-4 text-[15px] leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto">
+                        {agendaScript}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        🧠 From memory — the script stays hidden. You&rsquo;ve got this.
+                      </p>
+                    )}
+                    {recordingFor === "agenda" ? (
+                      <VoiceRecordingInput
+                        isActive
+                        onCancel={() => setRecordingFor(null)}
+                        onDuration={(ms) =>
+                          setAgendaDurationMs((prev) => (prev ? prev + ms : ms))
+                        }
+                        onTranscriptionComplete={(text) => {
+                          setAgendaTranscript((prev) => (prev ? `${prev} ${text}` : text));
+                          setRecordingFor(null);
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setRecordingFor("agenda")}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/60 rounded-lg"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        {agendaTranscript ? "Record more" : "Record delivery"}
+                      </button>
+                    )}
+                    {(agendaTranscript || agendaDurationMs) && (
+                      <div className="space-y-2">
+                        {agendaDurationMs !== null && (
+                          <span className="inline-block text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-full">
+                            ⏱ {Math.round(agendaDurationMs / 1000)}s
+                            {agendaDurationMs > 90_000 ? " — over target" : ""}
+                          </span>
+                        )}
+                        <textarea
+                          value={agendaTranscript}
+                          onChange={(e) => setAgendaTranscript(e.target.value)}
+                          rows={5}
+                          placeholder="Your transcript lands here — or type your delivery."
+                          className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                      </div>
+                    )}
+                    {!agendaTranscript && recordingFor !== "agenda" && (
+                      <textarea
+                        value={agendaTranscript}
+                        onChange={(e) => setAgendaTranscript(e.target.value)}
+                        rows={3}
+                        placeholder="Or type your delivery here (no clock when typed)."
+                        className="w-full text-sm p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    )}
+                    {gradeError && <p className="text-sm text-red-600 dark:text-red-400">{gradeError}</p>}
+                    <button
+                      onClick={submitAnswers}
+                      disabled={grading}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                      {grading ? (
+                        <>
+                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Grading…
+                        </>
+                      ) : (
+                        "Submit delivery for grading"
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : session.status !== "completed" && session.drill === "rapport" ? (
               /* ── Rapport: two-turn roleplay ─────────────────── */
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-4">
                 {/* Guidance — the philosophy, up front, every time. */}
@@ -950,6 +1164,26 @@ function PracticePageInner() {
                           {t.text}
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {session.drill === "agenda" && typeof session.answers?.transcript === "string" && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+                          The delivery
+                        </h3>
+                        <span className="text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+                          {session.answers.mode === "script_hidden" ? "🧠 from memory" : "📜 script visible"}
+                        </span>
+                        {typeof session.answers.durationMs === "number" && (
+                          <span className="text-[11px] font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                            ⏱ {Math.round((session.answers.durationMs as number) / 1000)}s
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 italic whitespace-pre-wrap">
+                        {session.answers.transcript as string}
+                      </p>
                     </div>
                   )}
                   <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">

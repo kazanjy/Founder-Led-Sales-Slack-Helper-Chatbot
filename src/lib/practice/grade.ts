@@ -142,6 +142,83 @@ export async function gradeRapport(
   };
 }
 
+const AGENDA_GRADING_PROMPT = `You are grading a founder's AGENDA-SETTING drill attempt. They practiced delivering their agenda-set + elevator-pitch script out loud (or typed it). You have their SCRIPT (as they approved it before starting), their delivered TRANSCRIPT (voice-transcribed — ignore punctuation artifacts, but filler words in the transcript are REAL and gradeable), the MODE (script_visible = teleprompter on screen; script_hidden = from memory), and the measured DURATION in seconds (null when typed).
+
+Grade these four dimensions, each 0-5:
+
+1. "Beat coverage" — did they hit the script's beats IN ORDER? The load-bearing beats: respect for time, the shape of the call, the explicit out ("if it's not relevant, useful to know"), the CHECK FOR AGREEMENT at the end ("anything you want to cover?"), and the elevator pitch's who/outcome/proof. Missing the check-for-agreement caps this at 3 — it's the beat that makes an agenda collaborative instead of imposed.
+2. "Fidelity vs. riffing" — paraphrase is FINE and natural; grade whether the load-bearing phrasings survived (the value-prop language, the explicit out) and whether any ad-libs helped or hurt. In script_hidden mode, grade this more generously — reconstruction beats recitation.
+3. "Time discipline" — target: agenda set + pitch under ~90 seconds total. With DURATION: under 90s = 5; 90-120s = 3-4; over 120s = 0-2. Without duration (typed), estimate from word count at ~150 wpm and say so in the comment.
+4. "Delivery" — from the transcript: filler density ("um", "uh", "like", "you know", "sort of", "kind of" per minute — count them), sentence completion (trailing off mid-thought), and pace if duration is available (words/min; 130-170 is conversational, 200+ is rushed). Quote the worst filler cluster if there is one.
+
+ICK FLAGS — list any that apply (empty if clean): "filler storm", "monologue pace", "skipped the check-for-agreement", "buried the pitch", "apologetic framing".
+
+Return ONLY a JSON object:
+{
+  "overall": "<letter grade A/A-/B+/B/B-/C+/C/D/F — in script_hidden mode, add leniency on fidelity but not on beats or delivery>",
+  "dimensions": [
+    { "name": "Beat coverage", "score": 0-5, "max": 5, "comment": "<name the beats hit and missed, in order>" },
+    { "name": "Fidelity vs. riffing", "score": 0-5, "max": 5, "comment": "..." },
+    { "name": "Time discipline", "score": 0-5, "max": 5, "comment": "<include the duration or word-count estimate>" },
+    { "name": "Delivery", "score": 0-5, "max": 5, "comment": "<include filler count and pace>" }
+  ],
+  "flags": ["<ick flags, or empty array>"],
+  "modelAnswer": "<2-4 sentences: the specific delivery adjustments that would take THIS attempt to an A — not a rewrite of the script>",
+  "nextRep": "<ONE sentence: the single highest-leverage fix for next attempt>"
+}`;
+
+/**
+ * Grade an agenda-setting delivery against the approved script.
+ */
+export async function gradeAgendaSet(
+  attempt: {
+    script: string;
+    transcript: string;
+    durationMs: number | null;
+    mode: "script_visible" | "script_hidden";
+  }
+): Promise<PracticeScore> {
+  const payload = {
+    mode: attempt.mode,
+    durationSeconds: attempt.durationMs !== null ? Math.round(attempt.durationMs / 1000) : null,
+    script: attempt.script,
+    transcript: attempt.transcript,
+  };
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: `${AGENDA_GRADING_PROMPT}\n\n---\n\n${JSON.stringify(payload, null, 2)}`,
+      },
+    ],
+  });
+  let parsed: Partial<PracticeScore>;
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Grader returned unparseable JSON");
+  }
+  if (!parsed.overall || !Array.isArray(parsed.dimensions) || parsed.dimensions.length === 0) {
+    throw new Error("Grader returned an incomplete score");
+  }
+  return {
+    overall: parsed.overall,
+    dimensions: parsed.dimensions.map((d) => ({
+      name: String(d.name || "Dimension"),
+      score: typeof d.score === "number" ? d.score : 0,
+      max: typeof d.max === "number" ? d.max : 5,
+      comment: String(d.comment || ""),
+    })),
+    flags: Array.isArray(parsed.flags)
+      ? parsed.flags.filter((f): f is string => typeof f === "string")
+      : [],
+    modelAnswer: String(parsed.modelAnswer || ""),
+    nextRep: String(parsed.nextRep || ""),
+  };
+}
+
 /**
  * Grade a pre-call planning attempt. Returns the uniform score shape;
  * throws on model failure (caller surfaces the error, session stays

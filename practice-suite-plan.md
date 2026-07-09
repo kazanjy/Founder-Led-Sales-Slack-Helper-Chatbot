@@ -264,8 +264,10 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   end-to-end. Forms only — no voice dependency, fastest path to feeling the
   loop (generate → attempt → reveal → rotate).
 - **Phase 2 — Rapport — ✅ SHIPPED**: first voice-in drill; streaks + sparklines.
-- **Phase 3 — Agenda Setting (M)**: script modes, duration/pace/filler
-  metrics, save-back-to-checklist.
+- **Phase 3 — Agenda Setting — ✅ SHIPPED**: script from saved default
+  (AGENDA_SCRIPT merge field) > first-call checklist > skeleton; script
+  visible/hidden modes; real duration clock (speech-end aware); beat/
+  fidelity/time/delivery grading with filler counting.
 - **Phase 4 — Discovery (L)**: two-level drill, then freestyle with the TTS
   persona voice loop. The flagship — lands last on purpose, everything it
   needs (persona engine, turn loop, grading, voice) is proven by then.

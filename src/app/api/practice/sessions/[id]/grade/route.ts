@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { gradePrecallPlan, gradeRapport, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
+import { gradePrecallPlan, gradeRapport, gradeAgendaSet, PrecallAnswers, PracticeScore } from "@/lib/practice/grade";
 import { serializePracticeSession } from "@/lib/practice/serialize";
 import type { PracticePersona } from "@/lib/practice/persona";
 
@@ -77,6 +77,29 @@ export async function POST(
         icebreaker,
         personaReply,
         pivot: a.pivot.trim(),
+      });
+    } else if (session.drill === "agenda") {
+      if (!a || typeof a.transcript !== "string" || !a.transcript.trim()) {
+        return NextResponse.json({ error: "answers {transcript} required" }, { status: 400 });
+      }
+      const mode = a.mode === "script_hidden" ? "script_hidden" : "script_visible";
+      const durationMs = typeof a.durationMs === "number" && a.durationMs > 0 ? a.durationMs : null;
+      // The script graded against is the one the founder approved in
+      // the UI (session-local edits allowed) — falling back to the
+      // scenario's snapshot. Client sends it back so edits count.
+      const script =
+        typeof a.script === "string" && a.script.trim()
+          ? a.script.trim()
+          : persona.script || "";
+      if (!script) {
+        return NextResponse.json({ error: "No script on this session" }, { status: 400 });
+      }
+      answers = { transcript: a.transcript.trim(), durationMs, mode, script };
+      score = await gradeAgendaSet({
+        script,
+        transcript: a.transcript.trim(),
+        durationMs,
+        mode,
       });
     } else {
       return NextResponse.json({ error: "Grading for this drill isn't available yet" }, { status: 400 });
