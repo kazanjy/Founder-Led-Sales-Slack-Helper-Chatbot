@@ -176,6 +176,61 @@ Persona selection: explicit org×human pick or I'm Feeling Lucky. Three modes:
   Summary template — here's what you'd still be missing."* That ties
   practice directly to the Business Cases suite.
 
+## Live-Fire mode — practice for a REAL upcoming call (the payoff)
+
+The gym drills build skill against synthetic buyers; **live-fire mode preps
+an actual call on an actual deal**. Entry points: a "🥊 Practice for this
+call" button on each Upcoming Meeting row on the deal page, and a "practice
+for a real call" picker on `/practice` listing upcoming meetings across
+deals. Same session model (`dealId` + `meetingEntryId` nullable columns on
+PracticeSession), same drills, different persona source:
+
+### Real-persona assembly (replaces the synthesizer)
+
+Build the buyer card from what we actually know, best-source-first:
+1. **DealParticipant** record (name, title, role, email) for the attendee.
+2. **PDL enrichment** — reuse the existing pre-call enrichment path
+   (`PreCallEnrichmentAttempt` plumbing) to fill title/level/background when
+   the participant record is thin. Enrichment miss → **ask the founder for
+   the human persona type** (one select) and synthesize the rest from the
+   org context.
+3. **Prior-call behavior** — the deal's transcripts tell us how THIS person
+   actually talks: terse or chatty, what they've already said they care
+   about, objections already raised, commitments already made. This feeds
+   both the "likely response" simulation and the grader.
+
+The "hidden dossier" equivalent is the deal's actual evidence — so the
+reveal doubles as call prep, and a live-fire session's report card is
+effectively a rehearsed pre-call plan.
+
+### The three live-fire drills
+
+- **Pre-Call Planning (live)**: quiz against the real attendee — persona
+  type, angle, value-prop mapping — graded against PDL + deal evidence. When
+  we genuinely don't know an answer (thin deal), the grader says "unknown —
+  and that's a gap to close on the call," not a wrong-answer buzzer.
+- **Agenda Setting (live)**: propose the agenda for the NEXT call from the
+  calls to date + current stage + what the natural next step is (the sales
+  motion asset's call-sequence knowledge informs "what call comes after
+  where we are"; first-call checklist covers the true-first-call case).
+  Founder edits the proposed agenda if desired, then practices it verbally —
+  script visible or hidden — and is graded against the agenda they approved,
+  same coverage/duration/filler metrics as the gym drill.
+- **Discovery (live)**: propose the discovery question to ask — sourced
+  straight from THIS deal's **Discovery Gaps** (the analyzer section already
+  emits ready-to-ask questions, prioritized by economic-case impact).
+  Founder asks it verbally → the simulated buyer answers with a LIKELY
+  response conditioned on prior-call evidence + human/org persona ("given
+  what Sundar has said about procurement, he'll probably deflect to the
+  security review") → founder follows up → graded. Every rep here is
+  double-duty: skill practice AND a rehearsal of the actual next call.
+
+Live-fire grading rule: synthetic drills grade against a knowable dossier;
+live-fire grades against deal evidence and is explicitly honest about
+unknowns — the point is readiness, not gotchas. A completed live-fire
+session can optionally log a compact summary to the deal timeline ("Practiced
+for Jul 10 call — plan: …") so prep work shows up in deal history.
+
 ## Cross-suite integration (later phases)
 
 - **Coaching**: `getPracticeActivity` tool for the coaching agent; coach can
@@ -185,7 +240,9 @@ Persona selection: explicit org×human pick or I'm Feeling Lucky. Three modes:
   library; founder responds by voice; graded against the library's approved
   responses. Cheap once the loop exists.
 - **Call Review bridge**: same rubric dimensions on real calls vs. practice —
-  "your practice talk-ratio is 40%, your real-call ratio is 68%."
+  "your practice talk-ratio is 40%, your real-call ratio is 68%." For
+  live-fire: after the real call's recording lands, compare the practiced
+  plan vs. what actually happened.
 
 ## API surface
 
@@ -214,6 +271,12 @@ Voice stays client-orchestrated: record → `/api/voice/transcribe` → POST tur
   needs (persona engine, turn loop, grading, voice) is proven by then.
 - **Phase 5 — integrations (M)**: coaching tool + readiness evidence +
   objection drill.
+- **Phase 6 — Live-Fire mode (L)**: deal-anchored variants of Pre-Call
+  Planning, Agenda Setting, and Discovery — real-persona assembly (PDL +
+  participant + prior-call behavior), deal-page entry point on upcoming
+  meetings, Discovery-Gaps-sourced question proposals, optional practice
+  summary to the deal timeline. Lands after the gym proves the drill loops;
+  everything it adds is persona sourcing + deal grounding.
 
 ## Design decisions (made — flag if you disagree)
 
