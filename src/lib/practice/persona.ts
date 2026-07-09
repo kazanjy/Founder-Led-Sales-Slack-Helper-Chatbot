@@ -109,6 +109,69 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function pick<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Casting variety — left to its own devices the model converges on
+// one archetype (everyone becomes "Mara/Marina <two-syllable
+// surname>", same gender, same vibe). We roll the demographic dice in
+// CODE and pass the result as a hard constraint, plus a do-not-reuse
+// list from recent sessions.
+const GENDERS = ["a man", "a woman"] as const;
+const NAME_STYLES = [
+  "Anglo-American",
+  "Irish or Scottish",
+  "Hispanic/Latino",
+  "South Asian (Indian, Pakistani, Sri Lankan)",
+  "East Asian (Chinese, Japanese, Korean)",
+  "Southeast Asian (Vietnamese, Filipino, Thai)",
+  "Black American",
+  "West African or Caribbean",
+  "Middle Eastern or North African",
+  "Eastern European or Slavic",
+  "Nordic or German",
+  "Italian or Greek",
+  "Jewish-American",
+  "Franco-American or French-Canadian",
+] as const;
+const AGE_BANDS = [
+  "early 30s — younger, fast-rising",
+  "late 30s to mid 40s — mid-career",
+  "50s — seasoned, been through a few cycles",
+] as const;
+const TEMPERAMENTS = ["chatty", "guarded", "skeptical", "distracted", "enthusiastic"] as const;
+
+const COMPANY_NAME_STYLES = [
+  "boring-but-real (e.g. a surname + industry word, like real mid-market companies have)",
+  "acronym or initialism",
+  "single invented word, no compound",
+  "geographic + industry word",
+  "two-word compound",
+  "legacy-sounding (founded decades ago)",
+] as const;
+
+function buildCastingNote(recentNames: string[], recentCompanies: string[]): string {
+  const lines = [
+    `CASTING NOTE — follow strictly:`,
+    `- The buyer is ${pick(GENDERS)}, ${pick(AGE_BANDS)}.`,
+    `- Give them a realistic ${pick(NAME_STYLES)} name (first + last). It should sound like a real colleague, not a novel character.`,
+    `- Company name style: ${pick(COMPANY_NAME_STYLES)}.`,
+    `- hidden.temperament must be "${pick(TEMPERAMENTS)}".`,
+  ];
+  if (recentNames.length > 0) {
+    lines.push(
+      `- DO NOT reuse or echo these recently used person names (no same first names, no similar-sounding ones): ${recentNames.join(", ")}.`
+    );
+  }
+  if (recentCompanies.length > 0) {
+    lines.push(
+      `- DO NOT reuse or echo these recently used company names: ${recentCompanies.join(", ")}.`
+    );
+  }
+  return lines.join("\n");
+}
+
 /**
  * Generate a synthetic practice persona from the founder's playbook.
  * Throws when the playbook is too thin to ground a persona (no
@@ -156,13 +219,33 @@ export async function synthesizePersona(userId: string): Promise<PracticePersona
     contextParts.push(`## Discovery questions (for pain grounding)\n\n${framework.questionsListing}`);
   }
 
+  // Names used in this founder's recent sessions — banned for reuse
+  // so consecutive drills don't all star the same person.
+  const recentSessions = await prisma.practiceSession.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 15,
+    select: { persona: true },
+  });
+  const recentNames = recentSessions
+    .map((s) => (s.persona as unknown as PracticePersona)?.public?.name)
+    .filter((n): n is string => typeof n === "string" && n.length > 0);
+  const recentCompanies = recentSessions
+    .map((s) => (s.persona as unknown as PracticePersona)?.public?.company?.name)
+    .filter((n): n is string => typeof n === "string" && n.length > 0);
+
+  const castingNote = buildCastingNote(
+    [...new Set(recentNames)],
+    [...new Set(recentCompanies)]
+  );
+
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
     response_format: { type: "json_object" },
     messages: [
       {
         role: "user",
-        content: `${SYNTH_PROMPT}\n\n---\n\n${contextParts.join("\n\n---\n\n").substring(0, 60_000)}`,
+        content: `${SYNTH_PROMPT}\n\n${castingNote}\n\n---\n\n${contextParts.join("\n\n---\n\n").substring(0, 60_000)}`,
       },
     ],
   });
