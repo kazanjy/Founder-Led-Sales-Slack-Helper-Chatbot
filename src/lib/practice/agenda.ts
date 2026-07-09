@@ -18,7 +18,15 @@ import type { PracticePersonaPublic } from "./persona";
  * founder explicitly saves back.
  */
 
-const FALLBACK_SCRIPT = `Thanks for making the time today. I want to be respectful of the half hour, so here's what I was thinking. First, I'd love to learn a bit about how you're handling this today and what's working or not. And just to provide some context, {{SOLUTION NAME}} helps {{WHO}} {{CORE OUTCOME}} without {{THE PAINFUL PART}} — teams typically see {{HEADLINE RESULT}}. So after we've talked through your world, I'll show you how that might map to what you're doing — and if it feels relevant, we can figure out next steps together; if it doesn't, that's genuinely useful to know too. Does that work for you? Anything else you want to make sure we cover before we dive in?`;
+const FALLBACK_SCRIPT = `Thanks for making the time today. I want to be respectful of the half hour, so here's what I was thinking.
+
+First, I'd love to learn a bit about how you're handling this today and what's working or not.
+
+And just to provide some context, {{SOLUTION NAME}} helps {{WHO}} {{CORE OUTCOME}} without {{THE PAINFUL PART}} — teams typically see {{HEADLINE RESULT}}.
+
+So after we've talked through your world, I'll show you how that might map to what you're doing — and if it feels relevant, we can figure out next steps together; if it doesn't, that's genuinely useful to know too.
+
+Does that work for you? Anything else you want to make sure we cover before we dive in?`;
 
 export async function getAgendaScript(
   userId: string,
@@ -59,6 +67,7 @@ Rules:
 - Spoken-out-loud natural: contractions, short sentences, no corporate polish. It will be READ ALOUD and practiced from memory.
 - Derive the agenda beats from the founder's first-call checklist below where it defines an opening/agenda section; otherwise use the structure above.
 - Under 160 words. PLAIN TEXT ONLY — no markdown, no headers, no bullets, no bold. Just the words the founder says.
+- Break it into 4-5 SHORT PARAGRAPHS separated by blank lines — one beat per paragraph (thanks/time, call shape, context pitch, what-happens-after, the closing confirmation). It's read off a teleprompter; a wall of text is unreadable mid-delivery.
 - Return ONLY the script.
 
 ${formatSellerContext(seller)}
