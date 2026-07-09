@@ -46,6 +46,10 @@ interface InstanceRow {
   sourceContext: string | null;
   dealId: string | null;
   deal: { id: string; name: string; companyName: string } | null;
+  gammaUrl: string | null;
+  gammaPdfUrl: string | null;
+  gammaPptxUrl: string | null;
+  gammaGeneratedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +111,8 @@ function BusinessCasesPageInner() {
   const [titleDraft, setTitleDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generatingDeck, setGeneratingDeck] = useState(false);
+  const [deckError, setDeckError] = useState<string | null>(null);
 
   const info = BC_TYPE_INFO[activeTab];
 
@@ -332,6 +338,30 @@ function BusinessCasesPageInner() {
     setTimeout(() => setCopied(false), 1500);
   };
 
+  // Gamma discovery-readout deck. Slow path (pre-process + Gamma
+  // generation + PDF/PPTX export ≈ 1-3 min) — the button carries its
+  // own progress state and the links persist on the instance row.
+  const handleGenerateDeck = async () => {
+    if (!current || generatingDeck) return;
+    setGeneratingDeck(true);
+    setDeckError(null);
+    try {
+      const res = await fetch(`/api/business-cases/instances/${current.id}/gamma`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `Deck generation failed (${res.status})`);
+      setCurrent(data.instance);
+      if (data.instance?.gammaUrl) {
+        window.open(data.instance.gammaUrl, "_blank");
+      }
+    } catch (err) {
+      setDeckError(err instanceof Error ? err.message : "Deck generation failed");
+    } finally {
+      setGeneratingDeck(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -416,6 +446,28 @@ function BusinessCasesPageInner() {
                       >
                         {copied ? "✓ Copied" : "Copy"}
                       </button>
+                      {current.type === "discovery_summary" && (
+                        <button
+                          onClick={handleGenerateDeck}
+                          disabled={generatingDeck}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg font-medium disabled:opacity-60"
+                          title="Turn this summary into a discovery-readout slide deck via Gamma — 'here's what we heard' to play back to the prospect. Takes 1-3 minutes."
+                        >
+                          {generatingDeck ? (
+                            <>
+                              <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Building deck…
+                            </>
+                          ) : current.gammaUrl ? (
+                            "🖼️ Regenerate Deck"
+                          ) : (
+                            "🖼️ Slide Deck"
+                          )}
+                        </button>
+                      )}
                       {editingContent ? (
                         <>
                           <button
@@ -475,6 +527,51 @@ function BusinessCasesPageInner() {
                       <span className="text-gray-400">· synced to the deal timeline</span>
                     )}
                   </div>
+                  {(current.gammaUrl || deckError) && (
+                    <div className="flex items-center gap-3 text-xs flex-wrap">
+                      {current.gammaUrl && (
+                        <>
+                          <span className="font-medium text-amber-700 dark:text-amber-400">🖼️ Deck:</span>
+                          <a
+                            href={current.gammaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-600 dark:text-purple-300 hover:underline"
+                          >
+                            Open in Gamma ↗
+                          </a>
+                          {current.gammaPdfUrl && (
+                            <a
+                              href={current.gammaPdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 dark:text-purple-300 hover:underline"
+                            >
+                              PDF
+                            </a>
+                          )}
+                          {current.gammaPptxUrl && (
+                            <a
+                              href={current.gammaPptxUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 dark:text-purple-300 hover:underline"
+                            >
+                              PPTX
+                            </a>
+                          )}
+                          {current.gammaGeneratedAt && (
+                            <span className="text-gray-400">
+                              generated {formatDate(current.gammaGeneratedAt)}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {deckError && (
+                        <span className="text-red-600 dark:text-red-400">{deckError}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="p-6">
                   {editingContent ? (
@@ -703,6 +800,7 @@ function BusinessCasesPageInner() {
                             {formatDate(inst.createdAt)}
                             {inst.deal ? ` · 💼 ${inst.deal.name}` : " · ad hoc"}
                             {inst.sourceContext ? ` · ${inst.sourceContext}` : ""}
+                            {inst.gammaUrl ? " · 🖼️ deck" : ""}
                           </span>
                         </span>
                         <span className="text-gray-300 dark:text-gray-600">→</span>

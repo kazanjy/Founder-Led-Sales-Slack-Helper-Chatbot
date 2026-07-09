@@ -2748,6 +2748,14 @@ model BusinessCaseInstance {
   // summary) — for regeneration and "what was this based on?" display.
   sourceContext String? @db.Text
 
+  // Gamma slide-deck export of this artifact (discovery readout deck
+  // etc.). Set by /instances/[id]/gamma; regenerating overwrites.
+  // Same trio as SalesDeckVersion.
+  gammaUrl     String?
+  gammaPdfUrl  String?
+  gammaPptxUrl String?
+  gammaGeneratedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
