@@ -460,9 +460,17 @@ export async function POST(
           `[stream] generation FAILED (${isDirectMode ? "OpenAI/DIRECT" : "Chatbase"}) — surface this to the client:`,
           error instanceof Error ? error.message : error
         );
+        // Ship the REAL error to the client — "Failed to get response
+        // from AI" hid an insufficient_quota outage behind a generic
+        // string. Provider messages (quota, context length, rate
+        // limits) are actionable and safe to show the founder.
+        const detail =
+          error instanceof Error && error.message
+            ? error.message.substring(0, 500)
+            : "Failed to get response from AI";
         controller.enqueue(
           encoder.encode(
-            `event: error\ndata: ${JSON.stringify({ error: "Failed to get response from AI" })}\n\n`
+            `event: error\ndata: ${JSON.stringify({ error: detail })}\n\n`
           )
         );
         controller.close();
