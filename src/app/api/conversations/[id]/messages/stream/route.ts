@@ -41,6 +41,9 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
   const { message, attachments } = body;
+  console.log(
+    `[stream] POST conversation — messageChars=${typeof message === "string" ? message.length : 0} attachments=${Array.isArray(attachments) ? attachments.length : "n/a"}`
+  );
 
   if (!message || typeof message !== "string") {
     return new Response(JSON.stringify({ error: "Message is required" }), {
@@ -453,7 +456,10 @@ export async function POST(
 
         controller.close();
       } catch (error) {
-        console.error(`Error streaming from ${isDirectMode ? "OpenAI" : "Chatbase"}:`, error);
+        console.error(
+          `[stream] generation FAILED (${isDirectMode ? "OpenAI/DIRECT" : "Chatbase"}) — surface this to the client:`,
+          error instanceof Error ? error.message : error
+        );
         controller.enqueue(
           encoder.encode(
             `event: error\ndata: ${JSON.stringify({ error: "Failed to get response from AI" })}\n\n`

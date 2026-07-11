@@ -1744,15 +1744,24 @@ export default function ChatPage() {
   const autoSendTriggered = useRef(false);
   useEffect(() => {
     if (loading || !user || autoSendTriggered.current || !selectedConversation) return;
+    const urlParamsProbe = new URLSearchParams(window.location.search);
+    const wantsAutoSend = urlParamsProbe.get("autoSend") === "true";
     // Wait until the conversations cache actually contains this
     // conversation — sendMessage resolves CHATBASE-vs-DIRECT from it,
     // and firing before it loads mis-routes DIRECT contexts.
-    if (!conversations.some((c) => c.id === selectedConversation)) return;
+    if (!conversations.some((c) => c.id === selectedConversation)) {
+      if (wantsAutoSend) console.log("[autoSend] waiting — conversation not in cache yet", selectedConversation);
+      return;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("autoSend") !== "true") return;
     // Get context from sessionStorage
     const context = sessionStorage.getItem(`autoSend-${selectedConversation}`);
-    if (!context) return;
+    if (!context) {
+      console.warn("[autoSend] no sessionStorage context for", selectedConversation, "— auto-send aborted (quota or cross-tab handoff failure)");
+      return;
+    }
+    console.log(`[autoSend] firing — conversation=${selectedConversation} contextChars=${context.length} mode=${conversations.find((c) => c.id === selectedConversation)?.mode}`);
     autoSendTriggered.current = true;
     sessionStorage.removeItem(`autoSend-${selectedConversation}`);
     // Strip ?autoSend=true from the URL but preserve the hash so a
@@ -2507,6 +2516,9 @@ export default function ChatPage() {
       // and mis-resolving routes a huge DIRECT context into the agent.
       const effectiveMode =
         conversations.find((c) => c.id === conversationId)?.mode || conversationMode;
+      console.log(
+        `[send] conversation=${conversationId} chars=${finalMessage.length} agentMode=${agentMode} stateMode=${conversationMode} effectiveMode=${effectiveMode} → ${agentMode && effectiveMode !== "DIRECT" ? "AGENT" : "STREAM"} path`
+      );
       if (agentMode && effectiveMode !== "DIRECT") {
         const agentRes = await fetch(`/api/chat/agent`, {
           method: "POST",
@@ -2516,8 +2528,10 @@ export default function ChatPage() {
             message: finalMessage,
           }),
         });
+        console.log(`[send] agent response status=${agentRes.status}`);
         if (!agentRes.ok) {
           const data = await agentRes.json().catch(() => ({}));
+          console.error("[send] agent request failed:", agentRes.status, data);
           await showAlert({
             title: "Error",
             message: data.error || "Agent failed to respond",
@@ -2583,6 +2597,15 @@ export default function ChatPage() {
           }
         }
         setStreamingMessage("");
+        console.log(`[send] agent stream ended — replyChars=${fullText.length} messageId=${messageId ?? "none"}`);
+        if (!fullText) {
+          console.error("[send] agent stream produced NO reply text — likely server-side death (timeout/kill) with no error event");
+          await showAlert({
+            title: "No response",
+            message: "Mikey's reply never arrived — the generation may have timed out. Try again; if it persists, check the Vercel logs for [stream]/[agent] entries.",
+            variant: "danger",
+          });
+        }
         if (fullText) {
           setMessages((prev) => [
             ...prev,
@@ -2623,8 +2646,10 @@ export default function ChatPage() {
         }),
       });
 
+      console.log(`[send] stream response status=${res.status}`);
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        console.error("[send] stream request failed:", res.status, data);
         await showAlert({
           title: "Error",
           message: data.error || "Failed to send message",
@@ -2661,22 +2686,32 @@ export default function ChatPage() {
           }
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
+            // Parse and handle SEPARATELY — an `error` event must
+            // reach the outer catch, not die in the non-JSON guard.
+            let parsed: Record<string, unknown> & { text?: string; messageId?: string; createdAt?: string; savedUserMessage?: string; mode?: string; modeFlipped?: boolean; error?: string };
             try {
-              const parsed = JSON.parse(data);
-
-              if (parsed.text) {
+              parsed = JSON.parse(data);
+            } catch {
+              continue; // Non-JSON data, ignore
+            }
+            {
+              if (parsed.error) {
+                console.error("[send] stream reported error event:", parsed.error);
+                throw new Error(parsed.error);
+              } else if (parsed.text) {
                 // Text chunk from streaming
                 fullResponse += parsed.text;
                 setStreamingMessage(fullResponse);
               } else if (parsed.messageId) {
                 // Done event with message metadata
                 messageId = parsed.messageId;
-                createdAt = parsed.createdAt;
+                createdAt = parsed.createdAt || "";
                 // Update user message if backend saved expanded version (with attachments)
-                if (parsed.savedUserMessage) {
+                const savedUserMessage = parsed.savedUserMessage;
+                if (typeof savedUserMessage === "string" && savedUserMessage) {
                   setMessages((prev) =>
                     prev.map((m) =>
-                      m.id === tempUserMsg.id ? { ...m, content: parsed.savedUserMessage } : m
+                      m.id === tempUserMsg.id ? { ...m, content: savedUserMessage } : m
                     )
                   );
                 }
@@ -2697,11 +2732,7 @@ export default function ChatPage() {
                     );
                   }
                 }
-              } else if (parsed.error) {
-                throw new Error(parsed.error);
               }
-            } catch {
-              // Non-JSON data, ignore
             }
           }
         }
@@ -2709,6 +2740,15 @@ export default function ChatPage() {
 
       // Clear streaming message and add the complete message
       setStreamingMessage("");
+      console.log(`[send] stream ended — replyChars=${fullResponse.length} messageId=${messageId || "none"}`);
+      if (!fullResponse) {
+        console.error("[send] stream produced NO reply text — likely server-side death (timeout/kill) with no error event");
+        await showAlert({
+          title: "No response",
+          message: "Mikey's reply never arrived — the generation may have timed out. Try again; if it persists, check the Vercel logs for [stream] entries.",
+          variant: "danger",
+        });
+      }
 
       if (fullResponse) {
         const assistantMessage: Message = {
@@ -2776,9 +2816,14 @@ export default function ChatPage() {
         );
       });
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("[send] failed:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
       setStreamingMessage("");
+      await showAlert({
+        title: "Message failed",
+        message: error instanceof Error ? error.message : "Failed to send — try again.",
+        variant: "danger",
+      });
     } finally {
       setSending(false);
       isSendingRef.current = false;
