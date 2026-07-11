@@ -126,6 +126,31 @@ function formatEnrichedContext(session: CoachingSession, enriched: EnrichedSessi
   return text;
 }
 
+// GTM Strategy Review — a pressure test of the strategy embedded in
+// the coaching history. Prompt FIRST, then the full context (same
+// anchoring rationale as the retired Synthesize Takeaways CTA: the
+// directive must not get out-weighted by months of transcripts).
+const GTM_STRATEGY_REVIEW_PROMPT = `Act as an expert early-stage go-to-market strategist — someone who has watched hundreds of founder-led sales motions succeed and fail, and who is paid to be direct, not agreeable. Below is the complete history of my GTM coaching engagement: every session's notes and transcripts in chronological order, the goals and tasks we committed to, metrics, and our current sales maturity stage.
+
+Run a GTM STRATEGY REVIEW — a pressure test of what we're doing versus what we could be doing:
+
+## What we've concluded
+Reconstruct the strategic conclusions and operating hypotheses embedded in these sessions — the choices about ICP, positioning, channel, pricing, motion, and sequencing that we've made (explicitly or by drift). State each as a falsifiable hypothesis, and note WHEN in the history it emerged.
+
+## Validate or challenge
+For each hypothesis: does the evidence in this history actually support it? Use what happened AFTER we adopted it — metrics moved or didn't, deals progressed or stalled, tasks completed or quietly deprioritized. Validate what's genuinely working. Challenge what the evidence contradicts, what we've never actually tested, and anything we've been repeating across sessions without progress (name those patterns bluntly). Distinguish "validated," "unvalidated but reasonable," and "contradicted by our own data."
+
+## High-viability alternatives
+Where a hypothesis is shaky, what should we consider instead? Only propose alternatives that are HIGH-VIABILITY for a company at our stage and evidence base — no generic strategy-consultant lists. For each: why it fits our situation, what it would cost to test, and the signal that would tell us it's working. If our current course is genuinely the best available option, say exactly that and why — a clean bill of health is a valid and valuable answer.
+
+## The implicit bets
+What are we betting on that we've never said out loud? Surface the assumptions underneath the plan that, if wrong, would sink it — and how we'd know.
+
+## Recommended adjustments
+A short, prioritized list of concrete changes (or explicit confirmations to stay the course), each tied to the evidence above. What should we raise in the next coaching session?
+
+Ground every point in what's actually in the history — cite sessions by date. Challenge me like a peer with skin in the game, not a cheerleader.`;
+
 async function buildEnrichedChatContext(sessions: CoachingSession[]): Promise<string> {
   const sorted = [...sessions].sort(
     (a, b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime()
@@ -884,6 +909,19 @@ function CoachingHistoryContent() {
                 )}
                 What Next?
               </button>
+            )}
+            {sessions.length > 0 && (
+              <ChatAboutButton
+                title="GTM Strategy Review"
+                // Prompt FIRST, then the totality of coaching history —
+                // auto-sends (no primeOnly) since the prompt is the ask.
+                getContext={async () => {
+                  const ctx = await buildEnrichedChatContext(sessions);
+                  return `${GTM_STRATEGY_REVIEW_PROMPT}\n\n---\n\n${ctx}`;
+                }}
+                label="🧭 GTM Strategy Review"
+                mode="DIRECT"
+              />
             )}
             {sessions.length > 0 && (
               <ChatAboutButton
