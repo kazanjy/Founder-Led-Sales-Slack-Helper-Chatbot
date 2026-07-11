@@ -1744,6 +1744,10 @@ export default function ChatPage() {
   const autoSendTriggered = useRef(false);
   useEffect(() => {
     if (loading || !user || autoSendTriggered.current || !selectedConversation) return;
+    // Wait until the conversations cache actually contains this
+    // conversation — sendMessage resolves CHATBASE-vs-DIRECT from it,
+    // and firing before it loads mis-routes DIRECT contexts.
+    if (!conversations.some((c) => c.id === selectedConversation)) return;
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("autoSend") !== "true") return;
     // Get context from sessionStorage
@@ -1757,7 +1761,7 @@ export default function ChatPage() {
     window.history.replaceState({}, "", window.location.pathname + window.location.hash);
     // Send the message (creates user message + triggers response)
     sendMessage(context);
-  }, [loading, user, selectedConversation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, user, selectedConversation, conversations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch onboarding state — drives the recorder → calendar → narrative
   // overlay sequence and the integrations row on the homepage.
@@ -2497,7 +2501,13 @@ export default function ChatPage() {
       // the direct stream path's large-input budgeting — the agent
       // loop's tool orchestration adds nothing to "reason over this
       // blob" and chokes on the size.
-      if (agentMode && conversationMode !== "DIRECT") {
+      // Resolve the mode from the conversations cache at send time —
+      // conversationMode state can lag on a fresh tab (URL-selected
+      // conversation before the list loads defaults it to CHATBASE),
+      // and mis-resolving routes a huge DIRECT context into the agent.
+      const effectiveMode =
+        conversations.find((c) => c.id === conversationId)?.mode || conversationMode;
+      if (agentMode && effectiveMode !== "DIRECT") {
         const agentRes = await fetch(`/api/chat/agent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

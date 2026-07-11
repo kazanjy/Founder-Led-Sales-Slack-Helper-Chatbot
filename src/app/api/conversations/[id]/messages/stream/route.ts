@@ -10,6 +10,12 @@ import { generateChatTitle } from "@/lib/openai";
  * POST /api/conversations/[id]/messages/stream - Send a message and stream the response
  * Returns a Server-Sent Events stream with the response chunks
  */
+// Reply generation over large DIRECT contexts (full coaching history,
+// deal timelines) runs multi-minute. Without this, Vercel's default
+// function duration (~10-15s) killed the stream mid-generation — the
+// user message persisted, then silence. Matches /api/chat/agent.
+export const maxDuration = 300;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
