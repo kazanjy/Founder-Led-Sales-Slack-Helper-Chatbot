@@ -171,6 +171,32 @@ Noise controls: claimed channel of the deal owner (DM fallback); nothing
 posts for dismissed deals except the dismissal; per-user toggles per stub
 type later if volume warrants.
 
+## Re-engagement: closed-lost accounts coming back
+
+A new call/meeting with an account whose only deal is CLOSED-LOST is a
+re-engagement — one of the highest-value moments in founder-led sales — and
+must create a NEW deal that references the old one (never resurrect the
+dead deal, never treat the account as a stranger):
+
+- **`Deal.previousDealId`** — nullable self-relation, set at auto-create
+  time to the account's most recent closed_lost (or dismissed) deal. Chains
+  if it happens twice. Deliberately NOT a full Account/Company entity —
+  one nullable FK gets 90% of the value without a heavy migration; chains
+  migrate cleanly into an Account model if that world ever arrives.
+- **Birth timeline entry**: "↩️ Re-engagement — prior deal closed lost
+  Mar 2026 (reason: competition). See <prior deal>."
+- **Cooldown fix**: the 30-day creation cooldown applies ONLY to dismissed
+  deals (its purpose is dismiss-then-recreate loops). Closed-lost never
+  suppresses creation.
+- **Context propagation** (where the link earns its keep):
+  - Pass-2 confirmation classifier is told about the prior loss so it can
+    tell genuine re-engagement from a lingering post-mortem thread;
+  - deal analyzer gets a "Prior relationship" line (Discovery Gaps probes
+    what changed since the loss);
+  - deal agent exposes previousDeal via getDealCore;
+  - Slack stub reads "🎯 Acme is back — previously closed lost in March";
+  - deal page banners in both directions (returning account ↔ newer deal).
+
 ## Phasing
 
 1. **Phase 1 — Pre-meeting triage + likely deals (L)**: DealTriage model +
@@ -186,11 +212,13 @@ type later if volume warrants.
    human-touch override; ✅ Confirmed / 🗂️ Archived stubs with Undo
    (undo restores to ACTIVE and records the override). Deferred: the
    7-day no-recording nudge (Phase 3, alongside the timed stubs).
-3. **Phase 3 — Timed stub posts (M)**: DealSlackPost table (ts → deal);
+3. **Phase 2.5 — Re-engagement linking (S/M)**: previousDealId + cooldown
+   fix + context propagation per the section above.
+4. **Phase 3 — Timed stub posts (M)**: DealSlackPost table (ts → deal);
    "New Pre-Call Plan" at T-2h (rides the 5-min cron watching for meetings
    entering the 2h window, generates the brief, posts the stub); "Updated
    Deal Analysis" after the recorder cron's analysis cascade completes.
-4. **Phase 4 — Inbound stub threads (M)**: reply-under-stub → deal-agent
+5. **Phase 4 — Inbound stub threads (M)**: reply-under-stub → deal-agent
    routing with the deal pinned; activity capture in-thread.
 
 ## Design decisions (made — flag if you disagree)
