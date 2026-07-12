@@ -18,17 +18,14 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
   "live.com", "msn.com",
 ]);
 
-// Deal stages we treat as "still in play" for the cross-deal sweep.
-// closed_won / closed_lost don't get future-meeting updates because
-// they're not expected to have new calendar activity.
-const ACTIVE_STAGES = new Set([
-  "potential",
-  "discovery",
-  "qualified",
-  "proposal",
-  "negotiation",
-  "verbal_yes",
-]);
+// Deal STATUSES still in play for the cross-deal sweep. This used to
+// be a stage filter with values that mostly don't exist in this app's
+// stage vocabulary ("qualified", "verbal_yes") — which silently
+// skipped deals in prospecting/demo/closing. Status is the field that
+// actually means "in play": closed_won / closed_lost / dismissed
+// don't get future-meeting updates; stalled DOES (a new meeting on a
+// stalled deal is exactly the signal worth catching).
+const IN_PLAY_STATUSES = new Set(["active", "potential", "stalled"]);
 
 interface GCalAttendee { email?: string; displayName?: string }
 interface GCalEvent {
@@ -282,7 +279,7 @@ export async function scanFutureMeetingsForUser(
   // single event can match multiple deals (rare — overlapping prospects
   // in one meeting) so we accept N matches and write one entry each.
   const deals = await prisma.deal.findMany({
-    where: { userId, stage: { in: Array.from(ACTIVE_STAGES) } },
+    where: { userId, status: { in: Array.from(IN_PLAY_STATUSES) } },
     select: { id: true, name: true, companyUrl: true },
   });
   const participants = deals.length > 0

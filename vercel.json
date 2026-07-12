@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/scan-recordings",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/scan-future-meetings",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
