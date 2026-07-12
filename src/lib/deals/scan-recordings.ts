@@ -1,4 +1,11 @@
 import { prisma } from "@/lib/db";
+import {
+  confirmDealFromCall,
+  dealHasHumanTouch,
+  postDealConfirmedStub,
+  postDealDismissedStub,
+  recordConfirmationTriage,
+} from "@/lib/deals/triage";
 import type { Deal } from "@prisma/client";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { getSlackClient } from "@/lib/slack/client";
@@ -426,19 +433,117 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
         }
       }
 
+      // ── Deal autopilot Pass 2: post-meeting confirmation ──────
+      // New deals and calendar-triaged "likely" deals get the true
+      // determination from the transcript instead of waiting for a
+      // human Validate click (deal-autopilot-plan.md). Classifier
+      // failure degrades to the legacy behavior (potential + buttons)
+      // so a model outage never strands calls.
+      const needsConfirmation = isNew || deal.status === "likely";
+      let confirmationOutcome: "confirmed" | "dismissed" | "kept" | "fallback" = "fallback";
+      if (needsConfirmation && content.trim()) {
+        try {
+          const priorTriage = await prisma.dealTriage.findFirst({
+            where: { userId, dealId: deal.id, verdict: "likely_deal" },
+            select: { reason: true },
+          });
+          const verdict = await confirmDealFromCall(userId, {
+            companyName: deal.companyName || deal.name,
+            callTitle: call.title,
+            callContent: content,
+            priorTriageReason: priorTriage?.reason,
+          });
+          await recordConfirmationTriage({
+            userId,
+            sourceId: call.id,
+            eventAt: new Date(call.date),
+            title: call.title,
+            verdict: verdict.verdict,
+            confidence: verdict.confidence,
+            reason: verdict.reason,
+            dealId: deal.id,
+          });
+
+          if (verdict.verdict === "confirmed_deal") {
+            await prisma.deal.update({
+              where: { id: deal.id },
+              data: {
+                status: "active",
+                ...(verdict.stage ? { stage: verdict.stage } : {}),
+              },
+            });
+            confirmationOutcome = "confirmed";
+            attachedSet.add(deal.id); // analysis cascade
+            await postDealConfirmedStub({
+              userId,
+              dealId: deal.id,
+              companyName: deal.companyName || deal.name,
+              callTitle: call.title,
+              stage: verdict.stage,
+              reason: verdict.reason,
+              isNewDeal: isNew,
+            });
+          } else if (isNew) {
+            // Fresh call that isn't a deal: archive quietly (the
+            // dismissed row also feeds the domain cooldown so we
+            // don't re-create next week). No Slack noise for vendor
+            // calls the founder never heard about.
+            await prisma.deal.update({
+              where: { id: deal.id },
+              data: { status: "dismissed" },
+            });
+            confirmationOutcome = "dismissed";
+          } else {
+            // A watched likely deal judged not-a-deal. The absolute
+            // rule: human-touched deals are never auto-dismissed.
+            const touched = await dealHasHumanTouch(deal.id);
+            if (touched) {
+              confirmationOutcome = "kept";
+            } else {
+              await prisma.deal.update({
+                where: { id: deal.id },
+                data: { status: "dismissed" },
+              });
+              confirmationOutcome = "dismissed";
+              await postDealDismissedStub({
+                userId,
+                dealId: deal.id,
+                companyName: deal.companyName || deal.name,
+                reason: verdict.reason,
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`[scan-recordings] confirmation failed for ${call.id}:`, err);
+          confirmationOutcome = "fallback";
+        }
+      }
+
       await prisma.processedRecording.create({
         data: {
           userId,
           provider: conn.provider,
           providerCallId: call.id,
-          result: isNew ? "created_potential" : "attached_existing",
+          result: needsConfirmation
+            ? confirmationOutcome === "confirmed"
+              ? "confirmed_active"
+              : confirmationOutcome === "dismissed"
+                ? "auto_dismissed"
+                : confirmationOutcome === "kept"
+                  ? "kept_human_touch"
+                  : isNew
+                    ? "created_potential"
+                    : "attached_existing"
+            : isNew
+              ? "created_potential"
+              : "attached_existing",
           dealId: deal.id,
           notes: isNew ? null : entry.id,
         },
       });
-      if (isNew) {
+      if (isNew && confirmationOutcome === "fallback") {
         out.potentials++;
-      } else {
+      } else if (!isNew) {
         out.attached++;
         // Track for post-scan re-analysis. Dedupes via Set so a deal
         // that gets multiple calls landed in the same tick only
@@ -447,7 +552,9 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       }
 
       if (botToken && dmChannelId) {
-        if (isNew) {
+        if (isNew && confirmationOutcome === "fallback") {
+          // Legacy path — classifier unavailable, fall back to the
+          // Validate/Dismiss flow so nothing gets lost.
           await postPotentialDealAlert({
             botToken,
             channelId: dmChannelId,
@@ -461,7 +568,7 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
               url: call.providerUrl,
             },
           });
-        } else {
+        } else if (!isNew && confirmationOutcome === "fallback" && deal.status !== "likely") {
           await postMeetingAttachedAlert({
             botToken,
             channelId: dmChannelId,
@@ -481,6 +588,109 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       where: { id: conn.id },
       data: { lastSyncedAt: new Date() },
     }).catch(() => {});
+  }
+
+  // ── Backfill / self-heal (deal-autopilot Phase 2) ─────────────────
+  // Two populations flow through the same confirmation classifier:
+  //  - legacy "potential" deals still sitting in the Validate/Dismiss
+  //    queue (one-time migration, drained gradually), and
+  //  - "likely" deals whose in-tick confirmation failed (classifier
+  //    outage) but that have call content attached.
+  // Up to 2 per user per tick; a triage row (backfill:<dealId>) marks
+  // the attempt so each deal is judged at most once.
+  try {
+    const candidates = await prisma.deal.findMany({
+      where: {
+        userId,
+        status: { in: ["potential", "likely"] },
+        createdAt: { lt: new Date(Date.now() - 10 * 60 * 1000) },
+        entries: { some: { type: { in: ["call_summary", "call_transcript"] } } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 6,
+      select: { id: true, name: true, companyName: true, status: true },
+    });
+    let processed = 0;
+    for (const deal of candidates) {
+      if (processed >= 2) break;
+      const already = await prisma.dealTriage.findUnique({
+        where: {
+          userId_source_sourceId: {
+            userId,
+            source: "recording",
+            sourceId: `backfill:${deal.id}`,
+          },
+        },
+        select: { id: true },
+      });
+      if (already) continue;
+      const callEntry = await prisma.dealTimelineEntry.findFirst({
+        where: { dealId: deal.id, type: { in: ["call_summary", "call_transcript"] } },
+        orderBy: { entryDate: "desc" },
+        select: { title: true, content: true, entryDate: true },
+      });
+      if (!callEntry?.content?.trim()) continue;
+      processed++;
+      try {
+        const verdict = await confirmDealFromCall(userId, {
+          companyName: deal.companyName || deal.name,
+          callTitle: callEntry.title || "Recorded call",
+          callContent: callEntry.content,
+        });
+        await recordConfirmationTriage({
+          userId,
+          sourceId: `backfill:${deal.id}`,
+          eventAt: callEntry.entryDate,
+          title: callEntry.title || "Recorded call",
+          verdict: verdict.verdict,
+          confidence: verdict.confidence,
+          reason: verdict.reason,
+          dealId: deal.id,
+        });
+        if (verdict.verdict === "confirmed_deal") {
+          await prisma.deal.update({
+            where: { id: deal.id },
+            data: { status: "active", ...(verdict.stage ? { stage: verdict.stage } : {}) },
+          });
+          attachedSet.add(deal.id);
+          await postDealConfirmedStub({
+            userId,
+            dealId: deal.id,
+            companyName: deal.companyName || deal.name,
+            callTitle: callEntry.title || "Recorded call",
+            stage: verdict.stage,
+            reason: verdict.reason,
+            isNewDeal: false,
+          });
+        } else {
+          const touched = await dealHasHumanTouch(deal.id);
+          if (!touched) {
+            await prisma.deal.update({
+              where: { id: deal.id },
+              data: { status: "dismissed" },
+            });
+            // Likely deals were announced — tell the founder they died.
+            // Legacy potentials resolve quietly (their Validate post is
+            // already stale in the channel).
+            if (deal.status === "likely") {
+              await postDealDismissedStub({
+                userId,
+                dealId: deal.id,
+                companyName: deal.companyName || deal.name,
+                reason: verdict.reason,
+              });
+            }
+          }
+        }
+        console.log(
+          `[scan-recordings] backfill triage ${deal.id} (${deal.status}) → ${verdict.verdict}`
+        );
+      } catch (err) {
+        console.error(`[scan-recordings] backfill triage failed for ${deal.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`[scan-recordings] backfill sweep failed for ${userId}:`, err);
   }
 
   out.attachedExistingDealIds = Array.from(attachedSet);

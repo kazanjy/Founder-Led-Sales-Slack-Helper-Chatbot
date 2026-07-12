@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { scanFutureMeetingsForUser } from "@/lib/deals/scan-future-meetings";
-import { triageUnmatchedEvents } from "@/lib/deals/triage";
+import { triageUnmatchedEvents, dealHasHumanTouch, postDealDismissedStub } from "@/lib/deals/triage";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -125,6 +125,41 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+  }
+
+  // Likely-deal expiry: auto-created deals that never produced any
+  // activity auto-archive after 21 days — with the human-touch
+  // override (an edited deal is never auto-dismissed) and an Undo in
+  // the Slack note. Capped per tick; cheap DB query when idle.
+  try {
+    const stale = await prisma.deal.findMany({
+      where: {
+        status: "likely",
+        createdAt: { lt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000) },
+      },
+      take: 5,
+      select: { id: true, userId: true, name: true, companyName: true },
+    });
+    for (const deal of stale) {
+      try {
+        if (await dealHasHumanTouch(deal.id)) continue;
+        await prisma.deal.update({
+          where: { id: deal.id },
+          data: { status: "dismissed" },
+        });
+        await postDealDismissedStub({
+          userId: deal.userId,
+          dealId: deal.id,
+          companyName: deal.companyName || deal.name,
+          reason: "No calls, notes, or activity landed in 21 days.",
+        });
+        console.log(`[cron scan-future-meetings] expired likely deal ${deal.id}`);
+      } catch (err) {
+        console.error(`[cron scan-future-meetings] expiry failed for ${deal.id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error("[cron scan-future-meetings] expiry sweep failed:", err);
   }
 
   const totalAdded = summary.reduce((n, s) => n + s.added, 0);

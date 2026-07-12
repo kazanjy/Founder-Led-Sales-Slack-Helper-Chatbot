@@ -329,6 +329,276 @@ export async function postLikelyDealStub(opts: {
   }
 }
 
+// ── Pass 2: post-meeting confirmation (recording evidence) ──────────
+
+export interface ConfirmationVerdict {
+  verdict: "confirmed_deal" | "not_a_deal";
+  stage: string | null;
+  confidence: number;
+  reason: string;
+}
+
+const VALID_CONFIRM_STAGES = new Set([
+  "prospecting", "discovery", "demo", "proposal", "negotiation", "closing",
+]);
+
+const CONFIRMATION_PROMPT = `You are the deal-confirmation judge for a founder doing founder-led sales. A call recording has been matched to a company. Decide from the TRANSCRIPT/SUMMARY whether this was genuinely a SALES CONVERSATION where the founder is SELLING THEIR OWN PRODUCT to this company.
+
+Return ONLY a JSON object:
+{
+  "verdict": "confirmed_deal" | "not_a_deal",
+  "stage": "prospecting" | "discovery" | "demo" | "proposal" | "negotiation" | "closing" | null,
+  "confidence": 0.0-1.0,
+  "reason": "<1-2 sentences, specific — cite what in the call decided it>"
+}
+
+Judgment rules:
+- CONFIRMED: the external party is evaluating the founder's product/service — discovery questions about THEIR problems, a demo of the founder's product, pricing/commercial discussion, next steps toward a purchase. Set stage to where the conversation actually is.
+- NOT a deal: the founder is the buyer (a vendor selling TO them), investor/fundraising conversations, recruiting/interviews, partnerships with no purchase intent, customer support for an existing paid customer, personal calls.
+- An early rambling intro call CAN still be a deal — judge by direction of evaluation, not polish. When genuinely ambiguous, lean confirmed_deal with honest low confidence: a false dismissal silently kills a real deal, a false confirmation gets corrected by the founder in one click.`;
+
+/**
+ * Pass 2: judge a matched recording — was this actually a sales
+ * conversation for the founder's product?
+ */
+export async function confirmDealFromCall(
+  userId: string,
+  opts: {
+    companyName: string;
+    callTitle: string;
+    callContent: string; // summary + transcript
+    priorTriageReason?: string | null;
+  }
+): Promise<ConfirmationVerdict> {
+  const seller = await loadSellerContext(userId);
+  const payload = {
+    company: opts.companyName,
+    callTitle: opts.callTitle,
+    foundersValueProp: seller.valueProp100w?.substring(0, 1500) || "(none)",
+    preMeetingTriageReason: opts.priorTriageReason || "(none)",
+    call: opts.callContent.substring(0, 60_000),
+  };
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "user", content: `${CONFIRMATION_PROMPT}\n\n---\n\n${JSON.stringify(payload, null, 2)}` },
+    ],
+  });
+  let parsed: Partial<ConfirmationVerdict>;
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Confirmation classifier returned unparseable JSON");
+  }
+  if (parsed.verdict !== "confirmed_deal" && parsed.verdict !== "not_a_deal") {
+    throw new Error("Confirmation classifier returned an invalid verdict");
+  }
+  return {
+    verdict: parsed.verdict,
+    stage:
+      typeof parsed.stage === "string" && VALID_CONFIRM_STAGES.has(parsed.stage)
+        ? parsed.stage
+        : null,
+    confidence:
+      typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0,
+    reason: typeof parsed.reason === "string" ? parsed.reason : "",
+  };
+}
+
+/**
+ * Human-touch override (the absolute rule): a deal the founder has
+ * manually engaged with is NEVER auto-dismissed. Touch = notes, value,
+ * projected close, or any timeline entry that wasn't machine-written.
+ */
+export async function dealHasHumanTouch(dealId: string): Promise<boolean> {
+  const deal = await prisma.deal.findUnique({
+    where: { id: dealId },
+    select: { notes: true, dealValue: true, projectedCloseDate: true },
+  });
+  if (deal?.notes?.trim() || deal?.dealValue || deal?.projectedCloseDate) return true;
+  const entries = await prisma.dealTimelineEntry.findMany({
+    where: { dealId },
+    select: { metadata: true },
+  });
+  for (const e of entries) {
+    if (!e.metadata) return true; // machine entries always carry metadata flags
+    try {
+      const m = JSON.parse(e.metadata) as { auto_imported?: boolean; auto_logged?: boolean; source?: string };
+      if (!m.auto_imported && !m.auto_logged && m.source !== "calendar_triage") return true;
+    } catch {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function resolveSlackTarget(
+  userId: string
+): Promise<{ client: ReturnType<typeof getSlackClient>; channelId: string } | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { workspaceId: true, slackUserId: true },
+  });
+  if (!user?.workspaceId) return null;
+  const ws = await prisma.workspace.findUnique({
+    where: { id: user.workspaceId },
+    select: { botToken: true },
+  });
+  if (!ws?.botToken) return null;
+  const client = getSlackClient(ws.botToken);
+  const claim = await prisma.channelClaim.findFirst({
+    where: { claimedByUserId: userId },
+    orderBy: { lastMessageAt: "desc" },
+    select: { slackChannelId: true },
+  });
+  if (claim?.slackChannelId) return { client, channelId: claim.slackChannelId };
+  if (user.slackUserId) {
+    try {
+      const opened = await client.conversations.open({ users: user.slackUserId });
+      if (opened.channel?.id) return { client, channelId: opened.channel.id };
+    } catch { /* no target */ }
+  }
+  return null;
+}
+
+/** "✅ Deal Confirmed" stub — after a recording verifies a deal. */
+export async function postDealConfirmedStub(opts: {
+  userId: string;
+  dealId: string;
+  companyName: string;
+  callTitle: string;
+  stage: string | null;
+  reason: string;
+  isNewDeal: boolean;
+}): Promise<void> {
+  const target = await resolveSlackTarget(opts.userId);
+  if (!target) return;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  try {
+    await target.client.chat.postMessage({
+      channel: target.channelId,
+      mrkdwn: true,
+      text: `Deal confirmed: ${opts.companyName}`,
+      blocks: [
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: opts.isNewDeal
+              ? `🎯 New Deal Detected: ${opts.companyName}`
+              : `✅ Deal Confirmed: ${opts.companyName}`,
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text:
+              `Verified from *${opts.callTitle}* — this is a real sales conversation.` +
+              (opts.stage ? ` Stage: *${opts.stage}*.` : "") +
+              `\n\n_${opts.reason}_\n\nTranscript's attached and a fresh analysis is running.`,
+          },
+        },
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: `<${appUrl}/deals/${opts.dealId}|Open deal →>` },
+        },
+        {
+          type: "actions",
+          block_id: `likely_deal_actions:${opts.dealId}`,
+          elements: [
+            {
+              type: "button",
+              text: { type: "plain_text", text: "✕ Not a deal" },
+              value: opts.dealId,
+              action_id: "dismiss_likely_deal",
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("[triage] confirmed stub post failed:", err);
+  }
+}
+
+/** "🗂️ Auto-archived" one-liner + Undo — when a watched likely deal
+ *  turns out not to be one. Only posted for deals the founder was
+ *  previously told about; fresh not-a-deal calls stay silent. */
+export async function postDealDismissedStub(opts: {
+  userId: string;
+  dealId: string;
+  companyName: string;
+  reason: string;
+}): Promise<void> {
+  const target = await resolveSlackTarget(opts.userId);
+  if (!target) return;
+  try {
+    await target.client.chat.postMessage({
+      channel: target.channelId,
+      mrkdwn: true,
+      text: `Archived: ${opts.companyName}`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `🗂️ *Archived "${opts.companyName}"* — the call didn't look like a sales conversation. _${opts.reason}_`,
+          },
+        },
+        {
+          type: "actions",
+          block_id: `undo_dismiss_actions:${opts.dealId}`,
+          elements: [
+            {
+              type: "button",
+              text: { type: "plain_text", text: "↩️ Undo — it IS a deal" },
+              value: opts.dealId,
+              action_id: "undo_dismiss_deal",
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("[triage] dismissed stub post failed:", err);
+  }
+}
+
+/**
+ * Record a Pass-2 verdict (idempotent via the unique triage index).
+ */
+export async function recordConfirmationTriage(opts: {
+  userId: string;
+  sourceId: string;
+  eventAt: Date;
+  title: string;
+  verdict: "confirmed_deal" | "not_a_deal";
+  confidence: number;
+  reason: string;
+  dealId: string;
+}): Promise<void> {
+  try {
+    await prisma.dealTriage.create({
+      data: {
+        userId: opts.userId,
+        source: "recording",
+        sourceId: opts.sourceId,
+        eventAt: opts.eventAt,
+        title: opts.title,
+        verdict: opts.verdict,
+        category: opts.verdict === "confirmed_deal" ? "prospect_first_call" : "unknown",
+        confidence: opts.confidence,
+        reason: opts.reason,
+        dealId: opts.dealId,
+      },
+    });
+  } catch {
+    /* duplicate (already judged) — fine */
+  }
+}
+
 export interface TriageTickResult {
   classified: number;
   likely: number;

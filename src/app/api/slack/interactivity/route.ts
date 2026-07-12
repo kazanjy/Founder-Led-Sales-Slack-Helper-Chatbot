@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
   if (
     actionId !== "validate_potential_deal" &&
     actionId !== "dismiss_potential_deal" &&
-    actionId !== "dismiss_likely_deal"
+    actionId !== "dismiss_likely_deal" &&
+    actionId !== "undo_dismiss_deal"
   ) {
     return NextResponse.json({ ok: true });
   }
@@ -119,7 +120,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const newStatus = actionId === "validate_potential_deal" ? "active" : "dismissed";
+  // Undo restores to ACTIVE (the human is asserting "this IS a deal" —
+  // stronger than the machine's likely).
+  const newStatus =
+    actionId === "validate_potential_deal" || actionId === "undo_dismiss_deal"
+      ? "active"
+      : "dismissed";
   const wasPotential = deal.status === "potential";
   await prisma.deal.update({
     where: { id: dealId },
@@ -132,6 +138,14 @@ export async function POST(request: NextRequest) {
   if (actionId === "dismiss_likely_deal") {
     await prisma.dealTriage.updateMany({
       where: { dealId, verdict: "likely_deal" },
+      data: { overriddenAt: new Date() },
+    });
+  }
+  // Undo overrides the machine's not-a-deal / expiry verdict — record
+  // the correction on the triage rows for future classifier tuning.
+  if (actionId === "undo_dismiss_deal") {
+    await prisma.dealTriage.updateMany({
+      where: { dealId, verdict: { in: ["not_a_deal", "likely_deal"] } },
       data: { overriddenAt: new Date() },
     });
   }

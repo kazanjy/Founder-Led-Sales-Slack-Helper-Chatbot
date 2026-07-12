@@ -178,10 +178,14 @@ type later if volume warrants.
    enrichment + research kickoff; Slack root post (announce-only, no thread
    replies yet) with Dismiss/Undo actions. Manual Validate/Dismiss stays for
    the recorder path (unchanged) — belt and suspenders while triage bakes.
-2. **Phase 2 — Post-meeting confirmation (M)**: Pass-2 classifier in the
-   recorder cron for likely deals AND as the replacement for
-   create-potential; expiry + nudges; backfill existing potentials; retire
-   Validate/Dismiss.
+2. **Phase 2 — Post-meeting confirmation — ✅ SHIPPED**: Pass-2 classifier
+   in the recorder cron (likely deals + replacement for create-potential,
+   with legacy Validate/Dismiss as the classifier-outage fallback);
+   gradual backfill of existing potentials + self-heal for likelies whose
+   confirmation errored (2/user/tick); 21-day likely expiry with
+   human-touch override; ✅ Confirmed / 🗂️ Archived stubs with Undo
+   (undo restores to ACTIVE and records the override). Deferred: the
+   7-day no-recording nudge (Phase 3, alongside the timed stubs).
 3. **Phase 3 — Timed stub posts (M)**: DealSlackPost table (ts → deal);
    "New Pre-Call Plan" at T-2h (rides the 5-min cron watching for meetings
    entering the 2h window, generates the brief, posts the stub); "Updated
