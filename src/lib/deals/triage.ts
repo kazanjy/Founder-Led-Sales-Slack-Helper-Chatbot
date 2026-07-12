@@ -271,32 +271,9 @@ export async function postLikelyDealStub(opts: {
   event: UnmatchedCalendarEvent;
   reason: string;
 }): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: opts.userId },
-    select: { workspaceId: true, slackUserId: true },
-  });
-  if (!user?.workspaceId) return;
-  const ws = await prisma.workspace.findUnique({
-    where: { id: user.workspaceId },
-    select: { botToken: true },
-  });
-  if (!ws?.botToken) return;
-  const client = getSlackClient(ws.botToken);
-
-  // Claimed channel (most recently active) beats DM.
-  const claim = await prisma.channelClaim.findFirst({
-    where: { claimedByUserId: opts.userId },
-    orderBy: { lastMessageAt: "desc" },
-    select: { slackChannelId: true },
-  });
-  let channelId = claim?.slackChannelId || null;
-  if (!channelId && user.slackUserId) {
-    try {
-      const opened = await client.conversations.open({ users: user.slackUserId });
-      channelId = opened.channel?.id || null;
-    } catch { /* no target — skip */ }
-  }
-  if (!channelId) return;
+  const target = await resolveSlackTarget(opts.userId);
+  if (!target) return;
+  const { client, channelId } = target;
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
   const when = new Date(opts.event.startsAt).toLocaleString(undefined, {
@@ -308,7 +285,7 @@ export async function postLikelyDealStub(opts: {
     .join(", ");
 
   try {
-    await client.chat.postMessage({
+    const posted = await client.chat.postMessage({
       channel: channelId,
       mrkdwn: true,
       text: `New deal detected: ${opts.companyName}`,
@@ -343,6 +320,14 @@ export async function postLikelyDealStub(opts: {
           ],
         },
       ],
+    });
+    await recordDealSlackPost({
+      userId: opts.userId,
+      dealId: opts.dealId,
+      kind: "deal_detected",
+      sourceRef: opts.event.calendarEventId,
+      channelId,
+      ts: posted.ts || "",
     });
   } catch (err) {
     console.error("[triage] likely-deal stub post failed:", err);
@@ -453,7 +438,7 @@ export async function dealHasHumanTouch(dealId: string): Promise<boolean> {
   return false;
 }
 
-async function resolveSlackTarget(
+export async function resolveSlackTarget(
   userId: string
 ): Promise<{ client: ReturnType<typeof getSlackClient>; channelId: string } | null> {
   const user = await prisma.user.findUnique({
@@ -482,6 +467,39 @@ async function resolveSlackTarget(
   return null;
 }
 
+/**
+ * Bookkeep a posted deal stub (DealSlackPost) — the ts→deal mapping
+ * Phase 4 inbound routing needs, and the dedupe guard for
+ * at-most-once kinds. Best-effort: a bookkeeping failure never
+ * unwinds a post that already landed in Slack.
+ */
+export async function recordDealSlackPost(opts: {
+  userId: string;
+  dealId: string;
+  kind: string;
+  sourceRef?: string;
+  channelId: string;
+  ts: string;
+}): Promise<void> {
+  if (!opts.ts) return;
+  try {
+    await prisma.dealSlackPost.create({
+      data: {
+        userId: opts.userId,
+        dealId: opts.dealId,
+        kind: opts.kind,
+        // Repeatable kinds default to the ts so the unique key
+        // (dealId, kind, sourceRef) never collides.
+        sourceRef: opts.sourceRef ?? opts.ts,
+        slackChannelId: opts.channelId,
+        slackTs: opts.ts,
+      },
+    });
+  } catch (err) {
+    console.error("[triage] recordDealSlackPost failed:", err);
+  }
+}
+
 /** "✅ Deal Confirmed" stub — after a recording verifies a deal. */
 export async function postDealConfirmedStub(opts: {
   userId: string;
@@ -496,7 +514,7 @@ export async function postDealConfirmedStub(opts: {
   if (!target) return;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
   try {
-    await target.client.chat.postMessage({
+    const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
       text: `Deal confirmed: ${opts.companyName}`,
@@ -538,6 +556,13 @@ export async function postDealConfirmedStub(opts: {
         },
       ],
     });
+    await recordDealSlackPost({
+      userId: opts.userId,
+      dealId: opts.dealId,
+      kind: "deal_confirmed",
+      channelId: target.channelId,
+      ts: posted.ts || "",
+    });
   } catch (err) {
     console.error("[triage] confirmed stub post failed:", err);
   }
@@ -555,7 +580,7 @@ export async function postDealDismissedStub(opts: {
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   try {
-    await target.client.chat.postMessage({
+    const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
       text: `Archived: ${opts.companyName}`,
@@ -580,6 +605,13 @@ export async function postDealDismissedStub(opts: {
           ],
         },
       ],
+    });
+    await recordDealSlackPost({
+      userId: opts.userId,
+      dealId: opts.dealId,
+      kind: "deal_dismissed",
+      channelId: target.channelId,
+      ts: posted.ts || "",
     });
   } catch (err) {
     console.error("[triage] dismissed stub post failed:", err);

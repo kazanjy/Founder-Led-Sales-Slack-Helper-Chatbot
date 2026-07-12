@@ -160,44 +160,6 @@ async function postPotentialDealAlert(opts: {
   }
 }
 
-async function postMeetingAttachedAlert(opts: {
-  botToken: string;
-  channelId: string;
-  appUrl: string;
-  deal: Deal;
-  call: { title: string; date: string; url?: string };
-}): Promise<void> {
-  const client = getSlackClient(opts.botToken);
-  const dealUrl = `${opts.appUrl}/deals/${opts.deal.id}`;
-  const date = new Date(opts.call.date).toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  try {
-    await client.chat.postMessage({
-      channel: opts.channelId,
-      mrkdwn: true,
-      text: `New meeting added to ${opts.deal.name}`,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text:
-              `🗓 Added a new meeting to *${opts.deal.name}*:\n` +
-              `*${opts.call.title}* — ${date}` +
-              (opts.call.url ? ` · <${opts.call.url}|Recording>` : "") +
-              `\n\n<${dealUrl}|Open deal →>`,
-          },
-        },
-      ],
-    });
-  } catch (err) {
-    console.error("[scan-recordings] attached-meeting post failed:", err);
-  }
-}
-
 /**
  * Scan one user's recorder and process anything new. Idempotent —
  * already-processed calls are skipped via the processed_recordings
@@ -585,15 +547,12 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
               url: call.providerUrl,
             },
           });
-        } else if (!isNew && confirmationOutcome === "fallback" && deal.status !== "likely") {
-          await postMeetingAttachedAlert({
-            botToken,
-            channelId: dmChannelId,
-            appUrl,
-            deal,
-            call: { title: call.title, date: call.date, url: call.providerUrl },
-          });
         }
+        // Attached-to-existing calls no longer get the legacy
+        // "meeting added" DM — the analysis cascade posts the
+        // "🧠 Updated Deal Analysis" stub to the claimed channel a
+        // few minutes later (or a "call attached" one-liner when
+        // the re-analysis cooldown skips), per autopilot Phase 3.
       }
     } catch (err) {
       console.error(`[scan-recordings] processing failed for call ${call.id}:`, err);

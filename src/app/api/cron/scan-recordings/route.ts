@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { scanUserRecordings } from "@/lib/deals/scan-recordings";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
+import { postAnalysisUpdateStub, postCallAttachedStub } from "@/lib/deals/timed-stubs";
 
 /**
  * GET /api/cron/scan-recordings
@@ -75,17 +76,42 @@ export async function GET(request: NextRequest) {
       const cutoff = new Date(Date.now() - REANALYZE_SKIP_HOURS * 60 * 60 * 1000);
       for (const { userId, dealId } of reanalysisTargets) {
         try {
-          // Skip if the user re-analyzed within the cooldown window —
-          // they just paid for a fresh analysis manually and we don't
-          // want to clobber it.
-          const recent = await prisma.deal.findUnique({
+          const before = await prisma.deal.findUnique({
             where: { id: dealId },
-            select: { lastAnalyzedAt: true },
+            select: {
+              lastAnalyzedAt: true,
+              mikeyHealth: true,
+              status: true,
+              name: true,
+              companyName: true,
+            },
           });
-          if (recent?.lastAnalyzedAt && recent.lastAnalyzedAt > cutoff) {
+          // Noise control: dismissed deals never get stubs.
+          if (!before || before.status === "dismissed") continue;
+          // Skip re-analysis within the cooldown window — the user
+          // just paid for a fresh analysis and we don't want to
+          // clobber it. Still drop a one-liner so the founder knows
+          // the call landed.
+          if (before.lastAnalyzedAt && before.lastAnalyzedAt > cutoff) {
+            await postCallAttachedStub({
+              userId,
+              dealId,
+              dealName: before.name,
+              companyName: before.companyName,
+            });
             continue;
           }
-          await runDealAnalysis(userId, dealId);
+          const result = await runDealAnalysis(userId, dealId);
+          // "🧠 Updated Deal Analysis" stub (autopilot Phase 3) —
+          // lands minutes after the recording did.
+          await postAnalysisUpdateStub({
+            userId,
+            dealId,
+            companyName: before.companyName || before.name,
+            healthBefore: before.mikeyHealth,
+            healthAfter: result.mikeyHealth,
+            analysis: result.analysis,
+          });
         } catch (err) {
           if (err instanceof DealNotFoundError) continue;
           console.error(`[cron scan-recordings] post-scan analyze ${dealId} failed:`, err);

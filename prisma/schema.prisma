@@ -180,6 +180,7 @@ model User {
   businessCaseInstances      BusinessCaseInstance[]
   practiceSessions           PracticeSession[]
   dealTriages                DealTriage[]
+  dealSlackPosts             DealSlackPost[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2540,6 +2541,7 @@ model Deal {
   entries      DealTimelineEntry[]
   analyses     DealAnalysis[]
   businessCaseInstances BusinessCaseInstance[]
+  slackPosts   DealSlackPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2799,6 +2801,39 @@ model DealTriage {
   @@unique([userId, source, sourceId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("deal_triages")
+}
+
+// One row per deal-related Slack stub post (deal-autopilot-plan.md
+// Part 2). Serves two jobs: (a) dedupe — "did we already post the
+// pre-call plan for THIS meeting?" via the (dealId, kind, sourceRef)
+// unique key; (b) Phase 4 inbound routing — a reply under any stub
+// resolves (slackChannelId, slackTs=thread_ts) → dealId
+// deterministically, no name matching.
+model DealSlackPost {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  // "deal_detected" | "deal_confirmed" | "deal_dismissed" |
+  // "precall_plan" | "analysis_update" | "no_recording_nudge"
+  kind String
+  // Natural dedupe key for at-most-once kinds (precall_plan →
+  // meeting entry id, no_recording_nudge → "once"). Repeatable kinds
+  // (confirmed/dismissed after Undo, analysis updates) store the
+  // slack ts here so the unique key never collides.
+  sourceRef String @default("")
+
+  slackChannelId String
+  slackTs        String
+
+  createdAt DateTime @default(now())
+
+  @@unique([dealId, kind, sourceRef])
+  @@index([slackChannelId, slackTs])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("deal_slack_posts")
 }
 
 // ============================================

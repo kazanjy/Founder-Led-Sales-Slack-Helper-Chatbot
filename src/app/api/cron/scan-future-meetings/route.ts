@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { scanFutureMeetingsForUser } from "@/lib/deals/scan-future-meetings";
 import { triageUnmatchedEvents, dealHasHumanTouch, postDealDismissedStub } from "@/lib/deals/triage";
+import { sweepPreCallPlanStubs, sweepNoRecordingNudges } from "@/lib/deals/timed-stubs";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -162,6 +163,29 @@ export async function GET(request: NextRequest) {
     console.error("[cron scan-future-meetings] expiry sweep failed:", err);
   }
 
+  // Autopilot Phase 3 timed stubs, riding this tick:
+  //  - "📋 New Pre-Call Plan" for meetings entering the 2h window
+  //    (generates the brief, so it's capped per tick), and
+  //  - the one-time "no recording landed" nudge for likely deals
+  //    whose announced call is 7+ days stale.
+  let preCallStubs = 0;
+  let nudges = 0;
+  try {
+    preCallStubs = await sweepPreCallPlanStubs();
+  } catch (err) {
+    console.error("[cron scan-future-meetings] pre-call stub sweep failed:", err);
+  }
+  try {
+    nudges = await sweepNoRecordingNudges();
+  } catch (err) {
+    console.error("[cron scan-future-meetings] nudge sweep failed:", err);
+  }
+  if (preCallStubs > 0 || nudges > 0) {
+    console.log(
+      `[cron scan-future-meetings] posted ${preCallStubs} pre-call plan stub(s), ${nudges} nudge(s)`
+    );
+  }
+
   const totalAdded = summary.reduce((n, s) => n + s.added, 0);
   if (totalAdded > 0) {
     console.log(
@@ -174,6 +198,8 @@ export async function GET(request: NextRequest) {
     users: users.length,
     totalAdded,
     queuedReanalyses: capped.length,
+    preCallStubs,
+    nudges,
     summary: summary.filter((s) => s.added > 0 || s.likelyDeals > 0 || s.errors > 0),
   });
 }

@@ -214,10 +214,17 @@ dead deal, never treat the account as a stranger):
    7-day no-recording nudge (Phase 3, alongside the timed stubs).
 3. **Phase 2.5 — Re-engagement linking (S/M)**: previousDealId + cooldown
    fix + context propagation per the section above.
-4. **Phase 3 — Timed stub posts (M)**: DealSlackPost table (ts → deal);
-   "New Pre-Call Plan" at T-2h (rides the 5-min cron watching for meetings
-   entering the 2h window, generates the brief, posts the stub); "Updated
-   Deal Analysis" after the recorder cron's analysis cascade completes.
+4. **Phase 3 — Timed stub posts — ✅ SHIPPED**: DealSlackPost table
+   (ts → deal, dedupe key, Phase-4 routing source; all stub posters now
+   record their ts); "📋 New Pre-Call Plan" at T-2h (rides the 5-min
+   cron; generates the brief — synopsis + top objectives + watchout —
+   with links to the deal and 🥊 live-fire practice); "🧠 Updated Deal
+   Analysis" after the recorder cron's analysis cascade (health pill
+   with before→after, first-paragraph synopsis; replaces the legacy
+   "meeting added" DM; a cooldown-skipped re-analysis posts a one-line
+   "call attached" note instead); the deferred 7-day no-recording nudge
+   (one per likely deal, ever; 14-day lookback floor so it never
+   overlaps the 21-day expiry).
 5. **Phase 4 — Inbound stub threads (M)**: reply-under-stub → deal-agent
    routing with the deal pinned; activity capture in-thread.
 
