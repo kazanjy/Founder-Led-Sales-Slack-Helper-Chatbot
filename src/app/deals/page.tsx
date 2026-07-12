@@ -130,6 +130,7 @@ const NATURAL_DIR: Record<string, "asc" | "desc"> = {
   value_high: "desc",
   stage: "asc",
   projected_close: "asc",
+  health: "asc",
   name_az: "asc",
   company_az: "asc",
   none: "desc",
@@ -940,6 +941,13 @@ function DealsPageContent() {
             (pipelineIndex.get(a.stage) ?? 99) - (pipelineIndex.get(b.stage) ?? 99);
         case "projected_close":
           return (a, b) => cmpDateAsc(a.projectedCloseDate, b.projectedCloseDate);
+        case "health": {
+          // Worst first (triage order). Never-analyzed deals sink to
+          // the bottom — unknown isn't the same as in-trouble.
+          const rank = (h: string | null) =>
+            h === "poor" ? 0 : h === "fair" ? 1 : h === "good" ? 2 : h === "excellent" ? 3 : 99;
+          return (a, b) => rank(a.mikeyHealth) - rank(b.mikeyHealth);
+        }
         // Alphabetical sorts use locale-aware compare with numeric
         // collation so "Acme 2" sorts before "Acme 10". Case-insensitive
         // so a stray uppercase letter doesn't disrupt ordering.
@@ -1257,6 +1265,7 @@ function DealsPageContent() {
             <option value="value_high">Deal size (highest)</option>
             <option value="stage">Stage (pipeline order)</option>
             <option value="projected_close">Projected close (soonest)</option>
+            <option value="health">Mikey Health (worst first)</option>
             <option value="name_az">Deal name (A→Z)</option>
             <option value="company_az">Company name (A→Z)</option>
           </select>
@@ -1282,6 +1291,7 @@ function DealsPageContent() {
             <option value="value_high" disabled={sortBy === "value_high"}>Deal size (highest)</option>
             <option value="stage" disabled={sortBy === "stage"}>Stage (pipeline order)</option>
             <option value="projected_close" disabled={sortBy === "projected_close"}>Projected close (soonest)</option>
+            <option value="health" disabled={sortBy === "health"}>Mikey Health (worst first)</option>
             <option value="name_az" disabled={sortBy === "name_az"}>Deal name (A→Z)</option>
             <option value="company_az" disabled={sortBy === "company_az"}>Company name (A→Z)</option>
           </select>
