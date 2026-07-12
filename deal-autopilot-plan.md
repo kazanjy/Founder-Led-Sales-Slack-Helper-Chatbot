@@ -152,9 +152,10 @@ deep link — timed to when the founder actually needs it:
 - **"🎯 New Deal Detected"** — at birth (likely-deal triage or recorder
   confirmation). Preview: meeting title/time, attendees, why the classifier
   thinks it's a deal. Actions: [Open deal] · [Not a deal?].
-- **"📋 New Pre-Call Plan"** — posted **~2 hours before a meeting** on an
+- **"📋 New Pre-Call Plan"** — posted **~4 hours before a meeting** on an
   in-play deal: auto-generated pre-call brief preview (attendee readout +
-  top objectives) with links to the full plan and 🥊 practice.
+  top objectives) with links to the full plan and 🥊 practice. Four hours
+  (not two) so there's runway to actually run a practice rep.
 - **"🧠 Updated Deal Analysis"** — **~5 minutes after a meeting recording
   lands**: health pill + 2-line synopsis + what changed, linking to the
   deal. (Rides the recorder cron's existing analysis cascade.)
@@ -216,7 +217,7 @@ dead deal, never treat the account as a stranger):
    fix + context propagation per the section above.
 4. **Phase 3 — Timed stub posts — ✅ SHIPPED**: DealSlackPost table
    (ts → deal, dedupe key, Phase-4 routing source; all stub posters now
-   record their ts); "📋 New Pre-Call Plan" at T-2h (rides the 5-min
+   record their ts); "📋 New Pre-Call Plan" at T-4h (rides the 5-min
    cron; generates the brief — synopsis + top objectives + watchout —
    with links to the deal and 🥊 live-fire practice); "🧠 Updated Deal
    Analysis" after the recorder cron's analysis cascade (health pill

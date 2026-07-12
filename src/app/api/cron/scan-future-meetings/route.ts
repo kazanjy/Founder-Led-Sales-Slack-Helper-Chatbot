@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Autopilot Phase 3 timed stubs, riding this tick:
-  //  - "📋 New Pre-Call Plan" for meetings entering the 2h window
+  //  - "📋 New Pre-Call Plan" for meetings entering the 4h window
   //    (generates the brief, so it's capped per tick), and
   //  - the one-time "no recording landed" nudge for likely deals
   //    whose announced call is 7+ days stale.

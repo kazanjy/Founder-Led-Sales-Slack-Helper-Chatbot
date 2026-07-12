@@ -12,8 +12,9 @@ import { resolveSlackTarget, recordDealSlackPost } from "./triage";
  * own message → its own reply thread (Phase 4 routes replies back to
  * the deal via the DealSlackPost ts→deal mapping).
  *
- * - "📋 New Pre-Call Plan" — ~2h before a meeting on an in-play deal.
- *   Rides the 5-min scan-future-meetings cron.
+ * - "📋 New Pre-Call Plan" — ~4h before a meeting on an in-play deal
+ *   (enough runway to squeeze in a practice rep, not just skim the
+ *   brief). Rides the 5-min scan-future-meetings cron.
  * - "🧠 Updated Deal Analysis" — after the recorder cron's analysis
  *   cascade folds a new recording into the deal.
  * - "🕵 No recording" nudge — a likely deal whose announced meeting
@@ -31,7 +32,12 @@ function formatWhen(d: Date): string {
   });
 }
 
-// ── "📋 New Pre-Call Plan" (T-2h) ────────────────────────────────────
+// ── "📋 New Pre-Call Plan" (T-4h) ────────────────────────────────────
+
+// How far ahead of the meeting the pre-call plan stub drops. Four
+// hours instead of two so the founder has time to actually run the
+// 🥊 practice drills the stub links to, not just read the brief.
+const PRECALL_LEAD_HOURS = 4;
 
 interface PreCallBrief {
   synopsis: string;
@@ -39,7 +45,7 @@ interface PreCallBrief {
   watchout: string | null;
 }
 
-const PRECALL_BRIEF_PROMPT = `You are prepping a founder-seller for a sales call that starts in about two hours. From the deal evidence, write a terse, concrete pre-call brief.
+const PRECALL_BRIEF_PROMPT = `You are prepping a founder-seller for a sales call that starts in a few hours. From the deal evidence, write a terse, concrete pre-call brief.
 
 Return ONLY a JSON object:
 {
@@ -100,15 +106,16 @@ async function generatePreCallBrief(opts: {
 }
 
 /**
- * Watch for meetings on in-play deals entering the 2-hour window and
- * post the pre-call plan stub. Rides the 5-min cron. The
- * (dealId, "precall_plan", meetingEntryId) unique row is the
- * at-most-once guard — a missed tick just posts a little later
- * (T-1h55 instead of T-2h), never twice and never after the meeting.
+ * Watch for meetings on in-play deals entering the lead window
+ * (PRECALL_LEAD_HOURS before start) and post the pre-call plan stub.
+ * Rides the 5-min cron. The (dealId, "precall_plan", meetingEntryId)
+ * unique row is the at-most-once guard — a missed tick just posts a
+ * little later (T-3h55 instead of T-4h), never twice and never after
+ * the meeting.
  */
 export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
   const now = new Date();
-  const windowEnd = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const windowEnd = new Date(now.getTime() + PRECALL_LEAD_HOURS * 60 * 60 * 1000);
   const candidates = await prisma.dealTimelineEntry.findMany({
     where: {
       type: "meeting",
