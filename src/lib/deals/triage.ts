@@ -2,6 +2,7 @@ import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
 import { loadSellerContext } from "@/lib/seller-context";
+import { findClosedWonDealForDomains } from "./auto-detect";
 import type { UnmatchedCalendarEvent } from "./scan-future-meetings";
 
 /**
@@ -95,6 +96,25 @@ export async function classifyCalendarEvent(
     return !internal.has(d) && !PUBLIC_EMAIL_DOMAINS.has(d);
   });
   if (external.length === 0) return null;
+
+  // Existing-customer guard (no LLM needed): if any external attendee
+  // domain belongs to a closed-won account, this is a customer call —
+  // never a new deal. It stays off the pipeline; the Customer Success
+  // applet owns post-close activity.
+  const externalDomains = external.map((a) =>
+    a.email.slice(a.email.indexOf("@") + 1).toLowerCase()
+  );
+  const wonDeal = await findClosedWonDealForDomains(userId, externalDomains);
+  if (wonDeal) {
+    return {
+      verdict: "unlikely_deal",
+      category: "existing_customer",
+      confidence: 1,
+      companyName: wonDeal.companyName,
+      companyDomain: null,
+      reason: `${wonDeal.companyName} is already a customer (closed-won deal) — customer call, not new pipeline.`,
+    };
+  }
 
   const seller = await loadSellerContext(userId);
   const icpVersion = await prisma.icpVersion.findFirst({

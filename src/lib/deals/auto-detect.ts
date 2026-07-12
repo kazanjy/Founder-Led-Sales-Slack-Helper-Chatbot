@@ -27,6 +27,7 @@ export type AutoDetectResult =
   | { kind: "skipped_internal"; deal: null }
   | { kind: "skipped_public_domain"; deal: null }
   | { kind: "attached_existing"; deal: Deal }
+  | { kind: "customer_call"; deal: Deal } // domain belongs to a closed-won account — customer activity, stays off the deals
   | { kind: "cooldown_hit"; deal: Deal } // existing deal found but recently dismissed/lost
   | { kind: "created_potential"; deal: Deal };
 
@@ -45,10 +46,13 @@ export async function ensurePotentialDealForDomain(opts: {
 
   // 1) Look for any active or potential deal already tracking this domain
   //    (via companyUrl or participant email). If found → attach.
+  //    closed_won is deliberately excluded: those matches are handled
+  //    below as customer calls, and if the account ALSO has a live
+  //    expansion deal, that live deal wins here first.
   const active = await prisma.deal.findFirst({
     where: {
       userId: opts.userId,
-      status: { notIn: ["dismissed", "closed_lost"] },
+      status: { notIn: ["dismissed", "closed_lost", "closed_won"] },
       OR: [
         { companyUrl: { contains: domain, mode: "insensitive" } },
         { participants: { some: { email: { endsWith: `@${domain}`, mode: "insensitive" } } } },
@@ -57,6 +61,12 @@ export async function ensurePotentialDealForDomain(opts: {
     orderBy: { createdAt: "desc" },
   });
   if (active) return { kind: "attached_existing", deal: active };
+
+  // 1.5) Closed-won account → this is a CUSTOMER call, not pipeline.
+  //    No new deal, and nothing lands on the won deal either — the
+  //    Customer Success applet owns post-close activity.
+  const won = await findClosedWonDealForDomains(opts.userId, [domain]);
+  if (won) return { kind: "customer_call", deal: won };
 
   // 2) Cooldown — if we recently created (or the user recently dismissed)
   //    a deal for this domain, don't spawn another. Prevents the two
@@ -90,6 +100,32 @@ export async function ensurePotentialDealForDomain(opts: {
     },
   });
   return { kind: "created_potential", deal: newDeal };
+}
+
+/**
+ * Does this user have a closed-won deal for any of these domains?
+ * (companyUrl or participant-email match — same contract as the
+ * attach lookup.) Used by both autopilot passes to keep customer
+ * calls off the pipeline: existing customers never spawn new deals,
+ * and their calls don't attach to the won deal either.
+ */
+export async function findClosedWonDealForDomains(
+  userId: string,
+  domains: string[]
+): Promise<Deal | null> {
+  const cleaned = [...new Set(domains.map(normalizeDomain).filter(Boolean))];
+  if (cleaned.length === 0) return null;
+  return prisma.deal.findFirst({
+    where: {
+      userId,
+      status: "closed_won",
+      OR: cleaned.flatMap((d) => [
+        { companyUrl: { contains: d, mode: "insensitive" as const } },
+        { participants: { some: { email: { endsWith: `@${d}`, mode: "insensitive" as const } } } },
+      ]),
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
 /**

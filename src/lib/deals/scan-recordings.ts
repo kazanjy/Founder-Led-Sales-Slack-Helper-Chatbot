@@ -354,6 +354,23 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
         selfDomains: self,
       });
 
+      if (detection.kind === "customer_call") {
+        // Closed-won account — a customer conversation, not pipeline.
+        // Stays off the deals entirely; the Customer Success applet
+        // will own post-close call logging.
+        await prisma.processedRecording.create({
+          data: {
+            userId,
+            provider: conn.provider,
+            providerCallId: call.id,
+            result: "skipped_customer_call",
+            dealId: detection.deal.id,
+          },
+        });
+        out.skipped++;
+        continue;
+      }
+
       if (detection.kind === "cooldown_hit") {
         // Recently-dismissed deal for this domain — don't reattach.
         await prisma.processedRecording.create({

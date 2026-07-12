@@ -235,6 +235,12 @@ dead deal, never treat the account as a stranger):
   Slack post costs founder trust faster than a missed one.
 - **The human-touch override is absolute**: any manual edit permanently
   exempts a deal from auto-dismissal.
+- **Closed-won accounts are customers, not pipeline**: calls/meetings
+  with an account that has a closed-won deal never spawn a new deal and
+  never attach to the won deal (both passes check via
+  `findClosedWonDealForDomains` before doing anything). Post-close call
+  logging is the Customer Success applet's job, later. (Closed-LOST
+  accounts are different — that's Phase 2.5 re-engagement.)
 - **Stub-post Slack posture** (revised per feedback): individual timed
   preview posts per key moment, each anchoring its own reply thread.
   Claimed channel of the deal owner; DM fallback when no claim.
