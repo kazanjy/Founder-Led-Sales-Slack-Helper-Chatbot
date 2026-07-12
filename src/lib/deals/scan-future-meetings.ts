@@ -25,7 +25,7 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
 // actually means "in play": closed_won / closed_lost / dismissed
 // don't get future-meeting updates; stalled DOES (a new meeting on a
 // stalled deal is exactly the signal worth catching).
-const IN_PLAY_STATUSES = new Set(["active", "potential", "stalled"]);
+const IN_PLAY_STATUSES = new Set(["active", "potential", "likely", "stalled"]);
 
 interface GCalAttendee { email?: string; displayName?: string }
 interface GCalEvent {
@@ -255,11 +255,23 @@ export async function scanFutureMeetingsForDeal(
   return out;
 }
 
+export interface UnmatchedCalendarEvent {
+  calendarEventId: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  htmlLink: string | null;
+  attendees: Array<{ email: string; name: string | null }>;
+}
+
 export interface ScanFutureMeetingsUserResult {
   hasCalendar: boolean;
   dealsScanned: number;
   totalEventsAdded: number;
   perDeal: Array<{ dealId: string; dealName: string; added: number; skipped: number }>;
+  /** Events with external attendees that matched NO deal — the deal
+   *  autopilot's triage candidates (deal-autopilot-plan.md). */
+  unmatchedEvents: UnmatchedCalendarEvent[];
 }
 
 export async function scanFutureMeetingsForUser(
@@ -270,6 +282,7 @@ export async function scanFutureMeetingsForUser(
     dealsScanned: 0,
     totalEventsAdded: 0,
     perDeal: [],
+    unmatchedEvents: [],
   };
 
   const events = await fetchCalendarWindow(userId);
@@ -313,7 +326,9 @@ export async function scanFutureMeetingsForUser(
     }
   }
 
-  if (domainToDealIds.size === 0) return out;
+  // NOTE: even with zero deal domains we keep going far enough to
+  // collect unmatched external events — a founder with no deals yet is
+  // exactly who the autopilot should be detecting first calls for.
 
   // Existing event-ids per deal so we dedupe correctly when one event
   // qualifies for multiple deals.
@@ -337,12 +352,15 @@ export async function scanFutureMeetingsForUser(
   const skippedByDeal = new Map<string, number>();
   const dealsTouched = new Set<string>();
 
+  const MAX_UNMATCHED = 25;
   for (const ev of events) {
     if (ev.status === "cancelled") continue;
     const matchedDealsAndDomains = new Map<string, Set<string>>(); // dealId → matched domains
+    let hasExternalAttendee = false;
     for (const a of ev.attendees || []) {
       const d = domainFromEmail(a.email);
       if (!d) continue;
+      if (!PUBLIC_EMAIL_DOMAINS.has(d)) hasExternalAttendee = true;
       const dealIds = domainToDealIds.get(d);
       if (!dealIds) continue;
       for (const dealId of dealIds) {
@@ -350,6 +368,26 @@ export async function scanFutureMeetingsForUser(
         set.add(d);
         matchedDealsAndDomains.set(dealId, set);
       }
+    }
+    // Deal-less events with real external attendees are triage
+    // candidates for the autopilot. (Internal-domain filtering happens
+    // in the classifier, which knows the founder's own domains.)
+    if (
+      matchedDealsAndDomains.size === 0 &&
+      hasExternalAttendee &&
+      ev.id &&
+      out.unmatchedEvents.length < MAX_UNMATCHED
+    ) {
+      out.unmatchedEvents.push({
+        calendarEventId: ev.id,
+        title: ev.summary || "Meeting",
+        description: (ev.description || "").substring(0, 2000),
+        startsAt: ev.start?.dateTime || ev.start?.date || new Date().toISOString(),
+        htmlLink: ev.htmlLink || null,
+        attendees: (ev.attendees || [])
+          .map((a) => ({ email: (a.email || "").toLowerCase(), name: a.displayName || null }))
+          .filter((a) => !!a.email),
+      });
     }
     for (const [dealId, matched] of matchedDealsAndDomains) {
       const seen = seenByDeal.get(dealId);

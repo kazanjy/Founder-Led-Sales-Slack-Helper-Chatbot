@@ -13,6 +13,10 @@ export const DEAL_STATUSES = [
   // Auto-detected by the hourly call-recorder scanner — needs
   // user confirmation before counting as a pursued deal.
   { value: "potential", label: "Potential", color: "bg-purple-100 text-purple-700" },
+  // Auto-promoted by the calendar triage classifier BEFORE the first
+  // call happens (deal-autopilot-plan.md). Full deal machinery runs;
+  // the post-meeting recording confirms → active or dismisses.
+  { value: "likely", label: "Likely", color: "bg-indigo-100 text-indigo-700" },
   { value: "active", label: "Active", color: "bg-green-100 text-green-700" },
   { value: "stalled", label: "Stalled", color: "bg-amber-100 text-amber-700" },
   { value: "closed_won", label: "Closed Won", color: "bg-green-100 text-green-800 font-medium" },

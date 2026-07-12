@@ -64,7 +64,11 @@ export async function POST(request: NextRequest) {
   if (!actionId || !dealId) {
     return NextResponse.json({ ok: true });
   }
-  if (actionId !== "validate_potential_deal" && actionId !== "dismiss_potential_deal") {
+  if (
+    actionId !== "validate_potential_deal" &&
+    actionId !== "dismiss_potential_deal" &&
+    actionId !== "dismiss_likely_deal"
+  ) {
     return NextResponse.json({ ok: true });
   }
 
@@ -121,6 +125,16 @@ export async function POST(request: NextRequest) {
     where: { id: dealId },
     data: { status: newStatus },
   });
+
+  // "Not a deal" on an autopilot-created likely deal is a human
+  // override of the triage verdict — record it so the classifier's
+  // audit trail (and future tuning) sees the correction.
+  if (actionId === "dismiss_likely_deal") {
+    await prisma.dealTriage.updateMany({
+      where: { dealId, verdict: "likely_deal" },
+      data: { overriddenAt: new Date() },
+    });
+  }
 
   // Same post-response enrichment hook as the web PATCH path so a
   // Slack-driven validation also hydrates the deal in the background.

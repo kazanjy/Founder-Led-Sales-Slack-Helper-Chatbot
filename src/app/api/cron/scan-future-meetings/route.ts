@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { scanFutureMeetingsForUser } from "@/lib/deals/scan-future-meetings";
+import { triageUnmatchedEvents } from "@/lib/deals/triage";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     userId: string;
     dealsScanned: number;
     added: number;
+    likelyDeals: number;
     errors: number;
   }> = [];
   const reanalysisTargets: Array<{ userId: string; dealId: string }> = [];
@@ -64,10 +66,28 @@ export async function GET(request: NextRequest) {
   for (const u of users) {
     try {
       const result = await scanFutureMeetingsForUser(u.id);
+      // Deal autopilot Pass 1: classify calendar events that matched
+      // NO existing deal. Capped per tick; DealTriage rows dedupe
+      // permanently so the backlog drains across ticks.
+      let likelyDeals = 0;
+      if (result.unmatchedEvents.length > 0) {
+        try {
+          const triage = await triageUnmatchedEvents(u.id, result.unmatchedEvents);
+          likelyDeals = triage.likely;
+          if (triage.classified > 0) {
+            console.log(
+              `[cron scan-future-meetings] triage user=${u.id} classified=${triage.classified} likely=${triage.likely} unlikely=${triage.unlikely} errors=${triage.errors}`
+            );
+          }
+        } catch (err) {
+          console.error(`[cron scan-future-meetings] triage failed for ${u.id}:`, err);
+        }
+      }
       summary.push({
         userId: u.id,
         dealsScanned: result.dealsScanned,
         added: result.totalEventsAdded,
+        likelyDeals,
         errors: 0,
       });
       for (const d of result.perDeal) {
@@ -75,7 +95,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (err) {
       console.error(`[cron scan-future-meetings] user ${u.id} threw:`, err);
-      summary.push({ userId: u.id, dealsScanned: 0, added: 0, errors: 1 });
+      summary.push({ userId: u.id, dealsScanned: 0, added: 0, likelyDeals: 0, errors: 1 });
     }
   }
 
@@ -119,6 +139,6 @@ export async function GET(request: NextRequest) {
     users: users.length,
     totalAdded,
     queuedReanalyses: capped.length,
-    summary: summary.filter((s) => s.added > 0 || s.errors > 0),
+    summary: summary.filter((s) => s.added > 0 || s.likelyDeals > 0 || s.errors > 0),
   });
 }

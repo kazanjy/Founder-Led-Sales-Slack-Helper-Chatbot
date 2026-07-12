@@ -179,6 +179,7 @@ model User {
   businessCaseTemplates      BusinessCaseTemplate[]
   businessCaseInstances      BusinessCaseInstance[]
   practiceSessions           PracticeSession[]
+  dealTriages                DealTriage[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2763,6 +2764,41 @@ model BusinessCaseInstance {
   @@index([userId, type, createdAt(sort: Desc)])
   @@index([dealId, type])
   @@map("business_case_instances")
+}
+
+// ============================================
+// DEAL AUTOPILOT — TRIAGE
+// ============================================
+
+// One row per (user, calendar event | recording) judgment by the deal
+// autopilot (see deal-autopilot-plan.md). Triple duty: dedupe guard so
+// the 5-min cron never re-classifies an event, audit trail of every
+// machine verdict, and the source for the "correct me" digest of
+// unlikely-deal calls. overriddenAt marks human corrections.
+model DealTriage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source   String // "calendar" | "recording"
+  sourceId String // calendarEventId or recorder callId
+  eventAt  DateTime // meeting start / call time
+  title    String?
+
+  verdict    String // "likely_deal" | "unlikely_deal" | "confirmed_deal" | "not_a_deal"
+  category   String? // prospect_first_call | vendor_pitch_to_us | fundraising | recruiting | internal | personal | existing_customer | unknown
+  confidence Float?
+  borderline Boolean @default(false)
+  reason     String? @db.Text
+
+  dealId       String? // set when a deal was created/matched
+  overriddenAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, source, sourceId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("deal_triages")
 }
 
 // ============================================

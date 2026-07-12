@@ -143,40 +143,33 @@ model DealTriage {
   create-potential + Validate/Dismiss branch with the confirmation classifier.
 - Expiry/nudges ride the daily cron.
 
-## Part 2 — the Slack deal thread (the deal's own feed)
+## Part 2 — Slack stub posts (timed, event-shaped previews)
 
-One root post per deal in the owner's claimed channel when the deal is
-born (auto-detected OR manually created):
+NOT one ever-growing thread per deal (revised per feedback). Each key
+moment gets its own channel-level STUB POST — a scannable preview with a
+deep link — timed to when the founder actually needs it:
 
-> 🎯 **Likely new deal: Acme Corp** — "Acme <> Mesh — intro" on Thu 2:00pm
-> with Priya Shah (VP Finance) + 2 others. Pre-call research is ready.
-> _[Open deal] · [Pre-call plan] · [Practice] · [Not a deal?]_
+- **"🎯 New Deal Detected"** — at birth (likely-deal triage or recorder
+  confirmation). Preview: meeting title/time, attendees, why the classifier
+  thinks it's a deal. Actions: [Open deal] · [Not a deal?].
+- **"📋 New Pre-Call Plan"** — posted **~2 hours before a meeting** on an
+  in-play deal: auto-generated pre-call brief preview (attendee readout +
+  top objectives) with links to the full plan and 🥊 practice.
+- **"🧠 Updated Deal Analysis"** — **~5 minutes after a meeting recording
+  lands**: health pill + 2-line synopsis + what changed, linking to the
+  deal. (Rides the recorder cron's existing analysis cascade.)
+- Confirmation / auto-dismissal verdicts (+ Undo) post the same way.
 
-Everything that happens to the deal afterward is a **reply in that thread**
-(threads keep the channel clean; the root post becomes the deal's Slack
-permalink, stored on the deal row):
+Each stub is its own Slack message → each gets its own reply thread.
+**Inbound**: replies under any deal stub route to the deal agent with the
+deal PINNED (stub ts → deal lookup via a small DealSlackPost table —
+deterministic, no name matching): "just talked to their CFO…" logs to the
+timeline via addTimelineEntry; "what's my next move?" answers with full
+deal context.
 
-- new meeting detected / attached
-- pre-call research brief generated (link)
-- post-meeting: transcript attached, analysis done → health + 2-line synopsis
-- confirmation / dismissal verdicts (+ Undo)
-- artifacts generated (Discovery Summary, deck link)
-- stage changes, went-quiet nudges
-
-**Inbound — the thread is a deal-scoped chat.** Any human reply in a deal
-thread routes to the deal agent with the deal PINNED (thread_ts →
-Deal.slackThreadTs lookup — deterministic, no name matching):
-- "just talked to their CFO, she wants a security review before signing" →
-  agent logs it via addTimelineEntry (its existing confirm-then-write rule)
-  and answers in-thread.
-- "what's my next move here?" → normal deal-agent answer, full context.
-This reuses the deal-agent router wholesale; the only new piece is
-resolving the deal from the thread instead of from fuzzy name match.
-
-Noise controls: per-user setting for which events post (default: born,
-confirmed/dismissed, analysis after new content, artifacts; NOT every
-re-analysis); batching — multiple events within a few minutes collapse into
-one reply; nothing posts for dismissed deals except the dismissal itself.
+Noise controls: claimed channel of the deal owner (DM fallback); nothing
+posts for dismissed deals except the dismissal; per-user toggles per stub
+type later if volume warrants.
 
 ## Phasing
 
@@ -189,10 +182,12 @@ one reply; nothing posts for dismissed deals except the dismissal itself.
    recorder cron for likely deals AND as the replacement for
    create-potential; expiry + nudges; backfill existing potentials; retire
    Validate/Dismiss.
-3. **Phase 3 — Deal thread, outbound (M)**: thread anchor columns, event
-   replies (analysis, briefs, artifacts, stage changes), noise controls.
-4. **Phase 4 — Deal thread, inbound (M)**: thread_ts → deal resolution in
-   the Slack router; deal-scoped chat + activity capture in-thread.
+3. **Phase 3 — Timed stub posts (M)**: DealSlackPost table (ts → deal);
+   "New Pre-Call Plan" at T-2h (rides the 5-min cron watching for meetings
+   entering the 2h window, generates the brief, posts the stub); "Updated
+   Deal Analysis" after the recorder cron's analysis cascade completes.
+4. **Phase 4 — Inbound stub threads (M)**: reply-under-stub → deal-agent
+   routing with the deal pinned; activity capture in-thread.
 
 ## Design decisions (made — flag if you disagree)
 
@@ -208,5 +203,6 @@ one reply; nothing posts for dismissed deals except the dismissal itself.
   Slack post costs founder trust faster than a missed one.
 - **The human-touch override is absolute**: any manual edit permanently
   exempts a deal from auto-dismissal.
-- **Thread-first Slack posture**: one root post per deal, everything else
-  threaded. Claimed channel of the deal owner; DM fallback when no claim.
+- **Stub-post Slack posture** (revised per feedback): individual timed
+  preview posts per key moment, each anchoring its own reply thread.
+  Claimed channel of the deal owner; DM fallback when no claim.
