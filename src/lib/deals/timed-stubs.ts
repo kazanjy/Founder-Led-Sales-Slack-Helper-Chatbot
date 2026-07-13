@@ -29,6 +29,14 @@ const APP_URL = () =>
   (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
 
 function formatWhen(d: Date): string {
+  // Date-only timestamps (all-day calendar events, picker-entered
+  // dates land at midnight UTC) render as just the date — "12:00 AM"
+  // is noise and usually timezone-shifted.
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "short", month: "short", day: "numeric", timeZone: "UTC",
+    });
+  }
   return d.toLocaleString(undefined, {
     weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
   });
@@ -144,11 +152,18 @@ async function generateDeepPreCallPlan(opts: {
   ].filter(Boolean);
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
-    max_completion_tokens: 2500,
+    // Generous headroom — evidence-heavy payloads can spend a lot of
+    // the completion budget before visible text starts; a tight cap
+    // comes back as EMPTY content (same failure the deal analyzer hit).
+    max_completion_tokens: 6000,
     messages: [{ role: "user", content: sections.join("\n\n---\n\n") }],
   });
   const text = completion.choices[0]?.message?.content?.trim() || "";
-  if (!text) throw new Error("Deep pre-call plan came back empty");
+  if (!text) {
+    throw new Error(
+      `Deep pre-call plan came back empty (finish_reason=${completion.choices[0]?.finish_reason ?? "unknown"})`
+    );
+  }
   return text;
 }
 
@@ -211,22 +226,35 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
   });
 
   // Batch the "already posted?" lookup — entry ids are globally
-  // unique cuids, so sourceRef alone is a safe key here.
+  // unique cuids, so sourceRef alone is a safe key here. Deep-plan
+  // replies are tracked as their own rows so a failed generation
+  // self-heals on a later tick instead of leaving the stub threadless.
   const postedRows = candidates.length
     ? await prisma.dealSlackPost.findMany({
-        where: { kind: "precall_plan", sourceRef: { in: candidates.map((c) => c.id) } },
-        select: { sourceRef: true },
+        where: {
+          kind: { in: ["precall_plan", "precall_plan_deep"] },
+          sourceRef: { in: candidates.map((c) => c.id) },
+        },
+        select: { kind: true, sourceRef: true, slackChannelId: true, slackTs: true },
       })
     : [];
-  const alreadyPosted = new Set(postedRows.map((r) => r.sourceRef));
-  const eligible = candidates.filter((c) => !alreadyPosted.has(c.id));
+  const stubByEntry = new Map(
+    postedRows.filter((r) => r.kind === "precall_plan").map((r) => [r.sourceRef, r])
+  );
+  const deepDone = new Set(
+    postedRows.filter((r) => r.kind === "precall_plan_deep").map((r) => r.sourceRef)
+  );
+  const eligible = candidates.filter((c) => !stubByEntry.has(c.id));
+  const repairs = candidates.filter(
+    (c) => stubByEntry.has(c.id) && !deepDone.has(c.id)
+  );
   // One line per tick, always — this is the sweep's heartbeat. If a
   // meeting isn't firing, this line says whether the query even sees
-  // it (in window / already posted / eligible).
+  // it (in window / already posted / needs its thread repaired).
   console.log(
-    `[timed-stubs] precall sweep: ${candidates.length} in ${PRECALL_LEAD_HOURS}h window, ${alreadyPosted.size} already posted, ${eligible.length} eligible`
+    `[timed-stubs] precall sweep: ${candidates.length} in ${PRECALL_LEAD_HOURS}h window, ${eligible.length} new, ${repairs.length} missing deep plan`
   );
-  if (eligible.length === 0) return 0;
+  if (eligible.length === 0 && repairs.length === 0) return 0;
 
   let posted = 0;
   for (const entry of eligible) {
@@ -241,32 +269,10 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
         continue;
       }
 
-      // Attendee readout: prefer enriched participant names/titles,
-      // fall back to the raw attendee emails on the entry metadata.
-      let attendeeEmails: string[] = [];
-      try {
-        const m = JSON.parse(entry.metadata || "{}") as { attendeeEmails?: string[] };
-        if (Array.isArray(m.attendeeEmails)) attendeeEmails = m.attendeeEmails;
-      } catch { /* fine */ }
-      const byEmail = new Map(
-        entry.deal.participants
-          .filter((p) => p.email)
-          .map((p) => [p.email!.toLowerCase(), p])
-      );
-      const attendees = attendeeEmails.map((e) => {
-        const p = byEmail.get(e.toLowerCase());
-        return p ? (p.title ? `${p.name} (${p.title})` : p.name) : e;
-      });
-      const attendeeLine = attendees.slice(0, 6).join(", ") || "(attendees unknown)";
+      const { meeting, attendeeLine } = buildMeetingInfo(entry);
 
       // Assemble deal context ONCE — the stub brief and the deep
       // threaded plan both feed from it.
-      const meeting: PreCallMeetingInfo = {
-        title: entry.title || "Upcoming call",
-        startsAt: new Date(entry.entryDate),
-        description: entry.content || "",
-        attendees,
-      };
       const [seller, framework, assembled] = await Promise.all([
         loadSellerContext(entry.deal.userId),
         loadDiscoveryFramework(entry.deal.userId),
@@ -347,32 +353,148 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
 
       // The deep plan rides as a reply under the stub — its own
       // thread, which Phase 4 will route straight back to this deal.
+      // On failure here (or above), the row is absent and the repair
+      // pass below retries on the next tick while the meeting is
+      // still in window.
       if (deepPlan && result.ts) {
-        try {
-          const chunks = chunkForSlack(markdownToSlack(deepPlan));
-          await target.client.chat.postMessage({
-            channel: target.channelId,
-            thread_ts: result.ts,
-            mrkdwn: true,
-            text: `Full pre-call plan: ${company} — ${entry.title || "upcoming call"}`,
-            blocks: chunks.map((c) => ({
-              type: "section" as const,
-              text: { type: "mrkdwn" as const, text: c },
-            })),
-          });
-        } catch (err) {
-          console.error(`[timed-stubs] deep plan reply failed for entry ${entry.id}:`, err);
-        }
+        await postDeepReply({
+          client: target.client,
+          channelId: target.channelId,
+          threadTs: result.ts,
+          entry,
+          company,
+          deepPlan,
+        });
       }
       posted++;
       console.log(
-        `[timed-stubs] pre-call plan posted for deal ${entry.dealId} (${entry.title})${deepPlan ? " + threaded deep plan" : " (deep plan failed)"}`
+        `[timed-stubs] pre-call plan posted for deal ${entry.dealId} (${entry.title})${deepPlan ? " + threaded deep plan" : " (deep plan failed — will repair)"}`
       );
     } catch (err) {
       console.error(`[timed-stubs] pre-call stub failed for entry ${entry.id}:`, err);
     }
   }
+
+  // Repair pass: stubs whose thread never got the full prep (deep
+  // generation failed on an earlier tick, or the stub predates the
+  // threaded-plan feature). The meeting is still upcoming — late prep
+  // beats no prep. Shares the maxPosts spend cap.
+  for (const entry of repairs) {
+    if (posted >= maxPosts) break;
+    try {
+      const stub = stubByEntry.get(entry.id)!;
+      const target = await resolveSlackTarget(entry.deal.userId);
+      if (!target) continue;
+
+      const { meeting } = buildMeetingInfo(entry);
+      const [seller, framework, assembled] = await Promise.all([
+        loadSellerContext(entry.deal.userId),
+        loadDiscoveryFramework(entry.deal.userId),
+        assembleDealEvidence(entry.deal.userId, entry.dealId),
+      ]);
+      const deepPlan = await generateDeepPreCallPlan({
+        meeting,
+        sellerContext: formatSellerContext(seller),
+        discoveryFramework: formatDiscoveryFramework(framework),
+        evidence: assembled?.evidence || "(no evidence yet — first call)",
+      });
+      // Post to the STUB's channel/ts, not the current claimed
+      // channel — the thread lives where the stub does.
+      await postDeepReply({
+        client: target.client,
+        channelId: stub.slackChannelId,
+        threadTs: stub.slackTs,
+        entry,
+        company: entry.deal.companyName || entry.deal.name,
+        deepPlan,
+      });
+      posted++;
+      console.log(`[timed-stubs] repaired missing deep plan for entry ${entry.id}`);
+    } catch (err) {
+      console.error(`[timed-stubs] deep plan repair failed for entry ${entry.id}:`, err);
+    }
+  }
   return posted;
+}
+
+interface PreCallCandidate {
+  id: string;
+  dealId: string;
+  title: string | null;
+  content: string;
+  metadata: string | null;
+  entryDate: Date;
+  deal: {
+    id: string;
+    userId: string;
+    name: string;
+    companyName: string | null;
+    participants: Array<{ name: string; title: string | null; email: string | null }>;
+  };
+}
+
+/** Attendee readout + meeting info from a meeting timeline entry —
+ *  enriched participant names/titles where known, raw emails as the
+ *  fallback. */
+function buildMeetingInfo(entry: PreCallCandidate): {
+  meeting: PreCallMeetingInfo;
+  attendeeLine: string;
+} {
+  let attendeeEmails: string[] = [];
+  try {
+    const m = JSON.parse(entry.metadata || "{}") as { attendeeEmails?: string[] };
+    if (Array.isArray(m.attendeeEmails)) attendeeEmails = m.attendeeEmails;
+  } catch { /* fine */ }
+  const byEmail = new Map(
+    entry.deal.participants
+      .filter((p) => p.email)
+      .map((p) => [p.email!.toLowerCase(), p])
+  );
+  const attendees = attendeeEmails.map((e) => {
+    const p = byEmail.get(e.toLowerCase());
+    return p ? (p.title ? `${p.name} (${p.title})` : p.name) : e;
+  });
+  return {
+    meeting: {
+      title: entry.title || "Upcoming call",
+      startsAt: new Date(entry.entryDate),
+      description: entry.content || "",
+      attendees,
+    },
+    attendeeLine: attendees.slice(0, 6).join(", ") || "(attendees unknown)",
+  };
+}
+
+/** Post the full prep as a reply in the stub's thread and record the
+ *  precall_plan_deep row (the "thread is complete" marker the repair
+ *  pass checks). */
+async function postDeepReply(opts: {
+  client: NonNullable<Awaited<ReturnType<typeof resolveSlackTarget>>>["client"];
+  channelId: string;
+  threadTs: string;
+  entry: PreCallCandidate;
+  company: string;
+  deepPlan: string;
+}): Promise<void> {
+  const chunks = chunkForSlack(markdownToSlack(opts.deepPlan));
+  await opts.client.chat.postMessage({
+    channel: opts.channelId,
+    thread_ts: opts.threadTs,
+    mrkdwn: true,
+    text: `Full pre-call plan: ${opts.company} — ${opts.entry.title || "upcoming call"}`,
+    blocks: chunks.map((c) => ({
+      type: "section" as const,
+      text: { type: "mrkdwn" as const, text: c },
+    })),
+  });
+  await recordDealSlackPost({
+    userId: opts.entry.deal.userId,
+    dealId: opts.entry.dealId,
+    kind: "precall_plan_deep",
+    sourceRef: opts.entry.id,
+    channelId: opts.channelId,
+    ts: opts.threadTs,
+  });
 }
 
 // ── "🧠 Updated Deal Analysis" (post-recording cascade) ──────────────
