@@ -405,7 +405,9 @@ function synopsisFromAnalysis(analysis: string): string {
 /**
  * "🧠 Updated Deal Analysis" stub — posted by the recorder cron's
  * analysis cascade after runDealAnalysis folds a new recording into
- * the deal. Health pill + synopsis + what changed.
+ * the deal. Health pill + synopsis in the channel; the FULL analysis
+ * (same markdown the deal page shows) rides as a reply in the stub's
+ * thread.
  */
 export async function postAnalysisUpdateStub(opts: {
   userId: string;
@@ -453,7 +455,10 @@ export async function postAnalysisUpdateStub(opts: {
         },
         {
           type: "section",
-          text: { type: "mrkdwn", text: `<${appUrl}/deals/${opts.dealId}|Open deal →>` },
+          text: {
+            type: "mrkdwn",
+            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  🧵 Full analysis in the thread`,
+          },
         },
       ],
     });
@@ -464,6 +469,27 @@ export async function postAnalysisUpdateStub(opts: {
       channelId: target.channelId,
       ts: posted.ts || "",
     });
+
+    // The full analysis — the same markdown the deal page renders —
+    // rides as a reply under the stub, so the channel stays scannable
+    // and the depth is one click away.
+    if (posted.ts && opts.analysis.trim()) {
+      try {
+        const chunks = chunkForSlack(markdownToSlack(opts.analysis));
+        await target.client.chat.postMessage({
+          channel: target.channelId,
+          thread_ts: posted.ts,
+          mrkdwn: true,
+          text: `Full deal analysis: ${opts.companyName}`,
+          blocks: chunks.map((c) => ({
+            type: "section" as const,
+            text: { type: "mrkdwn" as const, text: c },
+          })),
+        });
+      } catch (err) {
+        console.error("[timed-stubs] full-analysis reply failed:", err);
+      }
+    }
   } catch (err) {
     console.error("[timed-stubs] analysis stub post failed:", err);
   }
