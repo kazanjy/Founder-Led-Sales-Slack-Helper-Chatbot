@@ -3,7 +3,11 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { scanFutureMeetingsForUser } from "@/lib/deals/scan-future-meetings";
 import { triageUnmatchedEvents, dealHasHumanTouch, postDealDismissedStub } from "@/lib/deals/triage";
-import { sweepPreCallPlanStubs, sweepNoRecordingNudges } from "@/lib/deals/timed-stubs";
+import {
+  sweepPreCallPlanStubs,
+  sweepNoRecordingNudges,
+  postAnalysisUpdateStub,
+} from "@/lib/deals/timed-stubs";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -124,14 +128,32 @@ export async function GET(request: NextRequest) {
       const cutoff = new Date(Date.now() - REANALYZE_SKIP_HOURS * 60 * 60 * 1000);
       for (const { userId, dealId } of capped) {
         try {
-          const recent = await prisma.deal.findUnique({
+          const before = await prisma.deal.findUnique({
             where: { id: dealId },
-            select: { lastAnalyzedAt: true },
+            select: {
+              lastAnalyzedAt: true,
+              mikeyHealth: true,
+              status: true,
+              name: true,
+              companyName: true,
+            },
           });
-          if (recent?.lastAnalyzedAt && recent.lastAnalyzedAt > cutoff) {
+          if (!before || before.status === "dismissed") continue;
+          if (before.lastAnalyzedAt && before.lastAnalyzedAt > cutoff) {
             continue;
           }
-          await runDealAnalysis(userId, dealId);
+          const result = await runDealAnalysis(userId, dealId);
+          // Same Slack posture as every other evidence-triggered
+          // analysis: "🧠 Updated Deal Analysis" stub + full analysis
+          // threaded under it.
+          await postAnalysisUpdateStub({
+            userId,
+            dealId,
+            companyName: before.companyName || before.name,
+            healthBefore: before.mikeyHealth,
+            healthAfter: result.mikeyHealth,
+            analysis: result.analysis,
+          });
         } catch (err) {
           if (err instanceof DealNotFoundError) continue;
           console.error(`[cron scan-future-meetings] post-scan analyze ${dealId} failed:`, err);
