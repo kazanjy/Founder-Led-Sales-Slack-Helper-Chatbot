@@ -172,6 +172,100 @@ Noise controls: claimed channel of the deal owner (DM fallback); nothing
 posts for dismissed deals except the dismissal; per-user toggles per stub
 type later if volume warrants.
 
+## Part 3 — Pipeline Review, deal tasks, and proof capture
+
+The timed stubs cover MOMENTS (a deal is born, a call is coming, a call
+landed). Nothing covers the SLOW DECAY between moments — the Charlie
+Labs problem: Proposal stage, 35 days in stage, last activity 3 weeks
+ago, no upcoming meeting, health Poor, and the "send Jerrod an is-this-
+still-live Slack" recommendation buried in an analysis nobody reopens.
+Autopilot's third leg: watch the whole pipeline on a cadence, turn
+recommendations into TRACKABLE to-dos on the deal, and close the loop
+with proof.
+
+### Deal tasks — recommendations become objects
+
+Every deal analysis already computes a "Next Best Action"; it dies as
+prose inside lastAnalysis. Materialize it:
+
+```prisma
+model DealTask {
+  id        String @id @default(cuid())
+  userId    String
+  dealId    String   // relation, cascade
+  title     String   // imperative: "Send Jerrod a direct 'is this still live?' Slack"
+  rationale String?  @db.Text // why the machine proposed it (evidence-cited)
+  source    String   // "pipeline_review" | "deal_analysis" | "user"
+  status    String   @default("proposed") // proposed | done | dismissed | expired
+  proofEntryId String?  // timeline entry evidencing completion (nullable — Done on trust is fine)
+  reviewRunId  String?  // groups tasks proposed by the same weekly review
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+}
+```
+
+- Lifecycle is deliberately thin: proposed → done / dismissed. No
+  "accepted" state — a founder either does it or kills it.
+- **Expiry, not duplication**: the next review sees open proposed tasks
+  as input. It re-affirms (leaves them), or expires ones whose
+  underlying condition changed (meeting got booked → "book a meeting"
+  task expires). It never re-proposes a near-duplicate of an open task.
+- Surfaced as a "Proposed actions" card on the deal page and a compact
+  pill/row on the deals list; Done / Dismiss one click, proof optional.
+
+### Weekly Pipeline Review
+
+Weekly cron (Monday morning, rides the daily-cron slot or its own):
+
+1. Gather per-deal signals for every in-play deal — health, days in
+   stage, days since last activity, upcoming-meeting presence, value,
+   the lastAnalysis Next Best Action, open DealTasks. No fresh analyses
+   are run (the recorder/calendar crons keep those current); the review
+   SYNTHESIZES across deals — that's what no existing surface does.
+2. One LLM pass over the portfolio: rank deals needing attention
+   (health × staleness × value), and for the top few produce/refresh a
+   concrete task each (with rationale citing the deal evidence).
+   **Cap ~5 tasks/week** — a wall of 20 to-dos reads as noise and dies;
+   five ranked asks get done. Everything else appears as one roll-up
+   line ("6 other deals moving normally").
+3. Slack "📊 Weekly Pipeline Review" post (claimed channel, DM
+   fallback; recorded in DealSlackPost kind "pipeline_review"):
+   pipeline stats (in-play count/value, week's movement: stage changes,
+   new deals, wins/losses) + the ranked attention list. Each attention
+   item: company + health pill + one-liner + its task, with
+   [✓ Done] [✕ Dismiss] [Open deal] actions (deal_task_done /
+   deal_task_dismiss).
+4. Tasks link back: the deal page card shows the same tasks; resolving
+   in either surface updates both (same row).
+
+### Proof capture — close the loop with evidence
+
+A task's real resolution is usually an email/Slack/iMessage the founder
+already sent. Let them paste it:
+
+- **Ingestion surfaces**: (a) deal page + deals list — paste or
+  drag-drop an image (screenshot of email/slack/imessage) or raw text
+  onto the deal; (b) Slack — reply to any deal stub thread (pipeline
+  review item, task stub) with the screenshot attached; DM to Mikey
+  works too. Slack ingestion rides Phase 4's thread→deal routing.
+- **Pipeline**: image → vision extraction (same Vision path the Slack
+  file handler uses) → {channel: email|slack|imessage|other,
+  participants?, date?, extractedText}. Lands as a timeline entry type
+  "evidence" with metadata {channel, ingestedVia: paste|slack_reply,
+  taskId?} — rendered with a 📎 pill, feeds the analyzer like any
+  other entry.
+- **Task linkage**: proof pasted from a task's context (task card
+  button, or a reply under that task's Slack stub) sets proofEntryId
+  and flips the task to done. Proof pasted cold just becomes evidence.
+- **Dupe detection** (paste-time, before writing): candidate set =
+  recent timeline entries of correspondence-ish types (email, note,
+  evidence, call_summary) within ±14 days of the extracted date (or
+  last 30 days when undated); cheap token-overlap score first, then an
+  LLM same-or-different judge on the top candidates. On dupe: discard
+  and tell the user WHICH entry it matched ("already on the deal —
+  Jul 10 recap email"). Near-miss (same thread, new reply) ingests
+  with a "related to <entry>" link instead of discarding.
+
 ## Re-engagement: closed-lost accounts coming back
 
 A new call/meeting with an account whose only deal is CLOSED-LOST is a
@@ -227,7 +321,23 @@ dead deal, never treat the account as a stranger):
    (one per likely deal, ever; 14-day lookback floor so it never
    overlaps the 21-day expiry).
 5. **Phase 4 — Inbound stub threads (M)**: reply-under-stub → deal-agent
-   routing with the deal pinned; activity capture in-thread.
+   routing with the deal pinned; activity capture in-thread. Now also
+   the transport for Slack-side proof capture (Phase 8) — build before
+   or with it.
+6. **Phase 5 — Deal tasks (M)**: DealTask model; harvest the Next Best
+   Action from each fresh deal analysis into a proposed task (dedupe vs
+   open tasks); "Proposed actions" card on the deal page + deals-list
+   surfacing; Done / Dismiss.
+7. **Phase 6 — Weekly Pipeline Review (M)**: portfolio synthesis cron +
+   the Slack review post with per-task actions; task expiry/re-affirm
+   pass; DealSlackPost kind "pipeline_review".
+8. **Phase 7 — Proof paste in the UI (M/L)**: paste/drag email-slack-
+   imessage screenshots (or raw text) on the deal page and deals list;
+   vision extraction → "evidence" timeline entries; dupe detection with
+   named-match discard; task-context paste sets proofEntryId → done.
+9. **Phase 8 — Proof via Slack (M)**: screenshot replies under task /
+   review stubs (and Mikey DM) run the same extraction + dupe pipeline
+   and resolve the task. Rides Phase 4 routing.
 
 ## Design decisions (made — flag if you disagree)
 
