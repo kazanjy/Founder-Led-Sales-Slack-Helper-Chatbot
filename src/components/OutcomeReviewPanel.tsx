@@ -215,7 +215,10 @@ export function OutcomeReviewPanel({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error || `Commit failed (${res.status})`);
+        const message = data?.detail
+          ? `${data?.error || "Commit failed"} — ${data.detail}`
+          : data?.error || `Commit failed (${res.status})`;
+        throw new Error(message);
       }
       setOpen(false);
       setDecisions({});

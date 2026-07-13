@@ -36,6 +36,11 @@ import type {
  * reviews are fine — undecided candidates stay pending.
  */
 
+// The commit transaction makes 1-3 sequential DB round-trips per
+// accepted candidate — keep the function alive well past Vercel's
+// short default.
+export const maxDuration = 60;
+
 interface Decision {
   candidateId: string;
   action: "accept" | "reject";
@@ -278,6 +283,12 @@ export async function POST(
           outcomesReviewedAt: new Date(),
         },
       });
+    }, {
+      // Prisma's 5s default is too tight for this transaction's
+      // sequential per-candidate round-trips over Vercel→Supabase
+      // latency — a normal-sized review could hit P2028.
+      timeout: 30_000,
+      maxWait: 10_000,
     });
 
     const fresh = await prisma.coachingSession.findUnique({
@@ -292,6 +303,12 @@ export async function POST(
     });
   } catch (err) {
     console.error("[coaching-session outcomes] commit failed:", err);
-    return NextResponse.json({ error: "Failed to commit outcomes" }, { status: 500 });
+    // Surface the real failure — a generic message with the detail
+    // swallowed makes prod issues undiagnosable from the UI.
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: "Failed to commit outcomes", detail: detail.slice(0, 300) },
+      { status: 500 }
+    );
   }
 }
