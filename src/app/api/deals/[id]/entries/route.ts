@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { attributeEntryToParticipants } from "@/lib/deals/attribute";
 import { classifyEntryContent } from "@/lib/deals/classify-entry";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
+import { postAnalysisUpdateStub } from "@/lib/deals/timed-stubs";
 
 // The post-add re-analysis runs via after() — keep the function alive
 // long enough for it to finish.
@@ -198,8 +199,21 @@ export async function POST(
       if (!deal.lastAnalyzedAt || deal.lastAnalyzedAt < guardCutoff) {
         after(async () => {
           try {
-            await runDealAnalysis(user.id, id);
+            const result = await runDealAnalysis(user.id, id);
             console.log(`[entries] post-add re-analysis completed for deal ${id}`);
+            // Same Slack posture as the recorder cron: "🧠 Updated
+            // Deal Analysis" stub + full analysis threaded under it.
+            // Dismissed deals never get stubs.
+            if (deal.status !== "dismissed") {
+              await postAnalysisUpdateStub({
+                userId: user.id,
+                dealId: id,
+                companyName: deal.companyName || deal.name,
+                healthBefore: deal.mikeyHealth,
+                healthAfter: result.mikeyHealth,
+                analysis: result.analysis,
+              });
+            }
           } catch (err) {
             if (err instanceof DealNotFoundError) return;
             console.error(`[entries] post-add re-analysis failed for deal ${id}:`, err);
