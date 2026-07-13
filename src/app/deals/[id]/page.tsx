@@ -834,6 +834,9 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
           sourceUrl: sourceUrl || undefined,
           entryDate: entryDate || undefined,
           metadata,
+          // Lets the server interpret a timestamp found INSIDE pasted
+          // content ("Date: … at 9:59 AM") in this browser's timezone.
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
         }),
       });
       if (res.ok) {

@@ -14,7 +14,13 @@ const ALLOWED_TYPES = new Set([
 export interface ClassifyEntryResult {
   /** Short concise title (<80 chars), null if content doesn't suggest one. */
   title: string | null;
-  /** ISO YYYY-MM-DD if the content references a clear date; null otherwise. */
+  /**
+   * When the interaction happened, if visible in the content.
+   * "YYYY-MM-DDTHH:MM" (naive local time — no timezone) when a time
+   * signal exists ("Monday, July 13, 2026 at 9:59 AM" is common in
+   * recorder transcripts), "YYYY-MM-DD" when only a date is visible,
+   * null otherwise.
+   */
   date: string | null;
   /** Best-guess entry type. Always one of ALLOWED_TYPES. */
   suggestedType: string;
@@ -44,10 +50,10 @@ export async function classifyEntryContent(
 Today's date is ${todayIso}. Use the CURRENT year for any month-day-only reference unless the content explicitly says otherwise.
 
 Return ONE line of JSON and nothing else:
-{"title": "...", "date": "YYYY-MM-DD" or null, "suggestedType": "..."}
+{"title": "...", "date": "YYYY-MM-DDTHH:MM" or "YYYY-MM-DD" or null, "suggestedType": "..."}
 
 - title: a concise label under 80 chars summarizing WHAT this is (e.g. "Discovery call w/ Acme — pricing pushback", "Reply from Sarah re: contract redlines"). Skip generic preambles ("Note about..."). null if content is too generic to title meaningfully.
-- date: the date the interaction actually happened, if visible in the content (timestamps, "called on May 21", email date headers, etc.). null if no date signal exists — caller will default to today.
+- date: when the interaction actually happened, if visible in the content (timestamps, "called on May 21", email date headers, recorder headers like "Date: Monday, July 13, 2026 at 9:59 AM"). INCLUDE THE TIME as YYYY-MM-DDTHH:MM (24-hour, no timezone) whenever a time is visible — "at 9:59 AM" → "T09:59", "2:30 PM" → "T14:30". Date-only YYYY-MM-DD when no time signal. null if no date signal exists — caller will default to today.
 - suggestedType: one of:
   * "call_transcript" — speaker-attributed dialogue with timestamps or speaker labels ("Participant 1:", "[1:53:39] Speaker:", "John:")
   * "call_summary" — narrative summary of a call (no raw dialogue, but talks about who said what)
@@ -73,7 +79,10 @@ Return ONE line of JSON and nothing else:
     if (!match) return fallback;
     const parsed = JSON.parse(match[0]) as { title?: unknown; date?: unknown; suggestedType?: unknown };
     const title = typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim().slice(0, 100) : null;
-    const date = typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : null;
+    const date =
+      typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(parsed.date)
+        ? parsed.date
+        : null;
     const rawType = typeof parsed.suggestedType === "string" ? parsed.suggestedType : currentType;
     const suggestedType = ALLOWED_TYPES.has(rawType) ? rawType : currentType;
     return { title, date, suggestedType };

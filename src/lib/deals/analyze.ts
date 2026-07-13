@@ -352,7 +352,10 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
               frameworkContext,
           },
         ],
-        max_completion_tokens: 2500,
+        // Generous headroom: transcript-heavy deals can spend a lot of
+        // the completion budget before the visible analysis starts;
+        // a too-tight cap comes back as EMPTY content.
+        max_completion_tokens: 6000,
       },
       { signal: controller.signal }
     );
@@ -364,7 +367,16 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
     clearTimeout(timeoutHandle);
   }
 
-  const rawAnalysis = response.choices[0]?.message?.content?.trim() || "Analysis could not be generated.";
+  const rawAnalysis = response.choices[0]?.message?.content?.trim() || "";
+  if (!rawAnalysis) {
+    // NEVER persist an empty/failed run — it would overwrite the last
+    // good analysis with junk. Throw so manual runs surface the error
+    // and cron cascades log + retry on a later tick.
+    console.error(
+      `${tag} deal=${dealId} openai returned EMPTY content (finish_reason=${response.choices[0]?.finish_reason ?? "unknown"})`
+    );
+    throw new Error("Analyzer returned no content");
+  }
   const { roles: suggestedRoles, cleaned: afterRoles } = extractParticipantRoles(rawAnalysis);
   const { health: suggestedHealth, cleaned: afterHealth } = extractMikeyHealth(afterRoles);
   const { stage: suggestedStage, cleaned: analysis } = extractSuggestedStage(afterHealth);
