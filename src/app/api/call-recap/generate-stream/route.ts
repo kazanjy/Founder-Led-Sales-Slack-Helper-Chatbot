@@ -14,9 +14,14 @@ export async function POST(request: NextRequest) {
 
     const { recordingUrl, callSummary, callTranscript, customNotes, toneGuidance: toneFromBody } = await request.json();
 
-    if (!recordingUrl || !callSummary?.trim()) {
+    // Best effort: any call content is enough. A pasted transcript with
+    // no summary and no recording link is a perfectly good input —
+    // recordingUrl is a nice-to-have for the email, never a gate.
+    const effectiveSummary: string = callSummary?.trim() || callTranscript?.trim() || "";
+    const effectiveUrl: string = typeof recordingUrl === "string" ? recordingUrl.trim() : "";
+    if (!effectiveSummary) {
       return new Response(
-        JSON.stringify({ error: "recordingUrl and callSummary are required" }),
+        JSON.stringify({ error: "Some call content (summary or transcript) is required" }),
         { status: 400 }
       );
     }
@@ -56,11 +61,9 @@ export async function POST(request: NextRequest) {
     const prompt = `You are an expert sales communication assistant helping a founder craft professional follow-up emails after sales calls. You have deep knowledge of B2B sales best practices.
 ${contextSection}
 ## CALL INFORMATION:
-
-**Recording URL:** ${recordingUrl}
-
+${effectiveUrl ? `\n**Recording URL:** ${effectiveUrl}\n` : ""}
 **Call Summary:**
-${callSummary.trim()}
+${effectiveSummary}
 ${callTranscript ? `\n**Call Transcript:**\n${callTranscript.trim()}\n` : ""}${customNotes ? `\n**Custom Notes from Founder:**\n${customNotes.trim()}\n` : ""}
 
 ---
@@ -152,8 +155,11 @@ Rules:
           const version = await prisma.callRecapVersion.create({
             data: {
               userId: user.id,
-              recordingUrl,
-              callSummary: callSummary.trim(),
+              // Schema requires a string; "" renders as "no recording
+              // link" everywhere the URL is shown (all render sites
+              // are truthiness-guarded).
+              recordingUrl: effectiveUrl,
+              callSummary: effectiveSummary,
               callTranscript: callTranscript?.trim() || null,
               customNotes: customNotes?.trim() || null,
               title,

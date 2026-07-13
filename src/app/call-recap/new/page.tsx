@@ -119,14 +119,16 @@ export default function NewCallRecap() {
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-  const canGenerate = recordingUrl.trim() && callSummary.trim() && !generating;
+  // Best effort: summary OR transcript is enough; the recording URL is
+  // a nice-to-have (it gets linked in the email when present).
+  const canGenerate = (callSummary.trim() || callTranscript.trim()) && !generating;
 
   const handleGenerate = () => {
     if (!canGenerate) return;
     // Store inputs in sessionStorage for the view page to pick up
     try {
       sessionStorage.setItem("callRecapInput", JSON.stringify({
-        recordingUrl: recordingUrl.trim(),
+        recordingUrl: recordingUrl.trim() || undefined,
         callSummary: callSummary.trim(),
         callTranscript: callTranscript.trim() || undefined,
         customNotes: customNotes.trim() || undefined,
@@ -231,10 +233,10 @@ export default function NewCallRecap() {
             />
 
             <div className="space-y-5">
-              {/* Recording URL — first field, required */}
+              {/* Recording URL — optional; auto-extracts the transcript when given */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Call Recording URL <span className="text-red-400">*</span>
+                  Call Recording URL <span className="text-gray-400 font-normal">(optional — linked in the email when provided)</span>
                 </label>
                 <input
                   type="url"
@@ -260,10 +262,10 @@ export default function NewCallRecap() {
                 </div>
               </div>
 
-              {/* Call Summary — required */}
+              {/* Call Summary — summary OR transcript required */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-                  Call Summary <span className="text-red-400">*</span>
+                  Call Summary <span className="text-gray-400 font-normal">(this or a transcript below)</span>
                 </label>
                 <textarea
                   ref={callSummaryRef}

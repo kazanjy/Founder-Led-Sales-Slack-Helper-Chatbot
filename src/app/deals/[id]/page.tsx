@@ -117,19 +117,33 @@ function extractDealSummary(markdown: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+function isDateOnlyUtc(d: Date): boolean {
+  return d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+}
+
 function formatEntryDate(dateStr: string): string {
   const d = new Date(dateStr);
   const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
   // Entries whose time component is exactly midnight UTC almost always came
-  // from the <input type="date"> picker (which stores date-only) — rendering
-  // "12:00 AM" on those is noisy and often misleading due to timezone shift,
-  // so skip the time portion for them.
-  const isDateOnlyUtc =
-    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
-  if (isDateOnlyUtc) {
-    return d.toLocaleDateString("en-US", dateOpts);
+  // from the <input type="date"> picker (which stores date-only). Treat them
+  // as CALENDAR DATES: render the UTC date (not the viewer's local date,
+  // which shifts a day back west of Greenwich) and skip the noisy
+  // "12:00 AM" time portion.
+  if (isDateOnlyUtc(d)) {
+    return d.toLocaleDateString("en-US", { ...dateOpts, timeZone: "UTC" });
   }
   return d.toLocaleString("en-US", { ...dateOpts, hour: "numeric", minute: "2-digit" });
+}
+
+// Seed value for the <input type="date"> that edits an entry's date —
+// must agree with what formatEntryDate DISPLAYS or the date appears to
+// jump when entering edit mode. Date-only (midnight-UTC) entries are
+// calendar dates → the UTC date; timed entries render in local time →
+// the LOCAL date.
+function dateInputValueForEntry(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isDateOnlyUtc(d)) return d.toISOString().split("T")[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // Normalize a LinkedIn URL pulled from PDL or user input. Many sources
@@ -3186,7 +3200,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                                 <button
                                   onClick={() => {
                                     setEditingDateEntryId(entry.id);
-                                    setEditDateValue(new Date(entry.entryDate).toISOString().split("T")[0]);
+                                    setEditDateValue(dateInputValueForEntry(entry.entryDate));
                                   }}
                                   className="text-xs text-gray-400 font-medium hover:text-purple-600 transition-colors"
                                   title="Click to change date"
