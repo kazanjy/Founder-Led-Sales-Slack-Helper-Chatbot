@@ -305,19 +305,10 @@ export async function postLikelyDealStub(opts: {
         },
         {
           type: "section",
-          text: { type: "mrkdwn", text: `<${appUrl}/deals/${opts.dealId}|Open deal →>` },
-        },
-        {
-          type: "actions",
-          block_id: `likely_deal_actions:${opts.dealId}`,
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "✕ Not a deal" },
-              value: opts.dealId,
-              action_id: "dismiss_likely_deal",
-            },
-          ],
+          text: {
+            type: "mrkdwn",
+            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+          },
         },
       ],
     });
@@ -540,19 +531,10 @@ export async function postDealConfirmedStub(opts: {
         },
         {
           type: "section",
-          text: { type: "mrkdwn", text: `<${appUrl}/deals/${opts.dealId}|Open deal →>` },
-        },
-        {
-          type: "actions",
-          block_id: `likely_deal_actions:${opts.dealId}`,
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "✕ Not a deal" },
-              value: opts.dealId,
-              action_id: "dismiss_likely_deal",
-            },
-          ],
+          text: {
+            type: "mrkdwn",
+            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+          },
         },
       ],
     });
@@ -568,8 +550,8 @@ export async function postDealConfirmedStub(opts: {
   }
 }
 
-/** "🗂️ Auto-archived" one-liner + Undo — when a watched likely deal
- *  turns out not to be one. Only posted for deals the founder was
+/** "🗂️ Auto-archived" one-liner + Undo link — when a watched likely
+ *  deal turns out not to be one. Only posted for deals the founder was
  *  previously told about; fresh not-a-deal calls stay silent. */
 export async function postDealDismissedStub(opts: {
   userId: string;
@@ -579,6 +561,7 @@ export async function postDealDismissedStub(opts: {
 }): Promise<void> {
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
   try {
     const posted = await target.client.chat.postMessage({
       channel: target.channelId,
@@ -589,20 +572,10 @@ export async function postDealDismissedStub(opts: {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `🗂️ *Archived "${opts.companyName}"* — the call didn't look like a sales conversation. _${opts.reason}_`,
+            text:
+              `🗂️ *Archived "${opts.companyName}"* — the call didn't look like a sales conversation. _${opts.reason}_\n` +
+              `<${appUrl}/deals/${opts.dealId}/restore|↩️ Undo — it IS a deal>`,
           },
-        },
-        {
-          type: "actions",
-          block_id: `undo_dismiss_actions:${opts.dealId}`,
-          elements: [
-            {
-              type: "button",
-              text: { type: "plain_text", text: "↩️ Undo — it IS a deal" },
-              value: opts.dealId,
-              action_id: "undo_dismiss_deal",
-            },
-          ],
         },
       ],
     });

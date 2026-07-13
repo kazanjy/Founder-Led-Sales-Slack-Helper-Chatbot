@@ -337,7 +337,8 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
               type: "mrkdwn",
               text:
                 `<${appUrl}/deals/${entry.dealId}|Open deal →>  ·  <${practiceUrl}|🥊 Practice this call>` +
-                (deepPlan ? `  ·  🧵 Full prep in the thread` : ""),
+                (deepPlan ? `  ·  🧵 Full prep in the thread` : "") +
+                `  ·  <${appUrl}/deals/${entry.dealId}/not-a-deal|✕ Not a deal>`,
             },
           },
         ],
@@ -723,20 +724,9 @@ export async function sweepNoRecordingNudges(maxPosts = 2): Promise<number> {
               type: "mrkdwn",
               text:
                 `🕵 *${company}* — the call was over a week ago but no recording ever landed. ` +
-                `Still live? <${appUrl}/deals/${deal.id}|Open the deal> to paste notes, or dismiss it.`,
+                `Still live? <${appUrl}/deals/${deal.id}|Open the deal> to paste notes, ` +
+                `or <${appUrl}/deals/${deal.id}/not-a-deal|✕ Not a deal>.`,
             },
-          },
-          {
-            type: "actions",
-            block_id: `likely_deal_actions:${deal.id}`,
-            elements: [
-              {
-                type: "button",
-                text: { type: "plain_text", text: "✕ Not a deal" },
-                value: deal.id,
-                action_id: "dismiss_likely_deal",
-              },
-            ],
           },
         ],
       });
