@@ -1,7 +1,9 @@
 import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/db";
-import { loadSellerContext } from "@/lib/seller-context";
+import { loadSellerContext, formatSellerContext } from "@/lib/seller-context";
+import { loadDiscoveryFramework, formatDiscoveryFramework } from "@/lib/discovery-framework";
 import { assembleDealEvidence } from "@/lib/business-cases/generate";
+import { markdownToSlack } from "@/lib/slack/markdown";
 import { resolveSlackTarget, recordDealSlackPost } from "./triage";
 
 /**
@@ -60,13 +62,18 @@ Rules:
 - Objectives are things the founder DOES on the call, phrased as actions ("Get Maria to commit to introducing the CFO"), not themes.
 - Plain text only, no markdown.`;
 
+interface PreCallMeetingInfo {
+  title: string;
+  startsAt: Date;
+  description: string;
+  attendees: string[];
+}
+
 async function generatePreCallBrief(opts: {
-  userId: string;
-  dealId: string;
-  meeting: { title: string; startsAt: Date; description: string; attendees: string[] };
+  meeting: PreCallMeetingInfo;
+  valueProp: string;
+  evidence: string;
 }): Promise<PreCallBrief> {
-  const seller = await loadSellerContext(opts.userId);
-  const assembled = await assembleDealEvidence(opts.userId, opts.dealId);
   const payload = {
     meeting: {
       title: opts.meeting.title,
@@ -74,10 +81,10 @@ async function generatePreCallBrief(opts: {
       description: opts.meeting.description.substring(0, 2000),
       attendees: opts.meeting.attendees,
     },
-    foundersValueProp: seller.valueProp100w?.substring(0, 1500) || "(none)",
+    foundersValueProp: opts.valueProp?.substring(0, 1500) || "(none)",
     // Newest evidence matters most and assembleDealEvidence orders
     // chronologically — keep the tail.
-    dealEvidence: (assembled?.evidence || "(no evidence yet — first call)").slice(-40_000),
+    dealEvidence: opts.evidence.slice(-40_000),
   };
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
@@ -103,6 +110,71 @@ async function generatePreCallBrief(opts: {
     objectives,
     watchout: typeof parsed.watchout === "string" && parsed.watchout.trim() ? parsed.watchout : null,
   };
+}
+
+// The full prep that rides in the stub's thread — same shape as the
+// UI's meeting-specific "🔬 Pre-Call Plan" Deal Chat prompt, so the
+// Slack version and the in-app version give the same quality of prep.
+const DEEP_PRECALL_PROMPT = `You are prepping a founder-seller for a SPECIFIC upcoming sales meeting. Using the full deal history, the founder's sales narrative, and their discovery framework, give a prep tuned to this meeting and these attendees:
+
+1. **Where the deal stands** going into this meeting, and what this specific meeting needs to accomplish given the stage and what's happened since the last touch.
+2. **For EACH attendee**: what we know about them from the deal history, their likely state of mind walking in, and what they'll care about in this meeting. Flag anyone we've never engaged before and how to read them.
+3. **The two or three highest-leverage outcomes** to drive for.
+4. **The specific questions to ask** — tuned to these attendees and this meeting type, working in open discovery gaps where they fit naturally.
+5. **The questions or objections to expect FROM these attendees**, given their roles and everything they've said before.
+6. **The smartest next-step ask** to land at the end.
+
+Be specific to this meeting — use what's actually in the deal history, and call out anything important that's missing so the founder can fill it in before the call.
+
+Formatting: this is read in Slack on the way to the call. Use a short "## " header per section and tight bullets under each. No preamble, no closing pleasantries, no tables. Keep it under ~700 words.`;
+
+async function generateDeepPreCallPlan(opts: {
+  meeting: PreCallMeetingInfo;
+  sellerContext: string;
+  discoveryFramework: string;
+  evidence: string;
+}): Promise<string> {
+  const when = formatWhen(opts.meeting.startsAt);
+  const sections = [
+    DEEP_PRECALL_PROMPT,
+    `## The Meeting\n**${opts.meeting.title}** — ${when}\nAttendees: ${opts.meeting.attendees.join(", ") || "(unknown)"}\n\nInvite notes:\n${opts.meeting.description.substring(0, 4000) || "(none)"}`,
+    opts.sellerContext,
+    opts.discoveryFramework,
+    `## Deal History\n${opts.evidence.slice(-100_000)}`,
+  ].filter(Boolean);
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    max_completion_tokens: 2500,
+    messages: [{ role: "user", content: sections.join("\n\n---\n\n") }],
+  });
+  const text = completion.choices[0]?.message?.content?.trim() || "";
+  if (!text) throw new Error("Deep pre-call plan came back empty");
+  return text;
+}
+
+/**
+ * Split Slack mrkdwn into section-block-sized chunks (3000-char block
+ * limit), breaking on paragraph boundaries so formatting survives.
+ */
+function chunkForSlack(text: string, max = 2900): string[] {
+  const chunks: string[] = [];
+  let current = "";
+  for (const para of text.split(/\n\n+/)) {
+    const candidate = current ? `${current}\n\n${para}` : para;
+    if (candidate.length <= max) {
+      current = candidate;
+    } else {
+      if (current) chunks.push(current);
+      if (para.length <= max) {
+        current = para;
+      } else {
+        for (let i = 0; i < para.length; i += max) chunks.push(para.slice(i, i + max));
+        current = "";
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 /**
@@ -187,16 +259,40 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       });
       const attendeeLine = attendees.slice(0, 6).join(", ") || "(attendees unknown)";
 
+      // Assemble deal context ONCE — the stub brief and the deep
+      // threaded plan both feed from it.
+      const meeting: PreCallMeetingInfo = {
+        title: entry.title || "Upcoming call",
+        startsAt: new Date(entry.entryDate),
+        description: entry.content || "",
+        attendees,
+      };
+      const [seller, framework, assembled] = await Promise.all([
+        loadSellerContext(entry.deal.userId),
+        loadDiscoveryFramework(entry.deal.userId),
+        assembleDealEvidence(entry.deal.userId, entry.dealId),
+      ]);
+      const evidence = assembled?.evidence || "(no evidence yet — first call)";
+
       const brief = await generatePreCallBrief({
-        userId: entry.deal.userId,
-        dealId: entry.dealId,
-        meeting: {
-          title: entry.title || "Upcoming call",
-          startsAt: new Date(entry.entryDate),
-          description: entry.content || "",
-          attendees,
-        },
+        meeting,
+        valueProp: seller.valueProp100w,
+        evidence,
       });
+      // The full six-section prep that rides in the stub's thread.
+      // Generated BEFORE the stub posts so a generation failure never
+      // leaves a recorded stub with a permanently missing thread.
+      let deepPlan: string | null = null;
+      try {
+        deepPlan = await generateDeepPreCallPlan({
+          meeting,
+          sellerContext: formatSellerContext(seller),
+          discoveryFramework: formatDiscoveryFramework(framework),
+          evidence,
+        });
+      } catch (err) {
+        console.error(`[timed-stubs] deep pre-call plan failed for entry ${entry.id}:`, err);
+      }
 
       const appUrl = APP_URL();
       const company = entry.deal.companyName || entry.deal.name;
@@ -233,7 +329,9 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `<${appUrl}/deals/${entry.dealId}|Open deal →>  ·  <${practiceUrl}|🥊 Practice this call>`,
+              text:
+                `<${appUrl}/deals/${entry.dealId}|Open deal →>  ·  <${practiceUrl}|🥊 Practice this call>` +
+                (deepPlan ? `  ·  🧵 Full prep in the thread` : ""),
             },
           },
         ],
@@ -246,8 +344,30 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
         channelId: target.channelId,
         ts: result.ts || "",
       });
+
+      // The deep plan rides as a reply under the stub — its own
+      // thread, which Phase 4 will route straight back to this deal.
+      if (deepPlan && result.ts) {
+        try {
+          const chunks = chunkForSlack(markdownToSlack(deepPlan));
+          await target.client.chat.postMessage({
+            channel: target.channelId,
+            thread_ts: result.ts,
+            mrkdwn: true,
+            text: `Full pre-call plan: ${company} — ${entry.title || "upcoming call"}`,
+            blocks: chunks.map((c) => ({
+              type: "section" as const,
+              text: { type: "mrkdwn" as const, text: c },
+            })),
+          });
+        } catch (err) {
+          console.error(`[timed-stubs] deep plan reply failed for entry ${entry.id}:`, err);
+        }
+      }
       posted++;
-      console.log(`[timed-stubs] pre-call plan posted for deal ${entry.dealId} (${entry.title})`);
+      console.log(
+        `[timed-stubs] pre-call plan posted for deal ${entry.dealId} (${entry.title})${deepPlan ? " + threaded deep plan" : " (deep plan failed)"}`
+      );
     } catch (err) {
       console.error(`[timed-stubs] pre-call stub failed for entry ${entry.id}:`, err);
     }
