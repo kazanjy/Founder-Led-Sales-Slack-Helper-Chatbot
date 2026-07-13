@@ -116,6 +116,10 @@ async function generatePreCallBrief(opts: {
 export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + PRECALL_LEAD_HOURS * 60 * 60 * 1000);
+  // Generous take: candidates that can never post (owner has no Slack
+  // target) stay in the window for hours — a tight cap would let them
+  // crowd out later meetings that CAN post. The real spend limiter is
+  // maxPosts; the rest of the loop is cheap DB checks.
   const candidates = await prisma.dealTimelineEntry.findMany({
     where: {
       type: "meeting",
@@ -123,7 +127,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       deal: { status: { in: IN_PLAY_STATUSES } },
     },
     orderBy: { entryDate: "asc" },
-    take: 12,
+    take: 50,
     include: {
       deal: {
         select: {
@@ -133,27 +137,37 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       },
     },
   });
-  if (candidates.length === 0) return 0;
+
+  // Batch the "already posted?" lookup — entry ids are globally
+  // unique cuids, so sourceRef alone is a safe key here.
+  const postedRows = candidates.length
+    ? await prisma.dealSlackPost.findMany({
+        where: { kind: "precall_plan", sourceRef: { in: candidates.map((c) => c.id) } },
+        select: { sourceRef: true },
+      })
+    : [];
+  const alreadyPosted = new Set(postedRows.map((r) => r.sourceRef));
+  const eligible = candidates.filter((c) => !alreadyPosted.has(c.id));
+  // One line per tick, always — this is the sweep's heartbeat. If a
+  // meeting isn't firing, this line says whether the query even sees
+  // it (in window / already posted / eligible).
+  console.log(
+    `[timed-stubs] precall sweep: ${candidates.length} in ${PRECALL_LEAD_HOURS}h window, ${alreadyPosted.size} already posted, ${eligible.length} eligible`
+  );
+  if (eligible.length === 0) return 0;
 
   let posted = 0;
-  for (const entry of candidates) {
+  for (const entry of eligible) {
     if (posted >= maxPosts) break;
     try {
-      const already = await prisma.dealSlackPost.findUnique({
-        where: {
-          dealId_kind_sourceRef: {
-            dealId: entry.dealId,
-            kind: "precall_plan",
-            sourceRef: entry.id,
-          },
-        },
-        select: { id: true },
-      });
-      if (already) continue;
-
       // Resolve the Slack target BEFORE paying for the brief.
       const target = await resolveSlackTarget(entry.deal.userId);
-      if (!target) continue;
+      if (!target) {
+        console.log(
+          `[timed-stubs] precall skip (no slack target): deal ${entry.dealId} user ${entry.deal.userId} "${entry.title}"`
+        );
+        continue;
+      }
 
       // Attendee readout: prefer enriched participant names/titles,
       // fall back to the raw attendee emails on the entry metadata.

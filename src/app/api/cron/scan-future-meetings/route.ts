@@ -47,6 +47,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // "📋 New Pre-Call Plan" stubs run FIRST — they're the most
+  // time-sensitive thing on this cron (a meeting is starting within
+  // PRECALL_LEAD_HOURS), and running them last let a slow
+  // calendar-scan + triage tick starve them against maxDuration.
+  // They only depend on meeting entries prior ticks already imported.
+  let preCallStubs = 0;
+  try {
+    preCallStubs = await sweepPreCallPlanStubs();
+  } catch (err) {
+    console.error("[cron scan-future-meetings] pre-call stub sweep failed:", err);
+  }
+
   // Everyone with a Google connection — calendar scope is verified
   // inside the sweep (returns hasCalendar:false gracefully when the
   // token lacks it).
@@ -163,18 +175,10 @@ export async function GET(request: NextRequest) {
     console.error("[cron scan-future-meetings] expiry sweep failed:", err);
   }
 
-  // Autopilot Phase 3 timed stubs, riding this tick:
-  //  - "📋 New Pre-Call Plan" for meetings entering the 4h window
-  //    (generates the brief, so it's capped per tick), and
-  //  - the one-time "no recording landed" nudge for likely deals
-  //    whose announced call is 7+ days stale.
-  let preCallStubs = 0;
+  // The one-time "no recording landed" nudge for likely deals whose
+  // announced call is 7+ days stale. Not time-critical, so it stays
+  // at the tail of the tick (pre-call stubs ran first, up top).
   let nudges = 0;
-  try {
-    preCallStubs = await sweepPreCallPlanStubs();
-  } catch (err) {
-    console.error("[cron scan-future-meetings] pre-call stub sweep failed:", err);
-  }
   try {
     nudges = await sweepNoRecordingNudges();
   } catch (err) {
