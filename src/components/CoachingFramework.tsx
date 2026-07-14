@@ -526,9 +526,12 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   });
   // Task ordering inside each goal. "manual" preserves the drag-
   // and-drop order field (the default). "newest" / "oldest" sort by
-  // createdAt so users can see what landed most recently.
-  type TaskSort = "manual" | "newest" | "oldest" | "priority";
-  const VALID_SORTS: TaskSort[] = ["manual", "newest", "oldest", "priority"];
+  // createdAt so users can see what landed most recently. "completed"
+  // puts done items first, newest completion on top (statusChangedAt),
+  // and overrides hide-completed — a completed-date sort of only open
+  // tasks would be an empty answer.
+  type TaskSort = "manual" | "newest" | "oldest" | "priority" | "completed";
+  const VALID_SORTS: TaskSort[] = ["manual", "newest", "oldest", "priority", "completed"];
   // URL ?sort=... wins over localStorage so sharing a link round-trips
   // the same view; localStorage is the per-browser default when no
   // explicit sort is on the URL.
@@ -991,6 +994,18 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           const aR = priorityRank(a.task.priority);
           const bR = priorityRank(b.task.priority);
           if (aR !== bR) return aR - bR;
+          return bMs - aMs;
+        }
+        if (taskSort === "completed") {
+          const doneMs = (t: Task) =>
+            t.status === "done" && t.statusChangedAt
+              ? new Date(t.statusChangedAt).getTime()
+              : null;
+          const aC = doneMs(a.task);
+          const bC = doneMs(b.task);
+          if (aC !== null && bC !== null) return bC - aC;
+          if (aC !== null) return -1;
+          if (bC !== null) return 1;
           return bMs - aMs;
         }
         return taskSort === "newest" ? bMs - aMs : aMs - bMs;
@@ -2290,12 +2305,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
     if (taskSort === "manual" || goals.length === 0) return [];
     const isSettledRow = (t: Task) =>
       t.status === "done" || t.status === "not_doing" || t.status === "deprioritized";
+    // The completed-date sort exists to LOOK AT finished work — the
+    // hide-completed toggles don't apply to it (they'd empty the view).
+    const showSettled = taskSort === "completed";
     const visibleGoals = goals.filter((g) =>
+      showSettled ||
       !(hideCompletedGlobal && (g.status === "done" || g.status === "not_doing" || g.status === "deprioritized"))
     );
     const rows: FlatSortedRow[] = [];
     for (const goal of visibleGoals) {
-      const hideForGoal = hideCompletedGlobal || !!hideCompletedPerGoal[goal.id];
+      const hideForGoal = !showSettled && (hideCompletedGlobal || !!hideCompletedPerGoal[goal.id]);
       const taskById = new Map(goal.tasks.map((t) => [t.id, t]));
       for (const t of goal.tasks) {
         if (hideForGoal && isSettledRow(t)) continue;
@@ -2321,6 +2340,20 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
         const aR = priorityRankLocal(a.task.priority);
         const bR = priorityRankLocal(b.task.priority);
         if (aR !== bR) return aR - bR;
+        return bMs - aMs;
+      }
+      if (taskSort === "completed") {
+        // Done rows first, newest completion on top; everything still
+        // open follows, newest created first.
+        const doneMs = (t: Task) =>
+          t.status === "done" && t.statusChangedAt
+            ? new Date(t.statusChangedAt).getTime()
+            : null;
+        const aC = doneMs(a.task);
+        const bC = doneMs(b.task);
+        if (aC !== null && bC !== null) return bC - aC;
+        if (aC !== null) return -1;
+        if (bC !== null) return 1;
         return bMs - aMs;
       }
       return taskSort === "newest" ? bMs - aMs : aMs - bMs;
@@ -3121,6 +3154,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                   <option value="priority">Priority (then newest)</option>
                   <option value="newest">Created date — newest</option>
                   <option value="oldest">Created date — oldest</option>
+                  <option value="completed">Completed date — newest</option>
                 </select>
               </label>
             )}
@@ -3273,6 +3307,11 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                             <span>
                               Created {new Date(task.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                             </span>
+                            {task.status === "done" && task.statusChangedAt && (
+                              <span className="text-green-600 dark:text-green-300">
+                                ✓ Completed {new Date(task.statusChangedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                              </span>
+                            )}
                             <span className="relative group/askmikey inline-flex">
                               <button
                                 onClick={() => askMikeyForTaskContext(task, parent)}
