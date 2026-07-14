@@ -260,6 +260,45 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
   for (const entry of eligible) {
     if (posted >= maxPosts) break;
     try {
+      // Cross-deal dedupe: duplicate deals for one account each carry
+      // their own timeline entry for the SAME calendar event (the
+      // sweep buckets a meeting onto every matching in-play deal).
+      // One pre-call plan per user per calendar event — if a sibling
+      // entry already got the stub, skip this one.
+      let calendarEventId: string | null = null;
+      try {
+        const m = JSON.parse(entry.metadata || "{}") as { calendarEventId?: string };
+        if (typeof m.calendarEventId === "string" && m.calendarEventId) {
+          calendarEventId = m.calendarEventId;
+        }
+      } catch { /* fine */ }
+      if (calendarEventId) {
+        const siblings = await prisma.dealTimelineEntry.findMany({
+          where: {
+            id: { not: entry.id },
+            type: "meeting",
+            deal: { userId: entry.deal.userId },
+            metadata: { contains: `"${calendarEventId}"` },
+          },
+          select: { id: true },
+        });
+        if (siblings.length > 0) {
+          const siblingPost = await prisma.dealSlackPost.findFirst({
+            where: {
+              kind: "precall_plan",
+              sourceRef: { in: siblings.map((s) => s.id) },
+            },
+            select: { id: true, dealId: true },
+          });
+          if (siblingPost) {
+            console.log(
+              `[timed-stubs] precall skip (duplicate calendar event ${calendarEventId}): entry ${entry.id} deal ${entry.dealId} — already posted for deal ${siblingPost.dealId}`
+            );
+            continue;
+          }
+        }
+      }
+
       // Resolve the Slack target BEFORE paying for the brief.
       const target = await resolveSlackTarget(entry.deal.userId);
       if (!target) {
