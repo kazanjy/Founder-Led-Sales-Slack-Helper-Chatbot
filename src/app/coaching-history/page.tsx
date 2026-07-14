@@ -281,6 +281,43 @@ function CoachingHistoryContent() {
   // panel can render a "Generating synthesis…" placeholder beneath
   // the notes/transcript area until the background job lands.
   const [synthesizingSessionId, setSynthesizingSessionId] = useState<string | null>(null);
+  // "Doublecheck Tasks" — manual re-run of the outcome extraction
+  // against the CURRENT goal/task state. doublecheckResult carries a
+  // transient outcome line ("3 suggestions" / "all in sync").
+  const [doublecheckingId, setDoublecheckingId] = useState<string | null>(null);
+  const [doublecheckResult, setDoublecheckResult] = useState<{ sessionId: string; message: string } | null>(null);
+
+  const doublecheckTasks = async (sessionId: string) => {
+    setDoublecheckingId(sessionId);
+    setDoublecheckResult(null);
+    try {
+      const res = await fetch(`/api/coaching-sessions/${sessionId}/extract-outcomes`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          data?.detail ? `${data?.error || "Doublecheck failed"} — ${data.detail}` : data?.error || `Doublecheck failed (${res.status})`
+        );
+      }
+      await loadSessions();
+      const pending = typeof data?.pending === "number" ? data.pending : 0;
+      setDoublecheckResult({
+        sessionId,
+        message:
+          pending > 0
+            ? `Found ${pending} suggestion${pending === 1 ? "" : "s"} to review.`
+            : "Nothing new — goals and tasks look in sync with this session.",
+      });
+    } catch (err) {
+      setDoublecheckResult({
+        sessionId,
+        message: err instanceof Error ? err.message : "Doublecheck failed",
+      });
+    } finally {
+      setDoublecheckingId(null);
+    }
+  };
   // Bumped after an outcome-review commit to force CoachingFramework
   // (keyed on this) to remount and refetch goals/tasks it didn't create.
   const [frameworkNonce, setFrameworkNonce] = useState(0);
@@ -1498,11 +1535,47 @@ function CoachingHistoryContent() {
                         above the synthesis so the actionable ask comes
                         before the prose rollup. Renders nothing when
                         there are no pending candidates. */}
+                    {/* Doublecheck Tasks — re-run the extraction loop
+                        over this session's notes + transcript against
+                        the CURRENT open goals/tasks: retire what got
+                        done, surface what was missed. */}
+                    {(selectedSession.notes || selectedSession.transcript) && (
+                      <div className="mb-3 flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => doublecheckTasks(selectedSession.id)}
+                          disabled={doublecheckingId === selectedSession.id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800 disabled:opacity-60"
+                          title="Re-scan this session against your current goals & tasks — retire what's done, catch what was missed"
+                        >
+                          {doublecheckingId === selectedSession.id ? (
+                            <>
+                              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Doublechecking…
+                            </>
+                          ) : (
+                            <>🔁 Doublecheck Tasks</>
+                          )}
+                        </button>
+                        {doublecheckResult?.sessionId === selectedSession.id && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {doublecheckResult.message}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <OutcomeReviewPanel
                       sessionId={selectedSession.id}
                       sessionUserId={selectedSession.userId}
                       blob={selectedSession.outcomeCandidates}
-                      extracting={synthesizingSessionId === selectedSession.id}
+                      extracting={
+                        synthesizingSessionId === selectedSession.id ||
+                        doublecheckingId === selectedSession.id
+                      }
                       onCommitted={async () => {
                         // Pull the updated blob into page state and
                         // remount the framework so accepted goals/
