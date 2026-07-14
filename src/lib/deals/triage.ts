@@ -276,8 +276,11 @@ export async function postLikelyDealStub(opts: {
   const { client, channelId } = target;
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  // Render in the FOUNDER's timezone (Slack profile tz) — the server
+  // runs UTC and would otherwise label a 1:30 PM PT call "8:30 PM".
   const when = new Date(opts.event.startsAt).toLocaleString(undefined, {
     weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    timeZone: target.timezone || "UTC",
   });
   const attendeeLine = opts.event.attendees
     .map((a) => a.name || a.email)
@@ -431,7 +434,13 @@ export async function dealHasHumanTouch(dealId: string): Promise<boolean> {
 
 export async function resolveSlackTarget(
   userId: string
-): Promise<{ client: ReturnType<typeof getSlackClient>; channelId: string } | null> {
+): Promise<{
+  client: ReturnType<typeof getSlackClient>;
+  channelId: string;
+  /** IANA timezone from the founder's Slack profile — stub timestamps
+   *  render in THEIR local time, not the server's UTC. */
+  timezone: string | null;
+} | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { workspaceId: true, slackUserId: true },
@@ -443,16 +452,25 @@ export async function resolveSlackTarget(
   });
   if (!ws?.botToken) return null;
   const client = getSlackClient(ws.botToken);
+
+  let timezone: string | null = null;
+  if (user.slackUserId) {
+    try {
+      const info = await client.users.info({ user: user.slackUserId });
+      timezone = info.user?.tz || null;
+    } catch { /* render UTC rather than fail the post */ }
+  }
+
   const claim = await prisma.channelClaim.findFirst({
     where: { claimedByUserId: userId },
     orderBy: { lastMessageAt: "desc" },
     select: { slackChannelId: true },
   });
-  if (claim?.slackChannelId) return { client, channelId: claim.slackChannelId };
+  if (claim?.slackChannelId) return { client, channelId: claim.slackChannelId, timezone };
   if (user.slackUserId) {
     try {
       const opened = await client.conversations.open({ users: user.slackUserId });
-      if (opened.channel?.id) return { client, channelId: opened.channel.id };
+      if (opened.channel?.id) return { client, channelId: opened.channel.id, timezone };
     } catch { /* no target */ }
   }
   return null;

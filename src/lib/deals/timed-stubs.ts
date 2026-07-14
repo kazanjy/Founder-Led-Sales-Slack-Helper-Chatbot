@@ -28,7 +28,7 @@ const IN_PLAY_STATUSES = ["active", "potential", "likely", "stalled"];
 const APP_URL = () =>
   (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
 
-function formatWhen(d: Date): string {
+function formatWhen(d: Date, timezone: string | null): string {
   // Date-only timestamps (all-day calendar events, picker-entered
   // dates land at midnight UTC) render as just the date — "12:00 AM"
   // is noise and usually timezone-shifted.
@@ -37,8 +37,11 @@ function formatWhen(d: Date): string {
       weekday: "short", month: "short", day: "numeric", timeZone: "UTC",
     });
   }
+  // Timed events render in the FOUNDER's timezone (Slack profile tz) —
+  // the server runs UTC and would label a 1:30 PM PT call "8:30 PM".
   return d.toLocaleString(undefined, {
     weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    timeZone: timezone || "UTC",
   });
 }
 
@@ -141,8 +144,9 @@ async function generateDeepPreCallPlan(opts: {
   sellerContext: string;
   discoveryFramework: string;
   evidence: string;
+  timezone: string | null;
 }): Promise<string> {
-  const when = formatWhen(opts.meeting.startsAt);
+  const when = formatWhen(opts.meeting.startsAt, opts.timezone);
   const sections = [
     DEEP_PRECALL_PROMPT,
     `## The Meeting\n**${opts.meeting.title}** — ${when}\nAttendees: ${opts.meeting.attendees.join(", ") || "(unknown)"}\n\nInvite notes:\n${opts.meeting.description.substring(0, 4000) || "(none)"}`,
@@ -334,6 +338,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
           sellerContext: formatSellerContext(seller),
           discoveryFramework: formatDiscoveryFramework(framework),
           evidence,
+          timezone: target.timezone,
         });
       } catch (err) {
         console.error(`[timed-stubs] deep pre-call plan failed for entry ${entry.id}:`, err);
@@ -356,7 +361,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
             text: {
               type: "mrkdwn",
               text:
-                `🗓 *${entry.title || "Upcoming call"}* — ${formatWhen(new Date(entry.entryDate))}\n` +
+                `🗓 *${entry.title || "Upcoming call"}* — ${formatWhen(new Date(entry.entryDate), target.timezone)}\n` +
                 `👥 ${attendeeLine}` +
                 (brief.synopsis ? `\n\n_${brief.synopsis}_` : ""),
             },
@@ -437,6 +442,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
         sellerContext: formatSellerContext(seller),
         discoveryFramework: formatDiscoveryFramework(framework),
         evidence: assembled?.evidence || "(no evidence yet — first call)",
+        timezone: target.timezone,
       });
       // Post to the STUB's channel/ts, not the current claimed
       // channel — the thread lives where the stub does.
