@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, use } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { suggestChannelMatches } from "@/lib/slack/suggest-channel";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SalesNavBar from "@/components/SalesNavBar";
@@ -2046,6 +2047,41 @@ Ground everything in what's actually in this deal's history — if the deal is t
                   ) : (
                     (() => {
                       const q = channelSearch.trim().toLowerCase();
+                      const suggested = !q
+                        ? suggestChannelMatches(slackChannels, {
+                            name: deal.name,
+                            companyName: deal.companyName,
+                            companyUrl: deal.companyUrl,
+                          })
+                        : [];
+                      const suggestedBlock = suggested.length > 0 && (
+                        <>
+                          <div className="text-[10px] uppercase tracking-wider text-gray-400 px-2 pt-1 pb-0.5">
+                            Suggested for {deal.companyName || deal.name}
+                          </div>
+                          {suggested.map((c) => (
+                            <button
+                              key={`sug-${c.id}`}
+                              type="button"
+                              onClick={() => linkSlackChannel(c)}
+                              className="w-full text-left px-2 py-1.5 rounded-md text-sm bg-purple-50/60 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 flex items-center gap-2"
+                            >
+                              <span aria-hidden>⭐</span>
+                              <span className="truncate">#{c.name}</span>
+                              {c.isShared && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 shrink-0">
+                                  Slack Connect
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                          <div className="border-b border-gray-100 dark:border-gray-700 my-1.5" />
+                        </>
+                      );
+                      return (
+                        <>
+                          {suggestedBlock}
+                          {(() => {
                       const filtered = q
                         ? slackChannels.filter((c) => c.name.toLowerCase().includes(q))
                         : slackChannels;
@@ -2072,6 +2108,9 @@ Ground everything in what's actually in this deal's history — if the deal is t
                           {c.isPrivate && <span className="text-[10px] text-gray-400 shrink-0">🔒</span>}
                         </button>
                       ));
+                          })()}
+                        </>
+                      );
                     })()
                   )}
                   <button

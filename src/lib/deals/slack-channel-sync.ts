@@ -235,14 +235,17 @@ export async function syncDealSlackChannel(
 }
 
 /**
- * Cron sweep: sync every in-play deal with a linked channel. Capped
- * per tick; quiet channels cost one history call each.
+ * Cron sweep: sync every linked channel on in-play deals — plus
+ * closed_lost, deliberately: new chatter in a dead deal's channel is
+ * re-engagement signal worth capturing (closed_won stays out; the
+ * Customer Success applet owns post-close activity). Capped per tick;
+ * quiet channels cost one history call each.
  */
 export async function sweepLinkedSlackChannels(maxSyncs = 10): Promise<number> {
   const linked = await prisma.deal.findMany({
     where: {
       slackChannelId: { not: null },
-      status: { in: ["active", "potential", "likely", "stalled"] },
+      status: { in: ["active", "potential", "likely", "stalled", "closed_lost"] },
     },
     orderBy: { updatedAt: "asc" },
     take: maxSyncs,
