@@ -30,10 +30,28 @@ interface SlackMessage {
   reply_count?: number;
 }
 
-async function resolveWorkspaceClient(userId: string) {
+function userTokenCanRead(scopes: string | null): boolean {
+  if (!scopes) return false;
+  const set = new Set(scopes.split(",").map((s) => s.trim()));
+  return set.has("channels:read") && set.has("channels:history");
+}
+
+/**
+ * Two clients: `read` prefers the founder's USER token (xoxp) when it
+ * carries channel-read scopes — that reads AS THE FOUNDER, so every
+ * channel they're in (public/private/Slack Connect) works without
+ * inviting the bot. `bot` is always the workspace bot token (used for
+ * users.info name resolution, which the user token isn't scoped for,
+ * and as the read fallback pre-re-auth).
+ */
+async function resolveClients(userId: string): Promise<{
+  bot: ReturnType<typeof getSlackClient>;
+  read: ReturnType<typeof getSlackClient>;
+  viaUserToken: boolean;
+} | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { workspaceId: true },
+    select: { workspaceId: true, slackUserToken: true, slackUserScopes: true },
   });
   if (!user?.workspaceId) return null;
   const ws = await prisma.workspace.findUnique({
@@ -41,7 +59,10 @@ async function resolveWorkspaceClient(userId: string) {
     select: { botToken: true },
   });
   if (!ws?.botToken) return null;
-  return getSlackClient(ws.botToken);
+  const bot = getSlackClient(ws.botToken);
+  const viaUserToken = !!user.slackUserToken && userTokenCanRead(user.slackUserScopes);
+  const read = viaUserToken ? getSlackClient(user.slackUserToken!) : bot;
+  return { bot, read, viaUserToken };
 }
 
 export interface BotChannel {
@@ -52,18 +73,24 @@ export interface BotChannel {
 }
 
 /**
- * Channels the bot is a member of in the founder's workspace — the
- * attachable set (the bot can only read history where it's present).
- * Slack Connect channels carry isShared for the picker badge.
+ * The attachable channel set. With the founder's user token: every
+ * channel THEY are a member of (public, private, Slack Connect) — no
+ * bot invites needed. Without it: only channels the bot is in, plus
+ * `viaUserToken: false` so the UI can offer the connect-Slack upgrade.
  */
-export async function listBotChannels(userId: string): Promise<BotChannel[]> {
-  const client = await resolveWorkspaceClient(userId);
-  if (!client) return [];
+export async function listAttachableChannels(
+  userId: string
+): Promise<{ channels: BotChannel[]; viaUserToken: boolean }> {
+  const clients = await resolveClients(userId);
+  if (!clients) return { channels: [], viaUserToken: false };
   const out: BotChannel[] = [];
   let cursor: string | undefined;
   let pages = 0;
   do {
-    const res = await client.users.conversations({
+    // users.conversations defaults to the token's own identity: the
+    // founder's channels on a user token, the bot's membership on the
+    // bot token.
+    const res = await clients.read.users.conversations({
       types: "public_channel,private_channel",
       exclude_archived: true,
       limit: 200,
@@ -80,9 +107,9 @@ export async function listBotChannels(userId: string): Promise<BotChannel[]> {
     }
     cursor = res.response_metadata?.next_cursor || undefined;
     pages++;
-  } while (cursor && pages < 5);
+  } while (cursor && pages < 10);
   out.sort((a, b) => Number(b.isShared) - Number(a.isShared) || a.name.localeCompare(b.name));
-  return out;
+  return { channels: out, viaUserToken: clients.viaUserToken };
 }
 
 function tsToDate(ts: string): Date {
@@ -117,8 +144,8 @@ export async function syncDealSlackChannel(
   if (!deal || deal.userId !== userId || !deal.slackChannelId) {
     return { synced: false, newMessages: 0, entryId: null, error: "not_linked" };
   }
-  const client = await resolveWorkspaceClient(userId);
-  if (!client) {
+  const clients = await resolveClients(userId);
+  if (!clients) {
     return { synced: false, newMessages: 0, entryId: null, error: "no_workspace" };
   }
 
@@ -128,7 +155,7 @@ export async function syncDealSlackChannel(
 
   let messages: SlackMessage[] = [];
   try {
-    const history = await client.conversations.history({
+    const history = await clients.read.conversations.history({
       channel: deal.slackChannelId,
       oldest,
       limit: MAX_MESSAGES_PER_SYNC,
@@ -158,7 +185,7 @@ export async function syncDealSlackChannel(
     if (cached) return cached;
     let name = slackUserId;
     try {
-      const info = await client.users.info({ user: slackUserId });
+      const info = await clients.bot.users.info({ user: slackUserId });
       name = info.user?.real_name || info.user?.name || slackUserId;
     } catch { /* keep id */ }
     nameCache.set(slackUserId, name);
@@ -180,7 +207,7 @@ export async function syncDealSlackChannel(
     if ((m.reply_count || 0) > 0 && threadsFetched < MAX_THREADS_PER_SYNC) {
       threadsFetched++;
       try {
-        const replies = await client.conversations.replies({
+        const replies = await clients.read.conversations.replies({
           channel: deal.slackChannelId,
           ts: m.thread_ts || m.ts!,
           limit: 50,

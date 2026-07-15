@@ -371,6 +371,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [channelBusy, setChannelBusy] = useState(false);
   const [channelMsg, setChannelMsg] = useState<string | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
+  const [channelsViaUserToken, setChannelsViaUserToken] = useState(true);
 
   const flashChannelMsg = (msg: string) => {
     setChannelMsg(msg);
@@ -385,6 +386,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         const res = await fetch("/api/slack/bot-channels");
         const data = await res.json().catch(() => null);
         setSlackChannels(Array.isArray(data?.channels) ? data.channels : []);
+        setChannelsViaUserToken(data?.viaUserToken !== false);
       } catch {
         setSlackChannels([]);
       }
@@ -2026,9 +2028,19 @@ Ground everything in what's actually in this deal's history — if the deal is t
               {channelMsg && <span className="text-xs text-gray-400">{channelMsg}</span>}
               {channelPickerOpen && (
                 <div className="absolute top-full left-0 mt-1 z-40 w-80 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2">
-                  <div className="text-[11px] text-gray-400 px-2 pb-1.5">
-                    Channels Mikey is in — invite <span className="font-medium">@Mikey</span> to the shared channel first if it&rsquo;s missing.
-                  </div>
+                  {channelsViaUserToken ? (
+                    <div className="text-[11px] text-gray-400 px-2 pb-1.5">
+                      Every channel you&rsquo;re in — reading as you, no bot invites needed.
+                    </div>
+                  ) : (
+                    <a
+                      href={`/api/slack/oauth?return_to=${encodeURIComponent(`/deals/${id}`)}`}
+                      className="block text-[11px] text-purple-600 dark:text-purple-300 px-2 pb-1.5 hover:underline"
+                      title="Grant Mikey read access as you — attach any public, private, or Slack Connect channel you're a member of without inviting the bot"
+                    >
+                      🔓 Only seeing channels Mikey&rsquo;s been invited to. Connect your Slack to attach <span className="font-semibold">any channel you&rsquo;re in</span> →
+                    </a>
+                  )}
                   <input
                     type="text"
                     autoFocus

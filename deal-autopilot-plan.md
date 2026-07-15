@@ -204,7 +204,11 @@ model DealTask {
   title     String   // imperative: "Send Jerrod a direct 'is this still live?' Slack"
   rationale String?  @db.Text // why the machine proposed it (evidence-cited)
   source    String   // "pipeline_review" | "deal_analysis" | "user"
-  status    String   @default("proposed") // proposed | done | dismissed | expired
+  status    String   @default("proposed") // proposed | scheduled | done | dismissed | expired
+  // FUTURE-DATED tasks: not everything happens now. "Check back in 3
+  // weeks", "follow up after their Aug 10 board meeting", "nudge on
+  // renewal timing in Q4" — dueAt parks the task until it's live.
+  dueAt     DateTime? // null = do-now; set = scheduled
   proofEntryId String?  // timeline entry evidencing completion (nullable — Done on trust is fine)
   reviewRunId  String?  // groups tasks proposed by the same weekly review
   createdAt DateTime @default(now())
@@ -213,7 +217,20 @@ model DealTask {
 ```
 
 - Lifecycle is deliberately thin: proposed → done / dismissed. No
-  "accepted" state — a founder either does it or kills it.
+  "accepted" state — a founder either does it or kills it. Scheduled
+  tasks (dueAt set) sleep until due, then behave like proposed.
+- **Slack execution loop for due tasks**: when a scheduled task comes
+  due, it fires into Slack (claimed channel / DM, recorded in
+  DealSlackPost): "⏰ Due on Acme: follow up post-board-meeting" with
+  [✓ Done] [Snooze 1w] [Dismiss] links AND — because the founder's
+  user token carries chat:write — a DRAFTED message ready to send AS
+  THE FOUNDER into the deal's linked channel ("want me to send this?").
+  Execution converges with the linked-channel machinery: the task
+  fires, the draft goes out in the founder's voice, the reply lands
+  back on the timeline via channel sync. Extraction sources for
+  scheduled tasks: analysis Next Best Actions with explicit timing,
+  coaching outcomes with dates, and direct asks in Deal Chat
+  ("remind me to ping Sarah in two weeks").
 - **Expiry, not duplication**: the next review sees open proposed tasks
   as input. It re-affirms (leaves them), or expires ones whose
   underlying condition changed (meeting got booked → "book a meeting"

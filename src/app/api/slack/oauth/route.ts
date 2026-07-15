@@ -17,12 +17,20 @@ const BOT_SCOPES = [
   "files:read", // Read file attachments in messages
 ].join(",");
 
-// User-scope tokens (xoxp-…) so the broadcast tool can post on behalf
-// of an admin instead of as MikeyBot — central to the "founder-led
-// sales" frame. Slack returns one in `authed_user.access_token` on the
-// OAuth callback whenever the user grants any user_scope here.
+// User-scope tokens (xoxp-…). Two jobs:
+//  - chat:write: the broadcast tool posts on behalf of an admin
+//    instead of as MikeyBot — central to the "founder-led sales" frame.
+//  - channel read scopes: the deal↔Slack-channel sync reads AS THE
+//    FOUNDER, so any channel they're in (public, private, Slack
+//    Connect) is attachable without inviting the bot to each one.
+// Slack returns the token in `authed_user.access_token` on the OAuth
+// callback whenever the user grants any user_scope here.
 const USER_SCOPES = [
   "chat:write",
+  "channels:read",
+  "groups:read",
+  "channels:history",
+  "groups:history",
 ].join(",");
 
 export async function GET(request: NextRequest) {
