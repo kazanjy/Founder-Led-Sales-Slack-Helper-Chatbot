@@ -55,6 +55,7 @@ Judgment rules:
   - fundraising: investor patterns — partners/principals at funds, "catch up", "intro to <VC>".
   - recruiting: candidates, interviews, "chat re: role".
   - internal / personal: no genuine external prospect present.
+- ONGOING-CADENCE signal (weigh heavily): if the event is an instance of a RECURRING series, or the calendar already holds several future meetings with this same account (see isRecurringSeries / futureMeetingsWithThisAccountNext90d), that is the shape of an EXISTING relationship — a customer in implementation, a weekly check-in, an advisory cadence — NOT the start of a sales opportunity. Classify existing_customer/unlikely_deal unless the invite text clearly reads like an active sales cycle (proposal review, pricing, contract negotiation).
 - The prospect company is the EXTERNAL attendees' company — never the founder's own.
 - Low information (empty description, unknown domain, ambiguous title) → unlikely/unknown with low confidence. NEVER guess a company into existence.
 - Be conservative: when torn, unlikely with your honest confidence. The founder can promote from the digest; a wrong "new deal" announcement is worse.`;
@@ -143,6 +144,8 @@ export async function classifyCalendarEvent(
       description: event.description,
       attendees: event.attendees,
       externalAttendees: external,
+      isRecurringSeries: event.isRecurring,
+      futureMeetingsWithThisAccountNext90d: event.futureMeetingsWithSameAccount,
     },
     foundersInternalDomains: [...internal],
     foundersValueProp: seller.valueProp100w?.substring(0, 1500) || "(none)",

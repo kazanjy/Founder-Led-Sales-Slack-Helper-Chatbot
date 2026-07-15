@@ -36,6 +36,10 @@ interface GCalEvent {
   htmlLink?: string;
   start?: { dateTime?: string; date?: string };
   attendees?: GCalAttendee[];
+  // Present on instances of a recurring series (we fetch with
+  // singleEvents=true). A strong existing-relationship signal for the
+  // autopilot triage: weekly check-ins are customers, not pipeline.
+  recurringEventId?: string;
 }
 
 function normalizeDomain(d: string | null | undefined): string {
@@ -262,6 +266,13 @@ export interface UnmatchedCalendarEvent {
   startsAt: string;
   htmlLink: string | null;
   attendees: Array<{ email: string; name: string | null }>;
+  /** Instance of a recurring series — reads as an ongoing relationship
+   *  (customer/implementation cadence), not a fresh sales cycle. */
+  isRecurring: boolean;
+  /** How many events in the next-90-day window share this event's
+   *  external attendee domain(s) — several future meetings already on
+   *  the books is the same ongoing-relationship signal. */
+  futureMeetingsWithSameAccount: number;
 }
 
 export interface ScanFutureMeetingsUserResult {
@@ -352,6 +363,24 @@ export async function scanFutureMeetingsForUser(
   const skippedByDeal = new Map<string, number>();
   const dealsTouched = new Set<string>();
 
+  // Per-domain event counts across the whole 90-day window — the
+  // "how many future meetings do we already have with this account"
+  // signal for the triage classifier. singleEvents=true means a
+  // weekly series contributes one event per instance, which is
+  // exactly the ongoing-cadence signal we want.
+  const domainEventCounts = new Map<string, number>();
+  for (const ev of events) {
+    if (ev.status === "cancelled") continue;
+    const evDomains = new Set<string>();
+    for (const a of ev.attendees || []) {
+      const d = domainFromEmail(a.email);
+      if (d && !PUBLIC_EMAIL_DOMAINS.has(d)) evDomains.add(d);
+    }
+    for (const d of evDomains) {
+      domainEventCounts.set(d, (domainEventCounts.get(d) || 0) + 1);
+    }
+  }
+
   const MAX_UNMATCHED = 25;
   for (const ev of events) {
     if (ev.status === "cancelled") continue;
@@ -378,6 +407,12 @@ export async function scanFutureMeetingsForUser(
       ev.id &&
       out.unmatchedEvents.length < MAX_UNMATCHED
     ) {
+      let sameAccountCount = 0;
+      for (const a of ev.attendees || []) {
+        const d = domainFromEmail(a.email);
+        if (!d || PUBLIC_EMAIL_DOMAINS.has(d)) continue;
+        sameAccountCount = Math.max(sameAccountCount, domainEventCounts.get(d) || 0);
+      }
       out.unmatchedEvents.push({
         calendarEventId: ev.id,
         title: ev.summary || "Meeting",
@@ -387,6 +422,8 @@ export async function scanFutureMeetingsForUser(
         attendees: (ev.attendees || [])
           .map((a) => ({ email: (a.email || "").toLowerCase(), name: a.displayName || null }))
           .filter((a) => !!a.email),
+        isRecurring: !!ev.recurringEventId,
+        futureMeetingsWithSameAccount: sameAccountCount,
       });
     }
     for (const [dealId, matched] of matchedDealsAndDomains) {
