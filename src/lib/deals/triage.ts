@@ -55,7 +55,8 @@ Judgment rules:
   - fundraising: investor patterns — partners/principals at funds, "catch up", "intro to <VC>".
   - recruiting: candidates, interviews, "chat re: role".
   - internal / personal: no genuine external prospect present.
-- ONGOING-CADENCE signal (weigh heavily): if the event is an instance of a RECURRING series, or the calendar already holds several future meetings with this same account (see isRecurringSeries / futureMeetingsWithThisAccountNext90d), that is the shape of an EXISTING relationship — a customer in implementation, a weekly check-in, an advisory cadence — NOT the start of a sales opportunity. Classify existing_customer/unlikely_deal unless the invite text clearly reads like an active sales cycle (proposal review, pricing, contract negotiation).
+- DEAL-STATE EVIDENCE TRUMPS EVERYTHING: when priorRelationship carries recent call content, judge the relationship mode from WHAT WAS ACTUALLY SAID on those calls. Calls about implementation, onboarding, support-channel requests, permissions, training, go-lives → existing_customer, regardless of meeting cadence or invite language — even if no closed-won deal is on record. Calls that are an active buying evaluation (discovery questions, demo, pricing, procurement, next steps toward purchase) → a live sales motion; the meeting belongs to that motion, not a new deal. A prior DISMISSED deal whose calls read as customer work should stay dismissed — don't resurrect it from a calendar invite.
+- ONGOING-CADENCE signal (supporting only — never sufficient by itself): a RECURRING series, or several future meetings already booked with this account (isRecurringSeries / futureMeetingsWithThisAccountNext90d), has the shape of an existing relationship (customer implementation, weekly check-in, advisory cadence). Use it to break ties; when call evidence exists it always wins over cadence, in either direction.
 - The prospect company is the EXTERNAL attendees' company — never the founder's own.
 - Low information (empty description, unknown domain, ambiguous title) → unlikely/unknown with low confidence. NEVER guess a company into existence.
 - Be conservative: when torn, unlikely with your honest confidence. The founder can promote from the digest; a wrong "new deal" announcement is worse.`;
@@ -117,6 +118,67 @@ export async function classifyCalendarEvent(
     };
   }
 
+  // Deal-state evidence: what was actually SAID on the most recent
+  // calls with this account is the strongest relationship-mode signal
+  // — "we're evaluating buying you" vs "we're customers, implementing
+  // you". Any prior deal for the domain (dismissed, closed-lost, in
+  // play) may carry transcripts; hand the freshest to the classifier.
+  let priorRelationship: {
+    dealStatus: string;
+    companyName: string;
+    priorTriageReason: string | null;
+    recentCalls: string;
+  } | null = null;
+  try {
+    const priorDeal = await prisma.deal.findFirst({
+      where: {
+        userId,
+        OR: externalDomains.flatMap((d) => [
+          { companyUrl: { contains: d, mode: "insensitive" as const } },
+          { participants: { some: { email: { endsWith: `@${d}`, mode: "insensitive" as const } } } },
+        ]),
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, status: true, companyName: true, name: true },
+    });
+    if (priorDeal) {
+      const [calls, priorTriage] = await Promise.all([
+        prisma.dealTimelineEntry.findMany({
+          where: {
+            dealId: priorDeal.id,
+            type: { in: ["call_summary", "call_transcript"] },
+          },
+          orderBy: { entryDate: "desc" },
+          take: 2,
+          select: { title: true, entryDate: true, content: true },
+        }),
+        prisma.dealTriage.findFirst({
+          where: { userId, dealId: priorDeal.id },
+          orderBy: { createdAt: "desc" },
+          select: { verdict: true, reason: true },
+        }),
+      ]);
+      priorRelationship = {
+        dealStatus: priorDeal.status,
+        companyName: priorDeal.companyName || priorDeal.name,
+        priorTriageReason: priorTriage
+          ? `${priorTriage.verdict}: ${priorTriage.reason || ""}`.trim()
+          : null,
+        recentCalls:
+          calls.length > 0
+            ? calls
+                .map(
+                  (c) =>
+                    `### ${c.title || "Call"} (${c.entryDate.toISOString().slice(0, 10)})\n${c.content.substring(0, 4000)}`
+                )
+                .join("\n\n")
+            : "(no recorded calls on the prior deal)",
+      };
+    }
+  } catch (err) {
+    console.error("[triage] prior-relationship lookup failed:", err);
+  }
+
   const seller = await loadSellerContext(userId);
   const icpVersion = await prisma.icpVersion.findFirst({
     where: { userId },
@@ -150,6 +212,7 @@ export async function classifyCalendarEvent(
     foundersInternalDomains: [...internal],
     foundersValueProp: seller.valueProp100w?.substring(0, 1500) || "(none)",
     foundersIcp: icpText || "(none authored)",
+    priorRelationship: priorRelationship || "(no prior deal on record for this account)",
   };
 
   const completion = await openai.chat.completions.create({

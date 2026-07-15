@@ -71,12 +71,15 @@ Rules of the classifier: external attendees from one non-ICP-irrelevant
 company + meeting language that reads like an intro/demo/discovery →
 likely. Signals AGAINST: the founder is the buyer (vendor demos TO us),
 investor patterns (partner titles at funds, "catch up"), recruiting
-(candidate + "interview"), internal-only domains. ONGOING-CADENCE
-signal: a recurring series, or several future meetings already booked
-with the same account (both computed by the sweep — recurringEventId +
-per-domain window counts), reads as an existing relationship (customer
-implementation, weekly check-in) → existing_customer/unlikely unless
-the invite text is unmistakably an active sales cycle. Below a confidence
+(candidate + "interview"), internal-only domains. DEAL-STATE EVIDENCE
+first: the classifier gets the most recent call transcripts from any
+prior deal on the domain (dismissed/closed-lost/in-play) plus its
+status and last triage verdict — "we're evaluating buying you" vs
+"we're customers, implementing you" is judged from what was actually
+said, and always beats cadence or invite language. ONGOING-CADENCE is
+a supporting signal only: a recurring series or several future
+meetings booked with the account (recurringEventId + per-domain window
+counts, computed by the sweep) breaks ties toward existing_customer. Below a confidence
 threshold (default 0.7) → classify unlikely but flag `borderline: true` for
 the digest. Never invents: PDL miss + empty description + unknown domain =
 unlikely/unknown, digest-flagged.
