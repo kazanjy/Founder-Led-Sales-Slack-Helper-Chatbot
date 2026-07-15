@@ -447,6 +447,21 @@ function CoachingHistoryContent() {
     setCreatingDraft(true);
     setMode("create");
 
+    // Seed the new session's notes with the founder's "Next Session
+    // Topics" scratchpad (the card atop Goals & Tasks) as a Topics to
+    // Cover section. Best-effort — the field stays as-is so the
+    // founder clears it once the topics are truly covered.
+    try {
+      const tRes = await fetch("/api/coaching/next-session-topics");
+      if (tRes.ok) {
+        const tData = await tRes.json().catch(() => null);
+        const topics = (tData?.value || "").trim();
+        if (topics) {
+          setFormNotes(`## Topics to Cover\n\n${topics}\n\n`);
+        }
+      }
+    } catch { /* start with empty notes */ }
+
     // Immediately create a draft session so CoachingFramework has a
     // sessionId. lockPrior=true tells the server to lock every other
     // open session for this user as part of creating the draft —

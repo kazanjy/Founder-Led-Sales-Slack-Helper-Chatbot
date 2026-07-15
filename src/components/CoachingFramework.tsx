@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { TaskComments } from "@/components/TaskComments";
 import { RowActionsMenu, type RowAction } from "@/components/RowActionsMenu";
 import ReadinessTray from "@/components/ReadinessTray";
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
 // Copy handlers write BOTH clipboard flavors — text/html (rendered)
 // and text/plain (the raw markdown) — so Docs/Notion/Gmail paste
@@ -470,6 +471,53 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // ── State ──────────────────────────────────────────────────────
 
   const [dataLoaded, setDataLoaded] = useState(false);
+  // "Next Session Topics" — founder-scoped scratchpad rendered at the
+  // top of the applet. Markdown via RichTextEditor; saves on click-out
+  // (and unmount) when dirty. Seeded into a new session's notes as
+  // "## Topics to Cover" by the coaching-history create flow.
+  const [nextTopics, setNextTopics] = useState("");
+  const [nextTopicsLoaded, setNextTopicsLoaded] = useState(false);
+  const [nextTopicsSavedFlash, setNextTopicsSavedFlash] = useState(false);
+  const nextTopicsDirtyRef = useRef(false);
+  const nextTopicsValueRef = useRef("");
+
+  useEffect(() => {
+    if (!isOwner) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/coaching/next-session-topics");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setNextTopics(data?.value || "");
+          nextTopicsValueRef.current = data?.value || "";
+        }
+      } catch { /* start blank */ }
+      if (!cancelled) setNextTopicsLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [isOwner]);
+
+  const saveNextTopics = useCallback(async () => {
+    if (!nextTopicsDirtyRef.current) return;
+    nextTopicsDirtyRef.current = false;
+    try {
+      await fetch("/api/coaching/next-session-topics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: nextTopicsValueRef.current }),
+      });
+      setNextTopicsSavedFlash(true);
+      setTimeout(() => setNextTopicsSavedFlash(false), 2000);
+    } catch {
+      // Re-mark dirty so the next blur retries.
+      nextTopicsDirtyRef.current = true;
+    }
+  }, []);
+
+  // Flush an unsaved edit if the user navigates away without blurring.
+  useEffect(() => () => { void saveNextTopics(); }, [saveNextTopics]);
+
   const [maturityStage, setMaturityStage] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [metricEntries, setMetricEntries] = useState<MetricEntry[]>([]);
@@ -2436,6 +2484,44 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
 
   return (
     <div className="space-y-6 mb-8">
+      {/* ── Next Session Topics ─────────────────────────────────── */}
+      {/* Founder's running scratchpad — anything jotted here gets
+          seeded into the next new session's notes as a "Topics to
+          Cover" section. Saves on click-out. */}
+      {isOwner && nextTopicsLoaded && (
+        <div
+          className="bg-white dark:bg-gray-800 rounded-xl border border-purple-200 dark:border-purple-800 p-5"
+          onBlur={(e) => {
+            // Only save when focus actually LEAVES the card — toolbar
+            // clicks and internal focus moves don't count.
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+            void saveNextTopics();
+          }}
+        >
+          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+            <span>🗒</span> Next Session Topics
+            {nextTopicsSavedFlash && (
+              <span className="text-[11px] font-medium normal-case tracking-normal text-green-600 dark:text-green-300">
+                Saved ✓
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">
+            Jot down what to cover next time — it&rsquo;ll be pre-loaded into a
+            &ldquo;Topics to Cover&rdquo; section when you start a new session.
+          </p>
+          <RichTextEditor
+            value={nextTopics}
+            onChange={(md) => {
+              setNextTopics(md);
+              nextTopicsValueRef.current = md;
+              nextTopicsDirtyRef.current = true;
+            }}
+            height={110}
+            placeholder="e.g. Debrief the Acme demo · Q3 pipeline math · BDR-vs-AE hiring decision"
+          />
+        </div>
+      )}
       <ReadinessTray
         open={readinessTrayOpen}
         onOpen={() => setReadinessTrayOpen(true)}
