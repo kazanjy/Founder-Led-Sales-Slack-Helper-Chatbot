@@ -6,6 +6,7 @@ import { attributeEntryToParticipants } from "@/lib/deals/attribute";
 import { classifyEntryContent } from "@/lib/deals/classify-entry";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { postAnalysisUpdateStub } from "@/lib/deals/timed-stubs";
+import { findDuplicateEntry, isDupeCheckable } from "@/lib/deals/dupe-check";
 
 // The post-add re-analysis runs via after() — keep the function alive
 // long enough for it to finish.
@@ -94,6 +95,34 @@ export async function POST(
     const shouldClassify =
       trimmedContent.length >= MIN_CONTENT_FOR_CLASSIFY &&
       (!trimmedTitle || ATTRIBUTABLE_TYPES.has(type));
+
+    // Duplicate guard: pasted/dropped correspondence that's already on
+    // the timeline gets discarded with a NAMED match (409) instead of
+    // double-logging. Deterministic shingle containment — see
+    // lib/deals/dupe-check.ts. skipDupeCheck lets a client force it
+    // through ("add anyway").
+    if (body.skipDupeCheck !== true && isDupeCheckable(type, trimmedContent)) {
+      try {
+        const dupe = await findDuplicateEntry(id, trimmedContent);
+        if (dupe) {
+          return NextResponse.json(
+            {
+              error: "duplicate",
+              match: {
+                entryId: dupe.entryId,
+                title: dupe.title,
+                entryDate: dupe.entryDate.toISOString(),
+                type: dupe.type,
+              },
+            },
+            { status: 409 }
+          );
+        }
+      } catch (err) {
+        // A dupe-check failure never blocks a legitimate add.
+        console.error(`[entries] dupe check failed for deal ${id}:`, err);
+      }
+    }
 
     // Run participant attribution if the entry type is conversation-shaped,
     // the content is meaty enough to be worth a GPT call, there are

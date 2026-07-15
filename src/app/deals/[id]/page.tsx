@@ -884,6 +884,40 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         // to a conversation, not new context about the deal, so there's
         // nothing for the analyzer to re-read.
         if (!analyzing && type !== "chat") analyzeDeal({ scrollToResult: true });
+      } else if (res.status === 409) {
+        // Duplicate guard tripped — name the match and offer a forced add.
+        const data = await res.json().catch(() => null);
+        const matchTitle = data?.match?.title || "an existing entry";
+        const when = data?.match?.entryDate
+          ? new Date(data.match.entryDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+          : null;
+        const addAnyway = window.confirm(
+          `This looks like it's already on the deal — it matches “${matchTitle}”${when ? ` (${when})` : ""}.\n\nAdd it anyway?`
+        );
+        if (addAnyway) {
+          const retry = await fetch(`/api/deals/${id}/entries`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type, title: title || undefined, content,
+              sourceUrl: sourceUrl || undefined,
+              entryDate: entryDate || undefined,
+              metadata,
+              tzOffsetMinutes: new Date().getTimezoneOffset(),
+              skipDupeCheck: true,
+            }),
+          });
+          if (retry.ok) {
+            setNewEntryContent(""); setNewEntryTitle(""); setNewEntryUrl("");
+            setNewEntryDate(""); setNewEntryType("note");
+            setEntryFromScreenshot(false); setScreenshotMatched([]);
+            setScreenshotSuggestions([]); setAcceptedSuggestionNames(new Set());
+            setAskMikeyPrompt(""); setPendingVoiceTranscript(null);
+            await loadDeal();
+          } else {
+            alert(`Failed to save entry (HTTP ${retry.status})`);
+          }
+        }
       } else {
         // Surface server errors instead of silently swallowing them.
         const errText = await res.text().catch(() => "");

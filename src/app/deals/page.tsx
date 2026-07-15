@@ -240,6 +240,166 @@ function DealsPageContent() {
     rows: Array<{ dealId: string; dealName: string; status: "analyzing" | "done" | "failed"; mikeyHealth?: string; healthFlipped?: boolean; error?: string }>;
     summary: { analyzed: number; failed: number; healthFlips: number } | null;
   } | null>(null);
+  // ── Evidence drop/paste on deal tiles (autopilot Phase 7) ────────
+  // Drag a screenshot (email/slack/imessage) or text onto a tile, or
+  // hover a tile and paste — vision-extracts, dupe-checks against the
+  // timeline (409 → named match, discarded), then lands as an entry
+  // (classification, re-analysis, and the Slack stub ride along).
+  const [dragOverDealId, setDragOverDealId] = useState<string | null>(null);
+  const [evidenceBusy, setEvidenceBusy] = useState<Record<string, string>>({});
+  const [evidenceResult, setEvidenceResult] = useState<Record<string, { kind: "ok" | "dupe" | "error"; message: string }>>({});
+  const hoveredDealIdRef = useRef<string | null>(null);
+
+  const setTileResult = (dealId: string, result: { kind: "ok" | "dupe" | "error"; message: string } | null) => {
+    setEvidenceResult((prev) => {
+      const next = { ...prev };
+      if (result) next[dealId] = result;
+      else delete next[dealId];
+      return next;
+    });
+    if (result) {
+      setTimeout(() => {
+        setEvidenceResult((prev) => {
+          if (prev[dealId] !== result) return prev;
+          const next = { ...prev };
+          delete next[dealId];
+          return next;
+        });
+      }, 8000);
+    }
+  };
+
+  const ingestEvidence = async (
+    dealId: string,
+    payload: { imageBase64?: string; mimeType?: string; text?: string }
+  ) => {
+    if (evidenceBusy[dealId]) return; // one at a time per tile
+    setTileResult(dealId, null);
+    const setBusy = (msg: string | null) =>
+      setEvidenceBusy((prev) => {
+        const next = { ...prev };
+        if (msg) next[dealId] = msg;
+        else delete next[dealId];
+        return next;
+      });
+    try {
+      let entryBody: {
+        type: string;
+        title?: string;
+        content: string;
+        entryDate?: string;
+        metadata?: Record<string, unknown>;
+      };
+      if (payload.imageBase64) {
+        setBusy("Extracting screenshot…");
+        const res = await fetch(`/api/deals/${dealId}/screenshot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: payload.imageBase64, mimeType: payload.mimeType }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.content) {
+          throw new Error(data?.error || "Couldn't extract text from that image");
+        }
+        entryBody = {
+          type: data.entryType || "note",
+          title: data.title || undefined,
+          content: data.content,
+          entryDate: data.date ? new Date(data.date).toISOString() : undefined,
+          metadata: {
+            ingestedVia: "tile_drop",
+            ...(Array.isArray(data.matchedParticipants) && data.matchedParticipants.length > 0
+              ? { linkedParticipantIds: data.matchedParticipants.map((p: { id: string }) => p.id) }
+              : {}),
+          },
+        };
+      } else {
+        // Raw text — the entries route's classifier infers type,
+        // title, and the interaction's real timestamp.
+        entryBody = {
+          type: "note",
+          content: (payload.text || "").trim(),
+          metadata: { ingestedVia: "tile_drop" },
+        };
+        if (!entryBody.content) return;
+      }
+
+      setBusy("Adding to deal…");
+      const res = await fetch(`/api/deals/${dealId}/entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...entryBody, tzOffsetMinutes: new Date().getTimezoneOffset() }),
+      });
+      if (res.status === 409) {
+        const data = await res.json().catch(() => null);
+        const matchTitle = data?.match?.title || "an existing entry";
+        const when = data?.match?.entryDate
+          ? new Date(data.match.entryDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+          : null;
+        setTileResult(dealId, {
+          kind: "dupe",
+          message: `Already on the deal — matches “${matchTitle}”${when ? ` (${when})` : ""}. Skipped.`,
+        });
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Failed to add (${res.status})`);
+      }
+      setTileResult(dealId, { kind: "ok", message: "📎 Evidence added — re-analysis kicked off." });
+      loadDeals();
+    } catch (err) {
+      setTileResult(dealId, {
+        kind: "error",
+        message: err instanceof Error ? err.message : "Failed to add evidence",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        resolve(result.includes(",") ? result.split(",")[1] : result);
+      };
+      reader.onerror = () => reject(new Error("Couldn't read the dropped file"));
+      reader.readAsDataURL(file);
+    });
+
+  // Hover-a-tile-and-paste: a document-level paste listener scoped to
+  // whichever tile the pointer is over. Real inputs keep their paste.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const dealId = hoveredDealIdRef.current;
+      if (!dealId) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable=true]")) return;
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageItem = items.find((i) => i.type.startsWith("image/"));
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
+          e.preventDefault();
+          void fileToBase64(file).then((b64) =>
+            ingestEvidence(dealId, { imageBase64: b64, mimeType: file.type })
+          );
+          return;
+        }
+      }
+      const text = e.clipboardData?.getData("text/plain");
+      if (text?.trim()) {
+        e.preventDefault();
+        void ingestEvidence(dealId, { text });
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Bulk selection state for Potential cards. Lets the user
   // multi-select and validate/dismiss in one shot from the action bar.
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -1809,7 +1969,41 @@ function DealsPageContent() {
                   href={`/deals/${deal.id}`}
                   data-pinned-id={deal.id}
                   onMouseDown={() => pinDealOrder(deal.id)}
-                  className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-3 hover:shadow-md transition-all group ${deal.status === "potential" ? "border-purple-300 border-dashed hover:border-purple-500" : "border-gray-200 dark:border-gray-700 hover:border-purple-300"}`}
+                  onMouseEnter={() => { hoveredDealIdRef.current = deal.id; }}
+                  onMouseLeave={() => {
+                    if (hoveredDealIdRef.current === deal.id) hoveredDealIdRef.current = null;
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverDealId !== deal.id) setDragOverDealId(deal.id);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverDealId === deal.id) setDragOverDealId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragOverDealId(null);
+                    const file = Array.from(e.dataTransfer.files || []).find((f) =>
+                      f.type.startsWith("image/")
+                    );
+                    if (file) {
+                      void fileToBase64(file).then((b64) =>
+                        ingestEvidence(deal.id, { imageBase64: b64, mimeType: file.type })
+                      );
+                      return;
+                    }
+                    const text = e.dataTransfer.getData("text/plain");
+                    if (text?.trim()) void ingestEvidence(deal.id, { text });
+                  }}
+                  title="Drag & drop (or hover + paste) a screenshot or email text to add it to this deal"
+                  className={`block text-left bg-white dark:bg-gray-800 border rounded-xl p-3 hover:shadow-md transition-all group ${
+                    dragOverDealId === deal.id
+                      ? "border-purple-500 ring-2 ring-purple-300 dark:ring-purple-700"
+                      : deal.status === "potential"
+                        ? "border-purple-300 border-dashed hover:border-purple-500"
+                        : "border-gray-200 dark:border-gray-700 hover:border-purple-300"
+                  }`}
                 >
                   <div className={showRightRail ? "flex items-start gap-4" : ""}>
                     <div className={showRightRail ? "min-w-0 flex-1" : ""}>
@@ -2126,6 +2320,30 @@ function DealsPageContent() {
                     </div>
                   )}
                   </div>
+                  {/* Evidence drop/paste status strip — busy spinner or
+                      the transient outcome (added / dupe-discarded with
+                      the named match / error). */}
+                  {(evidenceBusy[deal.id] || evidenceResult[deal.id]) && (
+                    <div
+                      className={`mt-2 text-xs rounded-md px-2.5 py-1.5 flex items-center gap-1.5 ${
+                        evidenceBusy[deal.id]
+                          ? "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200"
+                          : evidenceResult[deal.id]?.kind === "ok"
+                            ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                            : evidenceResult[deal.id]?.kind === "dupe"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                              : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                      }`}
+                    >
+                      {evidenceBusy[deal.id] && (
+                        <svg className="animate-spin w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      )}
+                      <span>{evidenceBusy[deal.id] || evidenceResult[deal.id]?.message}</span>
+                    </div>
+                  )}
                 </Link>
               );
             })}
