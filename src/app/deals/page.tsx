@@ -2320,6 +2320,18 @@ function DealsPageContent() {
                     </div>
                   )}
                   </div>
+                  {/* Evidence drop affordance — hover reveals the hint;
+                      an active drag flips it to an explicit drop banner. */}
+                  {dragOverDealId === deal.id ? (
+                    <div className="mt-2 text-xs font-medium rounded-md px-2.5 py-1.5 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200 border border-dashed border-purple-400 text-center">
+                      📎 Drop to add evidence to {deal.companyName || deal.name}
+                    </div>
+                  ) : !evidenceBusy[deal.id] && !evidenceResult[deal.id] ? (
+                    <div className="mt-2 text-[10px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <span>📎</span>
+                      <span>Drag &amp; drop a screenshot/email — or hover &amp; paste — to add evidence</span>
+                    </div>
+                  ) : null}
                   {/* Evidence drop/paste status strip — busy spinner or
                       the transient outcome (added / dupe-discarded with
                       the named match / error). */}

@@ -369,6 +369,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string; isShared: boolean; isPrivate: boolean }> | null>(null);
   const [channelBusy, setChannelBusy] = useState(false);
   const [channelMsg, setChannelMsg] = useState<string | null>(null);
+  const [channelSearch, setChannelSearch] = useState("");
 
   const flashChannelMsg = (msg: string) => {
     setChannelMsg(msg);
@@ -377,6 +378,7 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
   const openChannelPicker = async () => {
     setChannelPickerOpen(true);
+    setChannelSearch("");
     if (slackChannels === null) {
       try {
         const res = await fetch("/api/slack/bot-channels");
@@ -2026,6 +2028,15 @@ Ground everything in what's actually in this deal's history — if the deal is t
                   <div className="text-[11px] text-gray-400 px-2 pb-1.5">
                     Channels Mikey is in — invite <span className="font-medium">@Mikey</span> to the shared channel first if it&rsquo;s missing.
                   </div>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={channelSearch}
+                    onChange={(e) => setChannelSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") setChannelPickerOpen(false); }}
+                    placeholder="Search channels…"
+                    className="w-full mb-1.5 px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                  />
                   {slackChannels === null ? (
                     <div className="text-xs text-gray-400 px-2 py-2">Loading channels…</div>
                   ) : slackChannels.length === 0 ? (
@@ -2033,22 +2044,35 @@ Ground everything in what's actually in this deal's history — if the deal is t
                       No channels found. Invite @Mikey to the shared channel, then retry.
                     </div>
                   ) : (
-                    slackChannels.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => linkSlackChannel(c)}
-                        className="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-2"
-                      >
-                        <span className="truncate">#{c.name}</span>
-                        {c.isShared && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 shrink-0">
-                            Slack Connect
-                          </span>
-                        )}
-                        {c.isPrivate && <span className="text-[10px] text-gray-400 shrink-0">🔒</span>}
-                      </button>
-                    ))
+                    (() => {
+                      const q = channelSearch.trim().toLowerCase();
+                      const filtered = q
+                        ? slackChannels.filter((c) => c.name.toLowerCase().includes(q))
+                        : slackChannels;
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-xs text-gray-400 px-2 py-2">
+                            No channels match &ldquo;{channelSearch.trim()}&rdquo;.
+                          </div>
+                        );
+                      }
+                      return filtered.slice(0, 50).map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => linkSlackChannel(c)}
+                          className="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-2"
+                        >
+                          <span className="truncate">#{c.name}</span>
+                          {c.isShared && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 shrink-0">
+                              Slack Connect
+                            </span>
+                          )}
+                          {c.isPrivate && <span className="text-[10px] text-gray-400 shrink-0">🔒</span>}
+                        </button>
+                      ));
+                    })()
                   )}
                   <button
                     type="button"
