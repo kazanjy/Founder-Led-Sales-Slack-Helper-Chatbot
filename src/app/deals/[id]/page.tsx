@@ -2620,7 +2620,9 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                   ) : (
                     deal.lastAnalyzedAt && (
                       <span className="text-xs text-gray-400">
-                        · {new Date(deal.lastAnalyzedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        · {new Date(deal.lastAnalyzedAt).toLocaleString("en-US", {
+                          month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                        })}
                       </span>
                     )
                   )}

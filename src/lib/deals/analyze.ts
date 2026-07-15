@@ -180,11 +180,22 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
 
   if (pastEntries.length > 0) {
     sections.push("## Timeline (past)");
+    // Tiered budget: the TWO most recent calls carry the live state of
+    // the deal — they go in near-complete (50K chars ≈ a full hour-long
+    // transcript's substance). Everything older gets the 3K digest
+    // (recorder summaries lead the content, so the summary survives).
+    // The old flat 3K-per-entry cap fed the analyzer ~4% of a real
+    // transcript — summaries and opening pleasantries only.
+    const CALL_TYPES = new Set(["call_summary", "call_transcript"]);
+    const recentCallIds = new Set(
+      pastEntries.filter((e) => CALL_TYPES.has(e.type)).slice(0, 2).map((e) => e.id)
+    );
     for (const entry of pastEntries) {
       const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       sections.push(`### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`);
-      const content = entry.content.length > 3000
-        ? entry.content.substring(0, 3000) + "\n\n[...truncated]"
+      const cap = recentCallIds.has(entry.id) ? 50_000 : 3000;
+      const content = entry.content.length > cap
+        ? entry.content.substring(0, cap) + "\n\n[...truncated]"
         : entry.content;
       sections.push(content);
       sections.push("");
@@ -345,10 +356,15 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
           // context cap even on transcript-heavy deals — it's appended
           // AFTER truncation. Without this, a big timeline silently
           // ate the tail and the Discovery Gaps audit went generic.
+          // 200K chars ≈ 50K tokens ≈ $0.25 of GPT-5.5 input at the
+          // ceiling — sized so two near-full recent transcripts plus
+          // the digested history fit (matches the business-case
+          // evidence assembler's budget). Entries are newest-first, so
+          // when the cap does bite it's the OLDEST history that drops.
           {
             role: "user",
             content:
-              (dealContext + priorAnalysisBlock).substring(0, 30000 - frameworkContext.length) +
+              (dealContext + priorAnalysisBlock).substring(0, 200_000 - frameworkContext.length) +
               frameworkContext,
           },
         ],
