@@ -2527,6 +2527,14 @@ model Deal {
   // detail page.
   mikeyHealth        String?
 
+  // Linked shared Slack channel (Slack Connect selling channel with
+  // the prospect). The 5-min cron pulls new messages since
+  // slackChannelLastTs and lands them as slack_message timeline
+  // digest entries — deal evidence like everything else.
+  slackChannelId     String?
+  slackChannelName   String?
+  slackChannelLastTs String?
+
   notes String? @db.Text
 
   // Latest AI state assessment (JSON)

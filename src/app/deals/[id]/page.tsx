@@ -64,6 +64,8 @@ interface Deal {
   mikeyHealth: string | null;
   closeDate: string | null;
   closedLostReason: string | null;
+  slackChannelId: string | null;
+  slackChannelName: string | null;
   createdAt: string;
   participants: Participant[];
   entries: TimelineEntry[];
@@ -362,6 +364,81 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // syncs can produce a dozen identical rows that bury the rest of the
   // deal page. "Show more" reveals the rest.
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  // ── Linked shared Slack channel (sell-in-Slack evidence) ─────────
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false);
+  const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string; isShared: boolean; isPrivate: boolean }> | null>(null);
+  const [channelBusy, setChannelBusy] = useState(false);
+  const [channelMsg, setChannelMsg] = useState<string | null>(null);
+
+  const flashChannelMsg = (msg: string) => {
+    setChannelMsg(msg);
+    setTimeout(() => setChannelMsg(null), 6000);
+  };
+
+  const openChannelPicker = async () => {
+    setChannelPickerOpen(true);
+    if (slackChannels === null) {
+      try {
+        const res = await fetch("/api/slack/bot-channels");
+        const data = await res.json().catch(() => null);
+        setSlackChannels(Array.isArray(data?.channels) ? data.channels : []);
+      } catch {
+        setSlackChannels([]);
+      }
+    }
+  };
+
+  const linkSlackChannel = async (c: { id: string; name: string }) => {
+    setChannelPickerOpen(false);
+    setChannelBusy(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/slack-channel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: c.id, channelName: c.name }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to link channel");
+      const n = data?.sync?.newMessages || 0;
+      flashChannelMsg(
+        n > 0
+          ? `Linked — imported ${n} recent message${n === 1 ? "" : "s"}.`
+          : "Linked — new messages will sync automatically."
+      );
+      await loadDeal();
+    } catch (err) {
+      flashChannelMsg(err instanceof Error ? err.message : "Failed to link channel");
+    } finally {
+      setChannelBusy(false);
+    }
+  };
+
+  const syncSlackChannel = async () => {
+    setChannelBusy(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/slack-channel`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Sync failed");
+      const n = data?.sync?.newMessages || 0;
+      flashChannelMsg(n > 0 ? `Pulled ${n} new message${n === 1 ? "" : "s"}.` : "No new messages.");
+      if (n > 0) await loadDeal();
+    } catch (err) {
+      flashChannelMsg(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setChannelBusy(false);
+    }
+  };
+
+  const unlinkSlackChannel = async () => {
+    if (!window.confirm("Unlink this Slack channel? Already-synced entries stay on the timeline.")) return;
+    setChannelBusy(true);
+    try {
+      await fetch(`/api/deals/${id}/slack-channel`, { method: "DELETE" });
+      await loadDeal();
+    } finally {
+      setChannelBusy(false);
+    }
+  };
   const [generatingDiscovery, setGeneratingDiscovery] = useState(false);
   const [allDeals, setAllDeals] = useState<Array<{ id: string; name: string; companyName: string; stage?: string }>>([]);
   const [dealSearchQuery, setDealSearchQuery] = useState("");
@@ -1905,6 +1982,84 @@ Ground everything in what's actually in this deal's history — if the deal is t
                 className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5"
               />
             </label>
+            {/* Linked shared Slack channel — the Slack Connect selling
+                channel whose messages sync onto the timeline as deal
+                evidence (5-min cron + Sync now). */}
+            <div className="flex items-center gap-1.5 relative">
+              <span className="font-medium text-gray-500 dark:text-gray-400">Slack:</span>
+              {deal.slackChannelId ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="font-medium text-purple-700 dark:text-purple-300">#{deal.slackChannelName || "channel"}</span>
+                  <button
+                    type="button"
+                    onClick={syncSlackChannel}
+                    disabled={channelBusy}
+                    className="text-xs text-purple-600 dark:text-purple-300 hover:underline disabled:opacity-60"
+                    title="Pull new channel messages onto the timeline now"
+                  >
+                    {channelBusy ? "Syncing…" : "↻ Sync now"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={unlinkSlackChannel}
+                    disabled={channelBusy}
+                    className="text-xs text-gray-400 hover:text-red-500 disabled:opacity-60"
+                    title="Unlink this channel (synced entries stay on the timeline)"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openChannelPicker}
+                  disabled={channelBusy}
+                  className="text-purple-600 dark:text-purple-300 hover:underline disabled:opacity-60"
+                  title="Attach the shared Slack channel where this deal's conversation lives — messages sync onto the timeline as evidence"
+                >
+                  💬 Attach channel
+                </button>
+              )}
+              {channelMsg && <span className="text-xs text-gray-400">{channelMsg}</span>}
+              {channelPickerOpen && (
+                <div className="absolute top-full left-0 mt-1 z-40 w-80 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2">
+                  <div className="text-[11px] text-gray-400 px-2 pb-1.5">
+                    Channels Mikey is in — invite <span className="font-medium">@Mikey</span> to the shared channel first if it&rsquo;s missing.
+                  </div>
+                  {slackChannels === null ? (
+                    <div className="text-xs text-gray-400 px-2 py-2">Loading channels…</div>
+                  ) : slackChannels.length === 0 ? (
+                    <div className="text-xs text-gray-400 px-2 py-2">
+                      No channels found. Invite @Mikey to the shared channel, then retry.
+                    </div>
+                  ) : (
+                    slackChannels.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => linkSlackChannel(c)}
+                        className="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-2"
+                      >
+                        <span className="truncate">#{c.name}</span>
+                        {c.isShared && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 shrink-0">
+                            Slack Connect
+                          </span>
+                        )}
+                        {c.isPrivate && <span className="text-[10px] text-gray-400 shrink-0">🔒</span>}
+                      </button>
+                    ))
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setChannelPickerOpen(false)}
+                    className="w-full text-center text-xs text-gray-400 hover:text-gray-600 pt-1.5"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
             {(deal.status === "closed_won" || deal.status === "closed_lost") && (
               <label className="flex items-center gap-1.5">
                 <span className="font-medium text-gray-500 dark:text-gray-400">Close date:</span>

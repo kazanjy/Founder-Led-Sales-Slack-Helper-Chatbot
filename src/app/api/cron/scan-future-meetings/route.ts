@@ -8,6 +8,7 @@ import {
   sweepNoRecordingNudges,
   postAnalysisUpdateStub,
 } from "@/lib/deals/timed-stubs";
+import { sweepLinkedSlackChannels } from "@/lib/deals/slack-channel-sync";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -197,6 +198,16 @@ export async function GET(request: NextRequest) {
     console.error("[cron scan-future-meetings] expiry sweep failed:", err);
   }
 
+  // Linked shared Slack channels: pull new messages since each deal's
+  // watermark into slack_message digest entries. Quiet channels cost
+  // one history call; capped per tick.
+  let slackSyncs = 0;
+  try {
+    slackSyncs = await sweepLinkedSlackChannels();
+  } catch (err) {
+    console.error("[cron scan-future-meetings] slack channel sweep failed:", err);
+  }
+
   // The one-time "no recording landed" nudge for likely deals whose
   // announced call is 7+ days stale. Not time-critical, so it stays
   // at the tail of the tick (pre-call stubs ran first, up top).
@@ -226,6 +237,7 @@ export async function GET(request: NextRequest) {
     queuedReanalyses: capped.length,
     preCallStubs,
     nudges,
+    slackSyncs,
     summary: summary.filter((s) => s.added > 0 || s.likelyDeals > 0 || s.errors > 0),
   });
 }
