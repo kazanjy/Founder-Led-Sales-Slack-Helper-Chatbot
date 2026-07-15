@@ -518,6 +518,25 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
   // Flush an unsaved edit if the user navigates away without blurring.
   useEffect(() => () => { void saveNextTopics(); }, [saveNextTopics]);
 
+  // Anchor support: #next-session-topics deep-links to the card. The
+  // card mounts after an async load, so the browser's native hash
+  // jump misses it — scroll manually once it's actually rendered.
+  const [topicsLinkCopied, setTopicsLinkCopied] = useState(false);
+  useEffect(() => {
+    if (!nextTopicsLoaded) return;
+    if (typeof window !== "undefined" && window.location.hash === "#next-session-topics") {
+      document.getElementById("next-session-topics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [nextTopicsLoaded]);
+  const copyTopicsLink = async () => {
+    try {
+      const url = `${window.location.origin}${window.location.pathname}#next-session-topics`;
+      await navigator.clipboard.writeText(url);
+      setTopicsLinkCopied(true);
+      setTimeout(() => setTopicsLinkCopied(false), 2000);
+    } catch { /* clipboard unavailable */ }
+  };
+
   const [maturityStage, setMaturityStage] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [metricEntries, setMetricEntries] = useState<MetricEntry[]>([]);
@@ -2490,7 +2509,8 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           Cover" section. Saves on click-out. */}
       {isOwner && nextTopicsLoaded && (
         <div
-          className="bg-white dark:bg-gray-800 rounded-xl border border-purple-200 dark:border-purple-800 p-5"
+          id="next-session-topics"
+          className="bg-white dark:bg-gray-800 rounded-xl border border-purple-200 dark:border-purple-800 p-5 scroll-mt-20"
           onBlur={(e) => {
             // Only save when focus actually LEAVES the card — toolbar
             // clicks and internal focus moves don't count.
@@ -2505,6 +2525,14 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
                 Saved ✓
               </span>
             )}
+            <button
+              type="button"
+              onClick={copyTopicsLink}
+              className="ml-auto text-[11px] font-medium normal-case tracking-normal text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 inline-flex items-center gap-1"
+              title="Copy a link that scrolls straight to this section"
+            >
+              {topicsLinkCopied ? <span className="text-green-600 dark:text-green-300">Copied ✓</span> : <>🔗 Copy link</>}
+            </button>
           </h3>
           <p className="text-xs text-gray-400 mb-3">
             Jot down what to cover next time — it&rsquo;ll be pre-loaded into a
