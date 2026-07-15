@@ -22,6 +22,8 @@ interface Deal {
   stage: string;
   status: string;
   source: string | null;
+  slackChannelId: string | null;
+  slackChannelName: string | null;
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
   updatedAt: string;
@@ -355,6 +357,78 @@ function DealsPageContent() {
       });
     } finally {
       setBusy(null);
+    }
+  };
+
+  // ── Slack channel attach from the list (same link as the deal page) ──
+  const [channelPickerDealId, setChannelPickerDealId] = useState<string | null>(null);
+  const [botChannels, setBotChannels] = useState<Array<{ id: string; name: string; isShared: boolean; isPrivate: boolean }> | null>(null);
+  const [channelListSearch, setChannelListSearch] = useState("");
+  const [channelBusyDealId, setChannelBusyDealId] = useState<string | null>(null);
+
+  const openChannelPickerFor = async (dealId: string) => {
+    setChannelPickerDealId(dealId);
+    setChannelListSearch("");
+    if (botChannels === null) {
+      try {
+        const res = await fetch("/api/slack/bot-channels");
+        const data = await res.json().catch(() => null);
+        setBotChannels(Array.isArray(data?.channels) ? data.channels : []);
+      } catch {
+        setBotChannels([]);
+      }
+    }
+  };
+
+  const linkChannelFromList = async (dealId: string, c: { id: string; name: string }) => {
+    setChannelPickerDealId(null);
+    setChannelBusyDealId(dealId);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/slack-channel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: c.id, channelName: c.name }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to link channel");
+      const n = data?.sync?.newMessages || 0;
+      setTileResult(dealId, {
+        kind: "ok",
+        message:
+          n > 0
+            ? `💬 Linked #${c.name} — imported ${n} recent message${n === 1 ? "" : "s"}.`
+            : `💬 Linked #${c.name} — new messages will sync automatically.`,
+      });
+      await loadDeals();
+    } catch (err) {
+      setTileResult(dealId, {
+        kind: "error",
+        message: err instanceof Error ? err.message : "Failed to link channel",
+      });
+    } finally {
+      setChannelBusyDealId(null);
+    }
+  };
+
+  const syncChannelFromList = async (dealId: string) => {
+    setChannelBusyDealId(dealId);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/slack-channel`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Sync failed");
+      const n = data?.sync?.newMessages || 0;
+      setTileResult(dealId, {
+        kind: "ok",
+        message: n > 0 ? `💬 Pulled ${n} new message${n === 1 ? "" : "s"}.` : "💬 No new channel messages.",
+      });
+      if (n > 0) await loadDeals();
+    } catch (err) {
+      setTileResult(dealId, {
+        kind: "error",
+        message: err instanceof Error ? err.message : "Sync failed",
+      });
+    } finally {
+      setChannelBusyDealId(null);
     }
   };
 
@@ -2320,16 +2394,95 @@ function DealsPageContent() {
                     </div>
                   )}
                   </div>
-                  {/* Evidence drop affordance — hover reveals the hint;
-                      an active drag flips it to an explicit drop banner. */}
+                  {/* Standing affordance strip — always visible, inviting
+                      evidence + carrying the Slack channel link. Clicks
+                      here must never navigate the tile's Link. */}
                   {dragOverDealId === deal.id ? (
                     <div className="mt-2 text-xs font-medium rounded-md px-2.5 py-1.5 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200 border border-dashed border-purple-400 text-center">
                       📎 Drop to add evidence to {deal.companyName || deal.name}
                     </div>
-                  ) : !evidenceBusy[deal.id] && !evidenceResult[deal.id] ? (
-                    <div className="mt-2 text-[10px] text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                      <span>📎</span>
-                      <span>Drag &amp; drop a screenshot/email — or hover &amp; paste — to add evidence</span>
+                  ) : !evidenceBusy[deal.id] ? (
+                    <div
+                      className="mt-2 relative flex items-center gap-2 flex-wrap"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-900/30">
+                        📎 Drop or paste evidence here <span className="hidden sm:inline">(screenshot / email / text)</span>
+                      </span>
+                      {deal.slackChannelId ? (
+                        <button
+                          type="button"
+                          onClick={() => syncChannelFromList(deal.id)}
+                          disabled={channelBusyDealId === deal.id}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800 disabled:opacity-60"
+                          title="Linked Slack channel — click to pull new messages now"
+                        >
+                          💬 #{deal.slackChannelName || "channel"}
+                          {channelBusyDealId === deal.id ? " · syncing…" : ""}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openChannelPickerFor(deal.id)}
+                          disabled={channelBusyDealId === deal.id}
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-purple-300 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-60"
+                          title="Attach the shared Slack channel where this deal's conversation lives — messages sync onto the timeline as evidence"
+                        >
+                          💬 Attach Slack
+                        </button>
+                      )}
+                      {channelPickerDealId === deal.id && (
+                        <div className="absolute top-full left-0 mt-1 z-40 w-80 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2">
+                          <div className="text-[11px] text-gray-400 px-2 pb-1.5">
+                            Channels Mikey is in — invite <span className="font-medium">@Mikey</span> first if it&rsquo;s missing.
+                          </div>
+                          <input
+                            type="text"
+                            autoFocus
+                            value={channelListSearch}
+                            onChange={(e) => setChannelListSearch(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Escape") setChannelPickerDealId(null); }}
+                            placeholder="Search channels…"
+                            className="w-full mb-1.5 px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          />
+                          {botChannels === null ? (
+                            <div className="text-xs text-gray-400 px-2 py-2">Loading channels…</div>
+                          ) : (
+                            (() => {
+                              const q = channelListSearch.trim().toLowerCase();
+                              const filtered = q
+                                ? botChannels.filter((c) => c.name.toLowerCase().includes(q))
+                                : botChannels;
+                              if (filtered.length === 0) {
+                                return <div className="text-xs text-gray-400 px-2 py-2">No channels match.</div>;
+                              }
+                              return filtered.slice(0, 50).map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => linkChannelFromList(deal.id, c)}
+                                  className="w-full text-left px-2 py-1.5 rounded-md text-sm hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center gap-2"
+                                >
+                                  <span className="truncate">#{c.name}</span>
+                                  {c.isShared && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 shrink-0">
+                                      Slack Connect
+                                    </span>
+                                  )}
+                                  {c.isPrivate && <span className="text-[10px] text-gray-400 shrink-0">🔒</span>}
+                                </button>
+                              ));
+                            })()
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setChannelPickerDealId(null)}
+                            className="w-full text-center text-xs text-gray-400 hover:text-gray-600 pt-1.5"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : null}
                   {/* Evidence drop/paste status strip — busy spinner or
