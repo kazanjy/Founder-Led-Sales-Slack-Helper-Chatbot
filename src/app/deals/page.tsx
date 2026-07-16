@@ -1303,6 +1303,13 @@ function DealsPageContent() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               New Deal
             </button>
+            <Link
+              href="/deals/alerts"
+              className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:border-purple-300 hover:text-purple-600 dark:hover:text-purple-300 transition-all flex items-center gap-1.5"
+              title="Configure which autopilot alerts Mikey posts to Slack"
+            >
+              🔔 Alerts
+            </Link>
           </div>
         </div>
 

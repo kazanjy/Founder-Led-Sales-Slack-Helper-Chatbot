@@ -5,6 +5,7 @@ import { loadDiscoveryFramework, formatDiscoveryFramework } from "@/lib/discover
 import { assembleDealEvidence } from "@/lib/business-cases/generate";
 import { markdownToSlack } from "@/lib/slack/markdown";
 import { resolveSlackTarget, recordDealSlackPost } from "./triage";
+import { isAlertEnabled, alertFooterBlock } from "./alert-prefs";
 
 /**
  * Deal autopilot Phase 3 — timed Slack stub posts
@@ -303,6 +304,9 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
         }
       }
 
+      // Alert silenced → skip BEFORE paying for any generation.
+      if (!(await isAlertEnabled(entry.deal.userId, "precall_plan"))) continue;
+
       // Resolve the Slack target BEFORE paying for the brief.
       const target = await resolveSlackTarget(entry.deal.userId);
       if (!target) {
@@ -385,6 +389,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
                 `  ·  <${appUrl}/deals/${entry.dealId}/not-a-deal|✕ Not a deal>`,
             },
           },
+          alertFooterBlock("precall_plan", appUrl),
         ],
       });
       await recordDealSlackPost({
@@ -427,6 +432,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
   for (const entry of repairs) {
     if (posted >= maxPosts) break;
     try {
+      if (!(await isAlertEnabled(entry.deal.userId, "precall_plan"))) continue;
       const stub = stubByEntry.get(entry.id)!;
       const target = await resolveSlackTarget(entry.deal.userId);
       if (!target) continue;
@@ -585,6 +591,7 @@ export async function postAnalysisUpdateStub(opts: {
   healthAfter: string | null;
   analysis: string;
 }): Promise<void> {
+  if (!(await isAlertEnabled(opts.userId, "analysis_update"))) return;
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   const appUrl = APP_URL();
@@ -625,9 +632,12 @@ export async function postAnalysisUpdateStub(opts: {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  🧵 Full analysis in the thread`,
+            text:
+              `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  🧵 Full analysis in the thread` +
+              `  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
           },
         },
+        alertFooterBlock("analysis_update", appUrl),
       ],
     });
     await recordDealSlackPost({
@@ -675,6 +685,7 @@ export async function postCallAttachedStub(opts: {
   dealName: string;
   companyName?: string | null;
 }): Promise<void> {
+  if (!(await isAlertEnabled(opts.userId, "analysis_update"))) return;
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   const appUrl = APP_URL();
@@ -690,9 +701,10 @@ export async function postCallAttachedStub(opts: {
             type: "mrkdwn",
             text:
               `🗓 New call recording attached to *${opts.dealName}* — analysis is still fresh from earlier today, so I left it as-is. ` +
-              `<${appUrl}/deals/${opts.dealId}|Open deal →>`,
+              `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
           },
         },
+        alertFooterBlock("analysis_update", appUrl),
       ],
     });
     await recordDealSlackPost({
@@ -754,6 +766,7 @@ export async function sweepNoRecordingNudges(maxPosts = 2): Promise<number> {
         select: { id: true },
       });
       if (already) continue;
+      if (!(await isAlertEnabled(deal.userId, "no_recording_nudge"))) continue;
       const target = await resolveSlackTarget(deal.userId);
       if (!target) continue;
       const appUrl = APP_URL();
@@ -773,6 +786,7 @@ export async function sweepNoRecordingNudges(maxPosts = 2): Promise<number> {
                 `or <${appUrl}/deals/${deal.id}/not-a-deal|✕ Not a deal>.`,
             },
           },
+          alertFooterBlock("no_recording_nudge", appUrl),
         ],
       });
       await recordDealSlackPost({

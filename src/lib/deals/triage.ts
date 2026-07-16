@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSlackClient } from "@/lib/slack/client";
 import { loadSellerContext } from "@/lib/seller-context";
 import { findClosedWonDealForDomains } from "./auto-detect";
+import { isAlertEnabled, alertFooterBlock } from "./alert-prefs";
 import type { UnmatchedCalendarEvent } from "./scan-future-meetings";
 
 /**
@@ -337,6 +338,7 @@ export async function postLikelyDealStub(opts: {
   event: UnmatchedCalendarEvent;
   reason: string;
 }): Promise<void> {
+  if (!(await isAlertEnabled(opts.userId, "new_deal"))) return;
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   const { client, channelId } = target;
@@ -379,6 +381,7 @@ export async function postLikelyDealStub(opts: {
             text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
           },
         },
+        alertFooterBlock("new_deal", appUrl),
       ],
     });
     await recordDealSlackPost({
@@ -585,6 +588,8 @@ export async function postDealConfirmedStub(opts: {
   reason: string;
   isNewDeal: boolean;
 }): Promise<void> {
+  const alertKind = opts.isNewDeal ? "new_deal" : "deal_confirmed";
+  if (!(await isAlertEnabled(opts.userId, alertKind))) return;
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
@@ -620,6 +625,7 @@ export async function postDealConfirmedStub(opts: {
             text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
           },
         },
+        alertFooterBlock(alertKind, appUrl),
       ],
     });
     await recordDealSlackPost({
@@ -643,6 +649,7 @@ export async function postDealDismissedStub(opts: {
   companyName: string;
   reason: string;
 }): Promise<void> {
+  if (!(await isAlertEnabled(opts.userId, "deal_archived"))) return;
   const target = await resolveSlackTarget(opts.userId);
   if (!target) return;
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
@@ -661,6 +668,7 @@ export async function postDealDismissedStub(opts: {
               `<${appUrl}/deals/${opts.dealId}/restore|↩️ Undo — it IS a deal>`,
           },
         },
+        alertFooterBlock("deal_archived", appUrl),
       ],
     });
     await recordDealSlackPost({

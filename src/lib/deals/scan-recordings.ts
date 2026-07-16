@@ -10,6 +10,7 @@ import type { Deal } from "@prisma/client";
 import { getProvider } from "@/lib/meeting-recorder/providers";
 import { getSlackClient } from "@/lib/slack/client";
 import { ensurePotentialDealForDomain, getSelfDomains, getAccountUserEmails } from "@/lib/deals/auto-detect";
+import { isAlertEnabled, alertFooterBlock } from "@/lib/deals/alert-prefs";
 import { withRecorderTokenRefresh } from "@/lib/meeting-recorder/auth";
 
 /**
@@ -151,6 +152,7 @@ async function postPotentialDealAlert(opts: {
             },
           ],
         },
+        alertFooterBlock("new_deal", opts.appUrl),
       ],
     });
     return { channelId: opts.channelId, ts: result.ts || "" };
@@ -531,7 +533,7 @@ export async function scanUserRecordings(userId: string): Promise<ScanSummary> {
       }
 
       if (botToken && dmChannelId) {
-        if (isNew && confirmationOutcome === "fallback") {
+        if (isNew && confirmationOutcome === "fallback" && (await isAlertEnabled(userId, "new_deal"))) {
           // Legacy path — classifier unavailable, fall back to the
           // Validate/Dismiss flow so nothing gets lost.
           await postPotentialDealAlert({
