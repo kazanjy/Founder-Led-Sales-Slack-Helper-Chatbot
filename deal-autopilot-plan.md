@@ -238,6 +238,37 @@ model DealTask {
 - Surfaced as a "Proposed actions" card on the deal page and a compact
   pill/row on the deals list; Done / Dismiss one click, proof optional.
 
+### Task lifecycle automation — born from calls, retired by evidence
+
+**Creation — post-call extraction.** Every call carries commitments
+("I'll send the proposal Friday", "let's reconnect after your board
+meeting", "I'll intro you to our CFO"). When a recording lands and the
+analysis cascade runs, a task-extraction pass materializes them as
+DealTasks — dueAt set when timing is explicit or inferable ("after the
+board meeting" + the meeting date from the transcript), do-now
+otherwise. Same discipline as the coaching outcome extractor: every
+extracted task carries a VERBATIM evidence quote — no quote, no task —
+and dedupes against open tasks before proposing. Commitments made BY
+the prospect ("Dustin will send sample calls") become watch-tasks:
+nothing for the founder to do, but overdue ones surface as follow-up
+nudges ("Dustin promised sample calls 9 days ago — chase?").
+
+**Retirement — implicit, evidence-driven.** Every evidence ingestion
+(Slack channel sync digest, pasted email/screenshot, new recording,
+evidence drops) triggers a retirement check over the deal's OPEN
+tasks: does anything in the new evidence show a task happened? The
+founder's own synced Slack message containing the pricing retires
+"Send Jerrod pricing" — with proofEntryId pointed at that evidence
+entry, so completion is cited, never asserted. Confidence-tiered:
+high-confidence matches auto-retire (timeline note + rolled into the
+next analysis stub's "what changed"); medium-confidence become
+proposed retirements ("Mikey thinks this is done — confirm?") on the
+deal page card and in the weekly Pipeline Review. Rides the existing
+analysis-cascade debounce (12h cooldown / 10-min manual debounce)
+rather than firing per sync tick, so an active Slack channel doesn't
+burn a check per message batch. Human-created tasks are never
+auto-retired at medium confidence — confirm-only.
+
 ### Weekly Pipeline Review
 
 Weekly cron (Monday morning, rides the daily-cron slot or its own):
@@ -349,10 +380,14 @@ dead deal, never treat the account as a stranger):
    routing with the deal pinned; activity capture in-thread. Now also
    the transport for Slack-side proof capture (Phase 8) — build before
    or with it.
-6. **Phase 5 — Deal tasks (M)**: DealTask model; harvest the Next Best
-   Action from each fresh deal analysis into a proposed task (dedupe vs
-   open tasks); "Proposed actions" card on the deal page + deals-list
-   surfacing; Done / Dismiss.
+6. **Phase 5 — Deal tasks (M/L)**: DealTask model (incl. dueAt);
+   harvest the Next Best Action from each fresh deal analysis into a
+   proposed task (dedupe vs open tasks); post-call commitment
+   extraction (founder commitments → tasks with dueAt, prospect
+   commitments → watch-tasks); implicit evidence-driven retirement
+   riding the analysis cascade (high-confidence auto-retire with
+   proofEntryId, medium → confirm); "Proposed actions" card on the
+   deal page + deals-list surfacing; Done / Dismiss.
 7. **Phase 6 — Weekly Pipeline Review (M)**: portfolio synthesis cron +
    the Slack review post with per-task actions; task expiry/re-affirm
    pass; DealSlackPost kind "pipeline_review".
