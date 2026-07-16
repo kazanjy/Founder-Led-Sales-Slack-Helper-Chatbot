@@ -2443,6 +2443,14 @@ function DealsPageContent() {
                           ) : (
                             <a
                               href={`/api/slack/oauth?return_to=${encodeURIComponent("/deals")}`}
+                              onClick={(e) => {
+                                // The strip's wrapper preventDefault()s to
+                                // stop tile navigation — which also cancels
+                                // an anchor's default. Navigate explicitly.
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.assign(`/api/slack/oauth?return_to=${encodeURIComponent("/deals")}`);
+                              }}
                               className="block text-[11px] text-purple-600 dark:text-purple-300 px-2 pb-1.5 hover:underline"
                               title="Grant Mikey read access as you — attach any public, private, or Slack Connect channel you're a member of without inviting the bot"
                             >
