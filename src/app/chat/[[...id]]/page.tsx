@@ -88,6 +88,16 @@ function formatRelativeTime(dateString: string): string {
 // Timestamp shown under each chat message. Clock time for today,
 // "Yesterday 3:24 PM" for yesterday, "Jul 1, 3:24 PM" for older
 // (with year only when it isn't the current year).
+// "getDealTimeline" → "Get deal timeline" — friendly labels for the
+// live agent-activity feed and trace disclosures.
+function humanizeToolName(name: string): string {
+  const words = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function formatMessageTime(dateString: string): string {
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return "";
@@ -256,6 +266,15 @@ export default function ChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
+  // Live agent activity — tool calls streamed while the web agent
+  // works, so a long turn shows its work instead of a bare spinner.
+  // Cleared when the reply lands (the message's persisted trace
+  // disclosure takes over from there).
+  const [agentSteps, setAgentSteps] = useState<Array<{
+    name: string;
+    status: "running" | "done" | "error";
+    durationMs?: number;
+  }>>([]);
   // "Agent mode" — when on, sends to /api/chat/agent (the unified web
   // agent with tool calling) instead of the streaming Chatbase/raw-GPT
   // path. Default is ON; the toggle is an opt-OUT for users who want
@@ -2551,10 +2570,13 @@ export default function ChatPage() {
         let createdAt: string | null = null;
         let metadata: MessageMetadata | null = null;
         let pollForTitle = false;
-        // Stream loop — same shape as the existing path: events come
-        // in pairs of `event: <name>` / `data: <json>`. We don't track
-        // the event name; we route by the data payload shape (chunk
-        // has .text, done has .messageId, error has .error).
+        // Stream loop — events come in pairs of `event: <name>` /
+        // `data: <json>`. We track the event NAME so tool_call_* land
+        // in the live activity feed, and so a tool-level error inside
+        // a tool_call_end payload doesn't get mistaken for a turn-level
+        // `error` event (the agent often recovers from a failed tool).
+        let currentEvent = "";
+        setAgentSteps([]);
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -2562,19 +2584,47 @@ export default function ChatPage() {
           const lines = buf.split("\n");
           buf = lines.pop() || "";
           for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+              continue;
+            }
             if (!line.startsWith("data: ")) continue;
             const raw = line.slice(6);
             // Parse and handle SEPARATELY — an `error` event must
             // propagate to the outer catch, not get swallowed by the
             // non-JSON guard (that bug made agent failures render as
             // silent no-replies).
-            let parsed: { text?: string; messageId?: string; createdAt?: string; agent?: string; turns?: number; hitTurnCap?: boolean; trace?: MessageMetadata["trace"]; pollForTitle?: boolean; error?: string } | null = null;
+            let parsed: { name?: string; durationMs?: number; text?: string; messageId?: string; createdAt?: string; agent?: string; turns?: number; hitTurnCap?: boolean; trace?: MessageMetadata["trace"]; pollForTitle?: boolean; error?: string } | null = null;
             try {
               parsed = JSON.parse(raw);
             } catch {
               continue; // non-JSON data, ignore
             }
             if (!parsed) continue;
+            if (currentEvent === "tool_call_start" && parsed.name) {
+              const stepName = parsed.name;
+              setAgentSteps((prev) => [...prev, { name: stepName, status: "running" }]);
+              continue;
+            }
+            if (currentEvent === "tool_call_end" && parsed.name) {
+              const stepName = parsed.name;
+              const failed = !!parsed.error;
+              const durationMs = typeof parsed.durationMs === "number" ? parsed.durationMs : undefined;
+              setAgentSteps((prev) => {
+                const next = [...prev];
+                for (let i = next.length - 1; i >= 0; i--) {
+                  if (next[i].name === stepName && next[i].status === "running") {
+                    next[i] = { name: stepName, status: failed ? "error" : "done", durationMs };
+                    return next;
+                  }
+                }
+                // End without a matched start (shouldn't happen) —
+                // append as resolved so the feed stays truthful.
+                next.push({ name: stepName, status: failed ? "error" : "done", durationMs });
+                return next;
+              });
+              continue;
+            }
             if (parsed.error) {
               throw new Error(parsed.error);
             } else if (parsed.text) {
@@ -2591,12 +2641,10 @@ export default function ChatPage() {
               };
               pollForTitle = !!parsed.pollForTitle;
             }
-            // tool_call_start / tool_call_end events are
-            // forward-compatible — when we have UI for them we'll
-            // route them here. For now they're ignored.
           }
         }
         setStreamingMessage("");
+        setAgentSteps([]);
         console.log(`[send] agent stream ended — replyChars=${fullText.length} messageId=${messageId ?? "none"}`);
         if (!fullText) {
           console.error("[send] agent stream produced NO reply text — likely server-side death (timeout/kill) with no error event");
@@ -4936,8 +4984,11 @@ export default function ChatPage() {
                             {msg.metadata.trace.map((t, i) => (
                               <li key={i} className="border border-gray-100 dark:border-gray-700 rounded-md p-2">
                                 <div className="flex items-baseline justify-between gap-2 mb-1">
-                                  <code className="font-semibold text-purple-700 dark:text-purple-300">{t.name}</code>
-                                  <span className="text-gray-400">{t.durationMs}ms{t.error ? " · error" : ""}</span>
+                                  <span>
+                                    <span className="font-semibold text-purple-700 dark:text-purple-300">{humanizeToolName(t.name)}</span>{" "}
+                                    <code className="text-gray-400">({t.name})</code>
+                                  </span>
+                                  <span className="text-gray-400">{(t.durationMs / 1000).toFixed(1)}s{t.error ? " · ⚠ errored" : ""}</span>
                                 </div>
                                 <div className="text-gray-500 break-all"><span className="text-gray-400">args: </span><code className="text-gray-700 dark:text-gray-300">{t.argsJson}</code></div>
                                 <div className="text-gray-500 break-all"><span className="text-gray-400">→ </span><code className="text-gray-700 dark:text-gray-300">{t.resultPreview}</code></div>
@@ -4989,6 +5040,37 @@ export default function ChatPage() {
                   )}
                 </div>
               ))}
+              {/* Live agent activity — the tools Mikey is running right
+                  now, streamed via tool_call_start/end events. Shows
+                  above the reply as it streams; replaced by the
+                  message's collapsed trace once the reply lands. */}
+              {sending && agentSteps.length > 0 && (
+                <div className="flex gap-3 mt-4">
+                  <div className="w-8 flex-shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-1 border-l-2 border-purple-200 dark:border-purple-800 pl-3">
+                    {agentSteps.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {s.status === "running" ? (
+                          <svg className="animate-spin w-3 h-3 text-purple-500 shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : s.status === "done" ? (
+                          <span className="text-green-500 shrink-0">✓</span>
+                        ) : (
+                          <span className="text-amber-500 shrink-0" title="Tool errored — Mikey worked around it">⚠</span>
+                        )}
+                        <span className={s.status === "running" ? "text-gray-700 dark:text-gray-200" : ""}>
+                          {humanizeToolName(s.name)}
+                        </span>
+                        {s.durationMs !== undefined && (
+                          <span className="text-gray-300 dark:text-gray-600">{(s.durationMs / 1000).toFixed(1)}s</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {sending && (
                 streamingMessage ? (
                   // Show streaming response as it comes in
