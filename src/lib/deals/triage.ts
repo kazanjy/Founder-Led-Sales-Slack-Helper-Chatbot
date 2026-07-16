@@ -378,7 +378,7 @@ export async function postLikelyDealStub(opts: {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal (archive)>`,
           },
         },
         alertFooterBlock("new_deal", appUrl),
@@ -622,7 +622,7 @@ export async function postDealConfirmedStub(opts: {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+            text: `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal (archive)>`,
           },
         },
         alertFooterBlock(alertKind, appUrl),

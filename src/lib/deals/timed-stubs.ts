@@ -386,7 +386,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
               text:
                 `<${appUrl}/deals/${entry.dealId}|Open deal →>  ·  <${practiceUrl}|🥊 Practice this call>` +
                 (deepPlan ? `  ·  🧵 Full prep in the thread` : "") +
-                `  ·  <${appUrl}/deals/${entry.dealId}/not-a-deal|✕ Not a deal>`,
+                `  ·  <${appUrl}/deals/${entry.dealId}/not-a-deal|✕ Not a deal (archive)>`,
             },
           },
           alertFooterBlock("precall_plan", appUrl),
@@ -634,7 +634,7 @@ export async function postAnalysisUpdateStub(opts: {
             type: "mrkdwn",
             text:
               `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  🧵 Full analysis in the thread` +
-              `  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+              `  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal (archive)>`,
           },
         },
         alertFooterBlock("analysis_update", appUrl),
@@ -701,7 +701,7 @@ export async function postCallAttachedStub(opts: {
             type: "mrkdwn",
             text:
               `🗓 New call recording attached to *${opts.dealName}* — analysis is still fresh from earlier today, so I left it as-is. ` +
-              `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal>`,
+              `<${appUrl}/deals/${opts.dealId}|Open deal →>  ·  <${appUrl}/deals/${opts.dealId}/not-a-deal|✕ Not a deal (archive)>`,
           },
         },
         alertFooterBlock("analysis_update", appUrl),
@@ -783,7 +783,7 @@ export async function sweepNoRecordingNudges(maxPosts = 2): Promise<number> {
               text:
                 `🕵 *${company}* — the call was over a week ago but no recording ever landed. ` +
                 `Still live? <${appUrl}/deals/${deal.id}|Open the deal> to paste notes, ` +
-                `or <${appUrl}/deals/${deal.id}/not-a-deal|✕ Not a deal>.`,
+                `or <${appUrl}/deals/${deal.id}/not-a-deal|✕ Not a deal (archive)>.`,
             },
           },
           alertFooterBlock("no_recording_nudge", appUrl),
