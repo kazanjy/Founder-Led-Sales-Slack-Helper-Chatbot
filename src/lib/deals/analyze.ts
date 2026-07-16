@@ -180,20 +180,19 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
 
   if (pastEntries.length > 0) {
     sections.push("## Timeline (past)");
-    // Tiered budget: the TWO most recent calls carry the live state of
-    // the deal — they go in near-complete (50K chars ≈ a full hour-long
-    // transcript's substance). Everything older gets the 3K digest
-    // (recorder summaries lead the content, so the summary survives).
-    // The old flat 3K-per-entry cap fed the analyzer ~4% of a real
-    // transcript — summaries and opening pleasantries only.
+    // ALL call transcripts go in essentially complete — an hour-long
+    // call is ~70-90K chars (~20K tokens), a typical deal carries 2-5
+    // of them, and GPT-5.5's ~1M-token window swallows that with room
+    // to spare (~$0.20-0.75 of input per analysis). Non-call entries
+    // (emails, slack digests, notes) get 20K — enough for a full
+    // channel-sync digest or a long thread. The global budget below is
+    // the real backstop; entries are newest-first so overflow drops
+    // the oldest history.
     const CALL_TYPES = new Set(["call_summary", "call_transcript"]);
-    const recentCallIds = new Set(
-      pastEntries.filter((e) => CALL_TYPES.has(e.type)).slice(0, 2).map((e) => e.id)
-    );
     for (const entry of pastEntries) {
       const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
       sections.push(`### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`);
-      const cap = recentCallIds.has(entry.id) ? 50_000 : 3000;
+      const cap = CALL_TYPES.has(entry.type) ? 100_000 : 20_000;
       const content = entry.content.length > cap
         ? entry.content.substring(0, cap) + "\n\n[...truncated]"
         : entry.content;
@@ -356,15 +355,15 @@ Rules for MIKEY_HEALTH (holistic deal health, single-word verdict — must be on
           // context cap even on transcript-heavy deals — it's appended
           // AFTER truncation. Without this, a big timeline silently
           // ate the tail and the Discovery Gaps audit went generic.
-          // 200K chars ≈ 50K tokens ≈ $0.25 of GPT-5.5 input at the
-          // ceiling — sized so two near-full recent transcripts plus
-          // the digested history fit (matches the business-case
-          // evidence assembler's budget). Entries are newest-first, so
-          // when the cap does bite it's the OLDEST history that drops.
+          // 600K chars ≈ 150K tokens ≈ $0.75 of GPT-5.5 input at the
+          // ceiling — room for ~8 complete hour-long transcripts, and
+          // still well under both the ~1M window and the 272K-token
+          // pricing surcharge band. Entries are newest-first, so when
+          // the cap does bite it's the OLDEST history that drops.
           {
             role: "user",
             content:
-              (dealContext + priorAnalysisBlock).substring(0, 200_000 - frameworkContext.length) +
+              (dealContext + priorAnalysisBlock).substring(0, 600_000 - frameworkContext.length) +
               frameworkContext,
           },
         ],
