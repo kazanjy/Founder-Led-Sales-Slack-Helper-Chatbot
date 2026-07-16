@@ -127,7 +127,9 @@ export function OutcomeReviewPanel({
 
   // Group for display. New-goal candidates carry their nested task
   // candidates (parentCandidateId) so they render as one card.
-  const updates = pending.filter((c) => c.kind === "update_task" || c.kind === "update_goal");
+  const updates = pending.filter(
+    (c) => c.kind === "update_task" || c.kind === "update_goal" || c.kind === "update_priority"
+  );
   const newTasks = pending.filter((c) => c.kind === "new_task" && !c.parentCandidateId);
   const newGoals = pending.filter((c) => c.kind === "new_goal" || c.kind === "new_next_goal");
   const childrenOf = (goalCandidateId: string) =>
@@ -318,26 +320,39 @@ export function OutcomeReviewPanel({
               {updates.length > 0 && (
                 <section>
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
-                    Looks done / status changes
+                    Status &amp; priority changes
                   </h4>
                   <div className="space-y-3">
                     {updates.map((c) => (
                       <div key={c.id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg">
                         <div className="min-w-0">
                           <p className="text-sm text-gray-900 dark:text-gray-100">
-                            Mark {c.kind === "update_goal" ? "goal" : "task"}{" "}
-                            <strong>&ldquo;{c.targetTitle || c.targetId}&rdquo;</strong> as{" "}
-                            <span className="font-medium text-purple-700 dark:text-purple-300">
-                              {STATUS_LABELS[c.newStatus || ""] || c.newStatus}
-                            </span>{" "}
-                            <ConfidenceBadge level={c.confidence} />
+                            {c.kind === "update_priority" ? (
+                              <>
+                                Reprioritize task{" "}
+                                <strong>&ldquo;{c.targetTitle || c.targetId}&rdquo;</strong>:{" "}
+                                <span className="font-medium text-purple-700 dark:text-purple-300">
+                                  {c.oldPriority || "unranked"} → {c.newPriority || "unranked"}
+                                </span>{" "}
+                                <ConfidenceBadge level={c.confidence} />
+                              </>
+                            ) : (
+                              <>
+                                Mark {c.kind === "update_goal" ? "goal" : "task"}{" "}
+                                <strong>&ldquo;{c.targetTitle || c.targetId}&rdquo;</strong> as{" "}
+                                <span className="font-medium text-purple-700 dark:text-purple-300">
+                                  {STATUS_LABELS[c.newStatus || ""] || c.newStatus}
+                                </span>{" "}
+                                <ConfidenceBadge level={c.confidence} />
+                              </>
+                            )}
                           </p>
                           {/* Where the task lives, so the founder can
                               tell apart same-named tasks under different
                               goals. Goal › parent-task when it's a
                               subtask, just the goal otherwise. Goals
                               themselves are top-level — no breadcrumb. */}
-                          {c.kind === "update_task" && c.parentGoalTitle && (
+                          {(c.kind === "update_task" || c.kind === "update_priority") && c.parentGoalTitle && (
                             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 inline-flex items-center gap-1">
                               <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
@@ -390,6 +405,11 @@ export function OutcomeReviewPanel({
                                   </option>
                                 ))}
                               </select>
+                              {c.priority && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                  {c.priority}
+                                </span>
+                              )}
                               <ConfidenceBadge level={c.confidence} />
                             </div>
                             <Evidence quote={c.evidence} />

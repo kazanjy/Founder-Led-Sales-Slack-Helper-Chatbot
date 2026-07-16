@@ -34,6 +34,7 @@ import { buildSessionContext } from "./synthesize";
 export type OutcomeCandidateKind =
   | "update_task"
   | "update_goal"
+  | "update_priority"
   | "new_task"
   | "new_goal"
   | "new_next_goal";
@@ -47,6 +48,10 @@ export interface OutcomeCandidate {
   targetId?: string;
   targetTitle?: string;
   newStatus?: "done" | "not_doing" | "deprioritized";
+  // update_priority — move an existing OPEN task's priority instead of
+  // touching its status ("that can wait" ≠ "we're never doing it").
+  oldPriority?: string | null;
+  newPriority?: "P0" | "P1" | "P2" | null; // null = clear to unranked
   // Where an update_task's target lives, so the review UI can show
   // context ("under Goal › Parent task"). Goal title for any task;
   // parent-task title only when the target is itself a subtask.
@@ -55,6 +60,9 @@ export interface OutcomeCandidate {
   // new_* — the proposed record:
   title?: string;
   description?: string;
+  /** new_task — proposed starting priority when the discussion signals
+   *  urgency; undefined = unranked. */
+  priority?: "P0" | "P1" | "P2";
   /** Parent EXISTING goal for a new_task. */
   goalId?: string;
   goalTitle?: string;
@@ -80,11 +88,14 @@ Return ONLY a JSON object with this exact shape:
   "completions": [
     { "type": "task" | "goal", "id": "<existing id from the context>", "newStatus": "done" | "not_doing" | "deprioritized", "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
   ],
+  "priorityChanges": [
+    { "id": "<existing OPEN task id from the context>", "newPriority": "P0" | "P1" | "P2" | null, "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
+  ],
   "newTasks": [
-    { "title": "...", "description": "... or null", "existingGoalId": "<id of the existing goal it belongs under>", "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
+    { "title": "...", "description": "... or null", "existingGoalId": "<id of the existing goal it belongs under>", "priority": "P0" | "P1" | "P2" | null, "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
   ],
   "newGoals": [
-    { "title": "...", "description": "... or null", "queue": "active" | "up_next", "tasks": [ { "title": "...", "description": "... or null" } ], "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
+    { "title": "...", "description": "... or null", "queue": "active" | "up_next", "tasks": [ { "title": "...", "description": "... or null", "priority": "P0" | "P1" | "P2" | null } ], "evidence": "<short VERBATIM quote>", "confidence": "high" | "medium" | "low" }
   ]
 }
 
@@ -92,7 +103,9 @@ Rules — follow all of them strictly:
 - EVIDENCE IS MANDATORY. Every item needs a short verbatim quote (max ~200 chars) copied from the notes or transcript. If you cannot quote it, do not propose it.
 - Completions: only mark something done/not_doing/deprioritized when the session shows it HAPPENED or was DECIDED ("we shipped X", "let's drop Y", "park Z until…") — not mere intent or progress. "Working on it" is not done.
 - "deprioritized"/"up_next": use when work is explicitly parked for later.
-- New tasks: concrete commitments to act ("I'll…", "we agreed to…", "next step is…"). Not discussion topics, not advice given, not decisions/learnings — those belong in the prose synthesis, not here.
+- PRIORITIES: P0 = urgent/do-first, P1 = important this week, P2 = when possible, null = unranked backlog. Existing tasks show their current priority in the context.
+- priorityChanges: when the discussion SHIFTS emphasis on an existing OPEN task — lower/clear the priority of work the founder said can wait ("let's not worry about that until the hire lands" → P2 or null), raise what became urgent ("this is now the most important thing" → P0). PREFER a priority change over marking something not_doing when the work will still happen eventually — reserve not_doing for things they've decided never to do. Only propose when it actually CHANGES the current priority; never for done tasks.
+- New tasks: concrete commitments to act ("I'll…", "we agreed to…", "next step is…"). Not discussion topics, not advice given, not decisions/learnings — those belong in the prose synthesis, not here. Set "priority" only when the discussion signals urgency or ordering; null when unclear.
 - Prefer attaching new tasks under an EXISTING goal (use its id). Only propose a new goal when a genuine new goal-sized body of work emerged that no existing goal covers; cluster its tasks under it.
 - DO NOT re-propose anything that already exists in the goal/task listings — check titles before proposing.
 - Titles: short, imperative, specific ("Send pricing follow-up to Acme", not "Follow up").
@@ -110,6 +123,7 @@ interface RawNewTask {
   title?: string;
   description?: string | null;
   existingGoalId?: string;
+  priority?: string | null;
   evidence?: string;
   confidence?: string;
 }
@@ -117,12 +131,25 @@ interface RawNewGoal {
   title?: string;
   description?: string | null;
   queue?: string;
-  tasks?: Array<{ title?: string; description?: string | null }>;
+  tasks?: Array<{ title?: string; description?: string | null; priority?: string | null }>;
+  evidence?: string;
+  confidence?: string;
+}
+interface RawPriorityChange {
+  id?: string;
+  newPriority?: string | null;
   evidence?: string;
   confidence?: string;
 }
 
 const VALID_STATUSES = new Set(["done", "not_doing", "deprioritized"]);
+const VALID_PRIORITIES = new Set(["P0", "P1", "P2"]);
+
+function normPriority(p: unknown): "P0" | "P1" | "P2" | undefined {
+  return typeof p === "string" && VALID_PRIORITIES.has(p)
+    ? (p as "P0" | "P1" | "P2")
+    : undefined;
+}
 
 function normTitle(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -144,6 +171,9 @@ function cleanEvidence(e: string | undefined): string {
 function candidateKey(c: OutcomeCandidate): string {
   if (c.kind === "update_task" || c.kind === "update_goal") {
     return `${c.kind}:${c.targetId}:${c.newStatus}`;
+  }
+  if (c.kind === "update_priority") {
+    return `${c.kind}:${c.targetId}:${c.newPriority ?? "none"}`;
   }
   return `${c.kind}:${normTitle(c.title || "")}`;
 }
@@ -190,7 +220,7 @@ export async function extractSessionOutcomes(
         id: true,
         title: true,
         status: true,
-        tasks: { select: { id: true, title: true, status: true, parentTaskId: true } },
+        tasks: { select: { id: true, title: true, status: true, parentTaskId: true, priority: true } },
       },
     }),
     prisma.coachingNextGoal.findMany({
@@ -206,9 +236,11 @@ export async function extractSessionOutcomes(
   // can render its home ("under Goal › Parent task"). Parent-task
   // title is resolved via titleById below.
   const taskParent = new Map<string, { goalTitle: string; parentTaskId: string | null }>();
+  const taskStateById = new Map<string, { status: string; priority: string | null }>();
   for (const g of goals) {
     for (const t of g.tasks) {
       taskParent.set(t.id, { goalTitle: g.title, parentTaskId: t.parentTaskId });
+      taskStateById.set(t.id, { status: t.status, priority: t.priority ?? null });
     }
   }
   const existingTitles = new Set<string>();
@@ -231,6 +263,7 @@ export async function extractSessionOutcomes(
 
   let parsed: {
     completions?: RawCompletion[];
+    priorityChanges?: RawPriorityChange[];
     newTasks?: RawNewTask[];
     newGoals?: RawNewGoal[];
   };
@@ -276,6 +309,32 @@ export async function extractSessionOutcomes(
     });
   }
 
+  // Priority moves on existing OPEN tasks — "that can wait" without
+  // the not_doing hammer. Skips settled tasks and no-op changes.
+  for (const raw of parsed.priorityChanges || []) {
+    const evidence = cleanEvidence(raw.evidence);
+    if (!raw.id || !evidence || !taskIds.has(raw.id)) continue;
+    const state = taskStateById.get(raw.id);
+    if (!state || state.status === "done" || state.status === "not_doing") continue;
+    const newPriority = raw.newPriority === null ? null : normPriority(raw.newPriority);
+    if (newPriority === undefined) continue;
+    if ((state.priority ?? null) === newPriority) continue; // no-op
+    const home = taskParent.get(raw.id);
+    candidates.push({
+      id: randomUUID(),
+      kind: "update_priority",
+      targetId: raw.id,
+      targetTitle: titleById.get(raw.id),
+      oldPriority: state.priority,
+      newPriority,
+      parentGoalTitle: home?.goalTitle,
+      parentTaskTitle: home?.parentTaskId ? titleById.get(home.parentTaskId) : undefined,
+      evidence,
+      confidence: normConfidence(raw.confidence),
+      status: "pending",
+    });
+  }
+
   for (const raw of parsed.newTasks || []) {
     const evidence = cleanEvidence(raw.evidence);
     const title = (raw.title || "").trim();
@@ -287,6 +346,7 @@ export async function extractSessionOutcomes(
       kind: "new_task",
       title,
       description: (raw.description || "").trim() || undefined,
+      priority: normPriority(raw.priority),
       goalId: raw.existingGoalId,
       goalTitle: titleById.get(raw.existingGoalId),
       evidence,
@@ -318,6 +378,7 @@ export async function extractSessionOutcomes(
         kind: "new_task",
         title: tTitle,
         description: (t.description || "").trim() || undefined,
+        priority: normPriority(t.priority),
         parentCandidateId: goalCandidate.id,
         // Nested tasks justify themselves via the parent goal's quote.
         evidence,

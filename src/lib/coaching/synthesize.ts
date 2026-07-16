@@ -144,6 +144,7 @@ export async function buildSessionContext(
       for (const t of g.tasks) {
         const check = t.status === "done" ? "x" : " ";
         ctx += `- [${check}] ${t.title}`;
+        if (t.priority) ctx += ` (priority: ${t.priority})`;
         if (t.status === "not_doing") ctx += ` ~~(not doing)~~`;
         if (t.status === "deprioritized") ctx += ` *(deprioritized)*`;
         ctx += idTag(t.id);
@@ -161,7 +162,8 @@ export async function buildSessionContext(
       if (g.description) ctx += `${g.description}\n`;
       for (const t of g.tasks) {
         const check = t.status === "done" ? "x" : " ";
-        ctx += `- [${check}] ${t.title}${idTag(t.id)}\n`;
+        const pri = t.priority ? ` (priority: ${t.priority})` : "";
+        ctx += `- [${check}] ${t.title}${pri}${idTag(t.id)}\n`;
       }
       ctx += `\n`;
     }

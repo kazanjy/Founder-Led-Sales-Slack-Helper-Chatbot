@@ -164,7 +164,20 @@ export async function POST(
         if (!accepted(c)) continue;
         const d = decisionById.get(c.id)!;
 
-        if (c.kind === "update_task" || c.kind === "update_goal") {
+        if (c.kind === "update_priority") {
+          // Priority move on an existing task — never touches status.
+          if (!c.targetId) {
+            skipped.push({ candidateId: c.id, reason: "missing target" });
+            continue;
+          }
+          const res = await tx.coachingTask.updateMany({
+            where: { id: c.targetId, userId: ownerId },
+            data: { priority: c.newPriority ?? null },
+          });
+          if (res.count === 0) {
+            skipped.push({ candidateId: c.id, reason: "target no longer exists" });
+          }
+        } else if (c.kind === "update_task" || c.kind === "update_goal") {
           if (!c.targetId || !c.newStatus) {
             skipped.push({ candidateId: c.id, reason: "missing target/status" });
             continue;
@@ -219,6 +232,7 @@ export async function POST(
                 goalId: parent.id,
                 title,
                 description,
+                priority: c.priority ?? null,
                 order: (maxOrder._max.order ?? -1) + 1,
               },
             });
@@ -233,6 +247,7 @@ export async function POST(
                 goalId: parentNewGoalId,
                 title,
                 description,
+                priority: c.priority ?? null,
                 order: (maxOrder._max.order ?? -1) + 1,
               },
             });
