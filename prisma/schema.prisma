@@ -181,6 +181,7 @@ model User {
   practiceSessions           PracticeSession[]
   dealTriages                DealTriage[]
   dealSlackPosts             DealSlackPost[]
+  dealTasks                  DealTask[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2550,6 +2551,7 @@ model Deal {
   analyses     DealAnalysis[]
   businessCaseInstances BusinessCaseInstance[]
   slackPosts   DealSlackPost[]
+  tasks        DealTask[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2809,6 +2811,42 @@ model DealTriage {
   @@unique([userId, source, sourceId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("deal_triages")
+}
+
+// Future-dated deal tasks with one-touch execution (deal-autopilot-
+// plan.md Part 3 / Phase 5, first slice). A task sleeps until dueAt;
+// the 5-min cron then drafts the founder-voiced message and pings
+// Slack ("⚡ Proposed Task Execution") with a Do-it link that sends it
+// into the deal's linked channel AS THE FOUNDER (user token), logs a
+// timeline entry as proof, and marks the task done.
+model DealTask {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  title     String
+  rationale String? @db.Text
+  source    String  @default("user") // "user" | "deal_analysis" | "pipeline_review"
+  // scheduled → (dueAt reached, ping posted) → pinged → done|dismissed
+  status String    @default("scheduled")
+  dueAt  DateTime?
+
+  // How the one-touch execution happens. "slack_channel" sends
+  // draftMessage into the deal's linked Slack channel. (Future:
+  // "email", …)
+  executeVia   String?
+  draftMessage String? @db.Text
+  proofEntryId String? // timeline entry evidencing execution
+  executedAt   DateTime?
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([userId, status, dueAt])
+  @@index([dealId, status])
+  @@map("deal_tasks")
 }
 
 // One row per deal-related Slack stub post (deal-autopilot-plan.md

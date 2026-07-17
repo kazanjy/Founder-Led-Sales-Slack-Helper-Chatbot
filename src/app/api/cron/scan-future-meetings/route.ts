@@ -9,6 +9,7 @@ import {
   postAnalysisUpdateStub,
 } from "@/lib/deals/timed-stubs";
 import { sweepLinkedSlackChannels } from "@/lib/deals/slack-channel-sync";
+import { sweepDueDealTasks } from "@/lib/deals/task-execution";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 
 /**
@@ -198,6 +199,17 @@ export async function GET(request: NextRequest) {
     console.error("[cron scan-future-meetings] expiry sweep failed:", err);
   }
 
+  // Due deal tasks → "⚡ Proposed Task Execution" pings (drafted
+  // message + one-touch Do-it link). Time-sensitive like the pre-call
+  // stubs, so it runs early in the tick. Capped per tick — each
+  // undrafted task costs one LLM call.
+  let taskPings = 0;
+  try {
+    taskPings = await sweepDueDealTasks();
+  } catch (err) {
+    console.error("[cron scan-future-meetings] task sweep failed:", err);
+  }
+
   // Linked shared Slack channels: pull new messages since each deal's
   // watermark into slack_message digest entries. Quiet channels cost
   // one history call; capped per tick.
@@ -238,6 +250,7 @@ export async function GET(request: NextRequest) {
     preCallStubs,
     nudges,
     slackSyncs,
+    taskPings,
     summary: summary.filter((s) => s.added > 0 || s.likelyDeals > 0 || s.errors > 0),
   });
 }

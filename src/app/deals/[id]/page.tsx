@@ -365,6 +365,67 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   // syncs can produce a dozen identical rows that bury the rest of the
   // deal page. "Show more" reveals the rest.
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  // ── Future deal tasks (one-touch Slack execution) ────────────────
+  interface DealTaskRow {
+    id: string;
+    title: string;
+    rationale: string | null;
+    status: string;
+    dueAt: string | null;
+    executeVia: string | null;
+    draftMessage: string | null;
+    executedAt: string | null;
+  }
+  const [dealTasks, setDealTasks] = useState<DealTaskRow[]>([]);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [taskDraft, setTaskDraft] = useState("");
+  const [taskViaSlack, setTaskViaSlack] = useState(true);
+  const [taskSaving, setTaskSaving] = useState(false);
+
+  const loadDealTasks = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks`);
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data?.tasks)) setDealTasks(data.tasks);
+    } catch { /* leave empty */ }
+  }, [id]);
+
+  useEffect(() => { loadDealTasks(); }, [loadDealTasks]);
+
+  const createDealTask = async () => {
+    if (!taskTitle.trim()) return;
+    setTaskSaving(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          dueAt: taskDue ? new Date(`${taskDue}T09:00:00`).toISOString() : undefined,
+          executeVia: taskViaSlack ? "slack_channel" : undefined,
+          draftMessage: taskDraft.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setTaskTitle(""); setTaskDue(""); setTaskDraft(""); setShowTaskForm(false);
+        await loadDealTasks();
+      }
+    } finally {
+      setTaskSaving(false);
+    }
+  };
+
+  const patchDealTask = async (taskId: string, status: string) => {
+    await fetch(`/api/deals/${id}/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).catch(() => {});
+    await loadDealTasks();
+  };
+
   // ── Linked shared Slack channel (sell-in-Slack evidence) ─────────
   const [channelPickerOpen, setChannelPickerOpen] = useState(false);
   const [slackChannels, setSlackChannels] = useState<Array<{ id: string; name: string; isShared: boolean; isPrivate: boolean }> | null>(null);
@@ -2621,6 +2682,140 @@ Be specific to this meeting — use what's actually in the deal history, and cal
             </div>
           );
         })()}
+
+        {/* ── Future Tasks — scheduled follow-ups with one-touch Slack
+            execution. When a task comes due, the 5-min cron drafts the
+            message and pings Slack with a "Do it" link that sends it
+            into the linked channel as the founder. */}
+        <div className="bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-xl p-4 mb-5">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-sm font-semibold text-purple-900 dark:text-purple-200">
+              ⚡ Future Tasks
+              {dealTasks.filter((t) => t.status === "scheduled" || t.status === "pinged").length > 0 &&
+                ` (${dealTasks.filter((t) => t.status === "scheduled" || t.status === "pinged").length} open)`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowTaskForm((v) => !v)}
+              className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium"
+            >
+              {showTaskForm ? "Cancel" : "＋ Schedule follow-up"}
+            </button>
+          </div>
+          {showTaskForm && (
+            <div className="mb-3 p-3 rounded-lg border border-purple-100 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/20 space-y-2">
+              <input
+                type="text"
+                value={taskTitle}
+                onChange={(e) => setTaskTitle(e.target.value)}
+                placeholder='e.g. "Follow up on the proposal", "Check in after their board meeting"'
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
+                autoFocus
+              />
+              <div className="flex items-center gap-3 flex-wrap text-xs text-gray-600 dark:text-gray-300">
+                <label className="flex items-center gap-1.5">
+                  <span>Due:</span>
+                  <input
+                    type="date"
+                    value={taskDue}
+                    onChange={(e) => setTaskDue(e.target.value)}
+                    className="px-1.5 py-1 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer" title="When due, Mikey drafts the message and pings you with a one-touch 'Do it' that sends it into the linked Slack channel as you">
+                  <input
+                    type="checkbox"
+                    checked={taskViaSlack}
+                    onChange={(e) => setTaskViaSlack(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-purple-600"
+                  />
+                  <span>Execute via linked Slack channel</span>
+                </label>
+              </div>
+              {taskViaSlack && (
+                <textarea
+                  value={taskDraft}
+                  onChange={(e) => setTaskDraft(e.target.value)}
+                  placeholder="Optional: pre-write the message to send. Leave blank and Mikey drafts it from the deal evidence when the task comes due."
+                  rows={2}
+                  className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
+                />
+              )}
+              <button
+                type="button"
+                onClick={createDealTask}
+                disabled={!taskTitle.trim() || taskSaving}
+                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50"
+              >
+                {taskSaving ? "Scheduling…" : "Schedule task"}
+              </button>
+            </div>
+          )}
+          {dealTasks.length === 0 ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+              No scheduled follow-ups. Schedule one and Mikey pings you when it&rsquo;s due — with the message drafted and a one-touch send into the linked Slack channel.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {dealTasks.map((t) => {
+                const due = t.dueAt
+                  ? new Date(t.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                  : null;
+                const settled = t.status === "done" || t.status === "dismissed" || t.status === "expired";
+                return (
+                  <li key={t.id} className={`flex items-start gap-2 text-sm ${settled ? "opacity-50" : ""}`}>
+                    <span className="shrink-0 mt-0.5" title={t.status}>
+                      {t.status === "done" ? "✅" : t.status === "dismissed" || t.status === "expired" ? "🚫" : t.status === "pinged" ? "⚡" : "🕒"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className={settled && t.status !== "done" ? "line-through" : ""}>{t.title}</span>
+                      <span className="text-xs text-gray-400 ml-2">
+                        {due && `due ${due}`}
+                        {t.executeVia === "slack_channel" && " · 💬 via Slack"}
+                        {t.status === "pinged" && " · pinged, awaiting your go"}
+                        {t.status === "done" && t.executedAt && ` · sent ${new Date(t.executedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                      </span>
+                      {t.draftMessage && !settled && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 border-l-2 border-purple-200 dark:border-purple-800 pl-2 line-clamp-2">
+                          {t.draftMessage}
+                        </div>
+                      )}
+                    </div>
+                    {!settled && (
+                      <span className="shrink-0 flex items-center gap-2 text-xs">
+                        {t.status === "pinged" && t.executeVia === "slack_channel" && t.draftMessage && deal.slackChannelId && (
+                          <a
+                            href={`/deals/${deal.id}/tasks/${t.id}/do`}
+                            className="text-purple-600 dark:text-purple-300 hover:underline font-medium"
+                            title="Send the drafted message into the linked Slack channel as you"
+                          >
+                            🚀 Do it
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => patchDealTask(t.id, "done")}
+                          className="text-gray-400 hover:text-green-600"
+                          title="Mark done (without sending)"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => patchDealTask(t.id, "dismissed")}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Dismiss task"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
         {/* First-run analysis banner — shown only when the auto-analyze
             kicked off on mount (no prior lastAnalysis yet) so the user

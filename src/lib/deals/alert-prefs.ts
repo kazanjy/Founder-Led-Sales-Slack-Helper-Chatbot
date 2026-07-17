@@ -63,6 +63,13 @@ export const DEAL_ALERT_KINDS: DealAlertKind[] = [
     description:
       "One-time nudge when a watched deal's call happened over a week ago but no recording ever landed.",
   },
+  {
+    key: "task_execution",
+    emoji: "⚡",
+    label: "Proposed task execution",
+    description:
+      "A scheduled deal task came due — the ping carries the drafted message and the one-touch \"Do it\" link that sends it into the deal's linked Slack channel as you.",
+  },
 ];
 
 const VALID_KEYS = new Set(DEAL_ALERT_KINDS.map((k) => k.key));
