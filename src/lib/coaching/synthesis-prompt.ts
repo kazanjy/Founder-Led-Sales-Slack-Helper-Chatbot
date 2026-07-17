@@ -9,29 +9,22 @@
  * it without dragging server-only modules along, should a client
  * surface need it again.
  */
-export const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into a terse, scannable takeaway doc with EXACTLY these four sections. Use the actual content of the session — names, deals, numbers, decisions — not generic coach-speak.
+export const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into a terse, scannable takeaway doc with EXACTLY these three sections. Use the actual content of the session — names, deals, numbers, decisions — not generic coach-speak.
 
 ## What we discussed
 3-6 bullets capturing the substantive topics, in the order they shaped the conversation. Cite specifics: which deals, which metrics, which obstacles, which questions. Skip throat-clearing and tangents.
 
-## What we agreed
-EVERY explicit decision, commitment, or shift in thinking that landed during the session — be exhaustive. Do not drop an agreement to hit a bullet count. Phrase as resolved statements ("we'll move X to Y", "I'll stop doing Z"), not as "we discussed". If there was no real agreement on a topic, omit it rather than hedging.
-
-Structure and ranking (mirror the priorities section):
-- BUNDLE BY INITIATIVE: group agreements under a top-level bullet per initiative (the goal or body of work they belong to — use the goal/task listings in the context to match them), with the individual agreements nested as indented sub-bullets. An agreement that doesn't belong to any initiative gets its own top-level bullet.
-- RANK initiatives by the priority of the work they concern (P0 first → unranked last); order the nested agreements within each by consequence — the most load-bearing decision first.
-- Show priority tags in brackets ("[P0]") where the underlying work carries one.
-
-## Top priorities until next session
-ALL the priorities that were agreed for the coming cycle — exhaustive, never truncated to a count. If ten things were agreed as priorities, list ten. (Don't pad, either — only things actually agreed as priorities belong here.)
+## Agreements & priorities until next session
+EVERY explicit decision, commitment, and priority that landed during the session — exhaustive, never truncated to a count. If ten things landed, list ten. (Don't pad, either — only things that actually landed belong here.) One combined section: a commitment appears ONCE, with its owner and done-signal — never restated in two places.
 
 Structure and ranking:
-- BUNDLE BY INITIATIVE: one top-level bullet per initiative (the goal or parent task the work belongs to), with its agreed subtasks nested as indented sub-bullets beneath it — never scattered as flat peers. A standalone task with no initiative is its own top-level bullet.
-- RANK INITIATIVES by priority: P0 work first, then P1, then P2, then unranked. An initiative's rank is its highest-priority item. Within each initiative, rank the nested subtasks the same way (P0 → P1 → P2 → unranked).
-- Show the priority tag in brackets ("[P0]") on every item that carries one — the current priorities appear in the goal/task listings in the context.
-- For each item: the concrete action, the owner (default: the founder), and the success signal that says it's done. Be specific enough that a stranger reading this could pick up the work. No "continue working on X" — name the next move.
+- BUNDLE BY INITIATIVE: one top-level bullet per initiative (the goal or body of work — use the goal/task listings in the context to match), everything belonging to it nested beneath. Items that belong to no initiative get their own top-level bullet.
+- RANK INITIATIVES by priority: P0 first, then P1, P2, unranked. An initiative's rank is its highest-priority item. Show priority tags in brackets ("[P0]") wherever the work carries one.
+- Within each initiative, two kinds of nested bullets:
+  - DECISIONS — resolved statements that set direction but aren't actions ("we'll count POC-scoping as trial starts", "we won't hire for Founding Agent yet"). Phrase as resolved ("we'll move X to Y"), never "we discussed". Lead with these, most load-bearing first.
+  - ACTIONS — the work for the coming cycle, ranked by priority within the initiative (P0 → P1 → P2 → unranked). Each: the concrete action, the owner (default: the founder), and the done-signal ("done when …"). Specific enough that a stranger could pick up the work. No "continue working on X" — name the next move.
 
 ## What we'll turn to after immediate priorities
 2-4 bullets naming the next layer of work that's queued up but explicitly NOT being tackled this cycle — things flagged for "after we land the top priorities". Pull from the Up Next queue and any "we'll get to X later" moments in the session. For each: what it is and the trigger / readiness signal that says it's time to pick it up (e.g. "once the first AE is hitting quota", "after the new pricing page ships"). If nothing was queued for later, write "Nothing queued — re-evaluate next session." instead of forcing bullets.
 
-Keep individual bullets terse and scannable (one line each where possible). "What we discussed" and "What we'll turn to" stay within their bullet ranges; the agreed-items and priorities sections run as long as the session's actual agreements require — completeness beats brevity there. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;
+Keep individual bullets terse and scannable (one line each where possible). "What we discussed" and "What we'll turn to" stay within their bullet ranges; the combined agreements-and-priorities section runs as long as the session's actual agreements require — completeness beats brevity there. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;

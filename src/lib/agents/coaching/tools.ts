@@ -527,7 +527,7 @@ const summarizeCoachingSession: ToolEntry = {
     function: {
       name: "summarizeCoachingSession",
       description:
-        "Gather the full context of a coaching session — notes, transcript, attached goals/tasks/maturity stage — and return it with a synthesis directive instructing YOU to write the takeaway doc in four sections: ## What we discussed, ## What we agreed, ## Top priorities until next session, ## What we'll turn to after immediate priorities. Same shape as the in-app 'Synthesize Takeaways' button. Use when the user asks to summarize, write up, or pull takeaways from a session.",
+        "Gather the full context of a coaching session — notes, transcript, attached goals/tasks/maturity stage — and return it with a synthesis directive instructing YOU to write the takeaway doc in three sections: ## What we discussed, ## Agreements & priorities until next session, ## What we'll turn to after immediate priorities. Same shape as the in-app auto-synthesis. Use when the user asks to summarize, write up, or pull takeaways from a session.",
       parameters: {
         type: "object",
         properties: {
@@ -573,21 +573,18 @@ const summarizeCoachingSession: ToolEntry = {
           isSubtask: !!t.parentTaskId,
         })),
       })),
-      directive: `Write the takeaway doc now with EXACTLY these four sections, no preamble, no sign-off. Specifics from the session — names, deals, numbers — not generic coach-speak.
+      directive: `Write the takeaway doc now with EXACTLY these three sections, no preamble, no sign-off. Specifics from the session — names, deals, numbers — not generic coach-speak.
 
 ## What we discussed
 3-6 bullets of the substantive topics in the order they shaped the conversation.
 
-## What we agreed
-3-6 bullets of explicit decisions/commitments. Phrase as resolved statements ("we'll move X to Y") not "we discussed". Omit topics that didn't land.
-
-## Top priorities until next session
-3-5 bullets ordered by priority. Each: concrete action, owner (default: founder), success signal that says it's done. No "continue working on X" — name the next move.
+## Agreements & priorities until next session
+EVERY decision, commitment, and priority that landed — exhaustive, a commitment appears once (never restated). Bundle by initiative (top-level bullet per goal/body of work, ranked P0 → P1 → P2 → unranked with [P0]-style tags); nested beneath each: DECISIONS first (resolved statements — "we'll move X to Y", not "we discussed"), then ACTIONS ranked by priority, each with owner (default: founder) and a "done when …" signal. No "continue working on X" — name the next move.
 
 ## What we'll turn to after immediate priorities
 2-4 bullets of work queued for "after we land the top priorities". Each: what it is + the trigger/readiness signal that says it's time. Write "Nothing queued — re-evaluate next session." if there's nothing on deck.
 
-Under ~300 words total.`,
+Terse bullets; the combined section runs as long as the actual agreements require.`,
     };
   },
 };
