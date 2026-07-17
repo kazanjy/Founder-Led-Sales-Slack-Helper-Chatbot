@@ -136,21 +136,57 @@ export async function buildSessionContext(
     ctx += `\n`;
   }
 
+  // Render a goal's tasks with SUBTASKS NESTED under their parent —
+  // the synthesis bundles work by initiative, which requires seeing
+  // the parent/subtask structure (a flat list hides it). Priorities
+  // ride along so the model can rank instead of guess.
+  type TaskRow = {
+    id: string; title: string; status: string; priority: string | null;
+    parentTaskId: string | null; description: string | null;
+  };
+  const renderTasks = (tasks: TaskRow[], includeDescriptions: boolean): string => {
+    let out = "";
+    const line = (t: TaskRow, indent: string) => {
+      const check = t.status === "done" ? "x" : " ";
+      let s = `${indent}- [${check}] ${t.title}`;
+      if (t.priority) s += ` (priority: ${t.priority})`;
+      if (t.status === "not_doing") s += ` ~~(not doing)~~`;
+      if (t.status === "deprioritized") s += ` *(deprioritized)*`;
+      s += idTag(t.id);
+      s += `\n`;
+      if (includeDescriptions && t.description) s += `${indent}  ${t.description}\n`;
+      return s;
+    };
+    const byParent = new Map<string, TaskRow[]>();
+    for (const t of tasks) {
+      if (t.parentTaskId) {
+        const arr = byParent.get(t.parentTaskId) || [];
+        arr.push(t);
+        byParent.set(t.parentTaskId, arr);
+      }
+    }
+    for (const t of tasks) {
+      if (t.parentTaskId) continue; // rendered under its parent
+      out += line(t, "");
+      for (const sub of byParent.get(t.id) || []) {
+        out += line(sub, "  ");
+      }
+    }
+    // Orphaned subtasks (parent deleted) still show, flat.
+    for (const t of tasks) {
+      if (t.parentTaskId && !tasks.some((p) => p.id === t.parentTaskId)) {
+        out += line(t, "");
+      }
+    }
+    return out;
+  };
+
   if (session.goals.length > 0) {
     ctx += `### Goals + Tasks created in this session\n\n`;
     for (const g of session.goals) {
       ctx += `**${g.title}** [${g.status}]${idTag(g.id)}\n`;
       if (g.description) ctx += `${g.description}\n`;
-      for (const t of g.tasks) {
-        const check = t.status === "done" ? "x" : " ";
-        ctx += `- [${check}] ${t.title}`;
-        if (t.priority) ctx += ` (priority: ${t.priority})`;
-        if (t.status === "not_doing") ctx += ` ~~(not doing)~~`;
-        if (t.status === "deprioritized") ctx += ` *(deprioritized)*`;
-        ctx += idTag(t.id);
-        ctx += `\n`;
-        if (t.description) ctx += `  ${t.description}\n`;
-      }
+      ctx += renderTasks(g.tasks as TaskRow[], true);
       ctx += `\n`;
     }
   }
@@ -160,11 +196,7 @@ export async function buildSessionContext(
     for (const g of activeGoals) {
       ctx += `**${g.title}** [${g.status}]${idTag(g.id)}\n`;
       if (g.description) ctx += `${g.description}\n`;
-      for (const t of g.tasks) {
-        const check = t.status === "done" ? "x" : " ";
-        const pri = t.priority ? ` (priority: ${t.priority})` : "";
-        ctx += `- [${check}] ${t.title}${pri}${idTag(t.id)}\n`;
-      }
+      ctx += renderTasks(g.tasks as TaskRow[], false);
       ctx += `\n`;
     }
   }
