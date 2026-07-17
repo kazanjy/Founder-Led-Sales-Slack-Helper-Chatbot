@@ -94,9 +94,9 @@ async function generatePreCallBrief(opts: {
       attendees: opts.meeting.attendees,
     },
     foundersValueProp: opts.valueProp?.substring(0, 1500) || "(none)",
-    // Newest evidence matters most and assembleDealEvidence orders
-    // chronologically — keep the tail.
-    dealEvidence: opts.evidence.slice(-40_000),
+    // Full evidence — no arbitrary tail slice. The assembler already
+    // budgets (newest-first) and gpt-5.5's window swallows it whole.
+    dealEvidence: opts.evidence,
   };
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
@@ -153,7 +153,9 @@ async function generateDeepPreCallPlan(opts: {
     `## The Meeting\n**${opts.meeting.title}** — ${when}\nAttendees: ${opts.meeting.attendees.join(", ") || "(unknown)"}\n\nInvite notes:\n${opts.meeting.description.substring(0, 4000) || "(none)"}`,
     opts.sellerContext,
     opts.discoveryFramework,
-    `## Deal History\n${opts.evidence.slice(-100_000)}`,
+    // Full history — every past transcript rides in (the assembler's
+    // 600K budget = the analyzer's; newest-first when it ever bites).
+    `## Deal History\n${opts.evidence}`,
   ].filter(Boolean);
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
@@ -323,7 +325,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       const [seller, framework, assembled] = await Promise.all([
         loadSellerContext(entry.deal.userId),
         loadDiscoveryFramework(entry.deal.userId),
-        assembleDealEvidence(entry.deal.userId, entry.dealId),
+        assembleDealEvidence(entry.deal.userId, entry.dealId, { maxChars: 600_000 }),
       ]);
       const evidence = assembled?.evidence || "(no evidence yet — first call)";
 
@@ -441,7 +443,7 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       const [seller, framework, assembled] = await Promise.all([
         loadSellerContext(entry.deal.userId),
         loadDiscoveryFramework(entry.deal.userId),
-        assembleDealEvidence(entry.deal.userId, entry.dealId),
+        assembleDealEvidence(entry.deal.userId, entry.dealId, { maxChars: 600_000 }),
       ]);
       const deepPlan = await generateDeepPreCallPlan({
         meeting,

@@ -116,12 +116,19 @@ export async function saveTemplate(
  */
 export async function assembleDealEvidence(
   userId: string,
-  dealId: string
+  dealId: string,
+  opts?: {
+    /** Override the evidence budget. Default 200K chars; the Slack
+     *  pre-call deep plan passes 600K so ALL historical transcripts
+     *  ride in (matching the deal analyzer's budget). */
+    maxChars?: number;
+  }
 ): Promise<{
   deal: { id: string; name: string; companyName: string };
   evidence: string;
   sourceDescription: string;
 } | null> {
+  const maxChars = opts?.maxChars ?? MAX_EVIDENCE_CHARS;
   const deal = await prisma.deal.findFirst({
     where: { id: dealId, userId },
     include: {
@@ -156,7 +163,7 @@ export async function assembleDealEvidence(
   let used = evidence.length;
   for (const e of usable) {
     const block = `#### ${new Date(e.entryDate).toISOString().slice(0, 10)} — ${e.type}${e.title ? `: ${e.title}` : ""}\n${e.content}\n\n`;
-    if (used + block.length > MAX_EVIDENCE_CHARS) break;
+    if (used + block.length > maxChars) break;
     used += block.length;
     kept.push(e);
   }
