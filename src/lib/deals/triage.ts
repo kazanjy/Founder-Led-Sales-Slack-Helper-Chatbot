@@ -444,7 +444,9 @@ export async function confirmDealFromCall(
     callTitle: opts.callTitle,
     foundersValueProp: seller.valueProp100w?.substring(0, 1500) || "(none)",
     preMeetingTriageReason: opts.priorTriageReason || "(none)",
-    call: opts.callContent.substring(0, 60_000),
+    // Full call — an hour-long transcript runs 70-90K chars; the old
+    // 60K clamp cut the closing minutes (where next steps live).
+    call: opts.callContent.substring(0, 150_000),
   };
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",

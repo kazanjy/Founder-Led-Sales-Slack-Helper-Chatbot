@@ -172,7 +172,7 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
       // include doc links + meeting goals. Bump the analyzer cap from
       // 800 → 6000 so the model actually has the agenda to reason
       // about ("Mikey, what should I prep for this discovery call?").
-      const content = entry.content.length > 6000 ? entry.content.substring(0, 6000) + "…" : entry.content;
+      const content = entry.content.length > 20_000 ? entry.content.substring(0, 20_000) + "…" : entry.content;
       sections.push(content);
       sections.push("");
     }
@@ -209,7 +209,7 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
       select: { narrative: true },
     });
     if (narrativeVersion?.narrative) {
-      narrativeContext = `\n## Seller's Sales Narrative (for context)\n${narrativeVersion.narrative.substring(0, 2000)}\n`;
+      narrativeContext = `\n## Seller's Sales Narrative (for context)\n${narrativeVersion.narrative.substring(0, 10_000)}\n`;
     }
   } catch { /* ignore */ }
 
@@ -221,7 +221,7 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
     const framework = await loadDiscoveryFramework(userId);
     const formatted = formatDiscoveryFramework(framework);
     if (formatted) {
-      frameworkContext = `\n${formatted.substring(0, 4000)}\n`;
+      frameworkContext = `\n${formatted.substring(0, 12_000)}\n`;
     }
   } catch { /* ignore — section falls back to generic dimensions */ }
 
@@ -230,7 +230,10 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
   const isReanalysis = Boolean(deal.lastAnalysis?.trim());
 
   const priorAnalysisBlock = isReanalysis
-    ? `\n## Previous Analysis (${deal.lastAnalyzedAt ? new Date(deal.lastAnalyzedAt).toISOString() : "earlier"})\n${deal.lastAnalysis!.substring(0, 3000)}\n`
+    // Full previous analysis — the "What's Changed" diff needs the
+    // complete prior state, not a beheaded 3K excerpt. Analyses run
+    // 5-15K chars; 40K is effectively uncapped.
+    ? `\n## Previous Analysis (${deal.lastAnalyzedAt ? new Date(deal.lastAnalyzedAt).toISOString() : "earlier"})\n${deal.lastAnalysis!.substring(0, 40_000)}\n`
     : "";
 
   const newEntryCount = isReanalysis && deal.lastAnalyzedAt
