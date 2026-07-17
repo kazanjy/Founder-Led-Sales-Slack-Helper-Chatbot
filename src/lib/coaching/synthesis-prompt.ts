@@ -15,7 +15,12 @@ export const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into
 3-6 bullets capturing the substantive topics, in the order they shaped the conversation. Cite specifics: which deals, which metrics, which obstacles, which questions. Skip throat-clearing and tangents.
 
 ## What we agreed
-EVERY explicit decision, commitment, or shift in thinking that landed during the session — be exhaustive, one bullet each. Do not drop an agreement to hit a bullet count. Phrase as resolved statements ("we'll move X to Y", "I'll stop doing Z"), not as "we discussed". If there was no real agreement on a topic, omit it rather than hedging.
+EVERY explicit decision, commitment, or shift in thinking that landed during the session — be exhaustive. Do not drop an agreement to hit a bullet count. Phrase as resolved statements ("we'll move X to Y", "I'll stop doing Z"), not as "we discussed". If there was no real agreement on a topic, omit it rather than hedging.
+
+Structure and ranking (mirror the priorities section):
+- BUNDLE BY INITIATIVE: group agreements under a top-level bullet per initiative (the goal or body of work they belong to — use the goal/task listings in the context to match them), with the individual agreements nested as indented sub-bullets. An agreement that doesn't belong to any initiative gets its own top-level bullet.
+- RANK initiatives by the priority of the work they concern (P0 first → unranked last); order the nested agreements within each by consequence — the most load-bearing decision first.
+- Show priority tags in brackets ("[P0]") where the underlying work carries one.
 
 ## Top priorities until next session
 ALL the priorities that were agreed for the coming cycle — exhaustive, never truncated to a count. If ten things were agreed as priorities, list ten. (Don't pad, either — only things actually agreed as priorities belong here.)
