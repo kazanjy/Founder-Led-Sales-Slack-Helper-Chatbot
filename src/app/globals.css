@@ -5,13 +5,13 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* The app is LIGHT-MODE ONLY. color-scheme: light stops the OS
+     dark preference from restyling UA form controls, scrollbars, and
+     autofill on iOS/Android — the source of "invisible text" bugs
+     when the phone is in dark mode. No @media (prefers-color-scheme)
+     rules belong in this file, and no .dark class is ever applied
+     (tailwind darkMode: "class"), so dark: utilities are inert. */
+  color-scheme: light;
 }
 
 body {
@@ -20,26 +20,10 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Ensure all form inputs respect dark mode text color */
 input,
 textarea,
 select {
   color: inherit;
-}
-
-@media (prefers-color-scheme: dark) {
-  input,
-  textarea,
-  select {
-    background-color: #1f2937; /* gray-800 */
-    border-color: #4b5563; /* gray-600 */
-    color: #ededed;
-  }
-
-  input::placeholder,
-  textarea::placeholder {
-    color: #9ca3af; /* gray-400 */
-  }
 }
 
 /* GTM Assessment Widget Animations */
