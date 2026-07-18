@@ -274,6 +274,8 @@ export async function sweepDueDealTasks(maxPings = 3): Promise<number> {
       const posted = await target.client.chat.postMessage({
         channel: target.channelId,
         mrkdwn: true,
+        unfurl_links: false,
+        unfurl_media: false,
         text: `Proposed task execution: ${task.title} (${company})`,
         blocks: [
           {

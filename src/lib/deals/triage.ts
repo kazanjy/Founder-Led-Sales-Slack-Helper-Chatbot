@@ -359,6 +359,8 @@ export async function postLikelyDealStub(opts: {
     const posted = await client.chat.postMessage({
       channel: channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `New deal detected: ${opts.companyName}`,
       blocks: [
         {
@@ -599,6 +601,8 @@ export async function postDealConfirmedStub(opts: {
     const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `Deal confirmed: ${opts.companyName}`,
       blocks: [
         {
@@ -659,6 +663,8 @@ export async function postDealDismissedStub(opts: {
     const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `Archived: ${opts.companyName}`,
       blocks: [
         {

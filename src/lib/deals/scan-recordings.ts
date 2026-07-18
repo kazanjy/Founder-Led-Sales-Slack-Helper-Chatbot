@@ -106,6 +106,8 @@ async function postPotentialDealAlert(opts: {
     const result = await client.chat.postMessage({
       channel: opts.channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `New potential deal: ${opts.deal.companyName}`,
       blocks: [
         {

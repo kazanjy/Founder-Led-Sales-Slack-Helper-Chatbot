@@ -356,6 +356,8 @@ export async function sweepPreCallPlanStubs(maxPosts = 3): Promise<number> {
       const result = await target.client.chat.postMessage({
         channel: target.channelId,
         mrkdwn: true,
+        unfurl_links: false,
+        unfurl_media: false,
         text: `Pre-call plan: ${company} — ${entry.title || "upcoming call"}`,
         blocks: [
           {
@@ -535,6 +537,8 @@ async function postDeepReply(opts: {
     channel: opts.channelId,
     thread_ts: opts.threadTs,
     mrkdwn: true,
+    unfurl_links: false,
+    unfurl_media: false,
     text: `Full pre-call plan: ${opts.company} — ${opts.entry.title || "upcoming call"}`,
     blocks: chunks.map((c) => ({
       type: "section" as const,
@@ -614,6 +618,8 @@ export async function postAnalysisUpdateStub(opts: {
     const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `Updated deal analysis: ${opts.companyName}`,
       blocks: [
         {
@@ -660,6 +666,8 @@ export async function postAnalysisUpdateStub(opts: {
           channel: target.channelId,
           thread_ts: posted.ts,
           mrkdwn: true,
+          unfurl_links: false,
+          unfurl_media: false,
           text: `Full deal analysis: ${opts.companyName}`,
           blocks: chunks.map((c) => ({
             type: "section" as const,
@@ -695,6 +703,8 @@ export async function postCallAttachedStub(opts: {
     const posted = await target.client.chat.postMessage({
       channel: target.channelId,
       mrkdwn: true,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `New call attached to ${opts.dealName}`,
       blocks: [
         {
@@ -776,6 +786,8 @@ export async function sweepNoRecordingNudges(maxPosts = 2): Promise<number> {
       const result = await target.client.chat.postMessage({
         channel: target.channelId,
         mrkdwn: true,
+        unfurl_links: false,
+        unfurl_media: false,
         text: `No recording yet for ${company}`,
         blocks: [
           {
