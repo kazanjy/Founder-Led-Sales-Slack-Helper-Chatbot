@@ -28,7 +28,35 @@ interface SourceCall {
   title: string;
   date: string | null;
   origin: "paste" | "recorder" | "deal";
+  providerCallId?: string;
+  entryId?: string;
   content: string;
+}
+
+interface RecorderCallOption {
+  providerCallId: string;
+  title: string;
+  date: string;
+  durationMin: number | null;
+  attendees: string[];
+  alreadyImported: boolean;
+}
+
+interface DealOption {
+  id: string;
+  name: string;
+  companyName: string | null;
+  status: string;
+  callCount: number;
+}
+
+interface DealEntryOption {
+  entryId: string;
+  title: string;
+  date: string | null;
+  type: string;
+  chars: number;
+  alreadyImported: boolean;
 }
 
 interface ProofPoint {
@@ -77,6 +105,32 @@ const MEDIUM_LABELS: Record<string, string> = Object.fromEntries(
   MEDIUMS.map((m) => [m.key, m.label])
 );
 
+const FORMATS: Array<{ key: string; label: string; emoji: string }> = [
+  { key: "web", label: "Web / blog", emoji: "🌐" },
+  { key: "linkedin", label: "LinkedIn", emoji: "💼" },
+  { key: "tweet", label: "Tweet / thread", emoji: "🐦" },
+  { key: "slides", label: "Slide outline", emoji: "📊" },
+];
+
+const FORMAT_LABELS: Record<string, string> = Object.fromEntries(
+  FORMATS.map((f) => [f.key, f.label])
+);
+
+// Mirrors isCellAllowed in lib/success-stories/generate.ts — a
+// one-quote testimonial is not a slide deck.
+function isCellAllowed(medium: string, format: string): boolean {
+  if (format === "slides" && (medium === "testimonial" || medium === "blind_testimonial")) {
+    return false;
+  }
+  return true;
+}
+
+const ORIGIN_BADGES: Record<string, { label: string; className: string }> = {
+  paste: { label: "pasted", className: "bg-gray-100 text-gray-600" },
+  recorder: { label: "recorder", className: "bg-blue-100 text-blue-700" },
+  deal: { label: "deal", className: "bg-amber-100 text-amber-700" },
+};
+
 const ARC_LABELS: Record<string, string> = {
   single: "point in time",
   before_after: "before → after",
@@ -118,7 +172,19 @@ export default function SuccessStoriesPage() {
 
   const [extracting, setExtracting] = useState(false);
   const [generatingMedium, setGeneratingMedium] = useState<string | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState("web");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Import panels ("recorder" | "deal" | null)
+  const [importPanel, setImportPanel] = useState<"recorder" | "deal" | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [recorderCalls, setRecorderCalls] = useState<RecorderCallOption[]>([]);
+  const [recorderProvider, setRecorderProvider] = useState<string | null>(null);
+  const [importDeals, setImportDeals] = useState<DealOption[]>([]);
+  const [importDealId, setImportDealId] = useState<string | null>(null);
+  const [dealEntries, setDealEntries] = useState<DealEntryOption[]>([]);
+  const [pickedIds, setPickedIds] = useState<Set<string>>(new Set());
 
   const loadList = useCallback(async (selectFirst = false) => {
     try {
@@ -170,6 +236,8 @@ export default function SuccessStoriesPage() {
   useEffect(() => {
     if (selectedId) loadDetail(selectedId);
     else setDetail(null);
+    setImportPanel(null);
+    setPickedIds(new Set());
   }, [selectedId, loadDetail]);
 
   const createCollection = async () => {
@@ -244,6 +312,99 @@ export default function SuccessStoriesPage() {
     }
   };
 
+  const openImportPanel = async (panel: "recorder" | "deal") => {
+    if (!detail) return;
+    if (importPanel === panel) { setImportPanel(null); return; }
+    setImportPanel(panel);
+    setPickedIds(new Set());
+    setImportDealId(null);
+    setDealEntries([]);
+    setImportLoading(true);
+    setError(null);
+    try {
+      if (panel === "recorder") {
+        const res = await fetch(`/api/success-stories/${detail.id}/import/recorder`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to list calls");
+        setRecorderProvider(data.provider);
+        setRecorderCalls(data.calls || []);
+      } else {
+        const res = await fetch(`/api/success-stories/${detail.id}/import/deal`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to list deals");
+        setImportDeals(data.deals || []);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load import options");
+      setImportPanel(null);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const pickImportDeal = async (dealId: string) => {
+    if (!detail) return;
+    setImportDealId(dealId);
+    setPickedIds(new Set());
+    setImportLoading(true);
+    try {
+      const res = await fetch(
+        `/api/success-stories/${detail.id}/import/deal?dealId=${encodeURIComponent(dealId)}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to list calls");
+      setDealEntries(data.entries || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load deal calls");
+      setImportDealId(null);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const togglePicked = (id: string) => {
+    setPickedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const runImport = async () => {
+    if (!detail || pickedIds.size === 0 || importing) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const url =
+        importPanel === "recorder"
+          ? `/api/success-stories/${detail.id}/import/recorder`
+          : `/api/success-stories/${detail.id}/import/deal`;
+      const body =
+        importPanel === "recorder"
+          ? { callIds: Array.from(pickedIds) }
+          : { dealId: importDealId, entryIds: Array.from(pickedIds) };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      setDetail({ ...detail, sources: data.sources || detail.sources });
+      setImportPanel(null);
+      setPickedIds(new Set());
+      loadList();
+      if (data.failed > 0) {
+        setError(`Imported ${data.imported}; ${data.failed} call${data.failed === 1 ? "" : "s"} had no transcript available.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const saveTheme = async () => {
     if (!detail || savingTheme) return;
     if ((detail.themeFocus || "") === themeDraft.trim()) return;
@@ -299,7 +460,7 @@ export default function SuccessStoriesPage() {
     );
   };
 
-  const generateAsset = async (mediumKey: string) => {
+  const generateAsset = async (mediumKey: string, formatKey?: string) => {
     if (!detail || generatingMedium) return;
     setGeneratingMedium(mediumKey);
     setError(null);
@@ -307,7 +468,7 @@ export default function SuccessStoriesPage() {
       const res = await fetch(`/api/success-stories/${detail.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ medium: mediumKey, format: "web" }),
+        body: JSON.stringify({ medium: mediumKey, format: formatKey || selectedFormat }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
@@ -488,6 +649,13 @@ export default function SuccessStoriesPage() {
                         >
                           <div className="min-w-0 text-sm">
                             <span className="font-medium text-gray-800">{s.title}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full ml-2 align-middle ${
+                                (ORIGIN_BADGES[s.origin] || ORIGIN_BADGES.paste).className
+                              }`}
+                            >
+                              {(ORIGIN_BADGES[s.origin] || ORIGIN_BADGES.paste).label}
+                            </span>
                             <span className="text-xs text-gray-500 ml-2">
                               {s.date || "no date"} · {Math.round(s.content.length / 1000)}K chars
                             </span>
@@ -503,6 +671,164 @@ export default function SuccessStoriesPage() {
                       ))}
                     </div>
                   )}
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      onClick={() => openImportPanel("recorder")}
+                      className={`text-xs px-2.5 py-1.5 rounded border ${
+                        importPanel === "recorder"
+                          ? "border-purple-400 bg-purple-50 text-purple-800"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      🎙️ Import from recorder
+                    </button>
+                    <button
+                      onClick={() => openImportPanel("deal")}
+                      className={`text-xs px-2.5 py-1.5 rounded border ${
+                        importPanel === "deal"
+                          ? "border-purple-400 bg-purple-50 text-purple-800"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      📁 Import from a deal
+                    </button>
+                    <span className="text-xs text-gray-400">or paste below</span>
+                  </div>
+
+                  {importPanel && (
+                    <div className="mb-3 p-3 rounded-lg border border-purple-200 bg-purple-50/40">
+                      {importLoading ? (
+                        <div className="py-4 flex justify-center text-purple-600">
+                          <Spinner className="h-5 w-5" />
+                        </div>
+                      ) : importPanel === "recorder" ? (
+                        !recorderProvider ? (
+                          <p className="text-sm text-gray-600">
+                            No call recorder is connected. Connect one from the{" "}
+                            <a href="/deals" className="text-purple-600 hover:underline">Deals page</a>{" "}
+                            (🎙️ Meeting Recorder panel) and recorded calls import with a click.
+                          </p>
+                        ) : recorderCalls.length === 0 ? (
+                          <p className="text-sm text-gray-600">
+                            No recorded calls found in the last 90 days.
+                          </p>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Recent {recorderProvider} calls (90 days) — pick the ones where the
+                              customer talks about results.
+                            </p>
+                            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                              {recorderCalls.map((c) => (
+                                <label
+                                  key={c.providerCallId}
+                                  className={`flex items-center gap-2.5 px-2 py-1.5 rounded text-sm ${
+                                    c.alreadyImported
+                                      ? "opacity-50"
+                                      : "hover:bg-white cursor-pointer"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    disabled={c.alreadyImported}
+                                    checked={c.alreadyImported || pickedIds.has(c.providerCallId)}
+                                    onChange={() => togglePicked(c.providerCallId)}
+                                    className="accent-purple-600 flex-shrink-0"
+                                  />
+                                  <span className="min-w-0 flex-1 truncate text-gray-800">
+                                    {c.title}
+                                    {c.attendees.length > 0 && (
+                                      <span className="text-xs text-gray-500"> — {c.attendees.join(", ")}</span>
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-gray-500 flex-shrink-0">
+                                    {new Date(c.date).toLocaleDateString()}
+                                    {c.durationMin ? ` · ${c.durationMin}m` : ""}
+                                    {c.alreadyImported ? " · imported" : ""}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </>
+                        )
+                      ) : !importDealId ? (
+                        importDeals.length === 0 ? (
+                          <p className="text-sm text-gray-600">No deals with call entries yet.</p>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Pick a deal — POC/pilot deals are the best source of pre-close proof.
+                            </p>
+                            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                              {importDeals.map((d) => (
+                                <button
+                                  key={d.id}
+                                  onClick={() => pickImportDeal(d.id)}
+                                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm text-left hover:bg-white"
+                                >
+                                  <span className="min-w-0 truncate text-gray-800">
+                                    {d.companyName || d.name}
+                                  </span>
+                                  <span className="text-xs text-gray-500 flex-shrink-0">
+                                    {d.status.replace(/_/g, " ")} · {d.callCount} call{d.callCount === 1 ? "" : "s"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setImportDealId(null); setDealEntries([]); setPickedIds(new Set()); }}
+                            className="text-xs text-purple-600 hover:underline mb-2"
+                          >
+                            ← All deals
+                          </button>
+                          {dealEntries.length === 0 ? (
+                            <p className="text-sm text-gray-600">No call entries on this deal.</p>
+                          ) : (
+                            <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                              {dealEntries.map((e) => (
+                                <label
+                                  key={e.entryId}
+                                  className={`flex items-center gap-2.5 px-2 py-1.5 rounded text-sm ${
+                                    e.alreadyImported ? "opacity-50" : "hover:bg-white cursor-pointer"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    disabled={e.alreadyImported}
+                                    checked={e.alreadyImported || pickedIds.has(e.entryId)}
+                                    onChange={() => togglePicked(e.entryId)}
+                                    className="accent-purple-600 flex-shrink-0"
+                                  />
+                                  <span className="min-w-0 flex-1 truncate text-gray-800">{e.title}</span>
+                                  <span className="text-xs text-gray-500 flex-shrink-0">
+                                    {e.date || "no date"} · {Math.round(e.chars / 1000)}K
+                                    {e.alreadyImported ? " · imported" : ""}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {!importLoading && pickedIds.size > 0 && (
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            onClick={runImport}
+                            disabled={importing}
+                            className="text-sm px-3 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {importing && <Spinner />}
+                            Import {pickedIds.size} call{pickedIds.size === 1 ? "" : "s"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                     <input
                       value={srcTitle}
@@ -672,28 +998,51 @@ export default function SuccessStoriesPage() {
                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">📝 Generate assets</h3>
                     <p className="text-xs text-gray-500 mb-3">
-                      Web / blog format. Blind variants strip the customer&rsquo;s identity but keep
-                      every metric. LinkedIn, tweet, and slide formats come next.
+                      Pick a format, then a medium. Blind variants strip the customer&rsquo;s
+                      identity but keep every metric.
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {MEDIUMS.map((m) => (
+                    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                      {FORMATS.map((f) => (
                         <button
-                          key={m.key}
-                          onClick={() => generateAsset(m.key)}
-                          disabled={!!generatingMedium || includedCount === 0}
-                          className={`text-left p-2.5 rounded-lg border text-sm disabled:opacity-50 ${
-                            m.blind
-                              ? "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                              : "border-purple-200 bg-purple-50 hover:bg-purple-100"
+                          key={f.key}
+                          onClick={() => setSelectedFormat(f.key)}
+                          className={`text-xs px-2.5 py-1.5 rounded-full border ${
+                            selectedFormat === f.key
+                              ? "border-purple-500 bg-purple-600 text-white font-medium"
+                              : "border-gray-300 text-gray-700 hover:bg-gray-50"
                           }`}
                         >
-                          <div className="font-medium text-gray-900 flex items-center gap-1.5">
-                            {generatingMedium === m.key && <Spinner className="h-3.5 w-3.5 text-purple-600" />}
-                            {m.blind ? "🕶️" : "🏷️"} {m.label}
-                          </div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">{m.hint}</div>
+                          {f.emoji} {f.label}
                         </button>
                       ))}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {MEDIUMS.map((m) => {
+                        const allowed = isCellAllowed(m.key, selectedFormat);
+                        return (
+                          <button
+                            key={m.key}
+                            onClick={() => generateAsset(m.key)}
+                            disabled={!!generatingMedium || includedCount === 0 || !allowed}
+                            title={allowed ? undefined : `A ${m.label.toLowerCase()} doesn't work as ${FORMAT_LABELS[selectedFormat]?.toLowerCase()}`}
+                            className={`text-left p-2.5 rounded-lg border text-sm disabled:opacity-50 ${
+                              !allowed
+                                ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+                                : m.blind
+                                ? "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                                : "border-purple-200 bg-purple-50 hover:bg-purple-100"
+                            }`}
+                          >
+                            <div className="font-medium text-gray-900 flex items-center gap-1.5">
+                              {generatingMedium === m.key && <Spinner className="h-3.5 w-3.5 text-purple-600" />}
+                              {m.blind ? "🕶️" : "🏷️"} {m.label}
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-0.5">
+                              {allowed ? m.hint : "Not available as slides"}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                     {generatingMedium && (
                       <div className="mt-3 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 flex items-center gap-3">
@@ -721,7 +1070,8 @@ export default function SuccessStoriesPage() {
                               <span className="font-medium text-gray-900">
                                 {MEDIUM_LABELS[a.medium] || a.medium}
                               </span>{" "}
-                              · web · {new Date(a.createdAt).toLocaleString()}
+                              · {FORMAT_LABELS[a.format] || a.format} ·{" "}
+                              {new Date(a.createdAt).toLocaleString()}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <button
@@ -731,7 +1081,7 @@ export default function SuccessStoriesPage() {
                                 {copiedId === a.id ? "✓ Copied" : "📋 Copy"}
                               </button>
                               <button
-                                onClick={() => generateAsset(a.medium)}
+                                onClick={() => generateAsset(a.medium, a.format)}
                                 disabled={!!generatingMedium}
                                 className="text-xs px-2 py-1 rounded bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 disabled:opacity-50"
                               >

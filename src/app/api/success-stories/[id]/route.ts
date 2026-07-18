@@ -54,6 +54,12 @@ function sanitizeSources(raw: unknown): SourceCall[] | null {
       date:
         typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : null,
       origin: r.origin === "recorder" || r.origin === "deal" ? r.origin : "paste",
+      // Import dedupe keys — must survive client round-trips (a source
+      // removal PATCHes the whole array back).
+      ...(typeof r.providerCallId === "string" && r.providerCallId
+        ? { providerCallId: r.providerCallId }
+        : {}),
+      ...(typeof r.entryId === "string" && r.entryId ? { entryId: r.entryId } : {}),
       content,
     });
   }

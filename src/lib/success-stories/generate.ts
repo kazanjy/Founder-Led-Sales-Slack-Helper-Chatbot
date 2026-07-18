@@ -22,6 +22,10 @@ export interface SourceCall {
   title: string;
   date: string | null; // YYYY-MM-DD
   origin: "paste" | "recorder" | "deal";
+  /** Recorder imports: the provider's call id (dedupe key). */
+  providerCallId?: string;
+  /** Deal imports: the dealTimelineEntry id (dedupe key). */
+  entryId?: string;
   content: string;
 }
 
@@ -96,7 +100,39 @@ export const SUCCESS_FORMATS: Array<{ key: string; label: string; instructions: 
     instructions:
       "Clean markdown for a website or blog: a compelling headline, subheads where the medium calls for sections, short paragraphs, quotes as blockquotes. No hashtags, no emoji.",
   },
+  {
+    key: "linkedin",
+    label: "LinkedIn post",
+    instructions:
+      "A LinkedIn post in the founder's first-person voice: a scroll-stopping hook line (the strongest metric or the sharpest quote), then short 1-2 sentence paragraphs with line breaks between them. Plain text — no markdown headers or bold syntax (LinkedIn doesn't render it). At most 2-3 tasteful hashtags at the very end, or none. No emoji pile-ups (0-2 total). 900-1800 characters for stories/case studies; shorter is fine for testimonials.",
+  },
+  {
+    key: "tweet",
+    label: "Tweet / thread",
+    instructions:
+      "X/Twitter format. Testimonials: a SINGLE tweet under 280 characters — the quote (or its sharpest fragment) plus attribution. Stories and case studies: a numbered THREAD (1/, 2/, …), each tweet under 280 characters, tweet 1 is the hook with the strongest metric, the last tweet closes with where they're going or a takeaway. Separate tweets with a blank line. No hashtags mid-thread; 0-1 at the end.",
+  },
+  {
+    key: "slides",
+    label: "Slide outline",
+    instructions:
+      "A markdown slide outline: one `## Slide N — <headline>` per slide, each followed by 2-4 terse bullets (fragments, not sentences) and, where a verbatim quote carries the slide, a single blockquote. Testimonial-adjacent mediums: 1-3 quote slides. Stories: 4-6 slides. Case studies: 6-10 slides following the section arc (situation → why us → implementation → results → what's next). Metrics get their own slide when strong enough.",
+  },
 ];
+
+/**
+ * Per-cell rules (medium × format). Most cells work — the format
+ * instructions above already adapt by medium (tweet auto-upgrades to a
+ * thread for long mediums). The genuinely nonsensical cells are
+ * disabled here and the UI greys them out.
+ */
+export function isCellAllowed(mediumKey: string, formatKey: string): boolean {
+  // A one-quote testimonial is not a slide deck.
+  if (formatKey === "slides" && (mediumKey === "testimonial" || mediumKey === "blind_testimonial")) {
+    return false;
+  }
+  return true;
+}
 
 const BLIND_CONTRACT = `ANONYMIZATION CONTRACT (applies because this is a BLIND medium):
 - Strip customer names, company name, product names of theirs, city/geography specifics, and any uniquely identifying detail.
@@ -239,6 +275,9 @@ export async function generateSuccessAsset(
   const medium = SUCCESS_MEDIUMS.find((m) => m.key === mediumKey);
   const format = SUCCESS_FORMATS.find((f) => f.key === formatKey);
   if (!medium || !format) throw new Error("Unknown medium or format");
+  if (!isCellAllowed(mediumKey, formatKey)) {
+    throw new Error(`${medium.label} doesn't make sense as ${format.label}`);
+  }
 
   const collection = await prisma.successStoryCollection.findFirst({
     where: { id: collectionId, userId },
