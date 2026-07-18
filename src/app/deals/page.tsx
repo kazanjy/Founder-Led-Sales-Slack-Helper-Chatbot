@@ -362,6 +362,42 @@ function DealsPageContent() {
     }
   };
 
+  // ── Task detection from the tile (same endpoint as the deal page's
+  //    "🔎 Detect follow-ups" CTA). One deal at a time; result flashes
+  //    on the chip for a few seconds, then the chip returns to rest. ──
+  const [detectBusyDealId, setDetectBusyDealId] = useState<string | null>(null);
+  const [detectFlash, setDetectFlash] = useState<Record<string, string>>({});
+
+  const detectTasksFromList = async (dealId: string) => {
+    if (detectBusyDealId) return;
+    setDetectBusyDealId(dealId);
+    let flash = "⚠️ detection failed";
+    try {
+      const res = await fetch(`/api/deals/${dealId}/tasks/detect`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        const created = Array.isArray(data.created) ? data.created.length : 0;
+        const dupes = typeof data.skippedDupes === "number" ? data.skippedDupes : 0;
+        flash =
+          created > 0
+            ? `✓ ${created} new task${created === 1 ? "" : "s"}`
+            : dupes > 0
+            ? "✓ all caught (dupes skipped)"
+            : "✓ no open follow-ups found";
+        if (created > 0) await loadDeals();
+      }
+    } catch { /* flash stays on failure copy */ }
+    setDetectBusyDealId(null);
+    setDetectFlash((prev) => ({ ...prev, [dealId]: flash }));
+    setTimeout(() => {
+      setDetectFlash((prev) => {
+        const next = { ...prev };
+        delete next[dealId];
+        return next;
+      });
+    }, 6000);
+  };
+
   // ── Slack channel attach from the list (same link as the deal page) ──
   const [channelPickerDealId, setChannelPickerDealId] = useState<string | null>(null);
   const [botChannels, setBotChannels] = useState<Array<{ id: string; name: string; isShared: boolean; isPrivate: boolean }> | null>(null);
@@ -2456,6 +2492,33 @@ function DealsPageContent() {
                           </button>
                         );
                       })()}
+                      <button
+                        type="button"
+                        onClick={() => detectTasksFromList(deal.id)}
+                        disabled={detectBusyDealId !== null}
+                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border disabled:opacity-60 ${
+                          detectFlash[deal.id]?.startsWith("✓")
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : detectFlash[deal.id]
+                            ? "bg-red-50 text-red-700 border-red-200"
+                            : detectBusyDealId === deal.id
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-purple-300 hover:text-purple-600"
+                        }`}
+                        title="Scan this deal's evidence for open commitments — yours become executable tasks, theirs become chase reminders"
+                      >
+                        {detectBusyDealId === deal.id ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            scanning evidence…
+                          </>
+                        ) : (
+                          detectFlash[deal.id] || "🔎 Detect tasks"
+                        )}
+                      </button>
                       {deal.slackChannelId ? (
                         <button
                           type="button"
