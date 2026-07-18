@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { scanUserRecordings } from "@/lib/deals/scan-recordings";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { postAnalysisUpdateStub, postCallAttachedStub } from "@/lib/deals/timed-stubs";
+import { detectDealTasks } from "@/lib/deals/task-execution";
 
 /**
  * GET /api/cron/scan-recordings
@@ -112,6 +113,19 @@ export async function GET(request: NextRequest) {
             healthAfter: result.mikeyHealth,
             analysis: result.analysis,
           });
+          // Auto-detect future tasks from the fresh evidence — the
+          // new call's commitments become scheduled tasks (title-
+          // deduped, so repeat runs never double-create).
+          try {
+            const detected = await detectDealTasks(userId, dealId);
+            if (detected.created.length > 0) {
+              console.log(
+                `[cron scan-recordings] detected ${detected.created.length} task(s) on deal ${dealId}`
+              );
+            }
+          } catch (err) {
+            console.error(`[cron scan-recordings] task detection failed for ${dealId}:`, err);
+          }
         } catch (err) {
           if (err instanceof DealNotFoundError) continue;
           console.error(`[cron scan-recordings] post-scan analyze ${dealId} failed:`, err);

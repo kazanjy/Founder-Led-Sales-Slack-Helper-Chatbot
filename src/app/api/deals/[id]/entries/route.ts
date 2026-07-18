@@ -6,6 +6,7 @@ import { attributeEntryToParticipants } from "@/lib/deals/attribute";
 import { classifyEntryContent } from "@/lib/deals/classify-entry";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { postAnalysisUpdateStub } from "@/lib/deals/timed-stubs";
+import { detectDealTasks } from "@/lib/deals/task-execution";
 import { findDuplicateEntry, isDupeCheckable } from "@/lib/deals/dupe-check";
 
 // The post-add re-analysis runs via after() — keep the function alive
@@ -242,6 +243,16 @@ export async function POST(
                 healthAfter: result.mikeyHealth,
                 analysis: result.analysis,
               });
+            }
+            // Auto-detect future tasks from the fresh evidence
+            // (title-deduped — repeat runs never double-create).
+            try {
+              const detected = await detectDealTasks(user.id, id);
+              if (detected.created.length > 0) {
+                console.log(`[entries] detected ${detected.created.length} task(s) on deal ${id}`);
+              }
+            } catch (err) {
+              console.error(`[entries] task detection failed for deal ${id}:`, err);
             }
           } catch (err) {
             if (err instanceof DealNotFoundError) return;
