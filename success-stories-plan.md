@@ -64,17 +64,29 @@ formats never re-runs extraction.
 
 ## Layer 2 — Mediums (what the proof becomes)
 
+Every narrative medium has an attributed and a BLIND variant — logo
+rights usually lag the proof, and blind versions make the proof
+publishable immediately. One shared anonymization contract: strip
+names, company, and identifying specifics ("a Series B fintech CFO",
+"a 40-person collections team"); ALWAYS keep the metrics — anonymized
+proof without numbers is noise.
+
 - **Customer testimonial** — attributed first-person quote block,
   lightly polished from verbatim, with name/role/company.
-- **Blind testimonial** — third-person, anonymized ("a Series B
-  fintech CFO"), for when logo rights don't exist yet. Anonymization
-  rules: strip names/company/identifying specifics, keep the metric.
+- **Blind testimonial** — third-person, anonymized quote.
 - **Success story** — 2-4 paragraphs: situation, what changed, the
   proof. Single-call sources get "state of success" framing;
   multi-call sources get the over-time arc.
+- **Blind success story** — same shape, anonymized: industry + stage
+  + team-shape descriptors replace the customer identity; quotes
+  render as "their VP of Finance told us…".
 - **Case study** — the long form: situation → why they bought →
   implementation → results over time → where they're going. Wants
   multi-call sources; the UI nudges that.
+- **Blind case study** — the long form under the anonymization
+  contract; extra care that the situation details (industry, scale,
+  tooling) stay specific enough to be credible without triangulating
+  the customer's identity.
 
 ## Layer 3 — Formats (where it publishes)
 
@@ -119,7 +131,7 @@ model SuccessStoryCollection {
 model SuccessAsset {
   id           String @id @default(cuid())
   collectionId String // relation, cascade
-  medium       String // testimonial | blind_testimonial | success_story | case_study
+  medium       String // testimonial | blind_testimonial | success_story | blind_success_story | case_study | blind_case_study
   format       String // linkedin | tweet | web | slides
   content      String @db.Text
   createdAt    DateTime @default(now())
@@ -145,8 +157,9 @@ model SuccessAsset {
 
 1. **Phase 1 — the working core (M)**: schema + migration; page with
    paste-sources (multi-call), theme focus, extraction → proof point
-   cards (include/exclude), generation for ALL four mediums in web
-   format; copy buttons. Proves the pipeline end to end.
+   cards (include/exclude), generation for ALL six mediums (attributed
+   + blind variants) in web format; copy buttons. Proves the pipeline
+   end to end.
 2. **Phase 2 — import + formats (M)**: recorder call-import widget;
    deal import (+ "📣 Success assets" CTA on closed-won deal pages);
    LinkedIn / tweet / slide-outline formats with per-cell rules;
