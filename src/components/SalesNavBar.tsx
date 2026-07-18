@@ -17,6 +17,7 @@ const contentItems: NavItem[] = [
   { href: "/social-content", label: "📱 Social Posts", statusKey: "socialContent" },
   { href: "/ad-creator", label: "📣 Ads", statusKey: "adCreator" },
   { href: "/sales-deck", label: "📊 Sales Decks", statusKey: "salesDeck" },
+  { href: "/success-stories", label: "🌟 Success Stories", statusKey: "successStories" },
 ];
 
 const callExecutionItems: NavItem[] = [

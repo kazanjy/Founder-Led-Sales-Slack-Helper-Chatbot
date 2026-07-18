@@ -182,6 +182,7 @@ model User {
   dealTriages                DealTriage[]
   dealSlackPosts             DealSlackPost[]
   dealTasks                  DealTask[]
+  successStoryCollections    SuccessStoryCollection[]
   coldCallScriptVersions     ColdCallScriptVersion[]
   salesDeckVersions          SalesDeckVersion[]
   callReviewVersions         CallReviewVersion[]
@@ -2811,6 +2812,52 @@ model DealTriage {
   @@unique([userId, source, sourceId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("deal_triages")
+}
+
+// Quotes & Success Stories (success-stories-plan.md). One collection
+// per customer/story: pasted/imported call sources + optional theme
+// focus → extracted PROOF POINTS (verbatim-quoted, narrative-aligned,
+// metric-carrying — the durable layer) → generated assets across
+// mediums (testimonial / blind / story / case study) × formats.
+model SuccessStoryCollection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title        String
+  customerName String?
+  dealId       String? // optional deal linkage (Phase 2 CTA)
+  themeFocus   String? @db.Text
+
+  // [{ id, title, date, origin: "paste"|"recorder"|"deal", content }]
+  sources Json
+  // [{ id, claim, quote, speaker, role?, date?, metric?,
+  //    narrativePillar?, arc, themeMatch, included }]
+  proofPoints   Json?
+  proofPointsAt DateTime?
+
+  assets SuccessAsset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("success_story_collections")
+}
+
+model SuccessAsset {
+  id           String                 @id @default(cuid())
+  collectionId String
+  collection   SuccessStoryCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  medium  String // testimonial | blind_testimonial | success_story | blind_success_story | case_study | blind_case_study
+  format  String // web | linkedin | tweet | slides
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([collectionId, createdAt(sort: Desc)])
+  @@map("success_assets")
 }
 
 // Future-dated deal tasks with one-touch execution (deal-autopilot-
