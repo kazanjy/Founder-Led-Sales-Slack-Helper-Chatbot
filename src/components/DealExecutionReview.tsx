@@ -72,9 +72,18 @@ export function DealExecutionReview({ onClose, onChanged }: { onClose: () => voi
   // Per-deal proposal state
   const [proposals, setProposals] = useState<Record<string, Proposal>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [scheduleAt, setScheduleAt] = useState<Record<string, string>>({});
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [flash, setFlash] = useState<Record<string, string>>({});
+
+  // Default schedule slot: tomorrow 9am local, as a datetime-local value.
+  const defaultScheduleSlot = () => {
+    const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    d.setHours(9, 0, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,14 +125,14 @@ export function DealExecutionReview({ onClose, onChanged }: { onClose: () => voi
 
   /** Create the follow-up task carrying the (possibly edited) draft.
    *  Returns the task id, or null on failure. */
-  const createTask = async (d: QuietDeal, p: Proposal, dueNow: boolean): Promise<string | null> => {
+  const createTask = async (d: QuietDeal, p: Proposal, dueAtIso: string): Promise<string | null> => {
     const res = await fetch(`/api/deals/${d.id}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: p.taskTitle,
         rationale: `Execution review: ${p.rationale.slice(0, 250)}`,
-        dueAt: dueNow ? new Date().toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        dueAt: dueAtIso,
         executeVia: "slack_channel",
         draftMessage: (drafts[d.id] || p.message || "").trim() || undefined,
       }),
@@ -142,7 +151,7 @@ export function DealExecutionReview({ onClose, onChanged }: { onClose: () => voi
     setActingId(d.id);
     setError(null);
     try {
-      const taskId = await createTask(d, p, true);
+      const taskId = await createTask(d, p, new Date().toISOString());
       if (!taskId) return;
       const res = await fetch(`/api/deals/${d.id}/tasks/${taskId}/execute`, {
         method: "POST",
@@ -168,12 +177,18 @@ export function DealExecutionReview({ onClose, onChanged }: { onClose: () => voi
 
   const scheduleTask = async (d: QuietDeal, p: Proposal) => {
     if (actingId) return;
+    const slot = scheduleAt[d.id] || defaultScheduleSlot();
+    const due = new Date(slot);
+    if (isNaN(due.getTime())) return;
     setActingId(d.id);
     setError(null);
     try {
-      const taskId = await createTask(d, p, false);
+      const taskId = await createTask(d, p, due.toISOString());
       if (taskId) {
-        setFlashFor(d.id, "✓ Task scheduled with the message loaded — Mikey pings you when it's due.");
+        setFlashFor(
+          d.id,
+          `✓ Task scheduled for ${due.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} with the message loaded — Mikey pings you then.`
+        );
         onChanged?.();
       }
     } finally {
@@ -347,14 +362,25 @@ export function DealExecutionReview({ onClose, onChanged }: { onClose: () => voi
                                       <Link href={`/deals/${d.id}`} className="underline">attach one</Link> to send directly.
                                     </span>
                                   )}
-                                  <button
-                                    onClick={() => scheduleTask(d, p)}
-                                    disabled={actingId !== null}
-                                    className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                                    title="Save as a task due tomorrow with this message loaded — Mikey pings you with the one-touch send"
-                                  >
-                                    🕒 Schedule as task
-                                  </button>
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <input
+                                      type="datetime-local"
+                                      value={scheduleAt[d.id] ?? defaultScheduleSlot()}
+                                      onChange={(e) =>
+                                        setScheduleAt((prev) => ({ ...prev, [d.id]: e.target.value }))
+                                      }
+                                      className="text-[11px] px-1.5 py-1 rounded-md border border-gray-300 bg-white text-gray-700"
+                                      title="When to execute — Mikey pings you then with the one-touch send"
+                                    />
+                                    <button
+                                      onClick={() => scheduleTask(d, p)}
+                                      disabled={actingId !== null}
+                                      className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                      title="Save as a task due at the chosen time with this message loaded — Mikey pings you with the one-touch send"
+                                    >
+                                      🕒 Schedule
+                                    </button>
+                                  </span>
                                 </div>
                               </>
                             )}

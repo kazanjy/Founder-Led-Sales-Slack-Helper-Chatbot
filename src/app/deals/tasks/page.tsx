@@ -68,9 +68,19 @@ function DealTasksInboxInner() {
   // Execute overlay state (same flow as the deal page card).
   const [executeTask, setExecuteTask] = useState<InboxTask | null>(null);
   const [executeDraft, setExecuteDraft] = useState("");
+  const [executeDue, setExecuteDue] = useState("");
   const [executeLoadingDraft, setExecuteLoadingDraft] = useState(false);
   const [executeSending, setExecuteSending] = useState(false);
+  const [executeSaving, setExecuteSaving] = useState(false);
   const [executeError, setExecuteError] = useState<string | null>(null);
+
+  // ISO → the local value a <input type="datetime-local"> expects.
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +114,7 @@ function DealTasksInboxInner() {
     setExecuteTask(t);
     setExecuteError(null);
     setExecuteDraft(t.draftMessage || "");
+    setExecuteDue(toLocalInput(t.dueAt));
     if (!t.draftMessage) {
       setExecuteLoadingDraft(true);
       try {
@@ -144,6 +155,31 @@ function DealTasksInboxInner() {
       setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
     } finally {
       setExecuteLoadingDraft(false);
+    }
+  };
+
+  // Save the overlay's edits (message + due time) without sending.
+  const saveExecuteEdits = async () => {
+    if (!executeTask || executeSaving) return;
+    setExecuteSaving(true);
+    setExecuteError(null);
+    try {
+      const res = await fetch(`/api/deals/${executeTask.dealId}/tasks/${executeTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftMessage: executeDraft,
+          dueAt: executeDue ? new Date(executeDue).toISOString() : null,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to save");
+      setExecuteTask(null);
+      await load();
+    } catch (err) {
+      setExecuteError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setExecuteSaving(false);
     }
   };
 
@@ -277,15 +313,26 @@ function DealTasksInboxInner() {
       </div>
       <span className="shrink-0 flex items-center gap-2.5 text-xs pt-0.5">
         {t.executeVia === "slack_channel" ? (
-          <button
-            type="button"
-            onClick={() => openExecuteOverlay(t)}
-            disabled={busyId === t.id}
-            className="text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-50"
-            title="Preview the message and send it into the linked Slack channel as you"
-          >
-            🚀 Execute
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => openExecuteOverlay(t)}
+              disabled={busyId === t.id}
+              className="text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-50"
+              title="Preview the message and send it into the linked Slack channel as you"
+            >
+              🚀 Execute
+            </button>
+            <button
+              type="button"
+              onClick={() => openExecuteOverlay(t)}
+              disabled={busyId === t.id}
+              className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-50"
+              title="Edit the message and due time — redraft, reschedule, save for later"
+            >
+              ✏️
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -521,11 +568,30 @@ function DealTasksInboxInner() {
               />
             )}
             {executeError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{executeError}</p>}
+            <label className="flex items-center gap-2 mt-2.5 text-xs text-gray-600 dark:text-gray-300">
+              <span title="When Mikey should ping you to execute (or when you plan to send)">⏰ Execute at:</span>
+              <input
+                type="datetime-local"
+                value={executeDue}
+                onChange={(e) => setExecuteDue(e.target.value)}
+                className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
+              />
+              {executeDue && (
+                <button
+                  type="button"
+                  onClick={() => setExecuteDue("")}
+                  className="text-gray-400 hover:text-gray-600"
+                  title="Clear the due time (task won't ping)"
+                >
+                  ✕
+                </button>
+              )}
+            </label>
             <div className="flex items-center justify-between gap-2 mt-3">
               <button
                 type="button"
                 onClick={regenerateExecuteDraft}
-                disabled={executeLoadingDraft || executeSending}
+                disabled={executeLoadingDraft || executeSending || executeSaving}
                 className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-50"
               >
                 ↻ Redraft
@@ -534,10 +600,19 @@ function DealTasksInboxInner() {
               <button
                 type="button"
                 onClick={() => { setExecuteTask(null); setExecuteError(null); }}
-                disabled={executeSending}
+                disabled={executeSending || executeSaving}
                 className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveExecuteEdits}
+                disabled={executeSending || executeSaving || executeLoadingDraft}
+                title="Save the message and due time without sending — the task pings at the new time with this message loaded"
+                className="px-3 py-1.5 text-sm font-medium text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/40 disabled:opacity-50"
+              >
+                {executeSaving ? "Saving…" : "💾 Save for later"}
               </button>
               <button
                 type="button"
