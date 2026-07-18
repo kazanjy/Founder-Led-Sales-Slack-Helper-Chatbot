@@ -6,6 +6,7 @@ import Link from "next/link";
 import { suggestChannelMatches } from "@/lib/slack/suggest-channel";
 import SalesNavBar from "@/components/SalesNavBar";
 import MeetingRecorderPanel from "@/components/MeetingRecorderPanel";
+import { DealExecutionReview } from "@/components/DealExecutionReview";
 import CalendarEventPicker, { type CalendarPickerEvent } from "@/components/CalendarEventPicker";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { DEAL_STAGES, DEAL_STATUSES, MIKEY_HEALTH_LEVELS, getStatusInfo, getRoleInfo, getHealthInfo } from "@/lib/deals/constants";
@@ -361,6 +362,9 @@ function DealsPageContent() {
       setBusy(null);
     }
   };
+
+  // ── Deal Execution Review overlay (overdue tasks + quiet deals) ──
+  const [executionReviewOpen, setExecutionReviewOpen] = useState(false);
 
   // ── Task detection from the tile (same endpoint as the deal page's
   //    "🔎 Detect follow-ups" CTA). One deal at a time; result flashes
@@ -1347,6 +1351,13 @@ function DealsPageContent() {
             >
               ⚡ Tasks
             </Link>
+            <button
+              onClick={() => setExecutionReviewOpen(true)}
+              className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:border-purple-300 hover:text-purple-600 dark:hover:text-purple-300 transition-all flex items-center gap-1.5"
+              title="Overdue commitments + deals gone quiet, with a proposed next move for each"
+            >
+              🩺 Review
+            </button>
             <Link
               href="/deals/alerts"
               className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:border-purple-300 hover:text-purple-600 dark:hover:text-purple-300 transition-all flex items-center gap-1.5"
@@ -2679,6 +2690,13 @@ function DealsPageContent() {
           </>
         )}
       </div>
+
+      {executionReviewOpen && (
+        <DealExecutionReview
+          onClose={() => setExecutionReviewOpen(false)}
+          onChanged={loadDeals}
+        />
+      )}
 
       {/* New Deal Modal */}
       {showNewDeal && (

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import { DealExecutionReview } from "@/components/DealExecutionReview";
+import { DEAL_STAGES, getStageInfo } from "@/lib/deals/constants";
 
 /**
  * Cross-deal task inbox — every upcoming / overdue deal task in one
@@ -16,8 +19,10 @@ interface TaskDeal {
   name: string;
   companyName: string | null;
   status: string;
+  stage: string;
   slackChannelId: string | null;
   slackChannelName: string | null;
+  lastActivityAt: string | null;
 }
 
 interface InboxTask {
@@ -35,10 +40,30 @@ interface InboxTask {
 }
 
 export default function DealTasksInboxPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <DealTasksInboxInner />
+    </Suspense>
+  );
+}
+
+function DealTasksInboxInner() {
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState<InboxTask[]>([]);
   const [resolved, setResolved] = useState<InboxTask[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+
+  // Filters + sort. ?due=past presets the due filter (execution-review
+  // deep link).
+  const [filterName, setFilterName] = useState("");
+  const [filterStage, setFilterStage] = useState("all");
+  const [filterType, setFilterType] = useState<"all" | "executable" | "non_executable">("all");
+  const [filterDue, setFilterDue] = useState<"all" | "past" | "future">(
+    searchParams.get("due") === "past" ? "past" : searchParams.get("due") === "future" ? "future" : "all"
+  );
+  const [sortBy, setSortBy] = useState<"due" | "stage" | "activity">("due");
 
   // Execute overlay state (same flow as the deal page card).
   const [executeTask, setExecuteTask] = useState<InboxTask | null>(null);
@@ -155,13 +180,58 @@ export default function DealTasksInboxPage() {
   const now = Date.now();
   const startOfTomorrow = new Date();
   startOfTomorrow.setHours(24, 0, 0, 0);
-  const overdue = open.filter((t) => t.dueAt && new Date(t.dueAt).getTime() < now);
-  const dueToday = open.filter(
+
+  const stageRank = useMemo(
+    () => new Map(DEAL_STAGES.map((s, i) => [s.value as string, i])),
+    []
+  );
+
+  const filtered = useMemo(() => {
+    const q = filterName.trim().toLowerCase();
+    return open.filter((t) => {
+      if (q) {
+        const hay = `${t.deal.companyName || ""} ${t.deal.name}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filterStage !== "all" && t.deal.stage !== filterStage) return false;
+      if (filterType === "executable" && t.executeVia !== "slack_channel") return false;
+      if (filterType === "non_executable" && t.executeVia === "slack_channel") return false;
+      const past = !!t.dueAt && new Date(t.dueAt).getTime() < now;
+      if (filterDue === "past" && !past) return false;
+      if (filterDue === "future" && past) return false;
+      return true;
+    });
+  }, [open, filterName, filterStage, filterType, filterDue, now]);
+
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    if (sortBy === "stage") {
+      list.sort(
+        (a, b) =>
+          (stageRank.get(a.deal.stage) ?? 99) - (stageRank.get(b.deal.stage) ?? 99) ||
+          (a.dueAt ? new Date(a.dueAt).getTime() : Infinity) - (b.dueAt ? new Date(b.dueAt).getTime() : Infinity)
+      );
+    } else if (sortBy === "activity") {
+      // Stalest deal first — the inbox doubles as a "who needs me"
+      // list, and silence is the signal.
+      list.sort(
+        (a, b) =>
+          (a.deal.lastActivityAt ? new Date(a.deal.lastActivityAt).getTime() : 0) -
+          (b.deal.lastActivityAt ? new Date(b.deal.lastActivityAt).getTime() : 0)
+      );
+    }
+    return list;
+  }, [filtered, sortBy, stageRank]);
+
+  const overdue = sorted.filter((t) => t.dueAt && new Date(t.dueAt).getTime() < now);
+  const dueToday = sorted.filter(
     (t) => t.dueAt && new Date(t.dueAt).getTime() >= now && new Date(t.dueAt) < startOfTomorrow
   );
-  const upcoming = open.filter(
+  const upcoming = sorted.filter(
     (t) => !t.dueAt || new Date(t.dueAt) >= startOfTomorrow
   );
+  const filtersActive =
+    filterName.trim() !== "" || filterStage !== "all" || filterType !== "all" || filterDue !== "all";
 
   const fmtDue = (iso: string | null) =>
     iso
@@ -181,10 +251,15 @@ export default function DealTasksInboxPage() {
           >
             {t.deal.companyName || t.deal.name}
           </Link>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${getStageInfo(t.deal.stage).color}`}>
+            {getStageInfo(t.deal.stage).label}
+          </span>
           <span className="text-sm text-gray-900 dark:text-gray-100">{t.title}</span>
         </div>
         <div className="text-xs text-gray-400 mt-0.5">
           due {fmtDue(t.dueAt)}
+          {t.deal.lastActivityAt &&
+            ` · deal active ${fmtDue(t.deal.lastActivityAt)}`}
           {t.executeVia === "slack_channel" &&
             ` · 💬 ${t.deal.slackChannelName ? `#${t.deal.slackChannelName}` : "via Slack"}`}
           {t.status === "pinged" && " · pinged, awaiting your go"}
@@ -266,11 +341,85 @@ export default function DealTasksInboxPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <SalesNavBar />
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">⚡ Deal Tasks</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">⚡ Deal Tasks</h1>
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-purple-300 text-purple-700 hover:bg-purple-50 font-medium"
+            title="Overdue commitments + deals gone quiet, with a proposed next move for each"
+          >
+            🩺 Execution review
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Every scheduled follow-up across your deals — execute, complete, or dismiss from here.{" "}
           <Link href="/deals" className="text-purple-600 dark:text-purple-300 hover:underline">← Back to deals</Link>
         </p>
+
+        {/* Filter + sort bar */}
+        <div className="mb-5 flex items-center gap-2 flex-wrap text-xs">
+          <input
+            type="text"
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+            placeholder="Filter by deal…"
+            className="px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-36"
+          />
+          <select
+            value={filterStage}
+            onChange={(e) => setFilterStage(e.target.value)}
+            className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+            title="Filter by deal stage"
+          >
+            <option value="all">All stages</option>
+            {DEAL_STAGES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+            className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+            title="Filter by task type"
+          >
+            <option value="all">All types</option>
+            <option value="executable">💬 Slack-executable</option>
+            <option value="non_executable">Non-executable</option>
+          </select>
+          <select
+            value={filterDue}
+            onChange={(e) => setFilterDue(e.target.value as typeof filterDue)}
+            className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+            title="Filter by due state"
+          >
+            <option value="all">Any due date</option>
+            <option value="past">Past due</option>
+            <option value="future">Future / undated</option>
+          </select>
+          <span className="text-gray-300 dark:text-gray-600">|</span>
+          <label className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+            Sort:
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
+            >
+              <option value="due">Due date</option>
+              <option value="stage">Deal stage</option>
+              <option value="activity">Last activity (stalest first)</option>
+            </select>
+          </label>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => { setFilterName(""); setFilterStage("all"); setFilterType("all"); setFilterDue("all"); }}
+              className="text-purple-600 dark:text-purple-300 hover:underline"
+            >
+              Clear ({sorted.length} of {open.length})
+            </button>
+          )}
+        </div>
 
         {!loaded ? (
           <div className="text-sm text-gray-400 py-10 text-center">Loading tasks…</div>
@@ -278,12 +427,21 @@ export default function DealTasksInboxPage() {
           <div className="text-sm text-gray-500 dark:text-gray-400 py-10 text-center">
             No open tasks. Schedule follow-ups from any deal page, or let 🔎 detection propose them from your calls.
           </div>
-        ) : (
+        ) : sorted.length === 0 ? (
+          <div className="text-sm text-gray-500 dark:text-gray-400 py-10 text-center">
+            No tasks match these filters.
+          </div>
+        ) : sortBy === "due" ? (
           <>
             <Section title="Overdue" tasks={overdue} tone="danger" />
             <Section title="Due today" tasks={dueToday} tone="warn" />
             <Section title="Upcoming" tasks={upcoming} />
           </>
+        ) : (
+          <Section
+            title={sortBy === "stage" ? "By deal stage" : "By last deal activity — stalest first"}
+            tasks={sorted}
+          />
         )}
 
         {loaded && resolved.length > 0 && (
@@ -310,6 +468,10 @@ export default function DealTasksInboxPage() {
           </section>
         )}
       </div>
+
+      {reviewOpen && (
+        <DealExecutionReview onClose={() => setReviewOpen(false)} onChanged={load} />
+      )}
 
       {/* Execute preview overlay — same contract as the deal page's. */}
       {executeTask && (
