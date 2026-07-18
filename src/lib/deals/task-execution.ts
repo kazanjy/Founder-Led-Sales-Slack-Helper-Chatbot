@@ -5,6 +5,7 @@ import { loadSellerContext } from "@/lib/seller-context";
 import { assembleDealEvidence } from "@/lib/business-cases/generate";
 import { resolveSlackTarget, recordDealSlackPost } from "./triage";
 import { isAlertEnabled, alertFooterBlock } from "./alert-prefs";
+import { getDealSlackTone } from "./tone-prefs";
 
 /**
  * Future deal tasks — the Slack execution loop (autopilot Phase 5,
@@ -27,15 +28,15 @@ import { isAlertEnabled, alertFooterBlock } from "./alert-prefs";
 const APP_URL = () =>
   (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
 
-const DRAFT_PROMPT = `You are drafting a short Slack message the FOUNDER will send in the shared Slack channel with a prospect, to execute a follow-up task. Write it in the founder's voice — warm, direct, zero corporate filler.
+const DRAFT_PROMPT = `You are drafting a short Slack message the FOUNDER will send in the shared Slack channel with a prospect, to execute a follow-up task. Write it in the founder's voice, following their saved tone preference (in the payload as "foundersTonePreference") exactly.
 
 Return ONLY a JSON object: { "message": "<the Slack message>" }
 
 Rules:
 - Ground it in the deal evidence: reference the real thread — what was last discussed, what was promised, names of people. Never invent facts.
 - Serve the TASK: if the task says "follow up on the proposal", the message nudges exactly that.
-- 2-5 sentences. Plain conversational Slack text — no markdown headers, no bullet lists, no signature, no "Hi [Name]" placeholder (use the real first name if the evidence names one, else open without a greeting).
-- End with something easy to respond to (a question or a light call to action).`;
+- Plain conversational Slack text — no markdown headers, no bullet lists, no signature, no "Hi [Name]" placeholder (use the real first name if the evidence names one, else open without a greeting).
+- The tone preference governs voice, length, formality, and sign-off style — where it conflicts with anything above, the tone preference wins.`;
 
 export async function generateTaskDraft(opts: {
   userId: string;
@@ -43,13 +44,15 @@ export async function generateTaskDraft(opts: {
   taskTitle: string;
   rationale?: string | null;
 }): Promise<string> {
-  const [seller, assembled] = await Promise.all([
+  const [seller, assembled, toneRef] = await Promise.all([
     loadSellerContext(opts.userId),
     assembleDealEvidence(opts.userId, opts.dealId),
+    getDealSlackTone(opts.userId),
   ]);
   const payload = {
     task: opts.taskTitle,
     taskRationale: opts.rationale || "(none)",
+    foundersTonePreference: toneRef.tone,
     foundersValueProp: seller.valueProp100w?.substring(0, 1200) || "(none)",
     dealEvidence: (assembled?.evidence || "(no evidence yet)").slice(-60_000),
   };
@@ -94,7 +97,7 @@ Rules:
 - owner "founder" = the founder must act. owner "prospect" = the other side promised something — these become watch/chase tasks ("Chase: Dustin's sample calls").
 - dueDate: use explicit timing when stated ("by Friday", "after their Aug 10 board meeting" → the day after). When timing is implied but vague ("I'll follow up next week"), estimate. When no timing signal at all, null — the caller defaults it.
 - executeViaSlack true only for founder-owned tasks that are naturally a short Slack message to the prospect (follow-ups, nudges, links). Contract redlines and calendar scheduling are not Slack messages.
-- draftMessage only when executeViaSlack: 2-4 conversational sentences in the founder's voice, grounded in the thread, no signature.
+- draftMessage only when executeViaSlack: a short conversational message grounded in the thread, no signature, written in the founder's voice per their tone preference (in the payload as "foundersTonePreference").
 - Cap at 7 tasks, most consequential first. An empty array is a fine answer.
 - Today's date is {{TODAY}}.`;
 
@@ -114,13 +117,14 @@ export async function detectDealTasks(
   userId: string,
   dealId: string
 ): Promise<DetectResult> {
-  const [seller, assembled, existing] = await Promise.all([
+  const [seller, assembled, existing, toneRef] = await Promise.all([
     loadSellerContext(userId),
     assembleDealEvidence(userId, dealId, { maxChars: 600_000 }),
     prisma.dealTask.findMany({
       where: { dealId },
       select: { title: true, status: true },
     }),
+    getDealSlackTone(userId),
   ]);
   if (!assembled) return { created: [], skippedDupes: 0 };
 
@@ -130,6 +134,7 @@ export async function detectDealTasks(
   const prompt = DETECT_PROMPT.replace("{{TODAY}}", new Date().toISOString().slice(0, 10));
   const payload = {
     foundersValueProp: seller.valueProp100w?.substring(0, 1200) || "(none)",
+    foundersTonePreference: toneRef.tone,
     existingOpenTasks: existing
       .filter((t) => t.status === "scheduled" || t.status === "pinged")
       .map((t) => t.title),

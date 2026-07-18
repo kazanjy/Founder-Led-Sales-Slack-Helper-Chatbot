@@ -28,6 +28,58 @@ function AlertsConfigInner() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
+  // Slack communication tone (deal auto-actions)
+  const [toneDraft, setToneDraft] = useState("");
+  const [toneSaved, setToneSaved] = useState("");
+  const [toneIsCustom, setToneIsCustom] = useState(false);
+  const [toneDefault, setToneDefault] = useState("");
+  const [toneLoaded, setToneLoaded] = useState(false);
+  const [toneSaving, setToneSaving] = useState(false);
+  const [toneNotice, setToneNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/deals/tone-prefs");
+        const data = await res.json().catch(() => null);
+        if (cancelled || !res.ok || !data?.tone) return;
+        setToneDraft(data.tone);
+        setToneSaved(data.tone);
+        setToneIsCustom(!!data.isCustom);
+        setToneDefault(data.defaultTone || "");
+      } catch { /* card stays hidden on load failure */ }
+      if (!cancelled) setToneLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveTone = async (value: string) => {
+    setToneSaving(true);
+    setToneNotice(null);
+    try {
+      const res = await fetch("/api/deals/tone-prefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tone: value }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.tone) throw new Error(data?.error || "Failed to save");
+      setToneDraft(data.tone);
+      setToneSaved(data.tone);
+      setToneIsCustom(!!data.isCustom);
+      setToneNotice(
+        data.isCustom
+          ? "✓ Saved — future auto-drafted Slack messages use this voice."
+          : "↩︎ Reset to Mikey's default voice."
+      );
+    } catch (err) {
+      setToneNotice(err instanceof Error ? `⚠️ ${err.message}` : "⚠️ Failed to save");
+    } finally {
+      setToneSaving(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -149,6 +201,61 @@ function AlertsConfigInner() {
           Every Slack alert also carries a &ldquo;🔕 Silence these alerts&rdquo; link that lands here
           with the matching toggle already flipped off.
         </p>
+
+        {toneLoaded && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-lg font-bold text-gray-900">✍️ Slack communication tone</h2>
+              <span
+                className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
+                  toneIsCustom
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {toneIsCustom ? "Custom" : "Default"}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              The voice Mikey uses when drafting deal messages that send <em>as you</em> — task
+              execution drafts and detected follow-ups. Below is the current voice
+              {toneIsCustom ? "" : " (Mikey's default)"}; edit it to sound like you and save.
+            </p>
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <textarea
+                value={toneDraft}
+                onChange={(e) => setToneDraft(e.target.value)}
+                rows={6}
+                className="w-full text-sm px-3 py-2 rounded-lg border border-gray-300 text-gray-800 leading-relaxed"
+                placeholder="Describe how your Slack messages should sound…"
+              />
+              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => saveTone(toneDraft)}
+                  disabled={toneSaving || toneDraft.trim() === toneSaved.trim()}
+                  className="text-sm px-4 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 font-medium"
+                >
+                  {toneSaving ? "Saving…" : "Save tone"}
+                </button>
+                {toneIsCustom && (
+                  <button
+                    onClick={() => saveTone("")}
+                    disabled={toneSaving}
+                    className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    title={toneDefault ? `Default: ${toneDefault}` : undefined}
+                  >
+                    ↩︎ Reset to default
+                  </button>
+                )}
+                {toneNotice && <span className="text-xs text-gray-500">{toneNotice}</span>}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Applies to newly drafted messages (you always preview before anything sends).
+                Alert posts to you aren&rsquo;t affected — this is only for messages in your voice.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
