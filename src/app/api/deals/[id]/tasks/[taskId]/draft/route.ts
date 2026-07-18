@@ -24,7 +24,7 @@ export async function POST(
       where: { id: taskId },
       select: {
         id: true, dealId: true, userId: true, title: true,
-        rationale: true, draftMessage: true, status: true,
+        rationale: true, draftMessage: true, status: true, executeVia: true,
       },
     });
     if (!task || task.dealId !== id || task.userId !== user.id) {
@@ -43,7 +43,13 @@ export async function POST(
       });
       await prisma.dealTask.update({
         where: { id: taskId },
-        data: { draftMessage: draft },
+        data: {
+          draftMessage: draft,
+          // A task with a proposed message IS Slack-executable — the
+          // "💬 Propose message" CTA upgrades non-Slack tasks so the
+          // due-time ping carries the one-touch Do-it link too.
+          ...(task.executeVia ? {} : { executeVia: "slack_channel" }),
+        },
       });
     }
     return NextResponse.json({ draft });

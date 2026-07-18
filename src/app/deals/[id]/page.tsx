@@ -383,6 +383,32 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [taskDraft, setTaskDraft] = useState("");
   const [taskViaSlack, setTaskViaSlack] = useState(true);
   const [taskSaving, setTaskSaving] = useState(false);
+  const [taskSuggesting, setTaskSuggesting] = useState(false);
+  const [taskSuggestError, setTaskSuggestError] = useState<string | null>(null);
+
+  // "✨ Suggest message" in the creation form — drafts from the deal
+  // history + task title BEFORE the task exists; the draft rides the
+  // form and is saved onto the task, ready for the due-time ping.
+  const suggestTaskMessage = async () => {
+    if (!taskTitle.trim() || taskSuggesting) return;
+    setTaskSuggesting(true);
+    setTaskSuggestError(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks/suggest-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: taskTitle.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || data?.error || "Suggestion failed");
+      setTaskDraft(data?.draft || "");
+      setTaskViaSlack(true);
+    } catch (err) {
+      setTaskSuggestError(err instanceof Error ? err.message : "Suggestion failed");
+    } finally {
+      setTaskSuggesting(false);
+    }
+  };
   const [detectingTasks, setDetectingTasks] = useState(false);
   const [detectResult, setDetectResult] = useState<string | null>(null);
   // Execute-now preview overlay: load/generate the draft, let the
@@ -408,6 +434,11 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.detail || data?.error || "Draft generation failed");
         setExecuteDraft(data?.draft || "");
+        // Drafting persists the message (and upgrades the task to
+        // Slack-executable) — refresh so the row behind the overlay
+        // shows the draft bullet even if the founder closes without
+        // sending.
+        loadDealTasks();
       } catch (err) {
         setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
       } finally {
@@ -2874,22 +2905,52 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                 </label>
               </div>
               {taskViaSlack && (
-                <textarea
-                  value={taskDraft}
-                  onChange={(e) => setTaskDraft(e.target.value)}
-                  placeholder="Optional: pre-write the message to send. Leave blank and Mikey drafts it from the deal evidence when the task comes due."
-                  rows={2}
-                  className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
-                />
+                <>
+                  <textarea
+                    value={taskDraft}
+                    onChange={(e) => setTaskDraft(e.target.value)}
+                    placeholder="Optional: pre-write the message to send. Suggest one from the deal history, or leave blank and Mikey drafts it when the task comes due."
+                    rows={taskDraft ? 4 : 2}
+                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900"
+                  />
+                  {taskSuggestError && (
+                    <p className="text-xs text-red-600">{taskSuggestError}</p>
+                  )}
+                </>
               )}
-              <button
-                type="button"
-                onClick={createDealTask}
-                disabled={!taskTitle.trim() || taskSaving}
-                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50"
-              >
-                {taskSaving ? "Scheduling…" : "Schedule task"}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={createDealTask}
+                  disabled={!taskTitle.trim() || taskSaving}
+                  className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {taskSaving ? "Scheduling…" : "Schedule task"}
+                </button>
+                {taskViaSlack && (
+                  <button
+                    type="button"
+                    onClick={suggestTaskMessage}
+                    disabled={!taskTitle.trim() || taskSuggesting || taskSaving}
+                    title="Mikey drafts the message from the deal history and the task name, in your saved Slack voice — edit it, then schedule"
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-purple-300 text-purple-700 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50 inline-flex items-center gap-1.5"
+                  >
+                    {taskSuggesting ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Drafting from deal history…
+                      </>
+                    ) : taskDraft ? (
+                      <>✨ Re-suggest message</>
+                    ) : (
+                      <>✨ Suggest message</>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {detectingTasks && (
@@ -2947,7 +3008,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                     </div>
                     {!settled && (
                       <span className="shrink-0 flex items-center gap-2 text-xs">
-                        {t.executeVia === "slack_channel" && (
+                        {t.executeVia === "slack_channel" ? (
                           <button
                             type="button"
                             onClick={() => openExecuteOverlay(t)}
@@ -2955,6 +3016,15 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                             title="Preview the message and send it into the linked Slack channel as you"
                           >
                             🚀 Execute now
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openExecuteOverlay(t)}
+                            className="text-purple-600 dark:text-purple-300 hover:underline font-medium"
+                            title="Mikey drafts a message for this task from the deal history in your voice — preview, edit, and send it into the linked Slack channel as you"
+                          >
+                            💬 Propose message
                           </button>
                         )}
                         <button
