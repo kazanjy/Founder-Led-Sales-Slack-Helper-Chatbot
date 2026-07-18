@@ -2819,10 +2819,20 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                 type="button"
                 onClick={detectTasks}
                 disabled={detectingTasks}
-                className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-60"
+                className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-60 inline-flex items-center gap-1.5"
                 title="Scan the deal's calls, emails, and Slack activity for open commitments — yours become executable tasks, theirs become Chase watch-tasks"
               >
-                {detectingTasks ? "Scanning evidence…" : "🔎 Detect follow-ups"}
+                {detectingTasks ? (
+                  <>
+                    <svg className="animate-spin w-3.5 h-3.5 text-purple-500" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Scanning…
+                  </>
+                ) : (
+                  <>🔎 Detect follow-ups</>
+                )}
               </button>
               <button
                 type="button"
@@ -2882,10 +2892,33 @@ Be specific to this meeting — use what's actually in the deal history, and cal
               </button>
             </div>
           )}
+          {detectingTasks && (
+            <div className="mb-3 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 border border-purple-200 dark:border-purple-800 flex items-center gap-3">
+              <svg className="animate-spin h-6 w-6 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <div className="text-sm min-w-0">
+                <div className="font-medium text-purple-900 dark:text-purple-100 flex items-center gap-1.5">
+                  🔎 Mikey is scanning the deal evidence for follow-ups
+                  <span className="inline-flex">
+                    <span className="animate-bounce" style={{ animationDelay: "0ms" }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: "150ms" }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: "300ms" }}>.</span>
+                  </span>
+                </div>
+                <div className="text-xs text-purple-700 dark:text-purple-300">
+                  Reading every call, email, and Slack thread for open commitments — yours become executable tasks, theirs become chase reminders. Usually ~15–30 seconds.
+                </div>
+              </div>
+            </div>
+          )}
           {dealTasks.length === 0 ? (
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-              No scheduled follow-ups. Schedule one and Mikey pings you when it&rsquo;s due — with the message drafted and a one-touch send into the linked Slack channel.
-            </p>
+            !detectingTasks && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                No scheduled follow-ups. Schedule one and Mikey pings you when it&rsquo;s due — with the message drafted and a one-touch send into the linked Slack channel.
+              </p>
+            )
           ) : (
             <ul className="space-y-1.5">
               {dealTasks.map((t) => {
