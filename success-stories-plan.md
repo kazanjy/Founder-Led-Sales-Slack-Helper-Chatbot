@@ -30,9 +30,13 @@ deal timeline calls        deduped, time-arced          success story (¶s)     
   same provider plumbing as Bulk Import Calls): list recent recorded
   calls, checkbox one or many, pull title/date/transcript in.
 - **Deal import** — pick a deal, pull its call_summary/call_transcript
-  entries. A closed-won deal IS a success-story source; this is also
-  the natural CTA location later ("📣 Make success assets from this
-  deal").
+  entries. Useful mainly for POC/pilot deals (the pilot results ARE
+  customer-voiced proof) and for the case study's "situation / why
+  they bought" half. NOTE: closed-won alone is NOT a success signal —
+  the customer just started; outcome proof accrues post-close. The
+  proactive "📣 Make success assets" CTA therefore belongs on the
+  future Customer Success applet (triggered by QBRs / renewals /
+  healthy check-ins), not on closed-won deal pages.
 - **Theme focus (optional field)** — free text that flavors the
   extraction: *"They talked about how fast implementation was — focus
   on time-to-value and the CFO's reaction."* Appended to the backend
@@ -161,7 +165,8 @@ model SuccessAsset {
    + blind variants) in web format; copy buttons. Proves the pipeline
    end to end.
 2. **Phase 2 — import + formats (M)**: recorder call-import widget;
-   deal import (+ "📣 Success assets" CTA on closed-won deal pages);
+   deal import as a manual source picker (no closed-won CTA — see
+   Sources note; the CTA lands on the Customer Success applet later);
    LinkedIn / tweet / slide-outline formats with per-cell rules;
    regenerate.
 3. **Phase 3 — distribution polish (S/M)**: Gamma slide deck CTA
