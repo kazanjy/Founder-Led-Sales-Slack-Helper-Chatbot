@@ -2808,6 +2808,13 @@ Be specific to this meeting — use what's actually in the deal history, and cal
               {detectResult && (
                 <span className="text-xs text-gray-500 dark:text-gray-400">{detectResult}</span>
               )}
+              <a
+                href="/deals/tasks"
+                className="text-xs text-gray-400 hover:text-purple-600 dark:hover:text-purple-300"
+                title="All upcoming and overdue tasks across every deal"
+              >
+                All tasks →
+              </a>
               <button
                 type="button"
                 onClick={detectTasks}
