@@ -406,13 +406,26 @@ function DealTasksInboxInner() {
 
         {/* Filter + sort bar */}
         <div className="mb-5 flex items-center gap-2 flex-wrap text-xs">
-          <input
-            type="text"
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            placeholder="Filter by deal…"
-            className="px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-36"
-          />
+          <span className="relative inline-flex items-center">
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") setFilterName(""); }}
+              placeholder="Filter by deal…"
+              className="pl-2.5 pr-7 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-36"
+            />
+            {filterName && (
+              <button
+                type="button"
+                onClick={() => setFilterName("")}
+                className="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 leading-none"
+                title="Clear deal filter (Esc)"
+              >
+                ✕
+              </button>
+            )}
+          </span>
           <select
             value={filterStage}
             onChange={(e) => setFilterStage(e.target.value)}
