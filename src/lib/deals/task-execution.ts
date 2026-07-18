@@ -71,6 +71,137 @@ export async function generateTaskDraft(opts: {
   return message;
 }
 
+const DETECT_PROMPT = `You are scanning a deal's evidence (call transcripts, emails, Slack activity) for FUTURE follow-UP tasks — commitments and obligations that haven't happened yet. The founder is the seller.
+
+Return ONLY a JSON object:
+{
+  "tasks": [
+    {
+      "title": "<short imperative, e.g. 'Send Jerrod the revised pilot scope'>",
+      "owner": "founder" | "prospect",
+      "dueDate": "YYYY-MM-DD" | null,
+      "executeViaSlack": true | false,
+      "draftMessage": "<a short founder-voiced Slack message that would execute this, or null>",
+      "evidence": "<short VERBATIM quote from the evidence that justifies this task>",
+      "rationale": "<one sentence — why this matters now>"
+    }
+  ]
+}
+
+Rules:
+- EVIDENCE IS MANDATORY — every task carries a verbatim quote. No quote, no task.
+- Only FUTURE work: promises not yet fulfilled, agreed next steps, "I'll send you X", "let's reconnect after Y". Check the LATER evidence before proposing — if a promised item already went out (visible in a later email/Slack/call), skip it.
+- owner "founder" = the founder must act. owner "prospect" = the other side promised something — these become watch/chase tasks ("Chase: Dustin's sample calls").
+- dueDate: use explicit timing when stated ("by Friday", "after their Aug 10 board meeting" → the day after). When timing is implied but vague ("I'll follow up next week"), estimate. When no timing signal at all, null — the caller defaults it.
+- executeViaSlack true only for founder-owned tasks that are naturally a short Slack message to the prospect (follow-ups, nudges, links). Contract redlines and calendar scheduling are not Slack messages.
+- draftMessage only when executeViaSlack: 2-4 conversational sentences in the founder's voice, grounded in the thread, no signature.
+- Cap at 7 tasks, most consequential first. An empty array is a fine answer.
+- Today's date is {{TODAY}}.`;
+
+export interface DetectResult {
+  created: Array<{ id: string; title: string; dueAt: string | null }>;
+  skippedDupes: number;
+}
+
+/**
+ * On-demand detection: scan the deal's full evidence for future
+ * commitments and materialize them as scheduled DealTasks (rationale
+ * carries the verbatim quote; one-click dismiss on the card handles
+ * misses). Dedupes against existing non-dismissed tasks by normalized
+ * title. Prospect-owned commitments land as "Chase:" watch tasks.
+ */
+export async function detectDealTasks(
+  userId: string,
+  dealId: string
+): Promise<DetectResult> {
+  const [seller, assembled, existing] = await Promise.all([
+    loadSellerContext(userId),
+    assembleDealEvidence(userId, dealId, { maxChars: 600_000 }),
+    prisma.dealTask.findMany({
+      where: { dealId },
+      select: { title: true, status: true },
+    }),
+  ]);
+  if (!assembled) return { created: [], skippedDupes: 0 };
+
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const existingTitles = new Set(existing.map((t) => norm(t.title)));
+
+  const prompt = DETECT_PROMPT.replace("{{TODAY}}", new Date().toISOString().slice(0, 10));
+  const payload = {
+    foundersValueProp: seller.valueProp100w?.substring(0, 1200) || "(none)",
+    existingOpenTasks: existing
+      .filter((t) => t.status === "scheduled" || t.status === "pinged")
+      .map((t) => t.title),
+    dealEvidence: assembled.evidence,
+  };
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.5",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "user", content: `${prompt}\n\n---\n\n${JSON.stringify(payload, null, 2)}` },
+    ],
+  });
+  let parsed: {
+    tasks?: Array<{
+      title?: string;
+      owner?: string;
+      dueDate?: string | null;
+      executeViaSlack?: boolean;
+      draftMessage?: string | null;
+      evidence?: string;
+      rationale?: string;
+    }>;
+  };
+  try {
+    parsed = JSON.parse(completion.choices[0]?.message?.content || "{}");
+  } catch {
+    throw new Error("Task detection returned unparseable JSON");
+  }
+
+  const created: DetectResult["created"] = [];
+  let skippedDupes = 0;
+  for (const raw of (parsed.tasks || []).slice(0, 7)) {
+    const baseTitle = (raw.title || "").trim();
+    const evidence = (raw.evidence || "").trim();
+    if (!baseTitle || !evidence) continue;
+    const isProspect = raw.owner === "prospect";
+    const title = isProspect && !/^chase[:\s]/i.test(baseTitle) ? `Chase: ${baseTitle}` : baseTitle;
+    if (existingTitles.has(norm(title)) || existingTitles.has(norm(baseTitle))) {
+      skippedDupes++;
+      continue;
+    }
+    existingTitles.add(norm(title));
+    // Explicit timing wins; vague/no timing defaults to +3 days so the
+    // task actually surfaces (null dueAt would sleep forever).
+    let dueAt: Date;
+    if (raw.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(raw.dueDate)) {
+      dueAt = new Date(`${raw.dueDate}T17:00:00Z`);
+    } else {
+      dueAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    }
+    const executeViaSlack = !isProspect && raw.executeViaSlack === true;
+    const task = await prisma.dealTask.create({
+      data: {
+        userId,
+        dealId,
+        title,
+        rationale: `"${evidence.substring(0, 300)}"${raw.rationale ? ` — ${raw.rationale.substring(0, 200)}` : ""}`,
+        source: "deal_analysis",
+        status: "scheduled",
+        dueAt,
+        executeVia: executeViaSlack ? "slack_channel" : null,
+        draftMessage:
+          executeViaSlack && typeof raw.draftMessage === "string" && raw.draftMessage.trim()
+            ? raw.draftMessage.trim()
+            : null,
+      },
+    });
+    created.push({ id: task.id, title: task.title, dueAt: task.dueAt?.toISOString() ?? null });
+  }
+  return { created, skippedDupes };
+}
+
 /**
  * Cron sweep: due scheduled tasks → draft + "⚡ Proposed Task
  * Execution" ping. Capped per tick (each undrafted task costs an LLM

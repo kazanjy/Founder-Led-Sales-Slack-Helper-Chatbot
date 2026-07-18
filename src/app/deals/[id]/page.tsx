@@ -383,6 +383,35 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [taskDraft, setTaskDraft] = useState("");
   const [taskViaSlack, setTaskViaSlack] = useState(true);
   const [taskSaving, setTaskSaving] = useState(false);
+  const [detectingTasks, setDetectingTasks] = useState(false);
+  const [detectResult, setDetectResult] = useState<string | null>(null);
+
+  const detectTasks = async () => {
+    setDetectingTasks(true);
+    setDetectResult(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks/detect`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.detail ? `${data?.error} — ${data.detail}` : data?.error || "Detection failed");
+      }
+      const n = Array.isArray(data?.created) ? data.created.length : 0;
+      const dupes = typeof data?.skippedDupes === "number" ? data.skippedDupes : 0;
+      setDetectResult(
+        n > 0
+          ? `Found ${n} follow-up${n === 1 ? "" : "s"}${dupes > 0 ? ` (${dupes} already tracked)` : ""}.`
+          : dupes > 0
+            ? `Nothing new — ${dupes} already tracked.`
+            : "No open commitments found in the evidence."
+      );
+      await loadDealTasks();
+    } catch (err) {
+      setDetectResult(err instanceof Error ? err.message : "Detection failed");
+    } finally {
+      setDetectingTasks(false);
+      setTimeout(() => setDetectResult(null), 8000);
+    }
+  };
 
   const loadDealTasks = useCallback(async () => {
     try {
@@ -2694,13 +2723,27 @@ Be specific to this meeting — use what's actually in the deal history, and cal
               {dealTasks.filter((t) => t.status === "scheduled" || t.status === "pinged").length > 0 &&
                 ` (${dealTasks.filter((t) => t.status === "scheduled" || t.status === "pinged").length} open)`}
             </span>
-            <button
-              type="button"
-              onClick={() => setShowTaskForm((v) => !v)}
-              className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium"
-            >
-              {showTaskForm ? "Cancel" : "＋ Schedule follow-up"}
-            </button>
+            <span className="flex items-center gap-3">
+              {detectResult && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">{detectResult}</span>
+              )}
+              <button
+                type="button"
+                onClick={detectTasks}
+                disabled={detectingTasks}
+                className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-60"
+                title="Scan the deal's calls, emails, and Slack activity for open commitments — yours become executable tasks, theirs become Chase watch-tasks"
+              >
+                {detectingTasks ? "Scanning evidence…" : "🔎 Detect follow-ups"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTaskForm((v) => !v)}
+                className="text-xs text-purple-600 dark:text-purple-300 hover:underline font-medium"
+              >
+                {showTaskForm ? "Cancel" : "＋ Schedule follow-up"}
+              </button>
+            </span>
           </div>
           {showTaskForm && (
             <div className="mb-3 p-3 rounded-lg border border-purple-100 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/20 space-y-2">
