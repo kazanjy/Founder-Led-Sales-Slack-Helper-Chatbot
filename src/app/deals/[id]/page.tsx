@@ -385,6 +385,87 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [taskSaving, setTaskSaving] = useState(false);
   const [detectingTasks, setDetectingTasks] = useState(false);
   const [detectResult, setDetectResult] = useState<string | null>(null);
+  // Execute-now preview overlay: load/generate the draft, let the
+  // founder edit, show the target channel, send as them.
+  const [executeTask, setExecuteTask] = useState<DealTaskRow | null>(null);
+  const [executeDraft, setExecuteDraft] = useState("");
+  const [executeLoadingDraft, setExecuteLoadingDraft] = useState(false);
+  const [executeSending, setExecuteSending] = useState(false);
+  const [executeError, setExecuteError] = useState<string | null>(null);
+
+  const openExecuteOverlay = async (t: DealTaskRow) => {
+    setExecuteTask(t);
+    setExecuteError(null);
+    setExecuteDraft(t.draftMessage || "");
+    if (!t.draftMessage) {
+      setExecuteLoadingDraft(true);
+      try {
+        const res = await fetch(`/api/deals/${id}/tasks/${t.id}/draft`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.detail || data?.error || "Draft generation failed");
+        setExecuteDraft(data?.draft || "");
+      } catch (err) {
+        setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
+      } finally {
+        setExecuteLoadingDraft(false);
+      }
+    }
+  };
+
+  const regenerateExecuteDraft = async () => {
+    if (!executeTask) return;
+    setExecuteLoadingDraft(true);
+    setExecuteError(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks/${executeTask.id}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || data?.error || "Draft generation failed");
+      setExecuteDraft(data?.draft || "");
+    } catch (err) {
+      setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
+    } finally {
+      setExecuteLoadingDraft(false);
+    }
+  };
+
+  const sendExecuteDraft = async () => {
+    if (!executeTask || !executeDraft.trim()) return;
+    setExecuteSending(true);
+    setExecuteError(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/tasks/${executeTask.id}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: executeDraft }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const reasonText: Record<string, string> = {
+          no_channel: "No Slack channel is linked to this deal — attach one first.",
+          no_draft: "The message is empty.",
+          send_failed: "Slack rejected the send — check the channel link and try again.",
+          forbidden: "Only the deal owner can send as themselves.",
+        };
+        throw new Error(reasonText[data?.reason] || data?.error || "Execution failed");
+      }
+      setExecuteTask(null);
+      setExecuteDraft("");
+      await loadDealTasks();
+      await loadDeal(); // proof entry lands on the timeline
+    } catch (err) {
+      setExecuteError(err instanceof Error ? err.message : "Execution failed");
+    } finally {
+      setExecuteSending(false);
+    }
+  };
 
   const detectTasks = async () => {
     setDetectingTasks(true);
@@ -2826,14 +2907,15 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                     </div>
                     {!settled && (
                       <span className="shrink-0 flex items-center gap-2 text-xs">
-                        {t.status === "pinged" && t.executeVia === "slack_channel" && t.draftMessage && deal.slackChannelId && (
-                          <a
-                            href={`/deals/${deal.id}/tasks/${t.id}/do`}
+                        {t.executeVia === "slack_channel" && (
+                          <button
+                            type="button"
+                            onClick={() => openExecuteOverlay(t)}
                             className="text-purple-600 dark:text-purple-300 hover:underline font-medium"
-                            title="Send the drafted message into the linked Slack channel as you"
+                            title="Preview the message and send it into the linked Slack channel as you"
                           >
-                            🚀 Do it
-                          </a>
+                            🚀 Execute now
+                          </button>
                         )}
                         <button
                           type="button"
@@ -2859,6 +2941,97 @@ Be specific to this meeting — use what's actually in the deal history, and cal
             </ul>
           )}
         </div>
+
+        {/* Execute-now preview overlay — see the drafted message, edit
+            it, and send into the linked channel as the founder. */}
+        {executeTask && (
+          <div
+            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+            onClick={() => { if (!executeSending) { setExecuteTask(null); setExecuteError(null); } }}
+          >
+            <div
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 mb-1">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  🚀 Execute: {executeTask.title}
+                </h3>
+                <button
+                  onClick={() => { setExecuteTask(null); setExecuteError(null); }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                {deal.slackChannelId ? (
+                  <>Sends to <span className="font-medium text-purple-700 dark:text-purple-300">#{deal.slackChannelName || "channel"}</span> as <span className="font-medium">you</span>. Edit before sending.</>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">⚠️ No Slack channel linked to this deal — attach one in the header first.</span>
+                )}
+              </p>
+              {executeLoadingDraft ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-8 justify-center">
+                  <svg className="animate-spin w-4 h-4 text-purple-500" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Drafting from deal evidence…
+                </div>
+              ) : (
+                <textarea
+                  value={executeDraft}
+                  onChange={(e) => setExecuteDraft(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-purple-500 resize-y"
+                  placeholder="The message to send…"
+                />
+              )}
+              {executeError && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2">{executeError}</p>
+              )}
+              <div className="flex items-center justify-between gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={regenerateExecuteDraft}
+                  disabled={executeLoadingDraft || executeSending}
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-50"
+                >
+                  ↻ Redraft
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setExecuteTask(null); setExecuteError(null); }}
+                    disabled={executeSending}
+                    className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={sendExecuteDraft}
+                    disabled={executeSending || executeLoadingDraft || !executeDraft.trim() || !deal.slackChannelId}
+                    className="px-4 py-1.5 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {executeSending ? (
+                      <>
+                        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Sending…
+                      </>
+                    ) : (
+                      <>🚀 Send as me</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* First-run analysis banner — shown only when the auto-analyze
             kicked off on mount (no prior lastAnalysis yet) so the user

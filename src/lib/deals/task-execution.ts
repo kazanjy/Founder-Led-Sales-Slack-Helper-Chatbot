@@ -338,7 +338,10 @@ export interface ExecuteResult {
  */
 export async function executeDealTaskViaSlack(
   actingUserId: string,
-  taskId: string
+  taskId: string,
+  /** Edited message from the preview overlay — persisted onto the
+   *  task before sending so the proof entry logs what actually went. */
+  messageOverride?: string
 ): Promise<ExecuteResult> {
   const task = await prisma.dealTask.findUnique({
     where: { id: taskId },
@@ -357,8 +360,14 @@ export async function executeDealTaskViaSlack(
   if (task.status === "done" || task.status === "dismissed") {
     return { ok: true, reason: "already_resolved" };
   }
-  const draft = (task.draftMessage || "").trim();
+  const draft = (messageOverride || task.draftMessage || "").trim();
   if (!draft) return { ok: false, reason: "no_draft" };
+  if (messageOverride && messageOverride.trim() !== (task.draftMessage || "").trim()) {
+    await prisma.dealTask.update({
+      where: { id: task.id },
+      data: { draftMessage: messageOverride.trim() },
+    });
+  }
   if (!task.deal.slackChannelId) return { ok: false, reason: "no_channel" };
 
   const user = await prisma.user.findUnique({
