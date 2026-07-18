@@ -33,6 +33,14 @@ export async function GET() {
             // deterministic.
             orderBy: { createdAt: "asc" },
           },
+          // Open tasks — drives the "⚡ N tasks · 1 overdue" chip on
+          // each card. Soonest-due first, capped small.
+          tasks: {
+            where: { status: { in: ["scheduled", "pinged"] } },
+            select: { id: true, title: true, dueAt: true, status: true, executeVia: true },
+            orderBy: { dueAt: "asc" },
+            take: 5,
+          },
         },
       }),
       // Most recent past (non-chat) timeline entry per deal. Drives

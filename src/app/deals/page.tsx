@@ -25,6 +25,7 @@ interface Deal {
   source: string | null;
   slackChannelId: string | null;
   slackChannelName: string | null;
+  tasks?: Array<{ id: string; title: string; dueAt: string | null; status: string; executeVia: string | null }>;
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
   updatedAt: string;
@@ -2426,6 +2427,35 @@ function DealsPageContent() {
                       <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-900/30">
                         📎 Drop or paste evidence here <span className="hidden sm:inline">(screenshot / email / text)</span>
                       </span>
+                      {(deal.tasks?.length ?? 0) > 0 && (() => {
+                        const tasks = deal.tasks!;
+                        const overdue = tasks.filter(
+                          (t) => t.dueAt && new Date(t.dueAt).getTime() < Date.now()
+                        ).length;
+                        const next = tasks.find((t) => t.dueAt);
+                        const label =
+                          overdue > 0
+                            ? `⚡ ${tasks.length} task${tasks.length === 1 ? "" : "s"} · ${overdue} overdue`
+                            : `⚡ ${tasks.length} task${tasks.length === 1 ? "" : "s"}${
+                                next?.dueAt
+                                  ? ` · next ${new Date(next.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                                  : ""
+                              }`;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => window.location.assign("/deals/tasks")}
+                            className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border disabled:opacity-60 ${
+                              overdue > 0
+                                ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
+                                : "bg-amber-50/60 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
+                            }`}
+                            title={`Open tasks on this deal${next ? ` — next: ${next.title}` : ""}. Click to review all tasks.`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })()}
                       {deal.slackChannelId ? (
                         <button
                           type="button"
