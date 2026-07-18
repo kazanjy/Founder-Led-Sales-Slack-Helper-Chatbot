@@ -60,10 +60,15 @@ function DealTasksInboxInner() {
   const [filterName, setFilterName] = useState("");
   const [filterStage, setFilterStage] = useState("all");
   const [filterType, setFilterType] = useState<"all" | "executable" | "non_executable">("all");
-  const [filterDue, setFilterDue] = useState<"all" | "past" | "future">(
-    searchParams.get("due") === "past" ? "past" : searchParams.get("due") === "future" ? "future" : "all"
-  );
+  const [filterDue, setFilterDue] = useState<"all" | "past" | "scheduled" | "undated">(() => {
+    const due = searchParams.get("due");
+    if (due === "past") return "past";
+    if (due === "scheduled" || due === "future") return "scheduled";
+    if (due === "undated") return "undated";
+    return "all";
+  });
   const [sortBy, setSortBy] = useState<"due" | "stage" | "activity">("due");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Execute overlay state (same flow as the deal page card).
   const [executeTask, setExecuteTask] = useState<InboxTask | null>(null);
@@ -234,14 +239,22 @@ function DealTasksInboxInner() {
       if (filterType === "non_executable" && t.executeVia === "slack_channel") return false;
       const past = !!t.dueAt && new Date(t.dueAt).getTime() < now;
       if (filterDue === "past" && !past) return false;
-      if (filterDue === "future" && past) return false;
+      if (filterDue === "scheduled" && (!t.dueAt || past)) return false;
+      if (filterDue === "undated" && t.dueAt) return false;
       return true;
     });
   }, [open, filterName, filterStage, filterType, filterDue, now]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
-    if (sortBy === "stage") {
+    if (sortBy === "due") {
+      // Soonest first; undated sink to the end (they never ping).
+      list.sort(
+        (a, b) =>
+          (a.dueAt ? new Date(a.dueAt).getTime() : Infinity) -
+          (b.dueAt ? new Date(b.dueAt).getTime() : Infinity)
+      );
+    } else if (sortBy === "stage") {
       list.sort(
         (a, b) =>
           (stageRank.get(a.deal.stage) ?? 99) - (stageRank.get(b.deal.stage) ?? 99) ||
@@ -256,8 +269,9 @@ function DealTasksInboxInner() {
           (b.deal.lastActivityAt ? new Date(b.deal.lastActivityAt).getTime() : 0)
       );
     }
+    if (sortDir === "desc") list.reverse();
     return list;
-  }, [filtered, sortBy, stageRank]);
+  }, [filtered, sortBy, sortDir, stageRank]);
 
   const overdue = sorted.filter((t) => t.dueAt && new Date(t.dueAt).getTime() < now);
   const dueToday = sorted.filter(
@@ -455,21 +469,36 @@ function DealTasksInboxInner() {
           >
             <option value="all">Any due date</option>
             <option value="past">Past due</option>
-            <option value="future">Future / undated</option>
+            <option value="scheduled">Scheduled (future date)</option>
+            <option value="undated">Undated</option>
           </select>
           <span className="text-gray-300 dark:text-gray-600">|</span>
           <label className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
             Sort:
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              onChange={(e) => { setSortBy(e.target.value as typeof sortBy); setSortDir("asc"); }}
               className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
             >
               <option value="due">Due date</option>
               <option value="stage">Deal stage</option>
-              <option value="activity">Last activity (stalest first)</option>
+              <option value="activity">Last activity</option>
             </select>
           </label>
+          <button
+            type="button"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            className="px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-purple-300"
+            title={
+              sortBy === "due"
+                ? sortDir === "asc" ? "Soonest first — click for latest first" : "Latest first — click for soonest first"
+                : sortBy === "stage"
+                ? sortDir === "asc" ? "Early pipeline first — click for late pipeline first" : "Late pipeline first — click for early pipeline first"
+                : sortDir === "asc" ? "Stalest deals first — click for most recently active first" : "Most recently active first — click for stalest first"
+            }
+          >
+            {sortDir === "asc" ? "↑" : "↓"}
+          </button>
           {filtersActive && (
             <button
               type="button"
@@ -499,7 +528,11 @@ function DealTasksInboxInner() {
           </>
         ) : (
           <Section
-            title={sortBy === "stage" ? "By deal stage" : "By last deal activity — stalest first"}
+            title={
+              sortBy === "stage"
+                ? `By deal stage — ${sortDir === "asc" ? "early pipeline first" : "late pipeline first"}`
+                : `By last deal activity — ${sortDir === "asc" ? "stalest first" : "most recent first"}`
+            }
             tasks={sorted}
           />
         )}
