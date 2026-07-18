@@ -1,5 +1,6 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
+import { ACTIVITY_ENTRY_TYPES } from "@/lib/deals/constants";
 import { runDealAnalysis } from "@/lib/deals/analyze";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 
@@ -153,7 +154,7 @@ const getDealCore: ToolEntry = {
         where: {
           dealId,
           entryDate: { lte: now },
-          type: { not: "chat" },
+          type: { in: ACTIVITY_ENTRY_TYPES },
         },
         orderBy: { entryDate: "desc" },
         select: { entryDate: true, type: true, title: true },
@@ -779,7 +780,7 @@ async function summarizeDealRows(
   const lastActivities = await Promise.all(
     deals.map((d) =>
       prisma.dealTimelineEntry.findFirst({
-        where: { dealId: d.id, entryDate: { lte: now }, type: { not: "chat" } },
+        where: { dealId: d.id, entryDate: { lte: now }, type: { in: ACTIVITY_ENTRY_TYPES } },
         orderBy: { entryDate: "desc" },
         select: { entryDate: true, type: true, title: true },
       })

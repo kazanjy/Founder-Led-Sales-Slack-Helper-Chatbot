@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { loadSellerContext } from "@/lib/seller-context";
 import { assembleDealEvidence } from "@/lib/business-cases/generate";
 import { getDealSlackTone } from "./tone-prefs";
+import { ACTIVITY_ENTRY_TYPES } from "./constants";
 
 /**
  * Deal Execution Review — the on-demand "what needs my hand right
@@ -63,12 +64,14 @@ export async function getExecutionReviewData(userId: string): Promise<ExecutionR
         slackChannelId: true, slackChannelName: true, createdAt: true,
       },
     }),
+    // "Quiet" means no COMMUNICATION — a ✓-done reminder or a note
+    // doesn't count as talking to the customer.
     prisma.dealTimelineEntry.groupBy({
       by: ["dealId"],
       where: {
         deal: { userId, status: { in: IN_PLAY } },
         entryDate: { lte: new Date() },
-        type: { not: "chat" },
+        type: { in: ACTIVITY_ENTRY_TYPES },
       },
       _max: { entryDate: true },
     }),
@@ -176,7 +179,7 @@ export async function proposeDealAction(
       select: { title: true, dueAt: true, status: true },
     }),
     prisma.dealTimelineEntry.findFirst({
-      where: { dealId, type: { not: "chat" }, entryDate: { lte: new Date() } },
+      where: { dealId, type: { in: ACTIVITY_ENTRY_TYPES }, entryDate: { lte: new Date() } },
       orderBy: { entryDate: "desc" },
       select: { entryDate: true },
     }),

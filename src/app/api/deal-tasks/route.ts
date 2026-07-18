@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { ACTIVITY_ENTRY_TYPES } from "@/lib/deals/constants";
 
 /**
  * GET /api/deal-tasks — cross-deal task inbox: every open (scheduled /
@@ -37,14 +38,15 @@ export async function GET() {
         take: 15,
         include: { deal: dealSelect },
       }),
-      // Most recent past (non-chat) entry per deal — powers the
-      // inbox's "sort by last activity".
+      // Most recent past COMMUNICATION entry per deal — powers the
+      // inbox's "sort by last activity". Notes and task-completion
+      // bookkeeping don't reset the clock.
       prisma.dealTimelineEntry.groupBy({
         by: ["dealId"],
         where: {
           deal: { userId: user.id },
           entryDate: { lte: new Date() },
-          type: { not: "chat" },
+          type: { in: ACTIVITY_ENTRY_TYPES },
         },
         _max: { entryDate: true },
       }),

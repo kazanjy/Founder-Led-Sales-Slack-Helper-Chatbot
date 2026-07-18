@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { countUniqueMeetings } from "@/lib/deals/closed-stats";
+import { ACTIVITY_ENTRY_TYPES } from "@/lib/deals/constants";
 
 // GET — list user's deals (newest first)
 export async function GET() {
@@ -43,14 +44,15 @@ export async function GET() {
           },
         },
       }),
-      // Most recent past (non-chat) timeline entry per deal. Drives
-      // the "Last activity" line on each card.
+      // Most recent past COMMUNICATION entry per deal (meetings,
+      // calls, Slack, email — not notes or bookkeeping). Drives the
+      // "Last activity" line on each card.
       prisma.dealTimelineEntry.groupBy({
         by: ["dealId"],
         where: {
           deal: { userId: user.id },
           entryDate: { lte: new Date() },
-          type: { not: "chat" },
+          type: { in: ACTIVITY_ENTRY_TYPES },
         },
         _max: { entryDate: true },
       }),

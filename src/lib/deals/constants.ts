@@ -76,6 +76,25 @@ export const ENTRY_TYPES = [
   { value: "stage_change", label: "Stage Change", emoji: "🔀", description: "Automatic log entry written when a deal's pipeline stage changes." },
 ] as const;
 
+// Entry types that count as REAL deal activity for "last activity"
+// computations: an actual meeting, or documented communication with
+// the prospect (recorded/logged calls, Slack — logged or synced,
+// email, texts, LinkedIn, pasted screenshots of any of those).
+// Notes, stage changes, drafted artifacts (research briefs, recap
+// drafts), documents, and task-completion bookkeeping do NOT reset
+// the clock — clicking ✓ on a reminder is not talking to the
+// customer.
+export const ACTIVITY_ENTRY_TYPES = [
+  "call_transcript",
+  "call_summary",
+  "meeting",
+  "email",
+  "slack_message",
+  "sms_message",
+  "screenshot",
+  "linkedin",
+];
+
 export function getStageInfo(stage: string) {
   return DEAL_STAGES.find((s) => s.value === stage) || DEAL_STAGES[0];
 }
