@@ -90,11 +90,35 @@ export default function DealTasksInboxPage() {
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.detail || data?.error || "Draft generation failed");
         setExecuteDraft(data?.draft || "");
+        // Drafting persists the message (and upgrades the task to
+        // Slack-executable) — refresh the rows behind the overlay.
+        load();
       } catch (err) {
         setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
       } finally {
         setExecuteLoadingDraft(false);
       }
+    }
+  };
+
+  const regenerateExecuteDraft = async () => {
+    if (!executeTask) return;
+    setExecuteLoadingDraft(true);
+    setExecuteError(null);
+    try {
+      const res = await fetch(`/api/deals/${executeTask.dealId}/tasks/${executeTask.id}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || data?.error || "Draft generation failed");
+      setExecuteDraft(data?.draft || "");
+      load();
+    } catch (err) {
+      setExecuteError(err instanceof Error ? err.message : "Draft generation failed");
+    } finally {
+      setExecuteLoadingDraft(false);
     }
   };
 
@@ -170,9 +194,14 @@ export default function DealTasksInboxPage() {
             {t.rationale}
           </div>
         )}
+        {t.draftMessage && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 border-l-2 border-green-200 dark:border-green-800 pl-2 line-clamp-2" title="Message loaded and ready to send">
+            💬 {t.draftMessage}
+          </div>
+        )}
       </div>
       <span className="shrink-0 flex items-center gap-2.5 text-xs pt-0.5">
-        {t.executeVia === "slack_channel" && (
+        {t.executeVia === "slack_channel" ? (
           <button
             type="button"
             onClick={() => openExecuteOverlay(t)}
@@ -181,6 +210,16 @@ export default function DealTasksInboxPage() {
             title="Preview the message and send it into the linked Slack channel as you"
           >
             🚀 Execute
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openExecuteOverlay(t)}
+            disabled={busyId === t.id}
+            className="text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-50"
+            title="Mikey drafts a message for this task from the deal history in your voice — preview, edit, and send as you"
+          >
+            💬 Propose message
           </button>
         )}
         <button
@@ -320,7 +359,16 @@ export default function DealTasksInboxPage() {
               />
             )}
             {executeError && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{executeError}</p>}
-            <div className="flex items-center justify-end gap-2 mt-3">
+            <div className="flex items-center justify-between gap-2 mt-3">
+              <button
+                type="button"
+                onClick={regenerateExecuteDraft}
+                disabled={executeLoadingDraft || executeSending}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-50"
+              >
+                ↻ Redraft
+              </button>
+              <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => { setExecuteTask(null); setExecuteError(null); }}
@@ -337,6 +385,7 @@ export default function DealTasksInboxPage() {
               >
                 {executeSending ? "Sending…" : "🚀 Send as me"}
               </button>
+              </div>
             </div>
           </div>
         </div>
