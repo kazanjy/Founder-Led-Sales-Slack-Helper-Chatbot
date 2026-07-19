@@ -11,6 +11,7 @@ import {
 import { sweepLinkedSlackChannels } from "@/lib/deals/slack-channel-sync";
 import { sweepDueDealTasks, detectDealTasks } from "@/lib/deals/task-execution";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
+import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
 
 /**
  * GET /api/cron/scan-future-meetings
@@ -140,7 +141,9 @@ export async function GET(request: NextRequest) {
               companyName: true,
             },
           });
-          if (!before || before.status === "dismissed") continue;
+          // Dismissed AND closed deals never get auto re-analysis —
+          // a won deal's kickoff meeting is not pipeline evidence.
+          if (!before || NO_AUTO_ANALYSIS_STATUSES.includes(before.status)) continue;
           if (before.lastAnalyzedAt && before.lastAnalyzedAt > cutoff) {
             continue;
           }

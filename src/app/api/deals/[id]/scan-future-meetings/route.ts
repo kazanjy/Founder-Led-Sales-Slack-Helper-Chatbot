@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { scanFutureMeetingsForDeal } from "@/lib/deals/scan-future-meetings";
 import { runDealAnalysis } from "@/lib/deals/analyze";
+import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
 
 export const maxDuration = 120;
 
@@ -21,7 +22,7 @@ export async function POST(
     where: user.accountId
       ? { id, user: { accountId: user.accountId } }
       : { id, userId: user.id },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
   if (!deal) {
     return NextResponse.json({ error: "Deal not found" }, { status: 404 });
@@ -34,7 +35,9 @@ export async function POST(
     // the background so the user's Mikey Health + next-step suggestions
     // factor in the new calendar evidence. Runs after the response is
     // sent so the click-to-result round-trip stays fast.
-    const triggeredAnalysis = result.added > 0;
+    // New meetings on a CLOSED deal still show on the timeline, but
+    // they're not pipeline evidence — no auto re-analysis.
+    const triggeredAnalysis = result.added > 0 && !NO_AUTO_ANALYSIS_STATUSES.includes(deal.status);
     if (triggeredAnalysis) {
       after(async () => {
         try {

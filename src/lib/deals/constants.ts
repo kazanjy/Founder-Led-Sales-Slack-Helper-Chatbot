@@ -95,6 +95,14 @@ export const ACTIVITY_ENTRY_TYPES = [
   "linkedin",
 ];
 
+// Statuses where AUTOMATIC re-analysis (and its Slack stub + task
+// detection cascade) must never fire. Closed deals still accrue
+// evidence — synced Slack channels, kickoff meetings — but analyzing
+// a won deal as if it were pipeline produces nonsense ("the deal
+// remains in closing, not won") and noise. The manual Analyze button
+// stays available on every deal.
+export const NO_AUTO_ANALYSIS_STATUSES = ["dismissed", "closed_won", "closed_lost"];
+
 export function getStageInfo(stage: string) {
   return DEAL_STAGES.find((s) => s.value === stage) || DEAL_STAGES[0];
 }

@@ -8,6 +8,7 @@ import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { postAnalysisUpdateStub } from "@/lib/deals/timed-stubs";
 import { detectDealTasks } from "@/lib/deals/task-execution";
 import { findDuplicateEntry, isDupeCheckable } from "@/lib/deals/dupe-check";
+import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
 
 // The post-add re-analysis runs via after() — keep the function alive
 // long enough for it to finish.
@@ -224,7 +225,7 @@ export async function POST(
     // click or the next cron pass. Debounced so a burst of adds rides
     // the analysis already in flight. Fired via after() so the entry
     // POST returns immediately.
-    if (!NON_EVIDENCE_TYPES.has(finalType)) {
+    if (!NON_EVIDENCE_TYPES.has(finalType) && !NO_AUTO_ANALYSIS_STATUSES.includes(deal.status)) {
       const guardCutoff = new Date(Date.now() - REANALYZE_GUARD_MINUTES * 60 * 1000);
       if (!deal.lastAnalyzedAt || deal.lastAnalyzedAt < guardCutoff) {
         after(async () => {

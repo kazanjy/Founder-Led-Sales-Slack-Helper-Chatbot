@@ -5,6 +5,7 @@ import { scanUserRecordings } from "@/lib/deals/scan-recordings";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { postAnalysisUpdateStub, postCallAttachedStub } from "@/lib/deals/timed-stubs";
 import { detectDealTasks } from "@/lib/deals/task-execution";
+import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
 
 /**
  * GET /api/cron/scan-recordings
@@ -87,8 +88,9 @@ export async function GET(request: NextRequest) {
               companyName: true,
             },
           });
-          // Noise control: dismissed deals never get stubs.
-          if (!before || before.status === "dismissed") continue;
+          // Noise control: dismissed AND closed deals never get auto
+          // re-analysis or stubs.
+          if (!before || NO_AUTO_ANALYSIS_STATUSES.includes(before.status)) continue;
           // Skip re-analysis within the cooldown window — the user
           // just paid for a fresh analysis and we don't want to
           // clobber it. Still drop a one-liner so the founder knows
