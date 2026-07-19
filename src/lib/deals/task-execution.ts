@@ -267,17 +267,19 @@ export async function sweepDueDealTasks(maxPings = 3): Promise<number> {
       const company = task.deal.companyName || task.deal.name;
       const isSlackTask = task.executeVia === "slack_channel";
       const canExecute = isSlackTask && !!task.deal.slackChannelId;
-      // Deep link into the deal page's execution overlay — the ping
-      // carries the full draft, so the founder reads here and taps
-      // through to preview/edit/send (never a blind send).
+      // Two send paths: instant (the ping shows exactly what goes
+      // out) and the deal page's execution overlay for edit/redraft/
+      // reschedule before sending.
+      const doUrl = `${appUrl}/deals/${task.dealId}/tasks/${task.id}/do`;
       const executeUrl = `${appUrl}/deals/${task.dealId}?executeTask=${task.id}`;
       const dismissUrl = `${appUrl}/deals/${task.dealId}/tasks/${task.id}/dismiss`;
+      const sendLinks = isSlackTask
+        ? canExecute
+          ? `<${doUrl}|🚀 Send as you now>  |  <${executeUrl}|✏️ Edit & send>`
+          : `<${executeUrl}|✏️ Edit & send>`
+        : null;
       const links = [
-        ...(isSlackTask
-          ? [
-              `<${executeUrl}|🚀 Execute this${canExecute ? ` — preview & send to #${task.deal.slackChannelName || "channel"} as you` : ""}>`,
-            ]
-          : []),
+        ...(sendLinks ? [sendLinks] : []),
         `<${appUrl}/deals/${task.dealId}|Open deal →>`,
         `<${dismissUrl}|✕ Dismiss task>`,
       ].join("  ·  ");
