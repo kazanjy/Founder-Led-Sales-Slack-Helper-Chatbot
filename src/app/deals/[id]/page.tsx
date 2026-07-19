@@ -571,6 +571,22 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => { loadDealTasks(); }, [loadDealTasks]);
 
+  // Deep link from the Slack task ping (?executeTask=<taskId>): pop
+  // the execution overlay for that task as soon as tasks load, then
+  // strip the param so refreshes don't re-open it.
+  const executeTaskParam = searchParams.get("executeTask");
+  const executeParamConsumed = useRef(false);
+  useEffect(() => {
+    if (!executeTaskParam || executeParamConsumed.current || dealTasks.length === 0) return;
+    executeParamConsumed.current = true;
+    const t = dealTasks.find((x) => x.id === executeTaskParam);
+    if (t && t.status !== "done" && t.status !== "dismissed" && t.status !== "expired") {
+      openExecuteOverlay(t);
+    }
+    router.replace(`/deals/${id}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [executeTaskParam, dealTasks]);
+
   const createDealTask = async () => {
     if (!taskTitle.trim()) return;
     setTaskSaving(true);
