@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
 import { Linkify } from "@/components/Linkify";
@@ -485,6 +485,48 @@ export default function SalesAssetLibraryPage() {
   };
 
   const [customUrl, setCustomUrl] = useState("");
+  // File picked (or dropped) in the Add Custom Asset form — uploaded
+  // onto the freshly-created asset when Add is clicked.
+  const [customFile, setCustomFile] = useState<File | null>(null);
+  const [addDragOver, setAddDragOver] = useState(false);
+  const addFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Drop a file straight onto "+ Add Custom Asset": creates the asset
+  // (named from the file) and uploads in one motion.
+  const createAssetFromFile = async (file: File, categoryOverride?: string) => {
+    if (!isUploadableFile(file)) {
+      setUploadError("Unsupported file type. Only .pdf and .docx are accepted.");
+      return;
+    }
+    setAddingCustom(true);
+    setUploadError(null);
+    try {
+      const res = await fetch("/api/sales-asset-library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: file.name.replace(/\.(pdf|docx)$/i, ""),
+          category: categoryOverride || "custom",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setUploadError(data.error || "Failed to create the asset");
+        return;
+      }
+      const data = await res.json();
+      if (data.asset?.id) {
+        await uploadFileToAsset(data.asset.id, file);
+      }
+      setShowAddCustom(false);
+      await loadAssets();
+    } catch (error) {
+      console.error("Create-from-file failed:", error);
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setAddingCustom(false);
+    }
+  };
 
   const addCustomAsset = async (categoryOverride?: string) => {
     if (!customName.trim()) return;
@@ -502,8 +544,11 @@ export default function SalesAssetLibraryPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        // If a URL was provided at creation, create the first version
-        if (customUrl.trim() && data.asset?.id) {
+        // A picked/dropped file wins; otherwise a pasted URL becomes
+        // the first version.
+        if (customFile && data.asset?.id) {
+          await uploadFileToAsset(data.asset.id, customFile);
+        } else if (customUrl.trim() && data.asset?.id) {
           await fetch(`/api/sales-asset-library/${data.asset.id}/versions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -515,6 +560,7 @@ export default function SalesAssetLibraryPage() {
         setCustomName("");
         setCustomDescription("");
         setCustomUrl("");
+        setCustomFile(null);
         setCustomCategory("custom");
         await loadAssets();
       }
@@ -638,6 +684,66 @@ export default function SalesAssetLibraryPage() {
                       placeholder="URL (optional — paste link now or add later)"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                     />
+                    <div
+                      onClick={() => addFileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); setAddDragOver(true); }}
+                      onDragLeave={() => setAddDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setAddDragOver(false);
+                        const f = e.dataTransfer.files?.[0];
+                        if (!f) return;
+                        if (!isUploadableFile(f)) {
+                          setUploadError("Unsupported file type. Only .pdf and .docx are accepted.");
+                          return;
+                        }
+                        setUploadError(null);
+                        setCustomFile(f);
+                        if (!customName.trim()) setCustomName(f.name.replace(/\.(pdf|docx)$/i, ""));
+                      }}
+                      className={`w-full px-3 py-2.5 border-2 border-dashed rounded-lg text-sm cursor-pointer transition-colors ${
+                        addDragOver
+                          ? "border-purple-400 bg-purple-50 text-purple-700"
+                          : customFile
+                          ? "border-green-300 bg-green-50/60 text-green-800"
+                          : "border-gray-300 dark:border-gray-700 text-gray-400 hover:border-purple-300 hover:text-purple-600"
+                      }`}
+                    >
+                      {customFile ? (
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate">📄 {customFile.name} — uploads when you add the asset</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setCustomFile(null); }}
+                            className="text-green-700 hover:text-red-600 flex-shrink-0"
+                            title="Remove file"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ) : (
+                        <>📎 Drop a .pdf / .docx here, or click to browse (optional)</>
+                      )}
+                    </div>
+                    <input
+                      ref={addFileInputRef}
+                      type="file"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          if (!isUploadableFile(f)) {
+                            setUploadError("Unsupported file type. Only .pdf and .docx are accepted.");
+                          } else {
+                            setUploadError(null);
+                            setCustomFile(f);
+                            if (!customName.trim()) setCustomName(f.name.replace(/\.(pdf|docx)$/i, ""));
+                          }
+                        }
+                        e.target.value = "";
+                      }}
+                    />
                     <input
                       type="text"
                       value={customDescription}
@@ -654,16 +760,19 @@ export default function SalesAssetLibraryPage() {
                         <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
                       ))}
                     </select>
+                    {uploadError && (
+                      <p className="text-xs text-red-600">{uploadError}</p>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => addCustomAsset()}
                         disabled={!customName.trim() || addingCustom}
                         className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
                       >
-                        {addingCustom ? "Adding..." : "Add Asset"}
+                        {addingCustom ? "Adding..." : customFile ? "Add & Upload" : "Add Asset"}
                       </button>
                       <button
-                        onClick={() => setShowAddCustom(false)}
+                        onClick={() => { setShowAddCustom(false); setCustomFile(null); setUploadError(null); }}
                         className="px-4 py-2 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                       >
                         Cancel
@@ -672,12 +781,34 @@ export default function SalesAssetLibraryPage() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowAddCustom(true)}
-                  className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50 transition-colors"
-                >
-                  + Add Custom Asset
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowAddCustom(true)}
+                    onDragOver={(e) => { e.preventDefault(); setAddDragOver(true); }}
+                    onDragLeave={() => setAddDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setAddDragOver(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) createAssetFromFile(f);
+                    }}
+                    disabled={addingCustom}
+                    className={`w-full py-3 border-2 border-dashed rounded-xl text-sm transition-colors disabled:opacity-60 ${
+                      addDragOver
+                        ? "border-purple-500 bg-purple-50 text-purple-700 font-medium"
+                        : "border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50/50"
+                    }`}
+                  >
+                    {addingCustom
+                      ? "Creating asset…"
+                      : addDragOver
+                      ? "📄 Drop to create an asset from this file"
+                      : "+ Add Custom Asset — click, or drop a .pdf / .docx"}
+                  </button>
+                  {uploadError && !showAddCustom && (
+                    <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
+                  )}
+                </>
               )}
             </div>
 
