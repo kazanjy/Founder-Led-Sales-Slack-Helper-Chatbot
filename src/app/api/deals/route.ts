@@ -38,7 +38,7 @@ export async function GET() {
           // each card. Soonest-due first, capped small.
           tasks: {
             where: { status: { in: ["scheduled", "pinged"] } },
-            select: { id: true, title: true, dueAt: true, status: true, executeVia: true },
+            select: { id: true, title: true, dueAt: true, status: true, executeVia: true, draftMessage: true, rationale: true },
             orderBy: { dueAt: "asc" },
             take: 5,
           },

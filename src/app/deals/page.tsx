@@ -26,7 +26,7 @@ interface Deal {
   source: string | null;
   slackChannelId: string | null;
   slackChannelName: string | null;
-  tasks?: Array<{ id: string; title: string; dueAt: string | null; status: string; executeVia: string | null }>;
+  tasks?: Array<{ id: string; title: string; dueAt: string | null; status: string; executeVia: string | null; draftMessage: string | null; rationale: string | null }>;
   lastAnalysis: string | null;
   lastAnalyzedAt: string | null;
   updatedAt: string;
@@ -365,6 +365,64 @@ function DealsPageContent() {
 
   // ── Deal Execution Review overlay (overdue tasks + quiet deals) ──
   const [executionReviewOpen, setExecutionReviewOpen] = useState(false);
+
+  // ── Inline task panel on the tile (⚡ chip toggles it): read the
+  //    open tasks, send armed ones now, deep-link to edit, ✓/✕. ──
+  const [expandedTasksDealId, setExpandedTasksDealId] = useState<string | null>(null);
+  const [tileTaskBusyId, setTileTaskBusyId] = useState<string | null>(null);
+  const [tileTaskMsg, setTileTaskMsg] = useState<Record<string, string>>({});
+
+  const flashTileTask = (taskId: string, msg: string) => {
+    setTileTaskMsg((prev) => ({ ...prev, [taskId]: msg }));
+    setTimeout(() => {
+      setTileTaskMsg((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }, 5000);
+  };
+
+  const tileTaskPatch = async (dealId: string, taskId: string, status: "done" | "dismissed") => {
+    setTileTaskBusyId(taskId);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) flashTileTask(taskId, "⚠️ update failed");
+      await loadDeals();
+    } finally {
+      setTileTaskBusyId(null);
+    }
+  };
+
+  const tileTaskSend = async (dealId: string, taskId: string) => {
+    setTileTaskBusyId(taskId);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/tasks/${taskId}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const reasonText: Record<string, string> = {
+          no_channel: "⚠️ no Slack channel linked",
+          no_draft: "⚠️ no message drafted — use ✏️",
+          send_failed: "⚠️ Slack rejected the send",
+          forbidden: "⚠️ owner only",
+        };
+        flashTileTask(taskId, reasonText[data?.reason] || "⚠️ send failed");
+      } else {
+        flashTileTask(taskId, "✓ sent as you — proof logged");
+      }
+      await loadDeals();
+    } finally {
+      setTileTaskBusyId(null);
+    }
+  };
 
   // ── Task detection from the tile (same endpoint as the deal page's
   //    "🔎 Detect follow-ups" CTA). One deal at a time; result flashes
@@ -2491,18 +2549,102 @@ function DealsPageContent() {
                         return (
                           <button
                             type="button"
-                            onClick={() => window.location.assign("/deals/tasks")}
+                            onClick={() =>
+                              setExpandedTasksDealId((cur) => (cur === deal.id ? null : deal.id))
+                            }
                             className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border disabled:opacity-60 ${
                               overdue > 0
                                 ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800"
                                 : "bg-amber-50/60 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
                             }`}
-                            title={`Open tasks on this deal${next ? ` — next: ${next.title}` : ""}. Click to review all tasks.`}
+                            title={`Open tasks on this deal${next ? ` — next: ${next.title}` : ""}. Click to review and act right here.`}
                           >
-                            {label}
+                            {label} {expandedTasksDealId === deal.id ? "▴" : "▾"}
                           </button>
                         );
                       })()}
+                      {expandedTasksDealId === deal.id && (deal.tasks?.length ?? 0) > 0 && (
+                        <div className="order-last w-full basis-full mt-1 p-2.5 rounded-lg border border-amber-200 bg-amber-50/40 space-y-2">
+                          {deal.tasks!.map((t) => {
+                            const isOverdue = t.dueAt && new Date(t.dueAt).getTime() < Date.now();
+                            const armed =
+                              t.executeVia === "slack_channel" && !!t.draftMessage?.trim();
+                            const busy = tileTaskBusyId === t.id;
+                            return (
+                              <div key={t.id} className="text-xs">
+                                <div className="flex items-start gap-2">
+                                  <span className="shrink-0" title={t.status}>
+                                    {t.status === "pinged" ? "⚡" : "🕒"}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-gray-800 dark:text-gray-200 font-medium">{t.title}</span>
+                                    <span className={`ml-1.5 ${isOverdue ? "text-red-600 font-medium" : "text-gray-400"}`}>
+                                      {t.dueAt
+                                        ? `${isOverdue ? "overdue — " : "due "}${new Date(t.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+                                        : "no date"}
+                                    </span>
+                                    {t.draftMessage && (
+                                      <div className="text-gray-500 dark:text-gray-400 mt-0.5 border-l-2 border-green-300 pl-1.5 line-clamp-2" title={t.draftMessage}>
+                                        💬 {t.draftMessage}
+                                      </div>
+                                    )}
+                                    {tileTaskMsg[t.id] && (
+                                      <div className={`mt-0.5 ${tileTaskMsg[t.id].startsWith("✓") ? "text-green-700" : "text-red-600"}`}>
+                                        {tileTaskMsg[t.id]}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="shrink-0 flex items-center gap-2">
+                                    {armed && deal.slackChannelId && (
+                                      <button
+                                        type="button"
+                                        onClick={() => tileTaskSend(deal.id, t.id)}
+                                        disabled={busy}
+                                        className="text-purple-600 dark:text-purple-300 hover:underline font-medium disabled:opacity-50"
+                                        title={`Send the drafted message to #${deal.slackChannelName || "channel"} as you, right now`}
+                                      >
+                                        {busy ? "…" : "🚀 Send"}
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => window.location.assign(`/deals/${deal.id}?executeTask=${t.id}`)}
+                                      disabled={busy}
+                                      className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-300 disabled:opacity-50"
+                                      title="Open the execution overlay — edit or draft the message, reschedule, send"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => tileTaskPatch(deal.id, t.id, "done")}
+                                      disabled={busy}
+                                      className="text-gray-400 hover:text-green-600 disabled:opacity-50"
+                                      title="Mark done (without sending)"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => tileTaskPatch(deal.id, t.id, "dismissed")}
+                                      disabled={busy}
+                                      className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                      title="Dismiss task"
+                                    >
+                                      ✕
+                                    </button>
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="pt-0.5 text-[11px]">
+                            <a href="/deals/tasks" className="text-purple-600 dark:text-purple-300 hover:underline">
+                              All tasks →
+                            </a>
+                          </div>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => detectTasksFromList(deal.id)}
