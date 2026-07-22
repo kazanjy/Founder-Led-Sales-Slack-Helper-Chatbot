@@ -579,7 +579,7 @@ const summarizeCoachingSession: ToolEntry = {
 3-6 bullets of the substantive topics in the order they shaped the conversation.
 
 ## Agreements & priorities until next session
-EVERY decision, commitment, and priority that landed — exhaustive, a commitment appears once (never restated). Bundle by initiative (top-level bullet per goal/body of work, ranked P0 → P1 → P2 → unranked with [P0]-style tags); nested beneath each: DECISIONS first (resolved statements — "we'll move X to Y", not "we discussed"), then ACTIONS ranked by priority, each with owner (default: founder) and a "done when …" signal. No "continue working on X" — name the next move.
+Complete at the initiative level, selective at the item level: every initiative where something landed gets a top-level bullet, but cap the nested decision + action items at 6-8 across the whole section, keeping the most consequential. A commitment appears once (never restated). Bundle by initiative (top-level bullet per goal/body of work, ranked P0 → P1 → P2 → unranked with [P0]-style tags); nested beneath each: DECISIONS first (resolved statements — "we'll move X to Y", not "we discussed"), then ACTIONS ranked by priority, each with owner (default: founder) and a "done when …" signal. Minor items that miss the budget roll into one "also agreed: …" summary line under their initiative. No "continue working on X" — name the next move.
 
 ## What we'll turn to after immediate priorities
 2-4 bullets of work queued for "after we land the top priorities". Each: what it is + the trigger/readiness signal that says it's time. Write "Nothing queued — re-evaluate next session." if there's nothing on deck.

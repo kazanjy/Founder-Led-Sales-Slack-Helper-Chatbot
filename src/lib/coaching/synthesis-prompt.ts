@@ -15,16 +15,17 @@ export const TAKEAWAYS_SYNTHESIS_PROMPT = `Synthesize this coaching session into
 3-6 bullets capturing the substantive topics, in the order they shaped the conversation. Cite specifics: which deals, which metrics, which obstacles, which questions. Skip throat-clearing and tangents.
 
 ## Agreements & priorities until next session
-EVERY explicit decision, commitment, and priority that landed during the session — exhaustive, never truncated to a count. If ten things landed, list ten. (Don't pad, either — only things that actually landed belong here.) One combined section: a commitment appears ONCE, with its owner and done-signal — never restated in two places.
+Complete at the INITIATIVE level, selective at the ITEM level. Every initiative (goal / body of work) where something landed gets a top-level bullet — no topic that produced an agreement disappears. But the nested specifics are curated: across the WHOLE section, cap the nested decision + action items at 6-8 total, keeping the most consequential ones (highest priority, nearest deadline, most load-bearing decisions). A commitment appears ONCE, with its owner and done-signal — never restated in two places.
 
 Structure and ranking:
-- BUNDLE BY INITIATIVE: one top-level bullet per initiative (the goal or body of work — use the goal/task listings in the context to match), everything belonging to it nested beneath. Items that belong to no initiative get their own top-level bullet.
+- BUNDLE BY INITIATIVE: one top-level bullet per initiative (use the goal/task listings in the context to match), its nested items beneath. Items belonging to no initiative get their own top-level bullet.
 - RANK INITIATIVES by priority: P0 first, then P1, P2, unranked. An initiative's rank is its highest-priority item. Show priority tags in brackets ("[P0]") wherever the work carries one.
-- Within each initiative, two kinds of nested bullets:
+- Within each initiative, two kinds of nested bullets (drawing from the 6-8 item budget):
   - DECISIONS — resolved statements that set direction but aren't actions ("we'll count POC-scoping as trial starts", "we won't hire for Founding Agent yet"). Phrase as resolved ("we'll move X to Y"), never "we discussed". Lead with these, most load-bearing first.
   - ACTIONS — the work for the coming cycle, ranked by priority within the initiative (P0 → P1 → P2 → unranked). Each: the concrete action, the owner (default: the founder), and the done-signal ("done when …"). Specific enough that a stranger could pick up the work. No "continue working on X" — name the next move.
+- When an initiative's minor items don't make the budget, roll them into ONE terse summary line under that initiative ("also agreed: tighten the demo script, revisit pricing page copy") so nothing vanishes — they just don't each get a full bullet with owner/done-signal.
 
 ## What we'll turn to after immediate priorities
 2-4 bullets naming the next layer of work that's queued up but explicitly NOT being tackled this cycle — things flagged for "after we land the top priorities". Pull from the Up Next queue and any "we'll get to X later" moments in the session. For each: what it is and the trigger / readiness signal that says it's time to pick it up (e.g. "once the first AE is hitting quota", "after the new pricing page ships"). If nothing was queued for later, write "Nothing queued — re-evaluate next session." instead of forcing bullets.
 
-Keep individual bullets terse and scannable (one line each where possible). "What we discussed" and "What we'll turn to" stay within their bullet ranges; the combined agreements-and-priorities section runs as long as the session's actual agreements require — completeness beats brevity there. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;
+Keep individual bullets terse and scannable (one line each where possible). "What we discussed" and "What we'll turn to" stay within their bullet ranges; the agreements section covers every initiative but holds its nested specifics to the 6-8 item budget — a scannable doc the founder acts on beats an exhaustive one they skim. No preamble, no "Here's the synthesis:", no sign-off. Start with the first heading.`;
