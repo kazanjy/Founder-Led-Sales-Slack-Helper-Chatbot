@@ -264,6 +264,15 @@ function stripSlackMentions(text: string): string {
  * can both link to the deal in the web app AND show the user which
  * label was matched.
  */
+// Tokens too generic to identify a deal on their own in the partial-
+// name fallback pass. (Full-name matching ignores this list.)
+const GENERIC_DEAL_TOKENS = new Set([
+  "deal", "deals", "sales", "sale", "business", "company", "inc",
+  "corp", "corporation", "llc", "labs", "group", "team", "tech",
+  "technologies", "software", "solutions", "systems", "global",
+  "partners", "ventures", "capital", "media", "digital", "cloud",
+]);
+
 function findDealNameInText(
   text: string,
   deals: Array<{ id: string; name: string; companyName: string }>
@@ -287,8 +296,44 @@ function findDealNameInText(
       if (allPresent) candidates.push({ id: d.id, label: normalized });
     }
   }
-  if (candidates.length === 0) return null;
-  // Prefer longest match — handles overlapping deal/company labels.
-  candidates.sort((a, b) => b.label.length - a.label.length);
-  return candidates[0];
+  if (candidates.length > 0) {
+    // Prefer longest match — handles overlapping deal/company labels.
+    candidates.sort((a, b) => b.label.length - a.label.length);
+    return candidates[0];
+  }
+
+  // Partial-name fallback: founders say "the flock deal", not "the
+  // Flock Safety deal". A single DISTINCTIVE token (≥4 chars, not a
+  // generic business word) that appears in the text and belongs to
+  // exactly ONE deal is an unambiguous reference. Ambiguous tokens
+  // (shared by two deals) don't match — better to fall through than
+  // to guess the wrong deal.
+  const ownersByToken = new Map<string, Set<string>>();
+  const labelById = new Map<string, string>();
+  for (const d of deals) {
+    labelById.set(d.id, d.name?.trim() || d.companyName?.trim() || d.id);
+    for (const raw of [d.name, d.companyName]) {
+      const tokens = (raw || "")
+        .toLowerCase()
+        .replace(/[^\w\s]/g, " ")
+        .split(/\s+/)
+        .filter((t) => t.length >= 4 && !GENERIC_DEAL_TOKENS.has(t));
+      for (const t of tokens) {
+        if (!ownersByToken.has(t)) ownersByToken.set(t, new Set());
+        ownersByToken.get(t)!.add(d.id);
+      }
+    }
+  }
+  const matchedDealIds = new Set<string>();
+  for (const [token, owners] of ownersByToken) {
+    if (owners.size !== 1) continue; // ambiguous across deals
+    if (haystack.includes(` ${token} `)) {
+      matchedDealIds.add([...owners][0]);
+    }
+  }
+  if (matchedDealIds.size === 1) {
+    const id = [...matchedDealIds][0];
+    return { id, label: labelById.get(id) || id };
+  }
+  return null;
 }
