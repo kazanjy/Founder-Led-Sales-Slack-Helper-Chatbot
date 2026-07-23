@@ -5,7 +5,7 @@ import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
 import { runDealAgent } from "@/lib/agents/deals/run";
-import { hasCoachingKeyword } from "./coaching-agent-router";
+import { hasStrongCoachingKeyword } from "./coaching-agent-router";
 
 // Cap thread history we feed back to the agent so a 50-message thread
 // doesn't blow up tokens. Most relevant context lives in the most
@@ -162,7 +162,11 @@ export async function tryHandleWithDealAgent(opts: {
     // name.
     if (matchedDeal) {
       const combinedForCoachingCheck = [cleanedForDetection, ...priorThread.map((m) => m.text)].join(" ");
-      if (hasCoachingKeyword(combinedForCoachingCheck)) {
+      // STRONG signals only — a matched deal + a generic verb like
+      // "synthesize"/"tasks" stays with the deal agent; only clearly
+      // coaching-relationship language (session, sprint, takeaways…)
+      // defers. See COACHING_STRONG_TRIGGERS.
+      if (hasStrongCoachingKeyword(combinedForCoachingCheck)) {
         console.log(
           `[slack→deal-agent] deal "${matchedDeal.label}" matched but coaching keyword present; deferring to coaching router`
         );

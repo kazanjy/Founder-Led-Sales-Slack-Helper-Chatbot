@@ -156,6 +156,31 @@ export function hasCoachingKeyword(text: string): boolean {
   return COACHING_TRIGGERS.some((re) => re.test(text));
 }
 
+/**
+ * STRONG coaching signals — unambiguously about the coaching
+ * relationship even when a deal is also named. Used by the DEAL
+ * router's deferral guard: "notes from the session about Acme" is
+ * coaching, but "synthesize the Acme calls" / "what are the tasks on
+ * Acme" is deal work — generic verbs like synthesize/goals/tasks/
+ * what's-next must NOT steal a deal-matched message ("I can't do
+ * that from this coaching surface" bug). The coaching router itself
+ * keeps the full trigger list for messages no deal claimed.
+ */
+const COACHING_STRONG_TRIGGERS: RegExp[] = [
+  /\bcoaching\b/i,
+  /\bsession\b/i,
+  /\bsprint(?:\s*(?:review|plan))?\b/i,
+  /\btakeaways?\b/i,
+  /\bnotes? from\b/i,
+  /\bwhere did we leave off\b/i,
+  /\bgtm maturity\b/i,
+  /\bmaturity stage\b/i,
+];
+
+export function hasStrongCoachingKeyword(text: string): boolean {
+  return COACHING_STRONG_TRIGGERS.some((re) => re.test(text));
+}
+
 function stripSlackMentions(text: string): string {
   return text
     .replace(/<@[A-Z0-9]+>/g, "")
