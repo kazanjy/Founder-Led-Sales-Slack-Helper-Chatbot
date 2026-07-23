@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ instances });
   } catch (err) {
     console.error("[business-cases instances] GET failed:", err);
-    return NextResponse.json({ error: "Failed to load instances" }, { status: 500 });
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: "Failed to load instances", detail: detail.slice(0, 300) },
+      { status: 500 }
+    );
   }
 }

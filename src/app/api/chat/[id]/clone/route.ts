@@ -41,7 +41,7 @@ export async function POST(
             : { sharedToUserId: user.id },
         },
         user: {
-          select: { name: true, email: true, slackEmail: true },
+          select: { name: true, email: true, slackEmail: true, accountId: true },
         },
       },
     });
@@ -53,11 +53,18 @@ export async function POST(
       );
     }
 
-    // User can clone if they own it OR if it's shared with them
+    // User can clone if they own it, it's shared with them, or it's a
+    // non-private chat from someone in their account — the SAME rule
+    // the conversation read endpoint uses. Anything you can open you
+    // can clone; a viewable chat that 403s on clone is just a trap.
     const isOwner = conversation.userId === user.id;
     const isShared = conversation.chatShares.length > 0;
+    const isAccountMate =
+      !!user.accountId &&
+      conversation.user.accountId === user.accountId &&
+      !conversation.isPrivate;
 
-    if (!isOwner && !isShared) {
+    if (!isOwner && !isShared && !isAccountMate) {
       return NextResponse.json(
         { error: "You don't have access to this chat" },
         { status: 403 }
