@@ -7,6 +7,53 @@ import type { MarketingPage } from "./types";
  */
 export const FEATURE_PAGES: MarketingPage[] = [
   {
+    slug: "sales-chatbot",
+    emoji: "🌊",
+    seoTitle: "Founder-Led Sales AI Chatbot — Ask Mikey Anything | Mikey",
+    seoDescription:
+      "A friendly sales chatbot trained on Pete Kazanjy's Founding Sales materials — ask any founder-led sales question and get methodology-grounded answers that know your deals.",
+    h1: "Ask Mikey Anything",
+    subhead: "Your friendly founder-led sales chatbot — trained on all of Pete Kazanjy's Founding Sales materials, and wired into your own pipeline.",
+    intro:
+      "\"How do I handle 'send me pricing' on a first call?\" \"Should I give a discount to close by Friday?\" \"What does good discovery look like at my stage?\" Mikey answers like the book would — because it's trained on the Founding Sales corpus — and like a colleague would, because its agents can read your actual deals, coaching history, and playbook before answering.",
+    sections: [
+      {
+        heading: "Trained on the founder-led sales canon",
+        body: "Mikey's knowledge base is Pete Kazanjy's Founding Sales materials — the book, the frameworks, the stage-by-stage judgment calls. Ask anything from cold-outreach mechanics to pricing-conversation tactics and get answers grounded in a real methodology, not vibes averaged off the internet.",
+      },
+      {
+        heading: "It knows your business, not just the book",
+        body: "Behind the chat sit specialist agents with real tools: ask about a deal and it reads the deal; ask where you left off and it reads your coaching history; ask for an email and it writes in your narrative's voice.",
+        bullets: [
+          "Deal questions → live pipeline data, full call history",
+          "Coaching questions → your goals, priorities, and sessions",
+          "Playbook questions → your narrative, ICP, and artifacts",
+        ],
+      },
+      {
+        heading: "Everywhere you already are",
+        body: "The same brain answers in the web app and in Slack — @mention Mikey in any channel, or DM it. Attach files, paste transcripts, ask follow-ups; the conversation carries your context.",
+      },
+    ],
+    faqs: [
+      {
+        q: "How is this different from asking a general AI chatbot?",
+        a: "Two ways: the knowledge is Founding Sales — a coherent, opinionated methodology for founder-stage selling — and the context is yours. \"What should I do about Acme?\" gets answered from Acme's actual call transcripts, not a hypothetical.",
+      },
+      {
+        q: "Can it take actions, or just answer questions?",
+        a: "Both. Chat can pull deal analyses, generate artifacts, draft follow-ups, and hand off to the parts of Mikey that execute — it's the front door to the whole platform.",
+      },
+      {
+        q: "Who is Pete Kazanjy?",
+        a: "Author of Founding Sales, the standard text on founder-led selling, and founder of the Modern Sales Pros community. Mikey is built on his materials and methodology.",
+      },
+    ],
+    relatedFeatures: ["sales-coaching", "slack-sales-assistant", "sales-playbook"],
+    relatedSolutions: ["learn-to-sell", "technical-founder-sales", "founder-led-sales-playbook"],
+    ctaLine: "Ask Mikey your hardest sales question — first answer's on the house.",
+  },
+  {
     slug: "deal-pipeline-autopilot",
     emoji: "🤝",
     seoTitle: "AI Sales Pipeline for Founders — Deal Autopilot | Mikey",

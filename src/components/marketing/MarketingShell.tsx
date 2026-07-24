@@ -16,7 +16,7 @@ const FEATURE_GROUPS: Array<{ title: string; slugs: string[] }> = [
   },
   {
     title: "Get better at selling",
-    slugs: ["sales-coaching", "practice-roleplay"],
+    slugs: ["sales-chatbot", "sales-coaching", "practice-roleplay"],
   },
   {
     title: "Build the playbook",
