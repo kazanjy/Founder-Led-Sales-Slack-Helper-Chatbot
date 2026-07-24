@@ -48,23 +48,25 @@ export default async function Home({ searchParams }: HomeProps) {
       {/* Top Navigation */}
       <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100 relative z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img
-              src="/mikey-avatar.png"
-              alt="Mikey"
-              className="w-10 h-10 rounded-lg"
-            />
-            <span className="font-bold text-xl text-gray-900 dark:text-gray-100">Mikey</span>
+          <div className="flex items-center gap-2 sm:gap-6">
+            <div className="flex items-center gap-2">
+              <img
+                src="/mikey-avatar.png"
+                alt="Mikey"
+                className="w-10 h-10 rounded-lg"
+              />
+              <span className="font-bold text-xl text-gray-900 dark:text-gray-100">Mikey</span>
+            </div>
+            <div className="flex items-center gap-1 text-sm">
+              <MarketingNavDropdowns />
+            </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2 text-sm">
-            <MarketingNavDropdowns />
-            <a
-              href="/signin"
-              className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              Sign In
-            </a>
-          </div>
+          <a
+            href="/signin"
+            className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            Sign In
+          </a>
         </div>
       </nav>
 

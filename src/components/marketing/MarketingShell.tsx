@@ -63,7 +63,9 @@ function NavDropdown({
       </a>
       {/* Bridge keeps hover alive across the gap to the panel. */}
       <div className="absolute left-0 top-full h-2 w-full" />
-      <div className="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50">
+      {/* Left-anchored: the nav lives on the left side of the page, so
+          a centered 600px panel would spill past the viewport edge. */}
+      <div className="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-0 top-full pt-2 z-50">
         <div className="w-[min(600px,92vw)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
             {groups.map((g) => (
@@ -111,12 +113,12 @@ export function MarketingNavDropdowns() {
   return (
     <>
       <NavDropdown
-        label="Features"
+        label="Product"
         href="/features"
         groups={FEATURE_GROUPS}
         resolve={getFeaturePage}
         base="/features"
-        allLabel="View all features"
+        allLabel="See the full product"
       />
       <NavDropdown
         label="Solutions"
@@ -134,17 +136,19 @@ export function MarketingNav() {
   return (
     <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100 relative z-40">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
-        <a href="/" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mikey-avatar.png" alt="Mikey" className="w-10 h-10 rounded-lg" />
-          <span className="font-bold text-xl text-gray-900">Mikey</span>
-        </a>
-        <div className="flex items-center gap-1 sm:gap-2 text-sm">
-          <MarketingNavDropdowns />
-          <a href="/signin" className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">
-            Sign In
+        <div className="flex items-center gap-2 sm:gap-6">
+          <a href="/" className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/mikey-avatar.png" alt="Mikey" className="w-10 h-10 rounded-lg" />
+            <span className="font-bold text-xl text-gray-900">Mikey</span>
           </a>
+          <div className="flex items-center gap-1 text-sm">
+            <MarketingNavDropdowns />
+          </div>
         </div>
+        <a href="/signin" className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">
+          Sign In
+        </a>
       </div>
     </nav>
   );
@@ -191,7 +195,7 @@ export function MarketingFooter() {
           </p>
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900 mb-3">Features</h3>
+          <h3 className="font-semibold text-gray-900 mb-3">Product</h3>
           <ul className="space-y-1.5">
             {FEATURE_PAGES.map((p) => (
               <li key={p.slug}>
