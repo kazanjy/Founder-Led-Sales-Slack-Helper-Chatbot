@@ -3387,7 +3387,11 @@ Be specific to this meeting — use what's actually in the deal history, and cal
           );
         })()}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
+        {/* minmax(0,1fr) — a bare 1fr can't shrink below its content's
+            intrinsic width, so one wide unbreakable child blows the
+            column past max-w-5xl and drags every w-full input with it
+            (the "entry form overflows the page" bug). */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5">
           {/* Participants sidebar */}
           <div>
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
