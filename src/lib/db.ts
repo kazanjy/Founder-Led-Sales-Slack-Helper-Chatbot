@@ -39,6 +39,28 @@ function buildClient() {
 
   return base.$extends({
     query: {
+      // New signups. Every provisioning path (Google OAuth, Slack
+      // sign-in, Slack app install, Slack event auto-provision,
+      // admin-created) runs prisma.user.create, so this one
+      // interceptor covers them all. Custom (not fireCreate) because
+      // a User row's own id IS the actor id — there's no userId FK.
+      user: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        create: async ({ args, query }: any) => {
+          const result = await query(args);
+          if (result?.id) {
+            broadcastActivityFireAndForget({
+              type: "signup",
+              id: result.id,
+              label: "🎉 New signup",
+              title: result.email || result.slackEmail || null,
+              link: "/admin/users",
+              userId: result.id,
+            });
+          }
+          return result;
+        },
+      },
       salesNarrativeVersion: fireCreate((r: Row & { title: string | null }) => ({
         type: "narrative", id: r.id, label: "Generated Narrative",
         title: r.title, link: `/sales-narrative?version=${r.id}`, userId: r.userId,
