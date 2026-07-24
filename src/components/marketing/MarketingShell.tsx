@@ -1,27 +1,143 @@
-import { FEATURE_PAGES } from "@/lib/marketing/feature-pages";
-import { SOLUTION_PAGES } from "@/lib/marketing/solution-pages";
+import { FEATURE_PAGES, getFeaturePage } from "@/lib/marketing/feature-pages";
+import { SOLUTION_PAGES, getSolutionPage } from "@/lib/marketing/solution-pages";
+import type { MarketingPage } from "@/lib/marketing/types";
 
 /**
  * Shared chrome for the public SEO pages (/features/*, /solutions/*).
- * Server-rendered, no client hooks — plain anchors keep it crawlable.
- * The footer lists every marketing page for internal linking.
+ * Server-rendered, no client hooks — the dropdowns are CSS-only
+ * (group-hover + focus-within), so every link is in the crawlable
+ * HTML and the menus still open on tap/keyboard.
  */
+
+const FEATURE_GROUPS: Array<{ title: string; slugs: string[] }> = [
+  {
+    title: "Run your deals",
+    slugs: ["deal-pipeline-autopilot", "slack-sales-assistant", "pre-call-planning", "call-review"],
+  },
+  {
+    title: "Get better at selling",
+    slugs: ["sales-coaching", "practice-roleplay"],
+  },
+  {
+    title: "Build the playbook",
+    slugs: ["sales-playbook", "outbound-content", "customer-proof"],
+  },
+];
+
+const SOLUTION_GROUPS: Array<{ title: string; slugs: string[] }> = [
+  {
+    title: "Where you are",
+    slugs: ["technical-founder-sales", "learn-to-sell", "first-sales-hire"],
+  },
+  {
+    title: "What you need",
+    slugs: ["founder-led-sales-playbook", "founder-crm-alternative", "win-more-deals", "sell-in-slack"],
+  },
+];
+
+function NavDropdown({
+  label,
+  href,
+  groups,
+  resolve,
+  base,
+  allLabel,
+}: {
+  label: string;
+  href: string;
+  groups: Array<{ title: string; slugs: string[] }>;
+  resolve: (slug: string) => MarketingPage | undefined;
+  base: string;
+  allLabel: string;
+}) {
+  return (
+    <div className="relative group">
+      <a
+        href={href}
+        className="inline-flex items-center gap-1 px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100"
+      >
+        {label}
+        <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </a>
+      {/* Bridge keeps hover alive across the gap to the panel. */}
+      <div className="absolute left-0 top-full h-2 w-full" />
+      <div className="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-150 absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50">
+        <div className="w-[min(600px,92vw)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            {groups.map((g) => (
+              <div key={g.title} className={g.slugs.length > 3 ? "sm:row-span-2" : ""}>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                  {g.title}
+                </div>
+                <ul className="space-y-0.5">
+                  {g.slugs.map((slug) => {
+                    const p = resolve(slug);
+                    if (!p) return null;
+                    return (
+                      <li key={slug}>
+                        <a
+                          href={`${base}/${p.slug}`}
+                          className="block px-2 py-1.5 -mx-2 rounded-lg hover:bg-purple-50"
+                        >
+                          <span className="block text-sm font-medium text-gray-900">{p.h1}</span>
+                          <span className="block text-xs text-gray-500 line-clamp-1">{p.subhead}</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <a
+            href={href}
+            className="mt-5 inline-block text-sm font-semibold text-purple-600 hover:text-purple-800"
+          >
+            {allLabel} →
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The Features / Solutions dropdown pair — reused by the homepage nav. */
+export function MarketingNavDropdowns() {
+  return (
+    <>
+      <NavDropdown
+        label="Features"
+        href="/features"
+        groups={FEATURE_GROUPS}
+        resolve={getFeaturePage}
+        base="/features"
+        allLabel="View all features"
+      />
+      <NavDropdown
+        label="Solutions"
+        href="/solutions"
+        groups={SOLUTION_GROUPS}
+        resolve={getSolutionPage}
+        base="/solutions"
+        allLabel="View all solutions"
+      />
+    </>
+  );
+}
+
 export function MarketingNav() {
   return (
-    <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+    <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100 relative z-40">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         <a href="/" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/mikey-avatar.png" alt="Mikey" className="w-10 h-10 rounded-lg" />
           <span className="font-bold text-xl text-gray-900">Mikey</span>
         </a>
-        <div className="flex items-center gap-1 sm:gap-4 text-sm">
-          <a href="/features" className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">
-            Features
-          </a>
-          <a href="/solutions" className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">
-            Solutions
-          </a>
+        <div className="flex items-center gap-1 sm:gap-2 text-sm">
+          <MarketingNavDropdowns />
           <a href="/signin" className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">
             Sign In
           </a>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import StickyCtaBar from "@/components/StickyCtaBar";
 import { AuthButtons, AuthButtonsCTA } from "@/components/AuthButtons";
+import { MarketingNavDropdowns } from "@/components/marketing/MarketingShell";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
 
@@ -45,7 +46,7 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Top Navigation */}
-      <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+      <nav className="w-full px-6 py-4 bg-white/80 backdrop-blur-sm border-b border-gray-100 relative z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img
@@ -55,19 +56,8 @@ export default async function Home({ searchParams }: HomeProps) {
             />
             <span className="font-bold text-xl text-gray-900 dark:text-gray-100">Mikey</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <a
-              href="/features"
-              className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="/solutions"
-              className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              Solutions
-            </a>
+          <div className="flex items-center gap-1 sm:gap-2 text-sm">
+            <MarketingNavDropdowns />
             <a
               href="/signin"
               className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
