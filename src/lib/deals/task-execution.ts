@@ -273,13 +273,16 @@ export async function sweepDueDealTasks(maxPings = 3): Promise<number> {
       const doUrl = `${appUrl}/deals/${task.dealId}/tasks/${task.id}/do`;
       const executeUrl = `${appUrl}/deals/${task.dealId}?executeTask=${task.id}`;
       const dismissUrl = `${appUrl}/deals/${task.dealId}/tasks/${task.id}/dismiss`;
+      // Non-Slack tasks (Chase watch tasks, offline work) still get a
+      // "Propose message" path — the overlay drafts one and upgrades
+      // the task if the founder wants to nudge via Slack after all.
       const sendLinks = isSlackTask
         ? canExecute
           ? `<${doUrl}|🚀 Send as you now>  |  <${executeUrl}|✏️ Edit & send>`
           : `<${executeUrl}|✏️ Edit & send>`
-        : null;
+        : `<${executeUrl}|💬 Propose message>`;
       const links = [
-        ...(sendLinks ? [sendLinks] : []),
+        sendLinks,
         `<${appUrl}/deals/${task.dealId}|Open deal →>`,
         `<${dismissUrl}|✕ Dismiss task>`,
       ].join("  ·  ");
@@ -305,8 +308,15 @@ export async function sweepDueDealTasks(maxPings = 3): Promise<number> {
                 (draft
                   ? `\n\n*Ready to send${task.deal.slackChannelName ? ` to #${task.deal.slackChannelName}` : ""}:*\n> ${draft.replace(/\n/g, "\n> ")}`
                   : "") +
-                (!canExecute
+                // Only warn about the channel when the task actually
+                // wants one. A Chase/offline task on a channel-linked
+                // deal must not claim "no Slack channel" (that read as
+                // a data bug to the founder — it wasn't).
+                (isSlackTask && !task.deal.slackChannelId
                   ? `\n\n⚠️ No Slack channel is linked to this deal — open it to attach one, then this executes with a touch.`
+                  : "") +
+                (!isSlackTask
+                  ? `\n\n👀 Watch task — waiting on their side. Nudge them with 💬 Propose message, ✓ it when it lands, or dismiss.`
                   : ""),
             },
           },
