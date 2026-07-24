@@ -55,12 +55,26 @@ export default async function Home({ searchParams }: HomeProps) {
             />
             <span className="font-bold text-xl text-gray-900 dark:text-gray-100">Mikey</span>
           </div>
-          <a
-            href="/signin"
-            className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            Sign In
-          </a>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <a
+              href="/features"
+              className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="/solutions"
+              className="px-3 py-2 text-gray-600 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Solutions
+            </a>
+            <a
+              href="/signin"
+              className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              Sign In
+            </a>
+          </div>
         </div>
       </nav>
 
