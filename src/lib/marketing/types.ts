@@ -19,6 +19,8 @@ export interface MarketingFaq {
 
 export interface MarketingPage {
   slug: string;
+  /** Page emoji — shown in the H1, nav dropdowns, index cards, footer. */
+  emoji: string;
   /** <title> — keep under ~60 chars, keyword-forward. */
   seoTitle: string;
   /** meta description — under ~155 chars. */

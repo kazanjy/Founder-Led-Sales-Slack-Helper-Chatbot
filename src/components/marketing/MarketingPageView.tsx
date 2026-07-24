@@ -12,11 +12,11 @@ export function MarketingPageView({ page, kind }: { page: MarketingPage; kind: "
     ...(page.relatedFeatures || [])
       .map((slug) => getFeaturePage(slug))
       .filter((p): p is MarketingPage => !!p)
-      .map((p) => ({ href: `/features/${p.slug}`, label: p.h1, tag: "Feature" })),
+      .map((p) => ({ href: `/features/${p.slug}`, label: `${p.emoji} ${p.h1}`, tag: "Feature" })),
     ...(page.relatedSolutions || [])
       .map((slug) => getSolutionPage(slug))
       .filter((p): p is MarketingPage => !!p)
-      .map((p) => ({ href: `/solutions/${p.slug}`, label: p.h1, tag: "Solution" })),
+      .map((p) => ({ href: `/solutions/${p.slug}`, label: `${p.emoji} ${p.h1}`, tag: "Solution" })),
   ];
 
   const faqJsonLd = {
@@ -40,7 +40,10 @@ export function MarketingPageView({ page, kind }: { page: MarketingPage; kind: "
         <p className="text-sm font-semibold uppercase tracking-wider text-purple-600 mb-3">
           {kind === "feature" ? "Product" : "Solutions"}
         </p>
-        <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">{page.h1}</h1>
+        <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+          <span className="mr-3" aria-hidden>{page.emoji}</span>
+          {page.h1}
+        </h1>
         <p className="text-xl text-gray-600 mb-6">{page.subhead}</p>
         <p className="text-lg text-gray-600 leading-relaxed mb-10">{page.intro}</p>
 
@@ -63,7 +66,7 @@ export function MarketingPageView({ page, kind }: { page: MarketingPage; kind: "
 
         {page.steps && (
           <section className="mb-8 p-6 rounded-2xl bg-white border border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">How it works</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">⚙️ How it works</h2>
             <ol className="space-y-3">
               {page.steps.map((step, i) => (
                 <li key={step} className="flex items-start gap-3 text-gray-600">
@@ -80,7 +83,7 @@ export function MarketingPageView({ page, kind }: { page: MarketingPage; kind: "
         <MarketingCta line={page.ctaLine} />
 
         <section className="mb-10">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Frequently asked questions</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">🙋 Frequently asked questions</h2>
           <div className="space-y-5">
             {page.faqs.map((f) => (
               <div key={f.q}>

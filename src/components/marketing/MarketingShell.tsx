@@ -79,10 +79,13 @@ function NavDropdown({
                       <li key={slug}>
                         <a
                           href={`${base}/${p.slug}`}
-                          className="block px-2 py-1.5 -mx-2 rounded-lg hover:bg-purple-50"
+                          className="flex items-start gap-2 px-2 py-1.5 -mx-2 rounded-lg hover:bg-purple-50"
                         >
-                          <span className="block text-sm font-medium text-gray-900">{p.h1}</span>
-                          <span className="block text-xs text-gray-500 line-clamp-1">{p.subhead}</span>
+                          <span className="text-base leading-5 mt-0.5" aria-hidden>{p.emoji}</span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-gray-900">{p.h1}</span>
+                            <span className="block text-xs text-gray-500 line-clamp-1">{p.subhead}</span>
+                          </span>
                         </a>
                       </li>
                     );
@@ -150,7 +153,7 @@ export function MarketingNav() {
 export function MarketingCta({ line }: { line: string }) {
   return (
     <section className="my-14 p-8 rounded-2xl text-center text-white" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
-      <p className="text-xl font-semibold mb-5">{line}</p>
+      <p className="text-xl font-semibold mb-5">✨ {line}</p>
       <div className="flex items-center justify-center gap-4 flex-wrap">
         <a
           href="/signin"
@@ -193,7 +196,7 @@ export function MarketingFooter() {
             {FEATURE_PAGES.map((p) => (
               <li key={p.slug}>
                 <a href={`/features/${p.slug}`} className="text-gray-500 hover:text-purple-700 hover:underline">
-                  {p.h1}
+                  {p.emoji} {p.h1}
                 </a>
               </li>
             ))}
@@ -205,7 +208,7 @@ export function MarketingFooter() {
             {SOLUTION_PAGES.map((p) => (
               <li key={p.slug}>
                 <a href={`/solutions/${p.slug}`} className="text-gray-500 hover:text-purple-700 hover:underline">
-                  {p.h1}
+                  {p.emoji} {p.h1}
                 </a>
               </li>
             ))}

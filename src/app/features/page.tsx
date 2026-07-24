@@ -26,7 +26,7 @@ export default function FeaturesIndexPage() {
       <div className="max-w-4xl mx-auto px-6 py-12">
         <p className="text-sm font-semibold uppercase tracking-wider text-purple-600 mb-3">Product</p>
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-          Everything a founder needs to sell
+          🧰 Everything a founder needs to sell
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl">
           One platform for the whole founder-led sales motion — the playbook, the calls, the
@@ -39,7 +39,10 @@ export default function FeaturesIndexPage() {
               href={`/features/${p.slug}`}
               className="block p-5 rounded-2xl bg-white border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all"
             >
-              <h2 className="text-lg font-bold text-gray-900 mb-1">{p.h1}</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">
+                <span className="mr-2" aria-hidden>{p.emoji}</span>
+                {p.h1}
+              </h2>
               <p className="text-sm text-gray-500 leading-relaxed">{p.subhead}</p>
             </a>
           ))}

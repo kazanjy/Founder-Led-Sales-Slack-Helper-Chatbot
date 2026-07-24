@@ -8,6 +8,7 @@ import type { MarketingPage } from "./types";
 export const FEATURE_PAGES: MarketingPage[] = [
   {
     slug: "deal-pipeline-autopilot",
+    emoji: "🤝",
     seoTitle: "AI Sales Pipeline for Founders — Deal Autopilot | Mikey",
     seoDescription:
       "Mikey builds and runs your pipeline for you: deals auto-created from your calendar and call recorder, AI deal analysis after every call, and Slack alerts when a deal needs you.",
@@ -64,6 +65,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "sales-coaching",
+    emoji: "🎓",
     seoTitle: "AI Sales Coach for Founders | Mikey",
     seoDescription:
       "Weekly sales coaching built on Founding Sales: sessions with an AI coach that knows your deals, goals and tasks with priorities, and takeaway docs that write themselves.",
@@ -109,6 +111,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "sales-playbook",
+    emoji: "📖",
     seoTitle: "AI Sales Playbook Generator — Narrative, ICP, Discovery | Mikey",
     seoDescription:
       "Generate your complete founder sales playbook: sales narrative, ICP, discovery questions, objection handling, cold call scripts, and sales decks — each built from the last.",
@@ -158,6 +161,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "practice-roleplay",
+    emoji: "🥊",
     seoTitle: "AI Sales Roleplay & Practice Drills for Founders | Mikey",
     seoDescription:
       "Practice discovery, rapport, agenda-setting, and full sales calls against AI buyer personas built from your real prospects — with grading and rep-over-rep improvement.",
@@ -201,6 +205,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "pre-call-planning",
+    emoji: "📋",
     seoTitle: "AI Pre-Call Research & Call Planning | Mikey",
     seoDescription:
       "Automatic pre-call briefs 4 hours before every prospect meeting: company research, deal history, objectives, and talking points — delivered to Slack.",
@@ -244,6 +249,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "call-review",
+    emoji: "📞",
     seoTitle: "AI Sales Call Review & Recap Emails | Mikey",
     seoDescription:
       "AI call coaching on your real recordings — scorecards on discovery quality and next-step discipline — plus recap emails drafted from the transcript.",
@@ -281,6 +287,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "slack-sales-assistant",
+    emoji: "💬",
     seoTitle: "Slack-Native AI Sales Assistant — Sell in Slack | Mikey",
     seoDescription:
       "Run founder-led sales where you already live: deal alerts, pre-call briefs, drafted follow-ups sent as you, and shared prospect channels synced to your pipeline.",
@@ -318,6 +325,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "outbound-content",
+    emoji: "📣",
     seoTitle: "AI Outbound Sequences & Sales Content for Founders | Mikey",
     seoDescription:
       "Email sequences, LinkedIn outreach, social posts, and ad copy generated from your sales narrative — one coherent voice across every channel.",
@@ -355,6 +363,7 @@ export const FEATURE_PAGES: MarketingPage[] = [
   },
   {
     slug: "customer-proof",
+    emoji: "🌟",
     seoTitle: "AI Testimonials, Case Studies & Success Stories | Mikey",
     seoDescription:
       "Turn customer calls into proof: extract quoted, metric-backed proof points and publish testimonials, success stories, and case studies — attributed or blind.",

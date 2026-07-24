@@ -10,6 +10,7 @@ import type { MarketingPage } from "./types";
 export const SOLUTION_PAGES: MarketingPage[] = [
   {
     slug: "technical-founder-sales",
+    emoji: "🧑‍💻",
     seoTitle: "Sales for Technical Founders — Learn to Sell Your Product | Mikey",
     seoDescription:
       "You built the product; now you have to sell it. Mikey gives technical founders a playbook, a coach, practice reps, and a pipeline that runs itself.",
@@ -51,6 +52,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "founder-led-sales-playbook",
+    emoji: "🧭",
     seoTitle: "How to Do Founder-Led Sales — The Complete System | Mikey",
     seoDescription:
       "Founder-led sales, systematized: build the playbook, run the calls, work the pipeline, and capture the proof — based on Pete Kazanjy's Founding Sales.",
@@ -92,6 +94,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "learn-to-sell",
+    emoji: "🏋️",
     seoTitle: "Learn to Sell as a Founder — Coaching + Practice | Mikey",
     seoDescription:
       "Learn sales by doing it well: AI coaching on your real calls, roleplay drills with grading, and a methodology that tells you what good looks like.",
@@ -129,6 +132,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "founder-crm-alternative",
+    emoji: "🪄",
     seoTitle: "CRM Alternative for Founders — Pipeline Without Data Entry | Mikey",
     seoDescription:
       "Skip the CRM you'll never update. Mikey builds pipeline from your calendar, call recorder, and Slack — with AI analysis and follow-ups instead of empty fields.",
@@ -166,6 +170,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "win-more-deals",
+    emoji: "🏆",
     seoTitle: "Close More Deals as a Founder — AI Deal Execution | Mikey",
     seoDescription:
       "Deals die from dropped follow-ups and cold silences, not lost arguments. Mikey catches drift, drafts the save, and keeps every commitment moving.",
@@ -203,6 +208,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "sell-in-slack",
+    emoji: "🤙",
     seoTitle: "Selling Through Shared Slack Channels — Slack Sales for Founders | Mikey",
     seoDescription:
       "Your deals live in shared Slack channels. Mikey reads them as evidence, drafts responses in your voice, and turns channel activity into pipeline signal.",
@@ -240,6 +246,7 @@ export const SOLUTION_PAGES: MarketingPage[] = [
   },
   {
     slug: "first-sales-hire",
+    emoji: "🌱",
     seoTitle: "Preparing for Your First Sales Hire — Readiness + Handoff | Mikey",
     seoDescription:
       "Don't hire a salesperson to discover your sales motion — hand them one. Playbook, proven pipeline history, hiring profiles, and readiness scoring.",
