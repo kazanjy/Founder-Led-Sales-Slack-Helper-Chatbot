@@ -6,6 +6,54 @@ import { persistNarrativeSources, type ExtractedSource } from "@/lib/narrative-p
 
 export const maxDuration = 180;
 
+/**
+ * Few-shot exemplar + format framing. This lived only in the legacy
+ * non-streaming /generate route; the streaming rewrite dropped it,
+ * which left the model with the 8-header skeleton but no
+ * demonstration of the voice, the persona specificity, or the
+ * hard-number density that makes a narrative land. Ported here so
+ * the live path teaches by example again.
+ */
+const NARRATIVE_FORMAT_AND_EXAMPLE = `## THE SALES NARRATIVE FORMAT
+
+The Sales Narrative is a flowing prose document (NOT bullet points) that weaves the answers into a cohesive, persuasive story.
+
+### CRITICAL REQUIREMENT: SECTION HEADERS ARE MANDATORY
+
+Each section MUST begin with its header in bold, exactly like this:
+- **What's the problem?**
+- **Who has the problem?**
+- **What's the cost of not solving the problem?**
+- **How is this currently solved? Why doesn't that work?**
+- **What has changed?**
+- **How does it work?**
+- **How do you know it's better?**
+- **Pricing**
+
+Use an engaging, conversational tone with urgency around the problem. Include specific numbers and metrics throughout.
+
+## EXAMPLES
+
+### The TalentBin Narrative
+
+**What's the problem?** Technical recruiting is really hard! Finding software-engineering talent that has the skills that your organization requires, and then engaging with them to get them to consider your organization, is a tough problem.
+
+**Who has the problem?** It's something that makes the lives of technical sourcers, recruiters, and recruiting managers rough.
+
+**What's the cost of not solving the problem?** If they don't solve the problem, they may have to pay large sums of money to recruiting agencies—25% of a first-year salary of $125,000 or more. Otherwise they don't hire on schedule, and that impacts the ability of their organizations to ship software on time, and make revenue!
+
+**How is this currently solved? Why doesn't that work?** Yes, you can use things like job boards or LinkedIn, but the problem is that unemployment is so low in software engineering that very few engineers are actively looking for jobs. And because most people don't really pay attention to LinkedIn or update their profiles, software-engineering profiles have a tendency not to exist, or to be missing the skill information that indicates that the engineer in question would be a good fit.
+
+**What has changed?** But the good news is, the Internet has undergone some amazing changes of late to help make finding and engaging with these potential hires much easier and more effective. Because people are spending so much more time online on social sites like Twitter, Facebook, Meetup and professional networks like GitHub and Stack Overflow, there are reams and reams of information available.
+
+**How does it work?** TalentBin scoops up all the information that individuals leave as digital fingerprints of their professional selves, analyzes it, and turns it into profiles for these individuals, with skill details and contact information.
+
+**How do you know it's better?** Because TalentBin makes use of these mountains of "implicit" professional activity, it returns 5x the number of results compared to LinkedIn Recruiter. Moreover, 60% of these profiles have personal email addresses. Recruiter open, click, and response rates are 3x-5x better than generic InMail outreach.
+
+And all of this is available to you for **$6,000 per user, per year**.
+
+(Note on the example: it folds pricing into a closing line. YOUR output must still use an explicit **Pricing** header for that section. Match the example's voice, specificity, and use of hard numbers — not its section count.)`;
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -97,6 +145,10 @@ ${answersSummary}`;
 
 ---
 
+${NARRATIVE_FORMAT_AND_EXAMPLE}
+
+---
+
 Write a compelling sales narrative (~2000 words) as flowing prose with exactly 8 sections. Each section MUST start with its bold header on its own line:
 
 **What's the problem?**
@@ -128,6 +180,10 @@ Use an engaging, conversational tone with urgency. Include specific numbers and 
 Output ONLY the narrative text (with bold headers). No JSON, no code blocks.`;
 
     const condensedPrompt = `${sharedPreamble}
+
+---
+
+${NARRATIVE_FORMAT_AND_EXAMPLE}
 
 ---
 
