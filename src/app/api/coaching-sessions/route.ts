@@ -138,6 +138,8 @@ export async function POST(request: NextRequest) {
         data: [
           { userId: user.id, name: "Customer Count", definition: "Number of paying customers (signed contract, active subscription, etc.)", format: "number", isDefault: true, order: 0 },
           { userId: user.id, name: "ARR", definition: "Annual Recurring Revenue — total annualized value of recurring contracts", format: "currency", isDefault: true, order: 1 },
+          { userId: user.id, name: "First Meetings with Good Potential Fit Prospects", definition: "Per Week Per Rep", format: "number", isDefault: true, order: 2 },
+          { userId: user.id, name: "Total Meetings with Good Potential Fit Prospects", definition: "Per Week Per Rep", format: "number", isDefault: true, order: 3 },
         ],
       });
     }
