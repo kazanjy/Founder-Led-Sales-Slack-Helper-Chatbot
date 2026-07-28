@@ -6,6 +6,7 @@ import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
 import { runDealAgent } from "@/lib/agents/deals/run";
 import { hasStrongCoachingKeyword } from "./coaching-agent-router";
+import { burstDetectionText, type BurstMessage } from "./burst-context";
 
 // Cap thread history we feed back to the agent so a 50-message thread
 // doesn't blow up tokens. Most relevant context lives in the most
@@ -54,8 +55,13 @@ export async function tryHandleWithDealAgent(opts: {
   // user mentioned Mikey in an existing thread and we need to load
   // the prior turns for both deal-name detection AND agent context.
   threadRootTs: string | undefined;
+  // Rapid-fire channel messages immediately preceding this
+  // invocation ("same thought", split across posts). Feeds deal-name
+  // detection and the agent's context — see lib/slack/burst-context.
+  priorBurst?: BurstMessage[];
 }): Promise<boolean> {
   const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const priorBurst = opts.priorBurst || [];
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
@@ -142,12 +148,20 @@ export async function tryHandleWithDealAgent(opts: {
     // Order matters because we want to prefer a fresh deal mention
     // ("now about Acme") over a deal named further up the thread.
     let matchedDeal = findDealNameInText(cleanedForDetection, deals);
-    if (!matchedDeal && priorThread.length > 0) {
-      const combined = [cleanedForDetection, ...priorThread.map((m) => m.text)].join(" ");
+    if (!matchedDeal && (priorThread.length > 0 || priorBurst.length > 0)) {
+      // Fallback pass widens to the surrounding conversation: prior
+      // thread turns AND the rapid-fire notes just before this one
+      // ("Flock is being weird" → "@Mikey pull the calls"). Runs
+      // second so a fresh deal mention still wins.
+      const combined = [
+        cleanedForDetection,
+        ...priorThread.map((m) => m.text),
+        burstDetectionText(priorBurst),
+      ].join(" ");
       matchedDeal = findDealNameInText(combined, deals);
       if (matchedDeal) {
         console.log(
-          `[slack→deal-agent] matched deal "${matchedDeal.label}" from thread context, not current message`
+          `[slack→deal-agent] matched deal "${matchedDeal.label}" from surrounding context (thread=${priorThread.length}, burst=${priorBurst.length}), not current message`
         );
       }
     }
@@ -161,7 +175,11 @@ export async function tryHandleWithDealAgent(opts: {
     // tool can pull the relevant session content keyed off the deal
     // name.
     if (matchedDeal) {
-      const combinedForCoachingCheck = [cleanedForDetection, ...priorThread.map((m) => m.text)].join(" ");
+      const combinedForCoachingCheck = [
+        cleanedForDetection,
+        ...priorThread.map((m) => m.text),
+        burstDetectionText(priorBurst),
+      ].join(" ");
       // STRONG signals only — a matched deal + a generic verb like
       // "synthesize"/"tasks" stays with the deal agent; only clearly
       // coaching-relationship language (session, sprint, takeaways…)
@@ -207,10 +225,16 @@ export async function tryHandleWithDealAgent(opts: {
     // deal…" produced a context-free non-answer that read as the bot
     // breaking (which, to be fair, it was).
     try {
-      const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
-        role: m.role,
-        content: m.text,
-      }));
+      // Burst notes come first (they happened first), then thread
+      // turns. Labeled so the agent reads them as the lead-up to the
+      // question rather than as separate asks it must answer.
+      const conversationHistory: ChatCompletionMessageParam[] = [
+        ...priorBurst.map((b) => ({
+          role: "user" as const,
+          content: `(just said in the channel moments earlier) ${b.text}`,
+        })),
+        ...priorThread.map((m) => ({ role: m.role, content: m.text })),
+      ];
       const result = await runDealAgent({
         userId: contextUserId,
         userMessage: appendFileContext(cleaned, fileContext),

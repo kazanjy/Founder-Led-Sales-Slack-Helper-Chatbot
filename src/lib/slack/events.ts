@@ -8,6 +8,7 @@ import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseRes
 import { tryHandleWithDealAgent } from "./deal-agent-router";
 import { tryHandleWithCoachingAgent } from "./coaching-agent-router";
 import { tryHandleWithGtmAgent } from "./gtm-agent-router";
+import { fetchBurstContext } from "./burst-context";
 import { openai } from "@/lib/openai";
 import { uploadFile, StoredFileReference } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, isPDFMimeType, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -801,6 +802,21 @@ async function handleMention(
     threadTs
   );
 
+  // Same-thought pre-step: people fire off several short notes and
+  // then @mention Mikey (or reply to just one of them). Pull the
+  // tightly-clustered run of messages right before this invocation so
+  // detection and the agents see the whole thought, not the fragment
+  // that happened to carry the mention. Anchored on the THREAD ROOT
+  // when we're in a thread — the sibling notes sit before the root,
+  // not before the reply. Fails open to [].
+  const priorBurst = await fetchBurstContext({
+    userId: dbUser.id,
+    botClient: client,
+    channel,
+    anchorTs: thread_ts || ts,
+    botUserId: workspace.botUserId,
+  });
+
   // Deal-agent auto-route: if the message (or attached file text)
   // clearly references one of the user's deals, hand it to the
   // tool-using agent. Falls through silently if no match.
@@ -815,6 +831,7 @@ async function handleMention(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByDealAgent) return;
     // Then check coaching keywords. Order matters: an explicit
@@ -831,6 +848,7 @@ async function handleMention(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByCoachingAgent) return;
     // Then the GTM agent — the everything-else catch-all. It has
@@ -848,6 +866,7 @@ async function handleMention(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByGtmAgent) return;
   }
@@ -1021,6 +1040,21 @@ async function handleDirectMessage(
     threadTs
   );
 
+  // Same-thought pre-step: people fire off several short notes and
+  // then @mention Mikey (or reply to just one of them). Pull the
+  // tightly-clustered run of messages right before this invocation so
+  // detection and the agents see the whole thought, not the fragment
+  // that happened to carry the mention. Anchored on the THREAD ROOT
+  // when we're in a thread — the sibling notes sit before the root,
+  // not before the reply. Fails open to [].
+  const priorBurst = await fetchBurstContext({
+    userId: dbUser.id,
+    botClient: client,
+    channel,
+    anchorTs: thread_ts || ts,
+    botUserId: workspace.botUserId,
+  });
+
   // Deal-agent auto-route (same as handleMention). Substring match
   // against the user's deal names (or attached file text) hands
   // deal-shaped DMs to the tool-using agent.
@@ -1035,6 +1069,7 @@ async function handleDirectMessage(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByDealAgent) return;
     // Then check coaching keywords. Order matters: an explicit
@@ -1051,6 +1086,7 @@ async function handleDirectMessage(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByCoachingAgent) return;
     // GTM agent — everything-else catch-all. Now reads attached file
@@ -1067,6 +1103,7 @@ async function handleDirectMessage(
       botUserId: workspace.botUserId,
       messageTs: ts,
       threadRootTs: thread_ts,
+      priorBurst,
     });
     if (handledByGtmAgent) return;
   }

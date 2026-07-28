@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
+import { burstDetectionText, type BurstMessage } from "./burst-context";
 import { runCoachingAgent } from "@/lib/agents/coaching/run";
 
 /**
@@ -57,8 +58,12 @@ export async function tryHandleWithCoachingAgent(opts: {
   botUserId: string | null;
   messageTs: string;
   threadRootTs: string | undefined;
+  // Rapid-fire channel notes preceding this invocation — see
+  // lib/slack/burst-context.
+  priorBurst?: BurstMessage[];
 }): Promise<boolean> {
   const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const priorBurst = opts.priorBurst || [];
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
@@ -100,6 +105,7 @@ export async function tryHandleWithCoachingAgent(opts: {
 
     const triggered =
       hasCoachingKeyword(cleanedForDetection) ||
+      hasCoachingKeyword(burstDetectionText(priorBurst)) ||
       priorThread.some((m) => m.role === "user" && hasCoachingKeyword(m.text));
     if (!triggered) return false;
 
@@ -127,10 +133,13 @@ export async function tryHandleWithCoachingAgent(opts: {
       threadTs
     );
 
-    const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
+    const conversationHistory: ChatCompletionMessageParam[] = [
+      ...priorBurst.map((b) => ({
+        role: "user" as const,
+        content: `(just said in the channel moments earlier) ${b.text}`,
+      })),
+      ...priorThread.map((m) => ({ role: m.role, content: m.text })),
+    ];
     const result = await runCoachingAgent({
       userId: contextUserId,
       userMessage: appendFileContext(cleaned, fileContext),

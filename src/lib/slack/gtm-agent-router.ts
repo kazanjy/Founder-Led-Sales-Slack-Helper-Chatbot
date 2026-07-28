@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
 import { markdownToSlack } from "./markdown";
 import { appendFileContext } from "./file-context";
+import { type BurstMessage } from "./burst-context";
 import { runGtmAgent } from "@/lib/agents/gtm/run";
 
 /**
@@ -34,8 +35,12 @@ export async function tryHandleWithGtmAgent(opts: {
   botUserId: string | null;
   messageTs: string;
   threadRootTs: string | undefined;
+  // Rapid-fire channel notes preceding this invocation — see
+  // lib/slack/burst-context.
+  priorBurst?: BurstMessage[];
 }): Promise<boolean> {
   const { speakerUserId, text, fileContext, client, channel, threadTs, botUserId, messageTs, threadRootTs } = opts;
+  const priorBurst = opts.priorBurst || [];
 
   try {
     const cleaned = stripSlackMentions(text || "").trim();
@@ -74,10 +79,13 @@ export async function tryHandleWithGtmAgent(opts: {
       `[slack→gtm-agent] user=${contextUserId} text="${cleaned.substring(0, 140)}" routing to GTM agent`
     );
 
-    const conversationHistory: ChatCompletionMessageParam[] = priorThread.map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
+    const conversationHistory: ChatCompletionMessageParam[] = [
+      ...priorBurst.map((b) => ({
+        role: "user" as const,
+        content: `(just said in the channel moments earlier) ${b.text}`,
+      })),
+      ...priorThread.map((m) => ({ role: m.role, content: m.text })),
+    ];
     const result = await runGtmAgent({
       userId: contextUserId,
       userMessage: appendFileContext(cleaned, fileContext),
