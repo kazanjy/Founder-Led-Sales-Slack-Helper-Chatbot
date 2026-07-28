@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { exportMarkdownAsPdf } from "@/lib/export-pdf";
 
 interface AnswerEntry {
   globalOrder: number;
@@ -109,76 +110,18 @@ function downloadMarkdown(version: NarrativeForExport, answers: AnswersByCategor
   URL.revokeObjectURL(url);
 }
 
-// Render markdown → printable HTML and open in a new window, auto-fire
-// window.print() so the user can pick "Save as PDF" in the print
-// dialog. Zero dependencies and the destination is always "Save as PDF"
-// by default in modern browsers. We use a minimal CSS-only renderer so
-// users get heading hierarchy + paragraph spacing without us pulling
-// in a heavy PDF library.
+// PDF export delegates to the shared lib/export-pdf utility so the
+// whole app produces one house style. That also upgrades this export:
+// the bespoke converter that used to live here only handled headings,
+// bold, italic and code ("sufficient for the narrative shape"), while
+// the shared path runs the full `marked` pipeline — so Q&A lists,
+// tables and blockquotes now survive into the PDF. Popup blockers
+// aren't a factor either (it prints from an off-screen iframe), but we
+// keep the markdown download as a fallback if it can't run at all.
 function exportAsPdf(version: NarrativeForExport, answers: AnswersByCategory | null) {
   const md = buildExportMarkdown(version, answers);
-  // Tiny markdown → HTML pass: handle headings, bold, italic, code,
-  // links, and paragraph breaks. Sufficient for the narrative shape
-  // which doesn't use lists or tables.
-  const escape = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const html = md
-    .split(/\n\n+/)
-    .map((block) => {
-      const trimmed = block.trim();
-      if (!trimmed) return "";
-      if (trimmed.startsWith("### ")) return `<h3>${escape(trimmed.slice(4))}</h3>`;
-      if (trimmed.startsWith("## ")) return `<h2>${escape(trimmed.slice(3))}</h2>`;
-      if (trimmed.startsWith("# ")) return `<h1>${escape(trimmed.slice(2))}</h1>`;
-      // Inline formatting on a paragraph body.
-      const inline = escape(trimmed)
-        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-        .replace(/_([^_]+)_/g, "<em>$1</em>")
-        .replace(/`([^`]+)`/g, "<code>$1</code>")
-        .replace(/\n/g, "<br/>");
-      return `<p>${inline}</p>`;
-    })
-    .join("\n");
-
-  const title = escape(version.title || "Sales Narrative");
-  const doc = `<!doctype html>
-<html><head>
-<meta charset="utf-8" />
-<title>${title}</title>
-<style>
-  @page { size: Letter; margin: 0.75in; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: #111; line-height: 1.55; max-width: 7in; margin: 0 auto; padding: 0.5in 0; font-size: 11.5pt; }
-  h1 { font-size: 22pt; margin: 0 0 0.25in 0; }
-  h2 { font-size: 14pt; margin: 0.35in 0 0.1in 0; border-bottom: 1px solid #ddd; padding-bottom: 4px; page-break-after: avoid; }
-  h3 { font-size: 11.5pt; margin: 0.25in 0 0.05in 0; page-break-after: avoid; }
-  p { margin: 0 0 0.12in 0; }
-  strong { font-weight: 600; }
-  em { font-style: italic; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 90%; background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
-  @media print { body { padding: 0; } }
-</style>
-</head><body>${html}</body></html>`;
-
-  // window.open() returns NULL when "noopener" is in the features
-  // string — by design, since noopener severs the opener reference.
-  // We need the returned Window handle to write the HTML and call
-  // print(), so we deliberately drop noopener/noreferrer here. The
-  // destination is a same-origin about:blank we fully control, so
-  // there's no XSS risk from the opener relationship.
-  const w = window.open("", "_blank", "popup=1,width=900,height=1000");
-  if (!w) {
-    // Actual popup blocker — fall back to MD download so the user
-    // still gets an artifact.
-    downloadMarkdown(version, answers);
-    return;
-  }
-  w.document.open();
-  w.document.write(doc);
-  w.document.close();
-  // Wait a beat so fonts render before the print dialog opens.
-  w.addEventListener("load", () => {
-    setTimeout(() => w.print(), 200);
-  });
+  const ok = exportMarkdownAsPdf(md, { title: version.title || "Sales Narrative" });
+  if (!ok) downloadMarkdown(version, answers);
 }
 
 export default function ExportNarrativeButton({ version, answersByCategory }: Props) {
