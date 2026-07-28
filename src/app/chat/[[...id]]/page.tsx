@@ -17,6 +17,7 @@ import OnboardingFlow, { OnboardingStep } from "@/components/OnboardingFlow";
 import IntegrationsRow from "@/components/IntegrationsRow";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
+import { exportMarkdownAsPdf } from "@/lib/export-pdf";
 import { AttachmentPicker, AttachmentChips, AttachmentChipsReadOnly } from "@/components/AttachmentPicker";
 import { FileAttachmentButton as ImageAttachmentButton, FilePreviewChips as ImagePreviewChips, ImageChipsReadOnly, isPDFFile, isCSVFile, isDocxFile, isSupportedFile, type AttachedFile } from "@/components/ImageAttachment";
 import Papa from "papaparse";
@@ -5015,6 +5016,30 @@ export default function ChatPage() {
                           </button>
                           <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
                             Copy this response
+                          </span>
+                        </div>
+                        <div className="relative group/btn">
+                          <button
+                            onClick={() => {
+                              const ok = exportMarkdownAsPdf(msg.content, {
+                                subtitle:
+                                  conversations.find((c) => c.id === selectedConversation)?.title ||
+                                  undefined,
+                              });
+                              if (!ok) showToast("Couldn't open the PDF export", "bottom");
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            aria-label="Export this response as a PDF"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <line x1="12" y1="18" x2="12" y2="12"></line>
+                              <polyline points="9 15 12 18 15 15"></polyline>
+                            </svg>
+                          </button>
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+                            Export this response as a PDF
                           </span>
                         </div>
                         <div className="relative group/btn">
