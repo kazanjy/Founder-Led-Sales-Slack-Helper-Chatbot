@@ -27,6 +27,7 @@ const DUPE_CHECKED_TYPES = [
   "slack_message",
   "sms_message",
   "linkedin",
+  "twitter_dm",
   "screenshot",
   "note",
   "evidence",

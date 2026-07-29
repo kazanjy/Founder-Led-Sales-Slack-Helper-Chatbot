@@ -688,7 +688,7 @@ const addTimelineEntry: ToolEntry = {
           dealId: { type: "string" },
           type: {
             type: "string",
-            enum: ["note", "email", "slack_message", "sms_message", "linkedin"],
+            enum: ["note", "email", "slack_message", "sms_message", "linkedin", "twitter_dm"],
             description: "What kind of entry to log.",
           },
           content: {

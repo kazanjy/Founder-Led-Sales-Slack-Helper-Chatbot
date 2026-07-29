@@ -7,6 +7,7 @@ const ALLOWED_TYPES = new Set([
   "slack_message",
   "sms_message",
   "linkedin",
+  "twitter_dm",
   "document",
   "note",
 ]);
@@ -60,6 +61,7 @@ Return ONE line of JSON and nothing else:
   * "email" — From/To/Subject header pattern, or a clear email body / reply chain
   * "slack_message" — Slack DM/channel content (mentions of channels, threads, @mentions, Slack reactions)
   * "sms_message" — phone-style text messaging (iMessage, SMS, WhatsApp): short bursts with timestamps, no email headers
+  * "twitter_dm" — a Twitter/X direct message exchange: @handles, short bursts, often quoted tweets or links
   * "linkedin" — LinkedIn InMail, connection request, profile content, or LinkedIn message thread
   * "document" — contract / proposal / brief / formal document prose
   * "note" — fallback when content doesn't clearly fit any of the above (a user-typed observation)`;

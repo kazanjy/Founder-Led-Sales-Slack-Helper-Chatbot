@@ -743,6 +743,8 @@ export default function DealDetailPage({ params }: { params: Promise<{ id: strin
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [editingTitlePid, setEditingTitlePid] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
+  const [editingNamePid, setEditingNamePid] = useState<string | null>(null);
+  const [editNameValue, setEditNameValue] = useState("");
   const [editingDateEntryId, setEditingDateEntryId] = useState<string | null>(null);
   // Full-entry inline edit state — when this matches an entry id, the
   // card renders an edit form (type / title / content / sourceUrl)
@@ -1639,6 +1641,22 @@ Ground everything in what's actually in this deal's history — if the deal is t
     await loadDeal();
   };
 
+  // Names come from email prefixes / transcript speaker labels and are
+  // frequently wrong ("gnunez" for Gabriel Nunez). Same inline-edit
+  // contract as the title below it; blank input is ignored rather than
+  // wiping the participant's only identifier.
+  const updateParticipantName = async (pid: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) { setEditingNamePid(null); return; }
+    await fetch(`/api/deals/${id}/participants/${pid}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setEditingNamePid(null);
+    await loadDeal();
+  };
+
   const analyzeDeal = async (opts?: { silent?: boolean; scrollToResult?: boolean }) => {
     const silent = opts?.silent ?? false;
     const scrollToResult = opts?.scrollToResult ?? false;
@@ -1737,7 +1755,7 @@ Ground everything in what's actually in this deal's history — if the deal is t
       });
       if (res.ok) {
         const data = await res.json();
-        const ALLOWED_DETECTED = new Set(["email", "slack_message", "sms_message", "linkedin", "screenshot"]);
+        const ALLOWED_DETECTED = new Set(["email", "slack_message", "sms_message", "linkedin", "twitter_dm", "screenshot"]);
         const detected =
           typeof data.entryType === "string" && ALLOWED_DETECTED.has(data.entryType)
             ? data.entryType
@@ -3448,7 +3466,28 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{displayName(p.name, p.email)}</span>
+                            {editingNamePid === p.id ? (
+                              <div className="flex items-center gap-1 flex-1 min-w-0">
+                                <input
+                                  type="text"
+                                  value={editNameValue}
+                                  onChange={(e) => setEditNameValue(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") updateParticipantName(p.id, editNameValue); if (e.key === "Escape") setEditingNamePid(null); }}
+                                  placeholder="Name"
+                                  className="flex-1 min-w-0 px-1.5 py-0.5 border border-gray-300 dark:border-gray-700 rounded text-sm font-medium focus:ring-1 focus:ring-purple-500"
+                                  autoFocus
+                                />
+                                <button onClick={() => updateParticipantName(p.id, editNameValue)} className="text-xs text-purple-600 font-medium">Save</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setEditingNamePid(p.id); setEditNameValue(p.name || ""); }}
+                                className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate text-left hover:text-purple-600 transition-colors"
+                                title="Click to edit this name"
+                              >
+                                {displayName(p.name, p.email)}
+                              </button>
+                            )}
                             {(() => {
                               const mentions = mentionCounts.get(p.id) || 0;
                               if (mentions === 0) return null;
@@ -4272,7 +4311,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                             </a>
                           </div>
                         )}
-                        {(entry.type === "email" || entry.type === "chat" || entry.type === "slack_message" || entry.type === "sms_message") && (() => {
+                        {(entry.type === "email" || entry.type === "chat" || entry.type === "slack_message" || entry.type === "sms_message" || entry.type === "twitter_dm") && (() => {
                           // For Mikey Deal Chat breadcrumbs, "Chat With This" reopens
                           // the past conversation stored at sourceUrl = /chat/<id>.
                           // For emails / Slack / SMS, it starts a fresh focused chat.
@@ -4287,6 +4326,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                             entry.type === "email" ? "email"
                             : entry.type === "slack_message" ? "Slack thread"
                             : entry.type === "sms_message" ? "text exchange"
+                            : entry.type === "twitter_dm" ? "Twitter/X DM"
                             : "conversation";
                           const titleText = chatMatch
                             ? "Reopen this past Deal Chat in the side panel"
@@ -4385,7 +4425,7 @@ Be specific to this meeting — use what's actually in the deal history, and cal
                           // Also decode HTML entities (&#39; → ', etc.)
                           // up front so older imports that stored them
                           // raw render correctly without a backfill.
-                          const PRESERVE_LINEBREAKS = new Set(["meeting", "email", "slack_message", "sms_message", "linkedin"]);
+                          const PRESERVE_LINEBREAKS = new Set(["meeting", "email", "slack_message", "sms_message", "linkedin", "twitter_dm"]);
                           const renderContent = (() => {
                             if (PRESERVE_LINEBREAKS.has(entry.type)) {
                               // External-source content (calendar invites,

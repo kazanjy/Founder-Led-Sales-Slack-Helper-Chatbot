@@ -28,6 +28,7 @@ const ATTRIBUTABLE_TYPES = new Set([
   "slack_message",
   "sms_message",
   "linkedin",
+  "twitter_dm",
   "call_transcript",
   "call_summary",
 ]);

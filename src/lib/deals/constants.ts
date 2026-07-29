@@ -69,6 +69,7 @@ export const ENTRY_TYPES = [
   { value: "screenshot", label: "Screenshot", emoji: "📷", description: "Drop in a screenshot — Mikey reads the image and pulls out who and what." },
   { value: "note", label: "Note", emoji: "📝", description: "Free-form notes. Type, paste, or record a voice note that gets synthesized into a written summary." },
   { value: "linkedin", label: "LinkedIn", emoji: "💼", description: "A LinkedIn message, post, or comment relevant to this deal." },
+  { value: "twitter_dm", label: "Twitter / X DM", emoji: "🐦", description: "A direct-message exchange on Twitter/X — paste the thread or drop in a screenshot." },
   { value: "document", label: "Document", emoji: "📄", description: "Drop in a PDF or paste a doc — proposals, contracts, brief sheets." },
   { value: "research_brief", label: "Pre-Call Plan", emoji: "🔬", description: "A pre-call research brief — surfaced on the timeline with a preview and a link to the full brief." },
   { value: "recap_email", label: "Recap Email", emoji: "📨", description: "A post-call recap email draft — surfaced on the timeline with a preview and a link to the full draft." },
@@ -93,6 +94,7 @@ export const ACTIVITY_ENTRY_TYPES = [
   "sms_message",
   "screenshot",
   "linkedin",
+  "twitter_dm",
 ];
 
 // Statuses where AUTOMATIC re-analysis (and its Slack stub + task
