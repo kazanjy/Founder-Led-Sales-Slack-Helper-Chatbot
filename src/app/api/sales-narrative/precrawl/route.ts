@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       status: "completed",
       crawlText: result.text,
       crawlUrls: result.urls,
+      // Per-page segments so the client can let the founder drop
+      // individual pages before prefill runs.
+      crawlPages: result.pages,
     });
   } catch (error) {
     console.error("[Precrawl] Error:", error);

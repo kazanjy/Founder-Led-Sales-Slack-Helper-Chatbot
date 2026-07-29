@@ -1,5 +1,7 @@
 "use client";
 
+import type { CrawledPage } from "@/lib/narrative-prefill/crawl-website";
+
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -105,9 +107,12 @@ function SalesNarrativeEditContent() {
   const dragCounterRef = useRef(0);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
   const precrawlFiredRef = useRef<string | null>(null);
-  const precrawlResultRef = useRef<{ url: string; text: string; urls: string[] } | null>(null);
+  const precrawlResultRef = useRef<{ url: string; text: string; urls: string[]; pages: CrawledPage[] } | null>(null);
   const [precrawlStatus, setPrecrawlStatus] = useState<"idle" | "crawling" | "ready">("idle");
   const [precrawlUrls, setPrecrawlUrls] = useState<string[]>([]);
+  // Pages the founder unchecked — excluded from the prefill context.
+  // Keyed by URL so it survives re-renders and list reordering.
+  const [excludedCrawlUrls, setExcludedCrawlUrls] = useState<Set<string>>(new Set());
 
   // Keep prefillUrl ref in sync so handlePrefill always has latest value
   useEffect(() => { prefillUrlRef.current = prefillUrl; }, [prefillUrl]);
@@ -122,7 +127,7 @@ function SalesNarrativeEditContent() {
         const parsed = JSON.parse(stored);
         sessionStorage.removeItem("precrawlResult");
         if (parsed?.url && parsed?.text) {
-          precrawlResultRef.current = { url: parsed.url, text: parsed.text, urls: parsed.urls || [] };
+          precrawlResultRef.current = { url: parsed.url, text: parsed.text, urls: parsed.urls || [], pages: parsed.pages || [] };
           precrawlFiredRef.current = parsed.url;
           setPrecrawlStatus("ready");
           setPrecrawlUrls(parsed.urls || []);
@@ -141,6 +146,7 @@ function SalesNarrativeEditContent() {
       if (precrawlFiredRef.current || precrawlResultRef.current) {
         setPrecrawlStatus("idle");
         setPrecrawlUrls([]);
+        setExcludedCrawlUrls(new Set());
         precrawlFiredRef.current = null;
         precrawlResultRef.current = null;
       }
@@ -165,6 +171,7 @@ function SalesNarrativeEditContent() {
     precrawlResultRef.current = null;
     precrawlFiredRef.current = url;
     setPrecrawlUrls([]);
+    setExcludedCrawlUrls(new Set());
     setPrecrawlStatus("crawling");
     fetch("/api/sales-narrative/precrawl", {
       method: "POST",
@@ -175,7 +182,7 @@ function SalesNarrativeEditContent() {
       .then((data) => {
         if (data?.crawlText && precrawlFiredRef.current === url) {
           const urls = data.crawlUrls || [];
-          precrawlResultRef.current = { url, text: data.crawlText, urls };
+          precrawlResultRef.current = { url, text: data.crawlText, urls, pages: data.crawlPages || [] };
           setPrecrawlStatus("ready");
           setPrecrawlUrls(urls);
         } else if (precrawlFiredRef.current === url) {
@@ -428,7 +435,15 @@ function SalesNarrativeEditContent() {
         imageFiles: uploadedImages.length > 0 ? uploadedImages : undefined,
       };
       if (precrawlResultRef.current && url) {
-        prefillBody.cachedCrawl = precrawlResultRef.current;
+        const cached = precrawlResultRef.current;
+        const keptPages = (cached.pages || []).filter((pg) => !excludedCrawlUrls.has(pg.url));
+        prefillBody.cachedCrawl = keptPages.length > 0
+          // Send the kept pages; the server rebuilds the context from
+          // them so excluded pages contribute nothing.
+          ? { pages: keptPages, urls: keptPages.map((pg) => pg.url) }
+          // No per-page data (crawl predates page splits) — fall back
+          // to the whole blob rather than sending nothing.
+          : { text: cached.text, urls: cached.urls };
       }
 
       const response = await fetch("/api/sales-narrative/prefill-stream", {
@@ -807,18 +822,76 @@ function SalesNarrativeEditContent() {
                     </>
                   )}
                 </div>
-                {precrawlUrls.length > 0 && (
-                  <div className="mt-2 p-2.5 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Pages found ({precrawlUrls.length}):</p>
-                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                      {precrawlUrls.map((u, i) => (
-                        <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 hover:text-blue-800 hover:underline truncate" title={u}>
-                          {u.replace(/^https?:\/\/(www\.)?/, "")}
-                        </a>
-                      ))}
+                {precrawlUrls.length > 0 && (() => {
+                  // Only offer per-page filtering when the crawl came
+                  // back with page splits (older cached crawls didn't).
+                  const canFilter = (precrawlResultRef.current?.pages?.length ?? 0) > 0;
+                  const keptCount = precrawlUrls.filter((u) => !excludedCrawlUrls.has(u)).length;
+                  return (
+                    <div className="mt-2 p-2.5 bg-gray-50 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {canFilter
+                            ? `Pages found (${keptCount} of ${precrawlUrls.length} included):`
+                            : `Pages found (${precrawlUrls.length}):`}
+                        </p>
+                        {canFilter && excludedCrawlUrls.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setExcludedCrawlUrls(new Set())}
+                            className="text-[11px] text-purple-600 hover:underline flex-shrink-0"
+                          >
+                            Include all
+                          </button>
+                        )}
+                      </div>
+                      {canFilter && (
+                        <p className="text-[11px] text-gray-400 mb-1.5">
+                          Uncheck any page you don&apos;t want shaping your narrative — off-positioning blog posts, stale case studies.
+                        </p>
+                      )}
+                      <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                        {precrawlUrls.map((u, i) => {
+                          const excluded = excludedCrawlUrls.has(u);
+                          return (
+                            <div key={i} className="flex items-center gap-1.5">
+                              {canFilter && (
+                                <input
+                                  type="checkbox"
+                                  checked={!excluded}
+                                  onChange={() => {
+                                    setExcludedCrawlUrls((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(u)) next.delete(u);
+                                      else next.add(u);
+                                      return next;
+                                    });
+                                  }}
+                                  className="w-3 h-3 accent-purple-600 flex-shrink-0 cursor-pointer"
+                                  aria-label={`Include ${u}`}
+                                />
+                              )}
+                              <a
+                                href={u}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`block text-xs truncate ${excluded ? "text-gray-400 line-through" : "text-blue-600 hover:text-blue-800 hover:underline"}`}
+                                title={u}
+                              >
+                                {u.replace(/^https?:\/\/(www\.)?/, "")}
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {canFilter && keptCount === 0 && (
+                        <p className="text-[11px] text-amber-600 mt-1.5">
+                          All pages excluded — the full crawl will be used instead. Uncheck fewer, or clear the website URL.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {precrawlStatus === "idle" && (
                   <p className="text-xs text-gray-400 mt-1">
                     We&apos;ll crawl your site for product, solution, customer, and pricing pages

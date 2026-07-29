@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
-import { crawlWebsiteForContext } from "@/lib/narrative-prefill/crawl-website";
+import { crawlWebsiteForContext, formatCrawledPages, type CrawledPage } from "@/lib/narrative-prefill/crawl-website";
 import { fetchPages } from "@/lib/search/fetcher";
 import { downloadFile } from "@/lib/supabase";
 import { extractTextFromPDFWithOCR, formatPDFForAIWithOCR } from "@/lib/pdf-server";
@@ -15,7 +15,10 @@ interface PrefillRequest {
   specificUrls?: string[];
   pdfFiles?: { name: string; storagePath?: string }[];
   imageFiles?: { name: string; storagePath?: string; mimeType?: string }[];
-  cachedCrawl?: { text: string; urls: string[] };
+  // `pages` is the filterable form — the client sends only the pages
+  // the founder left checked. `text`/`urls` remain for older clients
+  // (and for a crawl cached before this shipped).
+  cachedCrawl?: { text?: string; urls?: string[]; pages?: CrawledPage[] };
 }
 
 /**
@@ -61,12 +64,22 @@ export async function POST(request: NextRequest) {
     const extractedSources: Array<{ type: "url" | "pdf" | "image"; key: string; content: string }> = [];
     const tasks: Promise<void>[] = [];
 
-    if (cachedCrawl?.text) {
+    if (cachedCrawl?.pages?.length) {
+      // Filtered crawl: only the pages the founder kept. Each page is
+      // cached under its OWN url, so the Extend flow can reuse pages
+      // individually instead of one opaque blob.
+      contextParts.push(`## WEBSITE CONTENT\n\n${formatCrawledPages(cachedCrawl.pages)}`);
+      for (const page of cachedCrawl.pages) {
+        sourceUrls.push(page.url);
+        extractedSources.push({ type: "url", key: page.url, content: page.text });
+      }
+      console.log(`[PrefillStream] Using ${cachedCrawl.pages.length} selected crawl page(s)`);
+    } else if (cachedCrawl?.text) {
       contextParts.push(`## WEBSITE CONTENT\n\n${cachedCrawl.text}`);
-      sourceUrls.push(...cachedCrawl.urls);
-      // Store the whole crawl text under the first URL as the
-      // representative key — we don't have per-page splits here.
-      if (cachedCrawl.urls[0]) {
+      sourceUrls.push(...(cachedCrawl.urls || []));
+      // Legacy shape: the whole crawl under the first URL as the
+      // representative key — no per-page splits available.
+      if (cachedCrawl.urls?.[0]) {
         extractedSources.push({ type: "url", key: cachedCrawl.urls[0], content: cachedCrawl.text });
       }
     } else if (websiteUrl?.trim()) {
@@ -76,8 +89,9 @@ export async function POST(request: NextRequest) {
             if (result.text) {
               contextParts.push(`## WEBSITE CONTENT\n\n${result.text}`);
               sourceUrls.push(...result.urls);
-              if (result.urls[0]) {
-                extractedSources.push({ type: "url", key: result.urls[0], content: result.text });
+              // Cache per page so Extend can reuse them individually.
+              for (const page of result.pages) {
+                extractedSources.push({ type: "url", key: page.url, content: page.text });
               }
             }
           })

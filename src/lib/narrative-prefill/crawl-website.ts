@@ -11,9 +11,31 @@ const MAX_LEVEL1_PAGES = 20;
 const MAX_LEVEL2_PAGES = 10;
 const MAX_CONTEXT_LENGTH = 70_000;
 
+/** One successfully-fetched page, kept separate so the UI can let the
+ *  founder drop individual pages before they flavor the prefill. */
+export interface CrawledPage {
+  url: string;
+  title: string;
+  text: string;
+}
+
 export interface CrawlResult {
   text: string;
   urls: string[];  // URLs that were actually fetched successfully
+  /** Per-page segments backing `text` — the filterable unit. */
+  pages: CrawledPage[];
+}
+
+/** Render (a subset of) crawled pages into the context blob the
+ *  prefill prompt consumes. Shared so a filtered set formats exactly
+ *  like a full crawl. */
+export function formatCrawledPages(pages: CrawledPage[]): string {
+  const combined = pages
+    .map((p) => `=== ${p.title || p.url} (${p.url}) ===\n${p.text}`)
+    .join("\n\n");
+  return combined.length > MAX_CONTEXT_LENGTH
+    ? combined.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[...content truncated for length...]"
+    : combined;
 }
 
 /**
@@ -39,7 +61,7 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
   ]);
   if (!homepageHtml) {
     console.warn("[Crawler] Could not fetch homepage, returning empty context");
-    return { text: "", urls: [] };
+    return { text: "", urls: [], pages: [] };
   }
 
   // 2. Extract all same-domain links from the homepage
@@ -67,14 +89,13 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
   const [homepageResult, ...level1Results] = contentResults;
 
   // Collect level-1 results
-  const sections: string[] = [];
+  const pages: CrawledPage[] = [];
   const fetchedUrls: string[] = [];
   const allLevel1Fetches = [homepageResult, ...level1Results];
 
   for (const page of allLevel1Fetches) {
     if (page.success && page.textContent?.trim()) {
-      const label = page.title || page.url;
-      sections.push(`=== ${label} (${page.url}) ===\n${page.textContent}`);
+      pages.push({ url: page.url, title: page.title || page.url, text: page.textContent });
       fetchedUrls.push(page.url);
     }
   }
@@ -115,8 +136,7 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
 
       for (const page of level2Fetches) {
         if (page.success && page.textContent?.trim()) {
-          const label = page.title || page.url;
-          sections.push(`=== ${label} (${page.url}) ===\n${page.textContent}`);
+          pages.push({ url: page.url, title: page.title || page.url, text: page.textContent });
           fetchedUrls.push(page.url);
         }
       }
@@ -125,13 +145,10 @@ export async function crawlWebsiteForContext(url: string): Promise<CrawlResult> 
     }
   }
 
-  const combined = sections.join("\n\n");
-  const truncated = combined.length > MAX_CONTEXT_LENGTH
-    ? combined.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[...content truncated for length...]"
-    : combined;
+  const truncated = formatCrawledPages(pages);
 
   console.log(`[Crawler] Crawl complete: ${fetchedUrls.length} total pages, ${truncated.length} chars of context`);
-  return { text: truncated, urls: fetchedUrls };
+  return { text: truncated, urls: fetchedUrls, pages };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

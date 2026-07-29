@@ -57,6 +57,9 @@ export default function GetStartedModal({ isOpen, onClose, userEmail }: GetStart
               url,
               text: data.crawlText,
               urls: data.crawlUrls || [],
+              // Per-page splits so the edit page can offer per-page
+              // include/exclude without re-crawling.
+              pages: data.crawlPages || [],
             }));
           } catch { /* storage full — will just recrawl */ }
           setCrawlStatus("ready");
