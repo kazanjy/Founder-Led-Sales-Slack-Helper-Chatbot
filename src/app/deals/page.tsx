@@ -2409,9 +2409,22 @@ function DealsPageContent() {
                         <input
                           type="date"
                           value={deal.projectedCloseDate ? deal.projectedCloseDate.split("T")[0] : ""}
-                          onClick={(e) => e.preventDefault()}
+                          // preventDefault() here used to suppress the
+                          // native calendar entirely, leaving only
+                          // segment-by-segment keyboard entry. The row
+                          // wrapper already stopPropagation()s, so the
+                          // tile's Link never fires — nothing to
+                          // prevent. showPicker() opens the calendar
+                          // from anywhere in the field, not just the
+                          // tiny icon (it throws when unsupported or
+                          // not user-activated; the field still works).
+                          onClick={(e) => {
+                            try {
+                              (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+                            } catch { /* fall back to native behavior */ }
+                          }}
                           onChange={(e) => patchDeal({ projectedCloseDate: e.target.value || null })}
-                          className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 text-gray-700 dark:text-gray-200"
+                          className="bg-transparent border-b border-dashed border-gray-300 dark:border-gray-600 focus:outline-none focus:border-purple-500 px-1 py-0.5 text-gray-700 dark:text-gray-200 cursor-pointer"
                         />
                       </label>
                       {(deal.status === "closed_won" || deal.status === "closed_lost") && (deal as Deal & { closeDate?: string | null }).closeDate && (
