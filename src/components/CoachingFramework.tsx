@@ -257,6 +257,94 @@ const METRIC_FORMATS = [
   { value: "currency", label: "$", title: "Currency (USD)" },
 ];
 
+/**
+ * Metric trend sparkline — the `trend` slot of the stat-tile contract:
+ * saved sessions in a de-emphasis neutral, the in-progress value as the
+ * accent point. Deliberately axis-less; the value below it and the
+ * "Last N sessions" popover carry exact numbers.
+ *
+ * Colors validated against the card surface (>=3:1 contrast, normal-vision
+ * separation 23.5). The current point is additionally distinguished by
+ * position (always rightmost), a ringed dot, and the printed value — so
+ * identity never rests on hue alone.
+ *
+ * Fixed 240x34 viewBox scaled uniformly (no preserveAspectRatio="none"),
+ * which keeps the 2px stroke at 2px and the end dot circular.
+ */
+function MetricSparkline({
+  history,
+  currentValue,
+  format,
+}: {
+  history: MetricHistoryEntry[];
+  currentValue: number;
+  format?: string;
+}) {
+  // history arrives newest-first; a trend reads oldest -> newest.
+  const points = [
+    ...[...history].reverse().map((h) => ({
+      label: new Date(h.sessionDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }),
+      value: h.value,
+      current: false,
+    })),
+    { label: "This session", value: currentValue, current: true },
+  ];
+  // One point is a dot, not a trend — nothing to show yet.
+  if (points.length < 2) return null;
+
+  const W = 240;
+  const H = 34;
+  const PAD = 7; // clears the end dot's radius + its 2px ring
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min;
+  const stepX = (W - PAD * 2) / (points.length - 1);
+  const xy = points.map((p, i) => {
+    const x = PAD + i * stepX;
+    // Flat series sits on the centerline rather than dividing by zero.
+    const y = span === 0 ? H / 2 : H - PAD - ((p.value - min) / span) * (H - PAD * 2);
+    return { ...p, x, y };
+  });
+
+  const line = xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const last = xy[xy.length - 1];
+  const first = points[0];
+  const summary = `Trend over ${points.length} sessions, ${formatMetricValue(first.value, format)} to ${formatMetricValue(currentValue, format)}.`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-[34px] mb-1 overflow-visible"
+      role="img"
+      aria-label={summary}
+    >
+      <title>{summary}</title>
+      <polyline
+        points={line}
+        fill="none"
+        stroke="#6b7280"
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {/* Current (unsaved) value: accent dot, 2px surface ring so it stays
+          legible where it sits on the line. */}
+      <circle cx={last.x} cy={last.y} r={4} fill="#9333ea" stroke="#ffffff" strokeWidth={2} />
+      {/* Per-point native tooltips — generous invisible hit targets. */}
+      {xy.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={7} fill="transparent">
+          <title>{`${p.label}: ${formatMetricValue(p.value, format)}`}</title>
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
 function formatMetricValue(value: number, format?: string): string {
   if (value === null || value === undefined) return "";
   if (format === "currency") {
@@ -2919,6 +3007,16 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
               ) : entry.metricDefinition.definition ? (
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
               ) : null}
+              {/* Trend: saved sessions + this session's value. Sits above
+                  the number it contextualizes; hidden until there's more
+                  than one point to connect. */}
+              {entry.history.length > 0 && (
+                <MetricSparkline
+                  history={entry.history}
+                  currentValue={entry.currentValue}
+                  format={entry.metricDefinition.format}
+                />
+              )}
               {entry.previousValue != null && (() => {
                 const isPinned = pinnedHistoryDefId === entry.metricDefinition.id;
                 const placement = historyPlacement[entry.metricDefinition.id] ?? "right";
