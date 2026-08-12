@@ -258,18 +258,22 @@ const METRIC_FORMATS = [
 ];
 
 /**
- * Metric trend sparkline — the `trend` slot of the stat-tile contract:
- * saved sessions in a de-emphasis neutral, the in-progress value as the
- * accent point. Deliberately axis-less; the value below it and the
- * "Last N sessions" popover carry exact numbers.
+ * Metric trend sparkline with a crosshair readout.
  *
- * Colors validated against the card surface (>=3:1 contrast, normal-vision
- * separation 23.5). The current point is additionally distinguished by
- * position (always rightmost), a ringed dot, and the printed value — so
- * identity never rests on hue alone.
+ * The `trend` slot of the stat-tile contract: saved sessions in a
+ * de-emphasis neutral, this session's in-progress value as the purple
+ * accent point. Hovering (or focusing + arrowing) snaps a vertical
+ * hairline to the nearest session and floats a readout with the value
+ * leading and the date secondary.
  *
- * Fixed 240x34 viewBox scaled uniformly (no preserveAspectRatio="none"),
- * which keeps the 2px stroke at 2px and the end dot circular.
+ * Geometry is computed in REAL PIXELS off a measured container rather
+ * than a scaled viewBox: that keeps the 2px stroke at 2px and the dots
+ * circular, and lets the hairline and tooltip be positioned exactly.
+ *
+ * Colors validated against the card surface — both marks >= 3:1
+ * contrast, normal-vision separation dE 23.5. The current point is also
+ * distinguished by position (always rightmost), its ring, and the
+ * printed value below, so identity never rests on hue alone.
  */
 function MetricSparkline({
   history,
@@ -280,12 +284,29 @@ function MetricSparkline({
   currentValue: number;
   format?: string;
 }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(240);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  // Track the container so the chart fills the card at any tile width.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => setWidth(Math.max(120, el.clientWidth || 240));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // history arrives newest-first; a trend reads oldest -> newest.
   const points = [
     ...[...history].reverse().map((h) => ({
       label: new Date(h.sessionDate).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
+        year: "2-digit",
         timeZone: "UTC",
       }),
       value: h.value,
@@ -296,52 +317,129 @@ function MetricSparkline({
   // One point is a dot, not a trend — nothing to show yet.
   if (points.length < 2) return null;
 
-  const W = 240;
-  const H = 34;
-  const PAD = 7; // clears the end dot's radius + its 2px ring
+  const H = 40;
+  const PAD_Y = 7; // clears a dot's radius + its 2px ring
+  const PAD_X = 7;
   const values = points.map((p) => p.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min;
-  const stepX = (W - PAD * 2) / (points.length - 1);
-  const xy = points.map((p, i) => {
-    const x = PAD + i * stepX;
-    // Flat series sits on the centerline rather than dividing by zero.
-    const y = span === 0 ? H / 2 : H - PAD - ((p.value - min) / span) * (H - PAD * 2);
-    return { ...p, x, y };
-  });
+  const stepX = (width - PAD_X * 2) / (points.length - 1);
+  const xy = points.map((p, i) => ({
+    ...p,
+    x: PAD_X + i * stepX,
+    // A flat series sits on the centerline rather than dividing by zero.
+    y: span === 0 ? H / 2 : H - PAD_Y - ((p.value - min) / span) * (H - PAD_Y * 2),
+  }));
 
   const line = xy.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
   const last = xy[xy.length - 1];
-  const first = points[0];
-  const summary = `Trend over ${points.length} sessions, ${formatMetricValue(first.value, format)} to ${formatMetricValue(currentValue, format)}.`;
+  const summary = `Trend over ${points.length} sessions, ${formatMetricValue(points[0].value, format)} to ${formatMetricValue(currentValue, format)}.`;
+
+  // Nearest-point snapping: the reader aims at a session, never at a
+  // 2px line, so the whole plot is the hit target.
+  const snap = (clientX: number) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = clientX - rect.left;
+    let best = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < xy.length; i++) {
+      const d = Math.abs(xy[i].x - x);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    setHoverIdx(best);
+  };
+
+  const active = hoverIdx != null ? xy[hoverIdx] : null;
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full h-[34px] mb-1 overflow-visible"
-      role="img"
-      aria-label={summary}
+    <div className="mb-1">
+    <div
+      ref={wrapRef}
+      className="relative w-full select-none"
+      style={{ height: H }}
+      onPointerMove={(e) => snap(e.clientX)}
+      onPointerDown={(e) => snap(e.clientX)}
+      onPointerLeave={() => setHoverIdx(null)}
     >
-      <title>{summary}</title>
-      <polyline
-        points={line}
-        fill="none"
-        stroke="#6b7280"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {/* Current (unsaved) value: accent dot, 2px surface ring so it stays
-          legible where it sits on the line. */}
-      <circle cx={last.x} cy={last.y} r={4} fill="#9333ea" stroke="#ffffff" strokeWidth={2} />
-      {/* Per-point native tooltips — generous invisible hit targets. */}
-      {xy.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={7} fill="transparent">
-          <title>{`${p.label}: ${formatMetricValue(p.value, format)}`}</title>
-        </circle>
-      ))}
-    </svg>
+      <svg
+        width={width}
+        height={H}
+        viewBox={`0 0 ${width} ${H}`}
+        className="overflow-visible outline-none"
+        role="img"
+        aria-label={summary}
+        tabIndex={0}
+        onFocus={() => setHoverIdx(xy.length - 1)}
+        onBlur={() => setHoverIdx(null)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            setHoverIdx((cur) => {
+              const from = cur ?? xy.length - 1;
+              const next = e.key === "ArrowLeft" ? from - 1 : from + 1;
+              return Math.min(Math.max(next, 0), xy.length - 1);
+            });
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            setHoverIdx(0);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            setHoverIdx(xy.length - 1);
+          } else if (e.key === "Escape") {
+            setHoverIdx(null);
+          }
+        }}
+      >
+        <title>{summary}</title>
+        {/* Crosshair: recessive hairline snapped to the nearest session. */}
+        {active && (
+          <line
+            x1={active.x}
+            x2={active.x}
+            y1={0}
+            y2={H}
+            stroke="#9ca3af"
+            strokeWidth={1}
+            strokeDasharray="2 2"
+          />
+        )}
+        <polyline
+          points={line}
+          fill="none"
+          stroke="#6b7280"
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {/* This session's (unsaved) value — the accent, always rightmost. */}
+        <circle cx={last.x} cy={last.y} r={4} fill="#9333ea" stroke="#ffffff" strokeWidth={2} />
+        {/* Hovered session lifts. Historical points take dark ink so
+            purple keeps meaning "this session". */}
+        {active && !active.current && (
+          <circle cx={active.x} cy={active.y} r={4} fill="#374151" stroke="#ffffff" strokeWidth={2} />
+        )}
+      </svg>
+    </div>
+    {/* Readout on its own reserved line — value leads (strong), date
+        follows (secondary). A floating chip would cover the metric
+        name on a card this narrow, and reserving the line keeps the
+        tile from shifting as the pointer moves. */}
+    <div className="h-[13px] text-[10px] leading-[13px]" aria-live="polite">
+      {active ? (
+        <>
+          <span className="font-semibold text-gray-700 dark:text-gray-200 tabular-nums">
+            {formatMetricValue(active.value, format)}
+          </span>{" "}
+          <span className="text-gray-400">{active.label}</span>
+        </>
+      ) : (
+        <span className="text-transparent">&nbsp;</span>
+      )}
+    </div>
+    </div>
   );
 }
 
