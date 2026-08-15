@@ -16,21 +16,49 @@ export interface SellerContext {
   valueProp100w: string;
 }
 
+/**
+ * Read one GtmVariable for a user, falling back to an account-mate's
+ * value when the user has none of their own.
+ *
+ * GtmVariable rows are keyed strictly by userId, so the playbook
+ * belongs to whoever generated it. Everything account-scoped (the
+ * narrative page, the playbook status counts) already reads
+ * account-wide, so a teammate who didn't personally run the generator
+ * would see the narrative in one place and "you have no narrative" in
+ * another. This makes the merge fields agree with the rest.
+ */
+async function readAccountScopedVariable(
+  userId: string,
+  accountId: string | null,
+  mergeField: string
+): Promise<string> {
+  const own = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField },
+    select: { value: true },
+  });
+  if (own?.value?.trim()) return own.value.trim();
+  if (!accountId) return "";
+  const teammate = await prisma.gtmVariable.findFirst({
+    where: { mergeField, user: { accountId }, NOT: { value: null } },
+    orderBy: { updatedAt: "desc" },
+    select: { value: true },
+  });
+  return (teammate?.value || "").trim();
+}
+
 export async function loadSellerContext(userId: string): Promise<SellerContext> {
-  const [narrativeRow, vp100Row] = await Promise.all([
-    prisma.gtmVariable.findFirst({
-      where: { userId, mergeField: "SALES_NARRATIVE" },
-      select: { value: true },
-    }),
-    prisma.gtmVariable.findFirst({
-      where: { userId, mergeField: "VALUE_PROP_100W" },
-      select: { value: true },
-    }),
+  // The caller only has a userId; resolve the account here so every
+  // call site inherits account scoping without a signature change.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountId: true },
+  });
+  const accountId = user?.accountId ?? null;
+  const [narrative, valueProp100w] = await Promise.all([
+    readAccountScopedVariable(userId, accountId, "SALES_NARRATIVE"),
+    readAccountScopedVariable(userId, accountId, "VALUE_PROP_100W"),
   ]);
-  return {
-    narrative: (narrativeRow?.value || "").trim(),
-    valueProp100w: (vp100Row?.value || "").trim(),
-  };
+  return { narrative, valueProp100w };
 }
 
 /**

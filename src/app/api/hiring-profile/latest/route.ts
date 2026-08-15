@@ -10,8 +10,13 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Account-scoped like the narrative: a teammate who didn't
+    // personally generate the profile still sees the account's.
+    const scope = user.accountId
+      ? { user: { accountId: user.accountId } }
+      : { userId: user.id };
     const latestVersion = await prisma.hiringProfileVersion.findFirst({
-      where: { userId: user.id },
+      where: scope,
       orderBy: { createdAt: "desc" },
       include: {
         answers: {

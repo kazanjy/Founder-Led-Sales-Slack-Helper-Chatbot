@@ -194,14 +194,31 @@ function buildCastingNote(
  * narrative AND no ICP) — the drill needs something to grade against.
  */
 export async function synthesizePersona(userId: string): Promise<PracticePersona> {
+  // The ICP, like the narrative, belongs to whoever generated it —
+  // fall back to an account-mate's so a teammate isn't told Practice
+  // has nothing to build personas from while the ICP page shows one.
+  const owner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountId: true },
+  });
   const [seller, framework, icpVersion] = await Promise.all([
     loadSellerContext(userId),
     loadDiscoveryFramework(userId),
-    prisma.icpVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { content: true },
-    }),
+    prisma.icpVersion
+      .findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        select: { content: true },
+      })
+      .then((own) =>
+        own || !owner?.accountId
+          ? own
+          : prisma.icpVersion.findFirst({
+              where: { user: { accountId: owner.accountId } },
+              orderBy: { createdAt: "desc" },
+              select: { content: true },
+            })
+      ),
   ]);
 
   let icpText = "";
