@@ -181,6 +181,7 @@ model User {
   practiceSessions           PracticeSession[]
   dealTriages                DealTriage[]
   dealSlackPosts             DealSlackPost[]
+  candidateAssessments       CandidateAssessment[]
   dealTasks                  DealTask[]
   successStoryCollections    SuccessStoryCollection[]
   coldCallScriptVersions     ColdCallScriptVersion[]
@@ -2777,6 +2778,58 @@ model BusinessCaseInstance {
   @@index([userId, type, createdAt(sort: Desc)])
   @@index([dealId, type])
   @@map("business_case_instances")
+}
+
+// ============================================
+// HIRING — CANDIDATE ASSESSMENT
+// ============================================
+
+/// One grading run of one candidate against the founder's hiring bar.
+/// Runs are IMMUTABLE — re-grading writes a new row — so the UI can
+/// show a history ("assessed Jul 3 · re-assessed Aug 11 against the
+/// new profile") and so a verdict is always traceable to the bar and
+/// rubric in force at the time.
+model CandidateAssessment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Groups every run for the same human: normalized LinkedIn slug
+  /// when we have one, else a name+employer slug.
+  candidateKey  String
+  candidateName String
+  linkedinUrl   String?
+
+  /// Which hiring bar this was graded against (null when the founder
+  /// hasn't authored a profile — we grade on narrative/ICP/stage).
+  hiringProfileVersionId String?
+  /// Stage snapshot, so an old report still reads correctly after the
+  /// company moves stage.
+  maturityStage String?
+
+  /// "pdl" | "pdf" | "pasted" | "manual" | "merged"
+  source     String
+  roleLabel  String @default("AE")
+
+  /// Normalized timeline + PDL payloads + extracted claims — lets a
+  /// re-grade skip re-spending enrichment credits.
+  rawProfile Json
+  /// The report (see candidate-assessment-plan.md for the contract).
+  assessment Json
+  /// Denormalized for list filtering/sorting.
+  verdict    String
+
+  /// A report kept for months must stay interpretable after the
+  /// rubric moves.
+  rubricVersion String @default("v1")
+  model         String @default("gpt-5.5")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, candidateKey, createdAt(sort: Desc)])
+  @@map("candidate_assessments")
 }
 
 // ============================================

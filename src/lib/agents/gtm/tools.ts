@@ -1,5 +1,6 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
+import { assessCandidate } from "@/lib/hiring/candidate-assessment";
 import { sendToChatbase } from "@/lib/chatbase/client";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 import { COACHING_TOOLS } from "@/lib/agents/coaching/tools";
@@ -805,6 +806,78 @@ const getCoachingState: ToolEntry = {
 
 // ── Registry ────────────────────────────────────────────────────────
 
+
+// ── Hiring: candidate assessment ────────────────────────────────────
+
+const assessCandidateProfile: ToolEntry = {
+  definition: {
+    type: "function",
+    function: {
+      name: "assessCandidateProfile",
+      description:
+        "Assess a sales candidate (AE/SDR/AM) against the founder's own AE Hiring Profile, sales narrative, ICP and current GTM stage. Reconstructs what each company on their résumé WAS while they worked there (funding stage, headcount, motion, who they sold to) — the read a résumé skim can't give you — plus tenure flags and interview probes. Use whenever the founder shares a candidate: a linkedin.com/in/ URL, a pasted résumé or LinkedIn PDF export, or asks 'what do you think of this candidate'. If the message has an attached résumé/PDF, pass its extracted text as profileText. Either linkedinUrl or profileText is required; passing both gives the best read.",
+      parameters: {
+        type: "object",
+        properties: {
+          linkedinUrl: {
+            type: "string",
+            description: "The candidate's LinkedIn profile URL, e.g. https://www.linkedin.com/in/janedoe.",
+          },
+          profileText: {
+            type: "string",
+            description:
+              "Pasted résumé / LinkedIn profile text, or the extracted text of an attached PDF. Pass the FULL text — it carries quota, self-sourced % and team-context claims the LinkedIn profile lacks.",
+          },
+          candidateName: {
+            type: "string",
+            description: "The candidate's name, when known — disambiguates a thin profile match.",
+          },
+          roleLabel: {
+            type: "string",
+            description: "Role being hired for. Defaults to AE.",
+          },
+        },
+      },
+    },
+  },
+  handler: async (
+    {
+      linkedinUrl,
+      profileText,
+      candidateName,
+      roleLabel,
+    }: { linkedinUrl?: string; profileText?: string; candidateName?: string; roleLabel?: string },
+    { userId }
+  ) => {
+    try {
+      const result = await assessCandidate({
+        userId,
+        linkedinUrl,
+        profileText,
+        candidateName,
+        roleLabel,
+      });
+      return {
+        assessmentId: result.id,
+        candidate: result.candidateName,
+        source: result.source,
+        pdlCallsUsed: result.pdlCallsUsed,
+        report: result.report,
+        // Tell the founder how to improve the read — the résumé path
+        // carries numbers the LinkedIn profile never does.
+        nudge:
+          result.source === "pdl"
+            ? "Got their résumé or a LinkedIn PDF export? Drop it here and I'll read that too — it usually carries quota, attainment and self-sourced numbers the profile doesn't."
+            : null,
+        presentation:
+          "Lead with the verdict headline, then the timeline showing what each company WAS during their tenure, then the top few flags, then 2-3 interview probes. Say plainly what couldn't be verified. Do not invent a numeric score.",
+      };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Assessment failed." };
+    }
+  },
+};
+
 export const GTM_TOOLS: Record<string, ToolEntry> = {
   // Default catch-all — playbook RAG
   searchFounderLedSalesPlaybook,
@@ -818,6 +891,8 @@ export const GTM_TOOLS: Record<string, ToolEntry> = {
   getSalesDeck,
   // Collateral library — uploaded PDFs / docs with extracted text.
   searchCollateral,
+  // Hiring — grade a candidate against the founder's hiring bar.
+  assessCandidateProfile,
   // Shared handlers reused from the coaching agent (one
   // implementation per concept; we just point at it here)
   getMaturityStage: COACHING_TOOLS.getMaturityStage,

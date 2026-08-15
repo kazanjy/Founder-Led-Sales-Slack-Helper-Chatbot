@@ -30,6 +30,26 @@ const MAX_THREAD_HISTORY = 12;
  * returns false so a broken agent doesn't black-hole the user's
  * message — Chatbase will still respond.
  */
+/**
+ * Hiring-context guard. A candidate's employers are very often the
+ * founder's own prospects ("assess this rep, she was at Flock"), so
+ * deal-name matching would happily claim a hiring question and answer
+ * about the wrong thing entirely. A linkedin.com/in/ URL is decisive
+ * on its own; otherwise it takes an explicit hiring word. Same shape
+ * as the coaching deferral below it.
+ */
+const HIRING_TRIGGERS: RegExp[] = [
+  /linkedin\.com\/in\//i,
+  /\bcandidate\b/i,
+  /\br[ée]sum[ée]\b|\bresume\b|\bcv\b/i,
+  /\bhiring\b|\bhire\b|\binterview(ing)?\b/i,
+  /\bapplicant\b|\brecruit(ing|er)?\b/i,
+];
+
+export function hasHiringSignal(text: string): boolean {
+  return HIRING_TRIGGERS.some((re) => re.test(text));
+}
+
 export async function tryHandleWithDealAgent(opts: {
   // The Slack speaker's Mikey user id. May be a prospect in a
   // claimed channel — we swap to the channel owner below.
@@ -174,6 +194,17 @@ export async function tryHandleWithDealAgent(opts: {
     // router (coaching) can pick it up; its searchCoachingHistory
     // tool can pull the relevant session content keyed off the deal
     // name.
+    // Hiring questions mention companies too — defer before we claim
+    // one. Checked on the CURRENT message only: a hiring aside in a
+    // long deal thread shouldn't hand the whole thread to the GTM
+    // agent.
+    if (matchedDeal && hasHiringSignal(cleanedForDetection)) {
+      console.log(
+        `[slack→deal-agent] deal "${matchedDeal.label}" matched but the message is about a candidate; deferring`
+      );
+      return false;
+    }
+
     if (matchedDeal) {
       const combinedForCoachingCheck = [
         cleanedForDetection,

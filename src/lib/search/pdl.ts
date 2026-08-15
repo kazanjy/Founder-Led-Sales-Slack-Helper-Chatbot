@@ -360,3 +360,71 @@ export function formatPDLForSynthesis(pdl: PDLEnrichmentResult): string {
 
   return sections.join("\n\n---\n\n");
 }
+
+// ── Candidate assessment lookups ─────────────────────────────────
+// Person-by-LinkedIn-URL and company-by-name/domain, used by the
+// hiring candidate assessment (lib/hiring/candidate-assessment.ts).
+// Kept here so every PDL call in the app shares one client, one key,
+// and one logging convention.
+
+/**
+ * Enrich a person from a LinkedIn profile URL alone. PDL accepts the
+ * URL via `profile`, which is how the candidate flow reads a public
+ * profile without scraping LinkedIn (they block datacenter IPs and
+ * their ToS forbids it).
+ */
+export async function enrichPersonByLinkedIn(
+  linkedinUrl: string
+): Promise<{ data: PDLPersonResult | null; error?: string }> {
+  if (!PDL_API_KEY) return { data: null, error: "PDL_API_KEY not configured" };
+  const cleaned = linkedinUrl.trim().replace(/\/+$/, "");
+  if (!cleaned) return { data: null, error: "No LinkedIn URL provided" };
+
+  const params = new URLSearchParams();
+  params.set("profile", cleaned);
+  // Ask PDL to only answer when it's reasonably sure it's the same
+  // human — a wrong match here would grade the wrong person.
+  params.set("min_likelihood", "6");
+
+  try {
+    const response = await fetch(`${PDL_BASE_URL}/person/enrich?${params.toString()}`, {
+      headers: { "X-Api-Key": PDL_API_KEY },
+    });
+    if (response.status === 404) {
+      return { data: null, error: "No matching profile found in PDL" };
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[PDL] Profile enrichment error ${response.status}:`, text);
+      return { data: null, error: `PDL API error: ${response.status}` };
+    }
+    const json = await response.json();
+    console.log(`[PDL] Profile matched: ${json.data?.full_name} (likelihood ${json.likelihood})`);
+    return { data: json.data as PDLPersonResult };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[PDL] Profile enrichment failed:", message);
+    return { data: null, error: message };
+  }
+}
+
+/** Company enrichment by name (and website when known). */
+export async function enrichCompanyByNameOrDomain(
+  name: string,
+  website?: string | null
+): Promise<PDLCompanyResult | null> {
+  if (!PDL_API_KEY || !name?.trim()) return null;
+  const params = new URLSearchParams();
+  params.set("name", name.trim());
+  if (website?.trim()) params.set("website", website.trim());
+  try {
+    const response = await fetch(`${PDL_BASE_URL}/company/enrich?${params.toString()}`, {
+      headers: { "X-Api-Key": PDL_API_KEY },
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as PDLCompanyResult;
+  } catch (error) {
+    console.error(`[PDL] Company enrichment failed for ${name}:`, error);
+    return null;
+  }
+}
