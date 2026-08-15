@@ -294,16 +294,86 @@ it's graded against narrative + ICP + stage only, and link "Create
 your AE Hiring Profile" — don't hard-block, since the stage/motion
 comparison is useful on its own.
 
+## Stage 0 — a Slack-callable tool (start here)
+
+Ship the *judgment* before the UI. A founder is usually looking at a
+candidate on their phone, in Slack, between calls — and the whole
+value is the read, not a page. Stage 0 is one registered agent tool
+and no new screens.
+
+**Where it registers.** `GTM_TOOLS` in `src/lib/agents/gtm/tools.ts`
+— a `Record<string, ToolEntry>`, so registration is literally one key,
+and `getToolDefinitions()` picks it up automatically. The GTM agent is
+the right home: a hiring question names no deal and carries no
+coaching keyword, so the Slack router cascade already lands there.
+
+```ts
+assessCandidateProfile: {
+  definition: { …, parameters: {
+    linkedinUrl?: string,   // "https://linkedin.com/in/…"
+    profileText?: string,   // pasted profile, résumé text, or the
+                            // extracted text of an attached PDF
+    candidateName?: string, // disambiguates a thin PDL match
+    roleLabel?: string,     // defaults "AE"
+  }},
+  handler: …
+}
+```
+
+**The PDF path is already free in Slack.** `extractFileContextForAgents()`
+in `src/lib/slack/events.ts` extracts attached PDFs (with OCR
+fallback) *before* the router cascade and appends the text to the
+message the agents see. So "@Mikey what do you make of this
+candidate" + a dropped `resume.pdf` arrives at the GTM agent as text
+with **zero new plumbing** — the model passes it into `profileText`.
+That makes "paste a PDF or résumé too" a prompt-and-description
+concern, not an engineering one.
+
+**What the handler does** (the same pipeline the web UI will use):
+PDL person-enrich by URL → filter to sales roles → PDL company-enrich
+each → reconstruct stage-at-tenure + compute tenure math in code →
+one grading call against the hiring profile / narrative / ICP / stage
+→ persist → return **structured data, not prose**. The agent narrates
+in its own voice, consistent with every other tool in the registry.
+
+**The Slack reply** should lead with the verdict, then the timeline
+with stage-at-tenure per role (the part no résumé skim gives you),
+then the top flags, then two or three interview probes — and close
+with the nudge: *"Got their résumé or a LinkedIn PDF? Drop it here and
+I'll read that too — it usually carries quota and self-sourced numbers
+the profile doesn't."* That line is how the upload path gets
+discovered.
+
+**Persist from Stage 0.** It costs one additive migration and means
+Slack-run assessments are already there when the web UI lands — plus
+re-grading later doesn't re-spend PDL credits. Stateless would be
+faster to ship and immediately regrettable.
+
+**Routing hazard worth pre-empting.** The deal router claims any
+message containing a distinctive token matching one of the founder's
+deals — and a candidate's employer is very often a company they sell
+to ("assess this rep, she was at Flock"). Two mitigations: treat a
+`linkedin.com/in/` URL in the message as a hard defer signal in
+`deal-agent-router`, and add hiring words ("candidate", "résumé",
+"hiring", "AE we're interviewing") to the same guard. This is the
+exact failure mode the partial-name matcher and the "synthesize" fix
+hit earlier — cheaper to handle up front than to debug from a
+screenshot.
+
 ## Phasing
 
-1. **Phase 1 — the core read (M).** Schema + BOTH intake paths (PDL by
+0. **Stage 0 — the Slack tool (S/M).** Registered `assessCandidateProfile`,
+   LinkedIn URL input, PDL enrichment, stage reconstruction, grading,
+   persistence, Slack-formatted reply, résumé/PDF nudge (which already
+   works via existing file context). Router guard. No UI.
+1. **Phase 1 — the web read (M).** Schema + BOTH intake paths (PDL by
    URL, and résumé / LinkedIn-PDF upload with claim extraction and PII
    stripping) + company enrichment + stage reconstruction + tenure
    math + single grading call + result card + candidate list. One role
    type (AE). Shipping both inputs together de-risks the PDL match
    rate — if enrichment disappoints, the upload path already carries
    the feature.
-2. **Phase 2 — depth (M).** Paste-text, multi-source merge polish,
+2. **Phase 2 — depth (M).** Explicit upload control, multi-source merge polish,
    side-by-side compare, re-grade against a newer hiring profile,
    SDR/AM/CSM role types, export to PDF (the shared export util).
 3. **Phase 3 — the loop (S/M).** Assessment → take-home handoff with
