@@ -168,32 +168,95 @@ is a stated verdict, not a fake precision score:
 confidence level driven by how much of the profile we could actually
 verify.
 
-## Output shape
+## The report — what's in it and why
+
+Nine sections, ordered for a founder scanning on a phone. The first
+three answer "should I spend another hour on this person"; the rest
+answer "what do I do next".
+
+1. **Verdict line.** One sentence a human would actually say: *"Strong
+   operator, wrong stage — she's only ever carried a number with brand,
+   SDRs and an SE behind her."* Plus the level
+   (`strong_fit | worth_a_look | stretch | likely_mismatch`) and a
+   confidence. A founder triaging 40 candidates reads only this.
+
+2. **Career timeline with stage-at-tenure.** The evidence table, and
+   the thing no résumé skim gives you: company · title · dates ·
+   months · **what that company was while they were there** · fit
+   chip. This is the artifact founders will stare at; it belongs above
+   the flags, because the flags are conclusions drawn from it.
+
+3. **Fit assessment — two halves.** Worth splitting, because they
+   answer different questions:
+   - *Against your stated profile:* each requirement in the AE Hiring
+     Profile marked met / unmet / unknown, quoting the requirement.
+     This is the founder's own criteria, honored literally.
+   - *Against the structural dimensions:* stage, motion, category /
+     buyer, deal shape, support structure — the five that predict
+     whether founder-stage selling will transfer. Rated with the
+     evidence behind each.
+
+4. **Green flags.** Evidence-cited, not adjectives. "Stayed 3y2m at
+   Rippling through Seed→B" beats "strong tenure."
+
+5. **Red flags.** Same discipline, each with the computed number and
+   the fairness caveat where one applies ("ended in the Nov-2023
+   layoff window").
+
+6. **Claims to verify.** Résumé-sourced assertions — quota attainment,
+   self-sourced %, President's Club — listed as *unverified*, with any
+   that contradict the reconstructed timeline called out. The gap
+   between what someone claims and what's checkable is often the whole
+   read.
+
+7. **Interview focus.** Three to five probes tied to specific gaps,
+   phrased as questions to ask. This is what turns the report into a
+   next action.
+
+8. **What we couldn't verify.** Mandatory. Named companies with no
+   funding data, roles with ambiguous dates, an unmatched profile. A
+   founder must be able to tell "no red flags" from "we couldn't see
+   anything," and this section is also the legal spine — it's what
+   keeps the report honest about its own limits.
+
+9. **What would have to be true.** For anything short of `strong_fit`:
+   the conditions under which this hire works anyway — *"you'd be
+   their first no-brand sale; this works if you're willing to spend
+   two quarters co-selling"*. It converts a mismatch into a decision
+   the founder can make, rather than a rejection. This is the section
+   that makes it a thinking tool instead of a filter.
+
+Plus a small **backchannel** block: who to talk to (former managers /
+peers at the best-fit company) and the one question to ask each.
+
+**Deliberately excluded:** a numeric score (implies precision the data
+can't carry, and is the most legally exposed presentation),
+compensation estimates, and anything derived from name, photo,
+location, or graduation year.
+
+**The Slack reply is a subset**, not a different report: verdict,
+timeline, top three flags, two probes, and the "drop their résumé too"
+nudge. Everything else waits for the web view — with a link to it once
+the UI exists.
 
 ```
 {
   candidate: { name, headline, linkedinUrl, location, source },
-  timeline: [{ company, title, start, end, months, isSales,
-               stageAtStart, stageAtEnd, employeeEstimate,
-               fundingBefore[], fundingDuring[], confidence }],
-  claims:   [{ text, kind, verified: false, source }],   // résumé-only
-  signals:  [{ kind, severity: green|amber|red, claim, evidence, computed }],
-  fit:      [{ dimension, rating, rationale, evidence }],
-  verdict:  { level, headline, confidence, whatWeCouldntVerify[] },
-  interviewProbes: [ "..." ],   // what to actually ask them
-  references:      [ "..." ]    // what to backchannel
+  verdict:   { level, headline, confidence },
+  timeline:  [{ company, title, start, end, months, isSales,
+                stageAtStart, stageAtEnd, employeeEstimate,
+                fundingBefore[], fundingDuring[], fitChip, confidence }],
+  profileRequirements: [{ requirement, status: met|unmet|unknown, evidence }],
+  fitDimensions:       [{ dimension, rating, rationale, evidence }],
+  greenFlags: [{ claim, evidence, computed }],
+  redFlags:   [{ claim, evidence, computed, fairnessCaveat? }],
+  claims:     [{ text, kind, verified: false, source, contradicts? }],
+  interviewProbes: [ "..." ],
+  couldNotVerify:  [ "..." ],
+  whatWouldHaveToBeTrue: [ "..." ],   // omitted when strong_fit
+  backchannel: [{ who, why, askThem }]
 }
 ```
-
-Two deliberate output choices:
-
-- **`whatWeCouldntVerify` is mandatory.** A profile with no company
-  matches should say so loudly rather than produce confident prose
-  over nothing. Same discipline as the proof-point extractor's
-  mandatory quotes.
-- **`interviewProbes`** turn the assessment into a next action —
-  "ask how many of the 14 logos were self-sourced" beats a score.
-  This is where the feature earns repeat use.
 
 ## Data model
 
@@ -207,6 +270,12 @@ model CandidateAssessment {
   // narrative/ICP/stage only, no hiring profile authored yet).
   hiringProfileVersionId String?
 
+  // Groups every run for the same human so the UI can show a history
+  // ("assessed Jul 3 · re-assessed Aug 11 against the new profile").
+  // Normalized LinkedIn slug when we have one, else a name+employer
+  // hash. Runs are IMMUTABLE — a re-grade writes a new row.
+  candidateKey  String
+
   candidateName String
   linkedinUrl   String?
   source        String   // "pdl" | "pdf" | "pasted" | "manual" | "merged"
@@ -214,6 +283,11 @@ model CandidateAssessment {
 
   rawProfile Json     // normalized timeline + PDL payloads + extracted
                       // claims, for re-runs without re-uploading
+
+  // A report kept for months has to stay interpretable after the
+  // rubric moves: stamp what produced it.
+  rubricVersion String  // bump when the report contract changes
+  model         String  // e.g. "gpt-5.5"
   assessment Json     // the output shape above
   verdict    String   // denormalized for list filtering/sorting
   roleLabel  String   @default("AE")   // AE | SDR | AM | CSM later
@@ -222,6 +296,7 @@ model CandidateAssessment {
   updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, candidateKey, createdAt(sort: Desc)])
   @@map("candidate_assessments")
 }
 ```
