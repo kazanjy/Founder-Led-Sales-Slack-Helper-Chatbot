@@ -30,15 +30,71 @@ violates their ToS. Three viable inputs instead, in priority order:
    `profile` param. Returns `experience[]` with company name, website,
    title, and start/end dates, plus education and skills. This is the
    whole ballgame and costs ~1 credit.
-2. **Paste the profile text (fallback).** When PDL misses (no match,
-   thin profile), the founder copy-pastes the profile or the résumé
-   into a textarea and an LLM extracts the same structure. Also the
-   path for candidates who applied with a PDF résumé and no LinkedIn.
-3. **Manual entry** of a few roles — the escape hatch, never the
+2. **Upload a résumé or LinkedIn PDF (co-primary).** Most candidates
+   arrive as an attachment, not a URL — and LinkedIn's own
+   "More → Save to PDF" export is the highest-fidelity input we can
+   get without an API, since the founder can produce it for any
+   profile they can view, including ones PDL misses entirely.
+   `extractTextFromPDFWithOCR()` + `formatPDFForAIWithOCR()` already
+   exist (`src/lib/pdf-server.ts`, OCR fallback included for scanned
+   résumés), and `uploadFile()` handles storage — same plumbing the
+   narrative prefill and asset library use.
+3. **Paste the profile text.** Same extraction path as the upload,
+   minus the file — for when someone copies a profile out of a browser
+   or an email.
+4. **Manual entry** of a few roles — the escape hatch, never the
    default.
 
-The UI should degrade gracefully across all three and always tell the
-founder which one produced the data.
+Crucially, **all four inputs converge on the same normalized
+timeline** and everything downstream (company enrichment, stage
+reconstruction, tenure math, grading) is identical. An upload is an
+alternate *source*, not an alternate pipeline.
+
+The UI should degrade gracefully across all of them and always tell
+the founder which one produced the data — including "we merged your
+uploaded résumé with the LinkedIn profile" when both exist.
+
+### What a résumé gives us that LinkedIn doesn't
+
+A LinkedIn profile is structured but sanitized; a résumé is messy but
+carries the numbers a hiring manager actually wants:
+
+- **Quota and attainment claims** — "142% of a $1.4M quota, 3 yrs
+  running", President's Club, ranked 2/47.
+- **Deal shape** — ACV, cycle length, logos closed, self-sourced %.
+- **Team context** — "first AE", "built the SDR team", "no marketing
+  support" — exactly the support-structure dimension the fit axis
+  cares about and LinkedIn rarely states.
+
+These are **claims, not facts**, and the design treats them that way:
+extract them into a `claims[]` array, mark each `verified: false`, and
+feed them to the grading call explicitly labeled as unverified. They
+never move the verdict on their own — instead they become the sharpest
+`interviewProbes` ("the résumé says 68% self-sourced at Acme — ask how
+that was measured and what the team average was") and the best
+backchannel-reference questions. A claim that contradicts the
+reconstructed timeline (President's Club in a year the company was
+pre-revenue) is itself a red flag worth surfacing.
+
+### PII stripping on the upload path (do this in extraction)
+
+Résumés — especially non-US CVs — carry things that must never reach a
+grading prompt: photos, date of birth, marital status, nationality,
+home address, and graduation years that proxy for age. The extraction
+step drops them before assembly, and the prompt never sees them. This
+is a stronger fairness control than the LinkedIn path gets for free,
+and it should be implemented as an explicit allowlist of extracted
+fields rather than a blocklist of things to remove.
+
+### Parsing note
+
+LinkedIn's PDF export has a predictable layout — an `Experience`
+section with `Company · Full-time` and `Jan 2020 - Mar 2023 · 3 yrs
+3 mos` date ranges — so it parses far more reliably than a free-form
+résumé. Worth detecting the LinkedIn format up front (the export has a
+recognizable header/footer) and using a tighter extraction prompt for
+it, falling back to the general résumé prompt otherwise. Both emit the
+same normalized timeline.
 
 ## The move that makes this more than résumé-vibes
 
@@ -120,6 +176,7 @@ verify.
   timeline: [{ company, title, start, end, months, isSales,
                stageAtStart, stageAtEnd, employeeEstimate,
                fundingBefore[], fundingDuring[], confidence }],
+  claims:   [{ text, kind, verified: false, source }],   // résumé-only
   signals:  [{ kind, severity: green|amber|red, claim, evidence, computed }],
   fit:      [{ dimension, rating, rationale, evidence }],
   verdict:  { level, headline, confidence, whatWeCouldntVerify[] },
@@ -152,9 +209,11 @@ model CandidateAssessment {
 
   candidateName String
   linkedinUrl   String?
-  source        String   // "pdl" | "pasted" | "manual"
+  source        String   // "pdl" | "pdf" | "pasted" | "manual" | "merged"
+  sourceFiles   Json?    // [{ name, storagePath, kind: "resume"|"linkedin_pdf" }]
 
-  rawProfile Json     // normalized timeline + PDL payloads, for re-runs
+  rawProfile Json     // normalized timeline + PDL payloads + extracted
+                      // claims, for re-runs without re-uploading
   assessment Json     // the output shape above
   verdict    String   // denormalized for list filtering/sorting
   roleLabel  String   @default("AE")   // AE | SDR | AM | CSM later
@@ -173,10 +232,15 @@ hiring profile costs one LLM call and zero PDL credits.
 ## Pipeline
 
 ```
-LinkedIn URL
+LinkedIn URL  ·  résumé/LinkedIn PDF  ·  pasted text  ·  manual
   │
-  ├─ PDL person/enrich (profile=<url>)          ~1 credit
-  │    └─ miss → paste-text fallback → LLM extraction
+  ├─ URL      → PDL person/enrich (profile=<url>)   ~1 credit
+  ├─ PDF      → extractTextFromPDFWithOCR → LLM extraction (+claims,
+  │             PII stripped) — no PDL credit spent
+  ├─ text     → same LLM extraction as PDF
+  │    └─ any miss falls through to the next available source;
+  │       when several exist, merge (URL/PDF facts win on dates,
+  │       résumé contributes claims)
   │
   ├─ for each SALES role (cap ~8, most recent first):
   │    └─ PDL company/enrich (website||name)     ~1 credit each
@@ -201,8 +265,13 @@ credits" note if PDL is metered on their plan.
 The Hiring tab becomes two things: **Profile** (existing) and
 **Candidates** (new).
 
-- **Paste bar** at the top: LinkedIn URL + "Assess candidate", with a
-  "paste profile text instead" disclosure for the fallback path.
+- **One intake control** at the top that takes any of it: a LinkedIn
+  URL field, a drag-and-drop / click-to-browse zone for a résumé or
+  LinkedIn PDF (the drop zone pattern already used on deal tiles and
+  the asset library), and a "paste text instead" disclosure. Dropping
+  a file and pasting a URL for the same candidate merges them.
+- **Uploaded files stay attached** to the assessment, so the founder
+  can reopen the résumé beside the read.
 - **Demonstrative spinner** while it runs (~20–40s) narrating the real
   steps: pulling profile → researching 6 companies → reconstructing
   stages → grading against your profile. Same pattern as task
@@ -227,11 +296,15 @@ comparison is useful on its own.
 
 ## Phasing
 
-1. **Phase 1 — the core read (M).** Schema + PDL person/company +
-   stage reconstruction + tenure math + single grading call + result
-   card + candidate list. One role type (AE).
-2. **Phase 2 — depth (M).** Paste-text fallback, side-by-side compare,
-   re-grade against a newer hiring profile, PDF résumé ingest,
+1. **Phase 1 — the core read (M).** Schema + BOTH intake paths (PDL by
+   URL, and résumé / LinkedIn-PDF upload with claim extraction and PII
+   stripping) + company enrichment + stage reconstruction + tenure
+   math + single grading call + result card + candidate list. One role
+   type (AE). Shipping both inputs together de-risks the PDL match
+   rate — if enrichment disappoints, the upload path already carries
+   the feature.
+2. **Phase 2 — depth (M).** Paste-text, multi-source merge polish,
+   side-by-side compare, re-grade against a newer hiring profile,
    SDR/AM/CSM role types, export to PDF (the shared export util).
 3. **Phase 3 — the loop (S/M).** Assessment → take-home handoff with
    context prefilled; log the hire and the outcome so the profile
@@ -262,9 +335,14 @@ and worth being deliberate about rather than discovering later:
 
 ## Open questions
 
-- **PDL match rate on sales profiles** — needs a spike on 10 real
-  LinkedIn URLs before committing to it as the primary path. If it's
-  under ~70%, paste-text becomes the primary and PDL the enhancement.
+- **PDL match rate on sales profiles** — still worth a spike on 10 real
+  URLs, but with upload in Phase 1 it's no longer a single point of
+  failure: a poor match rate just means the LinkedIn-PDF path leads
+  and PDL becomes the convenience option.
+- **Do uploaded résumés need a retention policy?** They're candidate
+  PII sitting in storage. Proposal: delete the file when the
+  assessment is deleted, and offer a "purge candidate" action —
+  decide before Phase 1 since it shapes the storage path.
 - **Is "stage during tenure" reliable enough** for bootstrapped or
   non-US companies where funding data is thin? Proposal: show the
   confidence and let low-confidence rows read as "unknown" rather than
