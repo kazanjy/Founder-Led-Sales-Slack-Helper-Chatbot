@@ -39,6 +39,13 @@ const MIN_MONTHS_FOR_LOOKUP = 6;
 const MAX_COMPANIES = 8;
 /** Hard ceiling on paid verification lookups per assessment. */
 const MAX_PDL_VERIFICATIONS = 3;
+/**
+ * Assumed months to productivity in a sales seat. Used only to show
+ * how little selling time a short stint actually contained — a 9-month
+ * stint is ~5 productive months, which is the number that matters.
+ * Stated as an assumption in the payload so the report can caveat it.
+ */
+const ASSUMED_RAMP_MONTHS = 4;
 
 export interface TimelineRole {
   company: string;
@@ -297,9 +304,17 @@ async function verifyLowConfidence(
 export interface ComputedSignals {
   totalSalesRoles: number;
   medianStintMonths: number | null;
+  /** Sub-12-month SALES stints started in the last 6 years. */
   subYearStintsLast6y: number;
+  /** Same window, ANY role — hopping is a pattern regardless of seat. */
+  subYearStintsAllRolesLast6y: number;
+  /** The actual short stints, so the report can cite them by name. */
+  shortStints: Array<{ company: string; title: string; months: number; end: string | null }>;
   currentRoleMonths: number | null;
   longestSalesStintMonths: number | null;
+  /** Selling months left after ramp — the honest denominator. */
+  rampAdjustedSellingMonths: number | null;
+  assumedRampMonths: number;
   gapsOver4Months: Array<{ after: string; months: number }>;
   progression: string[];
 }
@@ -324,14 +339,29 @@ function computeSignals(timeline: TimelineRole[]): ComputedSignals {
     if (gap != null && gap > 4) gaps.push({ after: chrono[i - 1].company, months: gap });
   }
 
+  const recentShort = timeline.filter(
+    (r) => (r.start || "") >= cutoff && r.months != null && r.months < 12
+  );
+
   return {
     totalSalesRoles: sales.length,
     medianStintMonths: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null,
     subYearStintsLast6y: sales.filter(
       (r) => (r.start || "") >= cutoff && r.months != null && r.months < 12
     ).length,
+    subYearStintsAllRolesLast6y: recentShort.length,
+    shortStints: recentShort.map((r) => ({
+      company: r.company,
+      title: r.title,
+      months: r.months as number,
+      end: r.end,
+    })),
     currentRoleMonths: timeline.find((r) => !r.end)?.months ?? null,
     longestSalesStintMonths: stints.length ? Math.max(...stints) : null,
+    rampAdjustedSellingMonths: stints.length
+      ? stints.reduce((sum, m) => sum + Math.max(0, m - ASSUMED_RAMP_MONTHS), 0)
+      : null,
+    assumedRampMonths: ASSUMED_RAMP_MONTHS,
     gapsOver4Months: gaps,
     progression: [...timeline].reverse().map((r) => r.title).filter(Boolean),
   };
@@ -365,7 +395,17 @@ How to judge:
   "unknown", do NOT assert its stage — put it in couldNotVerify instead.
 - Claims from a résumé are UNVERIFIED. They never move the verdict on their own.
   If a claim contradicts the timeline, say so in "contradicts".
-- FAIRNESS: short stints ending in 2022-2024 often reflect mass layoffs, and
+- TENURE IS A FIRST-CLASS SIGNAL — assess it explicitly, do not skip it.
+  Read computedSignals.shortStints, subYearStintsAllRolesLast6y, and
+  medianStintMonths and say plainly what the pattern is. One short stint is
+  noise; three in six years is a pattern and belongs in redFlags with the
+  count and the companies named. Long tenure where it mattered belongs in
+  greenFlags just as explicitly. Use rampAdjustedSellingMonths to show how
+  little selling a short stint actually contained (e.g. "11 months at Acme is
+  ~7 productive months after a typical 4-month ramp") — and label the ramp as
+  an assumption, not a fact.
+- FAIRNESS (this qualifies the tenure read, it does not silence it): short
+  stints ending in 2022-2024 often reflect mass layoffs, and
   acquisitions end tenures too — note that rather than penalizing it. Career
   breaks are never a flag. Judge the work: stage, motion, category, tenure.
   Never reason from name, location, school prestige, or graduation year.
