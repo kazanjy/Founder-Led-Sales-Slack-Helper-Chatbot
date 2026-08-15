@@ -7,6 +7,7 @@ import {
   type PDLPersonResult,
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
+import { detectFlags, partitionFlags, rubricFor, type Flag, type RoleRubric } from "./flag-engine";
 
 /**
  * Candidate fit assessment (candidate-assessment-plan.md, Stage 0).
@@ -26,6 +27,12 @@ import {
  * Every timeline row carries its provenance so the report can say
  * which stages were verified against funding data and which came from
  * model knowledge.
+ *
+ * Flags are DETERMINISTIC. lib/hiring/flag-engine.ts detects them in
+ * TypeScript over the normalized timeline; the model receives the
+ * finished list and narrates it — innocent explanation, why it matters,
+ * what to ask. It cannot add a flag, drop one, or restate a count. Same
+ * résumé in, same flags out, every time.
  */
 
 export const RUBRIC_VERSION = "v1";
@@ -39,13 +46,6 @@ const MIN_MONTHS_FOR_LOOKUP = 6;
 const MAX_COMPANIES = 8;
 /** Hard ceiling on paid verification lookups per assessment. */
 const MAX_PDL_VERIFICATIONS = 3;
-/**
- * Assumed months to productivity in a sales seat. Used only to show
- * how little selling time a short stint actually contained — a 9-month
- * stint is ~5 productive months, which is the number that matters.
- * Stated as an assumption in the payload so the report can caveat it.
- */
-const ASSUMED_RAMP_MONTHS = 4;
 
 export interface TimelineRole {
   company: string;
@@ -151,10 +151,26 @@ function toYearMonth(raw: string | null): string | null {
   return m ? `${m[1]}-${m[2]}` : /^\d{4}$/.test(raw) ? `${raw}-01` : null;
 }
 
+/**
+ * A year-only date silently becomes January, which can move a stint
+ * length by up to 11 months. Tracking it lets the flag engine downgrade
+ * confidence to "possible" rather than asserting a hopping pattern that
+ * may be a rounding artifact.
+ */
+function isYearOnly(raw: unknown): boolean {
+  return typeof raw === "string" && /^\d{4}$/.test(raw.trim());
+}
+
 const SALES_TITLE = /(account executive|\bae\b|sales|revenue|business development|\bbdr\b|\bsdr\b|account manager|customer success|partnerships|cro\b|founder)/i;
 
-function timelineFromPDL(person: PDLPersonResult): TimelineRole[] {
-  return (person.experience || []).map((e) => {
+function timelineFromPDL(person: PDLPersonResult): {
+  timeline: TimelineRole[];
+  hasYearOnlyDates: boolean;
+} {
+  const hasYearOnlyDates = (person.experience || []).some(
+    (e) => isYearOnly(e.start_date) || isYearOnly(e.end_date)
+  );
+  const timeline = (person.experience || []).map((e) => {
     const start = toYearMonth(e.start_date);
     const end = toYearMonth(e.end_date);
     const title = e.title?.name || "";
@@ -168,6 +184,7 @@ function timelineFromPDL(person: PDLPersonResult): TimelineRole[] {
       isSales: SALES_TITLE.test(title),
     };
   });
+  return { timeline, hasYearOnlyDates };
 }
 
 // ── Company knowledge (one model pass) + targeted PDL verification ──
@@ -304,10 +321,16 @@ async function verifyLowConfidence(
 export interface ComputedSignals {
   totalSalesRoles: number;
   medianStintMonths: number | null;
-  /** Sub-12-month SALES stints started in the last 6 years. */
-  subYearStintsLast6y: number;
+  /**
+   * What counts as "short" for this seat. An 18-month enterprise cycle
+   * needs a longer runway to prove anything than transactional SDR work
+   * does, so the threshold is role-relative, not a flat 12 months.
+   */
+  shortStintThresholdMonths: number;
+  /** Short SALES stints started in the last 6 years. */
+  shortSalesStintsLast6y: number;
   /** Same window, ANY role — hopping is a pattern regardless of seat. */
-  subYearStintsAllRolesLast6y: number;
+  shortStintsAllRolesLast6y: number;
   /** The actual short stints, so the report can cite them by name. */
   shortStints: Array<{ company: string; title: string; months: number; end: string | null }>;
   currentRoleMonths: number | null;
@@ -319,7 +342,7 @@ export interface ComputedSignals {
   progression: string[];
 }
 
-function computeSignals(timeline: TimelineRole[]): ComputedSignals {
+function computeSignals(timeline: TimelineRole[], rubric: RoleRubric): ComputedSignals {
   const sales = timeline.filter((r) => r.isSales);
   const stints = sales.map((r) => r.months).filter((m): m is number => m != null);
   const sorted = [...stints].sort((a, b) => a - b);
@@ -340,16 +363,15 @@ function computeSignals(timeline: TimelineRole[]): ComputedSignals {
   }
 
   const recentShort = timeline.filter(
-    (r) => (r.start || "") >= cutoff && r.months != null && r.months < 12
+    (r) => (r.start || "") >= cutoff && r.months != null && r.months < rubric.shortStintMonths
   );
 
   return {
     totalSalesRoles: sales.length,
     medianStintMonths: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null,
-    subYearStintsLast6y: sales.filter(
-      (r) => (r.start || "") >= cutoff && r.months != null && r.months < 12
-    ).length,
-    subYearStintsAllRolesLast6y: recentShort.length,
+    shortStintThresholdMonths: rubric.shortStintMonths,
+    shortSalesStintsLast6y: recentShort.filter((r) => r.isSales).length,
+    shortStintsAllRolesLast6y: recentShort.length,
     shortStints: recentShort.map((r) => ({
       company: r.company,
       title: r.title,
@@ -359,9 +381,9 @@ function computeSignals(timeline: TimelineRole[]): ComputedSignals {
     currentRoleMonths: timeline.find((r) => !r.end)?.months ?? null,
     longestSalesStintMonths: stints.length ? Math.max(...stints) : null,
     rampAdjustedSellingMonths: stints.length
-      ? stints.reduce((sum, m) => sum + Math.max(0, m - ASSUMED_RAMP_MONTHS), 0)
+      ? stints.reduce((sum, m) => sum + Math.max(0, m - rubric.rampMonths), 0)
       : null,
-    assumedRampMonths: ASSUMED_RAMP_MONTHS,
+    assumedRampMonths: rubric.rampMonths,
     gapsOver4Months: gaps,
     progression: [...timeline].reverse().map((r) => r.title).filter(Boolean),
   };
@@ -371,13 +393,24 @@ function computeSignals(timeline: TimelineRole[]): ComputedSignals {
 
 const GRADE_PROMPT = `You are advising a founder on whether a sales candidate fits THEIR company, at THEIR stage. You are decision support — a human makes the call.
 
+THE FLAGS ARE ALREADY DETECTED. The "detectedFlags" array was produced by
+deterministic rules over the timeline. Your job is to NARRATE them, not to
+find them. You may not add a flag, remove one, or restate its count
+differently. If something looks flag-worthy to you but has no entry in
+detectedFlags, put it in "couldNotVerify" or "interviewProbes" instead —
+never as a flag.
+
 Return ONLY JSON matching this shape:
 {
   "verdict": { "level": "strong_fit|worth_a_look|stretch|likely_mismatch", "headline": "<one sentence a human would actually say>", "confidence": "high|medium|low" },
   "profileRequirements": [ { "requirement": "<quoted from their hiring profile>", "status": "met|unmet|unknown", "evidence": "<why>" } ],
   "fitDimensions": [ { "dimension": "stage|motion|category|deal_shape|support_structure", "rating": "strong|adequate|weak|unknown", "rationale": "<why>", "evidence": "<what it rests on>" } ],
-  "greenFlags": [ { "claim": "<specific, evidence-cited>", "evidence": "<the fact behind it>" } ],
-  "redFlags": [ { "claim": "...", "evidence": "...", "fairnessCaveat": "<or null>" } ],
+  "flagNarration": [ {
+    "code": "<the code, copied EXACTLY from detectedFlags>",
+    "whyItMatters": "<one or two sentences, for THIS founder at THIS stage>",
+    "innocentExplanation": "<the most likely benign reading — REQUIRED for every red flag, null for green>",
+    "probe": "<the one question that would settle it, or null>"
+  } ],
   "claims": [ { "text": "<their assertion>", "kind": "...", "verified": false, "contradicts": "<or null>" } ],
   "interviewProbes": [ "<question to ask them>" ],
   "couldNotVerify": [ "<what we genuinely could not establish>" ],
@@ -389,28 +422,63 @@ How to judge:
 - STAGE is the load-bearing dimension for a first sales hire. Someone who only
   ever sold with brand, inbound, SDRs and an SE behind them is a real risk at a
   seed company — say so plainly, without being unkind.
-- Use the COMPUTED SIGNALS verbatim for anything numeric. Never recompute or
-  estimate tenure yourself.
+- Use the COMPUTED SIGNALS and the flag claims verbatim for anything numeric.
+  Never recompute or estimate tenure yourself.
+- Weight the verdict by flag SEVERITY, and discount flags whose confidence is
+  "possible" — those rest on year-only dates or a fuzzy company match.
+- Flags carrying "suppressedBy" were DISCOUNTED by the rules (a stint ending in
+  a known layoff window, say). Do not let them move the verdict. Narrate them
+  anyway — the founder sees them in a "considered and discounted" section, and
+  showing the work is the point.
 - Respect provenance: where a company read is confidence "low" or provenance
   "unknown", do NOT assert its stage — put it in couldNotVerify instead.
 - Claims from a résumé are UNVERIFIED. They never move the verdict on their own.
   If a claim contradicts the timeline, say so in "contradicts".
-- TENURE IS A FIRST-CLASS SIGNAL — assess it explicitly, do not skip it.
-  Read computedSignals.shortStints, subYearStintsAllRolesLast6y, and
-  medianStintMonths and say plainly what the pattern is. One short stint is
-  noise; three in six years is a pattern and belongs in redFlags with the
-  count and the companies named. Long tenure where it mattered belongs in
-  greenFlags just as explicitly. Use rampAdjustedSellingMonths to show how
-  little selling a short stint actually contained (e.g. "11 months at Acme is
-  ~7 productive months after a typical 4-month ramp") — and label the ramp as
-  an assumption, not a fact.
-- FAIRNESS (this qualifies the tenure read, it does not silence it): short
-  stints ending in 2022-2024 often reflect mass layoffs, and
-  acquisitions end tenures too — note that rather than penalizing it. Career
-  breaks are never a flag. Judge the work: stage, motion, category, tenure.
-  Never reason from name, location, school prestige, or graduation year.
+- innocentExplanation is MANDATORY on every red flag and must be genuine, not a
+  throat-clear. A flag is a question to ask, never a verdict about a person.
+- Use rampAdjustedSellingMonths to show how little selling a short stint
+  actually contained (e.g. "11 months at Acme is ~7 productive months after a
+  typical 4-month ramp") — and label the ramp as an assumption, not a fact.
+- FAIRNESS: career breaks are never a flag. Judge the work: stage, motion,
+  category, tenure. Never reason from name, location, school prestige, or
+  graduation year.
 - whatWouldHaveToBeTrue: omit (empty array) when the verdict is strong_fit.
 - interviewProbes: 3-5, each tied to a specific gap or unverified claim.`;
+
+/** A detected flag plus the model's narration of it. */
+export interface NarratedFlag extends Flag {
+  whyItMatters: string | null;
+  innocentExplanation: string | null;
+  probe: string | null;
+}
+
+/**
+ * Join narration onto the detected flags. The flag list is authoritative:
+ * narration the model invented for a code we never detected is dropped,
+ * and a flag the model declined to narrate still renders, unnarrated.
+ */
+function narrate(flags: Flag[], raw: unknown): NarratedFlag[] {
+  const byCode = new Map<string, Record<string, unknown>>();
+  if (Array.isArray(raw)) {
+    for (const n of raw) {
+      if (n && typeof n === "object" && typeof (n as { code?: unknown }).code === "string") {
+        byCode.set((n as { code: string }).code, n as Record<string, unknown>);
+      }
+    }
+  }
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return flags.map((f) => {
+    const n = byCode.get(f.code);
+    return {
+      ...f,
+      whyItMatters: str(n?.whyItMatters),
+      innocentExplanation: f.polarity === "red" ? str(n?.innocentExplanation) : null,
+      probe: str(n?.probe),
+    };
+  });
+}
+
+const SEVERITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
 export interface AssessmentResult {
   id: string;
@@ -446,6 +514,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   let headline: string | null = null;
   let timeline: TimelineRole[] = [];
   let claims: Array<{ text: string; kind: string }> = [];
+  let hasYearOnlyDates = false;
 
   // 1. Profile acquisition — URL first, then any supplied text.
   if (linkedinUrl?.trim()) {
@@ -455,7 +524,9 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       source = "pdl";
       candidateName = candidateName || data.full_name || "";
       headline = [data.job_title, data.job_company_name].filter(Boolean).join(" @ ") || null;
-      timeline = timelineFromPDL(data);
+      const fromPdl = timelineFromPDL(data);
+      timeline = fromPdl.timeline;
+      hasYearOnlyDates = fromPdl.hasYearOnlyDates;
     } else {
       console.log(`[candidate-assessment] PDL miss for ${linkedinUrl}: ${error}`);
     }
@@ -466,6 +537,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     candidateName = candidateName || extracted.candidateName || "";
     headline = headline || extracted.headline;
     claims = extracted.claims;
+    hasYearOnlyDates = extracted.roles.some((r) => isYearOnly(r.start) || isYearOnly(r.end));
     timeline = extracted.roles.map((r) => {
       const start = toYearMonth(typeof r.start === "string" ? r.start : null);
       const end = toYearMonth(typeof r.end === "string" ? r.end : null);
@@ -510,8 +582,9 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   reads = await verifyLowConfidence(reads, researchable);
   pdlCallsUsed += Math.min(before, MAX_PDL_VERIFICATIONS);
 
-  // 4. Arithmetic in code, never in the model.
-  const signals = computeSignals(timeline);
+  // 4. Arithmetic and flag detection in code, never in the model.
+  const rubric = rubricFor(roleLabel);
+  const signals = computeSignals(timeline, rubric);
 
   // 5. Grade against the founder's own bar.
   const [seller, hiringProfile, icp, maturity] = await Promise.all([
@@ -529,6 +602,14 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     prisma.salesMaturityStage.findUnique({ where: { userId } }),
   ]);
 
+  const flags = detectFlags({
+    timeline,
+    reads,
+    roleLabel,
+    ourStage: maturity?.currentStage || null,
+    hasYearOnlyDates,
+  });
+
   const gradePayload = {
     roleLabel,
     candidate: { name: candidateName, headline },
@@ -537,6 +618,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       read: reads.find((x) => x.company === r.company) || null,
     })),
     computedSignals: signals,
+    detectedFlags: flags,
     resumeClaims: claims,
     ourStage: maturity?.currentStage || "unknown",
     ourHiringProfile: hiringProfile?.content?.slice(0, 12_000) || "(none authored yet)",
@@ -561,6 +643,18 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   const verdict = (report.verdict as { level?: string; headline?: string; confidence?: string }) || {};
   const level = typeof verdict.level === "string" ? verdict.level : "worth_a_look";
 
+  // The flag sections are BUILT FROM THE DETECTED FLAGS, not from the
+  // model's output — narration is joined on by code, so the model
+  // cannot smuggle in a flag it liked or quietly drop one it didn't.
+  const narrated = narrate(flags, report.flagNarration);
+  delete report.flagNarration;
+  const { active, discounted } = partitionFlags(narrated);
+  const bySeverity = (a: Flag, b: Flag) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+  report.redFlags = active.filter((f) => f.polarity === "red").sort(bySeverity);
+  report.greenFlags = active.filter((f) => f.polarity === "green").sort(bySeverity);
+  report.discountedFlags = discounted.sort(bySeverity);
+  report.rubric = { roleLabel, ...rubric, rubricVersion: RUBRIC_VERSION };
+
   // Provenance travels with the report so the UI can mark soft rows.
   report.timeline = gradePayload.timeline;
   report.candidate = { name: candidateName, headline, linkedinUrl: linkedinUrl || null, source };
@@ -576,7 +670,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       source,
       roleLabel,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rawProfile: { timeline, reads, signals, claims } as any,
+      rawProfile: { timeline, reads, signals, claims, flags } as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       assessment: report as any,
       verdict: level,

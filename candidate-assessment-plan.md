@@ -144,6 +144,56 @@ doing — the model must not penalize a stint that ends in a known
 layoff window or at an acquired company without saying so. Career
 breaks are not flags. See "Legal & fairness" below.
 
+#### The flag engine — `lib/hiring/flag-engine.ts`
+
+**Rules produce the flags; the LLM never invents one.** Detection is
+TypeScript over the normalized timeline, so the same résumé yields the
+same flags every time, each one traceable to a line of code. The model
+receives the finished list and narrates it — why it matters here, the
+innocent explanation, the question to ask. `narrate()` joins narration
+on *by flag code*, which means a flag the model liked and made up gets
+dropped, and one it disliked and omitted still renders.
+
+Four properties every flag carries:
+
+- **Polarity** — red or green. Green flags are first-class, not the
+  absence of red ones. `promotion_velocity` is the single strongest
+  positive signal in a profile.
+- **Severity** — high / medium / low, and the report orders by it. Not
+  every flag deserves the same visual weight.
+- **Confidence** — `detected` on month-precision dates, `possible` when
+  it rests on year-only dates or a fuzzy company match. A year-only
+  date silently becomes January and can move a stint by 11 months, so
+  a "hopping" pattern built on them is an artifact, not a finding.
+- **Suppression, and it's visible.** A 10-month stint ending inside a
+  mass-layoff window isn't hopping. The flag is still *returned*,
+  carrying `suppressedBy`, and renders under "considered and
+  discounted." Silent filtering is untrustworthy filtering — showing
+  the work is what makes the surviving flags credible.
+
+**Thresholds are role-relative.** A flat 12-month bar is wrong for an
+AE: an 18-month enterprise cycle needs a longer runway to prove
+anything than transactional SDR work does. `ROLE_RUBRICS` sets the
+short-stint threshold, the count that constitutes a pattern, and the
+assumed ramp per seat — SDR 12mo, AE/AM/CSM 18mo, VP 24mo (and only 2
+stints to make a pattern, because the seat is rarer).
+
+**Two things that are never flags:** a role they're *still in* (nobody
+has left it — counting the current job as hopping is the easiest way
+to libel someone who simply started recently), and multiple roles at
+one employer counted separately (an SDR→AE run at Salesforce is one
+28-month tenure, not two short stints).
+
+`innocentExplanation` is mandatory on every red flag. A flag is an
+evidence-backed prompt for a conversation — never a verdict about a
+person.
+
+The company registry (`ACADEMY_ORGS`, `LAYOFF_WINDOWS`) is the
+compounding asset here: orgs that select hard, train hard and cut fast,
+where surviving and progressing is third-party validation. Era
+awareness and user extension ("treat my last company as high-bar") are
+the obvious next iteration.
+
 ### Axis 2 — Fit (LLM judgment over reconstructed facts)
 
 For each *seller* role (filter out non-sales roles), compare:
