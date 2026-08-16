@@ -96,6 +96,15 @@ export default function CandidateFitPage() {
     }
   };
 
+  /** Clear the open report and return to the list. */
+  const backToList = () => {
+    setReport(null);
+    setSelectedId(null);
+    setMeta(null);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const openStored = async (id: string) => {
     setError(null);
     try {
@@ -275,6 +284,18 @@ export default function CandidateFitPage() {
           <div className="lg:col-span-2">
             {report ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                {/* The history list sits below a report that can run
+                    several screens, so without this the only way back
+                    is to scroll past the whole thing. */}
+                <button
+                  onClick={backToList}
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-purple-700 dark:hover:text-purple-300 mb-4 flex items-center gap-1.5"
+                >
+                  <span aria-hidden>←</span> All assessments
+                  {history.length > 0 && (
+                    <span className="text-gray-400">({history.length})</span>
+                  )}
+                </button>
                 <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -296,6 +317,11 @@ export default function CandidateFitPage() {
                 <p className="text-gray-500 dark:text-gray-400">
                   Drop in a LinkedIn URL or a résumé and hit assess.
                 </p>
+                {history.length > 0 && (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Or pick one of the {history.length} assessments below.
+                  </p>
+                )}
               </div>
             )}
 
