@@ -548,7 +548,10 @@ function computeSignals(timeline: TimelineRole[], rubric: RoleRubric): ComputedS
 const GRADE_PROMPT = `You are advising a founder on whether a sales candidate fits THEIR company, at THEIR stage. You are decision support — a human makes the call.
 
 THE FLAGS ARE ALREADY DETECTED. The "detectedFlags" array was produced by
-deterministic rules over the timeline. Your job is to NARRATE them, not to
+deterministic rules over the timeline. Each entry carries a unique "id".
+Several flags can share the same "code" (two promotions at two different
+employers, say), so narration MUST be keyed on id — narrate every id
+separately and never reuse one flag's text for another. Your job is to NARRATE them, not to
 find them. You may not add a flag, remove one, or restate its count
 differently. If something looks flag-worthy to you but has no entry in
 detectedFlags, put it in "couldNotVerify" or "interviewProbes" instead —
@@ -560,7 +563,7 @@ Return ONLY JSON matching this shape:
   "profileRequirements": [ { "requirement": "<quoted from their hiring profile>", "status": "met|unmet|unknown", "evidence": "<why>" } ],
   "fitDimensions": [ { "dimension": "stage|motion|category|deal_shape|support_structure", "rating": "strong|adequate|weak|unknown", "rationale": "<why>", "evidence": "<what it rests on>" } ],
   "flagNarration": [ {
-    "code": "<the code, copied EXACTLY from detectedFlags>",
+    "id": "<the id, copied EXACTLY from detectedFlags — NOT the code>",
     "whyItMatters": "<one or two sentences, for THIS founder at THIS stage>",
     "innocentExplanation": "<the most likely benign reading — REQUIRED for every red flag, null for green>",
     "probe": "<the one question that would settle it, or null>"
@@ -613,8 +616,11 @@ How to judge:
 - whatWouldHaveToBeTrue: omit (empty array) when the verdict is strong_fit.
 - interviewProbes: 3-5, each tied to a specific gap or unverified claim.`;
 
+/** A detected flag with a stable per-report identity for narration. */
+export type FlagWithId = Flag & { id: string };
+
 /** A detected flag plus the model's narration of it. */
-export interface NarratedFlag extends Flag {
+export interface NarratedFlag extends FlagWithId {
   whyItMatters: string | null;
   innocentExplanation: string | null;
   probe: string | null;
@@ -625,18 +631,31 @@ export interface NarratedFlag extends Flag {
  * narration the model invented for a code we never detected is dropped,
  * and a flag the model declined to narrate still renders, unnarrated.
  */
-function narrate(flags: Flag[], raw: unknown): NarratedFlag[] {
-  const byCode = new Map<string, Record<string, unknown>>();
+function narrate(flags: FlagWithId[], raw: unknown): NarratedFlag[] {
+  const byId = new Map<string, Record<string, unknown>>();
+  // Codes are only usable as a key when unique. Two promotion_velocity
+  // flags at different employers previously collided here and the
+  // second one's narration was rendered under the first one's claim —
+  // a report that described a fraternity role beside an AE promotion.
+  const codeCounts = new Map<string, number>();
+  for (const f of flags) codeCounts.set(f.code, (codeCounts.get(f.code) || 0) + 1);
+  const byUniqueCode = new Map<string, Record<string, unknown>>();
+
   if (Array.isArray(raw)) {
     for (const n of raw) {
-      if (n && typeof n === "object" && typeof (n as { code?: unknown }).code === "string") {
-        byCode.set((n as { code: string }).code, n as Record<string, unknown>);
+      if (!n || typeof n !== "object") continue;
+      const rec = n as Record<string, unknown>;
+      if (typeof rec.id === "string") byId.set(rec.id, rec);
+      // Tolerate a model that answered with `code` anyway, but only
+      // where that code identifies exactly one flag.
+      if (typeof rec.code === "string" && codeCounts.get(rec.code) === 1) {
+        byUniqueCode.set(rec.code, rec);
       }
     }
   }
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   return flags.map((f) => {
-    const n = byCode.get(f.code);
+    const n = byId.get(f.id) ?? byUniqueCode.get(f.code);
     return {
       ...f,
       whyItMatters: str(n?.whyItMatters),
@@ -869,6 +888,10 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     schoolOverrides,
   });
 
+  // Stable per-report ids. Codes repeat legitimately (two promotions
+  // at two employers), so they cannot identify a flag on their own.
+  const flagsWithIds: FlagWithId[] = flags.map((f, i) => ({ ...f, id: `${f.code}#${i + 1}` }));
+
   const gradePayload = {
     roleLabel,
     candidate: { name: candidateName, headline },
@@ -877,7 +900,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       read: reads.find((x) => x.company === r.company) || null,
     })),
     computedSignals: signals,
-    detectedFlags: flags,
+    detectedFlags: flagsWithIds,
     resumeClaims: claims,
     ourStage: maturity?.currentStage || "unknown",
     ourHiringProfile: hiringProfile?.content?.slice(0, 12_000) || "(none authored yet)",
@@ -916,7 +939,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   // The flag sections are BUILT FROM THE DETECTED FLAGS, not from the
   // model's output — narration is joined on by code, so the model
   // cannot smuggle in a flag it liked or quietly drop one it didn't.
-  const narrated = narrate(flags, report.flagNarration);
+  const narrated = narrate(flagsWithIds, report.flagNarration);
   delete report.flagNarration;
   const { active, discounted } = partitionFlags(narrated);
   const bySeverity = (a: Flag, b: Flag) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];

@@ -704,6 +704,11 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   // ── GREEN: promotion velocity (the strongest profile signal) ─────
   for (const [company, rs] of byCompany) {
     if (rs.length < 2) continue;
+    // Student organizations are not employers. "Promoted within Alpha
+    // Epsilon Pi — Director of Philanthropy to Vice President" is a
+    // fraternity, and presenting it beside a real Corporate-AE-to-
+    // Mid-Market-AE move as equally weighted evidence is embarrassing.
+    if (earlyCareerCompanies.has(company)) continue;
     // Chronological first-vs-last, not max-vs-min: comparing extremes
     // scores a DEMOTION as a promotion, since it ignores direction.
     const ordered = [...rs].sort((a, b) => (a.start || "").localeCompare(b.start || ""));
@@ -750,6 +755,7 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   for (const [company, tenure] of companyTenure) {
     const rs = byCompany.get(company) || [];
     if (tenure.months < 36 || rs.length < 2) continue;
+    if (earlyCareerCompanies.has(company)) continue;
     flags.push({
       code: "long_tenure_multiple_roles",
       polarity: "green",
