@@ -59,10 +59,10 @@ const TOOL_NARRATION: Record<string, Narration> = {
     // will keep pasting URLs and quietly get the thinner read.
     hint:
       "*For the best read, attach their résumé or a LinkedIn PDF export.*\n\n" +
-      "A URL alone gets me employers, titles and dates — enough for the tenure and stage analysis. A full résumé also carries things a profile lookup simply doesn't return, and some of my strongest green flags can only fire when I can see them:\n" +
+      "A URL gets me employers, titles, dates and education — enough for the tenure, stage and schooling analysis. A full résumé adds what no profile lookup carries, and some of my strongest green flags can only fire when I can see it:\n" +
       "  • quota, attainment, President's Club, self-sourced %\n" +
-      "  • education and field of study\n" +
-      "  • athletics, military service, awards, scholarships\n" +
+      "  • athletics, including a professional or semi-pro career\n" +
+      "  • military service, awards, scholarships, honors\n" +
       "  • whether they worked their way through school\n\n" +
       "Any of these work, and combining them is best:\n" +
       "  • a `linkedin.com/in/…` URL\n" +

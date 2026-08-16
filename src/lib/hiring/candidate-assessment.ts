@@ -212,6 +212,59 @@ function isYearOnly(raw: unknown): boolean {
 
 const SALES_TITLE = /(account executive|\bae\b|sales|revenue|business development|\bbdr\b|\bsdr\b|account manager|customer success|partnerships|cro\b|founder)/i;
 
+/**
+ * Education off the PDL payload.
+ *
+ * PDL DOES return school and majors, so the education-derived signals
+ * work on the URL-only path — no résumé required. What it carries no
+ * trace of is athletics, military service, awards, scholarships or
+ * working through school; those exist only in a résumé, which is the
+ * honest reason to ask for one.
+ *
+ * PDLEducation also carries start_date / end_date. We deliberately
+ * ignore both: a graduation year is an age proxy, and the fact that
+ * it's conveniently in the payload is not a reason to let it into the
+ * assessment.
+ */
+function backgroundFromPDL(person: PDLPersonResult): CandidateBackground {
+  const education = person.education || [];
+  return {
+    schools: education.map((e) => e.school?.name || "").filter(Boolean),
+    // Degrees go in alongside majors, not into distinctions: PDL
+    // populates the two inconsistently, and where `majors` is empty the
+    // field is usually named inside the degree ("BS Mechanical
+    // Engineering"). A bare "Bachelor of Science" matches nothing and
+    // is harmless.
+    majors: [
+      ...education.flatMap((e) => e.majors || []),
+      ...education.flatMap((e) => e.degrees || []),
+    ].filter(Boolean),
+    // Nothing here: PDL has no field for athletics, service or awards.
+    distinctions: [],
+  };
+}
+
+/** Union of two background reads, de-duplicated case-insensitively. */
+function mergeBackground(
+  a: CandidateBackground,
+  b: CandidateBackground
+): CandidateBackground {
+  const union = (x?: string[], y?: string[]): string[] => {
+    const seen = new Set<string>();
+    return [...(x || []), ...(y || [])].filter((v) => {
+      const k = v.trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+  return {
+    schools: union(a.schools, b.schools),
+    majors: union(a.majors, b.majors),
+    distinctions: union(a.distinctions, b.distinctions),
+  };
+}
+
 function timelineFromPDL(person: PDLPersonResult): {
   timeline: TimelineRole[];
   hasYearOnlyDates: boolean;
@@ -592,6 +645,9 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       const fromPdl = timelineFromPDL(data);
       timeline = fromPdl.timeline;
       hasYearOnlyDates = fromPdl.hasYearOnlyDates;
+      // PDL carries education, so the school/major signals work
+      // without a résumé. Everything else in `background` still needs one.
+      background = backgroundFromPDL(data);
     } else {
       console.log(`[candidate-assessment] PDL miss for ${linkedinUrl}: ${error}`);
     }
@@ -622,10 +678,9 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     // Profile came from PDL; still mine the text for claims it lacks.
     const extracted = await extractProfileFromText(profileText);
     claims = extracted.claims;
-    // PDL carries no education or activities at all, so the résumé is
-    // the ONLY source for the background signals — mine it even when
-    // the timeline already came from PDL.
-    background = extracted.background;
+    // Union, not replace: PDL supplied education, and the résumé adds
+    // the activities, awards and service PDL has no field for.
+    background = mergeBackground(background, extracted.background);
     if (claims.length > 0 || (background.distinctions || []).length > 0) source = "merged";
   }
 

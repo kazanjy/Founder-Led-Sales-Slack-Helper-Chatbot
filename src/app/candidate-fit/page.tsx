@@ -230,16 +230,18 @@ export default function CandidateFitPage() {
                   </p>
                 )}
               </div>
-              {/* Not a nicety: education, athletics, service and awards
-                  don't exist in a profile lookup at all, so several
-                  green flags simply can't fire without this. */}
+              {/* Not a nicety: athletics, service, awards and
+                  worked-through-school don't exist in a profile lookup,
+                  so several green flags can't fire without this.
+                  Education DOES come through PDL — don't overclaim. */}
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
                 <span className="font-medium text-gray-700 dark:text-gray-300">
                   Best read — attach one even if you gave a URL.
                 </span>{" "}
-                A URL gets employers, titles and dates. A résumé also carries quota and attainment
-                numbers, education, athletics, military service and awards — none of which a profile
-                lookup returns, and several of which unlock green flags that otherwise can&apos;t fire.
+                A URL gets employers, titles, dates and education. A résumé adds quota and attainment
+                numbers, athletics including any pro career, military service, awards, and whether they
+                worked through school — none of which a profile lookup returns, and several of which
+                unlock green flags that otherwise can&apos;t fire.
               </p>
 
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 mt-4">
