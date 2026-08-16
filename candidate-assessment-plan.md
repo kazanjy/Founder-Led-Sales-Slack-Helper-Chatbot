@@ -336,23 +336,62 @@ a field of study is weak evidence about how someone runs a deal.
 
 #### The sales org registry — `lib/hiring/sales-org-registry.ts`
 
-The highest-leverage proprietary asset in the product. Everything else
-in the flag engine is arithmetic anyone could reimplement; knowing that
-a given company's 2011 sales floor was a genuine academy is accumulated
-judgment.
+Backed by the **Elite Sales Organization Whitelist v1** (vendored at
+`lib/hiring/data/elite-sales-orgs.v1.json`, README alongside it): 136
+org records, 144 scored eras, 19 alias/acquisition mappings, spanning
+1930 to present. This replaced a 26-entry hand-seeded list. It is a
+versioned data product — update it by dropping in a new JSON, never by
+editing entries in code.
 
-Entries carry a **tier** (elite / strong), a **basis** (one specific,
-defensible sentence, surfaced in the flag evidence), and an **era
-window**. The window matters more than it looks: Xerox's training was
-the industry's finishing school for decades and is not that today;
-Salesforce in 2008 minted enterprise reps, while Salesforce in 2024
-depends entirely on which org you sat in. A registry without windows
-systematically over-credits recent hires at faded names and
-under-credits people who were somewhere great at the right time.
-Matching is token-boundary, not substring — a naive `includes` reads
-"Oracle Red Bull Racing" as Oracle.
+Two ideas from the asset's `core_principles` do the real work:
 
-**How to populate it — five sources, cheapest first:**
+**The logo is not the signal — the logo plus the ERA is.** Oracle 1994
+and Oracle 2016 are different companies for talent assessment. Every
+lookup resolves the era the candidate actually overlapped, preferring
+the strongest overlapping window; a stint entirely outside every scored
+era earns nothing. Verified: Oracle 1996–2001 fires green/high with the
+"hyper-competitive up-or-out enterprise machine, 1988–2005" era named;
+Oracle 2019–2023 fires nothing at all.
+
+**Membership is a prior, not a verdict, and absence is NEUTRAL.** Not
+being on the list is never a penalty — `lookupSalesOrg` returns null and
+no flag renders. The asset caps org-era contribution at ~15% of an AE
+score precisely so a logo can never clear a bar by itself.
+
+The asset's signal flags are enforced as credit rules, not decoration:
+
+| Flag | Effect |
+|---|---|
+| `negative_signal`, `not_a_sales_signal` | Credit → 0, no green flag (Palantir, CoreWeave) |
+| `plg_overlay`, `ai_demand_capture`, `demand_capture_era` | Capped at Tier 2 + caveat demanding self-sourced-pipeline evidence |
+| `too_new` | Credit halved pending reassessment |
+| `era_bounded` | Handled by era resolution — out-of-window earns nothing |
+| `toxic_but_successful`, `thin_data_provisional` | Credit unchanged, caveat attached |
+| `mcmahon_lineage`, `meddic_culture`, `outbound_academy` | Feed the `methodology_lineage` flag |
+
+Caveats travel **with** the credit into the flag evidence. A PLG overlay
+or a churn-and-burn culture changes what a logo means, and hiding that
+behind a green chip is how a list like this starts lying.
+
+Three details that matter in practice. **Alias and acquisition
+normalization** runs first — `TripActions`→Navan, `KeepTruckin`→Motive,
+`Dell EMC`→EMC scored as the predecessor era. **Lineage-only strings**
+(Zenefits, Meraki, Slack) resolve to zero credit while still recording
+alumni pedigree, which is different from a miss. **`role_tier_overrides`**
+can only improve a tier and only on an explicit role match — Figma is
+Tier 1 for sales leadership, Tier 2 for a line AE.
+
+`methodology_lineage` is a new green flag with no equivalent in the old
+list: two or more orgs carrying MEDDIC / McMahon-guild / outbound-academy
+markers, each in-era with 12+ months. One is a coincidence; a chain is a
+deliberately-trained operator from a single tradition.
+
+Account overrides (`HIGH_BAR_SALES_ORGS`) still layer on top, and still
+matter — the asset itself flags US/English-language and survivorship
+bias, and a regional org with a fearsome local reputation is exactly
+what no global list will carry.
+
+**How to keep extending it — the sources, cheapest first:**
 
 1. **Curated seed** (done). ~25 orgs, deliberately conservative: a
    wrong entry silently inflates a candidate, which is worse than a
@@ -383,9 +422,12 @@ Matching is token-boundary, not substring — a naive `includes` reads
    already believes. Useful as a *candidate* generator for human
    review, never as an automatic promoter.
 
-The honest sequencing is 1+2 now (shipped), 3 next (small, high
-leverage), 4 when there's enough volume to justify the batch spend, 5
-only ever as a suggestion queue.
+The honest sequencing is 1+2 now (shipped), 3 next for the long tail
+the asset doesn't cover, 4 when there's enough volume to justify the
+batch spend, and 5 only ever as a suggestion queue for human review.
+Per the asset's own maintenance note: the AI cohort needs a 6–12 month
+review cadence, everything else annual, and today's Tier 1s (Samsara,
+Rippling, Wiz) will drift toward Tier 2 as they scale.
 
 ### Axis 2 — Fit (LLM judgment over reconstructed facts)
 

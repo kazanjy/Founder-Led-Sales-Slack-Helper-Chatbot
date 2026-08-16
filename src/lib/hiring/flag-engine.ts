@@ -1,5 +1,5 @@
 import type { TimelineRole, CompanyRead } from "./candidate-assessment";
-import { lookupSalesOrg, windowLabel, type OrgOverride } from "./sales-org-registry";
+import { lookupSalesOrg, type OrgOverride } from "./sales-org-registry";
 import { lookupSchool, type SchoolOverride } from "./school-registry";
 
 /**
@@ -395,17 +395,24 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       start: tenure.from,
       end: tenure.to,
       overrides: input.orgOverrides,
+      roleLabel,
     });
     // Only counts as washing out if they were there during the era that
     // earned the reputation. Eight months at 2021 Xerox says nothing.
-    if (!org || !org.inWindow || !tenure.to || tenure.months >= 12) continue;
+    // Needs credit as well as overlap: you cannot "wash out" of an org
+    // the asset doesn't score as high-bar in the first place.
+    if (!org || !org.inWindow || org.creditMultiplier <= 0 || !tenure.to || tenure.months >= 12) {
+      continue;
+    }
     const layoff = layoffWindowFor(tenure.to);
     flags.push({
       code: "short_stint_high_bar_org",
       polarity: "red",
-      severity: "high",
+      // Washing out of a canonical academy is a sharper signal than
+      // leaving a merely strong org early.
+      severity: (org.numericTier ?? 3) <= 1.5 ? "high" : "medium",
       confidence: conf,
-      claim: `${tenure.months} months at ${company}, a high-bar sales org`,
+      claim: `${tenure.months} months at ${org.entry.name}${org.eraLabel ? ` (${org.eraLabel})` : ""}, a high-bar sales org`,
       evidence: `${org.entry.basis}. ${(byCompany.get(company) || [])
         .map((r) => `${r.title}, ${r.start}–${r.end || "present"}`)
         .join("; ")}`,
@@ -662,26 +669,70 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       start: tenure.from,
       end: tenure.to,
       overrides: input.orgOverrides,
+      roleLabel,
     });
-    if (!org || !org.inWindow) continue;
+    // creditMultiplier is where the asset's flag rules land: a
+    // negative_signal or not_a_sales_signal org zeroes out, a stint
+    // outside the scored era zeroes out, and a PLG/AI overlay is capped.
+    // Zero credit means no green flag — the logo earned nothing.
+    if (!org || !org.inWindow || org.creditMultiplier <= 0) continue;
     const years = Math.round((tenure.months / 12) * 10) / 10;
-    const era = windowLabel(org.entry);
     flags.push({
       code: "academy_org_alumni",
       polarity: "green",
-      // Tiering matters: an elite org's bar is genuinely different, and
-      // flattening the two makes the strong ones look overstated.
-      severity: org.entry.tier === "elite" ? "high" : "medium",
+      // Severity tracks the asset's numeric tier rather than a
+      // two-value bucket: canonical academies (1/1.5) read differently
+      // from strong-but-diluted orgs (2) and contextual ones (2.5/3).
+      severity:
+        (org.numericTier ?? 3) <= 1.5 ? "high" : (org.numericTier ?? 3) <= 2 ? "medium" : "low",
       confidence: conf,
-      claim: `${years} years at ${company}${era ? `, during its ${era} run` : ""} — a high-bar sales org`,
+      claim: `${years} years at ${org.entry.name}${org.eraLabel ? ` — ${org.eraLabel}` : ""}`,
       evidence: [
         org.entry.basis,
         (byCompany.get(company) || []).map((r) => `${r.title}, ${r.start}–${r.end || "present"}`).join("; "),
-        org.source === "account" ? "flagged as high-bar by your team" : null,
+        // Caveats travel WITH the credit. A PLG overlay or a
+        // churn-and-burn culture changes what the logo means, and
+        // hiding that behind a green chip is how a list like this
+        // starts lying.
+        ...org.caveats,
+        org.source === "account" ? "Flagged as high-bar by your team." : null,
       ]
         .filter(Boolean)
         .join(". "),
       companies: [company],
+    });
+  }
+
+  // ── GREEN: coherent sales-methodology lineage ────────────────────
+  // The asset's mcmahon_lineage / meddic_culture / outbound_academy
+  // markers. One is a coincidence; an unbroken chain of them is a
+  // deliberately-trained operator from a single tradition.
+  const lineageHits = [...companyTenure.entries()]
+    .map(([company, t]) => ({
+      company,
+      months: t.months,
+      org: lookupSalesOrg(company, { start: t.from, end: t.to, overrides: input.orgOverrides, roleLabel }),
+    }))
+    .filter(
+      (x) =>
+        x.months >= 12 &&
+        x.org?.inWindow &&
+        (x.org?.creditMultiplier ?? 0) > 0 &&
+        x.org.signalFlags.some((f) =>
+          ["mcmahon_lineage", "meddic_culture", "outbound_academy"].includes(f)
+        )
+    );
+  if (lineageHits.length >= 2) {
+    flags.push({
+      code: "methodology_lineage",
+      polarity: "green",
+      severity: "high",
+      confidence: conf,
+      claim: `Trained inside a coherent sales methodology across ${lineageHits.length} orgs`,
+      evidence: `${lineageHits
+        .map((x) => `${x.org?.entry.name} (${x.org?.signalFlags.filter((f) => ["mcmahon_lineage", "meddic_culture", "outbound_academy"].includes(f)).join(", ")})`)
+        .join("; ")}. A chain of these logos in the right eras indicates deliberate training in one tradition — MEDDIC / Command of the Message — rather than picked-up habits.`,
+      companies: lineageHits.map((x) => x.company),
     });
   }
 
