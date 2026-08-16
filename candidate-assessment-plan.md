@@ -214,11 +214,115 @@ one employer counted separately (an SDR→AE run at Salesforce is one
 tenure-pattern ones above**. Elsewhere, a flag is an evidence-backed
 prompt for a conversation — never a verdict about a person.
 
-The company registry (`ACADEMY_ORGS`, `LAYOFF_WINDOWS`) is the
-compounding asset here: orgs that select hard, train hard and cut fast,
-where surviving and progressing is third-party validation. Era
-awareness and user extension ("treat my last company as high-bar") are
-the obvious next iteration.
+#### Hopping is measured per EMPLOYER, never per role
+
+The single worst failure this engine can have is reading internal
+movement as churn. "Corporate AE 12mo, then Mid-Market AE 17mo at the
+same company" is a **29-month tenure with a promotion in the middle** —
+a green flag — and a per-role counter turns it into two hops and a
+`critical` verdict. Every tenure detector aggregates by company first.
+
+That also required a second title ladder. Promotion detection compares
+first vs last role chronologically (max-vs-min scores a *demotion* as a
+promotion) across two orthogonal axes:
+
+- **Seniority** — SDR → AE → Senior → Manager → Director → VP.
+- **Segment** — SMB → Commercial/Corporate → Mid-Market → Enterprise →
+  Strategic/Major. This is how AEs actually get promoted, and a ladder
+  that only knows seniority scores `Corporate AE → Mid-Market AE` as
+  nothing at all.
+
+Either axis rising counts — except when the move is off the bag. A
+quota-carrying seat to a non-quota one (`Enterprise AE → Enterprise
+Strategic Consultant`) climbs the segment ladder while stepping out of
+a selling role, and crediting that as advancement flatters a sideways
+move.
+
+#### Green flags and the "grit" signals
+
+Green flags are first-class, not the absence of red. Beyond
+`promotion_velocity` and `long_tenure_multiple_roles`, the engine reads
+background signals off the résumé: quantitative or argument-heavy
+major, competitive athletics, military service, terminal ranks of
+multi-year achievement programs, academic distinction, and — rated
+highest of the set — having worked through school.
+
+**These are green-only, by construction.** Their absence is never a red
+flag, never lowers a rating, and never appears in the report. That is
+what keeps them usable: most good AEs didn't play varsity anything, so
+"no athletics" carries no information, and a bonus-only signal cannot
+harden into a filter that screens out the candidate who waited tables
+instead of rowing.
+
+Two deliberate exclusions:
+
+- **Graduation year is never extracted or used** — it is an age proxy
+  and age is protected under the ADEA. It's blocked in the extraction
+  prompt *and* stripped by regex afterwards, because a prompt rule the
+  model can forget is not a control.
+- **"Eagle Scout" is not matched as a bare keyword.** The award was
+  male-only until 2019, so keyed literally it is a sex proxy for anyone
+  who earned it before then. What's actually worth crediting is a
+  multi-year program carried to its terminal rank, so that's what the
+  pattern matches — across Scouts BSA, Girl Scouts, Duke of Edinburgh
+  and similar.
+
+`worked_through_school` is rated above the prestige signals on purpose.
+It's earned rather than inherited, and it's the one background signal
+that corrects for advantage instead of compounding it.
+
+#### The sales org registry — `lib/hiring/sales-org-registry.ts`
+
+The highest-leverage proprietary asset in the product. Everything else
+in the flag engine is arithmetic anyone could reimplement; knowing that
+a given company's 2011 sales floor was a genuine academy is accumulated
+judgment.
+
+Entries carry a **tier** (elite / strong), a **basis** (one specific,
+defensible sentence, surfaced in the flag evidence), and an **era
+window**. The window matters more than it looks: Xerox's training was
+the industry's finishing school for decades and is not that today;
+Salesforce in 2008 minted enterprise reps, while Salesforce in 2024
+depends entirely on which org you sat in. A registry without windows
+systematically over-credits recent hires at faded names and
+under-credits people who were somewhere great at the right time.
+Matching is token-boundary, not substring — a naive `includes` reads
+"Oracle Red Bull Racing" as Oracle.
+
+**How to populate it — five sources, cheapest first:**
+
+1. **Curated seed** (done). ~25 orgs, deliberately conservative: a
+   wrong entry silently inflates a candidate, which is worse than a
+   missing entry that merely fails to credit one. Everything in it
+   should be defensible to a skeptical sales leader in one sentence.
+2. **Per-account overrides** (done — `HIGH_BAR_SALES_ORGS`, a
+   GtmVariable singleton, no migration). The entries with the most
+   signal are ones we'd never guess: the regional payroll company
+   everyone in that city knows trains ferociously, the vertical SaaS
+   leader in a niche of 400 buyers. Founders know those; we don't.
+3. **Model-with-confidence-gate for the long tail.** Reuse the exact
+   pattern already proven for company reads: ask for a reputation
+   assessment plus a `basis`, accept only `high` confidence, and cache
+   the verdict in a table keyed by company. Costs nothing extra per
+   assessment after the first, and the cache compounds into a real
+   registry rather than evaporating each run.
+4. **Alumni-outcome signal** (the genuinely differentiated one). An
+   academy is definitionally a place whose alumni go on to do well.
+   PDL can answer "where did people who left Company X in 2015-2019
+   land next, and did they climb?" A company whose leavers
+   consistently progress at other high-bar orgs *is* an academy, and
+   this measures it rather than asserting it. Expensive, so it belongs
+   in a periodic batch job that promotes companies into the registry,
+   not in the per-assessment path.
+5. **Aggregate across accounts** — companies that recur in profiles
+   graded `strong_fit`. Cheap, but treat with suspicion: it's a
+   feedback loop that will happily confirm whatever the registry
+   already believes. Useful as a *candidate* generator for human
+   review, never as an automatic promoter.
+
+The honest sequencing is 1+2 now (shipped), 3 next (small, high
+leverage), 4 when there's enough volume to justify the batch spend, 5
+only ever as a suggestion queue.
 
 ### Axis 2 — Fit (LLM judgment over reconstructed facts)
 

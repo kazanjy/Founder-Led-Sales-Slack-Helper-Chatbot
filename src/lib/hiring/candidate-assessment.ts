@@ -7,7 +7,15 @@ import {
   type PDLPersonResult,
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
-import { detectFlags, partitionFlags, rubricFor, type Flag, type RoleRubric } from "./flag-engine";
+import { getOrgOverrides } from "./org-overrides";
+import {
+  detectFlags,
+  partitionFlags,
+  rubricFor,
+  type Flag,
+  type RoleRubric,
+  type CandidateBackground,
+} from "./flag-engine";
 
 /**
  * Candidate fit assessment (candidate-assessment-plan.md, Stage 0).
@@ -98,15 +106,26 @@ Return ONLY JSON:
   ],
   "claims": [
     { "text": "<verbatim claim from the text>", "kind": "quota|attainment|deal_size|self_sourced|award|team|other" }
-  ]
+  ],
+  "schools": ["<institution name, NO dates>"],
+  "majors": ["<field of study as written>"],
+  "distinctions": ["<verbatim honor, activity, award, athletic or service line>"]
 }
 
 Rules:
 - Roles newest first. Include non-sales roles (mark isSales false) — gaps matter.
 - claims: ONLY performance assertions the candidate makes (quota attainment,
   President's Club, ACV, self-sourced %, "first AE", "no SDR support"). Verbatim.
+- distinctions: verbatim lines covering athletics, military service, honors,
+  scholarships, awards, multi-year youth programs, and any statement about
+  working while studying. Copy the line as written; do not paraphrase or infer.
 - NEVER extract: photo, date of birth, age, marital status, nationality, home
-  address, or graduation years. Omit them entirely even if present.
+  address, or graduation years — not in any field, including distinctions.
+  Graduation year is an age proxy and must not reach the assessment. Omit these
+  entirely even when present.
+- Do NOT extract religious or political affiliation, or anything naming a
+  protected characteristic, even when it appears alongside a genuine honor.
+  Take the award, leave the affiliation.
 - If the text isn't a résumé or profile, return {"candidateName": null, "roles": [], "claims": []}.`;
 
 async function extractProfileFromText(text: string): Promise<{
@@ -114,6 +133,7 @@ async function extractProfileFromText(text: string): Promise<{
   headline: string | null;
   roles: Array<Record<string, unknown>>;
   claims: Array<{ text: string; kind: string }>;
+  background: CandidateBackground;
 }> {
   const completion = await openai.chat.completions.create({
     model: MODEL,
@@ -127,10 +147,34 @@ async function extractProfileFromText(text: string): Promise<{
       headline: parsed.headline ?? null,
       roles: Array.isArray(parsed.roles) ? parsed.roles : [],
       claims: Array.isArray(parsed.claims) ? parsed.claims : [],
+      background: {
+        schools: strList(parsed.schools),
+        majors: strList(parsed.majors),
+        distinctions: strList(parsed.distinctions).map(stripYears),
+      },
     };
   } catch {
-    return { candidateName: null, headline: null, roles: [], claims: [] };
+    return { candidateName: null, headline: null, roles: [], claims: [], background: {} };
   }
+}
+
+function strList(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()) : [];
+}
+
+/**
+ * Belt and braces on the age proxy. The extraction prompt forbids
+ * graduation years, but a distinction line is copied verbatim and a
+ * year rides along easily ("Varsity crew, 2009-2013"). A prompt rule
+ * the model can forget is not a control; stripping it here is.
+ */
+function stripYears(line: string): string {
+  return line
+    .replace(/\b(19|20)\d{2}\s*[-–—]\s*((19|20)\d{2}|present)\b/gi, "")
+    .replace(/\b(19|20)\d{2}\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[\s,;(){}[\]-]+$/, "")
+    .trim();
 }
 
 function monthsBetween(start: string | null, end: string | null): number | null {
@@ -530,6 +574,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   let timeline: TimelineRole[] = [];
   let claims: Array<{ text: string; kind: string }> = [];
   let hasYearOnlyDates = false;
+  let background: CandidateBackground = {};
 
   // 1. Profile acquisition — URL first, then any supplied text.
   if (linkedinUrl?.trim()) {
@@ -552,6 +597,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     candidateName = candidateName || extracted.candidateName || "";
     headline = headline || extracted.headline;
     claims = extracted.claims;
+    background = extracted.background;
     hasYearOnlyDates = extracted.roles.some((r) => isYearOnly(r.start) || isYearOnly(r.end));
     timeline = extracted.roles.map((r) => {
       const start = toYearMonth(typeof r.start === "string" ? r.start : null);
@@ -571,7 +617,11 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     // Profile came from PDL; still mine the text for claims it lacks.
     const extracted = await extractProfileFromText(profileText);
     claims = extracted.claims;
-    if (claims.length > 0) source = "merged";
+    // PDL carries no education or activities at all, so the résumé is
+    // the ONLY source for the background signals — mine it even when
+    // the timeline already came from PDL.
+    background = extracted.background;
+    if (claims.length > 0 || (background.distinctions || []).length > 0) source = "merged";
   }
 
   if (timeline.length === 0) {
@@ -602,7 +652,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   const signals = computeSignals(timeline, rubric);
 
   // 5. Grade against the founder's own bar.
-  const [seller, hiringProfile, icp, maturity] = await Promise.all([
+  const [seller, hiringProfile, icp, maturity, orgOverrides] = await Promise.all([
     loadSellerContext(userId),
     prisma.hiringProfileVersion.findFirst({
       where: { userId },
@@ -615,6 +665,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       select: { content: true },
     }),
     prisma.salesMaturityStage.findUnique({ where: { userId } }),
+    getOrgOverrides(userId),
   ]);
 
   const flags = detectFlags({
@@ -623,6 +674,8 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     roleLabel,
     ourStage: maturity?.currentStage || null,
     hasYearOnlyDates,
+    background,
+    orgOverrides,
   });
 
   const gradePayload = {
@@ -685,7 +738,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       source,
       roleLabel,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rawProfile: { timeline, reads, signals, claims, flags } as any,
+      rawProfile: { timeline, reads, signals, claims, flags, background } as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       assessment: report as any,
       verdict: level,

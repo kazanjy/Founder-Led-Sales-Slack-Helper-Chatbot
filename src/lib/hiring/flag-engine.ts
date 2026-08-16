@@ -1,4 +1,5 @@
 import type { TimelineRole, CompanyRead } from "./candidate-assessment";
+import { lookupSalesOrg, windowLabel, type OrgOverride } from "./sales-org-registry";
 
 /**
  * Deterministic flag engine (SalesFlag PRD §5).
@@ -93,20 +94,94 @@ export function rubricFor(roleLabel: string): RoleRubric {
   return ROLE_RUBRICS[key || "AE"];
 }
 
-// ── Company registry (PRD §7.3 — a curated, compounding asset) ──────
+// ── Background / "grit" signals ─────────────────────────────────────
 
 /**
- * "Academy" orgs: they select hard, train hard, and cut fast, so
- * surviving and progressing there is third-party validation. Starter
- * list from the PRD; era-awareness and user extension ("treat my last
- * company as high-bar") are the obvious next iteration.
+ * Bonus signals from outside the employment timeline.
+ *
+ * THE GOVERNING RULE: these are GREEN-ONLY. Their absence is never a
+ * red flag, never lowers a rating, and never appears in the report at
+ * all. That isn't squeamishness — it's what keeps them useful. Most
+ * good AEs didn't play varsity anything, so "no athletics" carries no
+ * information, and a bonus-only signal cannot quietly harden into a
+ * filter that screens out people who worked instead of rowing.
+ *
+ * Two deliberate omissions:
+ *
+ * - GRADUATION YEAR is never extracted or used. It is an age proxy,
+ *   and age is protected under the ADEA. School and major are readable
+ *   without it.
+ * - EAGLE SCOUT is not matched as a bare keyword. The award was
+ *   male-only until 2019, so keyed literally it is a sex proxy for
+ *   anyone who earned it before then. The thing actually worth
+ *   crediting is a multi-year program carried to its terminal rank, so
+ *   that is what we match — across Scouts BSA, Girl Scouts, Duke of
+ *   Edinburgh and similar.
  */
-export const ACADEMY_ORGS = [
-  "salesforce", "oracle", "adp", "paychex", "xerox", "ibm", "cintas",
-  "snowflake", "datadog", "mongodb", "gong", "procore", "toast",
-  "samsara", "rippling", "workday", "hubspot", "stripe", "databricks",
-  "klaviyo", "braze", "zoominfo", "outreach", "segment",
-];
+export interface CandidateBackground {
+  /** School names as written. No graduation years, by design. */
+  schools?: string[];
+  /** Fields of study as written. */
+  majors?: string[];
+  /**
+   * Verbatim honors, activities and distinctions from the résumé —
+   * athletics, service, awards, scholarships, work-during-school.
+   */
+  distinctions?: string[];
+}
+
+/**
+ * Majors that correlate with the analytical and quantitative habits a
+ * complex sale rewards. Weak evidence on its own, which is why it
+ * lands at "low" severity and never moves a verdict by itself.
+ */
+const QUANT_MAJOR =
+  /\b(econom(ics|y)|finance|accounting|mathematics|maths?|statistics|physics|chemistry|biology|biochem\w*|engineer(ing)?|computer science|comp sci|data science|actuarial|operations research|applied math|quantitative|neuroscience|industrial engineering)\b/i;
+
+/** Majors whose value here is persuasion and argument under pressure. */
+const PERSUASION_MAJOR =
+  /\b(rhetoric|debate|communications?|philosophy|political science|classics|journalism|law|pre-?law)\b/i;
+
+/**
+ * Competitive athletics. Team captaincy and walk-on status are the
+ * parts that actually carry signal — sustained coachability and
+ * voluntary exposure to being cut.
+ */
+const ATHLETICS =
+  /\b(varsity|division (i|1|ii|2|iii|3)\b|\bd-?[123]\b|ncaa|collegiate athlete|student[- ]athlete|team captain|all[- ](american|conference|state)|olympi(c|an)|national team|rowing crew|walk[- ]on)\b/i;
+
+/**
+ * Terminal ranks of multi-year youth achievement programs. Matched by
+ * PROGRAM rank rather than by the word "Eagle" alone — see the sex-proxy
+ * note above.
+ */
+const SUSTAINED_PROGRAM =
+  /\b(eagle scout|girl scout gold award|gold award recipient|duke of edinburgh|questbridge|boys state|girls state|congressional award)\b/i;
+
+/** Military service — a classic and well-evidenced sales grit signal. */
+const MILITARY =
+  /\b(army|navy|marine corps|marines|air force|coast guard|national guard|rotc|veteran|deployed|nco|non-?commissioned officer|officer candidate school|west point|annapolis|naval academy|air force academy)\b/i;
+
+/**
+ * Worked through school. The most underrated signal in the set, and
+ * the one that runs OPPOSITE to the class bias the rest of this
+ * section risks: it credits the candidate who had to fund their own
+ * education rather than the one who could afford not to.
+ */
+const WORKED_THROUGH_SCHOOL =
+  /\b(worked (my|his|her|their) way through|self[- ]funded (my |his |her |their )?(education|college|degree|tuition)|paid for (my|his|her|their) own (tuition|education|college)|full[- ]time (while|during) (school|college|studies)|30\+? hours.{0,20}while|working (full|part)[- ]time through)\b/i;
+
+/** Earned distinction, as opposed to attendance. */
+const ACADEMIC_HONORS =
+  /\b(summa cum laude|magna cum laude|cum laude|phi beta kappa|valedictorian|salutatorian|dean'?s list|first class honours|academic scholarship|merit scholarship|honors (college|program)|thesis with (distinction|honors))\b/i;
+
+/** Sales-specific competitive achievement. */
+const SALES_COMPETITION =
+  /\b(president'?s club|winner'?s circle|chairman'?s club|rookie of the year|#1 (rep|ae|seller)|top (1|2|3|5|10)%? (rep|of|globally|worldwide)|pinnacle club|circle of excellence)\b/i;
+
+// ── Company registry (PRD §7.3 — a curated, compounding asset) ──────
+// Lives in ./sales-org-registry.ts, which carries tiers, era windows
+// and per-account overrides.
 
 /**
  * Macro windows where short stints are usually the market, not the
@@ -118,10 +193,6 @@ export const LAYOFF_WINDOWS: Array<{ from: string; to: string; label: string }> 
   { from: "2022-05", to: "2024-03", label: "the 2022-24 tech correction" },
 ];
 
-function isAcademy(company: string): boolean {
-  const c = company.toLowerCase();
-  return ACADEMY_ORGS.some((a) => c === a || c.startsWith(`${a} `) || c.includes(` ${a}`));
-}
 
 function layoffWindowFor(end: string | null): string | null {
   if (!end) return null;
@@ -147,6 +218,27 @@ export function titleLevel(title: string): number {
   return level;
 }
 
+/**
+ * The SEGMENT ladder, which is orthogonal to seniority and is how AEs
+ * actually get promoted. "Corporate AE → Mid-Market AE" is a real
+ * promotion, but both titles sit on the same seniority rung, so a
+ * ladder that only knows about Senior/Director/VP scores the move as
+ * nothing and can even read it as churn. Segment is the missing axis.
+ */
+const SEGMENT_LEVELS: Array<{ level: number; re: RegExp }> = [
+  { level: 1, re: /\b(smb|small business|self[- ]serve|transactional|velocity)\b/i },
+  { level: 2, re: /\b(commercial|corporate|inside sales|growth accounts)\b/i },
+  { level: 3, re: /\b(mid[- ]?market|\bmm\b)\b/i },
+  { level: 4, re: /\benterprise\b/i },
+  { level: 5, re: /\b(strategic|major accounts?|global accounts?|named accounts?|key accounts?)\b/i },
+];
+
+export function segmentLevel(title: string): number {
+  let level = 0;
+  for (const s of SEGMENT_LEVELS) if (s.re.test(title)) level = Math.max(level, s.level);
+  return level;
+}
+
 const NON_QUOTA_TITLE = /\b(business development|growth|partnerships|consultant|advisor|strategy|operations)\b/i;
 const QUOTA_TITLE = /\b(account executive|\bae\b|sales rep|sales representative|enterprise sales|sales manager|cro)\b/i;
 const CONSULTANT_TITLE = /\b(consultant|advisor|freelance|self-employed|independent)\b/i;
@@ -161,6 +253,10 @@ export interface FlagEngineInput {
   ourStage?: string | null;
   /** True when any date arrived year-only — downgrades confidence. */
   hasYearOnlyDates?: boolean;
+  /** Education / activities, for the green-only bonus signals. */
+  background?: CandidateBackground;
+  /** Account-specific "treat this org as high-bar" additions. */
+  orgOverrides?: OrgOverride[];
 }
 
 export function detectFlags(input: FlagEngineInput): Flag[] {
@@ -196,22 +292,36 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: serial short stints ─────────────────────────────────────
-  // A role they are STILL IN is not a short stint — nobody has left it.
-  // Counting the current job as evidence of hopping is the single
-  // easiest way to libel a candidate who simply started recently.
-  const shortStints = dated.filter(
-    (r) =>
-      !!r.end &&
-      (r.start || "") >= recentCutoff &&
-      (r.months as number) < rubric.shortStintMonths
-  );
-  const inLayoffWindow = shortStints.filter((r) => layoffWindowFor(r.end));
+  // HOPPING IS MEASURED PER EMPLOYER, NEVER PER ROLE.
+  //
+  // Moving between companies quickly is the risk. Moving between SEATS
+  // inside one company is the opposite — it's usually a promotion, and
+  // it already scores as a green flag below. Counting each role
+  // separately turns "12 months as Corporate AE then 17 as Mid-Market
+  // AE at the same employer" into two hops when it is in fact a
+  // 29-month tenure with an internal move: a healthy record reported as
+  // a chronic pattern, which is the worst failure this engine can have.
+  //
+  // A company they are STILL AT is also not a stint — nobody has left
+  // it, and counting the current job is the easiest way to libel
+  // someone who simply started recently.
+  const shortStints = [...companyTenure.entries()]
+    .map(([company, t]) => ({ company, ...t }))
+    .filter(
+      (t) =>
+        !!t.to &&
+        (t.from || "") >= recentCutoff &&
+        t.months > 0 &&
+        t.months < rubric.shortStintMonths
+    )
+    .sort((a, b) => (b.from || "").localeCompare(a.from || ""));
+  const inLayoffWindow = shortStints.filter((t) => layoffWindowFor(t.to));
 
   if (shortStints.length >= rubric.serialShortStintCount) {
     const n = shortStints.length;
     const disaster = n >= rubric.serialShortStintDisasterCount;
     const productive = shortStints.reduce(
-      (sum, r) => sum + Math.max(0, (r.months as number) - rubric.rampMonths),
+      (sum, t) => sum + Math.max(0, t.months - rubric.rampMonths),
       0
     );
     // NOT suppressed by layoff windows. A downturn explains ONE exit; it
@@ -224,11 +334,11 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       severity: disaster ? "critical" : "high",
       confidence: conf,
       claim: disaster
-        ? `${n} stints under ${rubric.shortStintMonths} months in the last 6 years — this is a chronic pattern, not a run of bad luck`
-        : `${n} stints under ${rubric.shortStintMonths} months in the last 6 years`,
+        ? `${n} different employers left inside ${rubric.shortStintMonths} months, in the last 6 years — a chronic pattern, not a run of bad luck`
+        : `${n} different employers left inside ${rubric.shortStintMonths} months, in the last 6 years`,
       evidence: [
         shortStints
-          .map((r) => `${r.company} — ${r.months}mo (${r.start}–${r.end || "present"})`)
+          .map((t) => `${t.company} — ${t.months}mo total (${t.from}–${t.to})`)
           .join("; "),
         `~${productive} productive months across all ${n} after a ${rubric.rampMonths}mo ramp each`,
         inLayoffWindow.length
@@ -237,14 +347,21 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       ]
         .filter(Boolean)
         .join(". "),
-      companies: shortStints.map((r) => r.company),
+      companies: shortStints.map((t) => t.company),
       noExcuses: true,
     });
   }
 
   // ── RED: washed out of a high-bar org ────────────────────────────
   for (const [company, tenure] of companyTenure) {
-    if (!isAcademy(company) || !tenure.to || tenure.months >= 12) continue;
+    const org = lookupSalesOrg(company, {
+      start: tenure.from,
+      end: tenure.to,
+      overrides: input.orgOverrides,
+    });
+    // Only counts as washing out if they were there during the era that
+    // earned the reputation. Eight months at 2021 Xerox says nothing.
+    if (!org || !org.inWindow || !tenure.to || tenure.months >= 12) continue;
     const layoff = layoffWindowFor(tenure.to);
     flags.push({
       code: "short_stint_high_bar_org",
@@ -252,9 +369,9 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       severity: "high",
       confidence: conf,
       claim: `${tenure.months} months at ${company}, a high-bar sales org`,
-      evidence: (byCompany.get(company) || [])
+      evidence: `${org.entry.basis}. ${(byCompany.get(company) || [])
         .map((r) => `${r.title}, ${r.start}–${r.end || "present"}`)
-        .join("; "),
+        .join("; ")}`,
       companies: [company],
       ...(layoff ? { suppressedBy: `ended during ${layoff}` } : {}),
     });
@@ -326,9 +443,18 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: departures clustered pre-first-full-quota-year ──────────
-  const preMilestone = dated.filter(
-    (r) => !!r.end && r.isSales && (r.months as number) >= 10 && (r.months as number) <= 14
-  );
+  // Per EMPLOYER, for the same reason serial_short_stints is: leaving a
+  // ROLE at 12 months to take another seat at the same company is a
+  // promotion, not a departure before the number lands.
+  const preMilestone = [...companyTenure.entries()]
+    .map(([company, t]) => ({ company, ...t }))
+    .filter(
+      (t) =>
+        !!t.to &&
+        t.months >= 10 &&
+        t.months <= 14 &&
+        (byCompany.get(t.company) || []).some((r) => r.isSales)
+    );
   if (preMilestone.length >= 2) {
     flags.push({
       code: "pre_milestone_departures",
@@ -338,9 +464,9 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       // same no-excuses standard as serial hopping.
       severity: "medium",
       confidence: conf,
-      claim: `${preMilestone.length} departures at 10-14 months — each one just before a full quota year would show`,
-      evidence: preMilestone.map((r) => `${r.company} — ${r.months}mo`).join("; "),
-      companies: preMilestone.map((r) => r.company),
+      claim: `${preMilestone.length} employers left at 10-14 months — each one just before a full quota year would show`,
+      evidence: preMilestone.map((t) => `${t.company} — ${t.months}mo total`).join("; "),
+      companies: preMilestone.map((t) => t.company),
       noExcuses: true,
     });
   }
@@ -435,35 +561,96 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   // ── GREEN: promotion velocity (the strongest profile signal) ─────
   for (const [company, rs] of byCompany) {
     if (rs.length < 2) continue;
-    const levels = rs.map((r) => titleLevel(r.title)).filter((l) => l > 0);
-    if (levels.length >= 2 && Math.max(...levels) > Math.min(...levels)) {
-      flags.push({
-        code: "promotion_velocity",
-        polarity: "green",
-        severity: "high",
-        confidence: conf,
-        claim: `Promoted within ${company}`,
-        evidence: rs.map((r) => `${r.title} (${r.start}–${r.end || "present"})`).join(" → "),
-        companies: [company],
-      });
-    }
+    // Chronological first-vs-last, not max-vs-min: comparing extremes
+    // scores a DEMOTION as a promotion, since it ignores direction.
+    const ordered = [...rs].sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+    const first = ordered[0];
+    const last = ordered[ordered.length - 1];
+    const seniorityUp = titleLevel(last.title) > titleLevel(first.title);
+    // Either ladder counts. Segment is the one that catches AE moves.
+    const segmentUp = segmentLevel(last.title) > segmentLevel(first.title);
+    if (!seniorityUp && !segmentUp) continue;
+    // Moving OFF the bag is not a promotion, whatever the segment says.
+    // "Enterprise AE → Enterprise Strategic Consultant" climbs the
+    // segment ladder while stepping out of a quota-carrying seat, and
+    // calling that advancement would flatter a sideways or downward
+    // move. A genuine seniority jump still counts.
+    const leftQuota =
+      QUOTA_TITLE.test(first.title) &&
+      !QUOTA_TITLE.test(last.title) &&
+      NON_QUOTA_TITLE.test(last.title);
+    if (leftQuota && !seniorityUp) continue;
+
+    const tenure = companyTenure.get(company);
+    flags.push({
+      code: "promotion_velocity",
+      polarity: "green",
+      severity: "high",
+      confidence: conf,
+      claim: segmentUp && !seniorityUp
+        ? `Moved up-market within ${company} — ${first.title} to ${last.title}`
+        : `Promoted within ${company} — ${first.title} to ${last.title}`,
+      evidence: [
+        ordered.map((r) => `${r.title} (${r.start}–${r.end || "present"})`).join(" → "),
+        tenure ? `${tenure.months} months at ${company} in total` : null,
+        "Internal advancement is third-party validation a résumé claim can't give you.",
+      ]
+        .filter(Boolean)
+        .join(". "),
+      companies: [company],
+    });
+  }
+
+  // ── GREEN: stayed and advanced at one employer ───────────────────
+  // The counterweight to the hopping flag. Without it the engine can
+  // only ever punish tenure patterns, never credit them.
+  for (const [company, tenure] of companyTenure) {
+    const rs = byCompany.get(company) || [];
+    if (tenure.months < 36 || rs.length < 2) continue;
+    flags.push({
+      code: "long_tenure_multiple_roles",
+      polarity: "green",
+      severity: "medium",
+      confidence: conf,
+      claim: `${Math.round((tenure.months / 12) * 10) / 10} years at ${company} across ${rs.length} roles`,
+      evidence: `${rs.map((r) => r.title).join(" → ")}. They were kept, moved and re-bet on by people who saw the work up close.`,
+      companies: [company],
+    });
   }
 
   // ── GREEN: academy alumni with real tenure ───────────────────────
   for (const [company, tenure] of companyTenure) {
-    if (!isAcademy(company) || tenure.months < 18) continue;
+    if (tenure.months < 18) continue;
+    const org = lookupSalesOrg(company, {
+      start: tenure.from,
+      end: tenure.to,
+      overrides: input.orgOverrides,
+    });
+    if (!org || !org.inWindow) continue;
+    const years = Math.round((tenure.months / 12) * 10) / 10;
+    const era = windowLabel(org.entry);
     flags.push({
       code: "academy_org_alumni",
       polarity: "green",
-      severity: "high",
+      // Tiering matters: an elite org's bar is genuinely different, and
+      // flattening the two makes the strong ones look overstated.
+      severity: org.entry.tier === "elite" ? "high" : "medium",
       confidence: conf,
-      claim: `${Math.round((tenure.months / 12) * 10) / 10} years at ${company}, a high-bar sales org`,
-      evidence: (byCompany.get(company) || [])
-        .map((r) => `${r.title}, ${r.start}–${r.end || "present"}`)
-        .join("; "),
+      claim: `${years} years at ${company}${era ? `, during its ${era} run` : ""} — a high-bar sales org`,
+      evidence: [
+        org.entry.basis,
+        (byCompany.get(company) || []).map((r) => `${r.title}, ${r.start}–${r.end || "present"}`).join("; "),
+        org.source === "account" ? "flagged as high-bar by your team" : null,
+      ]
+        .filter(Boolean)
+        .join(". "),
       companies: [company],
     });
   }
+
+  // ── GREEN: background / grit signals (never red — see the note on
+  // CandidateBackground for why absence must stay unscored) ─────────
+  flags.push(...backgroundFlags(input.background, conf));
 
   // ── GREEN: healthy tenure cadence ────────────────────────────────
   const salesStints = sales.map((r) => r.months).filter((m): m is number => m != null);
@@ -502,6 +689,143 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   return flags;
+}
+
+/**
+ * Green-only bonus signals from education and activities.
+ *
+ * Every one of these is additive. There is no path in this function
+ * that returns a red flag or a penalty, which is the property that lets
+ * us read background at all without it becoming a screen.
+ *
+ * Each flag quotes the résumé text it fired on, so the founder can see
+ * exactly what triggered it rather than trusting a keyword match they
+ * can't inspect.
+ */
+function backgroundFlags(
+  bg: CandidateBackground | undefined,
+  conf: FlagConfidence
+): Flag[] {
+  if (!bg) return [];
+  const out: Flag[] = [];
+  const majors = (bg.majors || []).filter(Boolean);
+  const distinctions = (bg.distinctions || []).filter(Boolean);
+
+  const firstMatch = (re: RegExp, hay: string[]): string | null =>
+    hay.find((h) => re.test(h)) || null;
+
+  const quant = firstMatch(QUANT_MAJOR, majors);
+  if (quant) {
+    out.push({
+      code: "quantitative_major",
+      polarity: "green",
+      severity: "low",
+      // Never better than "possible": a field of study is a weak proxy
+      // for how someone actually runs a deal.
+      confidence: "possible",
+      claim: `Quantitative field of study — ${quant}`,
+      evidence: `Studied ${quant}. Correlates with comfort in business cases and ROI conversations; weak evidence on its own.`,
+      companies: [],
+    });
+  }
+
+  const persuasion = firstMatch(PERSUASION_MAJOR, majors);
+  if (persuasion && !quant) {
+    out.push({
+      code: "persuasion_major",
+      polarity: "green",
+      severity: "low",
+      confidence: "possible",
+      claim: `Argument-heavy field of study — ${persuasion}`,
+      evidence: `Studied ${persuasion}. Structured argument under pressure is the transferable part.`,
+      companies: [],
+    });
+  }
+
+  const athletics = firstMatch(ATHLETICS, distinctions);
+  if (athletics) {
+    out.push({
+      code: "competitive_athletics",
+      polarity: "green",
+      severity: "medium",
+      confidence: conf,
+      claim: "Competed in organized athletics",
+      evidence: `"${athletics}". Sustained coachability, performance against a scoreboard, and voluntary exposure to being cut.`,
+      companies: [],
+    });
+  }
+
+  const program = firstMatch(SUSTAINED_PROGRAM, distinctions);
+  if (program) {
+    out.push({
+      code: "sustained_achievement_program",
+      polarity: "green",
+      severity: "medium",
+      confidence: conf,
+      claim: "Carried a multi-year achievement program to its terminal rank",
+      evidence: `"${program}". Years of self-directed work toward a distant goal — the closest civilian analogue to working a long sales cycle.`,
+      companies: [],
+    });
+  }
+
+  const military = firstMatch(MILITARY, distinctions);
+  if (military) {
+    out.push({
+      code: "military_service",
+      polarity: "green",
+      severity: "medium",
+      confidence: conf,
+      claim: "Military service",
+      evidence: `"${military}". Performance under structure and pressure, and a well-evidenced track record in sales roles.`,
+      companies: [],
+    });
+  }
+
+  const worked = firstMatch(WORKED_THROUGH_SCHOOL, distinctions);
+  if (worked) {
+    out.push({
+      code: "worked_through_school",
+      polarity: "green",
+      // Rated above the prestige signals deliberately. This is earned
+      // rather than inherited, and it's the one background signal that
+      // corrects for advantage instead of compounding it.
+      severity: "high",
+      confidence: conf,
+      claim: "Funded their own education while studying",
+      evidence: `"${worked}". Self-direction and work ethic demonstrated rather than asserted.`,
+      companies: [],
+    });
+  }
+
+  const honors = firstMatch(ACADEMIC_HONORS, distinctions);
+  if (honors) {
+    out.push({
+      code: "academic_distinction",
+      polarity: "green",
+      severity: "low",
+      confidence: conf,
+      claim: "Earned academic distinction",
+      evidence: `"${honors}". Distinction earned within a program, which travels better than the name of the school.`,
+      companies: [],
+    });
+  }
+
+  const salesComp = firstMatch(SALES_COMPETITION, distinctions);
+  if (salesComp) {
+    out.push({
+      code: "sales_competition_honors",
+      polarity: "green",
+      severity: "medium",
+      // Self-reported and unverifiable from a résumé — the report must
+      // not let it read as established.
+      confidence: "possible",
+      claim: "Claims top-percentile sales recognition",
+      evidence: `"${salesComp}". UNVERIFIED — a résumé claim. Worth backchanneling rather than believing.`,
+      companies: [],
+    });
+  }
+
+  return out;
 }
 
 /** Split for rendering: live flags vs the "considered but discounted" section. */
