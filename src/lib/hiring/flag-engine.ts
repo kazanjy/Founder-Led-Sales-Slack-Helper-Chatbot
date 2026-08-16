@@ -143,12 +143,27 @@ const PERSUASION_MAJOR =
   /\b(rhetoric|debate|communications?|philosophy|political science|classics|journalism|law|pre-?law)\b/i;
 
 /**
- * Competitive athletics. Team captaincy and walk-on status are the
- * parts that actually carry signal — sustained coachability and
- * voluntary exposure to being cut.
+ * PROFESSIONAL athletics — a different order of signal from collegiate
+ * and deliberately scored separately. Getting paid to play means
+ * surviving a selection funnel far narrower than a varsity roster, and
+ * then holding a job that is re-evaluated on measured performance
+ * continuously and publicly. That is the closest thing to a carried
+ * quota that exists outside sales.
+ *
+ * Includes semi-pro, minor-league and development systems: those are
+ * arguably the *better* signal, since they involve the same grind
+ * without the money or the fame.
+ */
+const PRO_ATHLETICS =
+  /\b(professional athlete|played professionally|pro athlete|semi[- ]?pro(fessional)?|minor league|\bnfl\b|\bnba\b|\bmlb\b|\bnhl\b|\bmls\b|\bwnba\b|\bnwsl\b|\bpga\b|\blpga\b|\batp tour\b|\bwta\b|\bufc\b|premier league|la liga|serie a|bundesliga|g[- ]league|practice squad|draft(ed)? (pick|by|in the)|olympi(c|an|ad)|national team|team usa|world championships?|professional (soccer|football|basketball|baseball|hockey|rugby|cricket|lacrosse|volleyball|cycl(ing|ist)|tennis|golf(er)?|box(ing|er)|athlete|player|runner|swimmer|rower|skier|triathlete|racer|driver|fighter|dancer))\b/i;
+
+/**
+ * COLLEGIATE / competitive athletics. Team captaincy and walk-on
+ * status are the parts that actually carry signal — sustained
+ * coachability and voluntary exposure to being cut.
  */
 const ATHLETICS =
-  /\b(varsity|division (i|1|ii|2|iii|3)\b|\bd-?[123]\b|ncaa|collegiate athlete|student[- ]athlete|team captain|all[- ](american|conference|state)|olympi(c|an)|national team|rowing crew|walk[- ]on)\b/i;
+  /\b(varsity|division (i|1|ii|2|iii|3)\b|\bd-?[123]\b|ncaa|collegiate athlete|student[- ]athlete|team captain|all[- ](american|conference|state)|rowing crew|walk[- ]on)\b/i;
 
 /**
  * Terminal ranks of multi-year youth achievement programs. Matched by
@@ -650,7 +665,7 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
 
   // ── GREEN: background / grit signals (never red — see the note on
   // CandidateBackground for why absence must stay unscored) ─────────
-  flags.push(...backgroundFlags(input.background, conf));
+  flags.push(...backgroundFlags(input.background, conf, timeline.map((r) => r.title)));
 
   // ── GREEN: healthy tenure cadence ────────────────────────────────
   const salesStints = sales.map((r) => r.months).filter((m): m is number => m != null);
@@ -704,12 +719,20 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
  */
 function backgroundFlags(
   bg: CandidateBackground | undefined,
-  conf: FlagConfidence
+  conf: FlagConfidence,
+  roleTitles: string[] = []
 ): Flag[] {
-  if (!bg) return [];
+  if (!bg && roleTitles.length === 0) return [];
   const out: Flag[] = [];
-  const majors = (bg.majors || []).filter(Boolean);
-  const distinctions = (bg.distinctions || []).filter(Boolean);
+  const majors = (bg?.majors || []).filter(Boolean);
+  const distinctions = (bg?.distinctions || []).filter(Boolean);
+  /**
+   * A professional playing career or a military tour is usually listed
+   * as EMPLOYMENT, not as an activity, so those two checks scan job
+   * titles as well. Titles only, never company names — "Olympic Steel"
+   * as an employer would otherwise read as an Olympian.
+   */
+  const careerLines = [...distinctions, ...roleTitles.filter(Boolean)];
 
   const firstMatch = (re: RegExp, hay: string[]): string | null =>
     hay.find((h) => re.test(h)) || null;
@@ -742,8 +765,25 @@ function backgroundFlags(
     });
   }
 
+  // Pro first, and it SUPPRESSES the collegiate flag — a pro career
+  // almost always came with a college one, and firing both would
+  // double-count a single fact and pad the green column.
+  const pro = firstMatch(PRO_ATHLETICS, careerLines);
   const athletics = firstMatch(ATHLETICS, distinctions);
-  if (athletics) {
+  if (pro) {
+    out.push({
+      code: "professional_athletics",
+      polarity: "green",
+      // The strongest background signal in the set. Very few people
+      // clear this bar, and what it selects for — performing against a
+      // public number under continuous re-evaluation — is the job.
+      severity: "high",
+      confidence: conf,
+      claim: "Competed at the professional level",
+      evidence: `"${pro}"${athletics ? ` (also: "${athletics}")` : ""}. A selection funnel far narrower than a varsity roster, then a job re-evaluated on measured performance continuously and in public — the closest thing to carrying a quota that exists outside sales.`,
+      companies: [],
+    });
+  } else if (athletics) {
     out.push({
       code: "competitive_athletics",
       polarity: "green",
@@ -768,7 +808,7 @@ function backgroundFlags(
     });
   }
 
-  const military = firstMatch(MILITARY, distinctions);
+  const military = firstMatch(MILITARY, careerLines);
   if (military) {
     out.push({
       code: "military_service",

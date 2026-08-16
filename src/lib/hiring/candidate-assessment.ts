@@ -116,9 +116,14 @@ Rules:
 - Roles newest first. Include non-sales roles (mark isSales false) — gaps matter.
 - claims: ONLY performance assertions the candidate makes (quota attainment,
   President's Club, ACV, self-sourced %, "first AE", "no SDR support"). Verbatim.
-- distinctions: verbatim lines covering athletics, military service, honors,
-  scholarships, awards, multi-year youth programs, and any statement about
-  working while studying. Copy the line as written; do not paraphrase or infer.
+- distinctions: verbatim lines covering athletics (collegiate AND professional
+  or semi-professional), military service, honors, scholarships, awards,
+  multi-year youth programs, and any statement about working while studying.
+  Copy the line as written; do not paraphrase or infer.
+- A professional or semi-professional playing career, or a military tour, is
+  often listed as a JOB rather than an activity. Keep it in "roles" as normal
+  (mark isSales false) AND add a line for it to "distinctions" — it is career
+  history and a background signal at once.
 - NEVER extract: photo, date of birth, age, marital status, nationality, home
   address, or graduation years — not in any field, including distinctions.
   Graduation year is an age proxy and must not reach the assessment. Omit these

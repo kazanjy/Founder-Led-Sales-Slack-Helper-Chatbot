@@ -52,13 +52,24 @@ const TOOL_NARRATION: Record<string, Narration> = {
     // italics, and Slack renders nested *bold* inside that unreliably.
     doing: "Assessing the candidate — rebuilding their timeline and working out what each company was while they were there",
     done: "assessed the candidate",
+    // Leads with the recommendation rather than the menu. The richer
+    // inputs aren't a nicety — several green flags are UNREACHABLE from
+    // a URL alone, because a profile lookup returns no education,
+    // activities or awards at all. Say that, concretely, or founders
+    // will keep pasting URLs and quietly get the thinner read.
     hint:
-      "This takes me a minute. While you wait — I can read a candidate from any of these, and you can combine them:\n" +
+      "*For the best read, attach their résumé or a LinkedIn PDF export.*\n\n" +
+      "A URL alone gets me employers, titles and dates — enough for the tenure and stage analysis. A full résumé also carries things a profile lookup simply doesn't return, and some of my strongest green flags can only fire when I can see them:\n" +
+      "  • quota, attainment, President's Club, self-sourced %\n" +
+      "  • education and field of study\n" +
+      "  • athletics, military service, awards, scholarships\n" +
+      "  • whether they worked their way through school\n\n" +
+      "Any of these work, and combining them is best:\n" +
       "  • a `linkedin.com/in/…` URL\n" +
-      "  • a résumé, attached as a PDF or Word doc\n" +
-      "  • a LinkedIn profile *Save to PDF* export (More → Save to PDF on their profile)\n" +
-      "  • plain pasted text — just drop the profile or résumé into the thread\n\n" +
-      "A résumé is worth attaching *even when you've given me the URL*: it usually carries quota, attainment and self-sourced numbers the LinkedIn profile doesn't. You can also tell me the seat — \"assess her for SDR\" — since the tenure bar differs by role.",
+      "  • a résumé — PDF or Word, just attach it to the thread\n" +
+      "  • a LinkedIn profile export — their profile → *More* → *Save to PDF*\n" +
+      "  • plain pasted text\n\n" +
+      "Tip: tell me the seat — \"assess her for SDR\" — since the tenure bar differs by role.",
     // Deliberately NOT "attach a résumé" — the tool result already
     // nudges that, and only when they actually skipped one. Repeating
     // it here would say the same thing twice in one thread.

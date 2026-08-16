@@ -863,14 +863,14 @@ const assessCandidateProfile: ToolEntry = {
         source: result.source,
         pdlCallsUsed: result.pdlCallsUsed,
         report: result.report,
-        // Tell the founder how to improve the read — the résumé path
-        // carries numbers the LinkedIn profile never does.
+        // Fires only on the URL-only path, i.e. exactly when the read
+        // WAS thinner and saying so is useful rather than nagging.
         nudge:
           result.source === "pdl"
-            ? "Got their résumé or a LinkedIn PDF export? Drop it here and I'll read that too — it usually carries quota, attainment and self-sourced numbers the profile doesn't."
+            ? "This read came from their LinkedIn profile alone, so it covers employers, titles and tenure but not much else. Drop their résumé or a LinkedIn PDF export (profile → More → Save to PDF) into this thread and I'll re-run it: a résumé adds quota and attainment numbers, education, athletics, military service and awards — none of which exist in a profile lookup, and several of which unlock green flags I couldn't evaluate here."
             : null,
         presentation:
-          "Lead with the verdict headline, then the timeline showing what each company WAS during their tenure. Then the flags: report.redFlags and report.greenFlags are already ordered by severity — show the high-severity ones with their claim, their evidence, and their innocentExplanation, which is not optional. Mark any flag whose confidence is 'possible' as approximate. If report.discountedFlags is non-empty, add a short 'considered and discounted' note listing them with the suppressedBy reason — showing the work is the point. Then 2-3 interview probes, then what couldn't be verified. Do NOT add, drop, or reword a flag: the list is deterministic. Do not invent a numeric score.",
+          "Lead with the verdict headline, then the timeline showing what each company WAS during their tenure. Then the flags: report.redFlags and report.greenFlags are already ordered by severity — show the high-severity ones with their claim, their evidence, and their innocentExplanation, which is not optional. Mark any flag whose confidence is 'possible' as approximate. If report.discountedFlags is non-empty, add a short 'considered and discounted' note listing them with the suppressedBy reason — showing the work is the point. Then 2-3 interview probes, then what couldn't be verified. Do NOT add, drop, or reword a flag: the list is deterministic. Do not invent a numeric score. Finally, if `nudge` is non-null, end with it in your own words — the founder got the thinner read and should know a résumé would sharpen it. If `nudge` is null they already gave us everything, so say nothing about inputs.",
       };
     } catch (err) {
       return { error: err instanceof Error ? err.message : "Assessment failed." };

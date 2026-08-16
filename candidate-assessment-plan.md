@@ -243,9 +243,23 @@ move.
 Green flags are first-class, not the absence of red. Beyond
 `promotion_velocity` and `long_tenure_multiple_roles`, the engine reads
 background signals off the résumé: quantitative or argument-heavy
-major, competitive athletics, military service, terminal ranks of
-multi-year achievement programs, academic distinction, and — rated
-highest of the set — having worked through school.
+major, **professional athletics**, collegiate athletics, military
+service, terminal ranks of multi-year achievement programs, academic
+distinction, and — rated highest of the set — having worked through
+school.
+
+`professional_athletics` is scored separately from and above the
+collegiate flag, and suppresses it (a pro career nearly always came
+with a college one; firing both double-counts a single fact). Getting
+paid to play means clearing a selection funnel far narrower than a
+varsity roster and then holding a job re-evaluated on measured
+performance continuously and in public — the closest thing to a
+carried quota that exists outside sales. Semi-pro and minor-league
+count, and are arguably the better signal: same grind, none of the
+money. Both this and military service scan **job titles as well as
+activity lines**, because a playing career or a tour is usually listed
+as employment; titles only, never company names, so an employer called
+"Olympic Steel" doesn't read as an Olympian.
 
 **These are green-only, by construction.** Their absence is never a red
 flag, never lowers a rating, and never appears in the report. That is
