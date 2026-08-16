@@ -2,6 +2,7 @@ import type { WebClient } from "@slack/web-api";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
 import { sendSlackMessage, getThreadMessages } from "./client";
+import { AgentStatus } from "./agent-status";
 import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
 import { runDealAgent } from "@/lib/agents/deals/run";
@@ -266,11 +267,17 @@ export async function tryHandleWithDealAgent(opts: {
         })),
         ...priorThread.map((m) => ({ role: m.role, content: m.text })),
       ];
+      // Narrate slow tool work in-thread — silence during a long turn
+      // reads as a broken bot. Same threadTs as the answer below, so
+      // the status and the reply can't land in different places.
+      const status = new AgentStatus(client, channel, threadTs);
       const result = await runDealAgent({
         userId: contextUserId,
         userMessage: appendFileContext(cleaned, fileContext),
         conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+        onToolStart: (tool) => status.announce(tool),
       });
+      await status.settle();
 
       // Prepend a Slack-mrkdwn link to the deal so the user can jump
       // straight into the web app for the full timeline / analysis /

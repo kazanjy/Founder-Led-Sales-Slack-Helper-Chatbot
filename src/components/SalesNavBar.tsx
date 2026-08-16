@@ -53,6 +53,10 @@ const hiringItems: NavItem[] = [
   { href: "/hiring-profile", label: "👤 AE Profile", statusKey: "hiringProfile" },
   { href: "/sales-leader-profile", label: "👔 Sales Leader Profile", statusKey: "salesLeaderProfile" },
   { href: "/pre-hire-assessment", label: "📋 Pre-Hire Assessment", statusKey: "preHireAssessment" },
+  // No status key is ever set for this one, so it never shows a
+  // completion tick — it's a tool you re-run per candidate, not an
+  // artifact you author once.
+  { href: "/candidate-fit", label: "🔎 Candidate Fit", statusKey: "candidateFit" },
 ];
 
 const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...gtmMaturityItems, ...hiringItems];

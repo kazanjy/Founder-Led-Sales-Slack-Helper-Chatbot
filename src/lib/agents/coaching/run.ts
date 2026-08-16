@@ -106,6 +106,12 @@ export async function runCoachingAgent(opts: {
   userId: string;
   userMessage: string;
   conversationHistory?: ChatCompletionMessageParam[];
+  /**
+   * Fired as each tool starts, so a caller can narrate progress to the
+   * user. Fire-and-forget by design: a slow or broken status post must
+   * never delay or break the actual answer.
+   */
+  onToolStart?: (toolName: string) => void;
 }): Promise<AgentResult> {
   const userRow = await prisma.user.findUnique({
     where: { id: opts.userId },
@@ -154,6 +160,11 @@ export async function runCoachingAgent(opts: {
       if (call.type !== "function") continue;
       const name = call.function.name;
       const argsJson = call.function.arguments || "{}";
+      try {
+        opts.onToolStart?.(name);
+      } catch (err) {
+        console.error("[coaching-agent] onToolStart threw (ignored):", err);
+      }
       const startedAt = Date.now();
       const entry = COACHING_TOOLS[name];
       let resultPayload: unknown;

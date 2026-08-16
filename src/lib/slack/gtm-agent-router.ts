@@ -6,6 +6,7 @@ import { markdownToSlack } from "./markdown";
 import { appendFileContext } from "./file-context";
 import { type BurstMessage } from "./burst-context";
 import { runGtmAgent } from "@/lib/agents/gtm/run";
+import { AgentStatus } from "./agent-status";
 
 /**
  * Default-everything-else Slack router. Catches messages the deal +
@@ -86,12 +87,20 @@ export async function tryHandleWithGtmAgent(opts: {
       })),
       ...priorThread.map((m) => ({ role: m.role, content: m.text })),
     ];
+    // Narrate slow tool work in-thread. Some turns (a candidate
+    // assessment is a PDL enrich plus two model passes) run long enough
+    // that silence reads as a broken bot.
+    // Same threadTs the answer uses, so the status and the reply can't
+    // land in different places.
+    const status = new AgentStatus(client, channel, threadTs);
     const result = await runGtmAgent({
       userId: contextUserId,
       userMessage: appendFileContext(cleaned, fileContext),
       conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+      onToolStart: (tool) => status.announce(tool),
     });
 
+    await status.settle();
     const slackReply = markdownToSlack(result.reply);
     await sendSlackMessage(client, channel, slackReply, threadTs);
 
