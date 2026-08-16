@@ -15,12 +15,14 @@ import { useState } from "react";
 export interface NarratedFlagView {
   code: string;
   polarity: "red" | "green";
-  severity: "high" | "medium" | "low";
+  severity: "critical" | "high" | "medium" | "low";
   confidence: "detected" | "possible";
   claim: string;
   evidence: string;
   companies: string[];
   suppressedBy?: string;
+  /** Tenure-pattern flags carry no innocent explanation, by design. */
+  noExcuses?: boolean;
   whyItMatters?: string | null;
   innocentExplanation?: string | null;
   probe?: string | null;
@@ -87,6 +89,9 @@ const VERDICT_STYLES: Record<string, { label: string; cls: string; emoji: string
 };
 
 const SEVERITY_CHIP: Record<string, string> = {
+  // Critical inverts to a solid fill — at a glance it has to read as a
+  // different class of finding, not a slightly darker "high".
+  critical: "bg-rose-600 text-white dark:bg-rose-500 dark:text-white",
   high: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100",
   medium: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
   low: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
@@ -115,12 +120,15 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 
 function FlagCard({ flag }: { flag: NarratedFlagView }) {
   const red = flag.polarity === "red";
+  const critical = flag.severity === "critical";
   return (
     <div
       className={`rounded-lg border p-4 ${
-        red
-          ? "border-rose-200 bg-rose-50/60 dark:border-rose-800 dark:bg-rose-950/40"
-          : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40"
+        critical
+          ? "border-rose-500 border-2 bg-rose-50 dark:border-rose-500 dark:bg-rose-950/70"
+          : red
+            ? "border-rose-200 bg-rose-50/60 dark:border-rose-800 dark:bg-rose-950/40"
+            : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40"
       }`}
     >
       <div className="flex items-start gap-2 flex-wrap">

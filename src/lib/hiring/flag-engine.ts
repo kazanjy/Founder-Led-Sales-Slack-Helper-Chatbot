@@ -22,7 +22,7 @@ import type { TimelineRole, CompanyRead } from "./candidate-assessment";
  * Flags are evidence-backed prompts, never verdicts.
  */
 
-export type Severity = "high" | "medium" | "low";
+export type Severity = "critical" | "high" | "medium" | "low";
 export type FlagPolarity = "red" | "green";
 export type FlagConfidence = "detected" | "possible";
 
@@ -39,6 +39,15 @@ export interface Flag {
   companies: string[];
   /** Set when discounted — the flag still renders, in the discounted section. */
   suppressedBy?: string;
+  /**
+   * Blocks the mandatory innocent explanation. Reserved for the
+   * tenure-pattern flags: a repeated inability to stay is the single
+   * most predictive negative signal in a sales résumé, and softening it
+   * with a hypothetical benign reading is how a hiring manager talks
+   * themselves into a bad hire. Any real explanation comes from the
+   * candidate in the interview, not from us pre-supplying one.
+   */
+  noExcuses?: boolean;
 }
 
 // ── Role-relative configuration (PRD §5.1: role-relative scoring) ───
@@ -46,8 +55,10 @@ export interface Flag {
 export interface RoleRubric {
   /** A stint under this is "short" for this seat. */
   shortStintMonths: number;
-  /** How many short stints constitute a pattern. */
+  /** How many short stints constitute a pattern. TWO is a pattern. */
   serialShortStintCount: number;
+  /** At or above this count the pattern is disqualifying, not a question. */
+  serialShortStintDisasterCount: number;
   /** Months of ramp assumed when showing productive selling time. */
   rampMonths: number;
 }
@@ -55,14 +66,24 @@ export interface RoleRubric {
 /**
  * Cycle length drives the bar: an 18-month enterprise cycle needs a
  * longer runway to prove anything than transactional SDR work does.
+ *
+ * The COUNT is deliberately unforgiving — two short stints is a
+ * pattern, four is a disaster. Sales hiring is where a tenure pattern
+ * costs the most: a rep who leaves before a full quota year never
+ * produces, and you eat the ramp twice.
+ *
+ * The THRESHOLD stays role-relative, because it has to be. Median SDR
+ * tenure is genuinely around 14 months, so applying the AE's 18-month
+ * bar to an SDR would flag essentially every SDR alive — noise, not
+ * signal. Judge each seat against its own norm.
  */
 export const ROLE_RUBRICS: Record<string, RoleRubric> = {
-  SDR: { shortStintMonths: 12, serialShortStintCount: 3, rampMonths: 2 },
-  AE: { shortStintMonths: 18, serialShortStintCount: 3, rampMonths: 4 },
-  AM: { shortStintMonths: 18, serialShortStintCount: 3, rampMonths: 3 },
-  CSM: { shortStintMonths: 18, serialShortStintCount: 3, rampMonths: 3 },
-  Manager: { shortStintMonths: 18, serialShortStintCount: 3, rampMonths: 5 },
-  VP: { shortStintMonths: 24, serialShortStintCount: 2, rampMonths: 6 },
+  SDR: { shortStintMonths: 12, serialShortStintCount: 2, serialShortStintDisasterCount: 4, rampMonths: 2 },
+  AE: { shortStintMonths: 18, serialShortStintCount: 2, serialShortStintDisasterCount: 4, rampMonths: 4 },
+  AM: { shortStintMonths: 18, serialShortStintCount: 2, serialShortStintDisasterCount: 4, rampMonths: 3 },
+  CSM: { shortStintMonths: 18, serialShortStintCount: 2, serialShortStintDisasterCount: 4, rampMonths: 3 },
+  Manager: { shortStintMonths: 18, serialShortStintCount: 2, serialShortStintDisasterCount: 4, rampMonths: 5 },
+  VP: { shortStintMonths: 24, serialShortStintCount: 2, serialShortStintDisasterCount: 3, rampMonths: 6 },
 };
 
 export function rubricFor(roleLabel: string): RoleRubric {
@@ -184,36 +205,40 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
       (r.start || "") >= recentCutoff &&
       (r.months as number) < rubric.shortStintMonths
   );
-  const suppressed = shortStints.filter((r) => layoffWindowFor(r.end));
-  const counted = shortStints.filter((r) => !layoffWindowFor(r.end));
+  const inLayoffWindow = shortStints.filter((r) => layoffWindowFor(r.end));
 
-  if (counted.length >= rubric.serialShortStintCount) {
+  if (shortStints.length >= rubric.serialShortStintCount) {
+    const n = shortStints.length;
+    const disaster = n >= rubric.serialShortStintDisasterCount;
+    const productive = shortStints.reduce(
+      (sum, r) => sum + Math.max(0, (r.months as number) - rubric.rampMonths),
+      0
+    );
+    // NOT suppressed by layoff windows. A downturn explains ONE exit; it
+    // does not explain a career of them, and the count is the signal.
+    // The window is still reported as fact in the evidence line — the
+    // founder gets the context without the flag being talked down.
     flags.push({
       code: "serial_short_stints",
       polarity: "red",
-      severity: "high",
+      severity: disaster ? "critical" : "high",
       confidence: conf,
-      claim: `${counted.length} stints under ${rubric.shortStintMonths} months in the last 6 years`,
-      evidence: counted
-        .map((r) => `${r.company} — ${r.months}mo (${r.start}–${r.end || "present"})`)
-        .join("; "),
-      companies: counted.map((r) => r.company),
-    });
-  } else if (shortStints.length >= rubric.serialShortStintCount) {
-    // The pattern only exists if you ignore the market context.
-    flags.push({
-      code: "serial_short_stints",
-      polarity: "red",
-      severity: "high",
-      confidence: conf,
-      claim: `${shortStints.length} short stints, but ${suppressed.length} ended during a known downturn`,
-      evidence: shortStints
-        .map((r) => `${r.company} — ${r.months}mo, ended ${r.end || "present"}`)
-        .join("; "),
+      claim: disaster
+        ? `${n} stints under ${rubric.shortStintMonths} months in the last 6 years — this is a chronic pattern, not a run of bad luck`
+        : `${n} stints under ${rubric.shortStintMonths} months in the last 6 years`,
+      evidence: [
+        shortStints
+          .map((r) => `${r.company} — ${r.months}mo (${r.start}–${r.end || "present"})`)
+          .join("; "),
+        `~${productive} productive months across all ${n} after a ${rubric.rampMonths}mo ramp each`,
+        inLayoffWindow.length
+          ? `${inLayoffWindow.length} ended during a known downturn (context, not an excuse — the count still stands)`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(". "),
       companies: shortStints.map((r) => r.company),
-      suppressedBy: `${suppressed.length} of these ended in ${[
-        ...new Set(suppressed.map((r) => layoffWindowFor(r.end))),
-      ].join(" / ")} — below the ${rubric.serialShortStintCount}-stint bar once discounted`,
+      noExcuses: true,
     });
   }
 
@@ -308,11 +333,15 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
     flags.push({
       code: "pre_milestone_departures",
       polarity: "red",
-      severity: "low",
+      // The same tenure pattern seen more precisely: leaving at exactly
+      // the point a full quota year would become visible. Held to the
+      // same no-excuses standard as serial hopping.
+      severity: "medium",
       confidence: conf,
-      claim: `${preMilestone.length} departures at 10-14 months — just before a full quota year would show`,
+      claim: `${preMilestone.length} departures at 10-14 months — each one just before a full quota year would show`,
       evidence: preMilestone.map((r) => `${r.company} — ${r.months}mo`).join("; "),
       companies: preMilestone.map((r) => r.company),
+      noExcuses: true,
     });
   }
 

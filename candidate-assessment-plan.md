@@ -130,7 +130,7 @@ in TypeScript from the dates, hand the LLM the numbers:
 | Signal | How it's computed | Read |
 |---|---|---|
 | Stint lengths | end − start per role | <12mo repeatedly = churn risk |
-| Job-hopping pattern | count of sub-12mo stints in last 6 yrs | 1 is noise, 3 is a pattern |
+| Job-hopping pattern | count of short stints (role-relative) in last 6 yrs | 1 is noise, 2 is a pattern, 4+ is disqualifying |
 | Ramp-adjusted productive time | stint − assumed ramp (by ACV band) | a 9-mo stint at 4-mo ramp = ~5 productive months |
 | Progression | title sequence over time | SDR→AE→Sr AE = green; repeated lateral = question |
 | Gaps | months between roles | flag only if long AND unexplained |
@@ -138,11 +138,15 @@ in TypeScript from the dates, hand the LLM the numbers:
 | Scale-down risk | biggest company → your stage | the classic first-AE failure mode |
 | Tenure at BEST-fit company | how long they stayed where it mattered | the most predictive single number |
 
-**Fairness adjustments, stated in the prompt:** 2022–2024 mass layoffs
-and acquisitions produce short stints that aren't the candidate's
-doing — the model must not penalize a stint that ends in a known
-layoff window or at an acquired company without saying so. Career
-breaks are not flags. See "Legal & fairness" below.
+**Fairness adjustments, stated in the prompt:** career breaks are never
+flags, and we never reason from name, location, school prestige or
+graduation year. A *single* short stint ending in a known layoff window
+or at an acquired company is discounted rather than penalized. See
+"Legal & fairness" below.
+
+This does **not** extend to repeated short tenure — see the job-hopping
+carve-out below. Discounting one exit is fairness; discounting a
+pattern of them is just failing to report what the data says.
 
 #### The flag engine — `lib/hiring/flag-engine.ts`
 
@@ -159,8 +163,8 @@ Four properties every flag carries:
 - **Polarity** — red or green. Green flags are first-class, not the
   absence of red ones. `promotion_velocity` is the single strongest
   positive signal in a profile.
-- **Severity** — high / medium / low, and the report orders by it. Not
-  every flag deserves the same visual weight.
+- **Severity** — critical / high / medium / low, and the report orders
+  by it. Not every flag deserves the same visual weight.
 - **Confidence** — `detected` on month-precision dates, `possible` when
   it rests on year-only dates or a fuzzy company match. A year-only
   date silently becomes January and can move a stint by 11 months, so
@@ -171,12 +175,34 @@ Four properties every flag carries:
   discounted." Silent filtering is untrustworthy filtering — showing
   the work is what makes the surviving flags credible.
 
-**Thresholds are role-relative.** A flat 12-month bar is wrong for an
-AE: an 18-month enterprise cycle needs a longer runway to prove
-anything than transactional SDR work does. `ROLE_RUBRICS` sets the
-short-stint threshold, the count that constitutes a pattern, and the
-assumed ramp per seat — SDR 12mo, AE/AM/CSM 18mo, VP 24mo (and only 2
-stints to make a pattern, because the seat is rarer).
+**Job hopping is the loud exception to all of the above.** Repeated
+short tenure is the most predictive negative signal on a sales résumé —
+a rep who leaves before a full quota year never produces, and the
+employer eats the ramp twice — so the tenure-pattern flags
+(`serial_short_stints`, `pre_milestone_departures`) are held to a
+harsher standard than everything else:
+
+- **Two short stints is a pattern. Four is a disaster** and fires at
+  `critical`, which drives the verdict to `likely_mismatch` unless
+  something extraordinary outweighs it, and forces the headline to lead
+  with the pattern rather than bury it under strengths.
+- **No layoff suppression.** A downturn explains one exit; it does not
+  explain a career of them. The window is still reported as fact in the
+  evidence line, labelled *context, not an excuse* — the founder gets
+  the information without the flag being talked down.
+- **No innocent explanation.** These flags carry `noExcuses: true`, and
+  `narrate()` forces `innocentExplanation` to null in code rather than
+  merely asking the prompt nicely — a model that decides to be
+  charitable anyway cannot put that softening in front of the founder.
+  If the candidate has an explanation, they can give it in the
+  interview. The job here is to make sure the founder actually asks.
+
+**Thresholds stay role-relative even so.** A flat 18-month bar would be
+wrong for an SDR, where median tenure is genuinely around 14 months —
+applying the AE bar there would flag essentially every SDR alive, which
+is noise, not signal. `ROLE_RUBRICS` sets the short-stint threshold and
+assumed ramp per seat (SDR 12mo, AE/AM/CSM/Manager 18mo, VP 24mo); the
+*count* that makes a pattern is an unforgiving 2 across the board.
 
 **Two things that are never flags:** a role they're *still in* (nobody
 has left it — counting the current job as hopping is the easiest way
@@ -184,9 +210,9 @@ to libel someone who simply started recently), and multiple roles at
 one employer counted separately (an SDR→AE run at Salesforce is one
 28-month tenure, not two short stints).
 
-`innocentExplanation` is mandatory on every red flag. A flag is an
-evidence-backed prompt for a conversation — never a verdict about a
-person.
+`innocentExplanation` is mandatory on every red flag **except the
+tenure-pattern ones above**. Elsewhere, a flag is an evidence-backed
+prompt for a conversation — never a verdict about a person.
 
 The company registry (`ACADEMY_ORGS`, `LAYOFF_WINDOWS`) is the
 compounding asset here: orgs that select hard, train hard and cut fast,

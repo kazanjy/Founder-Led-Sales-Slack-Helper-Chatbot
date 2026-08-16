@@ -15,83 +15,95 @@ import type { WebClient } from "@slack/web-api";
  */
 
 /**
- * Human phrasing per tool. Tools NOT listed here stay silent — a
- * playbook lookup returns fast and narrating it is just noise. Only
- * work slow or consequential enough that the founder would wonder
- * what's happening earns a line.
+ * Human phrasing per tool, plus optional teaching copy.
+ *
+ * Tools NOT listed here stay silent — a playbook lookup returns fast and
+ * narrating it is just noise. Only work slow or consequential enough
+ * that the founder would wonder what's happening earns a line.
+ *
+ * `doing` and `done` live in one entry deliberately: as two parallel
+ * maps keyed by tool name they drift, and a missing `done` silently
+ * drops a tool from the summary.
  */
-const TOOL_NARRATION: Record<string, string> = {
+function appUrl(path: string): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io").replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+interface Narration {
+  /** Present tense, shown while the tool runs. */
+  doing: string;
+  /** Past tense, folded into the settled summary. */
+  done: string;
+  /**
+   * Shown under the working line. This is the teaching moment — the
+   * founder is already waiting and reading, which is the one time
+   * they'll actually absorb what else the tool accepts.
+   */
+  hint?: string;
+  /** Shown under the settled summary, once the answer has landed. */
+  followUp?: string;
+}
+
+const TOOL_NARRATION: Record<string, Narration> = {
   // Hiring — by far the slowest, and the one that prompted this.
-  assessCandidateProfile: "Assessing the candidate — rebuilding their timeline and grading it",
+  assessCandidateProfile: {
+    // No inline emphasis here: the whole line gets wrapped in _…_ for
+    // italics, and Slack renders nested *bold* inside that unreliably.
+    doing: "Assessing the candidate — rebuilding their timeline and working out what each company was while they were there",
+    done: "assessed the candidate",
+    hint:
+      "This takes me a minute. While you wait — I can read a candidate from any of these, and you can combine them:\n" +
+      "  • a `linkedin.com/in/…` URL\n" +
+      "  • a résumé, attached as a PDF or Word doc\n" +
+      "  • a LinkedIn profile *Save to PDF* export (More → Save to PDF on their profile)\n" +
+      "  • plain pasted text — just drop the profile or résumé into the thread\n\n" +
+      "A résumé is worth attaching *even when you've given me the URL*: it usually carries quota, attainment and self-sourced numbers the LinkedIn profile doesn't. You can also tell me the seat — \"assess her for SDR\" — since the tenure bar differs by role.",
+    // Deliberately NOT "attach a résumé" — the tool result already
+    // nudges that, and only when they actually skipped one. Repeating
+    // it here would say the same thing twice in one thread.
+    followUp: `Every assessment is saved — you and your team can browse them at ${appUrl("/candidate-fit")}.`,
+  },
   // Whole-account sweeps.
-  getFullAccountContext: "Pulling your full GTM context together",
-  getMaturityAssessment: "Reading your GTM maturity assessment",
+  getFullAccountContext: { doing: "Pulling your full GTM context together", done: "read your full GTM context" },
+  getMaturityAssessment: { doing: "Reading your GTM maturity assessment", done: "read your maturity assessment" },
   // Corpus searches.
-  searchFounderLedSalesPlaybook: "Searching the founder-led sales playbook",
-  searchCollateral: "Searching your collateral library",
+  searchFounderLedSalesPlaybook: { doing: "Searching the founder-led sales playbook", done: "searched the playbook" },
+  searchCollateral: { doing: "Searching your collateral library", done: "searched your collateral" },
   // Pipeline reads.
-  listPipeline: "Reading your pipeline",
-  getPipelineSummary: "Summarizing your pipeline",
-  getDealsLikelyToClose: "Looking at what's likely to close",
-  getDealsNeedingHelp: "Looking for deals that need attention",
-  getUpcomingDealActivity: "Checking upcoming deal activity",
-  getCoachingState: "Checking where your coaching is at",
+  listPipeline: { doing: "Reading your pipeline", done: "read your pipeline" },
+  getPipelineSummary: { doing: "Summarizing your pipeline", done: "summarized your pipeline" },
+  getDealsLikelyToClose: { doing: "Looking at what's likely to close", done: "checked what's likely to close" },
+  getDealsNeedingHelp: { doing: "Looking for deals that need attention", done: "checked deals needing attention" },
+  getUpcomingDealActivity: { doing: "Checking upcoming deal activity", done: "checked upcoming activity" },
+  getCoachingState: { doing: "Checking where your coaching is at", done: "checked your coaching state" },
 
   // Deal agent — the generative ones especially, they're slow.
-  summarizeCall: "Summarizing the call",
-  draftFollowUpEmail: "Drafting the follow-up",
-  getHealthAndRisks: "Checking deal health and risks",
-  getBusinessCaseArtifacts: "Pulling the business case artifacts",
-  getRecentActivity: "Reading recent activity on the deal",
-  getCallDetail: "Reading the call detail",
-  addTimelineEntry: "Adding that to the deal timeline",
+  summarizeCall: { doing: "Summarizing the call", done: "summarized the call" },
+  draftFollowUpEmail: { doing: "Drafting the follow-up", done: "drafted the follow-up" },
+  getHealthAndRisks: { doing: "Checking deal health and risks", done: "checked deal health and risks" },
+  getBusinessCaseArtifacts: { doing: "Pulling the business case artifacts", done: "pulled the business case artifacts" },
+  getRecentActivity: { doing: "Reading recent activity on the deal", done: "read recent deal activity" },
+  getCallDetail: { doing: "Reading the call detail", done: "read the call detail" },
+  addTimelineEntry: { doing: "Adding that to the deal timeline", done: "added it to the deal timeline" },
 
   // Coaching agent.
-  summarizeCoachingSession: "Summarizing the coaching session",
-  searchCoachingHistory: "Searching your coaching history",
-  getFullCoachingHistory: "Reading your full coaching history",
-  whereDidWeLeaveOff: "Looking up where we left off",
-  addCoachingNote: "Saving that to your coaching notes",
-  getLatestSalesMetrics: "Reading your latest metrics",
+  summarizeCoachingSession: { doing: "Summarizing the coaching session", done: "summarized the coaching session" },
+  searchCoachingHistory: { doing: "Searching your coaching history", done: "searched your coaching history" },
+  getFullCoachingHistory: { doing: "Reading your full coaching history", done: "read your coaching history" },
+  whereDidWeLeaveOff: { doing: "Looking up where we left off", done: "looked up where we left off" },
+  addCoachingNote: { doing: "Saving that to your coaching notes", done: "saved your coaching note" },
+  getLatestSalesMetrics: { doing: "Reading your latest metrics", done: "read your latest metrics" },
 };
 
-/** Past-tense phrasing for the settled summary. */
-const TOOL_DONE: Record<string, string> = {
-  assessCandidateProfile: "assessed the candidate",
-  getFullAccountContext: "read your full GTM context",
-  getMaturityAssessment: "read your maturity assessment",
-  searchFounderLedSalesPlaybook: "searched the playbook",
-  searchCollateral: "searched your collateral",
-  listPipeline: "read your pipeline",
-  getPipelineSummary: "summarized your pipeline",
-  getDealsLikelyToClose: "checked what's likely to close",
-  getDealsNeedingHelp: "checked deals needing attention",
-  getUpcomingDealActivity: "checked upcoming activity",
-  getCoachingState: "checked your coaching state",
-
-  summarizeCall: "summarized the call",
-  draftFollowUpEmail: "drafted the follow-up",
-  getHealthAndRisks: "checked deal health and risks",
-  getBusinessCaseArtifacts: "pulled the business case artifacts",
-  getRecentActivity: "read recent deal activity",
-  getCallDetail: "read the call detail",
-  addTimelineEntry: "added it to the deal timeline",
-
-  summarizeCoachingSession: "summarized the coaching session",
-  searchCoachingHistory: "searched your coaching history",
-  getFullCoachingHistory: "read your coaching history",
-  whereDidWeLeaveOff: "looked up where we left off",
-  addCoachingNote: "saved your coaching note",
-  getLatestSalesMetrics: "read your latest metrics",
-};
-
-export function narrationFor(tool: string): string | null {
+export function narrationFor(tool: string): Narration | null {
   return TOOL_NARRATION[tool] || null;
 }
 
 export class AgentStatus {
   private ts: string | undefined;
   private readonly ran: string[] = [];
+  private readonly followUps: string[] = [];
   private posting: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -106,14 +118,18 @@ export class AgentStatus {
    * would leave a stray status message orphaned in the thread.
    */
   announce(tool: string): void {
-    const line = narrationFor(tool);
-    if (!line) return;
+    const n = narrationFor(tool);
+    if (!n) return;
     // Deduped: agents commonly call the same tool twice in a turn, and
     // "I read the call detail and read the call detail" is not a summary.
-    const done = TOOL_DONE[tool];
-    if (done && !this.ran.includes(done)) this.ran.push(done);
+    if (!this.ran.includes(n.done)) this.ran.push(n.done);
+    if (n.followUp && !this.followUps.includes(n.followUp)) this.followUps.push(n.followUp);
+    // The hint rides along with the working line, not as a second post:
+    // the founder is already waiting and reading, and a separate message
+    // would survive as clutter after the answer lands.
+    const body = n.hint ? `_${n.doing}…_\n\n${n.hint}` : `_${n.doing}…_`;
     this.posting = this.posting
-      .then(() => this.render(`_${line}…_`))
+      .then(() => this.render(body))
       .catch((err) => console.error("[agent-status] announce failed:", err));
   }
 
@@ -129,8 +145,14 @@ export class AgentStatus {
       this.ran.length === 1
         ? `_I ${this.ran[0]}._`
         : `_I ${this.ran.slice(0, -1).join(", ")} and ${this.ran[this.ran.length - 1]}._`;
+    // The working hint is replaced here, so anything worth keeping has
+    // to be restated as a follow-up — otherwise the teaching vanishes
+    // the moment the answer arrives.
+    const text = this.followUps.length
+      ? `${summary}\n\n${this.followUps.join("\n\n")}`
+      : summary;
     try {
-      await this.client.chat.update({ channel: this.channel, ts: this.ts, text: summary });
+      await this.client.chat.update({ channel: this.channel, ts: this.ts, text });
     } catch (err) {
       console.error("[agent-status] settle failed:", err);
     }

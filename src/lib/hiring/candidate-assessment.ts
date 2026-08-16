@@ -436,6 +436,17 @@ How to judge:
   If a claim contradicts the timeline, say so in "contradicts".
 - innocentExplanation is MANDATORY on every red flag and must be genuine, not a
   throat-clear. A flag is a question to ask, never a verdict about a person.
+- EXCEPT where a flag has "noExcuses": true. Those are the tenure-pattern
+  flags, and they get NO innocent explanation — return null. Do not hedge them,
+  do not soften them, do not write whyItMatters as "this could be fine."
+  Repeated short tenure is the most predictive negative signal on a sales
+  résumé: a rep who leaves before a full quota year never produces, and the
+  employer eats the ramp twice. Say that plainly. State the count and name the
+  companies. If the candidate has an explanation, they can give it in the
+  interview — your job is to make sure the founder actually asks.
+- A "critical" tenure flag should drive the verdict to "likely_mismatch" unless
+  something genuinely extraordinary outweighs it, and the headline must lead
+  with the pattern rather than burying it under their strengths.
 - Use rampAdjustedSellingMonths to show how little selling a short stint
   actually contained (e.g. "11 months at Acme is ~7 productive months after a
   typical 4-month ramp") — and label the ramp as an assumption, not a fact.
@@ -472,13 +483,17 @@ function narrate(flags: Flag[], raw: unknown): NarratedFlag[] {
     return {
       ...f,
       whyItMatters: str(n?.whyItMatters),
-      innocentExplanation: f.polarity === "red" ? str(n?.innocentExplanation) : null,
+      // Enforced in code, not just asked for in the prompt: a model that
+      // decides to be charitable about a tenure pattern anyway cannot
+      // put that softening in front of the founder.
+      innocentExplanation:
+        f.polarity === "red" && !f.noExcuses ? str(n?.innocentExplanation) : null,
       probe: str(n?.probe),
     };
   });
 }
 
-const SEVERITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export interface AssessmentResult {
   id: string;
