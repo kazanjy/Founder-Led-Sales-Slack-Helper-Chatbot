@@ -9,6 +9,7 @@ import {
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
 import { getOrgOverrides, getSchoolOverrides } from "./org-overrides";
+import { findOwnThenAccount, type OrgScope } from "@/lib/agents/shared/account-scoped";
 import {
   detectFlags,
   partitionFlags,
@@ -685,44 +686,37 @@ function candidateKeyFrom(linkedinUrl?: string, name?: string, employer?: string
  * profile sitting in the UI. Own-record-first, then newest in the
  * account — the same shape lib/seller-context.ts already uses.
  */
-async function loadHiringProfile(userId: string, accountId: string | null) {
+async function loadHiringProfile(userId: string, scope: OrgScope) {
   const select = { id: true, content: true } as const;
-  const own = await prisma.hiringProfileVersion.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select,
-  });
-  if (own || !accountId) return own;
-  return prisma.hiringProfileVersion.findFirst({
-    where: { user: { accountId } },
-    orderBy: { createdAt: "desc" },
-    select,
-  });
+  return findOwnThenAccount(
+    (where) =>
+      prisma.hiringProfileVersion.findFirst({ where, orderBy: { createdAt: "desc" }, select }),
+    userId,
+    scope
+  );
 }
 
-async function loadIcp(userId: string, accountId: string | null) {
-  const own = await prisma.icpVersion.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    select: { content: true },
-  });
-  if (own || !accountId) return own;
-  return prisma.icpVersion.findFirst({
-    where: { user: { accountId } },
-    orderBy: { createdAt: "desc" },
-    select: { content: true },
-  });
+async function loadIcp(userId: string, scope: OrgScope) {
+  return findOwnThenAccount(
+    (where) =>
+      prisma.icpVersion.findFirst({
+        where,
+        orderBy: { createdAt: "desc" },
+        select: { content: true },
+      }),
+    userId,
+    scope
+  );
 }
 
-async function loadMaturityStage(userId: string, accountId: string | null) {
-  const own = await prisma.salesMaturityStage.findUnique({ where: { userId } });
-  if (own || !accountId) return own;
-  // Most recently updated in the account — the stage is a property of
+async function loadMaturityStage(userId: string, scope: OrgScope) {
+  // Most recently updated wins on fallback — the stage is a property of
   // the company, and one teammate having set it is enough.
-  return prisma.salesMaturityStage.findFirst({
-    where: { user: { accountId } },
-    orderBy: { updatedAt: "desc" },
-  });
+  return findOwnThenAccount(
+    (where) => prisma.salesMaturityStage.findFirst({ where, orderBy: { updatedAt: "desc" } }),
+    userId,
+    scope
+  );
 }
 
 export async function assessCandidate(input: AssessmentInput): Promise<AssessmentResult> {
@@ -825,19 +819,24 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   // 5. Grade against the founder's own bar. Every artifact below is
   // account-scoped: in Slack the person asking is frequently not the
   // person who authored the hiring profile.
-  const accountRow = await prisma.user.findUnique({
+  // accountId is NULLABLE and a Slack-created user often has only
+  // workspaceId, so both are resolved and tried in turn.
+  const scopeRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { accountId: true },
+    select: { accountId: true, workspaceId: true },
   });
-  const accountId = accountRow?.accountId ?? null;
+  const scope: OrgScope = {
+    accountId: scopeRow?.accountId ?? null,
+    workspaceId: scopeRow?.workspaceId ?? null,
+  };
 
   const [seller, hiringProfile, icp, maturity, orgOverrides, schoolOverrides] = await Promise.all([
     loadSellerContext(userId),
-    loadHiringProfile(userId, accountId),
-    loadIcp(userId, accountId),
-    loadMaturityStage(userId, accountId),
-    getOrgOverrides(userId, accountId),
-    getSchoolOverrides(userId, accountId),
+    loadHiringProfile(userId, scope),
+    loadIcp(userId, scope),
+    loadMaturityStage(userId, scope),
+    getOrgOverrides(userId, scope),
+    getSchoolOverrides(userId, scope),
   ]);
 
   // Canonicalize schools before the flag engine runs. PDL has no
@@ -905,7 +904,8 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     throw new Error("The assessment came back unparseable — try again.");
   }
   console.log(
-    `[candidate-assessment] user=${userId} account=${accountId ?? "none"} ` +
+    `[candidate-assessment] user=${userId} account=${scope.accountId ?? "none"} ` +
+      `workspace=${scope.workspaceId ?? "none"} ` +
       `hiringProfile=${hiringProfile?.id ?? "MISSING"} icp=${icp ? "yes" : "no"} ` +
       `stage=${maturity?.currentStage ?? "none"}`
   );

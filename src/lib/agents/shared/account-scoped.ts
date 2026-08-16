@@ -17,18 +17,43 @@
  * deals. Those are personal or have their own claim/ownership model,
  * and widening their visibility is an access-control decision rather
  * than a bug fix.
+ *
+ * THREE TIERS, not two. User.accountId is NULLABLE, and a user created
+ * from Slack very often has only workspaceId set. Falling back on
+ * account alone therefore still leaves the exact reported failure in
+ * place: the founder authors the AE Hiring Profile on the web, the
+ * person typing in Slack is a different User row with no accountId,
+ * and the lookup returns nothing. Slack workspace membership is a real
+ * organizational boundary, so it is the last resort before giving up.
  */
+
+export interface OrgScope {
+  accountId?: string | null;
+  workspaceId?: string | null;
+}
+
+/** Accepts a bare accountId for callers that only have that. */
+function toScope(scope: string | null | undefined | OrgScope): OrgScope {
+  if (!scope) return {};
+  return typeof scope === "string" ? { accountId: scope } : scope;
+}
 
 /** Single-record read: own first, else the newest in the account. */
 export async function findOwnThenAccount<T>(
   find: (where: Record<string, unknown>) => Promise<T | null>,
   userId: string,
-  accountId: string | null | undefined,
+  scope: string | null | undefined | OrgScope,
   extraWhere: Record<string, unknown> = {}
 ): Promise<T | null> {
   const own = await find({ userId, ...extraWhere });
-  if (own || !accountId) return own;
-  return find({ user: { accountId }, ...extraWhere });
+  if (own) return own;
+  const { accountId, workspaceId } = toScope(scope);
+  if (accountId) {
+    const inAccount = await find({ user: { accountId }, ...extraWhere });
+    if (inAccount) return inAccount;
+  }
+  if (workspaceId) return find({ user: { workspaceId }, ...extraWhere });
+  return null;
 }
 
 /**
@@ -40,10 +65,16 @@ export async function findOwnThenAccount<T>(
 export async function findManyOwnThenAccount<T>(
   find: (where: Record<string, unknown>) => Promise<T[]>,
   userId: string,
-  accountId: string | null | undefined,
+  scope: string | null | undefined | OrgScope,
   extraWhere: Record<string, unknown> = {}
 ): Promise<T[]> {
   const own = await find({ userId, ...extraWhere });
-  if (own.length > 0 || !accountId) return own;
-  return find({ user: { accountId }, ...extraWhere });
+  if (own.length > 0) return own;
+  const { accountId, workspaceId } = toScope(scope);
+  if (accountId) {
+    const inAccount = await find({ user: { accountId }, ...extraWhere });
+    if (inAccount.length > 0) return inAccount;
+  }
+  if (workspaceId) return find({ user: { workspaceId }, ...extraWhere });
+  return [];
 }

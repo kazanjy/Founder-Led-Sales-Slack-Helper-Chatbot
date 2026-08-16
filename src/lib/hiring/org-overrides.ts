@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { OrgOverride } from "./sales-org-registry";
 import type { SchoolOverride } from "./school-registry";
+import { findOwnThenAccount, type OrgScope } from "@/lib/agents/shared/account-scoped";
 
 /**
  * Per-account additions to the well-regarded sales org registry.
@@ -27,28 +28,33 @@ const MAX_OVERRIDES = 100;
  */
 async function readAccountScoped(
   userId: string,
-  accountId: string | null,
+  scope: OrgScope,
   mergeField: string
 ): Promise<{ value: string | null } | null> {
-  const own = await prisma.gtmVariable.findFirst({
-    where: { userId, mergeField },
-    select: { value: true },
-  });
-  if (own?.value?.trim() || !accountId) return own;
-  return prisma.gtmVariable.findFirst({
-    where: { mergeField, user: { accountId }, NOT: { value: null } },
-    orderBy: { updatedAt: "desc" },
-    select: { value: true },
-  });
+  return findOwnThenAccount(
+    (where) =>
+      prisma.gtmVariable.findFirst({
+        where: { ...where, NOT: { value: null } },
+        orderBy: { updatedAt: "desc" },
+        select: { value: true },
+      }),
+    userId,
+    scope,
+    { mergeField }
+  );
 }
 
 /** Fail-safe: any read or parse error yields no overrides, never a throw. */
 export async function getOrgOverrides(
   userId: string,
-  accountId?: string | null
+  scope?: OrgScope | string | null
 ): Promise<OrgOverride[]> {
   try {
-    const row = await readAccountScoped(userId, accountId ?? null, MERGE_FIELD);
+    const row = await readAccountScoped(
+      userId,
+      typeof scope === "string" ? { accountId: scope } : scope ?? {},
+      MERGE_FIELD
+    );
     const raw = row?.value?.trim();
     if (!raw) return [];
     const parsed = JSON.parse(raw);
@@ -110,10 +116,14 @@ const SCHOOL_FIELD = "HIGH_BAR_SCHOOLS";
  */
 export async function getSchoolOverrides(
   userId: string,
-  accountId?: string | null
+  scope?: OrgScope | string | null
 ): Promise<SchoolOverride[]> {
   try {
-    const row = await readAccountScoped(userId, accountId ?? null, SCHOOL_FIELD);
+    const row = await readAccountScoped(
+      userId,
+      typeof scope === "string" ? { accountId: scope } : scope ?? {},
+      SCHOOL_FIELD
+    );
     const raw = row?.value?.trim();
     if (!raw) return [];
     const parsed = JSON.parse(raw);
