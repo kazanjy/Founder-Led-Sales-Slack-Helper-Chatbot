@@ -884,18 +884,19 @@ function backgroundFlags(
     out.push({
       code: "selective_school",
       polarity: "green",
-      // Capped at low on purpose. Unlike every other signal here, this
-      // is mostly something that happened to someone at 17 rather than
-      // something they did — and academic_distinction below measures
-      // performance INSIDE a program, which travels better.
-      severity: "low",
+      // Tiered to match the sales-org registry: an elite admit bar and
+      // a merely competitive one are different claims, and flattening
+      // them makes the strong ones look overstated.
+      severity: best.tier === "elite" ? "high" : "medium",
       confidence: best.viaDomain ? conf : "possible",
       claim: `${best.tier === "elite" ? "Highly selective" : "Selective"} school — ${best.name}`,
       evidence: [
         `Attended ${best.name}.`,
+        best.tier === "elite"
+          ? "Clearing a single-digit admit bar is a hard, independently-verified selection event — the same kind of third-party filter that makes academy-org tenure worth crediting."
+          : "A competitive admit bar, cleared against a large applicant pool.",
         best.viaDomain ? "Matched on canonical domain." : "Matched on name only — verify.",
         best.source === "account" ? "On your team's list of schools that matter." : null,
-        "Admission is a weak predictor of sales performance; treat as a tiebreak, not a reason.",
       ]
         .filter(Boolean)
         .join(" "),

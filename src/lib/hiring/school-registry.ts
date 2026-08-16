@@ -7,24 +7,24 @@
  * résumé can spell an institution. Free-text name matching is the
  * fallback for when the cleaner misses or isn't called.
  *
- * WHAT THIS IS AND ISN'T. PDL has no selectivity field — /school/clean
- * returns identity only — so the tiers below are a judgment call, not
- * data. That has two consequences worth stating in the code rather
- * than only in a doc:
+ * WEIGHTING. This is a heavily-weighted signal by product decision:
+ * elite fires at "high" severity, selective at "medium" — the same
+ * tiering as the sales-org registry. The rationale is that a
+ * single-digit admit rate is a hard selection event verified by a
+ * third party, which is the same reason academy-org tenure counts.
  *
- * 1. The resulting flag is GREEN-ONLY and low-weight. Attending a
- *    selective school is mostly something that happened to someone at
- *    17, unlike every other background signal here, which reflects
- *    something they did. It never lowers a rating and its absence
- *    never appears.
- * 2. The list is deliberately account-extendable. A founder hiring in
- *    Munich or São Paulo has a completely different and equally valid
- *    set, and a US-centric seed list should not silently define the
- *    bar for them.
+ * Two properties hold regardless of the weight, and both matter:
  *
- * `academic_distinction` (honors, scholarships, Latin honors) remains
- * the stronger and more defensible academic signal, because it
- * measures performance inside a program rather than admission to one.
+ * 1. The flag is GREEN-ONLY. It never lowers a rating, and its absence
+ *    never renders. Weighting it heavily makes a strong school a real
+ *    positive; it does not make an unremarkable one a negative, which
+ *    is what would turn this into a screen.
+ * 2. The list is account-extendable, and that matters MORE the heavier
+ *    the weight. PDL has no selectivity field — /school/clean returns
+ *    identity only — so these tiers are judgment, not data, and the
+ *    seed list is unavoidably US-centric. A founder hiring in Munich
+ *    or São Paulo has a completely different and equally valid set,
+ *    and a shipped list must not silently define their bar.
  */
 
 export type SchoolTier = "elite" | "selective";

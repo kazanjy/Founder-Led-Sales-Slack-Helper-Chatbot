@@ -307,17 +307,23 @@ Capped at 2 school lookups per assessment — undergrad plus a graduate
 degree is all the flag needs, since it reports the single best match
 rather than a transcript.
 
-The tiers are a judgment call, not data, which is why `selective_school`
-is capped at **low** severity and is green-only. Unlike every other
-background signal, admission is mostly something that happened to
-someone at 17 rather than something they did. `academic_distinction`
-stays the stronger academic signal because it measures performance
-*inside* a program rather than entry to one.
+**This is a heavily-weighted signal by product decision** —
+`selective_school` fires at **high** severity for elite and **medium**
+for selective, the same tiering as the sales-org registry. The
+rationale: a single-digit admit rate is a hard selection event
+verified by a third party, which is the same reason academy-org tenure
+counts for anything.
 
-The seed list is unavoidably US-centric, so account overrides
-(`HIGH_BAR_SCHOOLS`) matter more here than for orgs: a founder hiring
-in Munich or São Paulo has a completely different and equally valid
-set, and a shipped list should not silently define their bar.
+Two properties hold regardless of the weight. It stays **green-only**
+— a strong school is a real positive, an unremarkable one is never a
+negative, which is the line between a signal and a screen. And the
+tiers are judgment, not data, since PDL has no selectivity field.
+
+That second point makes account overrides (`HIGH_BAR_SCHOOLS`) *more*
+important the heavier the weight, not less: the seed list is
+unavoidably US-centric, and a founder hiring in Munich or São Paulo
+has a completely different and equally valid set that a shipped list
+must not silently override.
 
 "Smart major" splits into two bands. **Technical** (engineering, CS,
 hard sciences, maths) is the harder signal for a complex sale — that
