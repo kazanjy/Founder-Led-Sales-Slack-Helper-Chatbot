@@ -1,5 +1,6 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
+import { findOwnThenAccount, findManyOwnThenAccount } from "@/lib/agents/shared/account-scoped";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 
 // Re-export so existing code that pulled these from this module keeps
@@ -23,11 +24,25 @@ export type { ToolContext, ToolEntry };
  * behavior the web /coaching-history page has. Solo users (no
  * accountId) fall back to the per-user filter.
  *
- * NOTE: personal-state models (SalesMaturityStage, MaturityAssessment,
- * CoachingMetricDefinition, GtmVariable) stay userId-scoped even when
- * accountId is present, because each teammate has their own stage /
- * assessment / metrics / narrative and pulling teammates' rows in
- * a claimed channel would confuse the model.
+ * SalesMaturityStage, MaturityAssessment and CoachingMetricDefinition
+ * used to stay strictly userId-scoped here, on the reasoning that each
+ * teammate has their own and mixing rows would confuse the model. That
+ * reasoning was half right, and the half it got wrong caused a real
+ * bug: a teammate with no stage of their own got "no stage set" while
+ * the founder's stage sat in the UI, and the candidate assessor
+ * announced "no authored AE hiring profile was available" on an
+ * account that had one.
+ *
+ * These now use findOwnThenAccount, which is NOT the same as widening
+ * the query. Own row wins outright whenever it exists — a teammate who
+ * has set their own stage still sees exactly theirs, and rows are
+ * never merged. The account is consulted only when the user has
+ * nothing at all, where the alternative is an empty answer about a
+ * company-level fact. Stage and metric definitions describe the
+ * company, not the person.
+ *
+ * Genuinely personal reads (coaching sessions, notes, the implicit
+ * "jot this down" target) stay user-scoped — see addCoachingNote.
  */
 function coachingScope(ctx: ToolContext): { userId: string } | { user: { accountId: string } } {
   return ctx.accountId
@@ -340,11 +355,19 @@ const getMaturityStage: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const row = await prisma.salesMaturityStage.findUnique({
-      where: { userId },
-      select: { currentStage: true, updatedAt: true },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    // The stage is a property of the COMPANY, so a teammate must see
+    // the same answer the founder does.
+    const row = await findOwnThenAccount(
+      (where) =>
+        prisma.salesMaturityStage.findFirst({
+          where,
+          orderBy: { updatedAt: "desc" },
+          select: { currentStage: true, updatedAt: true },
+        }),
+      userId,
+      accountId
+    );
     return {
       currentStage: row?.currentStage || null,
       setAt: row?.updatedAt?.toISOString() || null,
@@ -377,18 +400,29 @@ const getMaturityAssessment: ToolEntry = {
   },
   handler: async (
     { assessmentId, includeHistory }: { assessmentId?: string; includeHistory?: boolean },
-    { userId }
+    { userId, accountId }
   ) => {
     const target = assessmentId
-      ? await prisma.maturityAssessment.findFirst({
-          where: { id: assessmentId, userId },
-          select: { id: true, title: true, completedAt: true },
-        })
-      : await prisma.maturityAssessment.findFirst({
-          where: { userId },
-          orderBy: { completedAt: "desc" },
-          select: { id: true, title: true, completedAt: true },
-        });
+      ? await findOwnThenAccount(
+          (where) =>
+            prisma.maturityAssessment.findFirst({
+              where,
+              select: { id: true, title: true, completedAt: true },
+            }),
+          userId,
+          accountId,
+          { id: assessmentId }
+        )
+      : await findOwnThenAccount(
+          (where) =>
+            prisma.maturityAssessment.findFirst({
+              where,
+              orderBy: { completedAt: "desc" },
+              select: { id: true, title: true, completedAt: true },
+            }),
+          userId,
+          accountId
+        );
     if (!target) {
       return {
         error:
@@ -404,16 +438,27 @@ const getMaturityAssessment: ToolEntry = {
         },
         orderBy: { question: { globalOrder: "asc" } },
       }),
-      prisma.salesMaturityStage.findUnique({
-        where: { userId },
-        select: { currentStage: true },
-      }),
+      findOwnThenAccount(
+        (where) =>
+          prisma.salesMaturityStage.findFirst({
+            where,
+            orderBy: { updatedAt: "desc" },
+            select: { currentStage: true },
+          }),
+        userId,
+        accountId
+      ),
       includeHistory
-        ? prisma.maturityAssessment.findMany({
-            where: { userId },
-            orderBy: { completedAt: "desc" },
-            select: { id: true, title: true, completedAt: true },
-          })
+        ? findManyOwnThenAccount(
+            (where) =>
+              prisma.maturityAssessment.findMany({
+                where,
+                orderBy: { completedAt: "desc" },
+                select: { id: true, title: true, completedAt: true },
+              }),
+            userId,
+            accountId
+          )
         : Promise.resolve(null),
     ]);
     // Group Q&A by category so the agent gets a structure that maps
@@ -470,12 +515,18 @@ const getLatestSalesMetrics: ToolEntry = {
       },
     },
   },
-  handler: async ({ metricNames }: { metricNames?: string[] }, { userId }) => {
-    const defs = await prisma.coachingMetricDefinition.findMany({
-      where: { userId, archived: false, kind: { not: "section" } },
-      orderBy: { order: "asc" },
-      select: { id: true, name: true, definition: true, format: true },
-    });
+  handler: async ({ metricNames }: { metricNames?: string[] }, { userId, accountId }) => {
+    const defs = await findManyOwnThenAccount(
+      (where) =>
+        prisma.coachingMetricDefinition.findMany({
+          where,
+          orderBy: { order: "asc" },
+          select: { id: true, name: true, definition: true, format: true },
+        }),
+      userId,
+      accountId,
+      { archived: false, kind: { not: "section" } }
+    );
     const filtered = metricNames && metricNames.length > 0
       ? defs.filter((d) => {
           const lc = d.name.toLowerCase();

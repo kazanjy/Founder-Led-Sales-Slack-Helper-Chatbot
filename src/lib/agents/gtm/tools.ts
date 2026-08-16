@@ -5,6 +5,7 @@ import { sendToChatbase } from "@/lib/chatbase/client";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 import { COACHING_TOOLS } from "@/lib/agents/coaching/tools";
 import { DEAL_TOOLS } from "@/lib/agents/deals/tools";
+import { findOwnThenAccount, findManyOwnThenAccount } from "@/lib/agents/shared/account-scoped";
 
 /**
  * Tool registry for the GTM agent — the default "everything else"
@@ -33,11 +34,17 @@ import { DEAL_TOOLS } from "@/lib/agents/deals/tools";
 // All gtm_variables-backed tools share this loader. Returns "" when
 // the row doesn't exist so we don't need null-handling at every
 // callsite.
-async function loadGtmVariable(userId: string, mergeField: string): Promise<string> {
-  const row = await prisma.gtmVariable.findFirst({
-    where: { userId, mergeField },
-    select: { value: true },
-  });
+async function loadGtmVariable(
+  userId: string,
+  mergeField: string,
+  accountId?: string | null
+): Promise<string> {
+  const row = await findOwnThenAccount(
+    (where) => prisma.gtmVariable.findFirst({ where, select: { value: true } }),
+    userId,
+    accountId,
+    { mergeField }
+  );
   return (row?.value || "").trim();
 }
 
@@ -51,12 +58,12 @@ const getSalesNarrative: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
     const [narrative, vp100, vp50, vp25] = await Promise.all([
-      loadGtmVariable(userId, "SALES_NARRATIVE"),
-      loadGtmVariable(userId, "VALUE_PROP_100W"),
-      loadGtmVariable(userId, "VALUE_PROP_50W"),
-      loadGtmVariable(userId, "VALUE_PROP_25W"),
+      loadGtmVariable(userId, "SALES_NARRATIVE", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_100W", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_50W", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_25W", accountId),
     ]);
     if (!narrative && !vp100 && !vp50 && !vp25) {
       return { error: "No sales narrative authored yet. The founder can create one at /sales-narrative." };
@@ -80,12 +87,17 @@ const getICP: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const latest = await prisma.icpVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, createdAt: true },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const latest = await findOwnThenAccount(
+      (where) =>
+        prisma.icpVersion.findFirst({
+          where,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, title: true, content: true, createdAt: true },
+        }),
+      userId,
+      accountId
+    );
     if (!latest) {
       return { error: "No ICP authored yet. The founder can create one at /icp." };
     }
@@ -108,12 +120,17 @@ const getDiscoveryQuestions: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const latest = await prisma.discoveryQuestionsVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, createdAt: true },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const latest = await findOwnThenAccount(
+      (where) =>
+        prisma.discoveryQuestionsVersion.findFirst({
+          where,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, title: true, content: true, createdAt: true },
+        }),
+      userId,
+      accountId
+    );
     if (!latest) {
       return { error: "No discovery questions authored yet. The founder can create them at /discovery-questions." };
     }
@@ -136,12 +153,17 @@ const getFirstCallChecklist: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const latest = await prisma.firstCallChecklistVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, createdAt: true },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const latest = await findOwnThenAccount(
+      (where) =>
+        prisma.firstCallChecklistVersion.findFirst({
+          where,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, title: true, content: true, createdAt: true },
+        }),
+      userId,
+      accountId
+    );
     if (!latest) {
       return { error: "No First Call Checklist authored yet. The founder can create one at /first-call-checklist." };
     }
@@ -164,22 +186,27 @@ const getColdCallScripts: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const latest = await prisma.coldCallScriptVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      // ColdCallScriptVersion has no `title` — describe it via the
-      // scriptType (outbound/inbound) and the persona it's tuned for
-      // so the agent knows what flavor it's looking at.
-      select: {
-        id: true,
-        scriptType: true,
-        orgPersona: true,
-        humanPersona: true,
-        content: true,
-        createdAt: true,
-      },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const latest = await findOwnThenAccount(
+      (where) =>
+        prisma.coldCallScriptVersion.findFirst({
+          where,
+          orderBy: { createdAt: "desc" },
+          // ColdCallScriptVersion has no `title` — describe it via the
+          // scriptType (outbound/inbound) and the persona it's tuned for
+          // so the agent knows what flavor it's looking at.
+          select: {
+            id: true,
+            scriptType: true,
+            orgPersona: true,
+            humanPersona: true,
+            content: true,
+            createdAt: true,
+          },
+        }),
+      userId,
+      accountId
+    );
     if (!latest) {
       return { error: "No cold call scripts authored yet. The founder can create them at /call-scripts." };
     }
@@ -204,20 +231,25 @@ const getObjectionLibrary: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const objections = await prisma.objectionEntry.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: {
-        id: true,
-        objection: true,
-        handle: true,
-        category: true,
-        orgPersona: true,
-        humanPersona: true,
-      },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const objections = await findManyOwnThenAccount(
+      (where) =>
+        prisma.objectionEntry.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            objection: true,
+            handle: true,
+            category: true,
+            orgPersona: true,
+            humanPersona: true,
+          },
+        }),
+      userId,
+      accountId
+    );
     if (objections.length === 0) {
       return { error: "No objections logged yet. The founder can build the library at /objection-library." };
     }
@@ -238,21 +270,26 @@ const getSalesDeck: ToolEntry = {
       parameters: { type: "object", properties: {} },
     },
   },
-  handler: async (_args: Record<string, never>, { userId }) => {
-    const latest = await prisma.salesDeckVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      // SalesDeckVersion has no `title` either — describe via
-      // deckMode (fresh / existing / gamma) and the source PDF
-      // name when relevant.
-      select: {
-        id: true,
-        deckMode: true,
-        sourcePdfName: true,
-        content: true,
-        createdAt: true,
-      },
-    });
+  handler: async (_args: Record<string, never>, { userId, accountId }) => {
+    const latest = await findOwnThenAccount(
+      (where) =>
+        prisma.salesDeckVersion.findFirst({
+          where,
+          orderBy: { createdAt: "desc" },
+          // SalesDeckVersion has no `title` either — describe via
+          // deckMode (fresh / existing / gamma) and the source PDF
+          // name when relevant.
+          select: {
+            id: true,
+            deckMode: true,
+            sourcePdfName: true,
+            content: true,
+            createdAt: true,
+          },
+        }),
+      userId,
+      accountId
+    );
     if (!latest) {
       return { error: "No sales deck authored yet. The founder can create one at /sales-deck." };
     }
@@ -456,19 +493,32 @@ const getFullAccountContext: ToolEntry = {
       metricDefs,
       collateralAssets,
     ] = await Promise.all([
-      loadGtmVariable(userId, "SALES_NARRATIVE"),
-      loadGtmVariable(userId, "VALUE_PROP_100W"),
-      loadGtmVariable(userId, "VALUE_PROP_50W"),
-      loadGtmVariable(userId, "VALUE_PROP_25W"),
-      prisma.maturityAssessment.findFirst({
-        where: { userId },
-        orderBy: { completedAt: "desc" },
-        select: { id: true, title: true, completedAt: true },
-      }),
-      prisma.salesMaturityStage.findUnique({
-        where: { userId },
-        select: { currentStage: true, updatedAt: true },
-      }),
+      loadGtmVariable(userId, "SALES_NARRATIVE", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_100W", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_50W", accountId),
+      loadGtmVariable(userId, "VALUE_PROP_25W", accountId),
+      findOwnThenAccount(
+        (where) =>
+          prisma.maturityAssessment.findFirst({
+            where,
+            orderBy: { completedAt: "desc" },
+            select: { id: true, title: true, completedAt: true },
+          }),
+        userId,
+        accountId
+      ),
+      // findUnique can't take a relation filter, so the account
+      // fallback is a findFirst on the most recently updated row.
+      findOwnThenAccount(
+        (where) =>
+          prisma.salesMaturityStage.findFirst({
+            where,
+            orderBy: { updatedAt: "desc" },
+            select: { currentStage: true, updatedAt: true },
+          }),
+        userId,
+        accountId
+      ),
       prisma.coachingSession.findMany({
         // Account-scoped so teammates' coaching sessions are visible
         // in a claimed Slack channel / super-context grab. Falls
@@ -541,11 +591,17 @@ const getFullAccountContext: ToolEntry = {
             },
           })
         : Promise.resolve([]),
-      prisma.coachingMetricDefinition.findMany({
-        where: { userId, archived: false, kind: { not: "section" } },
-        orderBy: { order: "asc" },
-        select: { id: true, name: true, format: true },
-      }),
+      findManyOwnThenAccount(
+        (where) =>
+          prisma.coachingMetricDefinition.findMany({
+            where,
+            orderBy: { order: "asc" },
+            select: { id: true, name: true, format: true },
+          }),
+        userId,
+        accountId,
+        { archived: false, kind: { not: "section" } }
+      ),
       // Collateral library assets (account-scoped). Only title +
       // description + category + a preview of the current version's
       // extracted text land in the super-context. Full text lives
