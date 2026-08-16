@@ -274,6 +274,64 @@ export function segmentLevel(title: string): number {
   return level;
 }
 
+// ── Early-career / student work ─────────────────────────────────────
+
+/**
+ * Student and early-career work is EXCLUDED from every tenure red
+ * flag, and it is not a close call.
+ *
+ * A student waits tables one summer, runs a fraternity chapter, and
+ * works part-time at a tile showroom — three overlapping "stints" and
+ * two gaps, none of which say anything about whether they will carry a
+ * quota. Running the hopping, gap and overlap rules over that material
+ * manufactures red flags out of an ordinary undergraduate life, and
+ * because early-career candidates have nothing BUT that material, the
+ * damage lands entirely on the youngest applicants.
+ *
+ * The rule: hold weirdness in real SALES roles against a candidate.
+ * Everything else is context, and student work can still earn green
+ * flags — see the phonathon and direct-sales-program detectors, which
+ * are among the strongest early-career signals there are.
+ */
+const EARLY_CAREER_TITLE =
+  /\b(intern(ship)?|trainee|student|campus|part[- ]time|seasonal|summer|temp(orary)?|work[- ]study|teaching assistant|\bta\b|research assistant|resident (advisor|assistant)|\bra\b|tutor|camp counselor|lifeguard|server|waiter|waitress|barista|bartender|host(ess)?|busser|line cook|chef|cook|cashier|sales associate|retail associate|stock|crew member|caddie|babysitter|nanny|volunteer)\b/i;
+
+/** Campus organizations — leadership, but not employment. */
+const STUDENT_ORG =
+  /\b(fraternity|sorority|student government|student union|greek life|chapter (president|vice president|treasurer|secretary)|club\b|honor society|student ambassador|orientation leader)\b/i;
+
+/** Two Greek letters in a row is a fraternity/sorority name. */
+const GREEK_LETTERS =
+  /\b(alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|omicron|sigma|tau|upsilon|phi|chi|psi|omega)\b[\s\w]*\b(alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)\b/i;
+
+/**
+ * University fundraising call centers. The single best early-career
+ * sales signal there is: hundreds of cold calls a week asking strangers
+ * for money, with a tracked conversion rate and immediate rejection.
+ * Nothing else available to a 20-year-old is closer to the job.
+ */
+const PHONATHON =
+  /\b(phonathon|phone-?a-?thon|telefund|tele-?fund|annual fund|annual giving|alumni giving|student caller|development office|advancement office|alumni relations|call center)\b/i;
+
+/**
+ * Direct-sales programs. Commission-only, self-sourced, rejection-dense
+ * work that people opt into — the classic proving ground. Surviving a
+ * summer of it says more than most first sales jobs.
+ */
+const DIRECT_SALES_PROGRAM =
+  /\b(cutco|vector marketing|southwestern (advantage|company)|kirby|aptive|vivint|alarm sales|pest control|door[- ]to[- ]door|\bd2d\b|knocking doors|solar sales|traveling sales)\b/i;
+
+function isEarlyCareerRole(r: TimelineRole): boolean {
+  const hay = `${r.title} ${r.company}`;
+  return (
+    EARLY_CAREER_TITLE.test(r.title) ||
+    STUDENT_ORG.test(hay) ||
+    GREEK_LETTERS.test(r.company) ||
+    PHONATHON.test(hay) ||
+    DIRECT_SALES_PROGRAM.test(hay)
+  );
+}
+
 const NON_QUOTA_TITLE = /\b(business development|growth|partnerships|consultant|advisor|strategy|operations)\b/i;
 const QUOTA_TITLE = /\b(account executive|\bae\b|sales rep|sales representative|enterprise sales|sales manager|cro)\b/i;
 const CONSULTANT_TITLE = /\b(consultant|advisor|freelance|self-employed|independent)\b/i;
@@ -303,6 +361,19 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   const conf: FlagConfidence = hasYearOnlyDates ? "possible" : "detected";
   const sales = timeline.filter((r) => r.isSales);
   const dated = timeline.filter((r) => r.start && r.months != null);
+  /**
+   * The set every tenure RED flag runs over. Student and early-career
+   * work is excluded entirely — see isEarlyCareerRole. Green flags
+   * still read the full timeline, because a phonathon or a summer of
+   * Cutco is exactly the kind of thing we want to credit.
+   */
+  const professional = dated.filter((r) => !isEarlyCareerRole(r));
+  /** Companies whose entire history here is student work. */
+  const earlyCareerCompanies = new Set(
+    [...new Set(timeline.map((r) => r.company))].filter((c) =>
+      timeline.filter((r) => r.company === c).every(isEarlyCareerRole)
+    )
+  );
 
   const sixYearsAgo = new Date();
   sixYearsAgo.setFullYear(sixYearsAgo.getFullYear() - 6);
@@ -349,7 +420,12 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
         !!t.to &&
         (t.from || "") >= recentCutoff &&
         t.months > 0 &&
-        t.months < rubric.shortStintMonths
+        t.months < rubric.shortStintMonths &&
+        // Only real sales employers count toward a hopping pattern. A
+        // summer job and a campus role are not evidence about whether
+        // someone will stay in a quota-carrying seat.
+        !earlyCareerCompanies.has(t.company) &&
+        (byCompany.get(t.company) || []).some((r) => r.isSales)
     )
     .sort((a, b) => (b.from || "").localeCompare(a.from || ""));
   const inLayoffWindow = shortStints.filter((t) => layoffWindowFor(t.to));
@@ -422,7 +498,7 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: descending title trajectory ─────────────────────────────
-  const levelled = [...dated]
+  const levelled = [...professional]
     .sort((a, b) => (a.start || "").localeCompare(b.start || ""))
     .map((r) => ({ ...r, level: titleLevel(r.title) }))
     .filter((r) => r.level > 0);
@@ -443,7 +519,7 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: never promoted anywhere ─────────────────────────────────
-  const longStints = dated.filter((r) => (r.months as number) >= 30);
+  const longStints = professional.filter((r) => (r.months as number) >= 30);
   const anyInternalPromo = [...byCompany.values()].some(
     (rs) => new Set(rs.map((r) => r.title)).size > 1
   );
@@ -462,7 +538,18 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: unexplained gaps ────────────────────────────────────────
-  const chrono = [...dated].sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+  // Gaps and overlaps are computed over PROFESSIONAL SALES roles only.
+  //
+  // Scoping by "is it sales" rather than by a blocklist of student job
+  // titles is the robust version: enumerating every non-sales job a
+  // 20-year-old might hold is a losing game (the first pass missed
+  // "Warehouse Assistant" and produced a 48-month gap that was simply
+  // college). A gap between two selling jobs is worth a question; a
+  // gap after a chef job is not, and neither is one bracketing a
+  // degree.
+  const chrono = [...professional]
+    .filter((r) => r.isSales)
+    .sort((a, b) => (a.start || "").localeCompare(b.start || ""));
   for (let i = 1; i < chrono.length; i++) {
     const prevEnd = chrono[i - 1].end;
     const nextStart = chrono[i].start;
@@ -497,6 +584,7 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
         !!t.to &&
         t.months >= 10 &&
         t.months <= 14 &&
+        !earlyCareerCompanies.has(t.company) &&
         (byCompany.get(t.company) || []).some((r) => r.isSales)
     );
   if (preMilestone.length >= 2) {
@@ -584,7 +672,18 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   for (let i = 0; i < chrono.length - 1; i++) {
     const a = chrono[i];
     const b = chrono[i + 1];
-    if (a.end && b.start && b.start < a.end && !CONSULTANT_TITLE.test(a.title) && !CONSULTANT_TITLE.test(b.title)) {
+    // Both must be quota-carrying sales roles. Two concurrent
+    // non-sales jobs is moonlighting or part-time work, which is
+    // nobody's business and certainly not a hiring signal.
+    if (
+      a.end &&
+      b.start &&
+      b.start < a.end &&
+      a.isSales &&
+      b.isSales &&
+      !CONSULTANT_TITLE.test(a.title) &&
+      !CONSULTANT_TITLE.test(b.title)
+    ) {
       const overlap =
         (Number(a.end.slice(0, 4)) - Number(b.start.slice(0, 4))) * 12 +
         (Number(a.end.slice(5, 7)) - Number(b.start.slice(5, 7)));
@@ -733,6 +832,46 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
         .map((x) => `${x.org?.entry.name} (${x.org?.signalFlags.filter((f) => ["mcmahon_lineage", "meddic_culture", "outbound_academy"].includes(f)).join(", ")})`)
         .join("; ")}. A chain of these logos in the right eras indicates deliberate training in one tradition — MEDDIC / Command of the Message — rather than picked-up habits.`,
       companies: lineageHits.map((x) => x.company),
+    });
+  }
+
+  // ── GREEN: university fundraising call center ────────────────────
+  // The best early-career sales signal available. Hundreds of cold
+  // calls a week asking strangers for money, against a tracked
+  // conversion rate, with immediate rejection. Nothing else open to a
+  // 20-year-old is closer to the actual job.
+  const phonathon = timeline.filter((r) => PHONATHON.test(`${r.title} ${r.company}`));
+  if (phonathon.length > 0) {
+    const months = phonathon.reduce((sum, r) => sum + (r.months || 0), 0);
+    flags.push({
+      code: "fundraising_call_center",
+      polarity: "green",
+      severity: "high",
+      confidence: conf,
+      claim: `Worked a university fundraising call center${months ? ` — ${months} months` : ""}`,
+      evidence: `${phonathon
+        .map((r) => `${r.title} @ ${r.company}${r.months ? ` (${r.months}mo)` : ""}`)
+        .join("; ")}. High-volume cold calling to strangers for money, against a tracked conversion rate and constant rejection — the closest thing to the job that exists at that age, and entirely voluntary.`,
+      companies: phonathon.map((r) => r.company),
+    });
+  }
+
+  // ── GREEN: commission-only direct sales program ──────────────────
+  const directSales = timeline.filter((r) =>
+    DIRECT_SALES_PROGRAM.test(`${r.title} ${r.company}`)
+  );
+  if (directSales.length > 0) {
+    const months = directSales.reduce((sum, r) => sum + (r.months || 0), 0);
+    flags.push({
+      code: "direct_sales_program",
+      polarity: "green",
+      severity: "high",
+      confidence: conf,
+      claim: `Commission-only direct sales${months ? ` — ${months} months` : ""}`,
+      evidence: `${directSales
+        .map((r) => `${r.title} @ ${r.company}${r.months ? ` (${r.months}mo)` : ""}`)
+        .join("; ")}. Self-sourced, commission-only, rejection-dense work people opt into. Surviving a season of it demonstrates more about prospecting temperament than most first sales jobs do.`,
+      companies: directSales.map((r) => r.company),
     });
   }
 

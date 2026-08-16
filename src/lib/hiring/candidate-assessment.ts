@@ -189,6 +189,50 @@ function stripYears(line: string): string {
     .trim();
 }
 
+/**
+ * PDL normalizes every string it returns to lowercase — names, titles,
+ * company names alike — so an unmodified profile renders as "shane
+ * goodman / regional sales manager, tribal entities @ splunk". Title
+ * case it back before anything stores or displays it.
+ *
+ * Résumé-extracted text is NOT passed through here: it already carries
+ * the candidate's own capitalization, and re-casing it would damage
+ * intentional forms like "eBay" or "iRobot".
+ */
+const ACRONYMS = new Set([
+  "ae", "sdr", "bdr", "vp", "svp", "evp", "cro", "ceo", "cto", "coo", "cfo", "cmo",
+  "it", "hr", "us", "usa", "uk", "eu", "emea", "apac", "latam", "na", "dach",
+  "saas", "b2b", "b2c", "api", "ai", "ml", "crm", "erp", "sms", "seo", "ppc", "sql",
+  "mba", "bs", "ba", "ms", "msc", "bsc", "phd", "jd", "cpa",
+  "ibm", "hp", "aws", "gcp", "sap", "ge", "3m", "kpmg", "pwc", "ey",
+  "uc", "ucla", "ucsb", "ucsd", "usc", "nyu", "mit", "ucf", "smu", "tcu", "byu", "lsu",
+  // Legal suffixes that really are uppercase. "Inc" and "Ltd" are
+  // deliberately absent — they are title case, not acronyms.
+  "llc", "plc", "llp",
+]);
+/** Lowercase inside a title unless they lead it. */
+const MINOR_WORDS = new Set(["a", "an", "and", "at", "by", "for", "in", "of", "on", "or", "the", "to", "with"]);
+
+export function titleCase(raw: string | null | undefined): string {
+  if (!raw) return "";
+  // Already mixed case means the source preserved it — leave it alone.
+  if (/[A-Z]/.test(raw) && raw !== raw.toUpperCase()) return raw;
+  return raw
+    .toLowerCase()
+    .split(/(\s+|[-/,&()])/)
+    .map((tok, i) => {
+      if (!/[a-z0-9]/.test(tok)) return tok;
+      const bare = tok.replace(/[^a-z0-9]/g, "");
+      if (ACRONYMS.has(bare)) return tok.toUpperCase();
+      if (i > 0 && MINOR_WORDS.has(bare)) return tok;
+      // Mc/Mac and O' names get their inner capital back.
+      return tok
+        .replace(/^([a-z])/, (m) => m.toUpperCase())
+        .replace(/^(Mc|Mac|O')([a-z])/, (_m, p, c) => p + c.toUpperCase());
+    })
+    .join("");
+}
+
 function monthsBetween(start: string | null, end: string | null): number | null {
   if (!start) return null;
   const s = new Date(`${start}-01T00:00:00Z`);
@@ -236,7 +280,7 @@ const SALES_TITLE = /(account executive|\bae\b|sales|revenue|business developmen
 function backgroundFromPDL(person: PDLPersonResult): CandidateBackground {
   const education = person.education || [];
   return {
-    schools: education.map((e) => e.school?.name || "").filter(Boolean),
+    schools: education.map((e) => titleCase(e.school?.name)).filter(Boolean),
     // Degrees go in alongside majors, not into distinctions: PDL
     // populates the two inconsistently, and where `majors` is empty the
     // field is usually named inside the degree ("BS Mechanical
@@ -282,9 +326,9 @@ function timelineFromPDL(person: PDLPersonResult): {
   const timeline = (person.experience || []).map((e) => {
     const start = toYearMonth(e.start_date);
     const end = toYearMonth(e.end_date);
-    const title = e.title?.name || "";
+    const title = titleCase(e.title?.name) || "";
     return {
-      company: e.company?.name || "Unknown",
+      company: titleCase(e.company?.name) || "Unknown",
       companyWebsite: e.company?.website || null,
       title,
       start,
@@ -704,8 +748,11 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     pdlCallsUsed++;
     if (data) {
       source = "pdl";
-      candidateName = candidateName || data.full_name || "";
-      headline = [data.job_title, data.job_company_name].filter(Boolean).join(" @ ") || null;
+      candidateName = candidateName || titleCase(data.full_name) || "";
+      headline =
+        [titleCase(data.job_title), titleCase(data.job_company_name)]
+          .filter(Boolean)
+          .join(" @ ") || null;
       const fromPdl = timelineFromPDL(data);
       timeline = fromPdl.timeline;
       hasYearOnlyDates = fromPdl.hasYearOnlyDates;
