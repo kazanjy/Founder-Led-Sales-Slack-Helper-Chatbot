@@ -285,6 +285,49 @@ Two deliberate exclusions:
 It's earned rather than inherited, and it's the one background signal
 that corrects for advantage instead of compounding it.
 
+#### School selectivity — what PDL can and can't do
+
+PDL's `/school/clean` returns `id, name, website, domain, type,
+linkedin_url, linkedin_id, facebook_url, twitter_url, location` — per
+their own OpenAPI spec. There is **no prestige, selectivity, ranking or
+admission-rate field**, on that endpoint or any other. PDL resolves who
+an institution *is*; it does not rate institutions.
+
+So the work splits:
+
+- **PDL does identity.** "UMich", "U of M" and "University of
+  Michigan-Ann Arbor" all clean to one record with `domain:
+  umich.edu`. That's the half that makes a tier lookup actually work.
+- **`school-registry.ts` does the tier**, keyed on **domain** rather
+  than free text, with suffix matching so `eng.umich.edu` resolves.
+  Raw-name matching is a lossy fallback and drops the flag to
+  `possible` confidence when it's the only path available.
+
+Capped at 2 school lookups per assessment — undergrad plus a graduate
+degree is all the flag needs, since it reports the single best match
+rather than a transcript.
+
+The tiers are a judgment call, not data, which is why `selective_school`
+is capped at **low** severity and is green-only. Unlike every other
+background signal, admission is mostly something that happened to
+someone at 17 rather than something they did. `academic_distinction`
+stays the stronger academic signal because it measures performance
+*inside* a program rather than entry to one.
+
+The seed list is unavoidably US-centric, so account overrides
+(`HIGH_BAR_SCHOOLS`) matter more here than for orgs: a founder hiring
+in Munich or São Paulo has a completely different and equally valid
+set, and a shipped list should not silently define their bar.
+
+"Smart major" splits into two bands. **Technical** (engineering, CS,
+hard sciences, maths) is the harder signal for a complex sale — that
+candidate can hold a technical conversation with the buyer's engineers
+without an SE in the room, which matters most precisely where there is
+no SE. **Business-quant** (economics, finance, accounting) is the
+classic band: numerate enough to build a business case and defend an
+ROI model. Both cap at low severity and `possible` confidence, because
+a field of study is weak evidence about how someone runs a deal.
+
 #### The sales org registry — `lib/hiring/sales-org-registry.ts`
 
 The highest-leverage proprietary asset in the product. Everything else

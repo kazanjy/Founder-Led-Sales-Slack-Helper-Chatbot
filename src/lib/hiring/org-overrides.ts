@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { OrgOverride } from "./sales-org-registry";
+import type { SchoolOverride } from "./school-registry";
 
 /**
  * Per-account additions to the well-regarded sales org registry.
@@ -67,6 +68,69 @@ export async function setOrgOverrides(
       // `name` is required on the model and is what the GTM variables UI
       // lists; this row is machine-managed, so it gets a stable label.
       data: { userId, name: "High-bar sales orgs", mergeField: MERGE_FIELD, value },
+    });
+  }
+  return clean;
+}
+
+// ── School overrides ────────────────────────────────────────────────
+
+const SCHOOL_FIELD = "HIGH_BAR_SCHOOLS";
+
+/**
+ * Per-account additions to the school selectivity registry.
+ *
+ * More load-bearing than the org equivalent, because the seed list is
+ * unavoidably US-centric: a founder hiring in Munich or São Paulo has
+ * a completely different and equally valid set, and a shipped list
+ * shouldn't silently define the bar for them.
+ */
+export async function getSchoolOverrides(userId: string): Promise<SchoolOverride[]> {
+  try {
+    const row = await prisma.gtmVariable.findFirst({
+      where: { userId, mergeField: SCHOOL_FIELD },
+      select: { value: true },
+    });
+    const raw = row?.value?.trim();
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((o) => o && typeof o === "object" && typeof o.name === "string" && o.name.trim())
+      .slice(0, MAX_OVERRIDES)
+      .map((o) => ({
+        name: String(o.name).trim(),
+        domain: typeof o.domain === "string" && o.domain.trim() ? o.domain.trim() : undefined,
+        tier: o.tier === "elite" ? ("elite" as const) : ("selective" as const),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export async function setSchoolOverrides(
+  userId: string,
+  overrides: SchoolOverride[]
+): Promise<SchoolOverride[]> {
+  const clean = overrides
+    .filter((o) => o.name?.trim())
+    .slice(0, MAX_OVERRIDES)
+    .map((o) => ({
+      name: o.name.trim().slice(0, 160),
+      ...(o.domain?.trim() ? { domain: o.domain.trim().slice(0, 120) } : {}),
+      tier: o.tier === "elite" ? ("elite" as const) : ("selective" as const),
+    }));
+
+  const existing = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField: SCHOOL_FIELD },
+    select: { id: true },
+  });
+  const value = JSON.stringify(clean);
+  if (existing) {
+    await prisma.gtmVariable.update({ where: { id: existing.id }, data: { value } });
+  } else {
+    await prisma.gtmVariable.create({
+      data: { userId, name: "High-bar schools", mergeField: SCHOOL_FIELD, value },
     });
   }
   return clean;

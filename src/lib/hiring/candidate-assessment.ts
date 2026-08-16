@@ -4,10 +4,11 @@ import { loadSellerContext } from "@/lib/seller-context";
 import {
   enrichPersonByLinkedIn,
   enrichCompanyByNameOrDomain,
+  cleanSchool,
   type PDLPersonResult,
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
-import { getOrgOverrides } from "./org-overrides";
+import { getOrgOverrides, getSchoolOverrides } from "./org-overrides";
 import {
   detectFlags,
   partitionFlags,
@@ -54,6 +55,12 @@ const MIN_MONTHS_FOR_LOOKUP = 6;
 const MAX_COMPANIES = 8;
 /** Hard ceiling on paid verification lookups per assessment. */
 const MAX_PDL_VERIFICATIONS = 3;
+/**
+ * Schools resolved through PDL's cleaner per assessment. Two covers
+ * undergrad plus a graduate degree, which is all the selectivity flag
+ * needs — it reports the single best match, not a transcript.
+ */
+const MAX_SCHOOL_LOOKUPS = 2;
 
 export interface TimelineRole {
   company: string;
@@ -712,7 +719,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   const signals = computeSignals(timeline, rubric);
 
   // 5. Grade against the founder's own bar.
-  const [seller, hiringProfile, icp, maturity, orgOverrides] = await Promise.all([
+  const [seller, hiringProfile, icp, maturity, orgOverrides, schoolOverrides] = await Promise.all([
     loadSellerContext(userId),
     prisma.hiringProfileVersion.findFirst({
       where: { userId },
@@ -726,7 +733,27 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     }),
     prisma.salesMaturityStage.findUnique({ where: { userId } }),
     getOrgOverrides(userId),
+    getSchoolOverrides(userId),
   ]);
+
+  // Canonicalize schools before the flag engine runs. PDL has no
+  // selectivity field — /school/clean returns identity only — so this
+  // buys the DOMAIN, which is what the tier registry keys on. Without
+  // it we'd be string-matching "U of M" against "University of
+  // Michigan" and losing most real matches.
+  const schoolNames = [...new Set((background.schools || []).filter(Boolean))].slice(
+    0,
+    MAX_SCHOOL_LOOKUPS
+  );
+  if (schoolNames.length > 0) {
+    const resolved = await Promise.all(
+      schoolNames.map(async (name) => {
+        const cleaned = await cleanSchool(name);
+        return { name: cleaned?.name || name, domain: cleaned?.domain || null };
+      })
+    );
+    background = { ...background, resolvedSchools: resolved };
+  }
 
   const flags = detectFlags({
     timeline,
@@ -736,6 +763,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     hasYearOnlyDates,
     background,
     orgOverrides,
+    schoolOverrides,
   });
 
   const gradePayload = {

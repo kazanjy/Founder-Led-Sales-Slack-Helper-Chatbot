@@ -428,3 +428,47 @@ export async function enrichCompanyByNameOrDomain(
     return null;
   }
 }
+
+// ── School Cleaner ───────────────────────────────────────────────
+
+/**
+ * Canonical school identity from PDL's School Cleaner.
+ *
+ * Per PDL's own OpenAPI spec, /school/clean returns identity fields
+ * only — id, name, website, domain, type, socials, location. There is
+ * NO prestige, selectivity, ranking or admission-rate field, and no
+ * other PDL endpoint carries one: PDL resolves who an institution is,
+ * it does not rate institutions.
+ *
+ * What that buys us is the half that actually makes a tier lookup
+ * work. "UMich", "U of M" and "University of Michigan-Ann Arbor" all
+ * resolve to one record with domain umich.edu, so the selectivity
+ * registry can key on DOMAIN instead of trying to string-match names
+ * a résumé writes a dozen different ways.
+ */
+export interface PDLSchoolResult {
+  name: string | null;
+  website: string | null;
+  domain: string | null;
+  /** e.g. "post-secondary institution", "secondary school". */
+  type: string | null;
+  location: { name?: string | null; country?: string | null } | null;
+}
+
+export async function cleanSchool(name: string): Promise<PDLSchoolResult | null> {
+  if (!PDL_API_KEY || !name?.trim()) return null;
+  const params = new URLSearchParams();
+  params.set("name", name.trim());
+  try {
+    const response = await fetch(`${PDL_BASE_URL}/school/clean?${params.toString()}`, {
+      headers: { "X-Api-Key": PDL_API_KEY },
+    });
+    if (!response.ok) return null;
+    const json = (await response.json()) as { school?: PDLSchoolResult } & PDLSchoolResult;
+    // The cleaner nests the record under `school`; tolerate both shapes.
+    return json.school ?? json ?? null;
+  } catch (error) {
+    console.error(`[PDL] School clean failed for ${name}:`, error);
+    return null;
+  }
+}

@@ -1,5 +1,6 @@
 import type { TimelineRole, CompanyRead } from "./candidate-assessment";
 import { lookupSalesOrg, windowLabel, type OrgOverride } from "./sales-org-registry";
+import { lookupSchool, type SchoolOverride } from "./school-registry";
 
 /**
  * Deterministic flag engine (SalesFlag PRD §5).
@@ -121,6 +122,12 @@ export function rubricFor(roleLabel: string): RoleRubric {
 export interface CandidateBackground {
   /** School names as written. No graduation years, by design. */
   schools?: string[];
+  /**
+   * Schools resolved through PDL's School Cleaner — canonical name plus
+   * domain. The selectivity registry keys on domain, so this is what
+   * makes the lookup reliable; raw names are a lossy fallback.
+   */
+  resolvedSchools?: Array<{ name: string; domain: string | null }>;
   /** Fields of study as written. */
   majors?: string[];
   /**
@@ -131,12 +138,25 @@ export interface CandidateBackground {
 }
 
 /**
- * Majors that correlate with the analytical and quantitative habits a
- * complex sale rewards. Weak evidence on its own, which is why it
- * lands at "low" severity and never moves a verdict by itself.
+ * "Smart major", in two bands.
+ *
+ * TECHNICAL is the harder signal for a complex sale: someone who got
+ * through an engineering or hard-science degree can hold a technical
+ * conversation with a buyer's engineers without an SE in the room,
+ * which is exactly the constraint at a seed company.
+ *
+ * BUSINESS_QUANT is the classic sales-hiring major band — economics,
+ * finance, accounting. Numerate enough to build a business case and
+ * argue an ROI model.
+ *
+ * Both are weak evidence about how someone actually runs a deal, which
+ * is why they cap at "low" and carry "possible" confidence.
  */
-const QUANT_MAJOR =
-  /\b(econom(ics|y)|finance|accounting|mathematics|maths?|statistics|physics|chemistry|biology|biochem\w*|engineer(ing)?|computer science|comp sci|data science|actuarial|operations research|applied math|quantitative|neuroscience|industrial engineering)\b/i;
+const TECHNICAL_MAJOR =
+  /\b(engineer(ing)?|computer science|comp sci|\bcs\b|physics|chemistry|biochem\w*|mathematics|maths?|applied math|statistics|data science|actuarial|operations research|neuroscience|biomedical|electrical|mechanical|chemical engineering|aerospace)\b/i;
+
+const BUSINESS_QUANT_MAJOR =
+  /\b(econom(ics|y)|finance|accounting|business analytics|quantitative|supply chain|industrial (engineering|management))\b/i;
 
 /** Majors whose value here is persuasion and argument under pressure. */
 const PERSUASION_MAJOR =
@@ -272,6 +292,8 @@ export interface FlagEngineInput {
   background?: CandidateBackground;
   /** Account-specific "treat this org as high-bar" additions. */
   orgOverrides?: OrgOverride[];
+  /** Account-specific "these schools matter to us" additions. */
+  schoolOverrides?: SchoolOverride[];
 }
 
 export function detectFlags(input: FlagEngineInput): Flag[] {
@@ -665,7 +687,9 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
 
   // ── GREEN: background / grit signals (never red — see the note on
   // CandidateBackground for why absence must stay unscored) ─────────
-  flags.push(...backgroundFlags(input.background, conf, timeline.map((r) => r.title)));
+  flags.push(
+    ...backgroundFlags(input.background, conf, timeline.map((r) => r.title), input.schoolOverrides)
+  );
 
   // ── GREEN: healthy tenure cadence ────────────────────────────────
   const salesStints = sales.map((r) => r.months).filter((m): m is number => m != null);
@@ -720,7 +744,8 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
 function backgroundFlags(
   bg: CandidateBackground | undefined,
   conf: FlagConfidence,
-  roleTitles: string[] = []
+  roleTitles: string[] = [],
+  schoolOverrides: SchoolOverride[] = []
 ): Flag[] {
   if (!bg && roleTitles.length === 0) return [];
   const out: Flag[] = [];
@@ -737,7 +762,9 @@ function backgroundFlags(
   const firstMatch = (re: RegExp, hay: string[]): string | null =>
     hay.find((h) => re.test(h)) || null;
 
-  const quant = firstMatch(QUANT_MAJOR, majors);
+  const technical = firstMatch(TECHNICAL_MAJOR, majors);
+  const businessQuant = firstMatch(BUSINESS_QUANT_MAJOR, majors);
+  const quant = technical || businessQuant;
   if (quant) {
     out.push({
       code: "quantitative_major",
@@ -746,8 +773,12 @@ function backgroundFlags(
       // Never better than "possible": a field of study is a weak proxy
       // for how someone actually runs a deal.
       confidence: "possible",
-      claim: `Quantitative field of study — ${quant}`,
-      evidence: `Studied ${quant}. Correlates with comfort in business cases and ROI conversations; weak evidence on its own.`,
+      claim: technical
+        ? `Technical field of study — ${technical}`
+        : `Quantitative field of study — ${businessQuant}`,
+      evidence: technical
+        ? `Studied ${technical}. Can likely hold a technical conversation with a buyer's engineers without an SE in the room — which matters most where there is no SE. Weak evidence on its own.`
+        : `Studied ${businessQuant}. Numerate enough to build a business case and defend an ROI model. Weak evidence on its own.`,
       companies: [],
     });
   }
@@ -833,6 +864,41 @@ function backgroundFlags(
       confidence: conf,
       claim: "Funded their own education while studying",
       evidence: `"${worked}". Self-direction and work ethic demonstrated rather than asserted.`,
+      companies: [],
+    });
+  }
+
+  // ── Selective school ─────────────────────────────────────────────
+  // Domain-matched via PDL where possible; raw-name matching is lossy
+  // enough that it drops to "possible" confidence.
+  const candidates: Array<{ name: string; domain: string | null }> =
+    bg?.resolvedSchools?.length
+      ? bg.resolvedSchools
+      : (bg?.schools || []).map((s) => ({ name: s, domain: null }));
+  let best: ReturnType<typeof lookupSchool> = null;
+  for (const c of candidates) {
+    const m = lookupSchool(c.name, c.domain, schoolOverrides);
+    if (m && (!best || (m.tier === "elite" && best.tier !== "elite"))) best = m;
+  }
+  if (best) {
+    out.push({
+      code: "selective_school",
+      polarity: "green",
+      // Capped at low on purpose. Unlike every other signal here, this
+      // is mostly something that happened to someone at 17 rather than
+      // something they did — and academic_distinction below measures
+      // performance INSIDE a program, which travels better.
+      severity: "low",
+      confidence: best.viaDomain ? conf : "possible",
+      claim: `${best.tier === "elite" ? "Highly selective" : "Selective"} school — ${best.name}`,
+      evidence: [
+        `Attended ${best.name}.`,
+        best.viaDomain ? "Matched on canonical domain." : "Matched on name only — verify.",
+        best.source === "account" ? "On your team's list of schools that matter." : null,
+        "Admission is a weak predictor of sales performance; treat as a tiebreak, not a reason.",
+      ]
+        .filter(Boolean)
+        .join(" "),
       companies: [],
     });
   }
