@@ -706,7 +706,15 @@ function candidateKeyFrom(linkedinUrl?: string, name?: string, employer?: string
  * account — the same shape lib/seller-context.ts already uses.
  */
 async function loadHiringProfile(userId: string, scope: OrgScope) {
-  const select = { id: true, content: true } as const;
+  // The author's account travels with the profile so the report can
+  // name whose bar it graded against — a wrong tenant must be visible,
+  // not inferred from the prose.
+  const select = {
+    id: true,
+    content: true,
+    title: true,
+    user: { select: { name: true, email: true, account: { select: { id: true, name: true } } } },
+  } as const;
   return findOwnThenAccount(
     (where) =>
       prisma.hiringProfileVersion.findFirst({ where, orderBy: { createdAt: "desc" }, select }),
@@ -929,7 +937,8 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   console.log(
     `[candidate-assessment] user=${userId} account=${scope.accountId ?? "none"} ` +
       `workspace=${scope.workspaceId ?? "none"} ` +
-      `hiringProfile=${hiringProfile?.id ?? "MISSING"} icp=${icp ? "yes" : "no"} ` +
+      `hiringProfile=${hiringProfile?.id ?? "MISSING"}(${hiringProfile?.user?.account?.name ?? "no account"}) ` +
+      `icp=${icp ? "yes" : "no"} ` +
       `stage=${maturity?.currentStage ?? "none"}`
   );
 
@@ -955,6 +964,10 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   report.gradedAgainst = {
     hiringProfile: !!hiringProfile?.content,
     hiringProfileVersionId: hiringProfile?.id || null,
+    hiringProfileTitle: hiringProfile?.title || null,
+    // Naming the account is the guardrail: grading one customer against
+    // another customer's bar should be obvious on sight.
+    hiringProfileAccount: hiringProfile?.user?.account?.name || null,
     icp: !!icp?.content,
     maturityStage: maturity?.currentStage || null,
   };

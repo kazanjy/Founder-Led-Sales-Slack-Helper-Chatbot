@@ -66,6 +66,8 @@ export interface FitReport {
   gradedAgainst?: {
     hiringProfile?: boolean;
     hiringProfileVersionId?: string | null;
+    hiringProfileTitle?: string | null;
+    hiringProfileAccount?: string | null;
     icp?: boolean;
     maturityStage?: string | null;
   };
@@ -220,7 +222,12 @@ export function CandidateFitReport({ report }: { report: FitReport }) {
         >
           {report.gradedAgainst.hiringProfile ? (
             <>
-              <span className="font-medium">✓ Graded against your AE Hiring Profile</span>
+              <span className="font-medium">
+                ✓ Graded against
+                {report.gradedAgainst.hiringProfileAccount
+                  ? ` ${report.gradedAgainst.hiringProfileAccount}'s AE Hiring Profile`
+                  : " your AE Hiring Profile"}
+              </span>
               {report.gradedAgainst.maturityStage && (
                 <> · stage {report.gradedAgainst.maturityStage.replace(/_/g, " ").toLowerCase()}</>
               )}

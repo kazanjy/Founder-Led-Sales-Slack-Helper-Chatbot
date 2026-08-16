@@ -336,6 +336,17 @@ const NON_QUOTA_TITLE = /\b(business development|growth|partnerships|consultant|
 const QUOTA_TITLE = /\b(account executive|\bae\b|sales rep|sales representative|enterprise sales|sales manager|cro)\b/i;
 const CONSULTANT_TITLE = /\b(consultant|advisor|freelance|self-employed|independent)\b/i;
 
+/**
+ * Founder / owner / C-title. On the seniority ladder these sit at the
+ * top, which is exactly the problem: "CEO, Bob's Donut Shop" outranks
+ * every real sales title, so entering professional SaaS sales
+ * afterwards reads as a collapse in seniority when it is the opposite
+ * — a deliberate move into a trainable career with a real quota.
+ * Excluded from trajectory analysis for that reason.
+ */
+const FOUNDER_TITLE =
+  /\b(founder|co-?founder|owner|proprietor|principal|\bceo\b|chief executive|president)\b/i;
+
 // ── Detection ───────────────────────────────────────────────────────
 
 export interface FlagEngineInput {
@@ -498,21 +509,35 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── RED: descending title trajectory ─────────────────────────────
+  //
+  // Measured over professional SALES roles with founder/owner titles
+  // removed. Two reasons, both learned from false positives:
+  //
+  // 1. A pre-career venture ("CEO & Founder, SF Proclinic") tops the
+  //    seniority ladder, so the standard SMB AE -> Corporate AE ->
+  //    Mid-Market AE progression that follows it reads as a demotion.
+  //    It is the opposite: someone chose a real quota over a title
+  //    they granted themselves.
+  // 2. Non-sales roles have no meaningful place on a sales ladder.
   const levelled = [...professional]
+    .filter((r) => r.isSales && !FOUNDER_TITLE.test(r.title))
     .sort((a, b) => (a.start || "").localeCompare(b.start || ""))
-    .map((r) => ({ ...r, level: titleLevel(r.title) }))
+    .map((r) => ({ ...r, level: titleLevel(r.title), segment: segmentLevel(r.title) }))
     .filter((r) => r.level > 0);
   if (levelled.length >= 3) {
-    const first = levelled[0].level;
-    const last = levelled[levelled.length - 1].level;
-    if (last < first - 1) {
+    const first = levelled[0];
+    const last = levelled[levelled.length - 1];
+    // Moving up-market counts as progression even when the seniority
+    // word doesn't change — SMB AE to Mid-Market AE is a promotion.
+    const segmentUp = last.segment > first.segment;
+    if (last.level < first.level - 1 && !segmentUp) {
       flags.push({
         code: "descending_title_trajectory",
         polarity: "red",
         severity: "medium",
         confidence: conf,
         claim: "Seniority has moved down over time, not up",
-        evidence: levelled.map((r) => `${r.title} @ ${r.company}`).join(" → "),
+        evidence: `${levelled.map((r) => `${r.title} @ ${r.company}`).join(" → ")}. Founder/owner titles and non-sales roles are excluded from this read.`,
         companies: levelled.map((r) => r.company),
       });
     }
@@ -668,38 +693,25 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
     });
   }
 
-  // ── RED: overlapping full-time stints ────────────────────────────
-  for (let i = 0; i < chrono.length - 1; i++) {
-    const a = chrono[i];
-    const b = chrono[i + 1];
-    // Both must be quota-carrying sales roles. Two concurrent
-    // non-sales jobs is moonlighting or part-time work, which is
-    // nobody's business and certainly not a hiring signal.
-    if (
-      a.end &&
-      b.start &&
-      b.start < a.end &&
-      a.isSales &&
-      b.isSales &&
-      !CONSULTANT_TITLE.test(a.title) &&
-      !CONSULTANT_TITLE.test(b.title)
-    ) {
-      const overlap =
-        (Number(a.end.slice(0, 4)) - Number(b.start.slice(0, 4))) * 12 +
-        (Number(a.end.slice(5, 7)) - Number(b.start.slice(5, 7)));
-      if (overlap >= 3) {
-        flags.push({
-          code: "overlapping_stints",
-          polarity: "red",
-          severity: "medium",
-          confidence: "possible",
-          claim: `${a.company} and ${b.company} overlap by ~${overlap} months`,
-          evidence: `${a.company} to ${a.end}; ${b.company} from ${b.start}`,
-          companies: [a.company, b.company],
-        });
-      }
-    }
-  }
+  // ── RED: overlapping stints — REMOVED, deliberately ──────────────
+  //
+  // This fired almost exclusively on noise. Résumé and LinkedIn dates
+  // are month-precision and self-reported, so a job ending "June" and
+  // the next starting "June" reads as an overlap; acquisitions,
+  // transition periods, advisory tails and part-time work all produce
+  // the same shape. The one thing it was meant to catch — two
+  // concurrent full-time roles as a fabrication signal — is
+  // indistinguishable from that noise at this data quality, which is
+  // why it could only ever be emitted at "possible" confidence.
+  //
+  // A flag that is usually wrong doesn't just waste a line; it teaches
+  // the reader to discount every other flag on the page. Precision
+  // matters more than coverage here.
+  //
+  // If fabrication detection is wanted later, the high-precision
+  // version is narrow: two roles at different employers BOTH still
+  // marked current. That is a claim the candidate is actively making,
+  // not an artifact of rounding.
 
   // ── GREEN: promotion velocity (the strongest profile signal) ─────
   for (const [company, rs] of byCompany) {

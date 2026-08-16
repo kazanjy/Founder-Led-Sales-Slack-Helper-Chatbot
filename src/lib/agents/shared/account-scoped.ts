@@ -18,13 +18,29 @@
  * and widening their visibility is an access-control decision rather
  * than a bug fix.
  *
- * THREE TIERS, not two. User.accountId is NULLABLE, and a user created
- * from Slack very often has only workspaceId set. Falling back on
- * account alone therefore still leaves the exact reported failure in
- * place: the founder authors the AE Hiring Profile on the web, the
- * person typing in Slack is a different User row with no accountId,
- * and the lookup returns nothing. Slack workspace membership is a real
- * organizational boundary, so it is the last resort before giving up.
+ * SCOPE PRECEDENCE, and the order matters enormously.
+ *
+ * When an accountId is known it is the ONLY scope. We do not check the
+ * caller's own row first, and we do not fall through to the workspace.
+ *
+ * Own-row-first looks harmless and is not. A user can belong to one
+ * account while having authored artifacts under a different one — an
+ * admin who impersonated into two customer orgs ends up owning a
+ * HiringProfileVersion in each. "Newest row this user authored
+ * anywhere" then returns whichever org they touched most recently,
+ * which is how an assessment in one customer's Slack channel got
+ * graded against a DIFFERENT customer's hiring profile. Cross-tenant
+ * leakage, produced by a fallback meant to be helpful.
+ *
+ * The account is the tenant boundary, so if we know it we honour it
+ * strictly and return nothing rather than something from elsewhere.
+ * The web app's /api/hiring-profile/latest has always scoped this way.
+ *
+ * The own -> workspace path applies ONLY when there is no accountId:
+ * User.accountId is nullable and a Slack-created user often has just a
+ * workspaceId, which was the original "founder authored it, teammate
+ * can't see it" bug. Workspace is a weaker boundary than account, so
+ * it is a last resort for accountless users and never an override.
  */
 
 export interface OrgScope {
@@ -45,13 +61,11 @@ export async function findOwnThenAccount<T>(
   scope: string | null | undefined | OrgScope,
   extraWhere: Record<string, unknown> = {}
 ): Promise<T | null> {
+  const { accountId, workspaceId } = toScope(scope);
+  // Account known: that is the tenant boundary, full stop.
+  if (accountId) return find({ user: { accountId }, ...extraWhere });
   const own = await find({ userId, ...extraWhere });
   if (own) return own;
-  const { accountId, workspaceId } = toScope(scope);
-  if (accountId) {
-    const inAccount = await find({ user: { accountId }, ...extraWhere });
-    if (inAccount) return inAccount;
-  }
   if (workspaceId) return find({ user: { workspaceId }, ...extraWhere });
   return null;
 }
@@ -68,13 +82,10 @@ export async function findManyOwnThenAccount<T>(
   scope: string | null | undefined | OrgScope,
   extraWhere: Record<string, unknown> = {}
 ): Promise<T[]> {
+  const { accountId, workspaceId } = toScope(scope);
+  if (accountId) return find({ user: { accountId }, ...extraWhere });
   const own = await find({ userId, ...extraWhere });
   if (own.length > 0) return own;
-  const { accountId, workspaceId } = toScope(scope);
-  if (accountId) {
-    const inAccount = await find({ user: { accountId }, ...extraWhere });
-    if (inAccount.length > 0) return inAccount;
-  }
   if (workspaceId) return find({ user: { workspaceId }, ...extraWhere });
   return [];
 }
