@@ -62,6 +62,13 @@ export interface FitReport {
   whatWouldHaveToBeTrue?: string[];
   backchannel?: Array<{ who: string; why: string; askThem: string }>;
   rubric?: { roleLabel?: string; shortStintMonths?: number; rampMonths?: number; rubricVersion?: string };
+  /** What the grade actually rested on — see the banner below. */
+  gradedAgainst?: {
+    hiringProfile?: boolean;
+    hiringProfileVersionId?: string | null;
+    icp?: boolean;
+    maturityStage?: string | null;
+  };
   candidate?: { name?: string; headline?: string | null; linkedinUrl?: string | null; source?: string };
 }
 
@@ -197,6 +204,51 @@ export function CandidateFitReport({ report }: { report: FitReport }) {
           </p>
         )}
       </div>
+
+      {/* What the grade rested on, stated as fact rather than left to
+          the model's narration. The whole point of a fit assessment is
+          that it's measured against YOUR bar, so silently falling back
+          to generic criteria is the one failure that must never be
+          invisible — it's exactly how a lookup bug went unnoticed. */}
+      {report.gradedAgainst && (
+        <div
+          className={`rounded-lg border px-4 py-3 mb-6 text-sm ${
+            report.gradedAgainst.hiringProfile
+              ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300"
+              : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+          }`}
+        >
+          {report.gradedAgainst.hiringProfile ? (
+            <>
+              <span className="font-medium">✓ Graded against your AE Hiring Profile</span>
+              {report.gradedAgainst.maturityStage && (
+                <> · stage {report.gradedAgainst.maturityStage.replace(/_/g, " ").toLowerCase()}</>
+              )}
+              {report.gradedAgainst.icp && <> · your ICP</>}
+              {report.gradedAgainst.hiringProfileVersionId && (
+                <>
+                  {" · "}
+                  <a
+                    className="underline hover:no-underline"
+                    href={`/hiring-profile?version=${report.gradedAgainst.hiringProfileVersionId}`}
+                  >
+                    view the profile used
+                  </a>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="font-medium">⚠ No AE Hiring Profile was found</span> — this was graded
+              against your sales narrative, ICP and stage instead.{" "}
+              <a className="underline hover:no-underline" href="/hiring-profile">
+                Author one
+              </a>{" "}
+              and re-run for a sharper read.
+            </>
+          )}
+        </div>
+      )}
 
       {red.length > 0 && (
         <Section title="🚩 Red flags" count={red.length}>
