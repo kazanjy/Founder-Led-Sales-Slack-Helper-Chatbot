@@ -250,20 +250,20 @@ export function CandidateFitReport({ report }: { report: FitReport }) {
         </div>
       )}
 
-      {red.length > 0 && (
-        <Section title="🚩 Red flags" count={red.length}>
+      {green.length > 0 && (
+        <Section title="✅ Green flags" count={green.length}>
           <div className="space-y-3">
-            {red.map((f, i) => (
+            {green.map((f, i) => (
               <FlagCard key={`${f.code}-${i}`} flag={f} />
             ))}
           </div>
         </Section>
       )}
 
-      {green.length > 0 && (
-        <Section title="✅ Green flags" count={green.length}>
+      {red.length > 0 && (
+        <Section title="🚩 Red flags" count={red.length}>
           <div className="space-y-3">
-            {green.map((f, i) => (
+            {red.map((f, i) => (
               <FlagCard key={`${f.code}-${i}`} flag={f} />
             ))}
           </div>
