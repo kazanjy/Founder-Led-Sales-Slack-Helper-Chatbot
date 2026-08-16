@@ -539,6 +539,9 @@ How to judge:
   a known layoff window, say). Do not let them move the verdict. Narrate them
   anyway — the founder sees them in a "considered and discounted" section, and
   showing the work is the point.
+- The payload states hiringProfileAvailable. When it is true you MUST grade
+  against ourHiringProfile and must NEVER say a profile was unavailable. When
+  it is false, say so plainly and name what you used instead.
 - Respect provenance: where a company read is confidence "low" or provenance
   "unknown", do NOT assert its stage — put it in couldNotVerify instead.
 - Claims from a résumé are UNVERIFIED. They never move the verdict on their own.
@@ -622,6 +625,60 @@ function candidateKeyFrom(linkedinUrl?: string, name?: string, employer?: string
   return `n:${(name || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${(employer || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+// ── Account-scoped artifact reads ───────────────────────────────────
+
+/**
+ * The founder's GTM artifacts belong to the ACCOUNT, not to whoever
+ * happens to be typing. A teammate asking Mikey to screen a candidate
+ * must be graded against the same AE Hiring Profile the founder
+ * authored — and in Slack the speaker is very often not the author.
+ *
+ * Reading these by userId alone made the assessment silently announce
+ * "no authored AE hiring profile was available" and fall back to
+ * generic early-stage criteria, on accounts that had a perfectly good
+ * profile sitting in the UI. Own-record-first, then newest in the
+ * account — the same shape lib/seller-context.ts already uses.
+ */
+async function loadHiringProfile(userId: string, accountId: string | null) {
+  const select = { id: true, content: true } as const;
+  const own = await prisma.hiringProfileVersion.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select,
+  });
+  if (own || !accountId) return own;
+  return prisma.hiringProfileVersion.findFirst({
+    where: { user: { accountId } },
+    orderBy: { createdAt: "desc" },
+    select,
+  });
+}
+
+async function loadIcp(userId: string, accountId: string | null) {
+  const own = await prisma.icpVersion.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    select: { content: true },
+  });
+  if (own || !accountId) return own;
+  return prisma.icpVersion.findFirst({
+    where: { user: { accountId } },
+    orderBy: { createdAt: "desc" },
+    select: { content: true },
+  });
+}
+
+async function loadMaturityStage(userId: string, accountId: string | null) {
+  const own = await prisma.salesMaturityStage.findUnique({ where: { userId } });
+  if (own || !accountId) return own;
+  // Most recently updated in the account — the stage is a property of
+  // the company, and one teammate having set it is enough.
+  return prisma.salesMaturityStage.findFirst({
+    where: { user: { accountId } },
+    orderBy: { updatedAt: "desc" },
+  });
 }
 
 export async function assessCandidate(input: AssessmentInput): Promise<AssessmentResult> {
@@ -718,22 +775,22 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   const rubric = rubricFor(roleLabel);
   const signals = computeSignals(timeline, rubric);
 
-  // 5. Grade against the founder's own bar.
+  // 5. Grade against the founder's own bar. Every artifact below is
+  // account-scoped: in Slack the person asking is frequently not the
+  // person who authored the hiring profile.
+  const accountRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountId: true },
+  });
+  const accountId = accountRow?.accountId ?? null;
+
   const [seller, hiringProfile, icp, maturity, orgOverrides, schoolOverrides] = await Promise.all([
     loadSellerContext(userId),
-    prisma.hiringProfileVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, content: true },
-    }),
-    prisma.icpVersion.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { content: true },
-    }),
-    prisma.salesMaturityStage.findUnique({ where: { userId } }),
-    getOrgOverrides(userId),
-    getSchoolOverrides(userId),
+    loadHiringProfile(userId, accountId),
+    loadIcp(userId, accountId),
+    loadMaturityStage(userId, accountId),
+    getOrgOverrides(userId, accountId),
+    getSchoolOverrides(userId, accountId),
   ]);
 
   // Canonicalize schools before the flag engine runs. PDL has no
@@ -778,6 +835,10 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     resumeClaims: claims,
     ourStage: maturity?.currentStage || "unknown",
     ourHiringProfile: hiringProfile?.content?.slice(0, 12_000) || "(none authored yet)",
+    // Stated explicitly so the model cannot decide on its own that a
+    // profile was missing — it announced exactly that on an account
+    // that had one, because the read was not account-scoped.
+    hiringProfileAvailable: !!hiringProfile?.content,
     ourSalesNarrative: seller.narrative?.slice(0, 8_000) || "(none)",
     ourValueProp: seller.valueProp100w?.slice(0, 1_500) || "(none)",
     ourICP: icp?.content?.slice(0, 4_000) || "(none)",
@@ -796,6 +857,12 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   } catch {
     throw new Error("The assessment came back unparseable — try again.");
   }
+  console.log(
+    `[candidate-assessment] user=${userId} account=${accountId ?? "none"} ` +
+      `hiringProfile=${hiringProfile?.id ?? "MISSING"} icp=${icp ? "yes" : "no"} ` +
+      `stage=${maturity?.currentStage ?? "none"}`
+  );
+
   const verdict = (report.verdict as { level?: string; headline?: string; confidence?: string }) || {};
   const level = typeof verdict.level === "string" ? verdict.level : "worth_a_look";
 
@@ -814,6 +881,13 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   // Provenance travels with the report so the UI can mark soft rows.
   report.timeline = gradePayload.timeline;
   report.candidate = { name: candidateName, headline, linkedinUrl: linkedinUrl || null, source };
+  // What the grade actually rested on, as fact rather than narration.
+  report.gradedAgainst = {
+    hiringProfile: !!hiringProfile?.content,
+    hiringProfileVersionId: hiringProfile?.id || null,
+    icp: !!icp?.content,
+    maturityStage: maturity?.currentStage || null,
+  };
 
   const row = await prisma.candidateAssessment.create({
     data: {

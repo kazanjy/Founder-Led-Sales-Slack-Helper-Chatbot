@@ -19,13 +19,36 @@ import type { SchoolOverride } from "./school-registry";
 const MERGE_FIELD = "HIGH_BAR_SALES_ORGS";
 const MAX_OVERRIDES = 100;
 
+/**
+ * Own row first, then the newest one anywhere in the account. These
+ * lists describe the COMPANY's hiring bar, not one person's, so a
+ * teammate running an assessment has to see what the founder curated —
+ * the same own-then-account shape lib/seller-context.ts uses.
+ */
+async function readAccountScoped(
+  userId: string,
+  accountId: string | null,
+  mergeField: string
+): Promise<{ value: string | null } | null> {
+  const own = await prisma.gtmVariable.findFirst({
+    where: { userId, mergeField },
+    select: { value: true },
+  });
+  if (own?.value?.trim() || !accountId) return own;
+  return prisma.gtmVariable.findFirst({
+    where: { mergeField, user: { accountId }, NOT: { value: null } },
+    orderBy: { updatedAt: "desc" },
+    select: { value: true },
+  });
+}
+
 /** Fail-safe: any read or parse error yields no overrides, never a throw. */
-export async function getOrgOverrides(userId: string): Promise<OrgOverride[]> {
+export async function getOrgOverrides(
+  userId: string,
+  accountId?: string | null
+): Promise<OrgOverride[]> {
   try {
-    const row = await prisma.gtmVariable.findFirst({
-      where: { userId, mergeField: MERGE_FIELD },
-      select: { value: true },
-    });
+    const row = await readAccountScoped(userId, accountId ?? null, MERGE_FIELD);
     const raw = row?.value?.trim();
     if (!raw) return [];
     const parsed = JSON.parse(raw);
@@ -85,12 +108,12 @@ const SCHOOL_FIELD = "HIGH_BAR_SCHOOLS";
  * a completely different and equally valid set, and a shipped list
  * shouldn't silently define the bar for them.
  */
-export async function getSchoolOverrides(userId: string): Promise<SchoolOverride[]> {
+export async function getSchoolOverrides(
+  userId: string,
+  accountId?: string | null
+): Promise<SchoolOverride[]> {
   try {
-    const row = await prisma.gtmVariable.findFirst({
-      where: { userId, mergeField: SCHOOL_FIELD },
-      select: { value: true },
-    });
+    const row = await readAccountScoped(userId, accountId ?? null, SCHOOL_FIELD);
     const raw = row?.value?.trim();
     if (!raw) return [];
     const parsed = JSON.parse(raw);
