@@ -341,7 +341,12 @@ function CoachingHistoryContent() {
   const [transcriptCopied, setTranscriptCopied] = useState(false);
   const [synthesisCopied, setSynthesisCopied] = useState(false);
   const [formRecordingUrl, setFormRecordingUrl] = useState("");
-  const [formAdHoc, setFormAdHoc] = useState(false);
+  /**
+   * Mirrors the selected session's saved sessionKind. NOT a form field —
+   * the toggle lives beside the metrics panel and writes directly, so
+   * the form's autosave must never include it.
+   */
+  const [sessionIsAdHoc, setSessionIsAdHoc] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -443,7 +448,7 @@ function CoachingHistoryContent() {
     setFormRecordingUrl("");
     // Ad-hoc is a per-session choice, not a preference — a new session
     // must not inherit it from whatever was last edited.
-    setFormAdHoc(false);
+    setSessionIsAdHoc(false);
   };
 
   const startCreate = async () => {
@@ -500,7 +505,7 @@ function CoachingHistoryContent() {
     setFormNotes(session.notes);
     setFormTranscript(session.transcript || "");
     setFormRecordingUrl(session.recordingUrl || "");
-    setFormAdHoc(session.sessionKind === "ad_hoc");
+    setSessionIsAdHoc(session.sessionKind === "ad_hoc");
     selectSession(session.id);
     setMode("edit");
   };
@@ -521,7 +526,6 @@ function CoachingHistoryContent() {
         notes: formNotes,
         transcript: formTranscript || null,
         recordingUrl: formRecordingUrl || null,
-        sessionKind: formAdHoc ? "ad_hoc" : "standard",
         ...(isPromotingDraft ? { lockPrior: true } : {}),
       };
 
@@ -588,7 +592,6 @@ function CoachingHistoryContent() {
         notes: formNotes,
         transcript: formTranscript || null,
         recordingUrl: formRecordingUrl || null,
-        sessionKind: formAdHoc ? "ad_hoc" : "standard",
       };
 
       try {
@@ -607,7 +610,7 @@ function CoachingHistoryContent() {
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [mode, formTitle, formDate, formNotes, formTranscript, formRecordingUrl, formAdHoc, autoSavedId]);
+  }, [mode, formTitle, formDate, formNotes, formTranscript, formRecordingUrl, autoSavedId]);
 
   // When manually saving a session that was auto-saved, use the auto-saved ID
   const handleSaveWrapper = async () => {
@@ -1301,7 +1304,17 @@ function CoachingHistoryContent() {
                       <CoachingFramework
                         sessionId={(mode === "edit" ? selectedId : autoSavedId)!}
                         sessionStatus={mode === "edit" ? (selectedSession?.sessionStatus || "new") : "new"}
-                        sessionKind={formAdHoc ? "ad_hoc" : "standard"}
+                        sessionKind={sessionIsAdHoc ? "ad_hoc" : "standard"}
+                        onSessionKindChange={(kind) => {
+                          setSessionIsAdHoc(kind === "ad_hoc");
+                          setSessions((prev) =>
+                            prev.map((x) =>
+                              x.id === (mode === "edit" ? selectedId : autoSavedId)
+                                ? { ...x, sessionKind: kind }
+                                : x
+                            )
+                          );
+                        }}
                         isOwner={true}
                         sessionCreatedAt={mode === "edit" ? selectedSession?.createdAt : undefined}
                         sessionUpdatedAt={mode === "edit" ? selectedSession?.updatedAt : undefined}
@@ -1337,29 +1350,6 @@ function CoachingHistoryContent() {
                         placeholder="https://zoom.us/rec/... or any recording link"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
-                    </div>
-
-                    {/* Ad hoc — excluded from metrics */}
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formAdHoc}
-                          onChange={(e) => setFormAdHoc(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span>
-                          <span className="block text-sm font-medium text-gray-700 dark:text-gray-200">
-                            Ad hoc session — don&apos;t record metrics
-                          </span>
-                          <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            Still shows in history, still gets a synthesis, still extracts goals and
-                            tasks. It&apos;s just left out of the metric deltas and the trend chart,
-                            so a one-off conversation doesn&apos;t distort your measurement cadence.
-                            Safe to change later.
-                          </span>
-                        </span>
-                      </label>
                     </div>
 
                     {/* Date */}
@@ -1743,6 +1733,14 @@ function CoachingHistoryContent() {
                       sessionId={selectedSession.id}
                       sessionStatus={selectedSession.sessionStatus || "new"}
                       sessionKind={selectedSession.sessionKind || "standard"}
+                      onSessionKindChange={(kind) => {
+                        setSessionIsAdHoc(kind === "ad_hoc");
+                        setSessions((prev) =>
+                          prev.map((x) =>
+                            x.id === selectedSession.id ? { ...x, sessionKind: kind } : x
+                          )
+                        );
+                      }}
                       // Account members can now edit each other's
                       // sessions, so any visible session in the list
                       // grants edit rights. The API still enforces

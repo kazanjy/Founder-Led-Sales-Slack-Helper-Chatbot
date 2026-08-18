@@ -491,6 +491,8 @@ interface CoachingFrameworkProps {
   sessionStatus: string;
   /** "standard" | "ad_hoc". Ad-hoc sessions render no metrics panel. */
   sessionKind?: string | null;
+  /** Fired after the ad-hoc toggle saves, so the parent list can restyle. */
+  onSessionKindChange?: (kind: "standard" | "ad_hoc") => void;
   isOwner: boolean;
   sessionCreatedAt?: string;
   sessionUpdatedAt?: string;
@@ -652,7 +654,7 @@ function PriorityPill({
   );
 }
 
-export default function CoachingFramework({ sessionId, sessionStatus, sessionKind, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
+export default function CoachingFramework({ sessionId, sessionStatus, sessionKind, onSessionKindChange, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
 
@@ -1316,6 +1318,37 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────
+
+  // ── Ad-hoc toggle ─────────────────────────────────────────────
+  // Owned here rather than in the session form because it is a metrics
+  // control and belongs beside the metrics it governs. It also writes
+  // directly instead of riding the form's autosave, which would race
+  // the 3-second save and clobber the setting.
+  const isAdHoc = sessionKind === "ad_hoc";
+  const [savingKind, setSavingKind] = useState(false);
+
+  const toggleAdHoc = async (nextAdHoc: boolean) => {
+    const kind = nextAdHoc ? "ad_hoc" : "standard";
+    setSavingKind(true);
+    // Tell the parent first so the panel swaps immediately; a failed
+    // save reverts it below rather than leaving a lie on screen.
+    onSessionKindChange?.(kind);
+    try {
+      const res = await fetch(`/api/coaching-sessions/${sessionId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionKind: kind }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      // Metric entries were just seeded or dropped server-side, so the
+      // panel's data is stale either way.
+      await loadData();
+    } catch {
+      onSessionKindChange?.(nextAdHoc ? "standard" : "ad_hoc");
+    } finally {
+      setSavingKind(false);
+    }
+  };
 
   const updateMaturityStage = async (stage: string) => {
     setMaturityStage(stage);
@@ -2968,6 +3001,39 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
         })()}
       </div>
 
+      {/* ── Ad hoc ──────────────────────────────────────────────── */}
+      {/* Sits directly above Metrics because that is the only thing it
+          governs — reading the toggle and the panel it controls as one
+          unit is the whole point of the placement. */}
+      <div
+        className={`rounded-xl border p-4 ${
+          isAdHoc
+            ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40"
+            : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+        }`}
+      >
+        <label className={`flex items-start gap-3 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+          <input
+            type="checkbox"
+            checked={isAdHoc}
+            disabled={!canEdit || savingKind}
+            onChange={(e) => toggleAdHoc(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 disabled:opacity-50"
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">
+              Ad hoc session — don&apos;t record metrics
+              {savingKind && <span className="ml-2 text-xs font-normal text-gray-400">saving…</span>}
+            </span>
+            <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+              Keeps this conversation out of the metric deltas and the trend chart, so a one-off
+              doesn&apos;t distort your measurement cadence. Everything else still counts — history,
+              synthesis, goals and tasks. Change it any time.
+            </span>
+          </span>
+        </label>
+      </div>
+
       {/* ── Metrics ─────────────────────────────────────────────── */}
       {/* An ad-hoc session records none, so the panel is replaced by a
           one-line explanation rather than hidden outright — a missing
@@ -2981,7 +3047,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
           <p className="text-sm text-gray-500 dark:text-gray-400">
             This is an <span className="font-medium">ad hoc session</span>, so it doesn&apos;t record
             metrics — it&apos;s left out of the deltas and the trend chart. Everything else about the
-            session still counts. Uncheck &ldquo;Ad hoc&rdquo; in Edit to start recording them here.
+            session still counts. Uncheck the box above to start recording them here.
           </p>
         </div>
       ) : (

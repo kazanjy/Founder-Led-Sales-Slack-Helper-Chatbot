@@ -112,6 +112,36 @@ export async function PUT(
       });
     }
 
+    // Switching back to standard: seed the entries creation would have
+    // made. Without this the session returns to the metrics cadence
+    // with an empty panel and no way to fill it, since entries are only
+    // ever created at session creation.
+    if (isSessionKind(sessionKind) && countsTowardMetrics(sessionKind)) {
+      const [allMetrics, existingEntries] = await Promise.all([
+        prisma.coachingMetricDefinition.findMany({
+          where: { userId: existing.userId, archived: false, kind: "metric" },
+          select: { id: true },
+        }),
+        prisma.coachingMetricEntry.findMany({
+          where: { sessionId: id },
+          select: { metricDefinitionId: true },
+        }),
+      ]);
+      const have = new Set(existingEntries.map((e) => e.metricDefinitionId));
+      const missing = allMetrics.filter((m) => !have.has(m.id));
+      if (missing.length > 0) {
+        await prisma.coachingMetricEntry.createMany({
+          data: missing.map((m) => ({
+            userId: existing.userId,
+            metricDefinitionId: m.id,
+            sessionId: id,
+            currentValue: 0,
+            addedSinceLastSession: 0,
+          })),
+        });
+      }
+    }
+
     // When the client explicitly promotes a draft into a real session
     // ("Create Session" click — autosave doesn't pass this flag), lock
     // every other still-open session for this user. Mirrors the POST
