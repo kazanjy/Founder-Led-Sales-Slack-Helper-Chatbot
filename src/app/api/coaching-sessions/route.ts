@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { countsTowardMetrics, isSessionKind } from "@/lib/coaching/session-kind";
 import { getCurrentUser } from "@/lib/auth";
 import { generateSessionTitle } from "@/lib/openai";
 
@@ -31,6 +32,7 @@ export async function GET() {
         recordingUrl: true,
         sessionStatus: true,
         maturityStage: true,
+        sessionKind: true,
         // Synthesis fields — without these on the list response the
         // page state never sees the auto-generated synthesis and the
         // panel won't render in the view UI even after the background
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior, sessionKind } = body;
 
     if (!sessionDate) {
       return NextResponse.json(
@@ -125,6 +127,7 @@ export async function POST(request: NextRequest) {
         recordingUrl: recordingUrl?.trim() || null,
         sessionStatus: "new",
         maturityStage: maturityStage?.currentStage || null,
+        sessionKind: isSessionKind(sessionKind) ? sessionKind : "standard",
       },
     });
 
@@ -152,7 +155,13 @@ export async function POST(request: NextRequest) {
       orderBy: { order: "asc" },
     });
 
-    if (allMetrics.length > 0) {
+    // An ad-hoc session gets NO seeded entries. This is the load-bearing
+    // half of the feature: a seeded 0 would become the "previous value"
+    // for the next real session, which would then report its entire
+    // cumulative total as "added since last" — and the sparkline would
+    // show a crater to zero. Skipping the seed is what keeps the
+    // measurement cadence intact.
+    if (allMetrics.length > 0 && countsTowardMetrics(session.sessionKind)) {
       // Check which metrics already have entries for this session (avoid dupes)
       const existingEntries = await prisma.coachingMetricEntry.findMany({
         where: { sessionId: session.id },

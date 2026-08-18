@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { METRIC_ELIGIBLE_SESSION } from "@/lib/coaching/session-kind";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditOwnedBy } from "@/lib/coaching/access";
 
@@ -64,7 +65,7 @@ export async function POST(
             metricDefinitionId: id,
             sessionId: { not: sessionId },
             session: {
-              notes: { not: "(draft)" },
+              ...METRIC_ELIGIBLE_SESSION,
               OR: [
                 { sessionDate: { lt: currentSession.sessionDate } },
                 {

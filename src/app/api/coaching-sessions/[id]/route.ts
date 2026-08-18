@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { countsTowardMetrics, isSessionKind } from "@/lib/coaching/session-kind";
 import { getCurrentUser } from "@/lib/auth";
 import { generateSessionTitle } from "@/lib/openai";
 import { canEditOwnedBy } from "@/lib/coaching/access";
@@ -68,7 +69,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior } = body;
+    const { title, sessionDate, notes, transcript, recordingUrl, lockPrior, sessionKind } = body;
 
     // Account members can edit each other's sessions.
     const existing = await prisma.coachingSession.findUnique({
@@ -91,8 +92,25 @@ export async function PUT(
         ...(notes !== undefined && { notes: notes.trim() }),
         ...(transcript !== undefined && { transcript: transcript?.trim() || null }),
         ...(recordingUrl !== undefined && { recordingUrl: recordingUrl?.trim() || null }),
+        ...(isSessionKind(sessionKind) && { sessionKind }),
       },
     });
+
+    // Switching an existing session to ad-hoc: drop the metric entries
+    // it was seeded with at creation. The metric QUERIES already skip
+    // ad-hoc sessions, so this isn't needed for correctness — but
+    // leaving untouched zero rows behind means flipping back to
+    // standard would silently resurrect them, and the session detail
+    // view would still render a metrics widget for a session that
+    // doesn't measure anything. Only untouched rows are removed;
+    // anything with a real value entered is preserved, because
+    // destroying data the founder typed to satisfy a toggle is worse
+    // than a stale row.
+    if (isSessionKind(sessionKind) && !countsTowardMetrics(sessionKind)) {
+      await prisma.coachingMetricEntry.deleteMany({
+        where: { sessionId: id, currentValue: 0 },
+      });
+    }
 
     // When the client explicitly promotes a draft into a real session
     // ("Create Session" click — autosave doesn't pass this flag), lock

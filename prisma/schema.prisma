@@ -1638,6 +1638,20 @@ model CoachingSession {
   sessionStatus String  @default("new") // "new" | "in_progress" | "locked"
   maturityStage String? // Snapshot of sales maturity stage at session creation
 
+  /// "standard" | "ad_hoc".
+  ///
+  /// An ad-hoc session is a real coaching session in every respect —
+  /// it appears in history, gets a synthesis, extracts goals and tasks
+  /// — EXCEPT that it is invisible to metrics. No entries are seeded
+  /// for it, and it is skipped when resolving the previous value for a
+  /// delta and when building the sparkline series, so a one-off
+  /// conversation can't distort the measurement cadence.
+  ///
+  /// A kind rather than a `recordMetrics` boolean because it names the
+  /// intent rather than the mechanism, and leaves room for other kinds
+  /// later without another column.
+  sessionKind String @default("standard")
+
   // Relations to coaching framework models
   goals         CoachingGoal[]
   metricEntries CoachingMetricEntry[]
@@ -1646,6 +1660,7 @@ model CoachingSession {
   updatedAt DateTime @updatedAt
 
   @@index([userId, sessionDate(sort: Desc)])
+  @@index([sessionKind])
   @@map("coaching_sessions")
 }
 

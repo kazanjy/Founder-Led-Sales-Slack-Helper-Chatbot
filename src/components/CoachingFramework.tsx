@@ -489,6 +489,8 @@ function formatMetricDelta(value: number, format?: string): string {
 interface CoachingFrameworkProps {
   sessionId: string;
   sessionStatus: string;
+  /** "standard" | "ad_hoc". Ad-hoc sessions render no metrics panel. */
+  sessionKind?: string | null;
   isOwner: boolean;
   sessionCreatedAt?: string;
   sessionUpdatedAt?: string;
@@ -650,7 +652,7 @@ function PriorityPill({
   );
 }
 
-export default function CoachingFramework({ sessionId, sessionStatus, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
+export default function CoachingFramework({ sessionId, sessionStatus, sessionKind, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
 
@@ -2967,6 +2969,22 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
       </div>
 
       {/* ── Metrics ─────────────────────────────────────────────── */}
+      {/* An ad-hoc session records none, so the panel is replaced by a
+          one-line explanation rather than hidden outright — a missing
+          panel reads as a bug, and this is a deliberate state the
+          founder chose and can undo. */}
+      {sessionKind === "ad_hoc" ? (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
+          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <span>📊</span> Metrics
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            This is an <span className="font-medium">ad hoc session</span>, so it doesn&apos;t record
+            metrics — it&apos;s left out of the deltas and the trend chart. Everything else about the
+            session still counts. Uncheck &ldquo;Ad hoc&rdquo; in Edit to start recording them here.
+          </p>
+        </div>
+      ) : (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>📊</span> Metrics
@@ -3352,6 +3370,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, isOwner, s
           </div>
         )}
       </div>
+      )}
 
       {/* ── Goals & Tasks ───────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
