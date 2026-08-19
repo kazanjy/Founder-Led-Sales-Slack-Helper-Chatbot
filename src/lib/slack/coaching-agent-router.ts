@@ -7,6 +7,7 @@ import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
 import { burstDetectionText, type BurstMessage } from "./burst-context";
 import { runCoachingAgent } from "@/lib/agents/coaching/run";
+import { hasHiringSignal } from "./hiring-signal";
 
 /**
  * Decide whether an inbound Slack message should be handled by the
@@ -102,6 +103,23 @@ export async function tryHandleWithCoachingAgent(opts: {
       } catch (err) {
         console.error("[slack→coaching-agent] failed to load thread history:", err);
       }
+    }
+
+    // HIRING GUARD. Candidate screening lives on the GTM agent, which
+    // is last in the cascade, so this router has to decline or the
+    // message never reaches the tool that can answer it.
+    //
+    // The failure this prevents is specifically a CONTEXT one: "AE
+    // profile review: linkedin.com/in/…" contains no coaching keyword
+    // at all, but the burst and thread checks below let recent coaching
+    // chatter in the channel claim it anyway. Context should help
+    // interpret a message, never override what the message plainly says
+    // it is. A hiring message with no coaching word of its own belongs
+    // to the candidate assessor, whatever was being discussed two
+    // minutes earlier.
+    if (hasHiringSignal(cleanedForDetection) && !hasCoachingKeyword(cleanedForDetection)) {
+      console.log("[slack→coaching-agent] declining: hiring signal, no coaching keyword");
+      return false;
     }
 
     const triggered =

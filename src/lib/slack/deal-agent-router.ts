@@ -6,6 +6,7 @@ import { AgentStatus } from "./agent-status";
 import { markdownToSlack } from "./markdown";
 import { appendFileContext, detectionText } from "./file-context";
 import { runDealAgent } from "@/lib/agents/deals/run";
+import { hasHiringSignal } from "./hiring-signal";
 import { hasStrongCoachingKeyword } from "./coaching-agent-router";
 import { burstDetectionText, type BurstMessage } from "./burst-context";
 
@@ -39,17 +40,7 @@ const MAX_THREAD_HISTORY = 12;
  * on its own; otherwise it takes an explicit hiring word. Same shape
  * as the coaching deferral below it.
  */
-const HIRING_TRIGGERS: RegExp[] = [
-  /linkedin\.com\/in\//i,
-  /\bcandidate\b/i,
-  /\br[ée]sum[ée]\b|\bresume\b|\bcv\b/i,
-  /\bhiring\b|\bhire\b|\binterview(ing)?\b/i,
-  /\bapplicant\b|\brecruit(ing|er)?\b/i,
-];
-
-export function hasHiringSignal(text: string): boolean {
-  return HIRING_TRIGGERS.some((re) => re.test(text));
-}
+export { hasHiringSignal } from "./hiring-signal";
 
 export async function tryHandleWithDealAgent(opts: {
   // The Slack speaker's Mikey user id. May be a prospect in a
