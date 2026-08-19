@@ -6,7 +6,8 @@ import { splitByPages, buildChunkedHistory, needsChunking, CHATBASE_MESSAGE_LIMI
 import { markdownToSlack } from "./markdown";
 import { handleCommand, CHANNEL_WELCOME_INTRO, CHANNEL_WELCOME_REPLIES, parseResearchCommand } from "./commands";
 import { tryHandleWithDealAgent } from "./deal-agent-router";
-import { tryHandleWithCoachingAgent } from "./coaching-agent-router";
+import { tryHandleWithCoachingAgent, hasCoachingKeyword } from "./coaching-agent-router";
+import { hasHiringSignal } from "./hiring-signal";
 import { tryHandleWithGtmAgent } from "./gtm-agent-router";
 import { fetchBurstContext } from "./burst-context";
 import { openai } from "@/lib/openai";
@@ -821,6 +822,39 @@ async function handleMention(
   // clearly references one of the user's deals, hand it to the
   // tool-using agent. Falls through silently if no match.
   if (text || fileContext) {
+    // ── Candidate screening: route DIRECTLY to the GTM agent ──────
+    //
+    // assessCandidateProfile lives on the GTM agent, which is last in
+    // the cascade. Relying on the deal and coaching routers to decline
+    // has now failed twice — each one needs its own hand-written guard,
+    // and a third agent would need a third. Worse, both routers claim
+    // on burst and thread CONTEXT, so unrelated chatter from two
+    // minutes earlier can capture a message whose own text is
+    // unambiguous.
+    //
+    // So this is a positive rule instead of two negative ones: a
+    // message that plainly says "candidate" goes to the agent that can
+    // assess candidates, before anything else gets a chance at it. The
+    // coaching carve-out keeps "in our last session we discussed
+    // hiring" with coaching, where it belongs.
+    const hiringDetection = `${text || ""} ${fileContext || ""}`;
+    if (hasHiringSignal(hiringDetection) && !hasCoachingKeyword(hiringDetection)) {
+      console.log("[slack] hiring signal — routing straight to the GTM agent");
+      const handledByHiring = await tryHandleWithGtmAgent({
+        speakerUserId: dbUser.id,
+        text: text || "",
+        fileContext,
+        client,
+        channel,
+        threadTs,
+        botUserId: workspace.botUserId,
+        messageTs: ts,
+        threadRootTs: thread_ts,
+        priorBurst,
+      });
+      if (handledByHiring) return;
+    }
+
     const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
       text: text || "",
@@ -1059,6 +1093,39 @@ async function handleDirectMessage(
   // against the user's deal names (or attached file text) hands
   // deal-shaped DMs to the tool-using agent.
   if (text || fileContext) {
+    // ── Candidate screening: route DIRECTLY to the GTM agent ──────
+    //
+    // assessCandidateProfile lives on the GTM agent, which is last in
+    // the cascade. Relying on the deal and coaching routers to decline
+    // has now failed twice — each one needs its own hand-written guard,
+    // and a third agent would need a third. Worse, both routers claim
+    // on burst and thread CONTEXT, so unrelated chatter from two
+    // minutes earlier can capture a message whose own text is
+    // unambiguous.
+    //
+    // So this is a positive rule instead of two negative ones: a
+    // message that plainly says "candidate" goes to the agent that can
+    // assess candidates, before anything else gets a chance at it. The
+    // coaching carve-out keeps "in our last session we discussed
+    // hiring" with coaching, where it belongs.
+    const hiringDetection = `${text || ""} ${fileContext || ""}`;
+    if (hasHiringSignal(hiringDetection) && !hasCoachingKeyword(hiringDetection)) {
+      console.log("[slack] hiring signal — routing straight to the GTM agent");
+      const handledByHiring = await tryHandleWithGtmAgent({
+        speakerUserId: dbUser.id,
+        text: text || "",
+        fileContext,
+        client,
+        channel,
+        threadTs,
+        botUserId: workspace.botUserId,
+        messageTs: ts,
+        threadRootTs: thread_ts,
+        priorBurst,
+      });
+      if (handledByHiring) return;
+    }
+
     const handledByDealAgent = await tryHandleWithDealAgent({
       speakerUserId: dbUser.id,
       text: text || "",
