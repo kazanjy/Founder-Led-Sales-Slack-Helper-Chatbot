@@ -576,9 +576,24 @@ Return ONLY JSON matching this shape:
 }
 
 How to judge:
-- STAGE is the load-bearing dimension for a first sales hire. Someone who only
-  ever sold with brand, inbound, SDRs and an SE behind them is a real risk at a
-  seed company — say so plainly, without being unkind.
+- STAGE IS ASYMMETRIC. Read it as a bonus, not a filter.
+  * HAVING early-stage experience — carrying a bag at pre-seed / seed / Series A,
+    being an early or first sales hire, selling without SDRs or an SE — is a
+    STRONG positive. Lead with it, rate the stage dimension "strong", and let it
+    lift the verdict.
+  * NOT having it is a NOTE, not a penalty. Most good AEs have never worked at a
+    seed company; that is the market, not a defect. Mention it once as something
+    to probe, rate the dimension "adequate" or "unknown", and move on.
+  * Reserve "weak" for actual adverse evidence — a candidate who says they need
+    heavy support, or a record showing they only ever performed with it — never
+    for the mere absence of early-stage stints.
+- A STAGE GAP ALONE MUST NEVER PRODUCE "stretch" OR "likely_mismatch". If the
+  only concern is that they haven't sold at your stage, the verdict is
+  "worth_a_look" and the gap belongs in interviewProbes and
+  whatWouldHaveToBeTrue. Downgrade the verdict only for a real tenure pattern, a
+  hard requirement in their hiring profile that is genuinely unmet, or
+  contradicted claims — things about THIS candidate, not about the population
+  they came from.
 - Use the COMPUTED SIGNALS and the flag claims verbatim for anything numeric.
   Never recompute or estimate tenure yourself.
 - Weight the verdict by flag SEVERITY, and discount flags whose confidence is

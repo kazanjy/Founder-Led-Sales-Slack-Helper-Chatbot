@@ -433,9 +433,22 @@ Rippling, Wiz) will drift toward Tier 2 as they scale.
 
 For each *seller* role (filter out non-sales roles), compare:
 
-1. **Stage match** — company's stage during their tenure vs our
-   `SalesMaturityStage.currentStage`. Adjacent is fine; two steps off
-   is the risk.
+1. **Stage match — ASYMMETRIC, and this is the whole trick.** Having
+   sold at pre-seed/seed/Series A is the single most transferable thing
+   on a résumé for a first sales hire, so it fires a `high` green flag
+   (`early_stage_selling`, or `early_at_a_winner` where the company then
+   scaled) and lifts the verdict.
+
+   Its **absence is not a penalty**. There is deliberately no
+   "never sold at early stage" red flag, and a stage gap on its own may
+   never produce `stretch` or `likely_mismatch` — it belongs in
+   `interviewProbes` and `whatWouldHaveToBeTrue`. Most good AEs have
+   never worked at a seed company; that is the market, not a defect, and
+   treating it as one made every single assessment read "stretch". The
+   verdict moves down only for things about THIS candidate: a real
+   tenure pattern, an unmet hard requirement in the hiring profile, or a
+   contradicted claim. `weak` on the stage dimension is reserved for
+   actual adverse evidence, never for missing evidence.
 2. **Motion match** — velocity/transactional vs enterprise/complex,
    inbound-fed vs outbound-hunting, PLG-assist vs sales-led. Inferred
    from company category, ACV band, and segment.

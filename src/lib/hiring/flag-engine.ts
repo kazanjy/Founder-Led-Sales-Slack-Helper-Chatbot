@@ -917,22 +917,61 @@ export function detectFlags(input: FlagEngineInput): Flag[] {
   }
 
   // ── GREEN: early at a company that then scaled ───────────────────
+  const scaledWithCompany = new Set<string>();
   for (const r of dated) {
     const read = reads.find((x) => x.company === r.company);
     if (!read) continue;
     const joinedEarly = /pre-seed|seed|series a/i.test(read.stageAtStart || "");
     const grew = /series c|series d|public/i.test(read.stageAtEnd || "");
     if (joinedEarly && grew && (r.months as number) >= 24) {
+      scaledWithCompany.add(r.company);
       flags.push({
         code: "early_at_a_winner",
         polarity: "green",
-        severity: "medium",
+        severity: "high",
         confidence: read.confidence === "low" ? "possible" : conf,
         claim: `Joined ${r.company} at ${read.stageAtStart} and stayed through ${read.stageAtEnd}`,
         evidence: `${r.months} months; ${read.basis || "stage read"}`,
         companies: [r.company],
       });
     }
+  }
+
+  // ── GREEN: sold at early stage at all ────────────────────────────
+  //
+  // STAGE IS ASYMMETRIC, and this flag is the positive half of that.
+  // Having carried a bag at pre-seed / seed / Series A is the single
+  // most transferable thing on a résumé for a first sales hire, so it
+  // is credited explicitly and deterministically rather than being left
+  // to the model to notice in prose.
+  //
+  // The negative half deliberately does not exist. There is no
+  // "never sold at early stage" red flag, because most good AEs never
+  // have — that is the market, not a defect — and turning the absence
+  // into a penalty is what made every assessment read "stretch".
+  const earlyStage = dated.filter((r) => {
+    if (!r.isSales || (r.months as number) < 12) return false;
+    if (scaledWithCompany.has(r.company)) return false; // already credited above
+    const read = reads.find((x) => x.company === r.company);
+    return !!read && /pre-seed|seed|series a/i.test(read.stageAtStart || "");
+  });
+  if (earlyStage.length > 0) {
+    const thin = earlyStage.every(
+      (r) => reads.find((x) => x.company === r.company)?.confidence === "low"
+    );
+    flags.push({
+      code: "early_stage_selling",
+      polarity: "green",
+      severity: "high",
+      confidence: thin ? "possible" : conf,
+      claim: `Carried a bag at early stage — ${earlyStage
+        .map((r) => `${r.company} (${reads.find((x) => x.company === r.company)?.stageAtStart})`)
+        .join(", ")}`,
+      evidence: `${earlyStage
+        .map((r) => `${r.title} @ ${r.company}, ${r.months}mo`)
+        .join("; ")}. Selling before the brand, the inbound, the SDRs and the SE exist is the part of the job that transfers least well from scale — having done it already is the strongest stage signal available.`,
+      companies: earlyStage.map((r) => r.company),
+    });
   }
 
   return flags;
