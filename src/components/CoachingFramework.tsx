@@ -486,6 +486,52 @@ function formatMetricDelta(value: number, format?: string): string {
   return `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
 }
 
+/**
+ * Deep-link target for a section heading.
+ *
+ * The coaching page is long — topics, up-next, stage, metrics, goals —
+ * and the useful thing is being able to send someone (or yourself) to
+ * one part of it. Clicking copies the full URL rather than only setting
+ * the hash, because "link to this section" is the actual intent and
+ * fishing the URL out of the address bar afterwards is the annoying
+ * half.
+ *
+ * Hidden until the heading is hovered or the link is focused, so it
+ * stays out of the way without becoming keyboard-inaccessible.
+ */
+function AnchorLink({ id, label }: { id: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <a
+      href={`#${id}`}
+      aria-label={`Copy link to ${label}`}
+      title={`Copy link to ${label}`}
+      onClick={(e) => {
+        e.preventDefault();
+        const { origin, pathname, search } = window.location;
+        window.history.replaceState(null, "", `${pathname}${search}#${id}`);
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        navigator.clipboard
+          ?.writeText(`${origin}${pathname}${search}#${id}`)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1400);
+          })
+          .catch(() => {
+            /* hash + scroll already happened; clipboard is the bonus */
+          });
+      }}
+      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity font-normal normal-case tracking-normal text-gray-400 hover:text-purple-600 dark:hover:text-purple-300"
+    >
+      {copied ? (
+        <span className="text-[11px] text-green-600 dark:text-green-300">Copied</span>
+      ) : (
+        "#"
+      )}
+    </a>
+  );
+}
+
 interface CoachingFrameworkProps {
   sessionId: string;
   sessionStatus: string;
@@ -661,6 +707,26 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
   // ── State ──────────────────────────────────────────────────────
 
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  /**
+   * Honour a #section hash on arrival.
+   *
+   * The browser's native hash scroll fires before this component has
+   * rendered anything — the page shows skeletons until dataLoaded — so
+   * the target element doesn't exist yet and the jump silently does
+   * nothing. Re-running it once the real sections are on the page is
+   * what makes a copied link actually work for the person receiving it.
+   */
+  useEffect(() => {
+    if (!dataLoaded) return;
+    const id = window.location.hash.slice(1);
+    if (!id) return;
+    // A frame's grace so layout settles before measuring.
+    const raf = requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [dataLoaded]);
   // "Next Session Topics" — founder-scoped scratchpad rendered at the
   // top of the applet. Markdown via RichTextEditor; saves on click-out
   // (and unmount) when dirty. Seeded into a new session's notes as
@@ -2739,8 +2805,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
             void saveNextTopics();
           }}
         >
-          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+          <h3 id="next-session-topics" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>🗒</span> Next Session Topics
+            <AnchorLink id="next-session-topics" label="Next Session Topics" />
             {nextTopicsSavedFlash && (
               <span className="text-[11px] font-medium normal-case tracking-normal text-green-600 dark:text-green-300">
                 Saved ✓
@@ -2786,8 +2853,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
           : nextGoals;
         return visibleNextGoals.length > 0 || canEdit ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
-          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+          <h3 id="up-next" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
             <span>📋</span> Up Next
+            <AnchorLink id="up-next" label="Up Next" />
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setReadinessTrayOpen(true)}
@@ -2967,8 +3035,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
 
       {/* ── Maturity Stage ──────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h3 id="maturity-stage" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>🔄</span> Sales Maturity Stage
+            <AnchorLink id="maturity-stage" label="Sales Maturity Stage" />
         </h3>
         <select
           value={maturityStage || ""}
@@ -3041,8 +3110,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
           founder chose and can undo. */}
       {sessionKind === "ad_hoc" ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 p-5">
-          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+          <h3 id="metrics" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
             <span>📊</span> Metrics
+            <AnchorLink id="metrics" label="Metrics" />
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             This is an <span className="font-medium">ad hoc session</span>, so it doesn&apos;t record
@@ -3052,8 +3122,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
         </div>
       ) : (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <h3 id="metrics" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>📊</span> Metrics
+            <AnchorLink id="metrics" label="Metrics" />
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => {
@@ -3441,8 +3512,9 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
       {/* ── Goals & Tasks ───────────────────────────────────────── */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
+          <h3 id="goals-and-tasks" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
             <span>🎯</span> Goals &amp; Tasks
+            <AnchorLink id="goals-and-tasks" label="Goals & Tasks" />
           </h3>
 
           {/* Cross-session search across goals + tasks + subtasks
