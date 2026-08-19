@@ -74,7 +74,7 @@ export async function PUT(
     // Account members can edit each other's sessions.
     const existing = await prisma.coachingSession.findUnique({
       where: { id },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, sessionStatus: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -116,7 +116,18 @@ export async function PUT(
     // made. Without this the session returns to the metrics cadence
     // with an empty panel and no way to fill it, since entries are only
     // ever created at session creation.
-    if (isSessionKind(sessionKind) && countsTowardMetrics(sessionKind)) {
+    // NOT for locked sessions. Ad-hoc can now be toggled on a past
+    // session — that is the point of it — but a locked session's
+    // metrics panel is read-only, so seeding zeros there would inject
+    // values nobody can correct straight into the delta chain. That is
+    // the exact corruption the ad-hoc feature exists to prevent. A
+    // locked session flipped back to standard keeps whatever real
+    // entries it still has and gains nothing new.
+    if (
+      isSessionKind(sessionKind) &&
+      countsTowardMetrics(sessionKind) &&
+      existing.sessionStatus !== "locked"
+    ) {
       const [allMetrics, existingEntries] = await Promise.all([
         prisma.coachingMetricDefinition.findMany({
           where: { userId: existing.userId, archived: false, kind: "metric" },

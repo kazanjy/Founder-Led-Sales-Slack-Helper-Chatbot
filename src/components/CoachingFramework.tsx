@@ -3081,11 +3081,19 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
             : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
         }`}
       >
-        <label className={`flex items-start gap-3 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+        {/* Gated on isOwner, NOT canEdit. canEdit excludes locked
+            sessions, but locking exists to stop rewriting a past
+            session's notes and goals — it should not stop
+            reclassifying whether that session counts toward metrics.
+            Retro-tagging old sessions that never recorded metrics is
+            the main reason this control exists at all, and every one
+            of those is locked. The server has always allowed it; only
+            the client was refusing. */}
+        <label className={`flex items-start gap-3 ${isOwner ? "cursor-pointer" : "cursor-default"}`}>
           <input
             type="checkbox"
             checked={isAdHoc}
-            disabled={!canEdit || savingKind}
+            disabled={!isOwner || savingKind}
             onChange={(e) => toggleAdHoc(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 disabled:opacity-50"
           />
@@ -3097,7 +3105,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
             <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
               Keeps this conversation out of the metric deltas and the trend chart, so a one-off
               doesn&apos;t distort your measurement cadence. Everything else still counts — history,
-              synthesis, goals and tasks. Change it any time.
+              synthesis, goals and tasks. Change it any time, including on past sessions.
+              {isLocked && (
+                <span className="block mt-1">
+                  This session is locked, but this setting stays editable — it classifies the
+                  session rather than changing it.
+                </span>
+              )}
             </span>
           </span>
         </label>
