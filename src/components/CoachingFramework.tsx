@@ -703,6 +703,24 @@ function PriorityPill({
 export default function CoachingFramework({ sessionId, sessionStatus, sessionKind, onSessionKindChange, isOwner, sessionCreatedAt, sessionUpdatedAt, sessionUserId, onNavigateToItem }: CoachingFrameworkProps) {
   const isLocked = sessionStatus === "locked";
   const canEdit = isOwner && !isLocked;
+  /**
+   * Metric VALUES stay editable on a locked session.
+   *
+   * Locking protects the narrative of a past session — its notes,
+   * goals and tasks are what was said and agreed, and rewriting them
+   * later is revisionism. A metric value is not narrative; it is a
+   * number that was typed, and typed numbers are sometimes wrong. ARR
+   * mis-keyed three months ago stays wrong forever otherwise, and it
+   * poisons every delta and sparkline point after it.
+   *
+   * Correcting a historical entry is self-healing: the delta chain and
+   * the trend series are recomputed on read from the neighbouring
+   * sessions, so fixing one number fixes every figure derived from it.
+   *
+   * The server already allowed this — it checks ownership, never lock
+   * state — so this was a client-side refusal only.
+   */
+  const canEditMetricValues = isOwner;
 
   // ── State ──────────────────────────────────────────────────────
 
@@ -3139,6 +3157,13 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
         <h3 id="metrics" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <span>📊</span> Metrics
             <AnchorLink id="metrics" label="Metrics" />
+          {/* A locked session is read-only everywhere else, so live
+              number inputs here look like a bug without saying why. */}
+          {isLocked && canEditMetricValues && (
+            <span className="ml-auto text-[11px] font-normal normal-case tracking-normal text-gray-400">
+              past session — values stay editable
+            </span>
+          )}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {metricEntries.map((entry) => {
@@ -3352,7 +3377,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
                   </div>
                 );
               })()}
-              {canEdit ? (
+              {canEditMetricValues ? (
                 focusedMetric === entry.id ? (
                 <input
                   type="number"
