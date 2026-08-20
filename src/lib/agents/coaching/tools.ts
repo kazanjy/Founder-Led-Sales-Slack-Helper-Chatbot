@@ -1,6 +1,7 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
 import { findOwnThenAccount, findManyOwnThenAccount } from "@/lib/agents/shared/account-scoped";
+import { HIRING_PROFILE_TOOLS } from "@/lib/agents/shared/hiring-profile-tools";
 import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 
 // Re-export so existing code that pulled these from this module keeps
@@ -1102,6 +1103,11 @@ void isSettled;
 // ── Registry ────────────────────────────────────────────────────────
 
 export const COACHING_TOOLS: Record<string, ToolEntry> = {
+  // Hiring profiles. Listed here as well as on the GTM agent because
+  // "what should we do next" conversations turn into "who should we
+  // hire" constantly, and this agent needs to read the authored answer
+  // rather than infer one from the maturity assessment.
+  ...HIRING_PROFILE_TOOLS,
   findCoachingSession,
   getCoachingSession,
   getCoachingGoalsAndTasks,

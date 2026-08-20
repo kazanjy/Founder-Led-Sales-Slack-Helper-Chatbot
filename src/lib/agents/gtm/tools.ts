@@ -6,6 +6,7 @@ import type { ToolContext, ToolEntry } from "@/lib/agents/shared/types";
 import { COACHING_TOOLS } from "@/lib/agents/coaching/tools";
 import { DEAL_TOOLS } from "@/lib/agents/deals/tools";
 import { findOwnThenAccount, findManyOwnThenAccount } from "@/lib/agents/shared/account-scoped";
+import { HIRING_PROFILE_TOOLS } from "@/lib/agents/shared/hiring-profile-tools";
 
 /**
  * Tool registry for the GTM agent — the default "everything else"
@@ -949,7 +950,8 @@ export const GTM_TOOLS: Record<string, ToolEntry> = {
   getSalesDeck,
   // Collateral library — uploaded PDFs / docs with extracted text.
   searchCollateral,
-  // Hiring — grade a candidate against the founder's hiring bar.
+  // Hiring — read the authored bar, and grade a candidate against it.
+  ...HIRING_PROFILE_TOOLS,
   assessCandidateProfile,
   // Shared handlers reused from the coaching agent (one
   // implementation per concept; we just point at it here)
