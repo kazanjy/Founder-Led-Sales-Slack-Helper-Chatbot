@@ -215,14 +215,19 @@ const questions: Question[] = [
 async function main() {
   console.log("Seeding hiring profile questions...");
 
-  // Clear existing questions
-  await prisma.hiringProfileQuestion.deleteMany({});
+  // Scoped to AE. This used to be deleteMany({}), which was fine when
+  // there was one bank but would now wipe the SDR and CSM banks too —
+  // and HiringProfileAnswer cascades from the question, so it would
+  // take real founders' saved answers with it. Other roles are seeded
+  // additively by scripts/seed-role-hiring-profile-questions.ts.
+  await prisma.hiringProfileQuestion.deleteMany({ where: { roleType: "AE" } });
 
   // Insert questions with auto-incrementing globalOrder
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
     await prisma.hiringProfileQuestion.create({
       data: {
+        roleType: "AE",
         category: q.category,
         globalOrder: i + 1,
         question: q.question,

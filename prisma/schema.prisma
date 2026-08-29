@@ -2182,8 +2182,15 @@ model IcpVersion {
 // Questions for the "Current State of Sales" questionnaire
 model HiringProfileQuestion {
   id          String  @id @default(cuid())
+  /// "AE" | "SDR" | "CSM". One question bank per seat rather than a
+  /// duplicated table per seat — the Sales Leader profile was built as
+  /// its own parallel stack, and repeating that for every new role
+  /// would mean four near-identical models, seed scripts, route trees
+  /// and pages to keep in step.
+  roleType    String  @default("AE")
   category    String // e.g., "Company Stage & Context", "Sales Motion", "Pipeline Generation"
-  globalOrder Int     @unique // Overall question number (1-N)
+  /// Question number WITHIN a roleType — see the composite unique below.
+  globalOrder Int
   question    String  @db.Text
   helpText    String? @db.Text // Optional guidance / hint
   enabled     Boolean @default(true)
@@ -2192,6 +2199,9 @@ model HiringProfileQuestion {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([roleType, globalOrder])
+  @@index([roleType, globalOrder])
 
   @@map("hiring_profile_questions")
 }
@@ -2226,6 +2236,12 @@ model HiringProfileVersion {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// "AE" | "SDR" | "CSM" — which seat this profile describes. The
+  /// candidate assessor picks the profile matching the role being
+  /// screened for, so a CSM candidate is never graded against the AE
+  /// bar.
+  roleType String @default("AE")
+
   // Snapshot of answers at generation time
   answers HiringProfileAnswer[]
 
@@ -2240,6 +2256,7 @@ model HiringProfileVersion {
   updatedAt DateTime @updatedAt
 
   @@index([userId, createdAt])
+  @@index([userId, roleType, createdAt])
   @@map("hiring_profile_versions")
 }
 

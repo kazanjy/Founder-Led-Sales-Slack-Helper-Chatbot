@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { parseHiringRole } from "@/lib/hiring/role-types";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 
@@ -19,8 +20,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Load hiring profile questions
+    let roleType = parseHiringRole(null);
+    try {
+      const body = await request.json();
+      roleType = parseHiringRole(body?.roleType);
+    } catch { /* no body — defaults to AE */ }
+
     const questions = await prisma.hiringProfileQuestion.findMany({
-      where: { enabled: true },
+      where: { enabled: true, roleType },
       orderBy: { globalOrder: "asc" },
       select: { id: true, category: true, globalOrder: true, question: true, helpText: true },
     });

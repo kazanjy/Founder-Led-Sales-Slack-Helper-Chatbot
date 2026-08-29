@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { parseHiringRole } from "@/lib/hiring/role-types";
 
 // GET - Get the latest hiring profile version
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -15,8 +16,9 @@ export async function GET() {
     const scope = user.accountId
       ? { user: { accountId: user.accountId } }
       : { userId: user.id };
+    const roleType = parseHiringRole(new URL(request.url).searchParams.get("roleType"));
     const latestVersion = await prisma.hiringProfileVersion.findFirst({
-      where: scope,
+      where: { ...scope, roleType },
       orderBy: { createdAt: "desc" },
       include: {
         answers: {

@@ -79,6 +79,8 @@ Be specific and actionable. Output ONLY the revised markdown report, no JSON wra
           // Create a NEW version (not update in-place) with the iteration prompt recorded
           const newVersion = await prisma.hiringProfileVersion.create({
             data: {
+              // Iterating refines the wording, never the seat.
+              roleType: version.roleType,
               userId: user.id,
               title: version.title, // keep the same title
               content: fullContent,

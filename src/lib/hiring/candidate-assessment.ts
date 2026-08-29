@@ -9,6 +9,7 @@ import {
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
 import { getOrgOverrides, getSchoolOverrides } from "./org-overrides";
+import { profileRoleForAssessment, ROLE_META } from "./role-types";
 import { findOwnThenAccount, type OrgScope } from "@/lib/agents/shared/account-scoped";
 import {
   detectFlags,
@@ -605,6 +606,11 @@ How to judge:
 - The payload states hiringProfileAvailable. When it is true you MUST grade
   against ourHiringProfile and must NEVER say a profile was unavailable. When
   it is false, say so plainly and name what you used instead.
+- If profileRoleUsed differs from profileRoleRequested, the founder has no
+  profile for the seat being screened and you are reading a DIFFERENT seat's
+  bar. Say so in the first line of the headline, treat requirements that are
+  specific to the other seat as not applicable rather than unmet, and put
+  "author a <requested role> hiring profile" at the top of couldNotVerify.
 - Respect provenance: where a company read is confidence "low" or provenance
   "unknown", do NOT assert its stage — put it in couldNotVerify instead.
 - Claims from a résumé are UNVERIFIED. They never move the verdict on their own.
@@ -720,7 +726,16 @@ function candidateKeyFrom(linkedinUrl?: string, name?: string, employer?: string
  * profile sitting in the UI. Own-record-first, then newest in the
  * account — the same shape lib/seller-context.ts already uses.
  */
-async function loadHiringProfile(userId: string, scope: OrgScope) {
+/**
+ * The hiring profile for the seat being screened.
+ *
+ * Falls back to the AE profile when the seat has none of its own —
+ * grading an SDR against the AE bar is still more useful than grading
+ * them against nothing — but the fallback is REPORTED rather than
+ * silent, so the founder can see they're reading a cross-role
+ * comparison and go author the right profile.
+ */
+async function loadHiringProfile(userId: string, scope: OrgScope, roleLabel: string) {
   // The author's account travels with the profile so the report can
   // name whose bar it graded against — a wrong tenant must be visible,
   // not inferred from the prose.
@@ -728,14 +743,27 @@ async function loadHiringProfile(userId: string, scope: OrgScope) {
     id: true,
     content: true,
     title: true,
+    roleType: true,
     user: { select: { name: true, email: true, account: { select: { id: true, name: true } } } },
   } as const;
-  return findOwnThenAccount(
-    (where) =>
-      prisma.hiringProfileVersion.findFirst({ where, orderBy: { createdAt: "desc" }, select }),
-    userId,
-    scope
-  );
+  const wanted = profileRoleForAssessment(roleLabel);
+  const find = (roleType: string) =>
+    findOwnThenAccount(
+      (where) =>
+        prisma.hiringProfileVersion.findFirst({
+          where: { ...where, roleType },
+          orderBy: { createdAt: "desc" },
+          select,
+        }),
+      userId,
+      scope
+    );
+
+  const exact = await find(wanted);
+  if (exact) return { profile: exact, wanted, usedFallback: false };
+  if (wanted === "AE") return { profile: null, wanted, usedFallback: false };
+  const fallback = await find("AE");
+  return { profile: fallback, wanted, usedFallback: !!fallback };
 }
 
 async function loadIcp(userId: string, scope: OrgScope) {
@@ -872,14 +900,18 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     workspaceId: scopeRow?.workspaceId ?? null,
   };
 
-  const [seller, hiringProfile, icp, maturity, orgOverrides, schoolOverrides] = await Promise.all([
+  const [seller, hiringProfileResult, icp, maturity, orgOverrides, schoolOverrides] = await Promise.all([
     loadSellerContext(userId),
-    loadHiringProfile(userId, scope),
+    loadHiringProfile(userId, scope, roleLabel),
     loadIcp(userId, scope),
     loadMaturityStage(userId, scope),
     getOrgOverrides(userId, scope),
     getSchoolOverrides(userId, scope),
   ]);
+
+  const hiringProfile = hiringProfileResult.profile;
+  const profileRoleWanted = hiringProfileResult.wanted;
+  const profileUsedFallback = hiringProfileResult.usedFallback;
 
   // Canonicalize schools before the flag engine runs. PDL has no
   // selectivity field — /school/clean returns identity only — so this
@@ -931,6 +963,10 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     // profile was missing — it announced exactly that on an account
     // that had one, because the read was not account-scoped.
     hiringProfileAvailable: !!hiringProfile?.content,
+    // When these differ the profile is from a DIFFERENT seat and the
+    // model must say so rather than implying a same-role comparison.
+    profileRoleRequested: profileRoleWanted,
+    profileRoleUsed: hiringProfile?.roleType ?? null,
     ourSalesNarrative: seller.narrative?.slice(0, 8_000) || "(none)",
     ourValueProp: seller.valueProp100w?.slice(0, 1_500) || "(none)",
     ourICP: icp?.content?.slice(0, 4_000) || "(none)",
@@ -952,7 +988,8 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   console.log(
     `[candidate-assessment] user=${userId} account=${scope.accountId ?? "none"} ` +
       `workspace=${scope.workspaceId ?? "none"} ` +
-      `hiringProfile=${hiringProfile?.id ?? "MISSING"}(${hiringProfile?.user?.account?.name ?? "no account"}) ` +
+      `hiringProfile=${hiringProfile?.id ?? "MISSING"}(${hiringProfile?.user?.account?.name ?? "no account"},` +
+      `want=${profileRoleWanted},got=${hiringProfile?.roleType ?? "none"}${profileUsedFallback ? ",FALLBACK" : ""}) ` +
       `icp=${icp ? "yes" : "no"} ` +
       `stage=${maturity?.currentStage ?? "none"}`
   );
@@ -983,6 +1020,9 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     // Naming the account is the guardrail: grading one customer against
     // another customer's bar should be obvious on sight.
     hiringProfileAccount: hiringProfile?.user?.account?.name || null,
+    hiringProfileRole: hiringProfile?.roleType ?? null,
+    requestedRole: profileRoleWanted,
+    crossRoleFallback: profileUsedFallback,
     icp: !!icp?.content,
     maturityStage: maturity?.currentStage || null,
   };

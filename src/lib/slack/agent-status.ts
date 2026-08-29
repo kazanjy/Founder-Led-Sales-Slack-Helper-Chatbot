@@ -78,7 +78,7 @@ const TOOL_NARRATION: Record<string, Narration> = {
   // Whole-account sweeps.
   getFullAccountContext: { doing: "Pulling your full GTM context together", done: "read your full GTM context" },
   getMaturityAssessment: { doing: "Reading your GTM maturity assessment", done: "read your maturity assessment" },
-  getAEHiringProfile: { doing: "Reading your AE Hiring Profile", done: "read your AE Hiring Profile" },
+  getHiringProfile: { doing: "Reading your hiring profile", done: "read your hiring profile" },
   getSalesLeaderHiringProfile: {
     doing: "Reading your Sales Leader Hiring Profile",
     done: "read your Sales Leader Hiring Profile",

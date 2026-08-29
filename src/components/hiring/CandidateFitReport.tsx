@@ -68,6 +68,9 @@ export interface FitReport {
     hiringProfileVersionId?: string | null;
     hiringProfileTitle?: string | null;
     hiringProfileAccount?: string | null;
+    hiringProfileRole?: string | null;
+    requestedRole?: string | null;
+    crossRoleFallback?: boolean;
     icp?: boolean;
     maturityStage?: string | null;
   };
@@ -215,18 +218,35 @@ export function CandidateFitReport({ report }: { report: FitReport }) {
       {report.gradedAgainst && (
         <div
           className={`rounded-lg border px-4 py-3 mb-6 text-sm ${
-            report.gradedAgainst.hiringProfile
+            report.gradedAgainst.hiringProfile && !report.gradedAgainst.crossRoleFallback
               ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300"
               : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
           }`}
         >
-          {report.gradedAgainst.hiringProfile ? (
+          {report.gradedAgainst.hiringProfile && report.gradedAgainst.crossRoleFallback ? (
+            <>
+              <span className="font-medium">
+                ⚠ No {report.gradedAgainst.requestedRole} Hiring Profile yet — graded against your{" "}
+                {report.gradedAgainst.hiringProfileRole} profile instead
+              </span>{" "}
+              — requirements specific to that other seat aren&apos;t really unmet, they&apos;re
+              inapplicable.{" "}
+              <a
+                className="underline hover:no-underline"
+                href={`/hiring-profile?role=${report.gradedAgainst.requestedRole}`}
+              >
+                Author one
+              </a>{" "}
+              for a true comparison.
+            </>
+          ) : report.gradedAgainst.hiringProfile ? (
             <>
               <span className="font-medium">
                 ✓ Graded against
                 {report.gradedAgainst.hiringProfileAccount
-                  ? ` ${report.gradedAgainst.hiringProfileAccount}'s AE Hiring Profile`
-                  : " your AE Hiring Profile"}
+                  ? ` ${report.gradedAgainst.hiringProfileAccount}'s `
+                  : " your "}
+                {report.gradedAgainst.hiringProfileRole || "AE"} Hiring Profile
               </span>
               {report.gradedAgainst.maturityStage && (
                 <> · stage {report.gradedAgainst.maturityStage.replace(/_/g, " ").toLowerCase()}</>

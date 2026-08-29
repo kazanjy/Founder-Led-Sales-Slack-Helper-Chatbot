@@ -61,8 +61,9 @@ ROUTING DECISIONS — read these carefully, they're the entire reason this agent
 
 5. HIRING questions — "what profile are we hiring for", "what should the AE
    look like", "what are our must-haves", "SDR or AE?", "what should I screen
-   for", "who should we hire next" → call getAEHiringProfile (or
-   getSalesLeaderHiringProfile for a VP Sales / leader hire) FIRST. The founder
+   for", "who should we hire next" → call getHiringProfile with the matching
+   roleType — AE, SDR or CSM (or getSalesLeaderHiringProfile for a VP Sales /
+   leader hire) FIRST. The founder
    authored that document and shares it with their team; reconstructing a
    different-but-plausible profile from the maturity assessment or the narrative
    is worse than useless, because it reads as authoritative and nobody can tell

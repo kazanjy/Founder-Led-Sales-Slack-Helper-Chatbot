@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { HIRING_ROLE_TYPES, ROLE_META, parseHiringRole } from "@/lib/hiring/role-types";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
@@ -54,6 +55,8 @@ function HiringProfileContent() {
   const searchParams = useSearchParams();
   const versionId = searchParams.get("version");
   const isGenerating = searchParams.get("generating") === "true";
+  // Which seat this page is showing. Drives every fetch below.
+  const roleType = parseHiringRole(searchParams.get("role"));
 
   const [loading, setLoading] = useState(true);
   const [version, setVersion] = useState<HiringProfileVersion | null>(null);
@@ -86,7 +89,7 @@ function HiringProfileContent() {
   const { alert: showAlert, confirm: showConfirm, ConfirmModalElement } = useConfirmModal();
 
   useEffect(() => {
-    document.title = "AE Hiring Profile - Mikey";
+    document.title = `${ROLE_META[roleType].profileTitle} - Mikey`;
   }, []);
 
   // Load data
@@ -160,13 +163,13 @@ function HiringProfileContent() {
         const response = await fetch("/api/hiring-profile/generate-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ guidance: guidance || undefined }),
+          body: JSON.stringify({ guidance: guidance || undefined, roleType }),
         });
 
         if (!response.ok || !response.body) {
           const data = await response.json().catch(() => ({}));
           await showAlert({ title: "Error", message: data.error || "Failed to generate hiring profile.", variant: "danger" });
-          router.push("/hiring-profile/edit");
+          router.push(`/hiring-profile/edit?role=${roleType}`);
           return;
         }
 
@@ -206,7 +209,7 @@ function HiringProfileContent() {
                   }
                 } else if (currentEvent === "error") {
                   await showAlert({ title: "Error", message: data.message || "Generation failed.", variant: "danger" });
-                  router.push("/hiring-profile/edit");
+                  router.push(`/hiring-profile/edit?role=${roleType}`);
                   return;
                 }
               } catch { /* ignore parse errors */ }
@@ -216,7 +219,7 @@ function HiringProfileContent() {
         }
       } catch (error) {
         console.error("Stream error:", error);
-        router.push("/hiring-profile/edit");
+        router.push(`/hiring-profile/edit?role=${roleType}`);
       }
     }
 
@@ -243,7 +246,7 @@ function HiringProfileContent() {
         if (data.hasRemaining) {
           window.location.href = "/hiring-profile";
         } else {
-          router.push("/hiring-profile/edit");
+          router.push(`/hiring-profile/edit?role=${roleType}`);
         }
       } else {
         setDeleting(false);
@@ -406,6 +409,28 @@ function HiringProfileContent() {
   };
 
   // Loading state
+  // Seat switcher. Each profile is a separate document for a separate
+  // hire, so this navigates rather than filtering in place — the URL
+  // stays the shareable identity of "the SDR profile".
+  const RoleSwitcher = () => (
+    <div className="flex items-center gap-1 mb-4">
+      {HIRING_ROLE_TYPES.map((r) => (
+        <button
+          key={r}
+          onClick={() => router.push(`/hiring-profile?role=${r}`)}
+          title={ROLE_META[r].blurb}
+          className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+            r === roleType
+              ? "border-purple-500 bg-purple-50 text-purple-700 font-medium dark:bg-purple-950 dark:text-purple-200"
+              : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300"
+          }`}
+        >
+          {ROLE_META[r].short}
+        </button>
+      ))}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -435,12 +460,13 @@ function HiringProfileContent() {
         <div className="flex items-center justify-center" style={{ minHeight: "calc(100vh - 45px)" }}>
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">👤</div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No AE Hiring Profile Yet</h1>
+            <RoleSwitcher />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">No {ROLE_META[roleType].profileTitle} Yet</h1>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Generate an ideal AE hiring profile based on your sales narrative and discovery process to find the right sales talent.
             </p>
             <Link
-              href="/hiring-profile/edit"
+              href={`/hiring-profile/edit?role=${roleType}`}
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-md hover:shadow-lg"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -496,7 +522,8 @@ function HiringProfileContent() {
                   Back
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version?.title || "AE Hiring Profile"}</h1>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{version?.title || ROLE_META[roleType].profileTitle}</h1>
+                  <div className="mt-2"><RoleSwitcher /></div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {isStreamingMode ? (
                       <span className="flex items-center gap-2">

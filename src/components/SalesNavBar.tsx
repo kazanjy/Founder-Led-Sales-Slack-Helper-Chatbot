@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 interface NavItem {
@@ -50,7 +50,12 @@ const gtmMaturityItems: NavItem[] = [
 ];
 
 const hiringItems: NavItem[] = [
-  { href: "/hiring-profile", label: "👤 AE Profile", statusKey: "hiringProfile" },
+  { href: "/hiring-profile?role=AE", label: "👤 AE Profile", statusKey: "hiringProfile" },
+  // SDR and CSM share the AE profile's stack, discriminated by ?role=.
+  // No status key — the completion tick tracks the AE profile only, and
+  // faking one for the others would misreport playbook progress.
+  { href: "/hiring-profile?role=SDR", label: "📣 SDR Profile", statusKey: "sdrHiringProfile" },
+  { href: "/hiring-profile?role=CSM", label: "🤝 CSM Profile", statusKey: "csmHiringProfile" },
   { href: "/sales-leader-profile", label: "👔 Sales Leader Profile", statusKey: "salesLeaderProfile" },
   { href: "/pre-hire-assessment", label: "📋 Pre-Hire Assessment", statusKey: "preHireAssessment" },
   // No status key is ever set for this one, so it never shows a
@@ -78,6 +83,7 @@ interface CompletionStatus {
 export default function SalesNavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const navSearchParams = useSearchParams();
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
@@ -266,6 +272,20 @@ export default function SalesNavBar() {
   }, [dealsSearchQuery, dealsSearchOpen]);
 
   const isActive = (href: string) => {
+    // Query-bearing hrefs (the role-typed hiring profiles) must compare
+    // the param too — pathname alone would light up all three at once.
+    if (href.includes("?")) {
+      const [base, query] = href.split("?");
+      if (pathname !== base) return false;
+      const want = new URLSearchParams(query);
+      for (const [k, v] of want.entries()) {
+        const actual = navSearchParams.get(k);
+        // Treat the default seat as active when no param is present, so
+        // a bare /hiring-profile still highlights AE.
+        if (actual === null ? v !== "AE" : actual !== v) return false;
+      }
+      return true;
+    }
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/assessment/bulk") return pathname.startsWith("/assessment") || pathname.startsWith("/maturity-history");
     if (href === "/pre-call-planning/research") return pathname.startsWith("/pre-call-planning/research");

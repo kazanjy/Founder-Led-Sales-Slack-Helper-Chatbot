@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { parseHiringRole } from "@/lib/hiring/role-types";
 import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import { useConfirmModal } from "@/components/useConfirmModal";
@@ -65,6 +66,10 @@ export default function HiringProfileEditPage() {
 
 function HiringProfileEditContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Which seat's questionnaire this is. Carried on the URL so the page
+  // is linkable and a reload doesn't silently switch banks.
+  const roleType = parseHiringRole(searchParams.get("role"));
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,7 +134,7 @@ function HiringProfileEditContent() {
           return;
         }
 
-        const response = await fetch("/api/hiring-profile/questions");
+        const response = await fetch(`/api/hiring-profile/questions?roleType=${roleType}`);
         if (!response.ok) throw new Error("Failed to load questions");
         const data = await response.json();
         setQuestions(data.questions);
@@ -184,7 +189,8 @@ function HiringProfileEditContent() {
       }
     }
     loadData();
-  }, [router]);
+    // roleType is a dep: switching seats has to reload the question bank.
+  }, [router, roleType]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -278,7 +284,7 @@ function HiringProfileEditContent() {
       const response = await fetch("/api/hiring-profile/prefill-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ roleType }),
       });
 
       if (!response.ok || !response.body) {

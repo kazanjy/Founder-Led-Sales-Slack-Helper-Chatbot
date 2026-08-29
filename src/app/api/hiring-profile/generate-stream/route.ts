@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { parseHiringRole, ROLE_META } from "@/lib/hiring/role-types";
+import { buildHiringProfilePrompt, buildTitlePrompt } from "@/lib/hiring/profile-prompts";
 import { getCurrentUser } from "@/lib/auth";
 import { openai } from "@/lib/openai";
 
@@ -12,15 +14,25 @@ export async function POST(request: Request) {
     }
 
     let guidance = "";
+    let roleType = parseHiringRole(null);
     try {
       const body = await request.json();
       guidance = body?.guidance || "";
+      roleType = parseHiringRole(body?.roleType);
     } catch { /* no body is fine */ }
 
     const questions = await prisma.hiringProfileQuestion.findMany({
-      where: { enabled: true },
+      where: { enabled: true, roleType },
       orderBy: { globalOrder: "asc" },
     });
+    if (questions.length === 0) {
+      return new Response(
+        JSON.stringify({
+          error: `No ${roleType} questions are seeded yet. Run scripts/seed-role-hiring-profile-questions.ts.`,
+        }),
+        { status: 400 }
+      );
+    }
 
     const latestAnswers = await prisma.$queryRaw<
       Array<{ questionId: string; answer: string; createdAt: Date }>
@@ -158,45 +170,7 @@ export async function POST(request: Request) {
       }
     } catch { /* ignore */ }
 
-    const prompt = `You are an expert sales hiring consultant helping a founder define their ideal first (or next) Account Executive hire. Based on the founder's answers below, generate a comprehensive AE Hiring Profile report.
-
-## QUESTIONNAIRE ANSWERS:
-
-${answersSummary}
-
-${additionalContext}
-
----
-
-Generate a detailed AE Hiring Profile report in Markdown with these sections (use ## headings):
-
-## Role Summary
-2-3 paragraphs: the AE role, sales motion, target market, what makes this role unique.
-
-## Ideal Background
-Industries, company stages, deal sizes, selling experience that translates well. Be specific. Name 5-10 specific companies that are exemplars of each org type you recommend (e.g., "AEs from Gong, Outreach, or Salesloft who sold $30-80K ACV deals into VP Sales buyers").
-
-## Must-Have Experience
-Bullet list of non-negotiable experience/skills tied to the founder's sales motion.
-
-## Nice-to-Have Experience
-Bullet list of valuable but not required experience.
-
-## Where to Look
-Name 10-15 specific companies to source candidates from, organized by category (direct competitors, adjacent markets, similar sales motions, etc.). Include LinkedIn search criteria, communities, events, and sourcing channels. Be as concrete as possible — real company names, not generic descriptions.
-
-## Red Flags
-Backgrounds that look good but are bad fits. Explain WHY each is a red flag.
-
-## Interview Focus Areas
-Key areas to probe with suggested questions or evaluation criteria.
-
-## Comp Expectations
-Suggested OTE range and base/variable split with reasoning.
-
-Be specific and actionable — avoid generic advice.${guidance ? `\n\n## ADDITIONAL GUIDANCE FROM USER:\n\n${guidance}` : ""}
-
-Output ONLY the markdown report, no JSON wrapping.`;
+    const prompt = buildHiringProfilePrompt(roleType, answersSummary, additionalContext, guidance);
 
     // Set up SSE stream
     const encoder = new TextEncoder();
@@ -226,14 +200,15 @@ Output ONLY the markdown report, no JSON wrapping.`;
           // Generate a title (fast, non-streaming)
           const titleRes = await openai.chat.completions.create({
             model: "gpt-5.5",
-            messages: [{ role: "user", content: `Based on this AE hiring profile, generate a short title in the format "AE Hiring Profile - [brief descriptor]". Respond with ONLY the title.\n\n${fullContent.substring(0, 2000)}` }],
+            messages: [{ role: "user", content: buildTitlePrompt(roleType, fullContent) }],
           });
-          const title = (titleRes.choices[0]?.message?.content || "AE Hiring Profile").trim();
+          const title = (titleRes.choices[0]?.message?.content || ROLE_META[roleType].profileTitle).trim();
 
           // Save to database
           const version = await prisma.hiringProfileVersion.create({
             data: {
               userId: user.id,
+              roleType,
               title,
               content: fullContent,
             },

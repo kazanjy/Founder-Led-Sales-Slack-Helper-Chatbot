@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { parseHiringRole } from "@/lib/hiring/role-types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -10,8 +11,10 @@ export async function GET() {
     }
 
     // Get all enabled questions ordered by globalOrder
+    const roleType = parseHiringRole(new URL(request.url).searchParams.get("roleType"));
+
     const questions = await prisma.hiringProfileQuestion.findMany({
-      where: { enabled: true },
+      where: { enabled: true, roleType },
       orderBy: { globalOrder: "asc" },
       select: {
         id: true,
