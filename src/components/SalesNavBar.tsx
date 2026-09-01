@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
@@ -80,10 +80,34 @@ interface CompletionStatus {
   [key: string]: boolean;
 }
 
+/**
+ * useSearchParams() opts a route out of static prerendering unless it
+ * sits inside a Suspense boundary. This nav renders on essentially
+ * every page, so calling it directly here broke the production build
+ * on every page that wasn't already wrapped — /hiring-profile/history
+ * and /agents/deals were just the first two the build reached.
+ *
+ * The boundary therefore lives HERE rather than in each page, so no
+ * consumer has to know about it. The fallback is the same nav with no
+ * role param, which renders identically apart from which hiring item
+ * is highlighted — so there's no flash, just a highlight that settles.
+ */
 export default function SalesNavBar() {
+  return (
+    <Suspense fallback={<SalesNavBarBody roleParam={null} />}>
+      <SalesNavBarWithParams />
+    </Suspense>
+  );
+}
+
+function SalesNavBarWithParams() {
+  const roleParam = useSearchParams().get("role");
+  return <SalesNavBarBody roleParam={roleParam} />;
+}
+
+function SalesNavBarBody({ roleParam }: { roleParam: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
-  const navSearchParams = useSearchParams();
   const [status, setStatus] = useState<CompletionStatus>({});
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
@@ -277,14 +301,10 @@ export default function SalesNavBar() {
     if (href.includes("?")) {
       const [base, query] = href.split("?");
       if (pathname !== base) return false;
-      const want = new URLSearchParams(query);
-      for (const [k, v] of want.entries()) {
-        const actual = navSearchParams.get(k);
-        // Treat the default seat as active when no param is present, so
-        // a bare /hiring-profile still highlights AE.
-        if (actual === null ? v !== "AE" : actual !== v) return false;
-      }
-      return true;
+      const want = new URLSearchParams(query).get("role");
+      // Treat the default seat as active when no param is present, so a
+      // bare /hiring-profile still highlights AE.
+      return roleParam === null ? want === "AE" : roleParam === want;
     }
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/assessment/bulk") return pathname.startsWith("/assessment") || pathname.startsWith("/maturity-history");
