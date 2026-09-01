@@ -10,6 +10,8 @@ import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildExportMarkdown } from "@/lib/export-markdown";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { CollapsibleRightSidebar } from "@/components/CollapsibleRightSidebar";
@@ -545,9 +547,9 @@ function HiringProfileContent() {
 
               <div className="flex items-center gap-3">
                 <ChatAboutButton
-                  title="Chat About AE Hiring Profile"
+                  title={`Chat About ${ROLE_META[roleType].profileTitle}`}
                   getContext={() => {
-                    return "## AE Hiring Profile\n\n" + (version?.content || "");
+                    return `## ${ROLE_META[roleType].profileTitle}\n\n` + (version?.content || "");
                   }}
                 />
                 <button
@@ -566,10 +568,28 @@ function HiringProfileContent() {
                   {copiedField === "content" ? "Copied!" : "Copy"}
                 </button>
                 {version && (
+                  <ExportDocumentButton
+                    markdown={buildExportMarkdown({
+                      title: version.title || ROLE_META[roleType].profileTitle,
+                      dateLabel: version.createdAt,
+                      datePrefix: "Generated",
+                      sections: [{ body: version.content }],
+                      // The questionnaire travels with the profile: the
+                      // answers are what makes it defensible to whoever
+                      // reads it, and a profile handed to a recruiter
+                      // without them is just assertions.
+                      answersByCategory: answersByCategory,
+                    })}
+                    title={version.title || ROLE_META[roleType].profileTitle}
+                    filenameFallback={`${roleType.toLowerCase()}-hiring-profile`}
+                    hint={`Download the ${ROLE_META[roleType].short} profile as Markdown or PDF`}
+                  />
+                )}
+                {version && (
                   <ShareDocumentButton
                     documentType="hiringProfile"
                     documentId={version.id}
-                    title="AE Hiring Profile"
+                    title={version.title || ROLE_META[roleType].profileTitle}
                     content={version.content}
                   />
                 )}
