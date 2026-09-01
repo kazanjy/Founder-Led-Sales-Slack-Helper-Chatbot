@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
+import ActionHint from "@/components/ActionHint";
 import CoachingFramework from "@/components/CoachingFramework";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
@@ -936,75 +937,130 @@ function CoachingHistoryContent() {
           </div>
           <div className="flex items-center gap-3">
             {sessions.length > 0 && (
-              <button
-                onClick={handleSyncCoachingToReadiness}
-                disabled={syncLoading}
-                title={syncLoading ? "Analyzing coaching sessions for readiness updates…" : undefined}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-70 dark:text-purple-300 dark:bg-purple-900/30"
+              <ActionHint
+                align="left"
+                title="Update your readiness scorecard from coaching"
+                body="Reads your coaching sessions and proposes which GTM Readiness items you've now satisfied — plus a new maturity stage, if the evidence supports moving."
+                bullets={[
+                  "Nothing changes until you approve it: you get a review screen listing each proposed change and the evidence behind it.",
+                  "Accept or reject item by item — it's not all-or-nothing.",
+                  "Every applied sync is saved to history, so you can see what moved and why.",
+                ]}
               >
-                {syncLoading ? (
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
-                {syncLoading ? "Syncing to GTM Readiness…" : "Sync to GTM Readiness"}
-              </button>
+                <button
+                  onClick={handleSyncCoachingToReadiness}
+                  disabled={syncLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors font-medium text-sm disabled:opacity-70 dark:text-purple-300 dark:bg-purple-900/30"
+                >
+                  {syncLoading ? (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  {syncLoading ? "Syncing to GTM Readiness…" : "Sync to GTM Readiness"}
+                </button>
+              </ActionHint>
             )}
             {sessions.length > 0 && (
-              <button
-                onClick={handleWhatNext}
-                disabled={whatNextLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50"
+              <ActionHint
+                align="center"
+                title="Ask Mikey what to work on next"
+                body="Opens a chat that has already been handed your readiness state, your coaching goals and tasks, and your recent session notes and transcripts — then asks it for the 3–5 things to do now."
+                bullets={[
+                  "It answers straight away; you don't have to type anything.",
+                  "Every recommendation is tied back to a specific readiness item or coaching goal, with the reasoning shown.",
+                  "Opens in a new tab.",
+                ]}
               >
-                {whatNextLoading ? (
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                )}
-                What Next?
-              </button>
+                <button
+                  onClick={handleWhatNext}
+                  disabled={whatNextLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-sm hover:shadow-md disabled:opacity-50"
+                >
+                  {whatNextLoading ? (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  )}
+                  What Next?
+                </button>
+              </ActionHint>
             )}
             {sessions.length > 0 && (
-              <ChatAboutButton
-                title="GTM Strategy Review"
-                // Prompt FIRST, then the totality of coaching history —
-                // auto-sends (no primeOnly) since the prompt is the ask.
-                getContext={async () => {
-                  const ctx = await buildEnrichedChatContext(sessions);
-                  return `${GTM_STRATEGY_REVIEW_PROMPT}\n\n---\n\n${ctx}`;
-                }}
-                label="🧭 GTM Strategy Review"
-                mode="DIRECT"
-              />
+              <ActionHint
+                align="center"
+                title="Pressure-test the strategy, not the to-do list"
+                body="Hands your entire coaching history to a deliberately blunt GTM strategist, who reconstructs the bets you've made on ICP, positioning, channel, pricing and motion — and then argues with them."
+                bullets={[
+                  "Sorts each strategic hypothesis into validated, untested-but-reasonable, or contradicted by your own data.",
+                  "Names the things you've repeated across sessions without progress, bluntly.",
+                  "Surfaces the assumptions underneath the plan that you've never said out loud.",
+                  "“Stay the course” is an allowed verdict — it isn't hunting for problems.",
+                  "The slowest of these buttons. Opens in a new tab.",
+                ]}
+              >
+                <ChatAboutButton
+                  title="GTM Strategy Review"
+                  // Prompt FIRST, then the totality of coaching history —
+                  // auto-sends (no primeOnly) since the prompt is the ask.
+                  getContext={async () => {
+                    const ctx = await buildEnrichedChatContext(sessions);
+                    return `${GTM_STRATEGY_REVIEW_PROMPT}\n\n---\n\n${ctx}`;
+                  }}
+                  label="🧭 GTM Strategy Review"
+                  mode="DIRECT"
+                />
+              </ActionHint>
             )}
             {sessions.length > 0 && (
-              <ChatAboutButton
-                title="Coaching History — All Sessions"
-                getContext={() => buildEnrichedChatContext(sessions)}
-                label="Chat All Sessions"
-                primeOnly
-                mode="DIRECT"
-              />
+              <ActionHint
+                align="right"
+                title="Open a chat that already knows everything"
+                body="Loads every coaching session — notes, transcripts, goals, tasks and metrics — into a new conversation, then waits. No question is asked on your behalf."
+                bullets={[
+                  "Use this when you have your own question rather than wanting an opinion.",
+                  "Ask about one session or across all of them: “what did we decide about pricing?”, “what have I dropped?”",
+                  "Opens in a new tab with the context already primed.",
+                ]}
+              >
+                <ChatAboutButton
+                  title="Coaching History — All Sessions"
+                  getContext={() => buildEnrichedChatContext(sessions)}
+                  label="Chat All Sessions"
+                  primeOnly
+                  mode="DIRECT"
+                />
+              </ActionHint>
             )}
-            <button
-              onClick={startCreate}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+            <ActionHint
+              align="right"
+              title="Log a new coaching session"
+              body="Creates a session dated today, ready for notes, a transcript, goals and metrics. What you put here is what every other button on this row reads from."
+              bullets={[
+                "Starts as a draft and stays out of your history until you fill it in.",
+                "Mark it ad hoc if it shouldn't count toward your metrics cadence.",
+              ]}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Session
-            </button>
+              <button
+                onClick={startCreate}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Session
+              </button>
+            </ActionHint>
           </div>
         </div>
 
