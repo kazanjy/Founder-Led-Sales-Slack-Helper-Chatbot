@@ -27,6 +27,13 @@ import SalesNavBar from "@/components/SalesNavBar";
  * left are the pool that matters.
  */
 
+interface CompanyPill {
+  name: string;
+  /** Priority tier from the hiring profile. 0 = typed in by hand. */
+  tier: number;
+  group: string | null;
+}
+
 interface ResolvedOrg {
   query: string;
   id: string | null;
@@ -68,6 +75,13 @@ interface EnrichedLead {
 
 const DEFAULT_TITLES = "Account Executive, Founding Account Executive, Commercial Account Executive, Mid-Market Account Executive";
 
+const TIER_STYLE: Record<number, string> = {
+  0: "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600",
+  1: "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-200 dark:border-purple-700",
+  2: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700",
+  3: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700",
+};
+
 const VERDICT_STYLE: Record<string, string> = {
   clean: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
   pattern: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
@@ -83,7 +97,11 @@ function monthsLabel(m: number | null): string {
 }
 
 export default function SourcingPage() {
-  const [companyText, setCompanyText] = useState("");
+  const [companies, setCompanies] = useState<CompanyPill[]>([]);
+  const [companyDraft, setCompanyDraft] = useState("");
+  const [roleType, setRoleType] = useState<"AE" | "SDR" | "CSM">("AE");
+  const [importNote, setImportNote] = useState<string | null>(null);
+  const [avoided, setAvoided] = useState<Array<{ name: string; reason: string | null }>>([]);
   const [titleText, setTitleText] = useState(DEFAULT_TITLES);
   const [locationText, setLocationText] = useState("United States");
   const [yoeMin, setYoeMin] = useState<string>("3");
@@ -103,8 +121,72 @@ export default function SourcingPage() {
   const splitList = (s: string) =>
     s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
 
+  const addCompanies = (raw: string) => {
+    const incoming = splitList(raw);
+    if (incoming.length === 0) return;
+    setCompanies((prev) => {
+      const have = new Set(prev.map((c) => c.name.toLowerCase()));
+      const added = incoming
+        .filter((n) => !have.has(n.toLowerCase()))
+        // Tier 0 marks a hand-typed company, so it reads differently
+        // from one the hiring profile prioritised.
+        .map((name) => ({ name, tier: 0, group: null }));
+      return [...prev, ...added];
+    });
+    setCompanyDraft("");
+  };
+
+  const removeCompany = (name: string) =>
+    setCompanies((prev) => prev.filter((c) => c.name !== name));
+
+  const importFromProfile = async () => {
+    setBusy("import");
+    setError(null);
+    setImportNote(null);
+    try {
+      const res = await fetch("/api/sourcing/import-companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+
+      const imported: CompanyPill[] = (data.companies || []).map(
+        (c: { name: string; tier: number; group: string | null }) => ({
+          name: c.name,
+          tier: c.tier || 1,
+          group: c.group ?? null,
+        })
+      );
+      if (imported.length === 0) {
+        setImportNote(
+          `That ${roleType} profile doesn't name any companies to source from. Add some by hand, or regenerate the profile with a "where to look" section.`
+        );
+        return;
+      }
+
+      // Merge rather than replace: whatever was already on the board
+      // was put there deliberately.
+      setCompanies((prev) => {
+        const have = new Set(prev.map((c) => c.name.toLowerCase()));
+        return [...prev, ...imported.filter((c) => !have.has(c.name.toLowerCase()))];
+      });
+      setAvoided(data.avoid || []);
+      const skipped = (data.avoid || []).length;
+      setImportNote(
+        `Imported ${imported.length} ${imported.length === 1 ? "company" : "companies"} from ${data.profile?.title || `your ${roleType} profile`}.` +
+          (skipped ? ` ${skipped} on its avoid list were left out.` : "")
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const resolveCompanies = async () => {
-    const names = splitList(companyText);
+    const names = companies.map((c) => c.name);
     if (names.length === 0) return setError("Add some company names first.");
     setBusy("resolve");
     setError(null);
@@ -170,7 +252,10 @@ export default function SourcingPage() {
       const res = await fetch("/api/sourcing/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, roleLabel: "AE" }),
+        // Pass the selected seat, not a constant: the short-stint
+        // threshold is 12 months for an SDR and 18 for an AE, so a
+        // hardcoded rubric would mislabel SDR tenure.
+        body: JSON.stringify({ ids, roleLabel: roleType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Enrichment failed");
@@ -232,24 +317,127 @@ export default function SourcingPage() {
 
         {/* Step 1 — companies */}
         <section className="mb-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">1. Companies</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">1. Companies</h2>
+            <div className="flex items-center gap-2">
+              <select
+                value={roleType}
+                onChange={(e) => setRoleType(e.target.value as "AE" | "SDR" | "CSM")}
+                className="px-2 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+              >
+                <option value="AE">AE profile</option>
+                <option value="SDR">SDR profile</option>
+                <option value="CSM">CSM profile</option>
+              </select>
+              <button
+                onClick={importFromProfile}
+                disabled={busy !== null}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+                </svg>
+                {busy === "import" ? "Importing…" : "Import from hiring profile"}
+              </button>
+            </div>
+          </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-            Paste the tier list from your hiring profile — commas or one per line.
-            Resolving them against Apollo is free.
+            The companies to hire FROM. Import pulls the &ldquo;where to look&rdquo; tiers
+            straight out of your hiring profile. Resolving them against Apollo is free.
           </p>
-          <textarea
-            value={companyText}
-            onChange={(e) => setCompanyText(e.target.value)}
-            rows={3}
-            placeholder="RevenueCat, Superwall, Adapty, Qonversion, Purchasely"
+
+          {companies.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {companies.map((c) => (
+                <span
+                  key={c.name}
+                  title={
+                    c.tier === 0
+                      ? "Added by hand"
+                      : `Tier ${c.tier}${c.group ? ` — ${c.group}` : ""}`
+                  }
+                  className={`inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 text-sm rounded-full border ${TIER_STYLE[c.tier] || TIER_STYLE[0]}`}
+                >
+                  {c.tier > 0 && (
+                    <span className="text-[10px] font-bold opacity-70">T{c.tier}</span>
+                  )}
+                  {c.name}
+                  <button
+                    onClick={() => removeCompany(c.name)}
+                    aria-label={`Remove ${c.name}`}
+                    className="ml-0.5 w-4 h-4 inline-flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/20"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+              <button
+                onClick={() => setCompanies([])}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:underline self-center ml-1"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          <input
+            value={companyDraft}
+            onChange={(e) => setCompanyDraft(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter adds; comma too, so pasting a comma-separated list
+              // from a profile splits into pills as you go.
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addCompanies(companyDraft);
+              } else if (e.key === "Backspace" && !companyDraft && companies.length > 0) {
+                removeCompany(companies[companies.length - 1].name);
+              }
+            }}
+            onBlur={() => addCompanies(companyDraft)}
+            onPaste={(e) => {
+              const text = e.clipboardData.getData("text");
+              if (/[,\n]/.test(text)) {
+                e.preventDefault();
+                addCompanies(text);
+              }
+            }}
+            placeholder={
+              companies.length === 0
+                ? "Import from your profile, or type a company and press Enter"
+                : "Add another…"
+            }
             className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
+
+          {importNote && (
+            <p className="mt-2 text-xs text-purple-700 dark:text-purple-300">{importNote}</p>
+          )}
+          {avoided.length > 0 && (
+            <details className="mt-2">
+              <summary className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                {avoided.length} on your profile&apos;s avoid list, not imported
+              </summary>
+              <ul className="mt-1 space-y-0.5">
+                {avoided.map((a) => (
+                  <li key={a.name} className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="line-through">{a.name}</span>
+                    {a.reason ? ` — ${a.reason}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
           <button
             onClick={resolveCompanies}
-            disabled={busy !== null}
+            disabled={busy !== null || companies.length === 0}
             className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50"
           >
-            {busy === "resolve" ? "Resolving…" : "Resolve companies"}
+            {busy === "resolve"
+              ? "Resolving…"
+              : `Resolve ${companies.length || ""} ${companies.length === 1 ? "company" : "companies"}`}
           </button>
 
           {resolved && (
