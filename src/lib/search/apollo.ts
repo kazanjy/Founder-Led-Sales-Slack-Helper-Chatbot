@@ -85,6 +85,98 @@ export function isEducationEntry(e: ApolloEmploymentEntry): boolean {
   return false;
 }
 
+// ── Organization lookup ───────────────────────────────────────────
+
+export interface ApolloOrg {
+  id: string;
+  name: string;
+  domain: string | null;
+}
+
+/**
+ * Resolve a company name to Apollo organization candidates.
+ *
+ * FREE — this endpoint consumes no credits, which is what makes
+ * tier-list sourcing practical: a hiring profile naming forty companies
+ * costs nothing to resolve.
+ *
+ * Returns candidates rather than one answer ON PURPOSE. Fuzzy matching
+ * is not reliable enough to auto-pick: "Skio" ranks SKIOLD GROUP first,
+ * and "Adapty" resolves as "Adapty.io". Sourcing the wrong company is
+ * silent — you get a plausible list of the wrong people — so the caller
+ * confirms.
+ */
+export async function lookupOrganizations(
+  name: string,
+  limit = 5
+): Promise<{ orgs: ApolloOrg[]; error?: string }> {
+  if (!APOLLO_API_KEY) return { orgs: [], error: "APOLLO_API_KEY not configured" };
+  const q = name.trim();
+  if (!q) return { orgs: [] };
+
+  try {
+    const response = await fetch(`${APOLLO_BASE_URL}/organizations/lookup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        "x-api-key": APOLLO_API_KEY,
+      },
+      body: JSON.stringify({
+        q_organization_fuzzy_name: q,
+        display_mode: "fuzzy_select_mode",
+        per_page: limit,
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[Apollo] Org lookup error ${response.status}:`, text.slice(0, 300));
+      return { orgs: [], error: `Apollo API error: ${response.status}` };
+    }
+    const json = await response.json();
+    const rows = Array.isArray(json?.organizations) ? json.organizations : [];
+    return {
+      orgs: rows.map((o: Record<string, unknown>) => ({
+        id: String(o.id ?? ""),
+        name: String(o.name ?? ""),
+        domain: (o.domain as string) ?? null,
+      })),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[Apollo] Org lookup failed:", message);
+    return { orgs: [], error: message };
+  }
+}
+
+/** Normalized comparison for picking an unambiguous name match. */
+function normalizeOrgName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b(inc|llc|ltd|corp|co|the)\b/g, "")
+    .replace(/\.(io|com|ai|co)\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Best candidate for a name, plus whether it was unambiguous.
+ *
+ * `confident` is true only on a normalized exact name match. Everything
+ * else is handed back for a human to confirm rather than guessed at,
+ * for the Skio reason above.
+ */
+export function pickOrg(
+  name: string,
+  orgs: ApolloOrg[]
+): { org: ApolloOrg | null; confident: boolean } {
+  if (orgs.length === 0) return { org: null, confident: false };
+  const target = normalizeOrgName(name);
+  const exact = orgs.filter((o) => normalizeOrgName(o.name) === target);
+  if (exact.length === 1) return { org: exact[0], confident: true };
+  if (exact.length > 1) return { org: exact[0], confident: false };
+  return { org: orgs[0], confident: false };
+}
+
 // ── People search (sourcing) ──────────────────────────────────────
 
 /**
@@ -226,9 +318,32 @@ export async function searchPeople(
 export async function enrichPersonByLinkedIn(
   linkedinUrl: string
 ): Promise<{ data: ApolloPersonResult | null; error?: string }> {
-  if (!APOLLO_API_KEY) return { data: null, error: "APOLLO_API_KEY not configured" };
   const cleaned = linkedinUrl.trim().replace(/\/+$/, "");
   if (!cleaned) return { data: null, error: "No LinkedIn URL provided" };
+  return matchPerson({ linkedin_url: cleaned }, cleaned);
+}
+
+/**
+ * Match a person by Apollo id.
+ *
+ * Sourcing needs this: people search returns ids and no LinkedIn URLs,
+ * so an id is the only handle a lead comes with. The enriched result
+ * DOES carry linkedin_url, which is what lets a sourced lead hand off
+ * to the existing URL-based assessment flow.
+ */
+export async function enrichPersonById(
+  apolloId: string
+): Promise<{ data: ApolloPersonResult | null; error?: string }> {
+  const id = apolloId.trim();
+  if (!id) return { data: null, error: "No Apollo id provided" };
+  return matchPerson({ id }, id);
+}
+
+async function matchPerson(
+  selector: Record<string, string>,
+  label: string
+): Promise<{ data: ApolloPersonResult | null; error?: string }> {
+  if (!APOLLO_API_KEY) return { data: null, error: "APOLLO_API_KEY not configured" };
 
   try {
     const response = await fetch(`${APOLLO_BASE_URL}/people/match`, {
@@ -239,7 +354,7 @@ export async function enrichPersonByLinkedIn(
         "x-api-key": APOLLO_API_KEY,
       },
       body: JSON.stringify({
-        linkedin_url: cleaned,
+        ...selector,
         // Work history is all the assessor needs. Personal contact
         // details cost extra credits and would be a liability on a
         // hiring record we retain, so they stay off.
@@ -256,7 +371,7 @@ export async function enrichPersonByLinkedIn(
     }
     if (!response.ok) {
       const text = await response.text();
-      console.error(`[Apollo] Person match error ${response.status}:`, text.slice(0, 500));
+      console.error(`[Apollo] Person match error ${response.status} for ${label}:`, text.slice(0, 500));
       return { data: null, error: `Apollo API error: ${response.status}` };
     }
 

@@ -65,6 +65,22 @@ export default function CandidateFitPage() {
     loadHistory();
   }, [loadHistory]);
 
+  // Handoff from the sourcing page. Passed through sessionStorage
+  // rather than a query string so this route keeps its static prerender
+  // — useSearchParams would opt the whole page out of it. Read once and
+  // cleared, so a later visit doesn't resurrect a stale candidate.
+  useEffect(() => {
+    try {
+      const handoff = sessionStorage.getItem("sourcing-linkedin-url");
+      if (handoff) {
+        setLinkedinUrl(handoff);
+        sessionStorage.removeItem("sourcing-linkedin-url");
+      }
+    } catch {
+      /* private mode or blocked storage — the field just stays empty */
+    }
+  }, []);
+
   const run = async () => {
     if (!linkedinUrl.trim() && !profileText.trim() && !file) {
       setError("Give me a LinkedIn URL, or paste / drop a résumé — I need one or the other.");

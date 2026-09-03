@@ -62,6 +62,9 @@ const hiringItems: NavItem[] = [
   // completion tick — it's a tool you re-run per candidate, not an
   // artifact you author once.
   { href: "/candidate-fit", label: "🔎 Candidate Fit", statusKey: "candidateFit" },
+  // Same reasoning as Candidate Fit: a tool you re-run per search, not
+  // an artifact you author once, so it never carries a completion tick.
+  { href: "/sourcing", label: "🧲 Source Candidates", statusKey: "sourcing" },
 ];
 
 const allNavItems: NavItem[] = [...contentItems, ...callExecutionItems, ...standaloneItems, ...gtmMaturityItems, ...hiringItems];
