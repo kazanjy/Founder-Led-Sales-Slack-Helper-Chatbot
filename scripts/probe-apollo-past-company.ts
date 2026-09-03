@@ -27,7 +27,7 @@
  */
 
 const API_KEY = process.env.APOLLO_API_KEY;
-const URL = "https://api.apollo.io/api/v1/mixed_people/search";
+const ENDPOINT = "https://api.apollo.io/api/v1/mixed_people/search";
 
 // HubSpot: huge, and its alumni vastly outnumber its current AEs, so the
 // signal is unmissable if past-company filtering is actually applied.
@@ -50,7 +50,7 @@ const CANDIDATES: Array<{ label: string; body: Record<string, unknown> }> = [
 ];
 
 async function count(body: Record<string, unknown>): Promise<number | string> {
-  const res = await fetch(URL, {
+  const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
