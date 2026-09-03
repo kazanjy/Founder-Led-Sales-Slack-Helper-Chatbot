@@ -1,13 +1,21 @@
 /**
  * Does Apollo's People Search API support filtering by PAST employer?
  *
- * Apollo's web UI has "Include past company" / "Exclude past company"
- * checkboxes, so the underlying index clearly supports it. What is not
- * established is whether the public REST API exposes it, and under what
- * parameter name. The MCP connector definitively does not: searching
- * HubSpot AEs by organization_ids and by q_organization_domains_list
- * both return exactly 1,430 — identical, and far too few to include the
- * thousands of ex-HubSpot AEs. Both filters are current-employer-only.
+ * ANSWER: yes — person_past_organization_ids.
+ *
+ * Apollo's search UI emits personPastOrganizationIds[] in its URL, and
+ * the same URL carries personTitles[], whose REST spelling we already
+ * use successfully as person_titles. The camelCase-to-snake_case
+ * transform is therefore confirmed within one observed URL. This script
+ * survives as the runtime check, since a UI parameter is evidence about
+ * the public API, not proof.
+ *
+ * For the record on what does NOT work: searching HubSpot AEs by
+ * organization_ids and by q_organization_domains_list both return
+ * exactly 1,430 — identical, and far too few to include thousands of
+ * ex-HubSpot AEs. Both are current-employer-only. The docs line about a
+ * domain matching "the current employer or a previous employer"
+ * describes the Enrichment endpoint's person-disambiguation, not search.
  *
  * Run:  APOLLO_API_KEY=... npx tsx scripts/probe-apollo-past-company.ts
  *

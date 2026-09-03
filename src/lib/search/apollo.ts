@@ -85,6 +85,137 @@ export function isEducationEntry(e: ApolloEmploymentEntry): boolean {
   return false;
 }
 
+// ── People search (sourcing) ──────────────────────────────────────
+
+/**
+ * One row of a people-search result.
+ *
+ * Search is deliberately thin — Apollo returns an id, a first name, a
+ * MASKED surname, a title and the employer name, plus has_* booleans
+ * standing in for everything it will sell you. There is no work
+ * history and no LinkedIn URL, so a search result cannot be assessed:
+ * it has to be enriched first. Treat these as leads, not candidates.
+ */
+export interface ApolloLead {
+  id: string;
+  firstName: string | null;
+  /** e.g. "Ch***e". Resolves to a real surname only on enrichment. */
+  lastNameMasked: string | null;
+  title: string | null;
+  organizationName: string | null;
+}
+
+export interface ApolloPeopleSearchParams {
+  titles?: string[];
+  /**
+   * Current employer. Apollo organization ids (24 hex), from
+   * /organizations/lookup — which is free, so resolving a hiring
+   * profile's tier lists costs nothing.
+   */
+  organizationIds?: string[];
+  /**
+   * PAST employer — the filter that makes tier-list sourcing work.
+   *
+   * Current-employer filters are close to useless for the small,
+   * specialist orgs a founder's "where to look" list names: Apollo
+   * indexes exactly one current AE at RevenueCat. The people who left
+   * are the pool. Verified current-only, for the avoidance of doubt:
+   * HubSpot AEs by organizationIds and by employer domain both return
+   * exactly 1,430, which cannot include thousands of alumni.
+   */
+  pastOrganizationIds?: string[];
+  /** Where the PERSON lives, not the employer HQ. */
+  personLocations?: string[];
+  employeeCountRanges?: string[];
+  /**
+   * Total career experience. Preferred over days-in-current-title,
+   * which resets on promotion and so quietly excludes people who were
+   * promoted internally — a green flag in our own rubric.
+   */
+  totalYearsExperience?: { min?: number; max?: number };
+  /** Apollo widens loose titles by default; false keeps "Enterprise AE" out. */
+  includeSimilarTitles?: boolean;
+  page?: number;
+  perPage?: number;
+}
+
+/**
+ * Search Apollo's people index.
+ *
+ * Consumes a search credit per call. Returns at most 100 per page and
+ * caps at 50,000 records overall (500 pages).
+ */
+export async function searchPeople(
+  params: ApolloPeopleSearchParams
+): Promise<{ leads: ApolloLead[]; total: number; error?: string }> {
+  if (!APOLLO_API_KEY) return { leads: [], total: 0, error: "APOLLO_API_KEY not configured" };
+
+  const body: Record<string, unknown> = {
+    page: params.page ?? 1,
+    per_page: Math.min(params.perPage ?? 25, 100),
+  };
+  if (params.titles?.length) body.person_titles = params.titles;
+  if (params.organizationIds?.length) body.organization_ids = params.organizationIds;
+  if (params.pastOrganizationIds?.length) {
+    body.person_past_organization_ids = params.pastOrganizationIds;
+  }
+  if (params.personLocations?.length) body.person_locations = params.personLocations;
+  if (params.employeeCountRanges?.length) {
+    body.organization_num_employees_ranges = params.employeeCountRanges;
+  }
+  if (params.totalYearsExperience) body.person_total_yoe_range = params.totalYearsExperience;
+  if (params.includeSimilarTitles !== undefined) {
+    body.include_similar_titles = params.includeSimilarTitles;
+  }
+
+  try {
+    const response = await fetch(`${APOLLO_BASE_URL}/mixed_people/search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        "x-api-key": APOLLO_API_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+    if (response.status === 429) {
+      return { leads: [], total: 0, error: "Apollo rate limit reached — try again shortly" };
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[Apollo] People search error ${response.status}:`, text.slice(0, 500));
+      return { leads: [], total: 0, error: `Apollo API error: ${response.status}` };
+    }
+
+    const json = await response.json();
+    const rows = Array.isArray(json?.people) ? json.people : [];
+    const total = typeof json?.total_entries === "number" ? json.total_entries : rows.length;
+    console.log(
+      `[Apollo] People search: ${rows.length} of ${total}` +
+        (params.pastOrganizationIds?.length ? " (past-employer filter)" : "")
+    );
+    return {
+      total,
+      leads: rows.map(
+        (p: Record<string, unknown>): ApolloLead => ({
+          id: String(p.id ?? ""),
+          firstName: (p.first_name as string) ?? null,
+          lastNameMasked: ((p.last_name_obfuscated ?? p.last_name) as string) ?? null,
+          title: (p.title as string) ?? null,
+          organizationName:
+            ((p.organization as { name?: string } | undefined)?.name ??
+              (p.organization_name as string)) ??
+            null,
+        })
+      ),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[Apollo] People search failed:", message);
+    return { leads: [], total: 0, error: message };
+  }
+}
+
 /**
  * Match a person by LinkedIn URL.
  *
