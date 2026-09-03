@@ -7,6 +7,8 @@ import ReactMarkdown from "react-markdown";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildSalesMotionMarkdown } from "@/lib/playbook-export";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { SidebarAdCards } from "@/components/SidebarAdCards";
@@ -655,6 +657,18 @@ function SalesMotionContent() {
                     )}
                     {copiedField === "content" ? "Copied!" : "Copy"}
                   </button>
+                )}
+                {collection && (
+                  <ExportDocumentButton
+                    markdown={buildSalesMotionMarkdown(
+                      collection.title || "Sales Motion",
+                      collection,
+                      collection.updatedAt || collection.createdAt
+                    )}
+                    title={collection.title || "Sales Motion"}
+                    filenameFallback="sales-motion"
+                    hint="Download the motion, playbooks and source calls as Markdown or PDF"
+                  />
                 )}
                 {collection && (
                   <ShareDocumentButton

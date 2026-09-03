@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildAssetLibraryMarkdown } from "@/lib/playbook-export";
 import { Linkify } from "@/components/Linkify";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/sales-asset-library/seed-data";
@@ -635,7 +637,17 @@ export default function SalesAssetLibraryPage() {
       <SalesNavBar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">📚 Sales Asset Library</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">📚 Sales Asset Library</h1>
+            {assets.length > 0 && (
+              <ExportDocumentButton
+                markdown={buildAssetLibraryMarkdown("Sales Asset Library", assets)}
+                title="Sales Asset Library"
+                filenameFallback="sales-asset-library"
+                hint="Download the asset list as Markdown or PDF"
+              />
+            )}
+          </div>
           <p className="text-gray-600 dark:text-gray-300">
             Your team&apos;s current production GTM assets. Update links here as assets evolve — all changes are tracked in version history.
           </p>

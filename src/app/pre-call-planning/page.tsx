@@ -9,6 +9,8 @@ import dynamic from "next/dynamic";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildPlainMarkdown } from "@/lib/playbook-export";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -633,6 +635,16 @@ function PreCallPlanningContent() {
                     documentId={version.id}
                     title={version.title || "Pre-Call Planning"}
                     content={currentContent}
+                  />
+                  <ExportDocumentButton
+                    markdown={buildPlainMarkdown(
+                      version.title || "Pre-Call Checklist",
+                      currentContent,
+                      version.createdAt
+                    )}
+                    title={version.title || "Pre-Call Checklist"}
+                    filenameFallback="pre-call-checklist"
+                    hint="Download the checklist as Markdown or PDF"
                   />
                   {version?.userId === currentUserId && (
                   <button

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import SalesNavBar from "@/components/SalesNavBar";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildDiscoveryQuestionsMarkdown } from "@/lib/playbook-export";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -888,6 +890,16 @@ function DiscoveryQuestionsContent() {
                       }
                       return content;
                     }}
+                  />
+                  <ExportDocumentButton
+                    markdown={buildDiscoveryQuestionsMarkdown(
+                      version.title || "Discovery Questions",
+                      version.content,
+                      version.createdAt
+                    )}
+                    title={version.title || "Discovery Questions"}
+                    filenameFallback="discovery-questions"
+                    hint="Download the questions as Markdown or PDF"
                   />
                   <ShareDocumentButton
                     documentType="discoveryQuestions"

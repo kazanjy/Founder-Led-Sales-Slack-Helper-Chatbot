@@ -7,6 +7,8 @@ import { copyMarkdownAsRichText } from "@/lib/clipboard";
 import { useConfirmModal } from "@/components/useConfirmModal";
 import { useCmdEnterToSubmit } from "@/components/useCmdEnterToSubmit";
 import SalesNavBar from "@/components/SalesNavBar";
+import ExportDocumentButton from "@/components/ExportDocumentButton";
+import { buildIcpMarkdown } from "@/lib/playbook-export";
 import { ShareDocumentButton } from "@/components/ShareDocumentButton";
 import { GeneratingOverlay } from "@/components/GeneratingOverlay";
 import { ChatAboutButton } from "@/components/ChatAboutButton";
@@ -763,6 +765,16 @@ function IcpContent() {
                           <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy</>
                         )}
                       </button>
+                      <ExportDocumentButton
+                        markdown={buildIcpMarkdown(
+                          version.title || "Ideal Customer Profile",
+                          version.content,
+                          version.updatedAt || version.createdAt
+                        )}
+                        title={version.title || "Ideal Customer Profile"}
+                        filenameFallback="ideal-customer-profile"
+                        hint="Download the ICP as Markdown or PDF"
+                      />
                       <ShareDocumentButton
                         documentType="icp"
                         documentId={version.id}
