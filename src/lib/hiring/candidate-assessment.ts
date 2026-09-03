@@ -1120,7 +1120,7 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     educationFound: haveEducation,
     educationNote: haveEducation
       ? null
-      : "No education was found for this profile, so the school-selectivity and major signals could not be evaluated — their absence here is missing data, not a negative. Paste a résumé or LinkedIn PDF export to fill that in.",
+      : "Apollo does not return education, so the school-selectivity and smart-major signals were not evaluated for this candidate — their absence is missing data, not a mark against them. Paste a résumé or LinkedIn PDF export to score those.",
   };
 
   const row = await prisma.candidateAssessment.create({

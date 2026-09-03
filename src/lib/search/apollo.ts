@@ -13,12 +13,22 @@
  * hiring. Keeping the two separate means a change here can't regress
  * pre-call research.
  *
- * Shape note: Apollo returns education INSIDE employment_history rather
- * than as its own array — an entry is education when it carries a
- * degree, a major, or kind/grade_level markers instead of a job title.
- * Some responses also carry a top-level `education` array. We read both
- * and let the caller de-duplicate, because getting this wrong means
- * silently losing the school-selectivity signal rather than erroring.
+ * VERIFIED against live people/match responses (Sept 2026):
+ *
+ *  - employment_history carries full YYYY-MM-DD start_date/end_date, so
+ *    tenure math is if anything sharper than PDL's — no year-only dates
+ *    to downgrade a hopping flag to "possible".
+ *  - Repeat titles at one employer arrive as SEPARATE rows (two HubSpot
+ *    entries for one person), which is what the promotion detector
+ *    wants and what the per-employer aggregation already handles.
+ *  - Apollo returns NO EDUCATION AT ALL. No `education` array, and no
+ *    degree/major/grade_level fields on employment rows. A school shows
+ *    up only when the person WORKED there, which is a job.
+ *
+ * The education readers below are therefore dead code today, kept
+ * because they cost nothing and would light up if Apollo starts
+ * supplying it. Callers must not infer "no degree" from an empty
+ * result — it means "not asked", and the assessment says so.
  */
 
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY;
