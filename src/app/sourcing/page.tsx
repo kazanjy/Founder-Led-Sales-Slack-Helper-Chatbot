@@ -45,6 +45,8 @@ interface ResolvedOrg {
 
 interface Lead {
   id: string;
+  /** Which relationship(s) surfaced this person: alumni, current, or both. */
+  via?: string[];
   firstName: string | null;
   lastNameMasked: string | null;
   title: string | null;
@@ -106,7 +108,10 @@ export default function SourcingPage() {
   const [locationText, setLocationText] = useState("United States");
   const [yoeMin, setYoeMin] = useState<string>("3");
   const [yoeMax, setYoeMax] = useState<string>("8");
-  const [mode, setMode] = useState<"alumni" | "current">("alumni");
+  // Independent, not either/or: a founder can reasonably want both the
+  // people who left an org and the ones still in the seat.
+  const [wantAlumni, setWantAlumni] = useState(true);
+  const [wantCurrent, setWantCurrent] = useState(false);
 
   const [resolved, setResolved] = useState<ResolvedOrg[] | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({});
@@ -214,6 +219,10 @@ export default function SourcingPage() {
   const runSearch = async () => {
     const orgIds = Object.values(chosen).filter(Boolean);
     if (orgIds.length === 0) return setError("No companies resolved yet.");
+    const modes = [wantAlumni && "alumni", wantCurrent && "current"].filter(Boolean);
+    if (modes.length === 0) {
+      return setError("Tick Previously, Currently, or both.");
+    }
     setBusy("search");
     setError(null);
     setEnriched({});
@@ -224,7 +233,7 @@ export default function SourcingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orgIds,
-          mode,
+          modes,
           titles: splitList(titleText),
           locations: splitList(locationText),
           yoeMin: yoeMin ? Number(yoeMin) : undefined,
@@ -236,6 +245,9 @@ export default function SourcingPage() {
       if (!res.ok) throw new Error(data.error || "Search failed");
       setLeads(data.leads);
       setTotal(data.total);
+      // One leg can fail while the other returns. Say so rather than
+      // presenting a half result as the whole answer.
+      if (data.partialError) setError(`Partial results — ${data.partialError}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
     } finally {
@@ -520,16 +532,34 @@ export default function SourcingPage() {
             <div>
               <span className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Worked there</span>
               <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                {/* Independent toggles, not a segmented either/or — both
+                    can be on, and each adds its own Apollo query. */}
                 <button
-                  onClick={() => setMode("alumni")}
-                  className={`px-3 py-2 text-sm ${mode === "alumni" ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"}`}
+                  onClick={() => setWantAlumni((v) => !v)}
+                  aria-pressed={wantAlumni}
+                  className={`px-3 py-2 text-sm inline-flex items-center gap-1.5 ${wantAlumni ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"}`}
                 >
+                  <span className={`w-3.5 h-3.5 rounded-sm border inline-flex items-center justify-center ${wantAlumni ? "bg-white border-white" : "border-gray-400"}`}>
+                    {wantAlumni && (
+                      <svg className="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
                   Previously
                 </button>
                 <button
-                  onClick={() => setMode("current")}
-                  className={`px-3 py-2 text-sm ${mode === "current" ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"}`}
+                  onClick={() => setWantCurrent((v) => !v)}
+                  aria-pressed={wantCurrent}
+                  className={`px-3 py-2 text-sm inline-flex items-center gap-1.5 border-l border-gray-300 dark:border-gray-600 ${wantCurrent ? "bg-purple-600 text-white" : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300"}`}
                 >
+                  <span className={`w-3.5 h-3.5 rounded-sm border inline-flex items-center justify-center ${wantCurrent ? "bg-white border-white" : "border-gray-400"}`}>
+                    {wantCurrent && (
+                      <svg className="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
                   Currently
                 </button>
               </div>
@@ -543,9 +573,11 @@ export default function SourcingPage() {
             </button>
           </div>
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-            <strong>Previously</strong> is usually the one you want. Apollo indexes a
+            <strong>Previously</strong> is usually the one you want: Apollo indexes a
             handful of current sellers at small specialist companies — one AE at
-            RevenueCat, for instance — so the people who have moved on are the real pool.
+            RevenueCat, for instance — so the people who have moved on are the real
+            pool. Tick both and each runs as its own search, costing one credit each;
+            every lead is then tagged with how it was found.
           </p>
         </section>
 
@@ -601,6 +633,23 @@ export default function SourcingPage() {
                             {l.title}
                             {l.organizationName ? ` · ${l.organizationName}` : ""}
                           </span>
+                          {(l.via || []).map((v) => (
+                            <span
+                              key={v}
+                              title={
+                                v === "alumni"
+                                  ? "Used to work at one of your target companies"
+                                  : "Works at one of your target companies now"
+                              }
+                              className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
+                                v === "alumni"
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                              }`}
+                            >
+                              {v === "alumni" ? "ALUMNI" : "CURRENT"}
+                            </span>
+                          ))}
                           {e?.tenureVerdict && (
                             <span
                               className={`px-2 py-0.5 text-xs font-semibold rounded-full ${VERDICT_STYLE[e.tenureVerdict]}`}
