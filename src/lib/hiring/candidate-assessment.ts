@@ -2,12 +2,16 @@ import { openai } from "@/lib/openai";
 import { prisma } from "@/lib/db";
 import { loadSellerContext } from "@/lib/seller-context";
 import {
-  enrichPersonByLinkedIn,
   enrichCompanyByNameOrDomain,
   cleanSchool,
   type PDLPersonResult,
   type PDLCompanyResult,
 } from "@/lib/search/pdl";
+import {
+  enrichPersonByLinkedIn,
+  isEducationEntry,
+  type ApolloPersonResult,
+} from "@/lib/search/apollo";
 import { getOrgOverrides, getSchoolOverrides } from "./org-overrides";
 import { profileRoleForAssessment, ROLE_META } from "./role-types";
 import { findOwnThenAccount, type OrgScope } from "@/lib/agents/shared/account-scoped";
@@ -29,11 +33,18 @@ import {
  * companies at Seed/A is a different bet from one who only ever
  * arrived post-Series-C.
  *
+ * Enrichment split: the work history comes from Apollo, which is far
+ * cheaper per match than PDL for the same question. PDL is kept for the
+ * two jobs Apollo has no answer for — company funding history (the
+ * stage-at-tenure read) and the School Cleaner that resolves a school
+ * name to the domain the selectivity registry keys on.
+ *
  * Cost posture: the model knows the well-known companies (and is the
- * only source for motion/category/buyer anyway — PDL has no such
- * field), so we take ONE knowledge pass over every company and spend
- * PDL credits only where the model's confidence is low. Typical run is
- * 1 person enrich + 0-3 company enrichments rather than one per role.
+ * only source for motion/category/buyer anyway — no enrichment provider
+ * has such a field), so we take ONE knowledge pass over every company
+ * and spend company-enrichment credits only where the model's
+ * confidence is low. Typical run is 1 person enrich + 0-3 company
+ * enrichments rather than one per role.
  *
  * Every timeline row carries its provenance so the report can say
  * which stages were verified against funding data and which came from
@@ -316,6 +327,65 @@ function mergeBackground(
     majors: union(a.majors, b.majors),
     distinctions: union(a.distinctions, b.distinctions),
   };
+}
+
+/**
+ * Education off the Apollo payload.
+ *
+ * Apollo folds schooling into employment_history rather than exposing a
+ * separate array, and only sometimes returns a top-level `education`
+ * too, so both are read and unioned. The absence of education is
+ * reported rather than swallowed — school selectivity is one of the
+ * heaviest green flags, and a provider that quietly stops supplying it
+ * would look identical to a candidate who never went to college.
+ */
+function backgroundFromApollo(person: ApolloPersonResult): CandidateBackground {
+  const eduRows = (person.employment_history || []).filter(isEducationEntry);
+  const schools = [
+    ...eduRows.map((e) => titleCase(e.organization_name)),
+    ...(person.education || []).map((e) => titleCase(e.school_name)),
+  ].filter(Boolean) as string[];
+  const majors = [
+    ...eduRows.flatMap((e) => [e.major, e.degree]),
+    ...(person.education || []).flatMap((e) => [e.major, e.degree]),
+  ].filter(Boolean) as string[];
+  return {
+    schools,
+    majors,
+    // Apollo has no field for athletics, service or awards either —
+    // those still only exist in a résumé.
+    distinctions: [],
+  };
+}
+
+function timelineFromApollo(person: ApolloPersonResult): {
+  timeline: TimelineRole[];
+  hasYearOnlyDates: boolean;
+} {
+  // Education rows would otherwise be scored as jobs, manufacturing
+  // tenure gaps and hopping flags out of a degree.
+  const jobs = (person.employment_history || []).filter((e) => !isEducationEntry(e));
+  const hasYearOnlyDates = jobs.some(
+    (e) => isYearOnly(e.start_date) || isYearOnly(e.end_date)
+  );
+  const timeline = jobs.map((e) => {
+    const start = toYearMonth(e.start_date);
+    // Apollo sets `current: true` and may still carry an end_date on
+    // the present role. Trusting the flag keeps the current job out of
+    // the short-stint count, which is the same rule the PDL path uses.
+    const end = e.current ? null : toYearMonth(e.end_date);
+    const title = titleCase(e.title) || "";
+    return {
+      company: titleCase(e.organization_name) || "Unknown",
+      companyWebsite: null,
+      title,
+      start,
+      end,
+      months: monthsBetween(start, end),
+      isSales: SALES_TITLE.test(title),
+    };
+  });
+  return { timeline, hasYearOnlyDates };
 }
 
 function timelineFromPDL(person: PDLPersonResult): {
@@ -805,26 +875,33 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
   let claims: Array<{ text: string; kind: string }> = [];
   let hasYearOnlyDates = false;
   let background: CandidateBackground = {};
+  let educationSeen = false;
 
   // 1. Profile acquisition — URL first, then any supplied text.
   if (linkedinUrl?.trim()) {
     const { data, error } = await enrichPersonByLinkedIn(linkedinUrl);
     pdlCallsUsed++;
     if (data) {
-      source = "pdl";
-      candidateName = candidateName || titleCase(data.full_name) || "";
+      source = "apollo";
+      candidateName = candidateName || titleCase(data.name) || "";
       headline =
-        [titleCase(data.job_title), titleCase(data.job_company_name)]
+        [titleCase(data.title), titleCase(data.organization_name || data.organization?.name)]
           .filter(Boolean)
           .join(" @ ") || null;
-      const fromPdl = timelineFromPDL(data);
-      timeline = fromPdl.timeline;
-      hasYearOnlyDates = fromPdl.hasYearOnlyDates;
-      // PDL carries education, so the school/major signals work
-      // without a résumé. Everything else in `background` still needs one.
-      background = backgroundFromPDL(data);
+      const fromApollo = timelineFromApollo(data);
+      timeline = fromApollo.timeline;
+      hasYearOnlyDates = fromApollo.hasYearOnlyDates;
+      background = backgroundFromApollo(data);
+      // Education coverage is the known risk in moving off PDL, so it
+      // is measured on every run rather than assumed. `educationSeen`
+      // reaches the report, so a provider that stops returning schools
+      // shows up as a caveat instead of as silently missing green flags.
+      educationSeen = (background.schools || []).length > 0;
+      if (!educationSeen) {
+        console.log(`[candidate-assessment] Apollo returned no education for ${linkedinUrl}`);
+      }
     } else {
-      console.log(`[candidate-assessment] PDL miss for ${linkedinUrl}: ${error}`);
+      console.log(`[candidate-assessment] Apollo miss for ${linkedinUrl}: ${error}`);
     }
   }
   if (timeline.length === 0 && profileText?.trim()) {
@@ -850,18 +927,19 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
       };
     });
   } else if (profileText?.trim() && timeline.length > 0) {
-    // Profile came from PDL; still mine the text for claims it lacks.
+    // Profile came from Apollo; still mine the text for claims it lacks.
     const extracted = await extractProfileFromText(profileText);
     claims = extracted.claims;
-    // Union, not replace: PDL supplied education, and the résumé adds
-    // the activities, awards and service PDL has no field for.
+    // Union, not replace: the provider may have supplied education, and
+    // the résumé adds the activities, awards and service no enrichment
+    // API carries — plus education when Apollo returned none.
     background = mergeBackground(background, extracted.background);
     if (claims.length > 0 || (background.distinctions || []).length > 0) source = "merged";
   }
 
   if (timeline.length === 0) {
     throw new Error(
-      "I couldn't read a work history from that. PDL had no match for the profile — paste their résumé or a LinkedIn PDF export and I'll read that instead."
+      "I couldn't read a work history from that. Apollo had no match for the profile — paste their résumé or a LinkedIn PDF export and I'll read that instead."
     );
   }
   if (!candidateName) candidateName = "Unnamed candidate";
@@ -1025,6 +1103,24 @@ export async function assessCandidate(input: AssessmentInput): Promise<Assessmen
     crossRoleFallback: profileUsedFallback,
     icp: !!icp?.content,
     maturityStage: maturity?.currentStage || null,
+  };
+
+  // Data coverage, stated rather than assumed. School selectivity is one
+  // of the heaviest green flags, and Apollo's education coverage is
+  // thinner than PDL's — so when a URL-only assessment comes back with
+  // no schools, the report says so. Otherwise "no school green flag"
+  // and "we never learned their school" look identical to the reader.
+  // `educationSeen` is the provider diagnostic (did Apollo supply it?);
+  // haveEducation is what the reader actually needs, since a pasted
+  // résumé can fill the gap Apollo left.
+  const haveEducation = (background.schools || []).length > 0;
+  report.dataCoverage = {
+    enrichmentProvider: linkedinUrl?.trim() ? "apollo" : "none",
+    apolloReturnedEducation: educationSeen,
+    educationFound: haveEducation,
+    educationNote: haveEducation
+      ? null
+      : "No education was found for this profile, so the school-selectivity and major signals could not be evaluated — their absence here is missing data, not a negative. Paste a résumé or LinkedIn PDF export to fill that in.",
   };
 
   const row = await prisma.candidateAssessment.create({
