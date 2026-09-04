@@ -3,6 +3,33 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditOwnedBy } from "@/lib/coaching/access";
 
+/**
+ * Accept what someone actually pastes.
+ *
+ * People paste "looker.company.com/dashboards/12" without a scheme, so
+ * bare hosts get https rather than being rejected. Only http and https
+ * are allowed through: this value ends up in an href, and javascript:
+ * or data: would make a stored link a script-execution vector for
+ * anyone else on the account who clicks it.
+ *
+ * Returns the cleaned URL, null to clear it, or false for "not a link".
+ */
+function normalizeReferenceUrl(raw: unknown): string | null | false {
+  if (raw === null) return null;
+  if (typeof raw !== "string") return false;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  return parsed.toString();
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,7 +59,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, definition, format, interval, order, archived } = body;
+    const { name, definition, format, interval, order, archived, referenceUrl, referenceLabel } = body;
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
@@ -41,6 +68,17 @@ export async function PATCH(
     if (interval !== undefined) updateData.interval = interval;
     if (order !== undefined) updateData.order = order;
     if (archived !== undefined) updateData.archived = archived;
+    if (referenceLabel !== undefined) updateData.referenceLabel = referenceLabel || null;
+    if (referenceUrl !== undefined) {
+      const normalized = normalizeReferenceUrl(referenceUrl);
+      if (normalized === false) {
+        return NextResponse.json(
+          { error: "That doesn't look like a link. Paste the full URL to the report." },
+          { status: 400 }
+        );
+      }
+      updateData.referenceUrl = normalized;
+    }
 
     const updated = await prisma.coachingMetricDefinition.update({
       where: { id },

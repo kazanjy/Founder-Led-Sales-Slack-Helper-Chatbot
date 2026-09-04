@@ -1799,6 +1799,14 @@ model CoachingMetricDefinition {
   // for value math should filter where { kind: "metric" }.
   kind String @default("metric")
 
+  /// Optional link to wherever this metric is actually computed — the
+  /// Looker board, the Sheet, the Stripe view. Metrics get argued about
+  /// because nobody can find the source; this puts it one click from
+  /// the number it produced.
+  referenceUrl   String? @db.Text
+  /// Human label for the link. Falls back to the URL's hostname.
+  referenceLabel String?
+
   entries CoachingMetricEntry[]
 
   createdAt DateTime @default(now())
