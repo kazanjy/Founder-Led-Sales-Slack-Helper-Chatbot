@@ -45,13 +45,19 @@ export async function GET(
 
     // For each entry, look up the most recent prior session's value for
     // the same metric so the UI can show "Last session: X" alongside the
-    // new input, AND build a longer history list (up to 10 entries per
-    // metric) so a hover popover can show the recent trend.
+    // new input, AND build the FULL history so the sparkline and the
+    // hover popover show every session rather than a recent window.
+    //
+    // There used to be a 10-session cap here. It only ever trimmed the
+    // array after the fact — the query below is unbounded either way —
+    // so it cost nothing to fetch the rows and then throw away the
+    // earliest ones, while silently truncating the trend a founder was
+    // trying to read. A metric tracked across two years of coaching is
+    // exactly the one whose whole shape matters.
     // Prior == any earlier-dated non-draft session belonging to this
     // user (createdAt is the tiebreaker for same-date sessions). Drafts
     // are excluded because the create-session flow seeds an auto-saved
     // draft with currentValue=0 for every metric.
-    const HISTORY_LIMIT = 10;
     const previousByDefId: Record<string, number> = {};
     const historyByDefId: Record<
       string,
@@ -88,14 +94,12 @@ export async function GET(
           previousByDefId[pe.metricDefinitionId] = pe.currentValue;
         }
         const arr = historyByDefId[pe.metricDefinitionId] ?? (historyByDefId[pe.metricDefinitionId] = []);
-        if (arr.length < HISTORY_LIMIT) {
-          arr.push({
-            sessionId: pe.session.id,
-            sessionTitle: pe.session.title,
-            sessionDate: pe.session.sessionDate.toISOString(),
-            value: pe.currentValue,
-          });
-        }
+        arr.push({
+          sessionId: pe.session.id,
+          sessionTitle: pe.session.title,
+          sessionDate: pe.session.sessionDate.toISOString(),
+          value: pe.currentValue,
+        });
       }
     }
 

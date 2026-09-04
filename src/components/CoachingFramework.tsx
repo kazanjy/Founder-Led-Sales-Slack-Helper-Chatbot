@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useLayoutEffect, Fragment, ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import MetricReferenceLink from "@/components/coaching/MetricReferenceLink";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -244,6 +245,9 @@ interface MetricEntry {
     definition?: string;
     format?: string;
     isDefault: boolean;
+    /** Link to wherever this metric is actually computed. */
+    referenceUrl?: string | null;
+    referenceLabel?: string | null;
     /** "metric" (default) — a value tile.
      *  "section" — a layout-only header strip used to break the grid
      *  into named sections. Section items share the entries array but
@@ -1952,6 +1956,56 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
     }, 1500);
   };
 
+  const updateMetricReference = async (
+    metricDefId: string,
+    referenceUrl: string | null,
+    referenceLabel: string | null
+  ) => {
+    // Optimistic, then reconciled: the server normalises the URL (adds a
+    // missing scheme) and can reject a non-link, so the stored value is
+    // not always what was typed.
+    setMetricEntries((prev) =>
+      prev.map((e) =>
+        e.metricDefinition.id === metricDefId
+          ? { ...e, metricDefinition: { ...e.metricDefinition, referenceUrl, referenceLabel } }
+          : e
+      )
+    );
+    const res = await fetch(`/api/coaching/metrics/${metricDefId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referenceUrl, referenceLabel }),
+    });
+    if (res.ok) {
+      const { metric } = await res.json();
+      setMetricEntries((prev) =>
+        prev.map((e) =>
+          e.metricDefinition.id === metricDefId
+            ? {
+                ...e,
+                metricDefinition: {
+                  ...e.metricDefinition,
+                  referenceUrl: metric?.referenceUrl ?? null,
+                  referenceLabel: metric?.referenceLabel ?? null,
+                },
+              }
+            : e
+        )
+      );
+    } else {
+      // Roll back rather than leaving a link on screen that was never saved.
+      const data = await res.json().catch(() => ({}));
+      setMetricEntries((prev) =>
+        prev.map((e) =>
+          e.metricDefinition.id === metricDefId
+            ? { ...e, metricDefinition: { ...e.metricDefinition, referenceUrl: null, referenceLabel: null } }
+            : e
+        )
+      );
+      alert(data.error || "Couldn't save that link.");
+    }
+  };
+
   const updateMetricDefinition = (metricDefId: string, definition: string) => {
     setMetricEntries((prev) => prev.map((e) =>
       e.metricDefinition.id === metricDefId ? { ...e, metricDefinition: { ...e.metricDefinition, definition: definition || undefined } } : e
@@ -3299,6 +3353,15 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
               ) : entry.metricDefinition.definition ? (
                 <div className="text-[10px] text-gray-400 mb-1.5 leading-tight">{entry.metricDefinition.definition}</div>
               ) : null}
+              {/* Where this number actually comes from. Sits under the
+                  definition because it answers the same question the
+                  definition starts: what IS this? */}
+              <MetricReferenceLink
+                url={entry.metricDefinition.referenceUrl}
+                label={entry.metricDefinition.referenceLabel}
+                canEdit={canEdit}
+                onSave={(url, label) => updateMetricReference(entry.metricDefinition.id, url, label)}
+              />
               {/* Trend: saved sessions + this session's value. Sits above
                   the number it contextualizes; hidden until there's more
                   than one point to connect. */}
@@ -3338,7 +3401,7 @@ export default function CoachingFramework({ sessionId, sessionStatus, sessionKin
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <div className="font-semibold text-[11px] text-gray-200">Last {entry.history.length} session{entry.history.length === 1 ? "" : "s"}</div>
+                          <div className="font-semibold text-[11px] text-gray-200">{entry.history.length} prior session{entry.history.length === 1 ? "" : "s"}</div>
                           {isPinned && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setPinnedHistoryDefId(null); }}
