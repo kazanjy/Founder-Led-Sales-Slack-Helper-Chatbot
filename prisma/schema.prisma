@@ -7,80 +7,260 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Account for multi-user shared GTM context
+model Account {
+  id   String @id @default(cuid())
+  name String // Company/team name (e.g., "Acme Corp")
+
+  // Email domain used for auto-grouping (e.g., "acme.com")
+  emailDomain String? @unique
+
+  users         User[]
+  channelClaims ChannelClaim[]
+  salesReadinessItems SalesReadinessAccountItem[]
+  salesAssets   SalesAsset[]
+  customDealStages CustomDealStage[]
+  customClosedLostReasons CustomClosedLostReason[]
+  // Built-in deal stages the account has hidden from the picker.
+  // Stored as the stage value (e.g. "negotiation") rather than label
+  // so renaming a built-in label later wouldn't orphan the archive.
+  archivedBuiltinStages String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("accounts")
+}
+
+enum AccountRole {
+  OWNER // Created the account, can manage members + billing
+  ADMIN // Can invite/remove members, edit all artifacts
+  MEMBER // Can create artifacts, view all account artifacts
+}
+
 // Slack workspace that has installed Mikey
 model Workspace {
-  id                 String    @id @default(cuid())
-  slackTeamId        String    @unique
-  slackTeamName      String
-  installedAt        DateTime  @default(now())
-  installedByUserId  String?
+  id                String   @id @default(cuid())
+  slackTeamId       String   @unique
+  slackTeamName     String
+  installedAt       DateTime @default(now())
+  installedByUserId String?
 
   // Bot token for this workspace (from OAuth)
-  botToken           String
-  botUserId          String?   // The bot's user ID in this workspace
+  botToken  String
+  botUserId String? // The bot's user ID in this workspace
 
   // Trial config (null = use global defaults)
-  trialDays          Int?
-  trialMessages      Int?
+  trialDays     Int?
+  trialMessages Int?
 
   // Rate limiting (null = use global default of 1000)
-  dailyMessageLimit  Int?
+  dailyMessageLimit Int?
 
   // Workspace-level license
   workspaceLicenseId String?
-  workspaceLicense   License?  @relation("WorkspaceLicense", fields: [workspaceLicenseId], references: [id])
+  workspaceLicense   License? @relation("WorkspaceLicense", fields: [workspaceLicenseId], references: [id])
 
-  users              User[]
-  conversations      Conversation[]
+  users         User[]
+  conversations Conversation[]
+  channelClaims ChannelClaim[]
+  broadcastCampaigns BroadcastCampaign[]
 
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("workspaces")
 }
 
 // A user within a workspace
 model User {
-  id              String    @id @default(cuid())
-  slackUserId     String
-  slackUserName   String?
-  slackEmail      String?
+  id String @id @default(cuid())
 
-  workspaceId     String
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Slack identity (optional - null for web-only users)
+  slackUserId   String?
+  slackUserName String?
+  slackEmail    String?
+
+  // User-scope OAuth token (xoxp-…) granted on Slack install when the
+  // user OK's user_scope. Used by the broadcast tool to post messages
+  // *as this user* instead of as MikeyBot. Plain text at rest for now —
+  // matches Workspace.botToken; encrypting both is a separate cleanup.
+  slackUserToken  String?
+  slackUserScopes String?
+
+  // Google identity (optional - null for Slack-only users)
+  googleId String? @unique
+
+  // Google OAuth tokens for API access (Calendar, etc). Populated when
+  // the user grants extra scopes beyond basic identity. Plain text at
+  // rest for parity with slackUserToken; encrypting the family is a
+  // separate cleanup pass.
+  googleAccessToken     String?
+  googleRefreshToken    String?
+  googleTokenExpiresAt  DateTime?
+  googleScopes          String?
+
+  // Saved Slack channel for pre-call research "Send to Slack" — set
+  // the first time a user picks a channel so subsequent posts skip
+  // the picker. Nullable; users without a saved channel still get
+  // the picker UI.
+  preferredResearchSlackChannelId   String?
+  preferredResearchSlackChannelName String?
+
+  // Email - primary identifier for web-only users
+  email           String?  @unique
+  secondaryEmails String[] @default([]) // Additional emails that can be used for auth lookup
+  name            String?
+  avatarUrl       String?
+
+  // Account membership (null for legacy solo users)
+  accountId   String?
+  account     Account?    @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountRole AccountRole @default(MEMBER)
+
+  // Workspace (optional - null for web-only users)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // Trial tracking
-  trialStartedAt        DateTime?
+  trialStartedAt         DateTime?
   trialMessagesRemaining Int       @default(0)
 
   // License status
-  licenseStatus   LicenseStatus @default(TRIAL)
-  licenseId       String?
-  license         License?  @relation(fields: [licenseId], references: [id])
+  licenseStatus LicenseStatus @default(TRIAL)
+  licenseId     String?
+  license       License?      @relation(fields: [licenseId], references: [id])
 
   // Rate limiting
-  messagesToday       Int       @default(0)
-  messageCountResetAt DateTime  @default(now())
+  messagesToday       Int      @default(0)
+  messageCountResetAt DateTime @default(now())
 
   // Referral
-  referralCode        String    @unique @default(cuid())
+  referralCode        String  @unique @default(cuid())
   referredByUserId    String?
-  referredBy          User?     @relation("Referrals", fields: [referredByUserId], references: [id])
-  referrals           User[]    @relation("Referrals")
-  bonusMessagesEarned Int       @default(0)
+  referredBy          User?   @relation("Referrals", fields: [referredByUserId], references: [id])
+  referrals           User[]  @relation("Referrals")
+  bonusMessagesEarned Int     @default(0)
 
   // Relations
-  conversations   Conversation[]
-  messages        Message[]
-  referralsMade   Referral[]    @relation("Referrer")
-  referralsReceived Referral[]  @relation("Referred")
-  sharedConversations SharedConversation[]
-  sessions        Session[]
-  savedPrompts    SavedPrompt[]
+  conversations              Conversation[]
+  projects                   Project[]
+  messages                   Message[]
+  referralsMade              Referral[]                  @relation("Referrer")
+  referralsReceived          Referral[]                  @relation("Referred")
+  sharedConversations        SharedConversation[]
+  sharedDocuments            SharedDocument[]
+  chatSharesSent             ChatShare[]                 @relation("ChatSharesSent")
+  chatSharesReceived         ChatShare[]                 @relation("ChatSharesReceived")
+  chatViews                  ChatView[]
+  meetingRecorderConnections MeetingRecorderConnection[]
+  sessions                   Session[]
+  savedPrompts               SavedPrompt[]
+  salesAssetVersions         SalesAssetVersion[]
+  deals                      Deal[]
+  dismissedDefaultPromptIds  String[]                    @default([]) // Track deleted default prompts so they don't reappear
+  promptGuidance             String?                     @db.Text // User's custom prompt guidance (tone, style, etc.)
+  gtmVariables               GtmVariable[]
+  maturityAnswers            MaturityAnswer[]
+  maturityAssessments        MaturityAssessment[]
+  salesNarrativeAnswers      SalesNarrativeAnswer[]
+  salesNarrativeVersions     SalesNarrativeVersion[]
+  narrativeSources           NarrativeSource[]
+  discoveryQuestionsVersions DiscoveryQuestionsVersion[]
+  firstCallChecklistVersions FirstCallChecklistVersion[]
+  preCallPlanningVersions    PreCallPlanningVersion[]
+  preCallResearch            PreCallResearch[]
+  recurringResearchPatterns  RecurringResearchPattern[]
+  preCallEnrichmentAttempts  PreCallEnrichmentAttempt[]
+  processedRecordings        ProcessedRecording[]
+  pendingResearchRequests    PendingResearchRequest[]
+  emailSequenceVersions      EmailSequenceVersion[]
+  linkedInSequenceVersions   LinkedInSequenceVersion[]
+  businessCaseTemplates      BusinessCaseTemplate[]
+  businessCaseInstances      BusinessCaseInstance[]
+  practiceSessions           PracticeSession[]
+  dealTriages                DealTriage[]
+  dealSlackPosts             DealSlackPost[]
+  candidateAssessments       CandidateAssessment[]
+  sourcingSearches           SourcingSearch[]
+  dealTasks                  DealTask[]
+  successStoryCollections    SuccessStoryCollection[]
+  coldCallScriptVersions     ColdCallScriptVersion[]
+  salesDeckVersions          SalesDeckVersion[]
+  callReviewVersions         CallReviewVersion[]
+  salesMetricsAnswers        SalesMetricsAnswer[]
+  salesMetricsAssessments    SalesMetricsAssessment[]
+  coachingSessions           CoachingSession[]
+  salesMaturityStage         SalesMaturityStage?
+  coachingGoals              CoachingGoal[]
+  coachingTasks              CoachingTask[]
+  coachingMetricDefinitions  CoachingMetricDefinition[]
+  coachingMetricEntries      CoachingMetricEntry[]
+  coachingNextGoals          CoachingNextGoal[]
+  coachingNextTasks          CoachingNextTask[]
+  adCreatorVersions          AdCreatorVersion[]
+  socialContentVersions      SocialContentVersion[]
+  socialContentExamples      SocialContentExample[]
+  objectionEntries           ObjectionEntry[]
+  objectionBootstraps        ObjectionBootstrap[]
+  icpVersions                IcpVersion[]
+  hiringProfileQuestionAnswers HiringProfileAnswer[]
+  hiringProfileVersions        HiringProfileVersion[]
+  salesLeaderProfileAnswers    SalesLeaderProfileAnswer[]
+  salesLeaderProfileVersions   SalesLeaderProfileVersion[]
+  preHireAssessmentVersions    PreHireAssessmentVersion[]
+  salesMotionCollections       SalesMotionCollection[]
+  callRecapVersions            CallRecapVersion[]
+  attachmentPreference       UserAttachmentPreference?
+  uploadedFiles              UserFile[]
+  channelClaims              ChannelClaim[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  // Track update-in-progress state for maturity assessment
+  maturityUpdateInProgress Boolean   @default(false)
+  maturityUpdateIndex      Int? // Current question index in update mode (0-based)
+  maturityUpdateStartedAt  DateTime?
 
+  // Activity tracking
+  lastActiveAt DateTime?
+
+  // Proactive pre-call research settings. The daily cron uses these
+  // to decide whether to brief every external meeting on the user's
+  // calendar (all_external — default), only meetings whose titles
+  // match a saved RecurringResearchPattern (title_match), or to
+  // skip the user entirely (off). Destination + mutedDomains apply
+  // when mode = all_external.
+  preCallResearchMode          String?  @default("all_external") // "all_external" | "title_match" | "off"
+  preCallResearchDestination   String?  @default("dm")            // "dm" | "channel"
+  preCallResearchMutedDomains  String[] @default([])
+
+  // Stage 2: when true, the daily research cron also spawns a
+  // Potential deal (with 30-day per-domain cooldown) for every
+  // external meeting it briefs. Off by default — the recorder
+  // pipeline already covers most attribution and pollution of the
+  // deals board is hard to undo.
+  createDealsFromCalendar Boolean @default(false)
+
+  // Onboarding overlay state. Tracks per-step dismissal so the recorder →
+  // calendar → narrative prompt sequence on /chat can be suppressed without
+  // hiding the underlying integration widgets. Shape:
+  //   { recorder: { dismissedUntil: ISO|null, dismissedForever: boolean },
+  //     calendar: { ... }, narrative: { ... } }
+  onboardingState Json?
+
+  // Broadcast campaigns this user (as an admin) created.
+  createdBroadcastCampaigns BroadcastCampaign[] @relation("BroadcastCampaignCreatedBy")
+
+  // Coaching comments authored by this user.
+  coachingComments CoachingComment[] @relation("CoachingCommentAuthor")
+
+  // Audit trail for admin "Ask This Account" queries this user has run.
+  adminContextQueries AdminContextQuery[] @relation("AdminContextQueryAdmin")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Slack users identified by slackUserId + workspaceId combo
+  // Web-only users identified by email or googleId (see @unique above)
   @@unique([slackUserId, workspaceId])
   @@map("users")
 }
@@ -94,12 +274,12 @@ enum LicenseStatus {
 
 // License for individual or workspace bundle
 model License {
-  id        String      @id @default(cuid())
-  type      LicenseType
+  id   String      @id @default(cuid())
+  type LicenseType
 
   // For individual license
-  userId    String?
-  users     User[]
+  userId String?
+  users  User[]
 
   // For workspace bundle
   workspaceId String?
@@ -112,19 +292,19 @@ model License {
   priceAdditionalSeatCents Int?
 
   // Billing
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
 
   // Manual override
-  manuallyGranted    Boolean   @default(false)
-  grantedByAdminId   String?
-  notes              String?
+  manuallyGranted  Boolean @default(false)
+  grantedByAdminId String?
+  notes            String?
 
-  status      LicenseStatusType @default(ACTIVE)
-  expiresAt   DateTime?
+  status    LicenseStatusType @default(ACTIVE)
+  expiresAt DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("licenses")
 }
@@ -143,62 +323,151 @@ enum LicenseStatusType {
 
 // Saved prompts for quick access
 model SavedPrompt {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  emoji           String    @default("💡")
-  title           String
-  prompt          String
+  emoji  String @default("💡")
+  title  String
+  prompt String
 
   // Track if this was originally a default prompt
-  defaultPromptId String?   // e.g. "default-1" to track resets
+  defaultPromptId String? // e.g. "default-1" to track resets
 
   // Order for drag-and-drop
-  sortOrder       Int       @default(0)
+  sortOrder Int @default(0)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("saved_prompts")
 }
 
+// GTM Variables for merge fields in prompts
+model GtmVariable {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String // Display name (e.g., "Ideal Customer Profile")
+  mergeField  String // The merge field syntax (e.g., "ICP" for {{ICP}})
+  description String? // Help text describing what this variable is for
+  value       String? // The actual value the user has entered
+
+  // Track if this is a default variable
+  isDefault         Boolean @default(false)
+  defaultVariableId String? // e.g., "default-icp" to identify default variables
+
+  // AI Assist prompt for helping users fill this variable
+  aiAssistPrompt String?
+
+  // Order for display
+  sortOrder Int @default(0)
+
+  // History of changes
+  history GtmVariableHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, mergeField])
+  @@map("gtm_variables")
+}
+
+// History of changes to GTM variables
+model GtmVariableHistory {
+  id String @id @default(cuid())
+
+  variableId String
+  variable   GtmVariable @relation(fields: [variableId], references: [id], onDelete: Cascade)
+
+  previousValue String // The value before the change
+  changedAt     DateTime @default(now())
+
+  @@map("gtm_variable_history")
+}
+
+// Project folder for organizing conversations
+model Project {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  order       Int     @default(0)
+
+  conversations Conversation[]
+  deals         Deal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, order])
+  @@map("projects")
+}
+
 // A conversation thread (Slack thread or web chat)
 model Conversation {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  workspaceId     String?   // Null for web-only conversations
-  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String? // Null for web-only conversations
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Project folder (null = unfiled)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   // Source of the conversation
-  source          ConversationSource @default(SLACK)
+  source ConversationSource @default(SLACK)
+
+  // Chat mode: CHATBASE (default RAG) or DIRECT (OpenAI GPT)
+  mode ConversationMode @default(CHATBASE)
 
   // Slack reference (null for web conversations)
-  slackChannelId  String?
-  slackThreadTs   String?   // Thread timestamp = unique thread ID
+  slackChannelId String?
+  slackThreadTs  String? // Thread timestamp = unique thread ID
 
   // Title for web conversations (auto-generated or user-set)
-  title           String?
+  title String?
 
   // For Chatbase context
   chatbaseConversationId String?
 
   // Preview
   firstMessagePreview String?
-  messageCount        Int       @default(0)
+  messageCount        Int     @default(0)
 
   // Archived conversations (hidden from list but not deleted)
-  archived            Boolean   @default(false)
+  archived Boolean @default(false)
 
-  messages        Message[]
-  sharedLinks     SharedConversation[]
+  // Private conversations are only visible to the owner (not account-visible)
+  isPrivate Boolean @default(false)
 
-  createdAt       DateTime  @default(now())
-  lastMessageAt   DateTime  @default(now())
+  // Whether this chat is shared with the entire account
+  sharedWithAccount Boolean @default(true)
+
+  messages                Message[]
+  sharedLinks             SharedConversation[]
+  chatShares              ChatShare[]
+  chatViews               ChatView[]
+  maturityAssessments     MaturityAssessment[]
+  salesMetricsAssessments SalesMetricsAssessment[]
+
+  // Track which attachments were included in first message
+  attachmentsIncluded Json? // e.g., ["salesNarrative", "gtmAssessment"]
+
+  // Track uploaded images/PDFs for this conversation
+  imagesIncluded Json? @map("images_included") // [{name, type, storagePath, pageCount?}]
+
+  createdAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
 
   @@unique([workspaceId, slackChannelId, slackThreadTs])
   @@map("conversations")
@@ -209,23 +478,35 @@ enum ConversationSource {
   WEB
 }
 
+enum ConversationMode {
+  CHATBASE // Default: RAG via Chatbase knowledge base
+  DIRECT // Direct OpenAI GPT calls, no RAG
+}
+
 // Individual message in a conversation
 model Message {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  userId          String?
-  user            User?     @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
-  role            MessageRole
-  content         String
+  role    MessageRole
+  content String
 
   // Slack reference
-  slackMessageTs  String?
+  slackMessageTs String?
 
-  createdAt       DateTime  @default(now())
+  // Arbitrary metadata bag — used by the unified web agent to stash
+  // the per-message tool-call trace (so the chat UI can render a
+  // collapsible "tool calls" disclosure beneath the assistant reply).
+  // Shape: { agent?: "web", turns?: number, hitTurnCap?: boolean,
+  //          trace?: Array<{ name, argsJson, durationMs, resultPreview, error? }> }
+  metadata Json?
+
+  createdAt DateTime @default(now())
 
   @@map("messages")
 }
@@ -237,19 +518,19 @@ enum MessageRole {
 
 // Referral tracking
 model Referral {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  referrerUserId  String
-  referrer        User      @relation("Referrer", fields: [referrerUserId], references: [id])
+  referrerUserId String
+  referrer       User   @relation("Referrer", fields: [referrerUserId], references: [id])
 
-  referredUserId  String
-  referred        User      @relation("Referred", fields: [referredUserId], references: [id])
+  referredUserId String
+  referred       User   @relation("Referred", fields: [referredUserId], references: [id])
 
-  bonusAwarded    Int       @default(0)
-  status          ReferralStatus @default(PENDING)
+  bonusAwarded Int            @default(0)
+  status       ReferralStatus @default(PENDING)
 
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
   @@unique([referrerUserId, referredUserId])
   @@map("referrals")
@@ -262,54 +543,256 @@ enum ReferralStatus {
 
 // Shared conversation link
 model SharedConversation {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   createdByUserId String
-  createdBy       User      @relation(fields: [createdByUserId], references: [id])
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  shareCode       String    @unique
+  shareCode String @unique
 
   // Optional protection
-  passwordHash    String?
-  expiresAt       DateTime?
+  passwordHash String?
+  expiresAt    DateTime?
 
-  viewCount       Int       @default(0)
+  viewCount Int @default(0)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@map("shared_conversations")
 }
 
+// Cross-account chat sharing (share to specific email)
+model ChatShare {
+  id String @id @default(cuid())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Who shared it
+  sharedByUserId String
+  sharedByUser   User   @relation("ChatSharesSent", fields: [sharedByUserId], references: [id], onDelete: Cascade)
+
+  // Target recipient (by email - may not have account yet)
+  sharedToEmail String
+
+  // Resolved when recipient has an account (for efficient queries)
+  sharedToUserId String?
+  sharedToUser   User?   @relation("ChatSharesReceived", fields: [sharedToUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  // Can only share same chat to same email once
+  @@unique([conversationId, sharedToEmail])
+  @@index([sharedToEmail])
+  @@index([sharedToUserId])
+  @@index([sharedByUserId])
+  @@map("chat_shares")
+}
+
+// Meeting recorder provider connection (Granola, Fireflies, etc.)
+model MeetingRecorderConnection {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider         String   // "granola" | "fireflies" | "fathom" | "circleback"
+  accessToken      String   @db.Text // Encrypted API key or OAuth token
+  refreshToken     String?  @db.Text // Encrypted OAuth refresh token
+  tokenExpiresAt   DateTime?
+  providerAccountId String? // Provider's user/account ID
+  // Per-user OAuth client credentials for providers that use RFC 7591
+  // dynamic client registration (Circleback). null for providers with
+  // a static, app-level clientId (Fathom). Encrypted at rest.
+  providerClientId     String? @db.Text
+  providerClientSecret String? @db.Text
+  status           String   @default("active") // "active" | "expired" | "revoked"
+
+  connectedAt  DateTime @default(now())
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("meeting_recorder_connections")
+}
+
+// Tracks when a user views a teammate's chat (for "recently viewed" feature)
+model ChatView {
+  id String @id @default(cuid())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, conversationId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@map("chat_views")
+}
+
+// Shared sales document link (public read-only)
+model SharedDocument {
+  id String @id @default(cuid())
+
+  // Which type of document: salesNarrative, discoveryQuestions, firstCallChecklist, preCallPlanning, preCallResearch
+  documentType String
+  // The version/record ID being shared
+  documentId   String
+
+  createdByUserId String
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
+
+  shareCode String @unique
+
+  // Snapshot of the document content at share time
+  title   String
+  content String @db.Text
+
+  viewCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentType, documentId])
+  @@map("shared_documents")
+}
+
 // Web session for authenticated users
 model Session {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Session token (stored in cookie)
-  token           String    @unique
+  token String @unique
 
-  expiresAt       DateTime
-  createdAt       DateTime  @default(now())
+  // Impersonation: if set, this session is an admin impersonating another user
+  impersonatingAdminId String?
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@map("sessions")
 }
 
+// Channel claim: 1:1 mapping from a Slack channel to an account + user
+// An account/user can claim multiple channels, but each channel has exactly one owner.
+model ChannelClaim {
+  id String @id @default(cuid())
+
+  // The Slack channel being claimed (unique — one claim per channel)
+  slackChannelId   String  @unique
+  slackChannelName String? // Display name (e.g., "#sales-team"), cached for convenience
+
+  // Which workspace this channel belongs to
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Which account owns this channel
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Which user claimed it (the channel owner)
+  claimedByUserId String
+  claimedBy       User   @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
+
+  // Most recent non-bot message timestamp in this channel. Fed by the Slack
+  // event handler on every incoming message; used by the admin broadcast
+  // tool to rank channels by recency.
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  broadcastDeliveries BroadcastDelivery[]
+
+  @@index([accountId])
+  @@index([workspaceId])
+  @@index([workspaceId, lastMessageAt])
+  @@map("channel_claims")
+}
+
+// One admin-initiated broadcast send (immediate or scheduled). Each
+// campaign owns one BroadcastDelivery row per targeted channel; the
+// per-channel rows are the source of truth for who-got-what and the
+// idempotency key for retries.
+model BroadcastCampaign {
+  id String @id @default(cuid())
+
+  // Optional admin-facing label so a list of past sends has something to
+  // scan beyond the message body. Null for ad-hoc sends.
+  name String?
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  body String
+
+  // null (or past) = send-now; future = drained by the cron worker.
+  scheduledFor DateTime?
+
+  // "scheduled" | "sending" | "done" | "canceled" | "failed"
+  status String @default("scheduled")
+
+  // Admin who created the campaign — kept for audit even after they leave.
+  createdByAdminId String
+  createdByAdmin   User   @relation("BroadcastCampaignCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  deliveries BroadcastDelivery[]
+
+  @@index([workspaceId, status, scheduledFor])
+  @@index([workspaceId, createdAt])
+  @@map("broadcast_campaigns")
+}
+
+model BroadcastDelivery {
+  id String @id @default(cuid())
+
+  campaignId String
+  campaign   BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  channelClaimId String
+  channelClaim   ChannelClaim @relation(fields: [channelClaimId], references: [id], onDelete: Cascade)
+
+  // "pending" | "sent" | "failed" | "canceled"
+  status String @default("pending")
+
+  // Slack message ts so a future delete/update tool can target the post.
+  slackMessageTs String?
+  error          String?
+  sentAt         DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Idempotency: a worker retry can't double-post to the same channel
+  // within the same campaign.
+  @@unique([campaignId, channelClaimId])
+  @@index([campaignId, status])
+  @@map("broadcast_deliveries")
+}
+
 // Global settings (single row)
 model GlobalSettings {
-  id              String    @id @default("global")
+  id String @id @default("global")
 
   // Default pricing (in cents)
-  defaultPriceFirstSeatCents      Int @default(9900)   // $99
-  defaultPriceAdditionalSeatCents Int @default(3900)   // $39
+  defaultPriceFirstSeatCents      Int @default(9900) // $99
+  defaultPriceAdditionalSeatCents Int @default(3900) // $39
 
   // Default trial
-  defaultTrialDays      Int @default(14)
-  defaultTrialMessages  Int @default(50)
+  defaultTrialDays     Int @default(14)
+  defaultTrialMessages Int @default(50)
 
   // Default rate limit
   defaultDailyMessageLimit Int @default(1000)
@@ -317,7 +800,2357 @@ model GlobalSettings {
   // Referral bonus
   referralBonusMessages Int @default(10)
 
-  updatedAt       DateTime  @updatedAt
+  // Activity broadcast — admin-configured destination for "usage action"
+  // digest reports posted into a Slack channel. All three are nullable;
+  // the broadcast feature is opt-in. activityBroadcastLastSentAt is the
+  // watermark used to slice "since last send" digests.
+  activityBroadcastWorkspaceId  String?
+  activityBroadcastChannelId    String?
+  activityBroadcastChannelName  String?
+  activityBroadcastLastSentAt   DateTime?
+
+  updatedAt DateTime @updatedAt
 
   @@map("global_settings")
+}
+
+// Audit trail for the admin "Ask This Account" feature. Records who
+// queried which account/user with what question (truncated) so the
+// usage of LLM-routed customer-data queries is traceable. The
+// question itself is stored in preview form only — never the answer
+// or the bundled context — so the audit table doesn't itself become a
+// customer-data leak channel.
+model AdminContextQuery {
+  id String @id @default(cuid())
+
+  adminUserId String
+  adminUser   User   @relation("AdminContextQueryAdmin", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  scope    String  // "account" | "user"
+  targetId String  // accountId or userId depending on scope
+
+  questionPreview String  @db.Text // first ~200 chars of the question
+  itemCounts      String  @db.Text // JSON of { coachingSessions: N, assets: N, ... }
+  totalChars      Int     @default(0)
+  truncations     String? @db.Text // JSON array of strings naming dropped/truncated sections
+
+  createdAt DateTime @default(now())
+
+  @@index([adminUserId, createdAt])
+  @@index([scope, targetId, createdAt])
+  @@map("admin_context_queries")
+}
+
+// GTM Maturity Assessment Questions
+model MaturityQuestion {
+  id          String  @id @default(cuid())
+  category    String // e.g., "Revenue Basics", "Value Prop", "ICP"
+  globalOrder Int     @unique // Overall question number (1-56)
+  question    String  @db.Text
+  enabled     Boolean @default(true) // Soft delete - disabled questions are hidden but answers preserved
+
+  answers MaturityAnswer[]
+
+  createdAt DateTime @default(now())
+
+  @@map("maturity_questions")
+}
+
+// User's answers to maturity assessment questions (with history)
+model MaturityAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   MaturityQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific assessment (for history tracking)
+  assessmentId String?
+  assessment   MaturityAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([assessmentId])
+  @@map("maturity_answers")
+}
+
+// Tracks completed maturity assessments
+model MaturityAssessment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // AI-generated title summarizing the assessment
+  title String?
+
+  // Links to the conversation with AI recommendations
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  // Snapshot of all answers at time of completion
+  answers MaturityAnswer[]
+
+  completedAt DateTime @default(now())
+
+  @@map("maturity_assessments")
+}
+
+// ============================================
+// SALES NARRATIVE APP
+// ============================================
+
+// Sales Narrative Questions (seeded)
+model SalesNarrativeQuestion {
+  id          String  @id @default(cuid())
+  category    String // e.g., "Problem", "Solution", "Proof", "Business"
+  globalOrder Int     @unique // Question number (1-8)
+  question    String  @db.Text
+  helpText    String? @db.Text // Optional guidance for answering
+  enabled     Boolean @default(true)
+
+  answers SalesNarrativeAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_narrative_questions")
+}
+
+// User's answers to sales narrative questions (append-only for history)
+model SalesNarrativeAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   SalesNarrativeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific version (snapshot when narrative generated)
+  versionId String?
+  version   SalesNarrativeVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("sales_narrative_answers")
+}
+
+// Generated sales narrative versions
+model SalesNarrativeVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Snapshot of answers at generation time
+  answers SalesNarrativeAnswer[]
+
+  // Generated outputs
+  title            String  @default("Sales Narrative") // Descriptive title e.g. "ProductName - Category - Sales Narrative"
+  narrative        String  @db.Text // Full sales narrative prose (~2000 words, used for context attachment)
+  description1000w String? @db.Text // 1000-word condensed narrative
+  description100w  String  @db.Text // 100-word product description
+  description50w   String  @db.Text // 50-word elevator pitch
+  description25w   String  @db.Text // 25-word tagline
+
+  // Sources used to create this narrative (from prefill)
+  sourceUrls       String[] @default([]) // URLs crawled from website
+  sourcePdfNames   String[] @default([]) // Names of uploaded PDF files
+  sourceImageNames String[] @default([]) // Names of uploaded image (PNG/JPG/etc.) files
+
+  // Cached extracted text for each source so the Extend flow can
+  // reuse the original tokens without re-crawling / re-OCRing PDFs
+  // that may no longer be accessible. One row per (versionId, key).
+  sources NarrativeSource[]
+
+  // Iteration tracking
+  iterationHistory String[] @default([])
+
+  // Optional: conversation for follow-up chat about the narrative
+  conversationId String?
+
+  // Discovery questions generated from this narrative
+  discoveryQuestionsVersions DiscoveryQuestionsVersion[]
+  objectionBootstraps        ObjectionBootstrap[]
+
+  // Sequences generated from this narrative
+  emailSequenceVersions    EmailSequenceVersion[]
+  linkedInSequenceVersions LinkedInSequenceVersion[]
+  coldCallScriptVersions   ColdCallScriptVersion[]
+  salesDeckVersions        SalesDeckVersion[]
+  adCreatorVersions        AdCreatorVersion[]
+  socialContentVersions    SocialContentVersion[]
+  icpVersions              IcpVersion[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("sales_narrative_versions")
+}
+
+// ============================================
+// NARRATIVE SOURCE CACHE
+// ============================================
+
+// Cached extracted text from each source (URL or PDF) used to
+// generate a SalesNarrativeVersion. Lets the Extend flow combine
+// the original tokens with newly-added sources without re-crawling
+// or re-OCRing PDFs that the user may no longer have around.
+model NarrativeSource {
+  id String @id @default(cuid())
+
+  versionId String
+  version   SalesNarrativeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // "url" | "pdf"
+  key     String // URL or filename
+  content String @db.Text // extracted text (capped at ~200k chars)
+  chars   Int    @default(0) // for quick UI display + size budgeting
+
+  createdAt DateTime @default(now())
+
+  @@unique([versionId, type, key])
+  @@index([userId, type, key])
+  @@map("narrative_sources")
+}
+
+// ============================================
+// DISCOVERY QUESTIONS APP
+// ============================================
+
+// Generated discovery questions versions
+model DiscoveryQuestionsVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative version used as input (null for imported content)
+  salesNarrativeVersionId String?
+  salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output
+  title   String @default("Discovery Questions")
+  content String @db.Text
+
+  // Iteration tracking
+  iterationHistory String[] @default([])
+
+  // First call checklists generated from these discovery questions
+  firstCallChecklistVersions FirstCallChecklistVersion[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("discovery_questions_versions")
+}
+
+// ============================================
+// FIRST CALL CHECKLIST APP
+// ============================================
+
+// Generated first call checklist versions
+model FirstCallChecklistVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The discovery questions version used as input (null for imported content)
+  discoveryQuestionsVersionId String?
+  discoveryQuestionsVersion   DiscoveryQuestionsVersion? @relation(fields: [discoveryQuestionsVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output
+  title   String @default("First Call Checklist")
+  content String @db.Text
+
+  // Iteration tracking
+  iterationHistory String[] @default([]) // Array of user feedback strings
+
+  // Pre-call planning versions generated from this checklist
+  preCallPlanningVersions PreCallPlanningVersion[]
+
+  // Sequences that optionally used this checklist as context
+  emailSequenceVersions    EmailSequenceVersion[]
+  linkedInSequenceVersions LinkedInSequenceVersion[]
+  coldCallScriptVersions   ColdCallScriptVersion[]
+  salesDeckVersions        SalesDeckVersion[]
+  adCreatorVersions        AdCreatorVersion[]
+  socialContentVersions    SocialContentVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("first_call_checklist_versions")
+}
+
+// ============================================
+// PRE-CALL PLANNING PROCESS APP
+// ============================================
+
+// Generated pre-call planning process versions
+model PreCallPlanningVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The first call checklist version used as input (null for imported content)
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output
+  title   String @default("Pre-Call Planning") // Descriptive title e.g. "ProductName - Pre-Call Planning"
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("pre_call_planning_versions")
+}
+
+// ============================================
+// PRE-CALL RESEARCH APP
+// ============================================
+
+// Pre-call research briefs generated from web search
+model PreCallResearch {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Research input
+  companyName     String
+  contactName     String?
+  contactTitle    String?
+  contactEmail    String?
+  contactLinkedIn String?
+  freeformInput   String? @db.Text
+
+  // Snapshot of the calendar event the brief was triggered from
+  // (title, start/end, attendees, description, location, meeting
+  // URL). JSON so it can grow without further migrations. Null when
+  // the brief was created from the manual form rather than a
+  // calendar tile.
+  calendarEvent   Json?
+
+  // Generated research brief (markdown)
+  content String @db.Text
+
+  // Full search context prompt sent to the LLM for synthesis
+  searchContext String? @db.Text
+
+  // Sources used (JSON array of {title, url})
+  sources Json @default("[]")
+
+  // Source of the request
+  source String @default("web") // "web" | "slack"
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, companyName])
+  @@map("pre_call_research")
+}
+
+// Per-(user, calendar event) record of a PDL enrichment attempt we
+// fired from the Upcoming-calls panel. Stored even (and especially)
+// on misses so the tile can show "we tried, PDL had no record"
+// across page refreshes rather than looking like fresh work waiting
+// to be done.
+model PreCallEnrichmentAttempt {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEventId String
+  pdlHits         Int      @default(0)
+  total           Int      @default(0)
+  companyFallback Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, calendarEventId])
+  @@index([userId, createdAt])
+  @@map("pre_call_enrichment_attempts")
+}
+
+// Saved title-pattern → Slack destination rules that the daily cron
+// uses to auto-generate pre-call research briefs for the user's
+// matching calendar events.
+model RecurringResearchPattern {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Case-insensitive substring matched against the calendar event
+  // title. e.g. "Discovery" matches any event with "discovery" in
+  // its name.
+  titlePattern String
+  // "dm" — post to the user's MikeyBot DM
+  // "channel" — post to a specific Slack channel
+  destination  String
+  channelId    String?
+  channelName  String?
+  enabled      Boolean  @default(true)
+  lastRunAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, enabled])
+  @@map("recurring_research_patterns")
+}
+
+// One row per (user, calendar event) the cron has already processed
+// so we never re-post the same brief on later runs. patternId is
+// nullable to support "all external" mode where there's no
+// pattern driving the brief.
+model RecurringResearchRun {
+  id              String   @id @default(cuid())
+  userId          String
+  patternId       String?
+  calendarEventId String
+  status          String   // "sent" | "enrichment_failed" | "brief_failed" | "post_failed"
+  researchId      String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, calendarEventId])
+  @@index([userId, createdAt])
+  @@map("recurring_research_runs")
+}
+
+// Tracks multi-turn research intake via Slack
+// Stores extracted fields while waiting for the user to confirm or provide missing info
+model PendingResearchRequest {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Slack thread coordinates so we can match follow-up replies
+  slackChannel  String
+  slackThreadTs String
+
+  // Extracted fields (accumulated across turns)
+  companyName     String?
+  companyDomain   String?
+  contactName     String?
+  contactTitle    String?
+  contactLinkedIn String?
+  urls            Json    @default("[]") // string[]
+
+  // Status: gathering → ready → completed / expired
+  status String @default("gathering") // "gathering" | "completed" | "expired"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([slackChannel, slackThreadTs])
+  @@index([userId, status])
+  @@map("pending_research_requests")
+}
+
+// User preferences for prompt attachments
+model UserAttachmentPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // JSON structure for flexibility:
+  // {
+  //   "salesNarrative": { "enabled": true, "disabledUntil": null },
+  //   "gtmAssessment": { "enabled": false, "disabledUntil": "2024-02-24T10:00:00Z" },
+  //   "discoveryQuestions": { "enabled": false, "disabledUntil": null },
+  //   "firstCallChecklist": { "enabled": false, "disabledUntil": null }
+  // }
+  preferences Json @default("{}")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("user_attachment_preferences")
+}
+
+// Standalone uploaded files (not tied to a specific conversation)
+model UserFile {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String // Original filename
+  type        String // "image" | "pdf"
+  storagePath String @map("storage_path") // Supabase storage path
+  pageCount   Int?   @map("page_count") // For multi-page PDFs
+  source      String @default("upload") // "narrative-prefill", "upload", etc.
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("user_files")
+}
+
+// ============================================
+// EMAIL SEQUENCE APP
+// ============================================
+
+model EmailSequenceVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
+
+  // Generated output
+  content String @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("email_sequence_versions")
+}
+
+// ============================================
+// LINKEDIN SEQUENCE APP
+// ============================================
+
+model LinkedInSequenceVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
+
+  // Generated output
+  content String @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("linkedin_sequence_versions")
+}
+
+// ============================================
+// COLD CALL SCRIPT APP
+// ============================================
+
+model ColdCallScriptVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
+
+  // Script type: "outbound" (cold call) or "inbound" (lead response)
+  scriptType String @default("outbound")
+
+  // Generated output
+  content String @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("cold_call_script_versions")
+}
+
+// ============================================
+// SALES DECK APP
+// ============================================
+
+model SalesDeckVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
+
+  // Deck mode: "fresh" (generated from narrative) or "existing" (from uploaded PDF) or "gamma" (Gamma presentation)
+  deckMode                    String   @default("fresh")
+
+  // Original PDF filename if uploaded
+  sourcePdfName String?
+
+  // Generated output (markdown outline for fresh/existing, structured JSON for gamma)
+  content                     String   @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  // --- Gamma presentation fields ---
+
+  // Context URLs provided by user (prospect website, product pages, etc.)
+  contextUrls                 String[] @default([])
+
+  // Context PDF filenames uploaded by user
+  contextPdfNames             String[] @default([])
+
+  // Prospect homepage URL (inferred from email or provided)
+  prospectUrl                 String?
+
+  // Brand analysis from OpenAI 4o vision (JSON description of colors, typography, style)
+  brandAnalysis               String?  @db.Text
+
+  // Gamma live URL (for viewing/editing the generated deck)
+  gammaUrl                    String?
+
+  // Gamma export URLs
+  gammaPdfUrl                 String?
+  gammaPptxUrl                String?
+
+  // Structured slide content sent to Gamma (the pre-processed output)
+  gammaInputContent           String?  @db.Text
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("sales_deck_versions")
+}
+
+// ============================================
+// CALL REVIEW APP
+// ============================================
+
+model CallReviewVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Call metadata
+  callType String  @default("discovery") // "discovery" for now, extensible later
+  title    String? @db.Text
+
+  // The raw transcript
+  transcript String @db.Text
+
+  // Source tracking (if transcript was extracted from a share link)
+  sourceUrl    String? @db.Text
+  sourceVendor String?
+
+  // AI-generated scores (JSON)
+  scores String @db.Text
+
+  // Overall score out of max
+  overallScore Int?
+  maxScore     Int?
+
+  // Optional links to user's GTM context used during analysis
+  discoveryQuestionsVersionId String?
+  salesNarrativeVersionId     String?
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("call_review_versions")
+}
+
+// ============================================
+// SALES METRICS ANALYZER APP
+// ============================================
+
+// Sales Metrics Questions (seeded)
+model SalesMetricsQuestion {
+  id          String  @id @default(cuid())
+  category    String // "Pipeline Activity", "Conversion Rates", "Deal Metrics", "Revenue Retention", "Lead Generation"
+  globalOrder Int     @unique
+  question    String  @db.Text
+  helpText    String? @db.Text
+  enabled     Boolean @default(true)
+
+  answers SalesMetricsAnswer[]
+
+  createdAt DateTime @default(now())
+
+  @@map("sales_metrics_questions")
+}
+
+// User's answers to sales metrics questions (with history)
+model SalesMetricsAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   SalesMetricsQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific assessment (for history tracking)
+  assessmentId String?
+  assessment   SalesMetricsAssessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+  source String @default("manual") // "manual" | "csv"
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([assessmentId])
+  @@map("sales_metrics_answers")
+}
+
+// Completed sales metrics assessments
+model SalesMetricsAssessment {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title          String?
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+
+  // Raw CSV stored for chat context
+  csvData     String? @db.Text
+  csvFileName String?
+
+  // All computed fields from analysis
+  calculatedMetrics String? @db.Text
+
+  // Full analysis markdown report
+  analysisReport String? @db.Text
+
+  // Snapshot of answers at time of completion
+  answers SalesMetricsAnswer[]
+
+  completedAt DateTime @default(now())
+
+  @@index([userId, completedAt])
+  @@map("sales_metrics_assessments")
+}
+
+// ============================================
+// COACHING HISTORY
+// ============================================
+
+model CoachingSession {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title        String // e.g. "Weekly Coaching — Mar 3"
+  sessionDate  DateTime // Date of the coaching session
+  notes        String   @db.Text // Notes stored as markdown
+  transcript   String?  @db.Text // Optional pasted call transcript
+  recordingUrl String? // Optional link to meeting recording
+
+  // Auto-generated synthesis — same prompt as the "Synthesize
+  // Takeaways" CTA, regenerated server-side on every save so the
+  // founder always has a fresh "what we discussed / agreed / will do
+  // next" rollup without clicking. Null until the first save (or
+  // until the synthesis job finishes for in-flight saves).
+  synthesis    String?   @db.Text
+  synthesisAt  DateTime?
+
+  // Implicit goal tracking — candidate goal/task updates inferred from
+  // the session's notes + transcript by the post-save extraction job.
+  // Shape: { version, extractedAt, candidates: OutcomeCandidate[] }
+  // (see lib/coaching/extract-outcomes.ts). Candidates persist here —
+  // NOT in memory — so the review moment survives navigation and can
+  // surface later (chip on the session, agent tools, Slack). Nothing
+  // in this blob touches real goals/tasks until the founder accepts
+  // it through the review panel's commit endpoint.
+  outcomeCandidates   Json?
+  outcomeCandidatesAt DateTime?
+  // Stamped when the founder completes a review (accept/reject) pass.
+  outcomesReviewedAt  DateTime?
+
+  // Session lifecycle
+  sessionStatus String  @default("new") // "new" | "in_progress" | "locked"
+  maturityStage String? // Snapshot of sales maturity stage at session creation
+
+  /// "standard" | "ad_hoc".
+  ///
+  /// An ad-hoc session is a real coaching session in every respect —
+  /// it appears in history, gets a synthesis, extracts goals and tasks
+  /// — EXCEPT that it is invisible to metrics. No entries are seeded
+  /// for it, and it is skipped when resolving the previous value for a
+  /// delta and when building the sparkline series, so a one-off
+  /// conversation can't distort the measurement cadence.
+  ///
+  /// A kind rather than a `recordMetrics` boolean because it names the
+  /// intent rather than the mechanism, and leaves room for other kinds
+  /// later without another column.
+  sessionKind String @default("standard")
+
+  // Relations to coaching framework models
+  goals         CoachingGoal[]
+  metricEntries CoachingMetricEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, sessionDate(sort: Desc)])
+  @@index([sessionKind])
+  @@map("coaching_sessions")
+}
+
+// ============================================
+// COACHING FRAMEWORK — MATURITY STAGE
+// ============================================
+
+// Per-user singleton tracking current sales maturity stage
+model SalesMaturityStage {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Values: PROBLEM_VALIDATION | VALUE_VALIDATION | FIRST_REVENUE |
+  //         REPEATABLE_REVENUE | FIRST_SALES_HIRE | SCALING_SALES
+  currentStage String
+
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_maturity_stages")
+}
+
+// ============================================
+// COACHING FRAMEWORK — GOALS & TASKS
+// ============================================
+
+// Persistent goals that carry across coaching sessions
+model CoachingGoal {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session where this goal was originally created
+  sessionId String
+  session   CoachingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  status      String  @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+
+  tasks CoachingTask[]
+
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+
+  @@index([userId, status])
+  @@index([sessionId])
+  @@map("coaching_goals")
+}
+
+// Tasks under goals, same carry-forward pattern
+model CoachingTask {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  goalId String
+  goal   CoachingGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  // Optional parent task for one-level subtasks. Capped at depth 1
+  // (a subtask cannot have its own subtasks) — enforced at the API
+  // layer, not in the schema, since Postgres has no native way to
+  // express that without recursion checks.
+  parentTaskId String?
+  parentTask   CoachingTask?  @relation("CoachingTaskParent", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     CoachingTask[] @relation("CoachingTaskParent")
+
+  title       String
+  description String?  @db.Text
+  status      String   @default("active") // "active" | "done" | "not_doing" | "deprioritized"
+  statusChangedAt DateTime?
+  // Optional priority tag. Null = unranked; otherwise "P0" / "P1" /
+  // "P2". Kept as a free-form string so we can extend the scale
+  // later without another migration.
+  priority    String?
+
+  createdAt DateTime @default(now())
+  order     Int      @default(0)
+
+  comments CoachingComment[]
+
+  @@index([goalId])
+  @@index([parentTaskId])
+  @@map("coaching_tasks")
+}
+
+// Inline comment thread on a coaching task. Per-task only for now —
+// goalId is left out of the model intentionally; if/when we extend to
+// per-goal comments, the cleanest path is a new CoachingGoalComment
+// table (or a discriminator on this one) with its own UI affordance.
+model CoachingComment {
+  id String @id @default(cuid())
+
+  taskId String
+  task   CoachingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("CoachingCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  body String @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+
+  @@index([taskId, createdAt])
+  @@map("coaching_comments")
+}
+
+// ============================================
+// COACHING FRAMEWORK — METRICS
+// ============================================
+
+// Persistent metric definitions (templates)
+model CoachingMetricDefinition {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String // "Customer Count", "ARR", or custom
+  definition String? @db.Text // e.g. "Number of paying customers"
+  format     String  @default("number") // "number" | "currency"
+  interval   String? // "weekly" | "monthly" | "quarterly"
+  isDefault  Boolean @default(false) // true for Customer Count & ARR
+  archived   Boolean @default(false) // archived metrics are hidden but preserved
+  order      Int     @default(0)
+
+  // "metric" (default) — a normal data tile.
+  // "section" — a full-width header strip used to group following
+  // tiles into a visual section. Sections share the order column with
+  // metrics but never have entries; consumers that walk this table
+  // for value math should filter where { kind: "metric" }.
+  kind String @default("metric")
+
+  /// Optional link to wherever this metric is actually computed — the
+  /// Looker board, the Sheet, the Stripe view. Metrics get argued about
+  /// because nobody can find the source; this puts it one click from
+  /// the number it produced.
+  referenceUrl   String? @db.Text
+  /// Human label for the link. Falls back to the URL's hostname.
+  referenceLabel String?
+
+  entries CoachingMetricEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("coaching_metric_definitions")
+}
+
+// Per-session metric values
+model CoachingMetricEntry {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  metricDefinitionId String
+  metricDefinition   CoachingMetricDefinition @relation(fields: [metricDefinitionId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  session   CoachingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  currentValue          Float // Total value at this point
+  addedSinceLastSession Float @default(0) // Auto-calculated delta
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([metricDefinitionId])
+  @@map("coaching_metric_entries")
+}
+
+// ============================================
+// COACHING FRAMEWORK — UP NEXT QUEUE
+// ============================================
+
+// Persistent backlog goals (user-scoped, not session-scoped)
+model CoachingNextGoal {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  order       Int     @default(0)
+
+  tasks CoachingNextTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("coaching_next_goals")
+}
+
+model CoachingNextTask {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  goalId String
+  goal   CoachingNextGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  order       Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([goalId])
+  @@map("coaching_next_tasks")
+}
+
+// ============================================
+// SALES READINESS CHECKLIST
+// ============================================
+
+// Global template items (same for all accounts)
+model SalesReadinessItem {
+  id String @id @default(cuid())
+
+  maturityStage      String  // "WILL_SOMEONE_PAY", "REPEATABLE_REVENUE", etc.
+  capabilityCategory String  // "MVP Inbound", "Sales First Call", etc.
+  title              String  // "Demo Request Calendar Automation"
+  description        String? @db.Text
+  mikeyLinks         String? @db.Text // JSON array of {label, href} for linked MikeyBot tools
+  order              Int     @default(0)
+
+  accountItems SalesReadinessAccountItem[]
+
+  @@index([maturityStage])
+  @@map("sales_readiness_items")
+}
+
+// Per-account progress on each item
+model SalesReadinessAccountItem {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   SalesReadinessItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  status          String    @default("to_do") // "to_do" | "done" | "up_next" | "not_doing" | "deferred"
+  statusChangedAt DateTime?
+  statusChangedBy String?   // userId of who last changed status
+  completedAt     DateTime?
+  notes           String?   @db.Text
+  evidenceUrl     String?   // link to relevant asset, doc, or proof
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, itemId])
+  @@index([accountId])
+  @@map("sales_readiness_account_items")
+}
+
+// History of readiness sync operations
+model SalesReadinessSyncHistory {
+  id String @id @default(cuid())
+
+  accountId String
+  userId    String // who triggered the sync
+  source    String // "assessment" | "coaching"
+
+  // Snapshot of source material used for analysis
+  sourceContent String @db.Text
+
+  // Full AI analysis result (JSON: proposedChanges, recommendedStage)
+  analysisResult String @db.Text
+
+  // Which item IDs the user accepted
+  acceptedItemIds String @db.Text // JSON array of item IDs
+
+  // Whether the recommended stage was accepted
+  stageAccepted Boolean @default(false)
+
+  // Stats for quick display
+  totalProposed Int @default(0)
+  totalAccepted Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt(sort: Desc)])
+  @@map("sales_readiness_sync_history")
+}
+
+// ============================================
+// AD CREATOR APP
+// ============================================
+
+model AdCreatorVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Persona configuration
+  orgPersona   String  @db.Text
+  humanPersona String  @db.Text
+  specialNotes String? @db.Text
+
+  // Voice/tone for ad copy (e.g. "professional", "conversational", "bold", or custom)
+  tone String?
+
+  // Selected platforms (e.g. ["linkedin", "facebook-instagram", "google-sem"])
+  platforms String[]
+
+  // Generated output
+  content String @db.Text
+
+  // Iteration lineage
+  iteratedFromId String?
+  iteratedFrom   AdCreatorVersion?  @relation("AdCreatorIterations", fields: [iteratedFromId], references: [id], onDelete: SetNull)
+  iterations     AdCreatorVersion[] @relation("AdCreatorIterations")
+  iterationNotes String?            @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("ad_creator_versions")
+}
+
+// ============================================
+// SOCIAL CONTENT GENERATOR APP
+// ============================================
+
+model SocialContentVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as primary input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Optional first call checklist for additional context
+  firstCallChecklistVersionId String?
+  firstCallChecklistVersion   FirstCallChecklistVersion? @relation(fields: [firstCallChecklistVersionId], references: [id], onDelete: SetNull)
+
+  // Platform: "linkedin" or "twitter"
+  platform String
+
+  // Tone: "thought-leadership", "shitposting", or custom string
+  tone String
+
+  // Number of posts requested
+  postCount Int @default(5)
+
+  // Topic source: "narrative" (auto from sales narrative), "custom" (user-entered topic), "content" (repurpose pasted content)
+  topicSource String
+
+  // If topicSource is "custom" or "content", store the user input
+  topicInput String? @db.Text
+
+  // Gold standard examples used (stored as JSON array of strings)
+  goldStandardExamples String? @db.Text
+
+  // AI-generated title summarizing this content batch
+  title String?
+
+  // Generated output
+  content String @db.Text
+
+  // Linked chat thread
+  conversationId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("social_content_versions")
+}
+
+// Saved gold standard examples for social content
+model SocialContentExample {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Platform this example is for
+  platform String
+
+  // The example post content
+  content String @db.Text
+
+  // Optional label/name for the example
+  label String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, platform])
+  @@map("social_content_examples")
+}
+
+// ============================================
+// OBJECTION LIBRARY APP
+// ============================================
+
+enum ObjectionCategory {
+  NEED
+  PRIORITY
+  ROI
+  PRODUCT
+  COMPETITION
+  ADOPTION
+  BUDGET
+  TRUST
+  AUTHORITY
+}
+
+model ObjectionEntry {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What the prospect says
+  objection String @db.Text
+
+  // Category (enum)
+  category ObjectionCategory
+
+  // Target persona this handle is tailored for
+  orgPersona   String @db.Text
+  humanPersona String @db.Text
+
+  // The handle (how to respond)
+  handle String @db.Text
+
+  // Optional notes, context, or examples
+  notes String? @db.Text
+
+  // Where it came from
+  source String @default("bootstrap") // "bootstrap" | "manual" | "call-review" | "chat"
+
+  // Linked chat thread for iteration
+  conversationId String?
+
+  // Sort within category
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, category])
+  @@index([userId, createdAt])
+  @@map("objection_entries")
+}
+
+model ObjectionBootstrap {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative used as input
+  salesNarrativeVersionId String
+  salesNarrativeVersion   SalesNarrativeVersion @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Persona configuration
+  orgPersona   String @db.Text
+  humanPersona String @db.Text
+
+  // How many entries were generated
+  entryCount Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("objection_bootstraps")
+}
+
+// ============================================
+// IDEAL CUSTOMER PROFILE (ICP) APP
+// ============================================
+
+model IcpVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The sales narrative version used as input (null for imported content)
+  salesNarrativeVersionId String?
+  salesNarrativeVersion   SalesNarrativeVersion? @relation(fields: [salesNarrativeVersionId], references: [id], onDelete: Cascade)
+
+  // Generated output
+  title   String @default("Ideal Customer Profile")
+  content String @db.Text // JSON stringified IcpContent
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("icp_versions")
+}
+
+// ============================================
+// AE HIRING PROFILE APP
+// ============================================
+
+// Questions for the "Current State of Sales" questionnaire
+model HiringProfileQuestion {
+  id          String  @id @default(cuid())
+  /// "AE" | "SDR" | "CSM". One question bank per seat rather than a
+  /// duplicated table per seat — the Sales Leader profile was built as
+  /// its own parallel stack, and repeating that for every new role
+  /// would mean four near-identical models, seed scripts, route trees
+  /// and pages to keep in step.
+  roleType    String  @default("AE")
+  category    String // e.g., "Company Stage & Context", "Sales Motion", "Pipeline Generation"
+  /// Question number WITHIN a roleType — see the composite unique below.
+  globalOrder Int
+  question    String  @db.Text
+  helpText    String? @db.Text // Optional guidance / hint
+  enabled     Boolean @default(true)
+
+  answers HiringProfileAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleType, globalOrder])
+  @@index([roleType, globalOrder])
+
+  @@map("hiring_profile_questions")
+}
+
+// User's answers to hiring profile questions (append-only for history)
+model HiringProfileAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   HiringProfileQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  // Link to specific version (snapshot when profile generated)
+  versionId String?
+  version   HiringProfileVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("hiring_profile_answers")
+}
+
+// Generated AE Hiring Profile versions
+model HiringProfileVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// "AE" | "SDR" | "CSM" — which seat this profile describes. The
+  /// candidate assessor picks the profile matching the role being
+  /// screened for, so a CSM candidate is never graded against the AE
+  /// bar.
+  roleType String @default("AE")
+
+  // Snapshot of answers at generation time
+  answers HiringProfileAnswer[]
+
+  // Generated outputs
+  title   String @default("AE Hiring Profile")
+  content String @db.Text // Full profile report (markdown)
+
+  // Iteration history — user feedback that was applied
+  iterationHistory String[] @default([]) // Array of user feedback strings
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, roleType, createdAt])
+  @@map("hiring_profile_versions")
+}
+
+// ============================================
+// SALES LEADER HIRING PROFILE APP
+// ============================================
+
+model SalesLeaderProfileQuestion {
+  id          String  @id @default(cuid())
+  category    String
+  globalOrder Int     @unique
+  question    String  @db.Text
+  helpText    String? @db.Text
+  enabled     Boolean @default(true)
+
+  answers SalesLeaderProfileAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_leader_profile_questions")
+}
+
+model SalesLeaderProfileAnswer {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   SalesLeaderProfileQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  versionId String?
+  version   SalesLeaderProfileVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  answer String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, questionId])
+  @@index([versionId])
+  @@map("sales_leader_profile_answers")
+}
+
+model SalesLeaderProfileVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  answers SalesLeaderProfileAnswer[]
+
+  title   String @default("Sales Leader Hiring Profile")
+  content String @db.Text
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("sales_leader_profile_versions")
+}
+
+// ============================================
+// PRE-HIRE ASSESSMENT APP
+// ============================================
+
+model PreHireAssessmentVersion {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String @default("Pre-Hire Assessment")
+  roleType String // "ae" or "sdr"
+  content  String @db.Text
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("pre_hire_assessment_versions")
+}
+
+// ============================================
+// SALES MOTION ANALYZER
+// ============================================
+
+model SalesMotionCollection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title  String @default("Sales Motion Analysis")
+  status String @default("draft") // "draft" | "processing" | "complete"
+
+  // Synthesized output
+  salesMotionSynthesis String? @db.Text
+
+  deals   SalesMotionDeal[]
+  scripts SalesMotionCallScript[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("sales_motion_collections")
+}
+
+model SalesMotionDeal {
+  id           String @id @default(cuid())
+  collectionId String
+  collection   SalesMotionCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  name      String? // AI-generated
+  outcome   String? // "won"
+  dealOrder Int     @default(0)
+
+  calls SalesMotionCall[]
+
+  createdAt DateTime @default(now())
+
+  @@index([collectionId])
+  @@map("sales_motion_deals")
+}
+
+model SalesMotionCall {
+  id     String @id @default(cuid())
+  dealId String
+  deal   SalesMotionDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  // User inputs
+  summary       String? @db.Text
+  transcript    String? @db.Text
+  recordingUrl  String? // Public URL of the call recording (e.g., Fathom, Gong, Chorus share link)
+
+  // AI-generated
+  name      String?
+  callType  String? // "discovery" | "demo" | "proposal" | "negotiation" | "security" | "technical" | "closing" | "other"
+  callOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+  @@map("sales_motion_calls")
+}
+
+model SalesMotionCallScript {
+  id           String @id @default(cuid())
+  collectionId String
+  collection   SalesMotionCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  callType        String // "discovery" | "demo" | "proposal" etc.
+  title           String
+  content         String @db.Text
+  sourceCallCount Int    @default(0)
+
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([collectionId])
+  @@map("sales_motion_call_scripts")
+}
+
+// ============================================
+// CALL RECAP EMAIL
+// ============================================
+
+model CallRecapVersion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Inputs
+  recordingUrl   String         // REQUIRED — public URL of call recording
+  callSummary    String @db.Text
+  callTranscript String? @db.Text
+  customNotes    String? @db.Text
+
+  // AI-generated
+  title        String  // "Acme Corp - Discovery Call - Pete + Sarah"
+  callType     String  // "discovery" | "demo" | "proposal" | etc.
+  emailSubject String  // Generated subject line
+  emailBody    String  @db.Text // Generated email body
+
+  // Iteration
+  iterationHistory String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("call_recap_versions")
+}
+
+// ============================================
+// SALES ASSET LIBRARY
+// ============================================
+
+model SalesAsset {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String? @db.Text
+  category    String // "messaging" | "materials" | "process" | "onboarding" | "legal" | "custom"
+  isDefault   Boolean @default(false)
+  archived    Boolean @default(false)
+  slotKey     String? // stable key for defaults: "salesNarrative", "demoScript", etc.
+  order       Int     @default(0)
+
+  // Denormalized latest version for fast rendering
+  currentUrl       String?
+  currentLabel     String?
+  currentVersionId String?
+
+  versions SalesAssetVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, slotKey])
+  @@index([accountId])
+  @@map("sales_assets")
+}
+
+model SalesAssetVersion {
+  id String @id @default(cuid())
+
+  assetId String
+  asset   SalesAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  url   String
+  label String?
+  notes String? @db.Text
+
+  // Uploaded-file support: when a version is a PDF/DOCX uploaded via
+  // the collateral library (vs. a plain external URL), the raw blob
+  // is stored in Supabase Storage at fileStoragePath and its parsed
+  // text lives in extractedText. All nullable so URL-only versions
+  // stay valid.
+  fileStoragePath   String?
+  fileMimeType      String?
+  fileBytes         Int?
+  extractedText     String?   @db.Text
+  extractTextStatus String? // "pending" | "done" | "failed" | "ocr_needed"
+  pageCount         Int?
+  extractedAt       DateTime?
+
+  createdByUserId String?
+  createdByUser   User?   @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId, createdAt])
+  @@map("sales_asset_versions")
+}
+
+// ============================================
+// DEALS
+// ============================================
+
+model Deal {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String // "Visana - Enterprise Deal"
+  companyName String // "Visana Health"
+  companyUrl  String? // for PDL company enrichment
+
+  stage  String @default("prospecting") // "prospecting" | "discovery" | "demo" | "proposal" | "negotiation" | "closing" | "won" | "lost"
+  status String @default("active") // "active" | "stalled" | "closed_won" | "closed_lost" | "potential" | "dismissed"
+
+  // Provenance for auto-created deals. null = user-created.
+  // "recorder" = spawned by the hourly call-recorder scanner.
+  // "calendar" = spawned by the daily pre-call research cron.
+  source String?
+
+  // Forward-looking sell-by date the rep sets when forecasting.
+  projectedCloseDate DateTime?
+  // Actual date the deal closed (won or lost). Set when the user
+  // flips status to closed_won / closed_lost.
+  closeDate          DateTime?
+  // Free-text reason captured when a deal is closed_lost (e.g.
+  // "competitor", "budget", "no decision"). Optional on close.
+  closedLostReason   String?    @db.Text
+  // Forecast deal size in whole dollars. Optional — many founder-led
+  // deals are sized later in the cycle. Used for sort + filtering
+  // on /deals and (eventually) pipeline value aggregations.
+  dealValue          Int?
+  // Holistic deal-health rating produced by the analyzer
+  // ("poor" | "fair" | "good" | "excellent"). null when never
+  // analyzed. Shown as the "Mikey Health" pill on /deals and the
+  // detail page.
+  mikeyHealth        String?
+
+  // Linked shared Slack channel (Slack Connect selling channel with
+  // the prospect). The 5-min cron pulls new messages since
+  // slackChannelLastTs and lands them as slack_message timeline
+  // digest entries — deal evidence like everything else.
+  slackChannelId     String?
+  slackChannelName   String?
+  slackChannelLastTs String?
+
+  notes String? @db.Text
+
+  // Latest AI state assessment (JSON)
+  lastAnalysis   String?   @db.Text
+  lastAnalyzedAt DateTime?
+
+  // Optional link to a Project (chat folder)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  participants DealParticipant[]
+  entries      DealTimelineEntry[]
+  analyses     DealAnalysis[]
+  businessCaseInstances BusinessCaseInstance[]
+  slackPosts   DealSlackPost[]
+  tasks        DealTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([projectId])
+  @@map("deals")
+}
+
+// Per-account customizable deal stages. Built-in stages (Prospecting,
+// Discovery, Demo, Proposal, Negotiation, Closing, Won, Lost) live in
+// src/lib/deals/constants.ts and apply to every account. Rows in this
+// table get merged in (sorted by `order`) to extend or replace the
+// built-in pipeline for a specific account.
+model CustomDealStage {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  value     String   // slug used on Deal.stage (e.g. "vendor-review")
+  label     String   // display text (e.g. "Vendor Review")
+  color     String   // Tailwind class set (e.g. "bg-pink-100 text-pink-700")
+  order     Int      @default(0)
+  archived  Boolean  @default(false)
+  // Which built-in stage this custom stage sits after in the
+  // pipeline. e.g. "demo" → renders between Demo and Proposal.
+  // null = appended at the end of the pipeline.
+  insertAfter String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, value])
+  @@index([accountId, archived])
+  @@map("custom_deal_stages")
+}
+
+// Per-account custom closed-lost reasons. Built-in reasons (Unqualified,
+// Budget, Timing, Competition, etc.) live in src/lib/deals/constants.ts;
+// rows here let an account add or archive choices without a code change.
+// Archived rows stay in the DB so any Deal.closedLostReason already
+// pointing at the slug still displays after archive.
+model CustomClosedLostReason {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  value     String   // slug stored on Deal.closedLostReason
+  label     String   // display text
+  order     Int      @default(0)
+  archived  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, value])
+  @@index([accountId, archived])
+  @@map("custom_closed_lost_reasons")
+}
+
+// Bookkeeping for the hourly call-recorder scanner so we don't
+// re-process the same recording on every tick. One row per
+// (user, providerCallId). When a call gets attached to an existing
+// deal we store its dealId; when it spawns a brand-new potential
+// deal we also record that. `result` tells the scanner what
+// happened so future runs can short-circuit.
+model ProcessedRecording {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider        String   // recorder slug ("fathom" | "fireflies" | "granola")
+  providerCallId  String
+  // "attached_existing" — a meeting was added to an existing deal
+  // "created_potential" — a new auto-detected deal was spun up
+  // "skipped_internal_only" — call had no external attendees
+  // "skipped_no_domain"    — couldn't infer a company domain
+  result          String
+  dealId          String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, providerCallId])
+  @@index([userId, createdAt])
+  @@map("processed_recordings")
+}
+
+model DealParticipant {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  name        String
+  title       String?
+  company     String?
+  email       String?
+  linkedinUrl String?
+
+  role String @default("unknown") // "champion" | "decision_maker" | "influencer" | "blocker" | "end_user" | "unknown"
+
+  // Cached PDL enrichment
+  pdlData        String?   @db.Text
+  pdlEnrichedAt  DateTime?
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId])
+  @@map("deal_participants")
+}
+
+model DealTimelineEntry {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  type String // "call_transcript" | "call_summary" | "email" | "screenshot" | "note" | "linkedin" | "document"
+
+  title     String?
+  content   String  @db.Text
+  sourceUrl String?
+  metadata  String? @db.Text // JSON: { callType?, participants?, extractedFrom?, imageDescription?, etc. }
+
+  order     Int      @default(0)
+  entryDate DateTime @default(now()) // when this engagement happened
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, entryDate(sort: Desc)])
+  @@map("deal_timeline_entries")
+}
+
+model DealAnalysis {
+  id String @id @default(cuid())
+
+  dealId String
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  analysis String  @db.Text
+  stage    String? // suggested stage extracted from the analysis (if any)
+
+  // Snapshot counts so we can show "after N entries" in the history without loading relations
+  entryCount       Int @default(0)
+  participantCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([dealId, createdAt(sort: Desc)])
+  @@map("deal_analyses")
+}
+
+// ============================================
+// BUSINESS CASES SUITE
+// Discovery Summary · ROI Model · Business Case
+// ============================================
+//
+// Three sibling artifact types share ONE discriminated pair of tables
+// (see business-cases-plan.md) instead of three more near-identical
+// Version tables. `type` is the discriminator everywhere:
+//   "discovery_summary" | "roi_model" | "business_case"
+
+// Per-user template, versioned by row (newest row of a type = current).
+// Generated from playbook assets (sales narrative, value prop,
+// discovery questions, first-call checklist) then hand-edited until it
+// reflects the founder's economic argument and discovery structure.
+model BusinessCaseTemplate {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // "discovery_summary" | "roi_model" | "business_case"
+  content String @db.Text // markdown, {{PLACEHOLDER}} slots for instance fill
+
+  // Provenance: which playbook inputs seeded the generation
+  // (ids + labels as JSON), so regenerate can diff/refresh when the
+  // narrative changes. Null for hand-authored templates.
+  sourceInputs Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt(sort: Desc)])
+  @@map("business_case_templates")
+}
+
+// A generated + user-edited artifact. dealId null = ad-hoc run (pasted
+// transcripts / picked calls with no deal attached). Instances are the
+// source of truth — deal-triggered runs ALSO mirror into a
+// DealTimelineEntry (metadata.instanceId links the pair; edits here
+// sync the entry).
+model BusinessCaseInstance {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type       String // same discriminator as BusinessCaseTemplate
+  templateId String? // template version used at generation time
+
+  dealId String?
+  deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  title   String // e.g. "Acme Corp — Discovery Summary"
+  content String @db.Text // markdown; editable in place
+
+  // What we fed the model (transcript titles/dates, deal snapshot
+  // summary) — for regeneration and "what was this based on?" display.
+  sourceContext String? @db.Text
+
+  // Gamma slide-deck export of this artifact (discovery readout deck
+  // etc.). Set by /instances/[id]/gamma; regenerating overwrites.
+  // Same trio as SalesDeckVersion.
+  gammaUrl     String?
+  gammaPdfUrl  String?
+  gammaPptxUrl String?
+  gammaGeneratedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type, createdAt(sort: Desc)])
+  @@index([dealId, type])
+  @@map("business_case_instances")
+}
+
+// ============================================
+// HIRING — CANDIDATE ASSESSMENT
+// ============================================
+
+/// One grading run of one candidate against the founder's hiring bar.
+/// Runs are IMMUTABLE — re-grading writes a new row — so the UI can
+/// show a history ("assessed Jul 3 · re-assessed Aug 11 against the
+/// new profile") and so a verdict is always traceable to the bar and
+/// rubric in force at the time.
+/// A saved candidate search.
+///
+/// Sourcing used to hold everything in page state, which meant a
+/// refresh threw away the imported companies, the leads AND the
+/// enrichment credits already spent on them. Persisting the search
+/// makes it addressable — /sourcing/<id> — so it can be bookmarked,
+/// shared with whoever else is hiring, and returned to next week.
+///
+/// The CRITERIA are stored, not just the results: a search a founder
+/// wants back is usually one they want to re-run, and re-deriving the
+/// filters from a list of people is impossible.
+model SourcingSearch {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Human label. Derived from the companies searched when not set.
+  name     String?
+  /// Which seat this hunt is for — drives the tenure rubric on enrich.
+  roleType String  @default("AE")
+
+  /// Resolved companies: [{ name, tier, group, apolloOrgId }]. The
+  /// Apollo ids are kept so a re-run doesn't have to resolve again.
+  companies Json
+  /// Job titles searched, as given.
+  titles    Json
+  /// Person locations, as given.
+  locations Json
+  /// ["alumni"], ["current"], or both. One Apollo query runs per entry.
+  modes     Json
+
+  yoeMin Int?
+  yoeMax Int?
+
+  /// Apollo's reported match count at the time of the run, which is
+  /// usually larger than the page of leads actually stored.
+  totalFound Int      @default(0)
+  lastRunAt  DateTime @default(now())
+
+  leads SourcingLead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("sourcing_searches")
+}
+
+/// One person found by a search, plus whatever enrichment has been
+/// bought for them.
+///
+/// A lead is NOT a candidate assessment. Apollo search returns an id, a
+/// first name, a masked surname and a title — nothing judgeable. The
+/// enrichment columns stay null until someone spends a credit, and
+/// storing them means that spend is never repeated for the same person.
+model SourcingLead {
+  id       String         @id @default(cuid())
+  searchId String
+  search   SourcingSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  /// Denormalized so lead queries can be scoped without a join.
+  userId   String
+
+  /// Apollo's person id — the only durable handle a search result has.
+  apolloId         String
+  firstName        String?
+  /// e.g. "Ch***e". Apollo masks surnames until enrichment.
+  lastNameMasked   String?
+  title            String?
+  organizationName String?
+  /// Which relationship surfaced them: ["alumni"], ["current"], or both.
+  via              Json?
+
+  /// ── Enrichment. Null until bought. ──
+  enrichedAt    DateTime?
+  name          String?
+  linkedinUrl   String?
+  headline      String?
+  /// Per-EMPLOYER aggregation: [{ company, start, end, current, months, titles }].
+  employers     Json?
+  shortStints   Int?
+  /// "clean" | "pattern" | "disaster", against the role's rubric.
+  tenureVerdict String?
+
+  /// Triage state: "new" | "shortlisted" | "passed".
+  status String @default("new")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// A person appears once per search, so re-running merges rather than
+  /// duplicating — and keeps the enrichment already paid for.
+  @@unique([searchId, apolloId])
+  @@index([userId])
+  @@index([searchId, status])
+  @@map("sourcing_leads")
+}
+
+model CandidateAssessment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Groups every run for the same human: normalized LinkedIn slug
+  /// when we have one, else a name+employer slug.
+  candidateKey  String
+  candidateName String
+  linkedinUrl   String?
+
+  /// Which hiring bar this was graded against (null when the founder
+  /// hasn't authored a profile — we grade on narrative/ICP/stage).
+  hiringProfileVersionId String?
+  /// Stage snapshot, so an old report still reads correctly after the
+  /// company moves stage.
+  maturityStage String?
+
+  /// "pdl" | "pdf" | "pasted" | "manual" | "merged"
+  source     String
+  roleLabel  String @default("AE")
+
+  /// Normalized timeline + PDL payloads + extracted claims — lets a
+  /// re-grade skip re-spending enrichment credits.
+  rawProfile Json
+  /// The report (see candidate-assessment-plan.md for the contract).
+  assessment Json
+  /// Denormalized for list filtering/sorting.
+  verdict    String
+
+  /// A report kept for months must stay interpretable after the
+  /// rubric moves.
+  rubricVersion String @default("v1")
+  model         String @default("gpt-5.5")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, candidateKey, createdAt(sort: Desc)])
+  @@map("candidate_assessments")
+}
+
+// ============================================
+// DEAL AUTOPILOT — TRIAGE
+// ============================================
+
+// One row per (user, calendar event | recording) judgment by the deal
+// autopilot (see deal-autopilot-plan.md). Triple duty: dedupe guard so
+// the 5-min cron never re-classifies an event, audit trail of every
+// machine verdict, and the source for the "correct me" digest of
+// unlikely-deal calls. overriddenAt marks human corrections.
+model DealTriage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  source   String // "calendar" | "recording"
+  sourceId String // calendarEventId or recorder callId
+  eventAt  DateTime // meeting start / call time
+  title    String?
+
+  verdict    String // "likely_deal" | "unlikely_deal" | "confirmed_deal" | "not_a_deal"
+  category   String? // prospect_first_call | vendor_pitch_to_us | fundraising | recruiting | internal | personal | existing_customer | unknown
+  confidence Float?
+  borderline Boolean @default(false)
+  reason     String? @db.Text
+
+  dealId       String? // set when a deal was created/matched
+  overriddenAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, source, sourceId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("deal_triages")
+}
+
+// Quotes & Success Stories (success-stories-plan.md). One collection
+// per customer/story: pasted/imported call sources + optional theme
+// focus → extracted PROOF POINTS (verbatim-quoted, narrative-aligned,
+// metric-carrying — the durable layer) → generated assets across
+// mediums (testimonial / blind / story / case study) × formats.
+model SuccessStoryCollection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title        String
+  customerName String?
+  dealId       String? // optional deal linkage (Phase 2 CTA)
+  themeFocus   String? @db.Text
+
+  // [{ id, title, date, origin: "paste"|"recorder"|"deal", content }]
+  sources Json
+  // [{ id, claim, quote, speaker, role?, date?, metric?,
+  //    narrativePillar?, arc, themeMatch, included }]
+  proofPoints   Json?
+  proofPointsAt DateTime?
+
+  assets SuccessAsset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("success_story_collections")
+}
+
+model SuccessAsset {
+  id           String                 @id @default(cuid())
+  collectionId String
+  collection   SuccessStoryCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  medium  String // testimonial | blind_testimonial | success_story | blind_success_story | case_study | blind_case_study
+  format  String // web | linkedin | tweet | slides
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([collectionId, createdAt(sort: Desc)])
+  @@map("success_assets")
+}
+
+// Future-dated deal tasks with one-touch execution (deal-autopilot-
+// plan.md Part 3 / Phase 5, first slice). A task sleeps until dueAt;
+// the 5-min cron then drafts the founder-voiced message and pings
+// Slack ("⚡ Proposed Task Execution") with a Do-it link that sends it
+// into the deal's linked channel AS THE FOUNDER (user token), logs a
+// timeline entry as proof, and marks the task done.
+model DealTask {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  title     String
+  rationale String? @db.Text
+  source    String  @default("user") // "user" | "deal_analysis" | "pipeline_review"
+  // scheduled → (dueAt reached, ping posted) → pinged → done|dismissed
+  status String    @default("scheduled")
+  dueAt  DateTime?
+
+  // How the one-touch execution happens. "slack_channel" sends
+  // draftMessage into the deal's linked Slack channel. (Future:
+  // "email", …)
+  executeVia   String?
+  draftMessage String? @db.Text
+  proofEntryId String? // timeline entry evidencing execution
+  executedAt   DateTime?
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([userId, status, dueAt])
+  @@index([dealId, status])
+  @@map("deal_tasks")
+}
+
+// One row per deal-related Slack stub post (deal-autopilot-plan.md
+// Part 2). Serves two jobs: (a) dedupe — "did we already post the
+// pre-call plan for THIS meeting?" via the (dealId, kind, sourceRef)
+// unique key; (b) Phase 4 inbound routing — a reply under any stub
+// resolves (slackChannelId, slackTs=thread_ts) → dealId
+// deterministically, no name matching.
+model DealSlackPost {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  // "deal_detected" | "deal_confirmed" | "deal_dismissed" |
+  // "precall_plan" | "analysis_update" | "no_recording_nudge"
+  kind String
+  // Natural dedupe key for at-most-once kinds (precall_plan →
+  // meeting entry id, no_recording_nudge → "once"). Repeatable kinds
+  // (confirmed/dismissed after Undo, analysis updates) store the
+  // slack ts here so the unique key never collides.
+  sourceRef String @default("")
+
+  slackChannelId String
+  slackTs        String
+
+  createdAt DateTime @default(now())
+
+  @@unique([dealId, kind, sourceRef])
+  @@index([slackChannelId, slackTs])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("deal_slack_posts")
+}
+
+// ============================================
+// PRACTICE SUITE
+// ============================================
+
+// One drill attempt (see practice-suite-plan.md). The synthetic buyer
+// is snapshotted into `persona` as { public, hidden, quiz } — the
+// hidden dossier is STRIPPED from API responses until the session is
+// completed (graded), then revealed alongside the report card.
+// dealId / meetingEntryId are reserved for Live-Fire mode (Phase 6):
+// practice anchored to a real upcoming call on a real deal.
+model PracticeSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  drill String // "precall_plan" | "rapport" | "agenda" | "discovery"
+  mode  String? // drill-specific: "script_visible" | "script_hidden" | "two_level" | "freestyle"
+
+  persona Json // { public: {...}, hidden: {...}, quiz: {...}, voice?: string }
+  turns   Json? // [{ role: "user"|"persona"|"coach", text, audioDurationMs?, at }]
+  answers Json? // structured quiz answers (pre-call drill)
+  score   Json? // { overall, dimensions: [{name, score, max, comment}], modelAnswer, nextRep }
+
+  status String @default("active") // "active" | "completed" | "abandoned"
+
+  dealId         String?
+  meetingEntryId String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([userId, drill, createdAt(sort: Desc)])
+  @@map("practice_sessions")
 }

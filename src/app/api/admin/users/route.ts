@@ -1,0 +1,247 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAdminUser } from "@/lib/admin";
+import { prisma } from "@/lib/db";
+
+/**
+ * POST /api/admin/users - Create a new user with email (and optional name)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { email, name } = body;
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "A user with this email already exists" },
+        { status: 409 }
+      );
+    }
+
+    // Get global settings for trial defaults
+    const settings = await prisma.globalSettings.findFirst();
+    const trialMessages = settings?.defaultTrialMessages ?? 50;
+
+    // Create the user
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase().trim(),
+        name: name?.trim() || null,
+        licenseStatus: "TRIAL",
+        trialStartedAt: new Date(),
+        trialMessagesRemaining: trialMessages,
+      },
+    });
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        licenseStatus: user.licenseStatus,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Admin create user error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || ""; // TRIAL, ACTIVE, EXPIRED
+    const identityType = searchParams.get("identityType") || ""; // google, slack, both
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder = searchParams.get("sortOrder") || "desc";
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {};
+
+    // Search by email, name, or slack username
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } },
+        { slackUserName: { contains: search, mode: "insensitive" } },
+        { slackEmail: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Filter by license status
+    if (status) {
+      where.licenseStatus = status as "TRIAL" | "ACTIVE" | "EXPIRED" | "SUSPENDED";
+    }
+
+    // Filter by identity type
+    if (identityType === "google") {
+      where.googleId = { not: null };
+      where.slackUserId = null;
+    } else if (identityType === "slack") {
+      where.slackUserId = { not: null };
+      where.googleId = null;
+    } else if (identityType === "both") {
+      where.googleId = { not: null };
+      where.slackUserId = { not: null };
+    }
+
+    // Filter by workspace
+    const workspaceId = searchParams.get("workspaceId") || "";
+    if (workspaceId) {
+      where.workspaceId = workspaceId;
+    }
+
+    // Build orderBy
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let orderBy: Record<string, any> | Record<string, any>[] = {};
+    if (sortBy === "createdAt") {
+      orderBy = { createdAt: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "name") {
+      orderBy = { name: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "email") {
+      orderBy = { email: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "licenseStatus") {
+      orderBy = { licenseStatus: sortOrder as "asc" | "desc" };
+    } else if (sortBy === "lastActivity") {
+      // lastActiveAt is nullable — push NULLs to the end regardless of direction,
+      // then fall back to updatedAt for users without explicit activity tracking.
+      orderBy = [
+        { lastActiveAt: { sort: sortOrder as "asc" | "desc", nulls: "last" } },
+        { updatedAt: sortOrder as "asc" | "desc" },
+      ];
+    } else if (sortBy === "messageCount") {
+      orderBy = { messages: { _count: sortOrder as "asc" | "desc" } };
+    } else if (sortBy === "conversationCount") {
+      orderBy = { conversations: { _count: sortOrder as "asc" | "desc" } };
+    }
+
+    // Get workspaces for filter dropdown
+    const workspaces = await prisma.workspace.findMany({
+      select: { id: true, slackTeamName: true },
+      orderBy: { slackTeamName: "asc" },
+    });
+
+    // Get users with pagination
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          workspace: {
+            select: {
+              id: true,
+              slackTeamName: true,
+            },
+          },
+          license: {
+            select: {
+              id: true,
+              status: true,
+              expiresAt: true,
+              stripeSubscriptionId: true,
+            },
+          },
+          conversations: {
+            orderBy: { lastMessageAt: "desc" },
+            take: 1,
+            select: {
+              lastMessageAt: true,
+            },
+          },
+          _count: {
+            select: {
+              conversations: true,
+              messages: true,
+            },
+          },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    // Transform for response
+    const transformedUsers = users.map((user: typeof users[number]) => ({
+      id: user.id,
+      email: user.email || user.slackEmail,
+      name: user.name || user.slackUserName,
+      avatarUrl: user.avatarUrl,
+      licenseStatus: user.licenseStatus,
+      trialStartedAt: user.trialStartedAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      // Identity flags
+      hasGoogle: !!user.googleId,
+      hasSlack: !!user.slackUserId,
+      slackUserId: user.slackUserId,
+      googleId: user.googleId,
+      // Workspace
+      workspace: user.workspace
+        ? {
+            id: user.workspace.id,
+            name: user.workspace.slackTeamName,
+          }
+        : null,
+      // License
+      license: user.license
+        ? {
+            id: user.license.id,
+            status: user.license.status,
+            expiresAt: user.license.expiresAt,
+            hasStripe: !!user.license.stripeSubscriptionId,
+          }
+        : null,
+      // Stats
+      conversationCount: user._count.conversations,
+      messageCount: user._count.messages,
+      // Last activity - prefer explicit lastActiveAt, fallback to conversation or updatedAt
+      lastActivity: user.lastActiveAt || user.conversations[0]?.lastMessageAt || user.updatedAt,
+    }));
+
+    return NextResponse.json({
+      users: transformedUsers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      workspaces: workspaces.map(w => ({ id: w.id, name: w.slackTeamName })),
+    });
+  } catch (error) {
+    console.error("Admin users error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
