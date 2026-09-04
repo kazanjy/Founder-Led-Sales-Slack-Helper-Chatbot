@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import SalesNavBar from "@/components/SalesNavBar";
 import LocationField from "@/components/sourcing/LocationField";
 
 /**
  * Candidate sourcing — prototype.
  *
- * Deliberately holds everything in page state and writes nothing to the
- * database, so it ships without a migration. Nothing here is saved: a
- * refresh loses the list, which is the honest trade for getting it in
- * front of a founder now.
+ * This page BUILDS a search. Running one saves it and navigates to
+ * /sourcing/<id>, which is where results, enrichment and triage live —
+ * so a search is addressable, bookmarkable, and still there next week
+ * with the enrichment already paid for.
  *
  * The flow follows what Apollo can actually do, verified against the
  * live API:
@@ -28,6 +30,17 @@ import LocationField from "@/components/sourcing/LocationField";
  * left are the pool that matters.
  */
 
+interface SavedSearchRow {
+  id: string;
+  name: string;
+  roleType: string;
+  totalFound: number;
+  leadCount: number;
+  enrichedCount: number;
+  shortlistedCount: number;
+  lastRunAt: string;
+}
+
 interface CompanyPill {
   name: string;
   /** Priority tier from the hiring profile. 0 = typed in by hand. */
@@ -44,38 +57,6 @@ interface ResolvedOrg {
   alternatives: Array<{ id: string; name: string; domain: string | null }>;
 }
 
-interface Lead {
-  id: string;
-  /** Which relationship(s) surfaced this person: alumni, current, or both. */
-  via?: string[];
-  firstName: string | null;
-  lastNameMasked: string | null;
-  title: string | null;
-  organizationName: string | null;
-}
-
-interface Employer {
-  company: string;
-  start: string | null;
-  end: string | null;
-  current: boolean;
-  months: number | null;
-  titles: string[];
-}
-
-interface EnrichedLead {
-  id: string;
-  name?: string | null;
-  linkedinUrl?: string | null;
-  headline?: string | null;
-  employers?: Employer[];
-  employerCount?: number;
-  shortStints?: number;
-  shortStintMonths?: number;
-  tenureVerdict?: "clean" | "pattern" | "disaster";
-  error?: string;
-}
-
 const DEFAULT_TITLES = "Account Executive, Founding Account Executive, Commercial Account Executive, Mid-Market Account Executive";
 
 const TIER_STYLE: Record<number, string> = {
@@ -84,20 +65,6 @@ const TIER_STYLE: Record<number, string> = {
   2: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700",
   3: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700",
 };
-
-const VERDICT_STYLE: Record<string, string> = {
-  clean: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  pattern: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  disaster: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
-};
-
-function monthsLabel(m: number | null): string {
-  if (m === null) return "—";
-  if (m < 12) return `${m}mo`;
-  const y = Math.floor(m / 12);
-  const r = m % 12;
-  return r ? `${y}y ${r}mo` : `${y}y`;
-}
 
 export default function SourcingPage() {
   const [companies, setCompanies] = useState<CompanyPill[]>([]);
@@ -116,13 +83,26 @@ export default function SourcingPage() {
 
   const [resolved, setResolved] = useState<ResolvedOrg[] | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  const [leads, setLeads] = useState<Lead[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [enriched, setEnriched] = useState<Record<string, EnrichedLead>>({});
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedSearchRow[] | null>(null);
+  const router = useRouter();
+
+  const loadSaved = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sourcing/searches");
+      if (!res.ok) return;
+      const data = await res.json();
+      setSaved(data.searches || []);
+    } catch {
+      /* the list is a convenience; a failure here shouldn't block a search */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSaved();
+  }, [loadSaved]);
 
   const splitList = (s: string) =>
     s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean);
@@ -196,8 +176,6 @@ export default function SourcingPage() {
     if (names.length === 0) return setError("Add some company names first.");
     setBusy("resolve");
     setError(null);
-    setLeads(null);
-    setEnriched({});
     try {
       const res = await fetch("/api/sourcing/resolve-orgs", {
         method: "POST",
@@ -218,91 +196,38 @@ export default function SourcingPage() {
   };
 
   const runSearch = async () => {
-    const orgIds = Object.values(chosen).filter(Boolean);
-    if (orgIds.length === 0) return setError("No companies resolved yet.");
+    const picked = companies
+      .map((c) => ({ ...c, apolloOrgId: chosen[c.name] }))
+      .filter((c) => c.apolloOrgId);
+    if (picked.length === 0) return setError("Resolve the companies first.");
     const modes = [wantAlumni && "alumni", wantCurrent && "current"].filter(Boolean);
-    if (modes.length === 0) {
-      return setError("Tick Previously, Currently, or both.");
-    }
+    if (modes.length === 0) return setError("Tick Previously, Currently, or both.");
+
     setBusy("search");
     setError(null);
-    setEnriched({});
-    setSelected(new Set());
     try {
-      const res = await fetch("/api/sourcing/search", {
+      const res = await fetch("/api/sourcing/searches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          orgIds,
+          roleType,
+          companies: picked,
           modes,
           titles: splitList(titleText),
           locations,
           yoeMin: yoeMin ? Number(yoeMin) : undefined,
           yoeMax: yoeMax ? Number(yoeMax) : undefined,
-          perPage: 50,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Search failed");
-      setLeads(data.leads);
-      setTotal(data.total);
-      // One leg can fail while the other returns. Say so rather than
-      // presenting a half result as the whole answer.
-      if (data.partialError) setError(`Partial results — ${data.partialError}`);
+      // The saved search is the destination — results, enrichment and
+      // triage all live at its own URL.
+      router.push(`/sourcing/${data.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
-    } finally {
       setBusy(null);
     }
-  };
-
-  const enrichSelected = async () => {
-    const ids = [...selected];
-    if (ids.length === 0) return setError("Tick some leads first.");
-    setBusy("enrich");
-    setError(null);
-    try {
-      const res = await fetch("/api/sourcing/enrich", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Pass the selected seat, not a constant: the short-stint
-        // threshold is 12 months for an SDR and 18 for an AE, so a
-        // hardcoded rubric would mislabel SDR tenure.
-        body: JSON.stringify({ ids, roleLabel: roleType }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Enrichment failed");
-      const next = { ...enriched };
-      for (const r of data.results as EnrichedLead[]) next[r.id] = r;
-      setEnriched(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Enrichment failed");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /**
-   * Hand a sourced candidate to the full assessment.
-   *
-   * Via sessionStorage rather than a query string: /candidate-fit is
-   * statically prerendered, and reading search params there would opt
-   * the route out of it.
-   */
-  const assess = (linkedinUrl: string) => {
-    try {
-      sessionStorage.setItem("sourcing-linkedin-url", linkedinUrl);
-    } catch {
-      /* blocked storage — the field just starts empty */
-    }
-    window.open("/candidate-fit", "_blank");
-  };
-
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelected(next);
   };
 
   return (
@@ -574,128 +499,35 @@ export default function SourcingPage() {
           </p>
         </section>
 
-        {/* Step 3 — leads */}
-        {leads && (
+        {/* Saved searches */}
+        {saved && saved.length > 0 && (
           <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                3. Leads — {leads.length} shown of {total.toLocaleString()}
-              </h2>
-              <button
-                onClick={enrichSelected}
-                disabled={busy !== null || selected.size === 0}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50"
-              >
-                {busy === "enrich" ? "Enriching…" : `Enrich ${selected.size || ""} selected`}
-              </button>
-            </div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Saved searches</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              Surnames are masked and there is no work history until you enrich — that is
-              all Apollo returns from a search, not a bug. Enriching is what reveals
-              tenure, and it spends a credit each.
+              Leads, enrichment and your shortlist decisions are kept. Re-opening one costs nothing.
             </p>
-
-            {leads.length === 0 && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Nothing matched. Try widening the titles, dropping the years-of-experience
-                bounds, or switching Previously/Currently.
-              </p>
-            )}
-
-            <div className="space-y-2">
-              {leads.map((l) => {
-                const e = enriched[l.id];
-                return (
-                  <div
-                    key={l.id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(l.id)}
-                        onChange={() => toggle(l.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {e?.name || `${l.firstName || ""} ${l.lastNameMasked || ""}`.trim()}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {l.title}
-                            {l.organizationName ? ` · ${l.organizationName}` : ""}
-                          </span>
-                          {(l.via || []).map((v) => (
-                            <span
-                              key={v}
-                              title={
-                                v === "alumni"
-                                  ? "Used to work at one of your target companies"
-                                  : "Works at one of your target companies now"
-                              }
-                              className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
-                                v === "alumni"
-                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                              }`}
-                            >
-                              {v === "alumni" ? "ALUMNI" : "CURRENT"}
-                            </span>
-                          ))}
-                          {e?.tenureVerdict && (
-                            <span
-                              className={`px-2 py-0.5 text-xs font-semibold rounded-full ${VERDICT_STYLE[e.tenureVerdict]}`}
-                            >
-                              {e.tenureVerdict === "clean"
-                                ? "Tenure clean"
-                                : e.tenureVerdict === "pattern"
-                                  ? `${e.shortStints} short stints — pattern`
-                                  : `${e.shortStints} short stints — disaster`}
-                            </span>
-                          )}
-                          {e?.linkedinUrl && (
-                            <button
-                              onClick={() => assess(e.linkedinUrl!)}
-                              className="text-xs text-purple-600 dark:text-purple-400 hover:underline"
-                            >
-                              Assess →
-                            </button>
-                          )}
-                        </div>
-
-                        {e?.error && (
-                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">{e.error}</p>
-                        )}
-
-                        {e?.employers && (
-                          <div className="mt-2 space-y-1">
-                            {e.employers.map((c, i) => (
-                              <div
-                                key={`${c.company}-${i}`}
-                                className="flex flex-wrap gap-x-2 text-xs text-gray-600 dark:text-gray-400"
-                              >
-                                <span className="font-medium text-gray-800 dark:text-gray-200">
-                                  {c.company}
-                                </span>
-                                <span>{monthsLabel(c.months)}</span>
-                                <span className="text-gray-400 dark:text-gray-500">
-                                  {c.start || "?"} → {c.current ? "now" : c.end || "?"}
-                                </span>
-                                {c.titles.length > 1 && (
-                                  <span className="text-green-700 dark:text-green-400">
-                                    {c.titles.length} titles (promoted)
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {saved.map((sv) => (
+                <Link
+                  key={sv.id}
+                  href={`/sourcing/${sv.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/40 -mx-2 px-2 rounded"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{sv.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {sv.leadCount} lead{sv.leadCount === 1 ? "" : "s"}
+                      {sv.enrichedCount > 0 ? ` · ${sv.enrichedCount} enriched` : ""}
+                      {sv.shortlistedCount > 0 ? ` · ${sv.shortlistedCount} shortlisted` : ""}
+                      {" · "}
+                      {new Date(sv.lastRunAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </div>
                   </div>
-                );
-              })}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 shrink-0">
+                    {sv.roleType}
+                  </span>
+                </Link>
+              ))}
             </div>
           </section>
         )}

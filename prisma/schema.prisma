@@ -182,6 +182,7 @@ model User {
   dealTriages                DealTriage[]
   dealSlackPosts             DealSlackPost[]
   candidateAssessments       CandidateAssessment[]
+  sourcingSearches           SourcingSearch[]
   dealTasks                  DealTask[]
   successStoryCollections    SuccessStoryCollection[]
   coldCallScriptVersions     ColdCallScriptVersion[]
@@ -2829,6 +2830,103 @@ model BusinessCaseInstance {
 /// show a history ("assessed Jul 3 · re-assessed Aug 11 against the
 /// new profile") and so a verdict is always traceable to the bar and
 /// rubric in force at the time.
+/// A saved candidate search.
+///
+/// Sourcing used to hold everything in page state, which meant a
+/// refresh threw away the imported companies, the leads AND the
+/// enrichment credits already spent on them. Persisting the search
+/// makes it addressable — /sourcing/<id> — so it can be bookmarked,
+/// shared with whoever else is hiring, and returned to next week.
+///
+/// The CRITERIA are stored, not just the results: a search a founder
+/// wants back is usually one they want to re-run, and re-deriving the
+/// filters from a list of people is impossible.
+model SourcingSearch {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Human label. Derived from the companies searched when not set.
+  name     String?
+  /// Which seat this hunt is for — drives the tenure rubric on enrich.
+  roleType String  @default("AE")
+
+  /// Resolved companies: [{ name, tier, group, apolloOrgId }]. The
+  /// Apollo ids are kept so a re-run doesn't have to resolve again.
+  companies Json
+  /// Job titles searched, as given.
+  titles    Json
+  /// Person locations, as given.
+  locations Json
+  /// ["alumni"], ["current"], or both. One Apollo query runs per entry.
+  modes     Json
+
+  yoeMin Int?
+  yoeMax Int?
+
+  /// Apollo's reported match count at the time of the run, which is
+  /// usually larger than the page of leads actually stored.
+  totalFound Int      @default(0)
+  lastRunAt  DateTime @default(now())
+
+  leads SourcingLead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("sourcing_searches")
+}
+
+/// One person found by a search, plus whatever enrichment has been
+/// bought for them.
+///
+/// A lead is NOT a candidate assessment. Apollo search returns an id, a
+/// first name, a masked surname and a title — nothing judgeable. The
+/// enrichment columns stay null until someone spends a credit, and
+/// storing them means that spend is never repeated for the same person.
+model SourcingLead {
+  id       String         @id @default(cuid())
+  searchId String
+  search   SourcingSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  /// Denormalized so lead queries can be scoped without a join.
+  userId   String
+
+  /// Apollo's person id — the only durable handle a search result has.
+  apolloId         String
+  firstName        String?
+  /// e.g. "Ch***e". Apollo masks surnames until enrichment.
+  lastNameMasked   String?
+  title            String?
+  organizationName String?
+  /// Which relationship surfaced them: ["alumni"], ["current"], or both.
+  via              Json?
+
+  /// ── Enrichment. Null until bought. ──
+  enrichedAt    DateTime?
+  name          String?
+  linkedinUrl   String?
+  headline      String?
+  /// Per-EMPLOYER aggregation: [{ company, start, end, current, months, titles }].
+  employers     Json?
+  shortStints   Int?
+  /// "clean" | "pattern" | "disaster", against the role's rubric.
+  tenureVerdict String?
+
+  /// Triage state: "new" | "shortlisted" | "passed".
+  status String @default("new")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// A person appears once per search, so re-running merges rather than
+  /// duplicating — and keeps the enrichment already paid for.
+  @@unique([searchId, apolloId])
+  @@index([userId])
+  @@index([searchId, status])
+  @@map("sourcing_leads")
+}
+
 model CandidateAssessment {
   id     String @id @default(cuid())
   userId String
