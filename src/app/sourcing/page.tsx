@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SalesNavBar from "@/components/SalesNavBar";
+import LocationField from "@/components/sourcing/LocationField";
 
 /**
  * Candidate sourcing — prototype.
@@ -105,7 +106,7 @@ export default function SourcingPage() {
   const [importNote, setImportNote] = useState<string | null>(null);
   const [avoided, setAvoided] = useState<Array<{ name: string; reason: string | null }>>([]);
   const [titleText, setTitleText] = useState(DEFAULT_TITLES);
-  const [locationText, setLocationText] = useState("United States");
+  const [locations, setLocations] = useState<string[]>(["United States"]);
   const [yoeMin, setYoeMin] = useState<string>("3");
   const [yoeMax, setYoeMax] = useState<string>("8");
   // Independent, not either/or: a founder can reasonably want both the
@@ -235,7 +236,7 @@ export default function SourcingPage() {
           orgIds,
           modes,
           titles: splitList(titleText),
-          locations: splitList(locationText),
+          locations,
           yoeMin: yoeMin ? Number(yoeMin) : undefined,
           yoeMax: yoeMax ? Number(yoeMax) : undefined,
           perPage: 50,
@@ -502,15 +503,7 @@ export default function SourcingPage() {
                 className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
               />
             </label>
-            <label className="block">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Locations (the person, not the employer)</span>
-              <textarea
-                value={locationText}
-                onChange={(e) => setLocationText(e.target.value)}
-                rows={2}
-                className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              />
-            </label>
+            <LocationField values={locations} onChange={setLocations} />
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-4">
             <label className="block">
