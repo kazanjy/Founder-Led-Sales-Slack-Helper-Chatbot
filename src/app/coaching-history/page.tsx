@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import SalesNavBar from "@/components/SalesNavBar";
 import ActionHint from "@/components/ActionHint";
+import { WHAT_NEXT_OUTPUT_CONTRACT } from "@/lib/coaching/what-next-prompt";
 import CoachingFramework from "@/components/CoachingFramework";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
@@ -887,7 +888,7 @@ function CoachingHistoryContent() {
       context += "1. What capabilities I'm missing or have in progress at my current maturity stage\n";
       context += "2. What my coaching goals and tasks suggest I should prioritize\n";
       context += "3. What would have the highest impact on moving to the next maturity stage\n\n";
-      context += "For each recommendation, explain WHY it matters and link it to specific readiness items or coaching goals.";
+      context += WHAT_NEXT_OUTPUT_CONTRACT;
 
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
