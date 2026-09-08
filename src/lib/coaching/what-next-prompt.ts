@@ -1,10 +1,9 @@
 /**
- * Output contract for the Coaching page's "What Next?" recommendations.
+ * The shared output contract for "What Next?" recommendations.
  *
- * Used by the Coaching page's "What Next?". GTM Readiness asks a
- * similar question over similar context and could adopt this in one
- * line, but has not been changed — it still asks for rationale in its
- * own words.
+ * Both entry points — the Coaching page and GTM Readiness — ask the
+ * same question of the same kind of context, so they share this rather
+ * than each carrying a paraphrase that drifts apart over time.
  *
  * The contract exists because "explain why it matters" was too weak an
  * instruction. It produced generic rationale ("improving discovery will

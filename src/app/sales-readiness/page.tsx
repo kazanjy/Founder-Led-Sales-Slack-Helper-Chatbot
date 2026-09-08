@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import SalesNavBar from "@/components/SalesNavBar";
+import { WHAT_NEXT_OUTPUT_CONTRACT } from "@/lib/coaching/what-next-prompt";
 import SyncReviewOverlay from "@/components/SyncReviewOverlay";
 
 interface ReadinessItem {
@@ -599,10 +600,17 @@ ${mikeyToolsList ? `4. The MikeyBot tools listed above are purpose-built to help
       context += "You'll see the previous stage, current stage, and next stage below. ";
       context += "Focus your recommendations on gaps across these three stages — particularly unfinished items in my current stage, any loose ends from the previous stage, and early preparation for the next stage.\n\n";
       context += "Weight my recent coaching goals and tasks heavily — they reflect what I'm actively working on right now.\n\n";
-      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items. For each, explain WHY it matters for where I am right now.\n\n";
-      context += "IMPORTANT: When you reference a specific readiness item, include a link to the GTM Readiness Progression page so I can go update it. Use this markdown format: [Item Title](/sales-readiness). ";
+      context += "Please recommend the top 3-5 specific actions. Be specific — name the exact readiness items.\n\n";
+      // Same contract as the Coaching page's "What Next?", so the two
+      // agree on what a recommendation has to contain.
+      context += WHAT_NEXT_OUTPUT_CONTRACT;
+      context += "\n\nIMPORTANT: When you reference a specific readiness item, include a link to the GTM Readiness Progression page so I can go update it. Use this markdown format: [Item Title](/sales-readiness). ";
       context += "For example: \"You should complete your [Pre-Call Planning Checklist](/sales-readiness) — this will...\" ";
-      context += "This lets me click through to update the status if I've already done it.";
+      context += "This lets me click through to update the status if I've already done it. ";
+      // Evidence is where readiness items are cited most often, so the
+      // links have to reach in there too or the most useful mentions
+      // are the ones that aren't clickable.
+      context += "Link them wherever they appear, including inside **Evidence**.";
 
       context += "\n\n---\n\n## Current GTM Readiness Progression State\n\n";
 
