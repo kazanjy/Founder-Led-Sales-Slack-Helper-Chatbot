@@ -1,4 +1,5 @@
 import { markdownToHtml } from "./clipboard";
+import { MIKEY_MARK_DATA_URI } from "./mikey-mark";
 
 /**
  * Export a single markdown document (one chat response, one artifact)
@@ -49,7 +50,7 @@ function stripInlineMarkdown(s: string): string {
 }
 
 const PRINT_CSS = `
-  @page { size: letter; margin: 0.75in; }
+  @page { size: letter; margin: 0.7in 0.75in 0.8in; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -60,18 +61,56 @@ const PRINT_CSS = `
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .doc-header {
-    border-bottom: 1px solid #e5e5e5;
-    padding-bottom: 10px;
-    margin-bottom: 22px;
+  /* Running header, repeated on EVERY page.
+     Done with a table-header-group rather than position:fixed. Fixed
+     was the obvious approach and it very nearly works — but measured
+     against a real 11-page PDF it painted on pages 1-10 and silently
+     dropped off the last one, which is exactly the page someone checks.
+     A thead repeats on every page including the last, in every engine.
+     It also needs no negative offsets or an inflated top margin: the
+     header takes its own space in flow, so body text can't slide under
+     it.
+
+     Do NOT add page-break-inside/break-inside: auto to this table or
+     its thead. That looks like a sensible guard against the generic
+     "table { page-break-inside: avoid }" rule below, and it is what
+     silently reduced the header to page 1 only — declaring the header
+     group breakable tells the engine it need not repeat it. The generic
+     rule is harmless here: a table taller than a page cannot avoid
+     breaking, so it is ignored. Measured, not assumed. */
+  .page-wrap { width: 100%; border-collapse: collapse; margin: 0; font-size: inherit; }
+  .page-wrap > thead { display: table-header-group; }
+  .page-wrap > thead > tr > td {
+    border: none;
+    padding: 0 0 5px;
+    border-bottom: 1px solid #ededed;
+  }
+  .page-wrap > tbody > tr > td { border: none; padding: 16px 0 0; }
+  .page-header {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: baseline;
+    font-size: 8pt;
+    color: #9a9a9a;
+    letter-spacing: 0.02em;
+  }
+  .page-header .brand { display: flex; align-items: center; gap: 6px; }
+  .page-header .brand img {
+    width: 0.24in; height: 0.24in; border-radius: 4px; display: block;
+  }
+  .page-header .brand strong {
+    color: #6b46c1; font-weight: 600; font-size: 9pt; letter-spacing: 0;
+  }
+  .page-header a { color: #9a9a9a; text-decoration: none; }
+  .page-header .site { color: #6b46c1; }
+
+  /* First page only: the document's own dateline. */
+  .doc-meta {
+    margin-bottom: 20px;
     font-size: 9pt;
     color: #8a8a8a;
     letter-spacing: 0.02em;
   }
-  .doc-header strong { color: #6b46c1; font-weight: 600; letter-spacing: 0; }
   h1, h2, h3, h4 { color: #111; line-height: 1.25; margin: 1.4em 0 0.5em; page-break-after: avoid; }
   h1 { font-size: 19pt; margin-top: 0; }
   h2 { font-size: 15pt; }
@@ -156,10 +195,21 @@ export function exportMarkdownAsPdf(
         // The <title> is what print-to-PDF suggests as the filename.
         `<title>${escapeHtml(title)}</title>` +
         `<style>${PRINT_CSS}</style></head><body>` +
-        `<div class="doc-header"><strong>Mikey</strong><span>${escapeHtml(
+        // The wrapper table is what repeats the header: a thead is
+        // reprinted on every page, including the last.
+        `<table class="page-wrap"><thead><tr><td>` +
+        `<div class="page-header">` +
+        `<span class="brand"><img src="${MIKEY_MARK_DATA_URI}" alt="" /><strong>Mikey</strong></span>` +
+        // A real link, so it stays clickable in the saved PDF rather
+        // than being a URL the reader has to retype.
+        `<span>Produced by MikeyBot: <a class="site" href="https://mikeybot.io">mikeybot.io</a></span>` +
+        `</div>` +
+        `</td></tr></thead><tbody><tr><td>` +
+        `<div class="doc-meta">${escapeHtml(
           options.subtitle ? `${options.subtitle} · ${dateLabel}` : dateLabel
-        )}</span></div>` +
+        )}</div>` +
         bodyHtml +
+        `</td></tr></tbody></table>` +
         `</body></html>`
     );
     doc.close();
