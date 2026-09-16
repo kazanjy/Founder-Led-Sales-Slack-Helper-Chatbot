@@ -74,7 +74,17 @@ export async function PUT(
     // Account members can edit each other's sessions.
     const existing = await prisma.coachingSession.findUnique({
       where: { id },
-      select: { id: true, userId: true, sessionStatus: true },
+      // notes/transcript come along so a cleared title can be
+      // regenerated from what is already stored, not only from what
+      // this particular request happened to send.
+      select: {
+        id: true,
+        userId: true,
+        sessionStatus: true,
+        title: true,
+        notes: true,
+        transcript: true,
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -84,10 +94,33 @@ export async function PUT(
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
+    // "Not sent" and "sent empty" are different intentions and used to
+    // be conflated: the old condition required a non-empty title, so
+    // clearing the field wrote nothing and the previous title survived.
+    // Autosave still omits the field entirely while a draft is being
+    // typed, which must keep meaning "leave it alone".
+    const titleProvided = title !== undefined;
+    const titleCleared = titleProvided && !String(title).trim();
+
+    // Regenerate BEFORE the write rather than clearing and fixing up
+    // afterwards, so the row is never briefly untitled and the whole
+    // change lands in one update. Falls back to the stored content
+    // because the client does not always resend notes on a save.
+    // generateSessionTitle returns "Coaching Session" when there is too
+    // little to summarize, so this cannot leave a session with a blank
+    // title.
+    const regeneratedTitle = titleCleared
+      ? await generateSessionTitle(
+          ((notes !== undefined ? notes : existing.notes) || "").trim(),
+          ((transcript !== undefined ? transcript : existing.transcript) || "").trim() || null
+        )
+      : null;
+
     const session = await prisma.coachingSession.update({
       where: { id },
       data: {
-        ...(title !== undefined && title.trim() && { title: title.trim() }),
+        ...(titleProvided && !titleCleared && { title: String(title).trim() }),
+        ...(regeneratedTitle !== null && { title: regeneratedTitle }),
         ...(sessionDate !== undefined && { sessionDate: new Date(sessionDate) }),
         ...(notes !== undefined && { notes: notes.trim() }),
         ...(transcript !== undefined && { transcript: transcript?.trim() || null }),
@@ -169,9 +202,13 @@ export async function PUT(
       });
     }
 
-    // Auto-generate title if it's still a draft placeholder and real notes were provided
+    // Auto-generate title if it's still a draft placeholder and real
+    // notes were provided. Skipped when the title was just cleared and
+    // regenerated above — that already produced a title from the same
+    // content, and running it twice would spend a second model call to
+    // overwrite a good answer with another one.
     const isRealSave = notes?.trim() && notes.trim() !== "(draft)" && notes.trim() !== "";
-    if ((!session.title || session.title.startsWith("It appears")) && isRealSave) {
+    if (regeneratedTitle === null && (!session.title || session.title.startsWith("It appears")) && isRealSave) {
       const generatedTitle = await generateSessionTitle(notes.trim(), transcript?.trim());
       await prisma.coachingSession.update({
         where: { id },
