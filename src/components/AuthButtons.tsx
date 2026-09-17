@@ -70,15 +70,24 @@ export function AuthButtons({ variant = "signup", className = "" }: AuthButtonsP
 
   return (
     <div className={`flex flex-col sm:flex-row gap-3 ${className}`}>
-      <a
-        href="/api/auth/google"
-        onClick={handleGoogleClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
-      >
-        <GoogleIcon />
-        {actionText} with Google
-        {lastUsed === "google" && <LastUsedBadge />}
-      </a>
+      {/* Google is SIGN-IN ONLY.
+          It was pulled from signup because Google's unverified-app
+          consent screen reads as a security warning to someone who has
+          never heard of us, which is a bad first impression at exactly
+          the moment trust is being decided. It has to stay on sign-in:
+          every founder who already signed up with Google would
+          otherwise have no way back into their account. */}
+      {variant === "signin" && (
+        <a
+          href="/api/auth/google"
+          onClick={handleGoogleClick}
+          className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
+        >
+          <GoogleIcon />
+          {actionText} with Google
+          {lastUsed === "google" && <LastUsedBadge />}
+        </a>
+      )}
       <a
         href="/api/auth/slack"
         onClick={handleSlackClick}
@@ -102,37 +111,22 @@ export function AuthButtonsCTA({ variant = "signup" }: { variant?: "signup" | "s
 
   const actionText = variant === "signin" ? "Sign in" : "Sign up";
 
-  const handleGoogleClick = () => {
-    setLastAuthMethod("google");
-  };
-
   const handleSlackClick = () => {
     setLastAuthMethod("slack");
   };
 
+  // Signup only, and only on the marketing page — so no Google here at
+  // all. See the note in AuthButtons for why.
   return (
     <div className="flex flex-col sm:flex-row gap-3">
       <a
-        href="/api/auth/google"
-        onClick={handleGoogleClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-      >
-        <GoogleIcon />
-        {actionText} with Google
-        {lastUsed === "google" && <LastUsedBadge />}
-      </a>
-      <a
         href="/api/auth/slack"
         onClick={handleSlackClick}
-        className="relative inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white font-semibold py-3 px-6 rounded-lg hover:bg-white/10 transition-colors"
+        className="relative inline-flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-[#4A154B] font-semibold py-3 px-6 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
       >
-        <SlackIcon className="w-5 h-5" fill="currentColor" />
+        <SlackIcon className="w-5 h-5" />
         {actionText} with Slack
-        {lastUsed === "slack" && (
-          <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-white dark:bg-gray-800 text-blue-600 text-[10px] font-medium rounded-full shadow-sm">
-            Last Used
-          </span>
-        )}
+        {lastUsed === "slack" && <LastUsedBadge />}
       </a>
     </div>
   );
