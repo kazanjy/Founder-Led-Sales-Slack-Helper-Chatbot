@@ -197,6 +197,26 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  /**
+   * Impersonate straight into the Coaching page.
+   *
+   * Sits beside "Login as User" and carries the same confirmation: it
+   * is the same act of entering a customer's account, and only differs
+   * in where it lands. The unconfirmed handleImpersonateToLink below is
+   * used by the conversation rows, which are already a deliberate click
+   * on one specific conversation.
+   */
+  const handleImpersonateToCoaching = async () => {
+    const confirmed = await showConfirm({
+      title: "Go to Coaching",
+      message: `Are you sure you want to log in as ${user?.name || user?.email || "this user"}? A new tab will open on their Coaching page as this user.`,
+      variant: "warning",
+      confirmLabel: "Go to Coaching",
+    });
+    if (!confirmed) return;
+    await handleImpersonateToLink("/coaching-history");
+  };
+
   const activityTypeColors: Record<string, string> = {
     "narrative": "bg-blue-100 text-blue-700",
     "discovery": "bg-indigo-100 text-indigo-700",
@@ -340,10 +360,23 @@ export default function AdminUserDetailPage() {
             {displayName || displayEmail || "Unknown User"}
           </h1>
         </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+        <button
+          onClick={handleImpersonateToCoaching}
+          disabled={impersonating}
+          title="Log in as this user and land on their Coaching page"
+          className="px-4 py-2 bg-white dark:bg-gray-800 border border-amber-500 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.42A12 12 0 0112 21.5a12 12 0 01-6.16-10.92L12 14z" />
+          </svg>
+          <span>Go to Coaching</span>
+        </button>
         <button
           onClick={handleImpersonate}
           disabled={impersonating}
-          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2 self-start sm:self-auto text-sm sm:text-base flex-shrink-0"
+          className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2 text-sm sm:text-base"
         >
           {impersonating ? (
             <>
@@ -362,6 +395,7 @@ export default function AdminUserDetailPage() {
             </>
           )}
         </button>
+        </div>
       </div>
 
       <AskAccountQuestion
