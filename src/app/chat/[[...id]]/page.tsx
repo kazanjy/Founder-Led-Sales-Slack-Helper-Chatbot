@@ -5072,6 +5072,12 @@ export default function ChatPage() {
                                 subtitle:
                                   conversations.find((c) => c.id === selectedConversation)?.title ||
                                   undefined,
+                                // Printed at the top of every page as a
+                                // real link, so a shared PDF leads back
+                                // to the live conversation.
+                                sourceUrl: selectedConversation
+                                  ? `${window.location.origin}/chat/${selectedConversation}`
+                                  : undefined,
                               });
                               if (!ok) showToast("Couldn't open the PDF export", "bottom");
                             }}
