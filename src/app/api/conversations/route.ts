@@ -17,43 +17,86 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const showArchived = searchParams.get("archived") === "true";
 
-  const conversations = await prisma.conversation.findMany({
+  const selectFields = {
+    id: true,
+    userId: true,
+    source: true,
+    title: true,
+    firstMessagePreview: true,
+    messageCount: true,
+    createdAt: true,
+    lastMessageAt: true,
+    slackChannelId: true,
+    archived: true,
+    attachmentsIncluded: true,
+    imagesIncluded: true,
+    mode: true,
+    projectId: true,
+    isPrivate: true,
+    sharedWithAccount: true,
+    user: { select: { id: true, name: true, email: true, slackUserName: true } },
+  };
+
+  // User's own conversations
+  const ownConversations = await prisma.conversation.findMany({
     where: {
       userId: user.id,
       archived: showArchived,
     },
     orderBy: { lastMessageAt: "desc" },
-    select: {
-      id: true,
-      source: true,
-      title: true,
-      firstMessagePreview: true,
-      messageCount: true,
-      createdAt: true,
-      lastMessageAt: true,
-      slackChannelId: true,
-      archived: true,
-    },
+    select: selectFields,
   });
 
-  return NextResponse.json({ conversations });
+  // Account teammates' conversations shared with account
+  let teamConversations: typeof ownConversations = [];
+  if (user.accountId && !showArchived) {
+    teamConversations = await prisma.conversation.findMany({
+      where: {
+        user: { accountId: user.accountId },
+        userId: { not: user.id },
+        sharedWithAccount: true,
+        isPrivate: false,
+        archived: false,
+      },
+      orderBy: { lastMessageAt: "desc" },
+      take: 200,
+      select: selectFields,
+    });
+  }
+
+  return NextResponse.json({
+    conversations: ownConversations,
+    teamConversations,
+  });
 }
 
 /**
  * POST /api/conversations - Create a new web conversation
+ * Optional body: { mode: "CHATBASE" | "DIRECT" }
  */
-export async function POST() {
+export async function POST(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Parse optional body for mode
+  let mode: "CHATBASE" | "DIRECT" = "CHATBASE";
+  try {
+    const body = await request.json();
+    if (body.mode === "DIRECT") {
+      mode = "DIRECT";
+    }
+  } catch {
+    // No body or invalid JSON — use defaults
+  }
+
   const conversation = await prisma.conversation.create({
     data: {
       userId: user.id,
       source: "WEB",
-      // No workspace, channel, or thread for web conversations
+      mode,
     },
   });
 

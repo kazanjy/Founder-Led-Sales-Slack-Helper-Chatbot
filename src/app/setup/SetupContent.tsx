@@ -82,7 +82,7 @@ export default function SetupContent() {
   if (!teamId) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <p className="text-red-600">Missing workspace information</p>
         </div>
       </main>
@@ -91,22 +91,22 @@ export default function SetupContent() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full">
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🌊</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Almost there!
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Mikey has been added to <strong>{workspace}</strong>
           </p>
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Add Mikey to your &quot;sales&quot; or &quot;GTM&quot; channel!
           </label>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
             Choose the channel where most of your GTM topics are discussed - you can add him to more later.
           </p>
 
@@ -121,9 +121,9 @@ export default function SetupContent() {
                 placeholder="Search channels..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100"
               />
-              <div className="border border-gray-300 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+              <div className="border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                 {channels
                   .filter((ch) =>
                     ch.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -135,7 +135,7 @@ export default function SetupContent() {
                       className={`px-4 py-2 cursor-pointer hover:bg-blue-50 ${
                         selectedChannel === channel.id
                           ? "bg-blue-100 text-blue-900 font-medium"
-                          : "text-gray-900"
+                          : "text-gray-900 dark:text-gray-100"
                       }`}
                     >
                       #{channel.name}
@@ -157,13 +157,13 @@ export default function SetupContent() {
 
           <button
             onClick={handleSkip}
-            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors"
+            className="w-full bg-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium py-3 px-6 rounded-lg transition-colors"
           >
             Skip for now
           </button>
         </div>
 
-        <p className="text-xs text-gray-500 text-center mt-6">
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6">
           You can always add Mikey to channels later with{" "}
           <code className="bg-gray-100 px-1 py-0.5 rounded">/invite @Mikey</code>
         </p>

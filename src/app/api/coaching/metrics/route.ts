@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
+    const targetUserId = request.nextUrl.searchParams.get("userId");
+
+    // Allow viewing another user's metrics if they're in the same account
+    let userId = user.id;
+    if (targetUserId && targetUserId !== user.id && user.accountId) {
+      const targetUser = await prisma.user.findFirst({
+        where: { id: targetUserId, accountId: user.accountId },
+        select: { id: true },
+      });
+      if (targetUser) userId = targetUser.id;
+    }
+
+    const metrics = await prisma.coachingMetricDefinition.findMany({
+      where: {
+        userId,
+        ...(includeArchived ? {} : { archived: false }),
+      },
+      orderBy: { order: "asc" },
+    });
+
+    return NextResponse.json({ metrics });
+  } catch (error) {
+    console.error("Error fetching metric definitions:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch metric definitions" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, definition, format, interval, kind } = body;
+
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    const safeKind: "metric" | "section" = kind === "section" ? "section" : "metric";
+
+    const maxOrder = await prisma.coachingMetricDefinition.aggregate({
+      where: { userId: user.id },
+      _max: { order: true },
+    });
+
+    const order = (maxOrder._max.order ?? -1) + 1;
+
+    const metric = await prisma.coachingMetricDefinition.create({
+      data: {
+        userId: user.id,
+        name: name.trim(),
+        // Sections only carry a name + order; format/definition/
+        // interval are unused for them.
+        definition: safeKind === "metric" ? (definition?.trim() || null) : null,
+        format: safeKind === "metric" ? (format || "number") : "number",
+        interval: safeKind === "metric" ? (interval || null) : null,
+        order,
+        kind: safeKind,
+      },
+    });
+
+    return NextResponse.json({ metric });
+  } catch (error) {
+    console.error("Error creating metric definition:", error);
+    return NextResponse.json(
+      { error: "Failed to create metric definition" },
+      { status: 500 }
+    );
+  }
+}

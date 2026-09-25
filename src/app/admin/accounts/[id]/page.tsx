@@ -1,0 +1,944 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import AskAccountQuestion from "@/components/AskAccountQuestion";
+
+interface AccountUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  slackUserName: string | null;
+  slackUserId: string | null;
+  avatarUrl: string | null;
+  accountRole: string;
+  licenseStatus: string;
+  _count: { conversations: number; messages: number };
+  workspaceId: string | null;
+  workspace: { id: string; slackTeamName: string } | null;
+  createdAt: string;
+}
+
+interface ChannelClaim {
+  id: string;
+  slackChannelId: string;
+  slackChannelName: string | null;
+  workspaceId: string;
+  workspace: { id: string; slackTeamName: string };
+  claimedBy: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    slackUserName: string | null;
+  };
+  createdAt: string;
+}
+
+interface AccountDetail {
+  id: string;
+  name: string;
+  emailDomain: string | null;
+  createdAt: string;
+  updatedAt: string;
+  users: AccountUser[];
+  channelClaims: ChannelClaim[];
+}
+
+interface ActivityItem {
+  id: string;
+  type: string;
+  label: string;
+  title: string | null;
+  link: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  userAvatarUrl: string | null;
+  createdAt: string;
+}
+
+const activityTypeColors: Record<string, string> = {
+  "narrative": "bg-blue-100 text-blue-700",
+  "discovery": "bg-indigo-100 text-indigo-700",
+  "checklist": "bg-cyan-100 text-cyan-700",
+  "precall-plan": "bg-teal-100 text-teal-700",
+  "research": "bg-emerald-100 text-emerald-700",
+  "email-sequence": "bg-orange-100 text-orange-700",
+  "linkedin-sequence": "bg-sky-100 text-sky-700",
+  "cold-call": "bg-rose-100 text-rose-700",
+  "sales-deck": "bg-violet-100 text-violet-700",
+  "call-review": "bg-amber-100 text-amber-700",
+  "maturity": "bg-green-100 text-green-700",
+  "sales-metrics": "bg-pink-100 text-pink-700",
+  "ad-creator": "bg-rose-100 text-rose-700",
+  "slack-chat": "bg-purple-100 text-purple-700",
+  "web-chat": "bg-gray-100 text-gray-700 dark:text-gray-200",
+  "chat": "bg-gray-100 text-gray-700 dark:text-gray-200",
+  "coaching": "bg-yellow-100 text-yellow-700",
+};
+
+function formatTimeAgo(dateStr: string): string {
+  const tz = "America/Los_Angeles";
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  const nowPT = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+  const datePT = new Date(date.toLocaleString("en-US", { timeZone: tz }));
+
+  const todayPT = new Date(nowPT.getFullYear(), nowPT.getMonth(), nowPT.getDate());
+  const dateDayPT = new Date(datePT.getFullYear(), datePT.getMonth(), datePT.getDate());
+  const yesterdayPT = new Date(todayPT);
+  yesterdayPT.setDate(yesterdayPT.getDate() - 1);
+
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", timeZone: tz,
+  });
+
+  if (dateDayPT.getTime() === todayPT.getTime()) {
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+  }
+
+  if (dateDayPT.getTime() === yesterdayPT.getTime()) {
+    return `Yesterday, ${timeStr}`;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric", timeZone: tz,
+  }) + ", " + timeStr;
+}
+
+export default function AdminAccountDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [account, setAccount] = useState<AccountDetail | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [feedFilter, setFeedFilter] = useState<string>("all");
+  const [feedSearch, setFeedSearch] = useState("");
+  const [impersonating, setImpersonating] = useState(false);
+
+  // Channel claim form state
+  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [claimWorkspaceId, setClaimWorkspaceId] = useState("");
+  const [claimChannels, setClaimChannels] = useState<{ id: string; name: string }[]>([]);
+  const [claimChannelsLoading, setClaimChannelsLoading] = useState(false);
+  const [claimSelectedChannel, setClaimSelectedChannel] = useState("");
+  const [claimOwnerId, setClaimOwnerId] = useState("");
+  const [claimError, setClaimError] = useState("");
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+
+  // Add user form state
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [addUserSearch, setAddUserSearch] = useState("");
+  const [addUserResults, setAddUserResults] = useState<{ id: string; name: string | null; email: string | null; slackUserName: string | null }[]>([]);
+  const [addUserSearching, setAddUserSearching] = useState(false);
+  const [addUserRole, setAddUserRole] = useState("MEMBER");
+  const [addUserError, setAddUserError] = useState("");
+
+  // Edit account name state
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editNameSaving, setEditNameSaving] = useState(false);
+
+  const handleSaveName = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === account?.name) {
+      setEditingName(false);
+      return;
+    }
+    setEditNameSaving(true);
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setEditingName(false);
+        fetchAccount();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEditNameSaving(false);
+    }
+  };
+
+  const fetchAccount = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAccount(data.account);
+        setActivity(data.activity || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch account:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user) { router.push("/?error=not_logged_in"); return; }
+      fetchAccount();
+    }).catch(() => router.push("/?error=not_logged_in"));
+  }, [router, fetchAccount]);
+
+  const searchUsers = async (query: string) => {
+    if (query.length < 2) {
+      setAddUserResults([]);
+      return;
+    }
+    setAddUserSearching(true);
+    try {
+      const res = await fetch(`/api/admin/users?search=${encodeURIComponent(query)}&limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        // Filter out users already in this account
+        const existingIds = new Set(account?.users.map((u) => u.id) || []);
+        setAddUserResults(
+          (data.users || []).filter((u: { id: string }) => !existingIds.has(u.id))
+        );
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAddUserSearching(false);
+    }
+  };
+
+  const handleAddUser = async (userId: string) => {
+    setAddUserError("");
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addUserId: userId, role: addUserRole }),
+      });
+      if (res.ok) {
+        setShowAddUser(false);
+        setAddUserSearch("");
+        setAddUserResults([]);
+        setAddUserRole("MEMBER");
+        fetchAccount();
+      } else {
+        const data = await res.json();
+        setAddUserError(data.error || "Failed to add user");
+      }
+    } catch {
+      setAddUserError("Network error");
+    }
+  };
+
+  const handleRemoveUser = async (userId: string) => {
+    if (!confirm("Remove this user from the account?")) return;
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removeUserId: userId }),
+      });
+      if (res.ok) {
+        fetchAccount();
+      }
+    } catch (error) {
+      console.error("Failed to remove user:", error);
+    }
+  };
+
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    try {
+      const res = await fetch(`/api/admin/accounts/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, updateUserRole: newRole }),
+      });
+      if (res.ok) {
+        fetchAccount();
+      }
+    } catch (error) {
+      console.error("Failed to update role:", error);
+    }
+  };
+
+  const handleImpersonateToLink = async (userId: string, link: string) => {
+    if (impersonating) return;
+    setImpersonating(true);
+    try {
+      const res = await fetch(
+        `/api/admin/users/${userId}/impersonate?redirectTo=${encodeURIComponent(link)}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (res.ok && data.redirectTo) {
+        window.open(data.redirectTo, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to impersonate:", error);
+    } finally {
+      setImpersonating(false);
+    }
+  };
+
+  const loadChannelsForWorkspace = async (workspaceId: string) => {
+    setClaimChannelsLoading(true);
+    setClaimChannels([]);
+    setClaimSelectedChannel("");
+    try {
+      const res = await fetch(`/api/admin/workspaces/${workspaceId}/channels`);
+      if (res.ok) {
+        const data = await res.json();
+        // Filter out channels already claimed
+        const claimedIds = new Set(account?.channelClaims.map((c) => c.slackChannelId) || []);
+        setClaimChannels((data.channels || []).filter((ch: { id: string }) => !claimedIds.has(ch.id)));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setClaimChannelsLoading(false);
+    }
+  };
+
+  const handleCreateClaim = async () => {
+    if (!claimSelectedChannel || !claimWorkspaceId || !claimOwnerId) {
+      setClaimError("Please select a workspace, channel, and owner.");
+      return;
+    }
+    setClaimError("");
+    setClaimSubmitting(true);
+    try {
+      const selectedCh = claimChannels.find((ch) => ch.id === claimSelectedChannel);
+      const res = await fetch(`/api/admin/accounts/${params.id}/channel-claims`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slackChannelId: claimSelectedChannel,
+          slackChannelName: selectedCh ? `#${selectedCh.name}` : null,
+          workspaceId: claimWorkspaceId,
+          claimedByUserId: claimOwnerId,
+        }),
+      });
+      if (res.ok) {
+        setShowClaimForm(false);
+        setClaimWorkspaceId("");
+        setClaimChannels([]);
+        setClaimSelectedChannel("");
+        setClaimOwnerId("");
+        fetchAccount();
+      } else {
+        const data = await res.json();
+        setClaimError(data.error || "Failed to create claim");
+      }
+    } catch {
+      setClaimError("Network error");
+    } finally {
+      setClaimSubmitting(false);
+    }
+  };
+
+  const handleDeleteClaim = async (claimId: string) => {
+    if (!confirm("Remove this channel claim?")) return;
+    try {
+      const res = await fetch(
+        `/api/admin/accounts/${params.id}/channel-claims?claimId=${claimId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        fetchAccount();
+      }
+    } catch (error) {
+      console.error("Failed to delete claim:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500 dark:text-gray-400">Loading account...</div>
+      </div>
+    );
+  }
+
+  if (!account) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-500 mb-4">Account not found</div>
+        <Link href="/admin/accounts" className="text-blue-600 hover:underline">
+          Back to Accounts
+        </Link>
+      </div>
+    );
+  }
+
+  const owner = account.users.find((u) => u.accountRole === "OWNER");
+
+  // Build activity feed filter options
+  const activityTypeLabels: Record<string, string> = {
+    "slack-chat": "Slack Chats",
+    "web-chat": "Web Chats",
+    "coaching": "Coaching",
+    "narrative": "Narratives",
+    "discovery": "Discovery Qs",
+    "checklist": "Checklists",
+    "research": "Research",
+    "email-sequence": "Email Sequences",
+    "linkedin-sequence": "LinkedIn Sequences",
+    "cold-call": "Call Scripts",
+    "sales-deck": "Sales Decks",
+    "call-review": "Call Reviews",
+    "maturity": "GTM Assessments",
+    "sales-metrics": "Sales Metrics",
+    "ad-creator": "Ad Concepts",
+  };
+
+  const presentTypes = new Set(activity.map((a) => a.type));
+  const filterOptions: { key: string; label: string }[] = [{ key: "all", label: "All" }];
+  for (const [key, label] of Object.entries(activityTypeLabels)) {
+    if (presentTypes.has(key)) {
+      filterOptions.push({ key, label });
+    }
+  }
+
+  const filteredActivity = activity
+    .filter((item) => {
+      if (feedFilter !== "all" && item.type !== feedFilter) return false;
+      if (feedSearch) {
+        const q = feedSearch.toLowerCase();
+        const searchText = `${item.userName || ""} ${item.userEmail || ""} ${item.title || ""} ${item.label}`.toLowerCase();
+        if (!searchText.includes(q)) return false;
+      }
+      return true;
+    });
+
+  return (
+    <div>
+      {/* Breadcrumb */}
+      <div className="mb-4">
+        <Link href="/admin/accounts" className="text-sm text-blue-600 hover:underline">
+          Accounts
+        </Link>
+        <span className="text-sm text-gray-400 mx-2">/</span>
+        <span className="text-sm text-gray-600 dark:text-gray-300">{account.name}</span>
+      </div>
+
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{account.name}</h1>
+
+      <AskAccountQuestion scope="account" targetId={account.id} targetLabel={account.name} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column: Account details + Users */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Account Details */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Account</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Name</label>
+                {editingName ? (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName();
+                        if (e.key === "Escape") setEditingName(false);
+                      }}
+                      autoFocus
+                      className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={editNameSaving}
+                      className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {editNameSaving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setEditingName(false)}
+                      className="text-xs px-3 py-1.5 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{account.name}</span>
+                    <button
+                      onClick={() => { setEditName(account.name); setEditingName(true); }}
+                      className="text-xs px-2 py-0.5 text-blue-600 border border-blue-300 rounded hover:bg-blue-50"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              {account.emailDomain && (
+                <div>
+                  <label className="text-sm text-gray-500 dark:text-gray-400">Email Domain</label>
+                  <div className="font-mono text-sm">{account.emailDomain}</div>
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Owner</label>
+                <div>
+                  {owner ? (
+                    <Link href={`/admin/users/${owner.id}`} className="text-blue-600 hover:underline">
+                      {owner.name || owner.email || owner.slackUserName || owner.id}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400 italic">No owner</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Users</label>
+                <div>{account.users.length}</div>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Channels Claimed</label>
+                <div>{account.channelClaims.length}</div>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Created</label>
+                <div>{new Date(account.createdAt).toLocaleDateString()}</div>
+              </div>
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Account ID</label>
+                <div className="font-mono text-xs break-all text-gray-600 dark:text-gray-300">{account.id}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Users */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Members ({account.users.length})
+              </h2>
+              <button
+                onClick={() => {
+                  setShowAddUser(!showAddUser);
+                  setAddUserError("");
+                  setAddUserSearch("");
+                  setAddUserResults([]);
+                }}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                + Add User
+              </button>
+            </div>
+
+            {/* Add user form */}
+            {showAddUser && (
+              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 dark:border-gray-700 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                    Search users by name or email
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Type to search..."
+                    value={addUserSearch}
+                    onChange={(e) => {
+                      setAddUserSearch(e.target.value);
+                      searchUsers(e.target.value);
+                    }}
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Role</label>
+                  <select
+                    value={addUserRole}
+                    onChange={(e) => setAddUserRole(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
+                  >
+                    <option value="MEMBER">Member</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="OWNER">Owner</option>
+                  </select>
+                </div>
+                {addUserSearching && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Searching...</div>
+                )}
+                {addUserResults.length > 0 && (
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {addUserResults.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between bg-white dark:bg-gray-800 rounded px-2 py-1.5 border border-gray-100 text-sm"
+                      >
+                        <span className="truncate">
+                          {u.name || u.email || u.slackUserName || u.id}
+                          {u.email && u.name && (
+                            <span className="text-gray-400 text-xs ml-1">({u.email})</span>
+                          )}
+                        </span>
+                        <button
+                          onClick={() => handleAddUser(u.id)}
+                          className="text-xs px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2 shrink-0"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {addUserSearch.length >= 2 && !addUserSearching && addUserResults.length === 0 && (
+                  <div className="text-xs text-gray-400 italic">No users found</div>
+                )}
+                {addUserError && (
+                  <div className="text-red-600 text-xs">{addUserError}</div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {account.users.map((user) => (
+                <div key={user.id} className="flex items-start gap-3 group">
+                  <Link href={`/admin/users/${user.id}`} className="flex-shrink-0">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="" className="w-9 h-9 rounded-full hover:ring-2 hover:ring-blue-400" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium hover:ring-2 hover:ring-blue-400">
+                        {(user.name || user.email || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/users/${user.id}`}
+                        className="font-medium text-blue-600 hover:underline text-sm truncate"
+                      >
+                        {user.name || user.email || user.slackUserName || user.id}
+                      </Link>
+                      <select
+                        value={user.accountRole}
+                        onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                        className={`text-xs font-medium px-1.5 py-0.5 rounded border-0 cursor-pointer ${
+                          user.accountRole === "OWNER"
+                            ? "bg-purple-100 text-purple-700"
+                            : user.accountRole === "ADMIN"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        <option value="OWNER">OWNER</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="MEMBER">MEMBER</option>
+                      </select>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {user.email && <span>{user.email}</span>}
+                      {user.workspace && (
+                        <span className="ml-2 text-gray-400">
+                          {user.workspace.slackTeamName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      <span className={`inline-block px-1 py-0 rounded ${
+                        user.licenseStatus === "ACTIVE" ? "bg-green-100 text-green-700" :
+                        user.licenseStatus === "TRIAL" ? "bg-yellow-100 text-yellow-700" :
+                        "bg-gray-100 text-gray-600 dark:text-gray-300"
+                      }`}>
+                        {user.licenseStatus}
+                      </span>
+                      <span className="ml-2">{user._count.conversations} convos</span>
+                      <span className="ml-1">{user._count.messages} msgs</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveUser(user.id)}
+                    className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1"
+                    title="Remove from account"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Channel Claims */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Claimed Channels ({account.channelClaims.length})
+              </h2>
+              <button
+                onClick={() => {
+                  setShowClaimForm(!showClaimForm);
+                  setClaimError("");
+                  setClaimWorkspaceId("");
+                  setClaimChannels([]);
+                  setClaimSelectedChannel("");
+                  setClaimOwnerId("");
+                }}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                + Claim Channel
+              </button>
+            </div>
+
+            {/* Claim channel form */}
+            {showClaimForm && (
+              <div className="bg-gray-50 rounded-md p-3 mb-4 border border-gray-200 dark:border-gray-700 space-y-3">
+                {/* Workspace selector */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Workspace</label>
+                  <select
+                    value={claimWorkspaceId}
+                    onChange={(e) => {
+                      setClaimWorkspaceId(e.target.value);
+                      if (e.target.value) {
+                        loadChannelsForWorkspace(e.target.value);
+                      } else {
+                        setClaimChannels([]);
+                        setClaimSelectedChannel("");
+                      }
+                    }}
+                    className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
+                  >
+                    <option value="">Select workspace...</option>
+                    {(() => {
+                      // Deduplicate workspaces from account users
+                      const seen = new Set<string>();
+                      return account.users
+                        .filter((u) => {
+                          if (!u.workspaceId || !u.workspace || seen.has(u.workspaceId)) return false;
+                          seen.add(u.workspaceId);
+                          return true;
+                        })
+                        .map((u) => (
+                          <option key={u.workspace!.id} value={u.workspace!.id}>
+                            {u.workspace!.slackTeamName}
+                          </option>
+                        ));
+                    })()}
+                  </select>
+                </div>
+
+                {/* Channel selector */}
+                {claimWorkspaceId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Channel</label>
+                    {claimChannelsLoading ? (
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Loading channels...</div>
+                    ) : (
+                      <select
+                        value={claimSelectedChannel}
+                        onChange={(e) => setClaimSelectedChannel(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
+                      >
+                        <option value="">Select channel...</option>
+                        {claimChannels.map((ch) => (
+                          <option key={ch.id} value={ch.id}>
+                            #{ch.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {!claimChannelsLoading && claimChannels.length === 0 && claimWorkspaceId && (
+                      <div className="text-xs text-gray-400 mt-1 italic">No unclaimed channels found</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Owner selector */}
+                {claimWorkspaceId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Channel Owner</label>
+                    <select
+                      value={claimOwnerId}
+                      onChange={(e) => setClaimOwnerId(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-700 rounded text-sm"
+                    >
+                      <option value="">Select owner...</option>
+                      {account.users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name || u.email || u.slackUserName || u.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {claimError && (
+                  <div className="text-red-600 text-xs">{claimError}</div>
+                )}
+
+                {claimWorkspaceId && (
+                  <button
+                    onClick={handleCreateClaim}
+                    disabled={claimSubmitting || !claimSelectedChannel || !claimOwnerId}
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {claimSubmitting ? "Claiming..." : "Claim Channel"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Existing claims */}
+            {account.channelClaims.length === 0 && !showClaimForm ? (
+              <div className="text-sm text-gray-400 italic">No channels claimed</div>
+            ) : (
+              <div className="space-y-2">
+                {account.channelClaims.map((claim) => (
+                  <div key={claim.id} className="bg-gray-50 rounded-md px-3 py-2 border border-gray-100 group">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
+                          {claim.slackChannelName || claim.slackChannelId}
+                        </span>
+                        {claim.slackChannelName && (
+                          <span className="text-xs text-gray-400 font-mono">
+                            {claim.slackChannelId}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteClaim(claim.id)}
+                        className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove claim"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Owned by{" "}
+                      <Link href={`/admin/users/${claim.claimedBy.id}`} className="text-blue-600 hover:underline">
+                        {claim.claimedBy.name || claim.claimedBy.email || claim.claimedBy.slackUserName}
+                      </Link>
+                      {" in "}{claim.workspace.slackTeamName}
+                      {" · "}{new Date(claim.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right column: Activity Feed */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+            <div className="px-4 py-4 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activity Feed</h2>
+                <input
+                  type="text"
+                  placeholder="Search activity..."
+                  value={feedSearch}
+                  onChange={(e) => setFeedSearch(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm w-48"
+                />
+              </div>
+              {filterOptions.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {filterOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setFeedFilter(opt.key)}
+                      className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                        feedFilter === opt.key
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {filteredActivity.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-400">
+                  {activity.length === 0 ? "No activity yet" : "No matching activity"}
+                </div>
+              ) : (
+                filteredActivity.map((item) => {
+                  const actUserName = item.userName || "Unknown";
+                  return (
+                    <div
+                      key={`${item.type}-${item.id}`}
+                      className="flex items-start gap-2 sm:gap-3 px-4 py-3 sm:px-6 sm:py-4 hover:bg-blue-50 transition-colors"
+                    >
+                      {/* Avatar + Name: link to admin user profile */}
+                      <Link
+                        href={`/admin/users/${item.userId}`}
+                        className="flex-shrink-0 hover:opacity-80"
+                        title="View admin profile"
+                      >
+                        {item.userAvatarUrl ? (
+                          <img src={item.userAvatarUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full" />
+                        ) : (
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-medium">
+                            {actUserName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </Link>
+                      {/* Rest of row: impersonate and open asset */}
+                      <button
+                        onClick={() => handleImpersonateToLink(item.userId, item.link)}
+                        disabled={impersonating}
+                        className="flex-1 min-w-0 text-left cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                      >
+                        <div className="flex items-start gap-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <Link
+                                href={`/admin/users/${item.userId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-medium text-blue-600 hover:underline truncate text-sm sm:text-base"
+                              >
+                                {actUserName}
+                              </Link>
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${activityTypeColors[item.type] || "bg-gray-100 text-gray-700 dark:text-gray-200"}`}>
+                                {item.label}
+                              </span>
+                            </div>
+                            {item.title && (
+                              <div className="text-sm text-gray-700 dark:text-gray-200 truncate mt-0.5">
+                                {item.title}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              <span className="sm:hidden">{formatTimeAgo(item.createdAt)}</span>
+                              {item.userEmail && <span className="hidden sm:inline">{item.userEmail}</span>}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 self-center text-right ml-2 sm:ml-3 hidden sm:flex items-center gap-2">
+                            <span className="text-xs text-gray-400 whitespace-nowrap">
+                              {formatTimeAgo(item.createdAt)}
+                            </span>
+                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

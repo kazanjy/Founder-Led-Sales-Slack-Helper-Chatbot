@@ -1,0 +1,5192 @@
+{
+  "meta": {
+    "name": "Elite Sales Organization Whitelist - Unified Resume-Assessment Asset",
+    "version": "1.0.0",
+    "generated": "2026-08-15",
+    "purpose": "Single machine-readable asset for scoring the organization-era component of AE and sales-leader resumes. Encodes org-era tiers, elite-era boundaries, alumni lineages, signal flags, scoring rubrics, credit-adjustment rules, anti-signals, and interview verification prompts.",
+    "unit_of_analysis": "organization x era x sales motion x segment x role",
+    "source_documents": [
+      {
+        "id": "original_whitelist",
+        "title": "High-Quality Sales Organization Whitelist (prepared for Pete Kazanjy, Aug 2026)",
+        "role_in_synthesis": "Primary curated list: tier definitions, classic-through-modern org windows, grit-filter tier, PTC/McMahon lineage, anti-signals, screening application."
+      },
+      {
+        "id": "deep_research_report",
+        "title": "Building a High-Quality Sales Organization Whitelist for Evaluating AE and Sales-Leader Resumes",
+        "role_in_synthesis": "Evidence-graded research: measurement model, 12-criterion org scorecard, AE/leader rubrics, credit adjustments, era normalization, public-metric evidence."
+      },
+      {
+        "id": "modern_addendum",
+        "title": "Modern-Era Sales Organization Whitelist Addendum (2015-2026)",
+        "role_in_synthesis": "Modern cohort tiering, Israeli GTM / Silicon Slopes schools, PLG-overlay and AI-demand-capture rules, explicit corrections to the original list."
+      }
+    ],
+    "reconciliation_policy": {
+      "rule_1_addendum_corrections_override": "Where the modern addendum states an explicit update/correction (Ramp upgrade, Brex era bounds, Rippling addition, Dropbox codification, Navan addition, Palantir negative flag, Toast Tier 1 era reconfirmation, post-2022 caveat block), that correction takes precedence.",
+      "rule_2_tier_conflicts": "Where the original whitelist and the research report assign different tiers to the same org-era, the unified tier is the average rounded to the nearest 0.5, rounding ambiguous quarters toward the weaker (higher-number) tier; both source grades are preserved in reconciliation_note.",
+      "rule_3_era_windows": "Era windows take the union of source windows; peak_window marks the strongest overlapping years.",
+      "rule_4_grouped_entries": "Source rows grouping multiple companies (e.g., 'Veritas / NetApp', 'Paycom / Paylocity') are split into separate records sharing the grouped rationale, flagged in reconciliation_note."
+    },
+    "known_gaps": [
+      "Domo, Pluralsight and MX are named as Silicon Slopes school members but were never individually tiered in any source; they appear only as school members, not scored records.",
+      "GeoTel, BMC and Lacework appear in the PTC/McMahon lineage but were not individually tiered; they appear only as lineage nodes."
+    ],
+    "maintenance": {
+      "versioning": "Treat as a versioned data product, not institutional folklore. Log every tier or era change in the changelog.",
+      "reassessment_cadence": {
+        "ai_demand_capture_cohort_months": "6-12",
+        "general_review": "annual window revisits"
+      },
+      "expected_drift": "Today's Tier 1s (Samsara, Rippling, Wiz) will eventually drift to Tier 2 as they scale; new academies are being founded now.",
+      "geo_bias_note": "Underlying evidence has a meaningful US / English-language bias; SEC reporting makes US-listed companies disproportionately easy to validate."
+    },
+    "changelog": [
+      {
+        "version": "1.0.0",
+        "date": "2026-08-15",
+        "changes": "Initial unified synthesis of original whitelist + deep research report + modern addendum. 136 organization records, unified 1-3 tier scale with 0.5 midpoints, grit-filter and demand-capture flags, embedded scoring system, lineage graph."
+      }
+    ]
+  },
+  "core_principles": {
+    "prior_not_verdict": "Whitelist membership establishes a prior, not a verdict. Treat a whitelist hit as a reason to look closer, not to advance automatically - and treat absence as neutral, not disqualifying. Personal attainment, role difficulty, portability, and causal contribution must update the prior.",
+    "logo_plus_era": "The logo alone is not the signal - the logo plus the era is. Oracle 1994 and Oracle 2016 are different companies for talent assessment; Salesforce 2008 vs 2023 likewise.",
+    "org_points_cap": {
+      "ae_points_of_100": 15,
+      "sales_leader_points_of_100": 10,
+      "note": "The whitelist should contribute no more than roughly 15-20% of an AE resume score; less for leaders. The org-era component can never by itself get a candidate above the bar."
+    },
+    "era_arc_theory": "Sales-org quality follows an arc: too small/chaotic to train anyone early; a hypergrowth high-signal window (early PMF through a few years past IPO scale) with high bars, rigorous systems, real quotas and the best operators present and teaching; then scale brings overlay roles, territory fragmentation, softer accountability and brand-driven demand that flatters everyone's numbers. Windows target the high-signal arc; tenure mostly outside the window = evaluate the logo as generic.",
+    "demand_capture_caution": "Eras of overwhelming demand capture (Google Ads mid-2000s, OpenAI today) produce impressive attainment that says little about selling skill. Those orgs still screen for intelligence and polish - but verify the candidate ever had to CREATE demand rather than route it.",
+    "missing_data_policy": "U = unspecified in reliable public sources, never inferred and never converted to zero. Quota attainment, stage-normalized win rate, median deal size and internal stack adoption are generally undisclosed; move these to candidate/reference validation.",
+    "product_vs_sales_quality": "High-quality sales is separated from product quality: enormous organic demand can produce growth despite mediocre sales execution; an excellent sales org in a hard category may grow slower while producing better-trained sellers.",
+    "hiring_model": "P(candidate is excellent | resume) is proportional to P(individual evidence) x P(role difficulty) x P(organization-era quality) x P(skills transfer to target role) - NOT P(worked at famous logo)."
+  },
+  "inclusion_criteria": {
+    "description": "An org/era combination qualifies when most of the following were true during the window:",
+    "criteria": [
+      {
+        "id": "selective_hiring_bar",
+        "text": "Hard to get into, so admission itself screened for something."
+      },
+      {
+        "id": "real_training_methodology",
+        "text": "Formal onboarding, a named methodology actually enforced in deal reviews (MEDDIC/MEDDPICC, Command of the Message, PSS, Challenger, Sandler), active enablement."
+      },
+      {
+        "id": "true_quota_accountability",
+        "text": "Attainment measured honestly, underperformance had consequences, quotas set against a real market - not vanity numbers."
+      },
+      {
+        "id": "competitive_selling",
+        "text": "Reps had to beat credible alternatives, not just process inbound demand for a product that sold itself."
+      },
+      {
+        "id": "earned_pipeline",
+        "text": "Meaningful outbound or expansion motion, so reps built pipeline rather than only receiving it."
+      },
+      {
+        "id": "promotion_ladder",
+        "text": "Visible SDR -> AE -> senior segment -> leadership path; the org developed people rather than burning them."
+      },
+      {
+        "id": "alumni_diaspora",
+        "text": "Graduates went on to disproportionate success as AEs, VPs, CROs elsewhere - the strongest retrospective proof."
+      }
+    ]
+  },
+  "tier_definitions": {
+    "scale_note": "Unified numeric scale merging the original whitelist's Tier 1/2/3, the research report's Roman I/II/III, and the addendum's Arabic tiers. Split or conflicting ratings are encoded as midpoints (1.5, 2.5) per reconciliation policy.",
+    "tiers": {
+      "1": {
+        "label": "Elite talent academy / canonical sales school",
+        "meaning": "Selective intake, enforced methodology, honest quotas, competitive markets, famous alumni tree; unusually strong evidence of a repeatable commercial system and/or talent factory.",
+        "resume_interpretation": "Era-overlapping tenure is strong positive signal on its own."
+      },
+      "1.5": {
+        "label": "Elite/strong boundary",
+        "meaning": "Tier 1 per at least one source or for specific segments/roles; Tier 2 per another lens (evidence confidence, overlay dilution).",
+        "resume_interpretation": "Strong positive prior; validate segment, role and which source's caveat applies."
+      },
+      "2": {
+        "label": "Strong professional org",
+        "meaning": "Well-run machine with real training and accountability, but diluted by scale, brand tailwind, segment unevenness, or era-dependence.",
+        "resume_interpretation": "Positive signal; probe for specifics."
+      },
+      "2.5": {
+        "label": "Strong/contextual boundary",
+        "meaning": "Credible org with material caveats (culture, attainment, decline, thin data).",
+        "resume_interpretation": "Small-to-moderate prior; probe caveats directly."
+      },
+      "3": {
+        "label": "Contextual / grit filter / demand-capture",
+        "meaning": "Signal strongly depends on role, era or flags. Includes (a) GRIT FILTERS: high-volume, high-rejection environments (dialing floors, door-to-door, route sales, freight brokerage) that certify work ethic and resilience, not complex-sale craft; (b) contextual orgs where portability depends on role; (c) demand-capture environments.",
+        "resume_interpretation": "Grit filters: great early-career signal - verify the skills upgraded afterward (Tier 3 stint then Tier 1/2 stint is a classically excellent trajectory). Others: small prior only; require strong individual evidence."
+      }
+    },
+    "extra_states": {
+      "gray": "Quality <70 or evidence too weak - do not use logo as a positive signal.",
+      "exclude_negative": "Adverse evidence (quota design, churn, low productivity, weak process, toxic sales culture) - potential negative prior; see signal_flags.negative_signal."
+    },
+    "formal_decision_rules": {
+      "tier_1": "Quality score >=85 AND evidence confidence >=70%, or extraordinary historical evidence across process/talent/outcomes.",
+      "tier_2": "Quality roughly 75-84 with >=60% confidence, or very strong role-specific evidence.",
+      "tier_3": "Good organization but evidence/portability strongly role- or era-dependent, or grit-filter environment."
+    }
+  },
+  "signal_flag_definitions": {
+    "grit_filter": "High-volume, high-rejection environment certifying work ethic and resilience rather than complex-sale craft. Great early-career signal; distinguish thrivers (promotions, club, recruitment into better orgs) from mere survivors, and verify skills upgraded afterward.",
+    "plg_overlay": "Product-led-growth company where sales overlays enormous inbound/expansion tailwind. Risk: AE harvested pre-qualified inbound rather than building pipeline. Apply scoring.plg_ai_rules.plg_overlay.",
+    "ai_demand_capture": "2023-2026 AI-era org where inbound demand is historically anomalous; 'sales' can mean order-taking and allocation. Apply scoring.plg_ai_rules.ai_demand_capture; reassess every 6-12 months.",
+    "demand_capture_era": "Non-AI era of overwhelming demand capture (e.g., Google Ads mid-2000s, ZIRP-era hot categories). Elite intake screen and polish, but verify the candidate created demand rather than optimized/routed it.",
+    "negative_signal": "Adverse sales-org evidence; the logo may be a negative prior for sales-skill assessment despite brand/stock success.",
+    "toxic_but_successful": "Strong logo with churn-and-burn / culture caveats: may indicate resilience but may also mask inflated quota-miss records. Interview for what the rep actually controlled.",
+    "era_bounded": "Whitelist credit is confined to the stated elite era; discount tenure beginning after the caveat date.",
+    "too_new": "Org younger than ~3 years as a sales academy; unproven; cap credit and reassess.",
+    "not_a_sales_signal": "Revenue outcome driven by concentrated mega-deals or non-repeatable dynamics; do not treat as a sales-machine signal.",
+    "thin_data_provisional": "Tiered provisionally on thin independent sales-org data; validate before heavy weighting.",
+    "israeli_gtm_school": "Member of the Israeli GTM school. Positive resume-lineage marker.",
+    "silicon_slopes_school": "Member of the Utah Silicon Slopes outbound training-ground cluster. Recognizable pedigree; several members' current sentiment has declined.",
+    "mcmahon_lineage": "Node in the PTC / John McMahon sales-system guild (MEDDIC / Command of the Message tradition). An unbroken chain of these logos in the right eras indicates a deliberately-trained operator from a coherent tradition - weight accordingly for AEs and leaders.",
+    "meddic_culture": "Documented MEDDIC / Command-of-the-Message style qualification discipline.",
+    "outbound_academy": "Documented intense outbound pipeline-generation discipline (a genuine skill-builder)."
+  },
+  "regional_schools": [
+    {
+      "id": "israeli_gtm",
+      "name": "Israeli GTM school",
+      "tiered_members": [
+        "wiz",
+        "gong",
+        "monday_com"
+      ],
+      "description": "Tel Aviv R&D + US sales HQ, IDF Unit 8200/Talpiot founder DNA, aggressive ARR-milestone marketing, hyperscaler co-sell.",
+      "resume_signal": "Strong positive lineage marker."
+    },
+    {
+      "id": "silicon_slopes_utah",
+      "name": "Silicon Slopes (Utah) outbound school",
+      "tiered_members": [
+        "qualtrics",
+        "podium",
+        "divvy",
+        "lucid",
+        "weave"
+      ],
+      "untier_mentioned_members": [
+        "Domo",
+        "Pluralsight",
+        "MX"
+      ],
+      "description": "Dense SDR/AE training-ground cluster along the I-15 corridor; 'Utah outbound' is a recognizable pedigree.",
+      "resume_signal": "Positive pedigree marker; respect era boundaries - several member orgs' current sentiment has declined."
+    }
+  ],
+  "acquisition_and_alias_mappings": [
+    {
+      "resume_string_examples": [
+        "TripActions"
+      ],
+      "map_to": "navan",
+      "rule": "Rename (2022); same org."
+    },
+    {
+      "resume_string_examples": [
+        "KeepTruckin"
+      ],
+      "map_to": "motive",
+      "rule": "Rename; same org."
+    },
+    {
+      "resume_string_examples": [
+        "Anysphere"
+      ],
+      "map_to": "cursor",
+      "rule": "Company behind Cursor."
+    },
+    {
+      "resume_string_examples": [
+        "EMC at Dell",
+        "Dell EMC"
+      ],
+      "map_to": "emc",
+      "rule": "Score the predecessor org-era (EMC) when dates overlap the EMC high-quality period; Dell tenure after the 2016 acquisition is not automatic EMC-era credit."
+    },
+    {
+      "resume_string_examples": [
+        "Wiz (Google)",
+        "Google Cloud Security ex-Wiz"
+      ],
+      "map_to": "wiz",
+      "rule": "Google acquisition closed 2026-03-11. Pre-close tenure scores as Wiz elite era; post-close tenure is Google - score separately."
+    },
+    {
+      "resume_string_examples": [
+        "NetSuite (Oracle)"
+      ],
+      "map_to": "netsuite",
+      "rule": "Oracle acquired 2016; elite window is pre-acquisition."
+    },
+    {
+      "resume_string_examples": [
+        "CEB (Gartner)"
+      ],
+      "map_to": "ceb",
+      "rule": "Gartner acquired 2017; CEB window ends there. Post-2017 tenure maps to gartner."
+    },
+    {
+      "resume_string_examples": [
+        "AppDynamics (Cisco)"
+      ],
+      "map_to": "appdynamics",
+      "rule": "Cisco acquired 2017; elite window is pre-acquisition peak intensity."
+    },
+    {
+      "resume_string_examples": [
+        "SuccessFactors (SAP)"
+      ],
+      "map_to": "successfactors",
+      "rule": "SAP acquisition closed 2012; window is the pre-acquisition run-up."
+    },
+    {
+      "resume_string_examples": [
+        "Mercury Interactive (HP)"
+      ],
+      "map_to": "mercury_interactive",
+      "rule": "HP acquired 2006; window ends there. NOT the fintech Mercury (mercury_fintech)."
+    },
+    {
+      "resume_string_examples": [
+        "LinkedIn (Microsoft)"
+      ],
+      "map_to": "linkedin_sales_org",
+      "rule": "Whitelist window 2009-2016 ends at Microsoft acquisition."
+    },
+    {
+      "resume_string_examples": [
+        "Divvy (Bill.com)",
+        "BILL Divvy"
+      ],
+      "map_to": "divvy",
+      "rule": "Score Divvy era pre-acquisition; absorbed post-acquisition."
+    },
+    {
+      "resume_string_examples": [
+        "Qualtrics (SAP)"
+      ],
+      "map_to": "qualtrics",
+      "rule": "Elite era 2012-2021; post-SAP/Silver Lake tenure carries decline caveat."
+    },
+    {
+      "resume_string_examples": [
+        "HashiCorp (IBM)"
+      ],
+      "map_to": "hashicorp",
+      "rule": "IBM acquisition ($6.4B, 2024); score pre-absorption era."
+    },
+    {
+      "resume_string_examples": [
+        "Zenefits",
+        "TriNet Zenefits"
+      ],
+      "map_to": null,
+      "rule": "Not whitelisted (compliance scandal) but a documented lineage seed for Rippling/Brex leadership - lineage marker only; see lineages.zenefits_diaspora."
+    },
+    {
+      "resume_string_examples": [
+        "Cisco Meraki",
+        "Meraki"
+      ],
+      "map_to": null,
+      "rule": "Not separately tiered; 'a quietly important field-sales academy' - positive lineage marker (seeded Samsara, Verkada leadership); see lineages.meraki_school."
+    },
+    {
+      "resume_string_examples": [
+        "Slack"
+      ],
+      "map_to": null,
+      "rule": "Not separately tiered; lineage marker for the OpenAI enterprise-sales build (Maggie Hott, Denise Dresser)."
+    },
+    {
+      "resume_string_examples": [
+        "GeoTel",
+        "BMC",
+        "Lacework",
+        "Force Management"
+      ],
+      "map_to": null,
+      "rule": "PTC/McMahon lineage nodes, not individually tiered; treat era-overlapping tenure as mcmahon_lineage marker."
+    },
+    {
+      "resume_string_examples": [
+        "General rule"
+      ],
+      "map_to": null,
+      "rule": "Employee lists famous acquirer despite never working in its sales system: 0-25% org credit. Joined through acquisition but actually worked in predecessor org: score the predecessor."
+    }
+  ],
+  "lineages": [
+    {
+      "id": "ncr_patterson_tradition",
+      "name": "NCR -> IBM founding tradition",
+      "description": "NCR under John Patterson (1890s-1920s) invented the training-based sales org and trained Thomas Watson, who took the model to IBM. Every classic academy descends from that tradition.",
+      "resume_signal": "Historical context; explains the IBM/Xerox schoolhouse DNA."
+    },
+    {
+      "id": "mcmahon_guild",
+      "name": "PTC / John McMahon guild (MEDDIC / Command of the Message)",
+      "description": "The sales system John McMahon built at PTC was carried through GeoTel, BladeLogic, BMC, AppDynamics, MongoDB, Snowflake (via board influence and alumni), Lacework, and dozens of Force-Management-coached orgs (Command of the Message is largely this school productized). MEDDIC itself was born at PTC (Dick Dunkel/Jack Napoli under McMahon's org). The closest thing enterprise software has to a guild.",
+      "chain": [
+        "PTC (1988-1998)",
+        "GeoTel",
+        "BladeLogic (2003-2008)",
+        "BMC",
+        "AppDynamics (2013-2017)",
+        "MongoDB (2015-2023)",
+        "Snowflake (board/alumni)",
+        "Lacework",
+        "Force Management-coached orgs"
+      ],
+      "resume_signal": "An unbroken chain of these logos in the right eras = a deliberately-trained operator from a coherent tradition. Weight accordingly for both AEs and leaders."
+    },
+    {
+      "id": "oracle_tree",
+      "name": "Oracle field alumni tree",
+      "description": "Oracle field (1988-2001): hyper-competitive, brutally quota-accountable, up-or-out. Alumni tree (Marc Benioff, Tom Siebel, and hundreds of CROs) is the strongest in software history.",
+      "resume_signal": "Era-overlapping Oracle field tenure is a top-decile lineage marker for senior leaders."
+    },
+    {
+      "id": "emc_mafia",
+      "name": "EMC mafia",
+      "description": "Relentless outbound discipline, competitive storage wars, famous rep bootcamp; internal ladder exemplified by Bill Scannell (1986 rep -> worldwide sales leadership). Seeded leadership across infrastructure and security, including Chris Degnan (EMC -> Snowflake founding sales leader).",
+      "resume_signal": "Positive lineage marker for infrastructure/security leadership."
+    },
+    {
+      "id": "xerox_ibm_schoolhouse",
+      "name": "Xerox / IBM schoolhouse",
+      "description": "Xerox PSS (research base behind SPIN Selling) and IBM's sales school + Hundred Percent Club staffed a generation of tech VP roles; internal mobility exemplified by Anne Mulcahy (1976 field rep -> CEO) and Thomas Watson Jr. (1937 sales school -> CEO).",
+      "resume_signal": "Reads mostly in the lineage of senior leaders or early chapters of long careers."
+    },
+    {
+      "id": "zenefits_diaspora",
+      "name": "Zenefits diaspora -> HR/fintech elite",
+      "description": "Zenefits (despite its own scandal) seeded two of the best modern outbound orgs: Matt Plank (Zenefits sales director -> Rippling first sales hire/VP Sales -> CRO 2023) and Sam Blond (Zenefits -> Brex CRO -> Founders Fund -> Rippling board). Kate Jensen also did a Zenefits MBA internship before Stripe/Anthropic.",
+      "resume_signal": "Positive: ex-Zenefits sales tenure that led into Rippling/Brex-era roles."
+    },
+    {
+      "id": "aws_to_stripe",
+      "name": "AWS -> Stripe enterprise transplant",
+      "description": "Mike Clayville (built AWS enterprise sales $1.8B -> $43B) became Stripe CRO - an AWS-caliber enterprise DNA transplant. Successor Eileen O'Mara promoted internally (2024); Americas CRO Tyler Bryson ex-Microsoft.",
+      "resume_signal": "Positive for Stripe enterprise-arm tenure 2018+."
+    },
+    {
+      "id": "meraki_school",
+      "name": "Cisco Meraki -> Samsara / Verkada",
+      "description": "Meraki founders Sanjit Biswas and John Bicket founded Samsara; Samsara CRO Amit Pande (Meraki inside-sales builder) scaled Samsara <$1M -> $1B+ ARR. Verkada was co-founded with Meraki COO Hans Robertson. Meraki is a quietly important field-sales academy.",
+      "resume_signal": "Positive lineage marker for field/inside-sales leadership."
+    },
+    {
+      "id": "snowflake_meddic_diaspora",
+      "name": "Snowflake / MEDDIC data-infra diaspora",
+      "description": "Chris Degnan (founding CRO, employee #13, first sales hire, MEDDIC evangelist, ex-EMC; inception -> $3.4B revenue); successor Mike Gannon ex-VMware/Broadcom/EMC. Databricks CRO Ron Gabrisko ex-Cloudera/IBM/Axway.",
+      "resume_signal": "Positive for data-infrastructure enterprise sellers and leaders."
+    },
+    {
+      "id": "slack_wiz_to_openai",
+      "name": "Slack / Wiz -> OpenAI GTM build",
+      "description": "Maggie Hott (first Slack sales hire) built ChatGPT Enterprise sales from zero; Denise Dresser (ex-Slack CEO) was OpenAI's first CRO; Dali Rajic (Wiz president/COO, ex-Zscaler/Workday) became OpenAI CRO in August 2026.",
+      "resume_signal": "Track which leadership regime a candidate served under; OpenAI cycled multiple CROs by Aug 2026."
+    },
+    {
+      "id": "stripe_to_anthropic",
+      "name": "Stripe -> Anthropic",
+      "description": "Kate Jensen (7 years Stripe sales leadership, ex-Google Enterprise) runs Anthropic's global sales.",
+      "resume_signal": "Contextual; org is young - see ai_demand_capture rules."
+    },
+    {
+      "id": "salesforce_to_sierra",
+      "name": "Salesforce -> Sierra AI",
+      "description": "Bret Taylor (ex-Salesforce co-CEO) founded Sierra; genuinely sales-led, $0 -> $100M in under 21 months.",
+      "resume_signal": "Contextual; young org."
+    },
+    {
+      "id": "adp_dropbox_figma",
+      "name": "ADP -> Dropbox -> Figma (PLG-sales tree)",
+      "description": "Kyle Parrish: ADP (classic academy, from 2009) -> Dropbox (~2011, early GTM/third sales hire; opened Austin office hiring ~150 in under two years; led enterprise sales) -> Figma founding sales leader (2018), scaling ~$2M -> ~$950M ARR through the 2025 IPO. Anchor of the emerging PLG-sales alumni tree; also a Figma/Dropbox alumni tree forming.",
+      "resume_signal": "Founding/early sales leadership at a PLG company (Parrish-type) is Tier 1 regardless of PLG flag, because building the motion is the hard part."
+    },
+    {
+      "id": "utah_school",
+      "name": "Silicon Slopes (Utah) outbound school",
+      "description": "See regional_schools.silicon_slopes_utah.",
+      "resume_signal": "Positive pedigree marker with era caveats."
+    },
+    {
+      "id": "israeli_school",
+      "name": "Israeli GTM school",
+      "description": "See regional_schools.israeli_gtm.",
+      "resume_signal": "Strong positive lineage marker."
+    }
+  ],
+  "scoring": {
+    "organization_era_quality_model": {
+      "description": "12-criterion org-era scorecard, 100 total weight. Rate each observed criterion 0-5 (5 exceptional/verified, 4 clearly strong, 3 adequate, 2 mixed, 1 weak, 0 adverse, U unobserved - never convert U to zero). Normalize raw public metrics for era, segment, sales model, geography, scale, category maturity.",
+      "criteria": [
+        {
+          "rank": 1,
+          "id": "sales_process_rigor",
+          "weight": 14,
+          "measure": "Stage definitions, exit criteria, qualification, forecast cadence, account planning, manager inspection",
+          "strong": "Documented methodology; repeatable operating cadence; measurable forecast discipline",
+          "failure_mode": "'We use MEDDICC' with little operational enforcement"
+        },
+        {
+          "rank": 2,
+          "id": "quota_attainment",
+          "weight": 12,
+          "measure": "Median attainment; % fully ramped >=100%; % >=80%; distribution by cohort",
+          "strong": "Broad attainment over multiple years, not merely a few stars",
+          "failure_mode": "Company reports only top-performer anecdotes"
+        },
+        {
+          "rank": 3,
+          "id": "sales_productivity",
+          "weight": 12,
+          "measure": "Bookings/new ARR per ramped AE, gross-margin contribution, CAC efficiency, ramp duration",
+          "strong": "Productivity stable or increasing as headcount scales",
+          "failure_mode": "Growth entirely explained by adding headcount"
+        },
+        {
+          "rank": 4,
+          "id": "training_certification",
+          "weight": 12,
+          "measure": "Onboarding depth, certification, role-play, coaching, recertification, manager development",
+          "strong": "Formal sales school plus continuous coaching",
+          "failure_mode": "One-time onboarding slide deck"
+        },
+        {
+          "rank": 5,
+          "id": "revenue_growth",
+          "weight": 10,
+          "measure": "Multi-year organic growth, scale- and sector-adjusted",
+          "strong": "Sustained growth across multiple cohorts/product cycles",
+          "failure_mode": "Single boom year or acquisition-driven growth"
+        },
+        {
+          "rank": 6,
+          "id": "retention_expansion",
+          "weight": 10,
+          "measure": "GRR, NRR, wallet retention, renewal, cross-sell/upsell",
+          "strong": "High retention plus expansion rather than constant replacement",
+          "failure_mode": "Fast new-logo growth covering high churn"
+        },
+        {
+          "rank": 7,
+          "id": "win_rate_quality",
+          "weight": 8,
+          "measure": "Win rate by stage, source, segment and competitive status",
+          "strong": "Stable high-quality conversion with denominator discipline",
+          "failure_mode": "Cherry-picking win rate after late qualification"
+        },
+        {
+          "rank": 8,
+          "id": "gtm_complexity",
+          "weight": 8,
+          "measure": "Stakeholders, technical proof, procurement, regulatory, implementation, channel coordination",
+          "strong": "Multi-threaded economic + technical + executive selling",
+          "failure_mode": "Big ACV caused primarily by product pricing"
+        },
+        {
+          "rank": 9,
+          "id": "leader_alumni_quality",
+          "weight": 6,
+          "measure": "Internal promotions, alumni recruited into other elite GTM orgs",
+          "strong": "Repeated production of strong leaders",
+          "failure_mode": "One charismatic CRO surrounded by weak managers"
+        },
+        {
+          "rank": 10,
+          "id": "deal_size",
+          "weight": 3,
+          "measure": "Prefer median ACV plus P25/P75 to raw mean",
+          "strong": "Meaningful economic stakes appropriate to target role",
+          "failure_mode": "Equating higher ACV automatically with better selling"
+        },
+        {
+          "rank": 11,
+          "id": "salestech_revops_maturity",
+          "weight": 3,
+          "measure": "CRM discipline, CPQ, enablement, intent/data, forecasting, conversation intelligence, usage telemetry",
+          "strong": "Integrated system actually adopted by sellers",
+          "failure_mode": "Tool sprawl mistaken for sophistication"
+        },
+        {
+          "rank": 12,
+          "id": "industry_recognition",
+          "weight": 2,
+          "measure": "Independent buyer, training or sales-talent recognition",
+          "strong": "Durable third-party reputation",
+          "failure_mode": "Employer-brand awards or sponsored PR"
+        }
+      ],
+      "quality_score_formula": "QualityScore = 100 * sum_over_observed(w_i * r_i / 5) / sum_over_observed(w_i)",
+      "evidence_confidence_formula": "EvidenceConfidence = (sum of w_i for observed criteria) / 100",
+      "rationale": "Process, attainment, productivity and training carry half the total weight - those factors best predict portable sales talent. Company growth gets only 10% because of survivorship/tailwind bias."
+    },
+    "era_normalization": {
+      "description": "Sales-tech-stack maturity must be interpreted historically; stack maturity means integration and seller leverage, not more software.",
+      "eras": [
+        {
+          "era": "pre_1990",
+          "maturity_looks_like": "Formal territory design, call planning, account records, quotas, sales schools, standardized selling skills, manager inspection"
+        },
+        {
+          "era": "1990_2005",
+          "maturity_looks_like": "Structured CRM/SFA, pipeline stages, solution engineering, account planning, forecast hierarchy, formal methodology"
+        },
+        {
+          "era": "2006_2015",
+          "maturity_looks_like": "Cloud CRM, marketing automation, SDR/AE specialization, customer success, enablement systems, increasingly quantitative RevOps"
+        },
+        {
+          "era": "2016_present",
+          "maturity_looks_like": "Integrated CRM/CPQ/data enrichment, conversation intelligence, product-usage telemetry, automated forecasting, customer health, omnichannel, AI-assisted workflows"
+        }
+      ]
+    },
+    "quantitative_heuristics": {
+      "nrr": {
+        "positive_threshold_pct": 110,
+        "unusually_strong_pct": 120,
+        "market_median_comparator_pct": 101,
+        "comparator_source": "Benchmarkit 2025 report on 2024 SaaS data",
+        "note": "Screening heuristics, not constants; retention varies systematically by ACV - normalize by segment. High native expansion (120%+) means testing seller causality MORE aggressively."
+      },
+      "quota_dataset_ideal": "fully-ramped seller count -> median attainment -> % >=100% -> % >=80% -> P25/P75 -> voluntary attrition. Never use average attainment alone (a few 250% performers conceal unhealthy distributions).",
+      "modern_tier1_benchmark": "RepVue >=85 AND documented quota attainment >=50% AND evidence of self-sourced pipeline.",
+      "win_rate": "Measure from a consistently defined stage; a 60% legal-stage win rate can indicate worse selling than 30% from qualified discovery. Score measurement quality and trend at least as heavily as the nominal percentage.",
+      "deal_size": "Use median ACV + P25/P75 + cycle + stakeholders + new-logo/expansion mix + self-sourced %, never a raw average. Deal size gets low weight: a $20K greenfield cold deal can require more prospecting skill than a $1M brand-assisted renewal.",
+      "productivity_denominator": "Fully ramped productive capacity, not total sales headcount: new ARR per ramped AE, bookings/AE, gross profit/AE, CAC ratio, time-to-ramp, pipeline per seller."
+    },
+    "plg_ai_rules": {
+      "plg_overlay": {
+        "applies_to_examples": [
+          "figma",
+          "notion",
+          "canva",
+          "dropbox",
+          "atlassian",
+          "airtable",
+          "miro",
+          "vercel",
+          "plaid",
+          "apollo_io"
+        ],
+        "risk": "AE harvested pre-qualified inbound and expansion rather than building pipeline.",
+        "score_up_when": [
+          "Self-sourced/outbound pipeline % documented",
+          "Net-new logo acquisition (not just expansion)",
+          "MEDDIC/MEDDPICC qualification of complex enterprise deals",
+          "Multi-threaded procurement navigation"
+        ],
+        "score_down_or_neutral_when": [
+          "Reads as inbound close rate, seat expansion, or renewal management only"
+        ],
+        "founding_leader_exception": "Founding/early sales-leadership tenure at a PLG company (Parrish-type) is Tier 1 regardless - building the motion is the hard part.",
+        "cap_rule": "Without pipeline evidence, cap PLG-logo credit at Tier 2. Threshold to lift the cap: explicit outbound-sourced >=30-40% of pipeline, or founding/early-team status."
+      },
+      "ai_demand_capture": {
+        "applies_to_examples": [
+          "openai",
+          "anthropic",
+          "cursor",
+          "clay",
+          "glean",
+          "sierra",
+          "harvey",
+          "coreweave"
+        ],
+        "context": "2023-2026 AI demand is historically anomalous - inbound so extreme that sales can mean order-taking and allocation.",
+        "real_sales_org_markers": [
+          "Building outbound SDR motions",
+          "Vertical/ABM playbooks",
+          "Multi-year enterprise contracts"
+        ],
+        "weak_signal_examples": [
+          "Cursor (sales-led revenue up 100x but org is months old)",
+          "Clay (explicitly no-cold-outbound inbound org)",
+          "CoreWeave (77% of revenue from 2 customers - concentrated mega-deal capture)"
+        ],
+        "guidance": "Heavily discount 2023-2026 AI tenure unless the candidate demonstrably built pipeline/process; a name-brand AI logo alone is weak evidence of sales skill in this period. Reassess tiers every 6-12 months."
+      },
+      "fastest_to_100m_rule": "Treat fastest-to-$100M-ARR claims as corroboration of org eliteness, not proof of individual skill; verify sourced pipeline, quota, Presidents Club. The ACV/customer-count profile matters: Wiz ($1M->$100M in 18 months, ~260 customers at $384K ACV, enterprise), Deel (20 months, 1,800 customers at $55K ACV, mid-market), Ramp (24 months, 5,000 customers at $20K ACV, SMB velocity) build different muscles."
+    },
+    "ae_rubric": {
+      "total_points": 100,
+      "dimensions": [
+        {
+          "id": "quota_output_repeatability",
+          "points": 30,
+          "full_credit": "2-4 years of attainment, ideally 100%+ repeatedly; quota dollars given; rank/percentile; ramp periods separated"
+        },
+        {
+          "id": "organization_era_credibility",
+          "points": 15,
+          "full_credit": "Exact high-quality era + relevant field segment + substantive tenure"
+        },
+        {
+          "id": "gtm_deal_complexity",
+          "points": 15,
+          "full_credit": "ACV distribution, cycle length, stakeholders, technical/procurement complexity"
+        },
+        {
+          "id": "new_logo_expansion_retention",
+          "points": 10,
+          "full_credit": "Clearly separates self-created new business from renewal and natural expansion"
+        },
+        {
+          "id": "process_forecast_rigor",
+          "points": 10,
+          "full_credit": "Demonstrates qualification, account planning, forecast categories, stage discipline, methodology in actual behavior"
+        },
+        {
+          "id": "progression_selection_signal",
+          "points": 10,
+          "full_credit": "Promotion, larger territories, enterprise moves, leadership assignments, Presidents Club with denominator"
+        },
+        {
+          "id": "evidence_integrity",
+          "points": 10,
+          "full_credit": "Numbers reconcile; quota, bookings, ARR, revenue, ACV used correctly; no vague percentile games"
+        }
+      ],
+      "worked_example": "A candidate with Cisco 1998 but no quota numbers loses to a less-famous candidate with three years at 115%, 128%, 109%, strong self-sourced pipeline, relevant ACVs, credible references."
+    },
+    "sales_leader_rubric": {
+      "total_points": 100,
+      "dimensions": [
+        {
+          "id": "team_performance_distribution",
+          "points": 20,
+          "full_credit": "Median attainment, % at quota, P25/P75, multi-year improvement"
+        },
+        {
+          "id": "hiring_ramp_talent_development",
+          "points": 15,
+          "full_credit": "Quality of hiring cohorts, time-to-productivity, internal promotions, regretted attrition"
+        },
+        {
+          "id": "process_forecasting_cadence",
+          "points": 15,
+          "full_credit": "Forecast accuracy, pipeline coverage, inspection system, manager coaching"
+        },
+        {
+          "id": "personal_selling_foundation",
+          "points": 10,
+          "full_credit": "Credible prior success as a seller, preferably in relevant motion"
+        },
+        {
+          "id": "gtm_complexity_scope",
+          "points": 10,
+          "full_credit": "Segment, geography, ARR/bookings responsibility, manager span, channels"
+        },
+        {
+          "id": "retention_expansion_new_logo",
+          "points": 10,
+          "full_credit": "Balanced engine rather than bookings bought with churn or discounting"
+        },
+        {
+          "id": "organization_era_quality",
+          "points": 10,
+          "full_credit": "Learned and/or led inside a validated sales operating system"
+        },
+        {
+          "id": "career_progression_scope",
+          "points": 5,
+          "full_credit": "Promotions or repeated success at increasing scale"
+        },
+        {
+          "id": "evidence_integrity",
+          "points": 5,
+          "full_credit": "Precise team numbers that reconcile with company trajectory"
+        }
+      ],
+      "system_vs_whale": "'My team hit 110%' is materially inferior to '62% of fully ramped reps hit quota; median attainment rose 78% -> 101%; new-hire ramp fell 9.2 -> 6.5 months; forecast error declined 31% -> 9%.' The second describes a sales system; the first might describe one whale.",
+      "build_vs_harvest": "Era matters doubly for leaders: a VP who joined Snowflake in 2022 inherited a machine; one who built a region there in 2019 constructed it. Ask which. Also weight whether formative IC and first-line-manager years fall inside a whitelist window (where their model of how sales works was formed), and whether their alumni tree - people who followed them or whom they developed - shows up at quality orgs."
+    },
+    "whitelist_credit_adjustments": [
+      {
+        "situation": "Exact Tier 1 era, directly quota-carrying target role, >=24 months fully ramped",
+        "credit_pct": "100",
+        "suggested_default": 100
+      },
+      {
+        "situation": "Tier 1 company but adjacent era or somewhat different segment",
+        "credit_pct": "75-90",
+        "suggested_default": 82
+      },
+      {
+        "situation": "Tier 2 exact-era direct role",
+        "credit_pct": "75-90",
+        "suggested_default": 80
+      },
+      {
+        "situation": "Strong company, but <12 months or mostly ramping",
+        "credit_pct": "25-60",
+        "suggested_default": 40
+      },
+      {
+        "situation": "Overlay/renewal/channel role when evaluating a new-logo AE",
+        "credit_pct": "25-60",
+        "suggested_default": 40
+      },
+      {
+        "situation": "Inside/SMB role when evaluating a $500K+ strategic enterprise AE",
+        "credit_pct": "25-60 depending on subsequent progression",
+        "suggested_default": 45
+      },
+      {
+        "situation": "Joined through acquisition but actually worked in predecessor organization",
+        "credit_pct": "score the predecessor org-era",
+        "suggested_default": null
+      },
+      {
+        "situation": "Lists famous acquirer after acquisition despite never working in its sales system",
+        "credit_pct": "0-25",
+        "suggested_default": 10
+      },
+      {
+        "situation": "Prestigious company but no quota/output metrics",
+        "credit_pct": "org points may remain; performance points do not",
+        "suggested_default": null
+      },
+      {
+        "situation": "Direct evidence candidate was below median despite elite company",
+        "credit_pct": "override the halo",
+        "suggested_default": 0
+      }
+    ],
+    "tenure_rules": {
+      "full_credit_months": "18-24+ months overlapping the window, fully ramped (sources: original whitelist 18-24+; research report >=24 fully ramped)",
+      "tourist_stint": "Under ~18 months inside a window usually means the candidate got the training but never proved durable attainment. One short stint is noise; a pattern of them is signal.",
+      "time_at_risk": "Twelve months of employment may be six months onboarding + three months territory formation + one quarter of actual selling. Do not credit like three full planning/quota cycles."
+    },
+    "anti_signals": [
+      {
+        "id": "right_logo_wrong_era",
+        "text": "Tenure mostly outside the window means the brand reads as generic. Most common screening error: crediting 2021-era hiring-spree cohorts at 2015-era Tier 1 logos."
+      },
+      {
+        "id": "demand_capture_attainment",
+        "text": "Big numbers where the product sold itself (Google Ads 2000s, ZIRP-era hot categories, OpenAI now) need deal-level probing: what did you outbound, what did you displace, what did you save?"
+      },
+      {
+        "id": "tourist_stints",
+        "text": "Pattern of sub-18-month stints inside windows = signal (negative)."
+      },
+      {
+        "id": "zirp_title_inflation",
+        "text": "'VP Sales' at a 15-person 2021 startup often means senior AE with a title. Rebase titles to team size, quota owned, and hiring done."
+      },
+      {
+        "id": "churn_mill_survivorship",
+        "text": "At Tier 3 grinders, distinguish thrivers (promotions, club, recruitment into better orgs) from mere survivors."
+      },
+      {
+        "id": "harvest_phase_leaders",
+        "text": "Leaders who arrived after the machine was built: ask build vs harvest."
+      },
+      {
+        "id": "toxic_but_successful_orgs",
+        "text": "Flag Palantir, Verkada, ServiceTitan-style churn-and-burn explicitly: strong logos that may indicate resilience but may mask inflated quota-miss records; interview for what the rep actually controlled."
+      }
+    ],
+    "positive_patterns": [
+      {
+        "id": "grit_then_craft",
+        "text": "A Tier 3 grit stint early plus a Tier 1/2 stint after is a classically excellent trajectory - grit certified, then craft installed."
+      },
+      {
+        "id": "coherent_lineage_chain",
+        "text": "Unbroken McMahon-guild (or similar school) chains in the right eras = deliberately-trained operator from a coherent tradition."
+      },
+      {
+        "id": "ae_screening_target",
+        "text": "At least one 18-24+ month stint overlapping a Tier 1/2 window, promotion or segment progression inside it, and specific attainment claims (percentages, club years, rank)."
+      }
+    ],
+    "interpretation_bands": [
+      {
+        "score": "85-100",
+        "recommendation": "Priority interview / reference validation"
+      },
+      {
+        "score": "75-84",
+        "recommendation": "Strong candidate; investigate specific uncertainties"
+      },
+      {
+        "score": "65-74",
+        "recommendation": "Plausible, but meaningful evidence gaps"
+      },
+      {
+        "score": "55-64",
+        "recommendation": "Weak-to-ambiguous; proceed only for unusually good role fit"
+      },
+      {
+        "score": "<55",
+        "recommendation": "Generally reject unless resume materially understates measurable performance"
+      }
+    ],
+    "verification_checklist": {
+      "ae_questions": [
+        {
+          "q": "What was your exact annual quota each year, and attainment?",
+          "why": "Establishes denominator",
+          "strong_answer": "Dollar quota plus 2-4 years of percentages"
+        },
+        {
+          "q": "How many fully ramped reps were in your peer cohort, and where did you rank?",
+          "why": "Controls for easy quotas",
+          "strong_answer": "Percentile plus cohort size"
+        },
+        {
+          "q": "What percent of fully ramped peers hit quota?",
+          "why": "Reveals org-health context",
+          "strong_answer": "Knows the distribution, not just club winners"
+        },
+        {
+          "q": "How much was new logo vs expansion vs renewal?",
+          "why": "Separates hunting from installed-base economics",
+          "strong_answer": "Explicit dollar/ARR mix"
+        },
+        {
+          "q": "What percentage of pipeline did you source personally?",
+          "why": "Controls for inbound/SDR advantage",
+          "strong_answer": "Credible pipeline-source breakdown"
+        },
+        {
+          "q": "Median ACV, not just your largest deal?",
+          "why": "Eliminates whale bias",
+          "strong_answer": "Median + range"
+        },
+        {
+          "q": "Typical cycle and number/types of stakeholders?",
+          "why": "Measures complexity",
+          "strong_answer": "Economic, technical, legal/security and executive stakeholders"
+        },
+        {
+          "q": "What did qualification actually require?",
+          "why": "Distinguishes methodology theater from rigor",
+          "strong_answer": "Specific exit criteria and examples of disqualification"
+        },
+        {
+          "q": "How accurate was your commit?",
+          "why": "Indicator of opportunity command",
+          "strong_answer": "Can explain misses and forecast methodology"
+        },
+        {
+          "q": "What happened after close?",
+          "why": "Tests customer-quality orientation",
+          "strong_answer": "Adoption, expansion, renewal or successful handoff"
+        }
+      ],
+      "leader_questions": [
+        {
+          "q": "What percentage of your team hit quota?",
+          "why": "More useful than team average",
+          "strong_answer": "Distribution over >=2 years"
+        },
+        {
+          "q": "What happened to your bottom quartile?",
+          "why": "Tests coaching/standards",
+          "strong_answer": "Improvement, redeployment or disciplined exits"
+        },
+        {
+          "q": "What was new-hire ramp?",
+          "why": "Measures management system",
+          "strong_answer": "Cohort-specific ramp trajectory"
+        },
+        {
+          "q": "Who did you hire or promote who later became a leader?",
+          "why": "Tests talent-factory capability",
+          "strong_answer": "Named internal promotions and scope"
+        },
+        {
+          "q": "Forecast error at 30/60/90 days?",
+          "why": "Separates operators from motivators",
+          "strong_answer": "Quantified accuracy and process"
+        },
+        {
+          "q": "Did you build the machine or inherit it?",
+          "why": "Build vs harvest phase",
+          "strong_answer": "Specific region/segment construction with dates inside the elite window"
+        }
+      ]
+    }
+  },
+  "organizations": [
+    {
+      "id": "xerox",
+      "name": "Xerox",
+      "category": "classic_academies",
+      "sector": "Office equipment",
+      "primary_motion": "field solution selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1965,
+          "end": 1989,
+          "tier": 1,
+          "label": "original modern sales academy",
+          "rationale": "Birthplace of Professional Selling Skills (PSS) and the research base behind SPIN Selling; canonical structured-selling/training reputation with significant internal leadership mobility. Alumni staffed a generation of tech VP roles.",
+          "peak_window": "1965-1985",
+          "evidence": {
+            "key_facts": [
+              "Anne Mulcahy joined as a field sales rep in 1976 and ultimately became CEO and chair",
+              "PSS tradition documented in official history plus secondary sources (B-grade on 1960s training-doc specifics)"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Anne Mulcahy - 1976 field sales rep -> CEO/chair"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Era union of original whitelist (1965-1985) and research report (1968-1989); tier agrees at 1."
+    },
+    {
+      "id": "ibm",
+      "name": "IBM",
+      "category": "classic_academies",
+      "sector": "Enterprise computing",
+      "primary_motion": "complex field/account sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1930,
+          "end": 1989,
+          "tier": 1,
+          "label": "the enterprise selling standard of its time",
+          "rationale": "Company-wide quota culture, Hundred Percent Club, formal year-long sales school, territory and account-management discipline, professional dress-and-process culture. Descends from the NCR/Patterson training tradition.",
+          "peak_window": "1960-1985",
+          "evidence": {
+            "evidence_grade": "A2 official company history",
+            "key_facts": [
+              "Thomas J. Watson Jr. entered IBM as a salesman in 1937 via the sales school and led IBM through nearly 10x revenue growth to $8B",
+              "Hundred Percent Club institutionalized quota attainment exceptionally early"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Thomas J. Watson Sr.",
+        "Thomas J. Watson Jr. - 1937 sales school -> CEO"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Era union of original whitelist (1960-1985) and research report (1930s-1989, especially postwar); tier agrees at 1."
+    },
+    {
+      "id": "adp",
+      "name": "ADP",
+      "category": "classic_academies",
+      "sector": "HCM/payroll",
+      "primary_motion": "SMB outbound through National Accounts",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 1990,
+          "end": null,
+          "tier": 1.5,
+          "label": "the SMB outbound machine",
+          "rationale": "Daily activity discipline, honest quotas, Presidents Club culture, and a real ladder from SMB to National Accounts; durable recurring-revenue selling with new-logo, retention and cross-sell. Still a reliable academy today per the curated list.",
+          "evidence": {
+            "evidence_grade": "A1 filings cite new-business bookings and client retention",
+            "key_facts": [
+              "Strong internal sales-to-executive career pathways",
+              "Kyle Parrish (later Figma founding sales leader) started at ADP in 2009"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Maria Black",
+        "Joe DeSilva"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Tier conflict: original whitelist Tier 1 (1990-present); research report Tier 2 (2000-present, rep-level metrics undisclosed). Reconciled to 1.5 per policy; era union 1990-present."
+    },
+    {
+      "id": "paychex",
+      "name": "Paychex",
+      "category": "classic_academies",
+      "sector": "Payroll/SMB services",
+      "primary_motion": "SMB outbound territory sales",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2015,
+          "tier": 2,
+          "label": "payroll-grind academy",
+          "rationale": "Same payroll-grind model as ADP with slightly less enablement depth; reliable producer of disciplined, activity-driven sellers."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "pg_cpg",
+      "name": "Procter & Gamble (CPG field sales)",
+      "category": "classic_academies",
+      "sector": "Consumer packaged goods",
+      "primary_motion": "structured retail account management",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1980,
+          "end": 2005,
+          "tier": 2,
+          "label": "CPG account-management school",
+          "rationale": "Structured account management, category math, and negotiation training. Strong foundation for later B2B careers, especially retail-adjacent tech."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'P&G / PepsiCo (CPG field sales)'; split per policy."
+    },
+    {
+      "id": "pepsico_cpg",
+      "name": "PepsiCo (CPG field sales)",
+      "category": "classic_academies",
+      "sector": "Consumer packaged goods",
+      "primary_motion": "structured retail account management",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1980,
+          "end": 2005,
+          "tier": 2,
+          "label": "CPG account-management school",
+          "rationale": "Structured account management, category math, and negotiation training. Strong foundation for later B2B careers, especially retail-adjacent tech."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'P&G / PepsiCo (CPG field sales)'; split per policy."
+    },
+    {
+      "id": "cintas",
+      "name": "Cintas",
+      "category": "classic_academies",
+      "sector": "Recurring B2B services",
+      "primary_motion": "route-based territory + cross-sell",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": null,
+          "tier": 2,
+          "label": "route-based B2B with genuine process discipline",
+          "rationale": "Underrated feeder into field sales roles; genuine process discipline and accountability. SEC filing explicitly connects sales-rep productivity improvements with tenure and improved training - unusually strong whitelist evidence.",
+          "peak_window": "1995-2015",
+          "evidence": {
+            "evidence_grade": "A1 SEC",
+            "key_facts": [
+              "2015 filing attributed improved new business to increased number and productivity of reps, with productivity gains from tenure and training",
+              "FY15 rental segment organic growth 7.7%"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Era union of original whitelist (1995-2015) and research report (2000-present); tier agrees at 2."
+    },
+    {
+      "id": "copier_office_equipment",
+      "name": "Copier / office equipment channel",
+      "category": "classic_academies",
+      "sector": "Office equipment",
+      "primary_motion": "door-knocking demo-and-close volume selling",
+      "aliases": [
+        "Pitney Bowes",
+        "Lanier",
+        "Ikon",
+        "copier dealer channels"
+      ],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": 1980,
+          "end": 2005,
+          "tier": 3,
+          "label": "pure grit filter",
+          "rationale": "Door-knocking, demo-and-close volume selling. Many great enterprise careers started here."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "enterprise_rent_a_car",
+      "name": "Enterprise Rent-A-Car (management training)",
+      "category": "classic_academies",
+      "sector": "Car rental",
+      "primary_motion": "customer-facing management training program",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2010,
+          "tier": 3,
+          "label": "hustle and polish screen",
+          "rationale": "Not a sales org per se, but its management training program screened for hustle and customer-facing polish; a common origin story for strong tech sellers."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "oracle_field",
+      "name": "Oracle (field sales)",
+      "category": "onprem_enterprise",
+      "sector": "Database / enterprise applications",
+      "primary_motion": "competitive enterprise direct license sales",
+      "aliases": [
+        "Oracle"
+      ],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 1988,
+          "end": 2005,
+          "tier": 1,
+          "label": "hyper-competitive up-or-out enterprise machine",
+          "rationale": "Brutally quota-accountable, up-or-out, highly competitive enterprise-license motion with executive selling and complex account control. The alumni tree (Benioff, Siebel, and hundreds of CROs) is the strongest in software history.",
+          "peak_window": "1988-2001",
+          "caveats": [
+            "Reported a 30% decline in new software-license revenue in fiscal 2002 while renewal revenue grew - exact era matters; do not treat Oracle as a timeless gold star",
+            "Post-2005 tenure reads as generic absent individual evidence"
+          ],
+          "evidence": {
+            "key_facts": [
+              "Q3 FY2001 revenue rose to $2.7B with applications software sales +25%"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Keith Block",
+        "Marc Benioff (alumnus)",
+        "Tom Siebel (alumnus)"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "alumni_to": [
+        "salesforce",
+        "siebel"
+      ],
+      "reconciliation_note": "Era union of original whitelist field window (1988-2001) and research report (1990-2005, particularly pre-dot-com); tier agrees at 1. Inside sales tracked separately as oracle_direct."
+    },
+    {
+      "id": "oracle_direct",
+      "name": "Oracle Direct (inside sales)",
+      "category": "onprem_enterprise",
+      "sector": "Database / enterprise applications",
+      "primary_motion": "industrialized inside sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2008,
+          "tier": 2,
+          "label": "early industrialized inside-sales academy",
+          "rationale": "One of the first industrialized inside-sales academies; strong process training at high volume."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "ptc",
+      "name": "PTC (Parametric Technology)",
+      "category": "onprem_enterprise",
+      "sector": "CAD/PLM software",
+      "primary_motion": "elite enterprise direct sales",
+      "aliases": [],
+      "signal_flags": [
+        "mcmahon_lineage",
+        "meddic_culture",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 1988,
+          "end": 1998,
+          "tier": 1,
+          "label": "arguably the most influential enterprise sales academy ever",
+          "rationale": "Birthplace of MEDDIC (Dick Dunkel/Jack Napoli, under John McMahon's org). Alumni run a startling share of enterprise software sales orgs - root of the McMahon guild."
+        }
+      ],
+      "notable_leaders": [
+        "John McMahon",
+        "Dick Dunkel",
+        "Jack Napoli"
+      ],
+      "sources": [
+        "original_whitelist"
+      ],
+      "alumni_to": [
+        "bladelogic",
+        "appdynamics",
+        "mongodb",
+        "snowflake"
+      ]
+    },
+    {
+      "id": "emc",
+      "name": "EMC",
+      "category": "onprem_enterprise",
+      "sector": "Enterprise storage/infrastructure",
+      "primary_motion": "long-cycle technical enterprise field sales",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 1986,
+          "end": 2015,
+          "tier": 1,
+          "label": "relentless outbound discipline in the storage wars",
+          "rationale": "Famous rep bootcamp, competitive storage wars, unusually visible internal sales-leadership ladder. The 'EMC mafia' seeded leadership across infrastructure and security.",
+          "peak_window": "1992-2008",
+          "evidence": {
+            "key_facts": [
+              "Bill Scannell joined as a sales rep in 1986 and rose through country, regional and worldwide-sales leadership - a particularly clean internal-development example"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Bill Scannell - 1986 rep -> Global Sales & Customer Operations"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "alumni_to": [
+        "snowflake"
+      ],
+      "reconciliation_note": "Era union of research report (1986-2015, strongest 1990s-2015) and original whitelist (1992-2008); tier agrees at 1. Dell tenure post-2016 acquisition is not automatic EMC-era credit."
+    },
+    {
+      "id": "siebel",
+      "name": "Siebel Systems",
+      "category": "onprem_enterprise",
+      "sector": "Enterprise CRM",
+      "primary_motion": "large-enterprise license field sales",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 1996,
+          "end": 2004,
+          "tier": 1.5,
+          "label": "enterprise process rigor at the CRM peak",
+          "rationale": "Demanding culture, strong methodology, heavyweight field organization at the peak of the CRM wave.",
+          "peak_window": "1996-2003",
+          "caveats": [
+            "Late-era financial deterioration: a 1999 AE should receive more halo than a 2005 resume absent individual evidence"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Craig Ramsey - former SVP Worldwide Sales",
+        "Tom Siebel (ex-Oracle)"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Tier conflict: original whitelist Tier 1 (1996-2004); research report Tier 2 (1996-2003 peak, contextual through 2005). Reconciled to 1.5 per policy."
+    },
+    {
+      "id": "mercury_interactive",
+      "name": "Mercury Interactive",
+      "category": "onprem_enterprise",
+      "sector": "Software testing/ITOM",
+      "primary_motion": "aggressive enterprise direct sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1997,
+          "end": 2006,
+          "tier": 2,
+          "label": "well-drilled enterprise org",
+          "rationale": "Aggressive, well-drilled enterprise org in the testing/ITOM space; respected alumni network. HP acquired 2006."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Do not confuse with fintech Mercury (mercury_fintech)."
+    },
+    {
+      "id": "cisco",
+      "name": "Cisco",
+      "category": "onprem_enterprise",
+      "sector": "Networking",
+      "primary_motion": "technical enterprise + channel selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1991,
+          "end": 2008,
+          "tier": 1.5,
+          "label": "sales-led scale-up at historic magnitude",
+          "rationale": "Excellent enterprise and channel training at massive scale; Chambers entered as worldwide sales leader and the org scaled revenue from $70M (1991) to $1.2B (1995 CEO appointment) to $47B (2015).",
+          "peak_window": "1991-2005",
+          "caveats": [
+            "Signal diluted by overlay roles and market dominance at scale - probe what the candidate personally sourced and closed",
+            "Networking-market growth contributed alongside sales execution (survivorship caution)",
+            "Research report notes still strong through 2015; treat 2009-2015 tenure as Tier 2"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "John Chambers - joined 1991 as SVP Worldwide Sales and Operations"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Tier conflict: research report Tier 1 (1991-2005); original whitelist Tier 2 (1995-2008, overlay dilution). Reconciled to 1.5 per policy; era union 1991-2008."
+    },
+    {
+      "id": "veritas",
+      "name": "Veritas",
+      "category": "onprem_enterprise",
+      "sector": "Enterprise storage software",
+      "primary_motion": "competitive enterprise field sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1998,
+          "end": 2008,
+          "tier": 2,
+          "label": "storage-wars competitor",
+          "rationale": "Storage-wars competitive selling against EMC; disciplined field org."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Veritas / NetApp'; split per policy."
+    },
+    {
+      "id": "netapp",
+      "name": "NetApp",
+      "category": "onprem_enterprise",
+      "sector": "Enterprise storage",
+      "primary_motion": "competitive enterprise field sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1998,
+          "end": 2008,
+          "tier": 2,
+          "label": "storage-wars competitor",
+          "rationale": "Storage-wars competitive selling against EMC; disciplined field org."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Veritas / NetApp'; split per policy."
+    },
+    {
+      "id": "sap",
+      "name": "SAP",
+      "category": "onprem_enterprise",
+      "sector": "ERP",
+      "primary_motion": "very large implementation-heavy enterprise deals",
+      "aliases": [
+        "SAP America"
+      ],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1990,
+          "end": 2015,
+          "tier": 2,
+          "label": "big-deal enterprise craft",
+          "rationale": "Long cycles, multi-threading, procurement combat; multinational, partner-heavy, highly complex ERP transformation selling with a strong sales-to-executive leadership tradition.",
+          "peak_window": "1998-2012",
+          "caveats": [
+            "Verify individual role in team-sold deals",
+            "Public rep-level metrics largely unspecified"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Bill McDermott",
+        "Jim Hagemann Snabe"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Era union of research report (1990-2015) and original whitelist SAP America window (1998-2012); tier agrees at 2."
+    },
+    {
+      "id": "bladelogic",
+      "name": "BladeLogic",
+      "category": "onprem_enterprise",
+      "sector": "Data-center automation",
+      "primary_motion": "elite MEDDIC-native enterprise sales",
+      "aliases": [],
+      "signal_flags": [
+        "mcmahon_lineage",
+        "meddic_culture",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2003,
+          "end": 2008,
+          "tier": 1,
+          "label": "McMahon's own org",
+          "rationale": "Tiny, elite, MEDDIC-native. An era-overlapping BladeLogic stint is one of the densest quality signals available."
+        }
+      ],
+      "notable_leaders": [
+        "John McMahon"
+      ],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "microsoft",
+      "name": "Microsoft (enterprise)",
+      "category": "onprem_enterprise",
+      "sector": "Enterprise software/cloud",
+      "primary_motion": "direct + partner enterprise selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": null,
+          "tier": 2,
+          "label": "immense enterprise GTM sophistication",
+          "rationale": "Strong training and account discipline with immense partner orchestration, but platform gravity and overlay structure inflate attainment - probe what the candidate personally sourced and closed.",
+          "peak_window": "2000-2012 enterprise discipline; 2014-present cloud era",
+          "caveats": [
+            "Installed-base/product-power halo requires individual proof",
+            "Role-sensitive signal"
+          ],
+          "evidence": {
+            "key_facts": [
+              "Microsoft Cloud revenue reached $168.9B in FY2025 vs $137.7B in FY2024"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Kevin Turner",
+        "Judson Althoff"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Both sources Tier 2; era union 1995-present with dual peak windows (original whitelist 2000-2012; research report 2014-present cloud era)."
+    },
+    {
+      "id": "salesforce",
+      "name": "Salesforce",
+      "category": "saas_wave_1",
+      "sector": "SaaS CRM",
+      "primary_motion": "SMB -> mid-market -> enterprise -> strategic",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2004,
+          "end": 2015,
+          "tier": 1,
+          "label": "the SaaS academy",
+          "rationale": "Birthplace of the modern SDR/AE specialization (the Predictable Revenue model, 2004-2008), rigorous enablement, honest segment ladder; the org moved systematically upmarket while building a global recurring-revenue model.",
+          "peak_window": "2006-2015",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "Revenue $22.4M FY02 -> $176M FY05 -> ~$310M FY06 -> $748.7M FY08 -> >$1B FY09"
+            ]
+          }
+        },
+        {
+          "start": 2016,
+          "end": 2020,
+          "tier": 1.5,
+          "label": "late high-quality window",
+          "rationale": "Original whitelist grades post-2015 as Tier 2 (scale and brand gravity dilute per-rep signal); research report keeps Tier 1 through 2020. Reconciled 1.5."
+        },
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "mature incumbent",
+          "rationale": "Still good, but installed-base/brand halo after maturation; a strategic AE selling transformation deals in 2017 should not be scored identically to a loosely analogous title later."
+        }
+      ],
+      "notable_leaders": [
+        "Marc Benioff (ex-Oracle)",
+        "Keith Block (ex-Oracle)"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report",
+        "modern_addendum"
+      ],
+      "alumni_to": [
+        "sierra"
+      ]
+    },
+    {
+      "id": "netsuite",
+      "name": "NetSuite",
+      "category": "saas_wave_1",
+      "sector": "Cloud ERP",
+      "primary_motion": "outbound-heavy mid-market direct sales",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2002,
+          "end": 2016,
+          "tier": 1,
+          "label": "outbound, methodology-enforced, famously demanding",
+          "rationale": "Famously demanding pre-Oracle-acquisition machine; produced a disproportionate number of strong mid-market sellers and leaders."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "servicenow",
+      "name": "ServiceNow",
+      "category": "saas_wave_1",
+      "sector": "Enterprise workflow SaaS",
+      "primary_motion": "large-enterprise new-logo + land-and-expand",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2011,
+          "end": 2019,
+          "tier": 1,
+          "label": "Slootman-era execution machine",
+          "rationale": "Enterprise rigor, honest forecasting culture, high bar; strong new-logo plus disciplined expansion engine.",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "Q1 2013: 96% customer renewal, 128 net-new customers, upsells equal to one-third of ACV signed that quarter"
+            ]
+          }
+        },
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 1.5,
+          "label": "scaled strategic enterprise",
+          "rationale": "Original whitelist grades the later era strong Tier 2; research report keeps Tier 1 to present. Reconciled 1.5.",
+          "evidence": {
+            "key_facts": [
+              "Q4 2025: 244 transactions above $1M net-new ACV; 603 customers above $5M ACV"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Frank Slootman",
+        "Bill McDermott (GTM-oriented CEO)"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ]
+    },
+    {
+      "id": "hubspot",
+      "name": "HubSpot",
+      "category": "saas_wave_1",
+      "sector": "SMB/mid-market SaaS",
+      "primary_motion": "high-velocity inbound-fed selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2008,
+          "end": 2018,
+          "tier": 1,
+          "label": "quantitative velocity-sales academy",
+          "rationale": "Mark Roberge's data-driven hiring, training and management system - a highly documented experiment in quantitative recruiting and coaching; exceptional SMB/mid-market academy.",
+          "peak_window": "2010-2016",
+          "caveats": [
+            "Heavily inbound-fed - verify outbound and expansion chops",
+            "Tier 1 applies to velocity/mid-market; treat as Tier 2 for enterprise comparisons"
+          ],
+          "evidence": {
+            "key_facts": [
+              "Roberge scaled annualized revenue $0 -> $100M and sales from 1 -> 450 sellers",
+              "2015 subscription revenue +58% as rep capacity expanded; avg annual subscription revenue per customer $10,419 (economic proxy, not median ACV)",
+              "~27% of customers / 24% of revenue outside the US in 2015"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Mark Roberge"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "role_tier_overrides": {
+        "velocity_mid_market": 1,
+        "enterprise_comparison": 2
+      },
+      "reconciliation_note": "Era union of research report (2008-2016) and original whitelist (2010-2018); tier agrees at 1 for the velocity motion."
+    },
+    {
+      "id": "successfactors",
+      "name": "SuccessFactors",
+      "category": "saas_wave_1",
+      "sector": "HCM SaaS",
+      "primary_motion": "aggressive enterprise SaaS sales",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2005,
+          "end": 2011,
+          "tier": 2,
+          "label": "execution-obsessed run-up to SAP acquisition",
+          "rationale": "Aggressive, execution-obsessed culture in the run-up to the SAP acquisition (closed 2012)."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "workday",
+      "name": "Workday",
+      "category": "saas_wave_1",
+      "sector": "Enterprise HCM/financials SaaS",
+      "primary_motion": "large-enterprise transformation selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2008,
+          "end": null,
+          "tier": 2,
+          "label": "large-enterprise cloud transformation craft",
+          "rationale": "Politically and technically complex enterprise transformations; enterprise discipline and long-cycle craft during and after the category-establishment window.",
+          "peak_window": "2012-2016",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "Subscription backlog $20.9B -> $25.1B in FY2025 -> $28.1B in FY2026"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Doug Robinson",
+        "Rob Enslin",
+        "Patrick Blair"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "role_tier_overrides": {
+        "large_enterprise": 1.5
+      },
+      "reconciliation_note": "Original whitelist Tier 2 (2008-2016); research report II/I for large-enterprise roles (2012-present). Base 2 with large-enterprise override 1.5 per policy."
+    },
+    {
+      "id": "google_ads",
+      "name": "Google (Ads sales)",
+      "category": "saas_wave_1",
+      "sector": "Digital advertising",
+      "primary_motion": "demand-capture account optimization",
+      "aliases": [],
+      "signal_flags": [
+        "demand_capture_era"
+      ],
+      "eras": [
+        {
+          "start": 2004,
+          "end": 2012,
+          "tier": 2,
+          "label": "elite intake, demand-capture economics",
+          "rationale": "Elite intake screen and polish, but demand-capture economics - verify the candidate ever CREATED demand rather than optimized it."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "linkedin_sales_org",
+      "name": "LinkedIn (Talent & Sales Solutions)",
+      "category": "saas_wave_1",
+      "sector": "Talent/sales solutions SaaS",
+      "primary_motion": "mid-market subscription selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2009,
+          "end": 2016,
+          "tier": 2,
+          "label": "strong enablement and process",
+          "rationale": "Strong enablement and process; brand pull assisted pipeline. Good source of well-trained mid-market sellers. Window ends at the Microsoft acquisition."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "box",
+      "name": "Box",
+      "category": "saas_wave_1",
+      "sector": "Cloud content management",
+      "primary_motion": "competitive outbound SaaS sales",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2010,
+          "end": 2016,
+          "tier": 2,
+          "label": "scrappy and well-drilled",
+          "rationale": "Competitive, outbound-driven, sold against Microsoft/Dropbox headwinds."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "ceb",
+      "name": "CEB (Corporate Executive Board)",
+      "category": "saas_wave_1",
+      "sector": "Research/advisory subscriptions",
+      "primary_motion": "disciplined intangibles selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2005,
+          "end": 2017,
+          "tier": 1,
+          "label": "research/advisory sales at its most disciplined",
+          "rationale": "Birthplace of the Challenger Sale research; intense metrics culture and a strong leadership tree. Gartner acquired 2017."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "gartner",
+      "name": "Gartner",
+      "category": "saas_wave_1",
+      "sector": "Subscription research/advisory",
+      "primary_motion": "recurring consultative relationship sale",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2000,
+          "end": null,
+          "tier": 2,
+          "label": "metrics-driven selling of intangibles",
+          "rationale": "Relentless, metrics-driven selling of intangibles with a real promotion ladder; one of the best non-product sales academies operating today, with an explicit contract-value / client-retention / wallet-retention operating model.",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "2020: GTS client retention 83%, wallet retention 98%; GBS 83% / 101%",
+              "2020 contract value: $2.909B GTS, $696M GBS"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Saul Pyatt",
+        "John Rinello",
+        "Jim Wartinbee"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Original whitelist Tier 2 (2005-present); research report I/II (2000-present). Reconciled to 2 per conservative rounding; excellent specifically for consultative recurring sales."
+    },
+    {
+      "id": "yelp",
+      "name": "Yelp (local ads sales)",
+      "category": "saas_wave_1",
+      "sector": "Local advertising",
+      "primary_motion": "high-volume phone sales",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": 2009,
+          "end": 2015,
+          "tier": 3,
+          "label": "the dialing bootcamp of its generation",
+          "rationale": "A Yelp stint plus a step up to real SaaS is a classic high-grit resume pattern."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "groupon",
+      "name": "Groupon",
+      "category": "saas_wave_1",
+      "sector": "Local deals",
+      "primary_motion": "high-volume phone sales",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2010,
+          "end": 2012,
+          "tier": 3,
+          "label": "short-window volume grind",
+          "rationale": "Grit signal only."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "category": "modern_cloud",
+      "sector": "Developer/data platform",
+      "primary_motion": "technical-audience outbound + land-and-expand",
+      "aliases": [],
+      "signal_flags": [
+        "mcmahon_lineage",
+        "meddic_culture",
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2015,
+          "end": null,
+          "tier": 1.5,
+          "label": "the MEDDIC academy of its decade",
+          "rationale": "McMahon-designed org: technical-audience outbound, enforced qualification, deep enablement; alumni already seeding CRO roles. Company documented a sales-productivity process implemented under historical CRO Cedric Pech.",
+          "peak_window": "2015-2023",
+          "evidence": {
+            "key_facts": [
+              "Net ARR expansion 120% as of Oct 2025; earlier filings repeatedly >120%"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Cedric Pech - historical CRO"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Tier conflict: original whitelist Tier 1 (2015-2023); research report Tier 2 (2017-present, public metrics limited). Reconciled to 1.5; era union 2015-present with peak 2015-2023."
+    },
+    {
+      "id": "datadog",
+      "name": "Datadog",
+      "category": "modern_cloud",
+      "sector": "Observability/security SaaS",
+      "primary_motion": "technical land-and-expand",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2016,
+          "end": null,
+          "tier": 1.5,
+          "label": "efficient, high-bar technical machine",
+          "rationale": "Technically demanding sale with land-and-expand rigor; consistently elite attainment integrity per the curated list.",
+          "peak_window": "2016-2024",
+          "trend": "research report graded II trending I",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "Q1 2026 revenue +32%; ~4,550 customers >=$100K ARR (+21% YoY)",
+              "NRR roughly 120% around late 2025, low-120s subsequently"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Sean Walters - CRO, joined 2018, ex-IBM/Medallia"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Tier conflict: original whitelist Tier 1 (2016-2024); research report Tier 2 trending 1 (2018-present). Reconciled to 1.5; era union 2016-present."
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake",
+      "category": "modern_cloud",
+      "sector": "Data cloud",
+      "primary_motion": "enterprise consumption land-and-expand",
+      "aliases": [],
+      "signal_flags": [
+        "meddic_culture",
+        "mcmahon_lineage"
+      ],
+      "eras": [
+        {
+          "start": 2015,
+          "end": 2023,
+          "tier": 1,
+          "label": "Degnan/Slootman/Scarpelli hypergrowth machine",
+          "rationale": "MEDDIC archetype with honest forecasting and demanding culture; enterprise consumption selling built from inception by Chris Degnan (employee #13, first sales hire) to $3.4B revenue.",
+          "peak_window": "2018-2023",
+          "evidence": {
+            "key_facts": [
+              "RepVue 88.40",
+              "Q2 FY26: revenue +32%, NRR 125%, 654 customers >$1M trailing-twelve-month product revenue",
+              "Consumption economics force sellers toward workload adoption as well as contracting"
+            ]
+          }
+        },
+        {
+          "start": 2024,
+          "end": null,
+          "tier": 1.5,
+          "label": "post-hypergrowth scale",
+          "rationale": "Original whitelist grades post-2023 as strong Tier 2; research report keeps Tier 1 with strongest years 2018-2024; addendum notes post-2022 growth deceleration. Reconciled 1.5.",
+          "caveats": [
+            "Post-2022 growth deceleration",
+            "High native expansion (125% NRR) - test seller causality aggressively: new workloads, new buying centers, new economic commitments"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Chris Degnan - founding CRO, employee #13, ex-EMC",
+        "Mike Gannon - later CRO, ex-VMware/Broadcom/EMC",
+        "Frank Slootman",
+        "Mike Scarpelli"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Era reconciliation across three sources: addendum 2015-2022, original whitelist 2018-2023, research report 2018-present (strongest 2018-2024). Encoded as Tier 1 2015-2023 (peak 2018-2023) then 1.5. McMahon-guild membership is via board influence and alumni."
+    },
+    {
+      "id": "appdynamics",
+      "name": "AppDynamics",
+      "category": "modern_cloud",
+      "sector": "APM/observability",
+      "primary_motion": "elite enterprise direct sales",
+      "aliases": [],
+      "signal_flags": [
+        "mcmahon_lineage",
+        "meddic_culture",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2013,
+          "end": 2017,
+          "tier": 1,
+          "label": "McMahon-lineage org at peak intensity",
+          "rationale": "Peak intensity pre-Cisco acquisition; dense concentration of now-senior enterprise sellers."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "samsara",
+      "name": "Samsara",
+      "category": "modern_cloud",
+      "sector": "IoT / physical operations",
+      "primary_motion": "outbound-disciplined field sales",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 1,
+          "label": "operationally rigorous, promote-from-within",
+          "rationale": "Outbound-disciplined, promote-from-within; consistently rated among the best-run sales orgs of the 2020s. Ex-Meraki founders; CRO Amit Pande (Meraki inside-sales builder) scaled <$1M -> $1B+ ARR."
+        }
+      ],
+      "notable_leaders": [
+        "Amit Pande - CRO, ex-Meraki",
+        "Sanjit Biswas and John Bicket - Meraki founders"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Era union: addendum 2018-present, original whitelist 2019-present. Tier agrees at 1."
+    },
+    {
+      "id": "rippling",
+      "name": "Rippling",
+      "category": "modern_cloud",
+      "sector": "HR/IT/Fintech compound suite",
+      "primary_motion": "multi-product outbound machine",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 1,
+          "label": "elite outbound discipline against the outbound-is-dead narrative",
+          "rationale": "Very high hiring bar, compound-product cross-sell, demanding outbound culture: a core new-logo org, an account-management org, and a product-AE org straddling the middle, plus mini-CRO structures per new product line and a revenue-efficient Bangalore team.",
+          "caveats": [
+            "SMB reviews describe 80-cold-calls-per-day, churn-and-burn, sales-bro environment; culture/leadership middling at 3.3/5",
+            "More talent-importer than exporter today - alumni tree still early but plausibly forming",
+            "Addendum corrections credit Tier 1 for 2019-present tenure"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 85.70, 3.8/5 overall, ~58% quota attainment (vs ~41% software average)",
+              "1,300 outbound demos in one month, 50% over the phone",
+              "1,500+ revenue professionals at scale"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Matt Plank - employee #5, first sales hire, VP Sales 2017-2023, CRO since Feb 2023, ex-Zenefits",
+        "Sam Blond - board director, ex-Brex CRO, ex-Zenefits",
+        "Parker Conrad - founder/CEO"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Era: addendum table 2018-present; addendum corrections say Tier 1 for 2019-present; original whitelist 2020-present. Union start 2018 with credit note."
+    },
+    {
+      "id": "wiz",
+      "name": "Wiz",
+      "category": "modern_cloud",
+      "sector": "Cloud security",
+      "primary_motion": "enterprise outbound + hyperscaler co-sell",
+      "aliases": [],
+      "signal_flags": [
+        "israeli_gtm_school",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": 2025,
+          "tier": 1,
+          "label": "fastest software company to $100M and $1B ARR",
+          "rationale": "Elite AE bar in a genuinely competitive security market; fastest ever $1M -> $100M ARR (18 months, ~260 enterprise customers at $384K ACV) and fastest to $1B ARR.",
+          "peak_window": "2020-2024",
+          "caveats": [
+            "ARR partly marketplace/co-sell driven",
+            "Extreme demand tailwind - verify individual contribution",
+            "Google's $32B acquisition closed 2026-03-11 (largest Google acquisition; biggest pure-cybersecurity deal); post-close tenure is Google, score separately"
+          ],
+          "evidence": {
+            "key_facts": [
+              "CRO Colin Jones",
+              "Dali Rajic (president/COO) left to become OpenAI CRO in Aug 2026"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Colin Jones - CRO",
+        "Dali Rajic - president/COO, ex-Zscaler/Workday"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "alumni_to": [
+        "openai"
+      ],
+      "reconciliation_note": "Era union: addendum 2020-2024, original whitelist 2021-2025. Tier agrees at 1."
+    },
+    {
+      "id": "crowdstrike",
+      "name": "CrowdStrike",
+      "category": "modern_cloud",
+      "sector": "Cybersecurity",
+      "primary_motion": "enterprise + channel platform selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2017,
+          "end": null,
+          "tier": 2,
+          "label": "competitive security selling at scale",
+          "rationale": "Strong enablement, value-based platform and channel motion; verify segment - enterprise is a stronger signal than SMB.",
+          "peak_window": "2017-2024",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "Q4 FY25: revenue +25%, subscription +27%, ARR +23% to $4.24B",
+              "Dollar-based NRR 112% (Jan 2025)"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Andy Duffett - GTM/customer ops and global sales since 2015",
+        "Michael Carpenter - historically"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "role_tier_overrides": {
+        "enterprise_security": 1.5
+      },
+      "reconciliation_note": "Original whitelist Tier 2 (2017-2024); research report II/I for enterprise security (2017-present). Base 2 with enterprise override 1.5 per policy."
+    },
+    {
+      "id": "palo_alto",
+      "name": "Palo Alto Networks",
+      "category": "modern_cloud",
+      "sector": "Cybersecurity platform",
+      "primary_motion": "direct + channel + platformization selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2012,
+          "end": null,
+          "tier": 2,
+          "label": "platformization-era enterprise machine",
+          "rationale": "Big-deal craft under heavy competition; official strategic-account roles describe orchestration of complex sales cycles and revenue expansion. Overlay-rich - probe individual role.",
+          "peak_window": "2018-2025",
+          "evidence": {
+            "evidence_grade": "A1 filings",
+            "key_facts": [
+              "FY2025: revenue $9.2B (+15%); next-gen security ARR $5.6B (+32%); RPO $15.8B (+24%)"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Nikesh Arora",
+        "BJ Jenkins"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Original whitelist Tier 2 (2018-2025); research report I/II (2012-present). Reconciled to 2 per conservative rounding; era union 2012-present."
+    },
+    {
+      "id": "zscaler",
+      "name": "Zscaler",
+      "category": "modern_cloud",
+      "sector": "Cloud security",
+      "primary_motion": "competitive enterprise security sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2016,
+          "end": 2023,
+          "tier": 2,
+          "label": "well-run hypergrowth security org",
+          "rationale": "Well-run competitive security org during its hypergrowth arc."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Zscaler / Okta'; split per policy."
+    },
+    {
+      "id": "okta",
+      "name": "Okta",
+      "category": "modern_cloud",
+      "sector": "Identity security",
+      "primary_motion": "competitive enterprise security sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2016,
+          "end": 2023,
+          "tier": 2,
+          "label": "well-run hypergrowth security org",
+          "rationale": "Well-run competitive security org during its hypergrowth arc."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Zscaler / Okta'; split per policy."
+    },
+    {
+      "id": "toast",
+      "name": "Toast",
+      "category": "modern_cloud",
+      "sector": "Restaurant vertical SaaS/fintech",
+      "primary_motion": "true field SMB full-cycle selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2015,
+          "end": 2021,
+          "tier": 1,
+          "label": "field sales machine",
+          "rationale": "True field SMB grind with real quota discipline; excellent source of resilient full-cycle sellers.",
+          "caveats": [
+            "Post-2022 normalization"
+          ]
+        },
+        {
+          "start": 2022,
+          "end": 2024,
+          "tier": 2,
+          "label": "post-normalization window",
+          "rationale": "Still a strong field org per the original whitelist's 2016-2024 Tier 2 grading, past the reconfirmed Tier 1 era."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Conflict resolved by precedence rule 1: addendum explicitly reconfirms Toast Tier 1 era 2015-2021; original whitelist graded 2016-2024 as Tier 2. Encoded as Tier 1 through 2021, Tier 2 2022-2024."
+    },
+    {
+      "id": "procore",
+      "name": "Procore",
+      "category": "modern_cloud",
+      "sector": "Construction vertical SaaS",
+      "primary_motion": "vertical field/mid-market selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2015,
+          "end": 2021,
+          "tier": 2,
+          "label": "vertical SaaS field discipline",
+          "rationale": "Strong mid-market academy for the construction-tech era; competitive OTE.",
+          "evidence": {
+            "key_facts": [
+              "RepVue 83.21"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "paycom",
+      "name": "Paycom",
+      "category": "modern_cloud",
+      "sector": "HCM/payroll",
+      "primary_motion": "brutal outbound territory selling",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy",
+        "toxic_but_successful"
+      ],
+      "eras": [
+        {
+          "start": 2012,
+          "end": 2022,
+          "tier": 2,
+          "label": "modern heir to the ADP model",
+          "rationale": "Brutal outbound, high accountability.",
+          "caveats": [
+            "Churny culture warrants a reference check on how the candidate operated"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Paycom / Paylocity'; split per policy."
+    },
+    {
+      "id": "paylocity",
+      "name": "Paylocity",
+      "category": "modern_cloud",
+      "sector": "HCM/payroll",
+      "primary_motion": "outbound territory selling",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2012,
+          "end": 2022,
+          "tier": 2,
+          "label": "modern heir to the ADP model",
+          "rationale": "Brutal outbound, high accountability."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Paycom / Paylocity'; split per policy."
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "category": "modern_cloud",
+      "sector": "Payments",
+      "primary_motion": "enterprise selling layered on developer-led growth",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 1.5,
+          "label": "AWS-caliber enterprise DNA transplant on product pull",
+          "rationale": "High intake bar and intelligent sellers; 'The Stripe Way'; enterprise arm built by Mike Clayville (who built AWS enterprise sales $1.8B -> $43B), succeeded by internally promoted Eileen O'Mara (2024); 50%+ of the Fortune 500.",
+          "peak_window": "2018-2024",
+          "caveats": [
+            "Sales org layered onto strong product pull - verify created-versus-captured pipeline",
+            "Core growth still developer/PLG"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Mike Clayville - CRO, ex-AWS",
+        "Eileen O'Mara - CRO 2024",
+        "Tyler Bryson - Americas CRO, ex-Microsoft"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "role_tier_overrides": {
+        "enterprise_arm": 1
+      },
+      "alumni_to": [
+        "anthropic",
+        "harvey"
+      ],
+      "reconciliation_note": "Addendum Tier 1 (enterprise arm, 2018-present); original whitelist Tier 2 (2018-2024). Reconciled to 1.5 with enterprise-arm override 1."
+    },
+    {
+      "id": "gong",
+      "name": "Gong",
+      "category": "modern_cloud",
+      "sector": "Revenue intelligence",
+      "primary_motion": "category-creation outbound SaaS",
+      "aliases": [],
+      "signal_flags": [
+        "israeli_gtm_school",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2022,
+          "tier": 1.5,
+          "label": "category-creation window with world-class enablement",
+          "rationale": "Unsurprisingly strong enablement culture during the category-creation window; Israeli GTM school.",
+          "caveats": [
+            "PMF maturing - 'everyone who wants Gong has it'"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 88.15+, ~65% quota attainment"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Tier conflict: addendum Tier 1 (era); original whitelist Tier 2. Reconciled to 1.5 for 2018-2022."
+    },
+    {
+      "id": "deel",
+      "name": "Deel",
+      "category": "modern_cloud",
+      "sector": "Global HR/payroll",
+      "primary_motion": "outbound mid-market machine",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 1.5,
+          "label": "hypergrowth outbound execution in a hot category",
+          "rationale": "$1M -> $100M ARR in 20 months (1,800 customers at $55K ACV); founder-CRO Shuo Wang; outbound machine.",
+          "peak_window": "2020-2024",
+          "caveats": [
+            "Founder-led (non-academy) DNA",
+            "Compliance/press noise",
+            "Verify rigor versus market tailwind"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 85.63"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Shuo Wang - co-founder/CRO"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Tier conflict: addendum Tier 1 (2020-present); original whitelist Tier 2 (2020-2024). Reconciled to 1.5."
+    },
+    {
+      "id": "verkada",
+      "name": "Verkada",
+      "category": "modern_cloud",
+      "sector": "Physical security",
+      "primary_motion": "high-volume outbound SDR/AE machine",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy",
+        "grit_filter",
+        "toxic_but_successful"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 2.5,
+          "label": "high-volume outbound grind with a real bar",
+          "rationale": "Notoriously intense outbound machine (ex-Meraki co-founder Hans Robertson); grit-plus signal - verify complex-sale skills.",
+          "peak_window": "2018-2024",
+          "caveats": [
+            "RepVue 80.63 but ~30% quota attainment",
+            "Bro-culture reviews, FTC settlement, high churn"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Hans Robertson - co-founder, ex-Meraki COO"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Tier conflict: addendum Tier 2 (2018-present); original whitelist Tier 3 grit-plus (2018-2024). Reconciled to 2.5."
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI (GTM)",
+      "category": "modern_cloud",
+      "sector": "AI",
+      "primary_motion": "enterprise org built from zero atop extreme inbound",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture",
+        "too_new"
+      ],
+      "eras": [
+        {
+          "start": 2023,
+          "end": null,
+          "tier": 2.5,
+          "label": "elite intake, demand-capture era",
+          "rationale": "Enterprise org built from zero (Maggie Hott, first Slack sales hire; Aliisa Rosenthal); explicitly building vertical-specific and account-based SDR motions and outbound/ABM playbooks.",
+          "caveats": [
+            "Extreme inbound = demand capture; original whitelist declined to tier - treat as an intelligence/polish signal, not yet a selling-skill signal, pending pipeline evidence",
+            "CRO turnover: multiple CROs cycled by Aug 2026, most recently Dali Rajic (ex-Wiz)"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Maggie Hott - built ChatGPT Enterprise sales from zero, ex-Slack",
+        "Aliisa Rosenthal",
+        "Denise Dresser - first CRO, ex-Slack CEO",
+        "Dali Rajic - CRO Aug 2026, ex-Wiz/Zscaler/Workday"
+      ],
+      "sources": [
+        "original_whitelist",
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum Tier 2 (2023-present); original whitelist untiered pure-demand-capture (2024-present). Reconciled to 2.5 with heavy flags."
+    },
+    {
+      "id": "stryker",
+      "name": "Stryker",
+      "category": "beyond_tech",
+      "sector": "Medical devices",
+      "primary_motion": "clinical/field/OR selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1990,
+          "end": null,
+          "tier": 1,
+          "label": "the med-device academy",
+          "rationale": "Ultra-selective hiring, associate-rep apprenticeship ladder, clinical depth plus quota discipline; high-touch technical selling involving physicians, hospitals and operating environments. Alumni excel in field and enterprise sales.",
+          "peak_window": "2000-present",
+          "evidence": {
+            "key_facts": [
+              "Tim Scannell joined Endoscopy sales in 1990 and rose rapidly through sales leadership while the unit became one of Stryker's fastest-growing businesses"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Timothy Scannell"
+      ],
+      "sources": [
+        "original_whitelist",
+        "deep_research_report"
+      ],
+      "reconciliation_note": "Era union of research report (1990-present, Tier 1 for relevant field roles) and original whitelist (2000-present); tier agrees at 1."
+    },
+    {
+      "id": "intuitive_surgical",
+      "name": "Intuitive Surgical",
+      "category": "beyond_tech",
+      "sector": "Surgical robotics",
+      "primary_motion": "category-creation clinical selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2001,
+          "end": 2015,
+          "tier": 1,
+          "label": "the hardest kind of demand creation",
+          "rationale": "Reps changed surgeon behavior - category-creation clinical selling."
+        },
+        {
+          "start": 2016,
+          "end": null,
+          "tier": 2,
+          "label": "dominance-tailwind era",
+          "rationale": "Later era carries dominance tailwind; still a strong clinical org."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "medtronic",
+      "name": "Medtronic",
+      "category": "beyond_tech",
+      "sector": "Medical devices",
+      "primary_motion": "clinical field sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2015,
+          "tier": 2,
+          "label": "rigorous clinical training and relationship craft",
+          "rationale": "Verify quota reality in franchise-strength territories."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Medtronic / Boston Scientific / J&J (Ethicon)'; split per policy."
+    },
+    {
+      "id": "boston_scientific",
+      "name": "Boston Scientific",
+      "category": "beyond_tech",
+      "sector": "Medical devices",
+      "primary_motion": "clinical field sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2015,
+          "tier": 2,
+          "label": "rigorous clinical training and relationship craft",
+          "rationale": "Verify quota reality in franchise-strength territories."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Medtronic / Boston Scientific / J&J (Ethicon)'; split per policy."
+    },
+    {
+      "id": "jnj_ethicon",
+      "name": "Johnson & Johnson (Ethicon)",
+      "category": "beyond_tech",
+      "sector": "Medical devices",
+      "primary_motion": "clinical field sales",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2015,
+          "tier": 2,
+          "label": "rigorous clinical training and relationship craft",
+          "rationale": "Verify quota reality in franchise-strength territories."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'Medtronic / Boston Scientific / J&J (Ethicon)'; split per policy."
+    },
+    {
+      "id": "arthrex",
+      "name": "Arthrex",
+      "category": "beyond_tech",
+      "sector": "Medical devices",
+      "primary_motion": "distributor-model device selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2005,
+          "end": null,
+          "tier": 2,
+          "label": "demanding distributor-model selling",
+          "rationale": "Strong technical training."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "aerotek_allegis",
+      "name": "Aerotek / Allegis",
+      "category": "beyond_tech",
+      "sector": "Staffing",
+      "primary_motion": "metrics-driven recruiting/sales grind",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": 1995,
+          "end": 2015,
+          "tier": 3,
+          "label": "staffing's famous grind academy",
+          "rationale": "Metrics-driven, high-rejection, promote-from-within. Classic feeder into tech sales leadership."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "ch_robinson",
+      "name": "C.H. Robinson",
+      "category": "beyond_tech",
+      "sector": "Freight brokerage",
+      "primary_motion": "phone-volume brokerage sales",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": 2000,
+          "end": 2018,
+          "tier": 3,
+          "label": "pure phone-volume grit filter",
+          "rationale": "Freight-brokerage dialing grind."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'C.H. Robinson / TQL'; split per policy."
+    },
+    {
+      "id": "tql",
+      "name": "TQL (Total Quality Logistics)",
+      "category": "beyond_tech",
+      "sector": "Freight brokerage",
+      "primary_motion": "phone-volume brokerage sales",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter",
+        "toxic_but_successful"
+      ],
+      "eras": [
+        {
+          "start": 2000,
+          "end": 2018,
+          "tier": 3,
+          "label": "pure phone-volume grit filter",
+          "rationale": "Especially churny - grit signal only."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ],
+      "reconciliation_note": "Source row grouped 'C.H. Robinson / TQL'; split per policy."
+    },
+    {
+      "id": "northwestern_mutual_insurance",
+      "name": "Northwestern Mutual / insurance agency programs",
+      "category": "beyond_tech",
+      "sector": "Insurance",
+      "primary_motion": "commission-only self-sourced selling",
+      "aliases": [],
+      "signal_flags": [
+        "grit_filter"
+      ],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "high-churn commission mills",
+          "rationale": "Survival past ~3 years shows resilience and self-sourcing ability; short stints carry little signal."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "original_whitelist"
+      ]
+    },
+    {
+      "id": "ramp",
+      "name": "Ramp",
+      "category": "hr_fintech_ops",
+      "sector": "Fintech / spend management",
+      "primary_motion": "SMB/mid-market velocity outbound",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 1,
+          "label": "the fintech velocity-culture standout",
+          "rationale": "Fastest-to-$100M pedigree: product launched Feb 2020, crossed $100M run-rate by March 2022 (breaking Slack's record at the time), then $1B+ annualized revenue by Sept 2025 while becoming cash-flow positive at a $32B valuation. Outbound treated as a data/engineering problem (Snowflake/dbt/Hightouch-powered personalized prospecting drove a 25% new-business lift).",
+          "caveats": [
+            "Very young alumni tree",
+            "Addendum corrections credit Tier 1 strongest for 2021-present tenure",
+            "$1M->$100M sprint profile: 24 months, 5,000 customers at ~$20K ACV - SMB velocity muscles, not enterprise"
+          ],
+          "evidence": {
+            "key_facts": [
+              "CEO Eric Glyman: the average Ramp SDR books 3-4x as many meetings as the next closest competitor",
+              "Early revenue engine built by Megan Yen (one of first ~30 hires; built the 100+ person sales org as revenue grew 100x)"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Megan Yen - VP Business & Revenue Ops, later VP CS",
+        "Eric Glyman - CEO"
+      ],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum correction: upgraded from Tier 2 (original list) to Tier 1."
+    },
+    {
+      "id": "brex",
+      "name": "Brex",
+      "category": "hr_fintech_ops",
+      "sector": "Fintech",
+      "primary_motion": "outbound-dominated corporate-card selling",
+      "aliases": [],
+      "signal_flags": [
+        "outbound_academy",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2022,
+          "tier": 1,
+          "label": "the Sam Blond outbound era",
+          "rationale": "Sam Blond (ex-Zenefits) built an outbound org generating 80% of revenue from outbound; $0 -> $400M ARR at a $12.5B valuation.",
+          "caveats": [
+            "Tier 1 applies to the 2018-2022 Blond era ONLY (addendum correction)",
+            "2022-2023 layoffs/pivot; downmarket churn"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Sam Blond - CRO, ex-Zenefits; later Founders Fund and Rippling board"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "gusto",
+      "name": "Gusto",
+      "category": "hr_fintech_ops",
+      "sector": "SMB payroll/HR",
+      "primary_motion": "SMB/mid-market selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 2,
+          "label": "strong SMB/mid-market org",
+          "rationale": "Strong SMB and mid-market motion.",
+          "caveats": [
+            "SMB velocity, less enterprise rigor"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 84.34, PMF 4.4"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "mercury_fintech",
+      "name": "Mercury (fintech)",
+      "category": "hr_fintech_ops",
+      "sector": "Fintech/banking",
+      "primary_motion": "product-led banking",
+      "aliases": [],
+      "signal_flags": [
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2022,
+          "end": null,
+          "tier": 3,
+          "label": "brand-led demand capture",
+          "rationale": "Strong brand; largely product-led banking.",
+          "caveats": [
+            "Demand-capture; thin sourced sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Do not confuse with Mercury Interactive (mercury_interactive)."
+    },
+    {
+      "id": "justworks",
+      "name": "Justworks",
+      "category": "hr_fintech_ops",
+      "sector": "PEO/HR",
+      "primary_motion": "SMB PEO selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2.5,
+          "label": "solid mid-tier",
+          "rationale": "Solid mid-tier org.",
+          "caveats": [
+            "Commoditized PEO category"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue ~80.8"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "personio",
+      "name": "Personio",
+      "category": "hr_fintech_ops",
+      "sector": "HR SaaS (Europe)",
+      "primary_motion": "European mid-market selling",
+      "aliases": [],
+      "signal_flags": [
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "leading European HR SaaS GTM",
+          "rationale": "Leading European HR SaaS go-to-market.",
+          "caveats": [
+            "Limited public sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "navan",
+      "name": "Navan (TripActions)",
+      "category": "hr_fintech_ops",
+      "sector": "Travel & expense",
+      "primary_motion": "aggressive outbound SDR/AE machine",
+      "aliases": [
+        "TripActions"
+      ],
+      "signal_flags": [
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2017,
+          "end": 2021,
+          "tier": 2,
+          "label": "elite pre-COVID outbound window",
+          "rationale": "Founded 2015 (Ariel Cohen & Ilan Twig); built an aggressive outbound SDR/AE machine and hypergrew into 2019 before COVID devastated corporate travel.",
+          "caveats": [
+            "Deep 2020 layoffs are a hard era boundary - treat 2020-2021 tenure cautiously given the travel shock"
+          ]
+        },
+        {
+          "start": 2022,
+          "end": null,
+          "tier": 2,
+          "label": "qualified recovery",
+          "rationale": "Rebranded to Navan (2022), diversified into expense/fintech (Navan Liquid), recovered; rep sentiment genuinely mixed-to-strong.",
+          "caveats": [
+            "Fraternity / popularity-contest-of-sales-bros reviews; monthly quotas; heavy pipe-gen metrics; frequent comp/leadership changes; reviews citing fewer than 20% of reps staying beyond a year",
+            "IPO repeatedly anticipated",
+            "Counterpoint reviews: strongest PMF/sales-leadership/talent density one 10-year enterprise seller had seen; six promotions in five years reported"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Ariel Cohen - co-founder/CEO",
+        "Ilan Twig - co-founder"
+      ],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum correction: added as Tier 2 with elite era 2017-2021 and COVID boundary."
+    },
+    {
+      "id": "figma",
+      "name": "Figma",
+      "category": "hr_fintech_ops",
+      "sector": "Design / PLG-to-enterprise",
+      "primary_motion": "PLG overlay with land-and-expand enterprise motion",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "the model case of PLG-to-enterprise",
+          "rationale": "Kyle Parrish (ADP -> Dropbox -> Figma) was the founding sales leader (first sales hire, 2018) and scaled ~$2M -> ~$950M ARR through the 2025 IPO. First rep hired 2018, the same year the Organization plan launched.",
+          "caveats": [
+            "PLG-overlay: AEs operate with enormous inbound tailwind and viral bottom-up adoption; the craft is brand stewardship and expansion, not cold pipe-gen",
+            "Score line-AE tenure Tier 2 unless the resume shows self-sourced pipeline / true enterprise qualification (MEDDIC-style) rather than inbound harvesting; sales leadership (Parrish tree) is Tier 1"
+          ],
+          "evidence": {
+            "key_facts": [
+              "Q1 2025: Organization + Enterprise plans were 70% of revenue; ~70% of enterprise deals originated from individual users on Professional plans",
+              "96% gross retention; 132-136% net dollar retention",
+              "FY2025 revenue $1.056B (+41%); IPO on NYSE (FIG) July 31, 2025 at $33"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Kyle Parrish - founding sales leader, ex-ADP/Dropbox"
+      ],
+      "sources": [
+        "modern_addendum"
+      ],
+      "role_tier_overrides": {
+        "sales_leadership": 1
+      },
+      "reconciliation_note": "A Figma/Dropbox sales alumni tree is clearly forming."
+    },
+    {
+      "id": "dropbox",
+      "name": "Dropbox",
+      "category": "hr_fintech_ops",
+      "sector": "Storage/collaboration",
+      "primary_motion": "enterprise overlay fighting the PLG current",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2013,
+          "end": 2017,
+          "tier": 2,
+          "label": "early-GTM / enterprise-build window",
+          "rationale": "Built a real early GTM team and trained genuinely strong operators who seeded the PLG-sales playbook; strong zero-to-one experience. The most valuable Dropbox sales DNA was early (2011-2016), when reps built markets from first principles.",
+          "caveats": [
+            "The sales motion was consistently fighting the PLG current: the product self-served and enterprise/Dropbox Business was an uphill overlay"
+          ]
+        },
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 3,
+          "label": "post-IPO plateau",
+          "rationale": "Mature, inbound-heavy, plateauing after the 2018 IPO.",
+          "caveats": [
+            "Treat early Dropbox sales as a positive lineage marker, later Dropbox as neutral - the alumni tree is the real asset"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Kyle Parrish - early GTM/third sales hire, opened Austin office hiring ~150 in under two years, led enterprise sales",
+        "Cailen - founding AE, Parrish's hiring manager"
+      ],
+      "sources": [
+        "modern_addendum"
+      ],
+      "alumni_to": [
+        "figma"
+      ],
+      "reconciliation_note": "Addendum correction: codified as Tier 2 (2013-2017) / Tier 3 (2018+)."
+    },
+    {
+      "id": "sentinelone",
+      "name": "SentinelOne",
+      "category": "security_modern",
+      "sector": "Endpoint security",
+      "primary_motion": "competitive endpoint selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2021,
+          "tier": 2,
+          "label": "strong endpoint org",
+          "rationale": "Strong endpoint security org during the window.",
+          "caveats": [
+            "Frequent leadership changes"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 84.38"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "vanta",
+      "name": "Vanta",
+      "category": "security_modern",
+      "sector": "GRC/compliance",
+      "primary_motion": "inbound-heavy compliance selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "category leader",
+          "rationale": "Strong product-market fit.",
+          "caveats": [
+            "Drata competitive pressure"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 87.21, PMF 4.4"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "drata",
+      "name": "Drata",
+      "category": "security_modern",
+      "sector": "GRC/compliance",
+      "primary_motion": "inbound-heavy compliance selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "strong inbound engine",
+          "rationale": "Strong inbound motion.",
+          "caveats": [
+            "SDR churn-and-burn reviews"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 85.30, ~57% quota attainment"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "snyk",
+      "name": "Snyk",
+      "category": "security_modern",
+      "sector": "Developer security",
+      "primary_motion": "developer-led enterprise selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2022,
+          "tier": 2,
+          "label": "developer-security leader",
+          "rationale": "Developer-security category leader during the window.",
+          "caveats": [
+            "~42% quota attainment; product-evolution concerns"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.92"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "abnormal_security",
+      "name": "Abnormal Security",
+      "category": "security_modern",
+      "sector": "Email security",
+      "primary_motion": "enterprise security selling",
+      "aliases": [],
+      "signal_flags": [
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "fast-growing peer of Wiz/Snyk",
+          "rationale": "Fast-growing; cited alongside Wiz and Snyk.",
+          "caveats": [
+            "RepVue score did not surface cleanly"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "axonius",
+      "name": "Axonius",
+      "category": "security_modern",
+      "sector": "Cyber asset management",
+      "primary_motion": "enterprise security selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2.5,
+          "label": "strong product, org in flux",
+          "rationale": "Strong product.",
+          "caveats": [
+            "Reviews describe a complete overhaul of the sales org"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.67"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "arctic_wolf",
+      "name": "Arctic Wolf",
+      "category": "security_modern",
+      "sector": "MDR / managed security",
+      "primary_motion": "managed-security selling",
+      "aliases": [],
+      "signal_flags": [
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "large MDR, IPO-track",
+          "rationale": "Large managed-detection-and-response player on an IPO track.",
+          "caveats": [
+            "RepVue score not cleanly surfaced"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "tanium",
+      "name": "Tanium",
+      "category": "security_modern",
+      "sector": "Endpoint/security",
+      "primary_motion": "large-deal enterprise selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "toxic_but_successful"
+      ],
+      "eras": [
+        {
+          "start": 2015,
+          "end": 2019,
+          "tier": 2.5,
+          "label": "strong product, large deals",
+          "rationale": "Strong product and large deals during the window.",
+          "caveats": [
+            "Well-documented culture caveats"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "databricks",
+      "name": "Databricks",
+      "category": "modern_cloud",
+      "sector": "Data / AI lakehouse",
+      "primary_motion": "enterprise data-platform selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2016,
+          "end": null,
+          "tier": 1,
+          "label": "elite data/AI enterprise org",
+          "rationale": "Strong enterprise sales org under CRO Ron Gabrisko (ex-Cloudera/IBM/Axway).",
+          "caveats": [
+            "Some 'overstaffed / thin leads' reviews surfaced in 2026"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 88.82"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [
+        "Ron Gabrisko - CRO, ex-Cloudera/IBM/Axway"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "category": "modern_cloud",
+      "sector": "AI (frontier models)",
+      "primary_motion": "enterprise AI sales (building)",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture",
+        "too_new"
+      ],
+      "eras": [
+        {
+          "start": 2024,
+          "end": null,
+          "tier": 2,
+          "label": "young enterprise AI org",
+          "rationale": "Global sales being built under Kate Jensen (ex-Stripe, 7 years; ex-Google Enterprise).",
+          "caveats": [
+            "Extreme inbound AI demand = demand-capture risk",
+            "Very young sales org"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Kate Jensen - head of global sales, ex-Stripe/Google"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "scale_ai",
+      "name": "Scale AI",
+      "category": "modern_cloud",
+      "sector": "AI data labeling",
+      "primary_motion": "enterprise/government AI-data selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": 2023,
+          "tier": 2,
+          "label": "aggressive enterprise/gov sales",
+          "rationale": "Aggressive enterprise and government sales motion during the window.",
+          "caveats": [
+            "Post-Meta-deal disruption after the window"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "palantir",
+      "name": "Palantir",
+      "category": "modern_cloud",
+      "sector": "Data/AI analytics",
+      "primary_motion": "FDE-led then conventional enterprise/gov selling",
+      "aliases": [],
+      "signal_flags": [
+        "negative_signal"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 3,
+          "label": "brand/stock success, weak sales-org signal",
+          "rationale": "Transitioning from a forward-deployed-engineer motion to conventional sales; strong stock performance does not translate to sales-org quality.",
+          "caveats": [
+            "RepVue ~69; sales culture 2.1/5; 'worst sales culture' reviews - treat as a NEGATIVE sales-skill signal despite the brand"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum: despite brand/stock, flag sales-org as Tier 3 / negative signal."
+    },
+    {
+      "id": "celonis",
+      "name": "Celonis",
+      "category": "modern_cloud",
+      "sector": "Process mining",
+      "primary_motion": "enterprise process-mining selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2022,
+          "tier": 2,
+          "label": "German hypergrowth enterprise motion",
+          "rationale": "German hypergrowth with a genuine enterprise motion during the window.",
+          "caveats": [
+            "Post-2022 slowdown"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "uipath",
+      "name": "UiPath",
+      "category": "modern_cloud",
+      "sector": "RPA / automation",
+      "primary_motion": "enterprise automation selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2017,
+          "end": 2021,
+          "tier": 2,
+          "label": "RPA hypergrowth era",
+          "rationale": "Hypergrowth RPA org that scaled $1M to $100M ARR in roughly three years.",
+          "caveats": [
+            "Post-IPO decline, 2022 layoffs, AI-driven disruption after the window"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "category": "modern_cloud",
+      "sector": "DevOps platform",
+      "primary_motion": "open-core enterprise DevOps selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2021,
+          "tier": 1,
+          "label": "elite DevOps GTM build",
+          "rationale": "CRO Michael McBride (ex-Lookout/Meraki) scaled revenue ~100x; succeeded by Chris Weber (ex-UiPath/Microsoft).",
+          "caveats": [
+            "Post-IPO deceleration after the window"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Michael McBride - CRO, ex-Lookout/Meraki",
+        "Chris Weber - CRO, ex-UiPath/Microsoft"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "dbt_labs",
+      "name": "dbt Labs",
+      "category": "modern_cloud",
+      "sector": "Data transformation / analytics engineering",
+      "primary_motion": "data-stack selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2,
+          "label": "modern data-stack leader",
+          "rationale": "Leading analytics-engineering tool with a strong developer following.",
+          "caveats": [
+            "Category monetization questions"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 87.92"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "sigma",
+      "name": "Sigma Computing",
+      "category": "modern_cloud",
+      "sector": "Cloud analytics / BI",
+      "primary_motion": "analytics selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2,
+          "label": "mid-tier cloud analytics org",
+          "rationale": "Solid cloud-analytics sales org.",
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.73",
+              "~61% quota attainment"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "starburst",
+      "name": "Starburst",
+      "category": "modern_cloud",
+      "sector": "Data query / federation",
+      "primary_motion": "data-infra selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "no clearly identified elite era",
+          "rationale": "Data-query/federation vendor without a clearly documented elite sales era.",
+          "caveats": [
+            "Leadership instability; short executive tenures"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "monte_carlo",
+      "name": "Monte Carlo",
+      "category": "modern_cloud",
+      "sector": "Data observability",
+      "primary_motion": "data-observability selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 3,
+          "label": "good culture, discretionary category",
+          "rationale": "Good sales culture but a 'nice-to-have' discretionary data-observability category."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "retool",
+      "name": "Retool",
+      "category": "modern_cloud",
+      "sector": "Internal-tools platform",
+      "primary_motion": "PLG dev-tool selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 3,
+          "label": "PLG dev tool, low inbound",
+          "rationale": "PLG internal-tools platform with a thin sales motion.",
+          "caveats": [
+            "Low inbound; AI-coding-agent headwinds"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel",
+      "category": "modern_cloud",
+      "sector": "Frontend cloud / dev infra",
+      "primary_motion": "developer-led infra selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "developer-led dev-infra org",
+          "rationale": "Strong developer-infrastructure sales org.",
+          "caveats": [
+            "Developer demand-capture dynamics"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 87.01",
+              "$9.3B valuation (2025)"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana Labs",
+      "category": "modern_cloud",
+      "sector": "Observability",
+      "primary_motion": "open-source-led observability selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2,
+          "label": "strong-momentum observability org",
+          "rationale": "Strong momentum in observability.",
+          "caveats": [
+            "Pre-IPO; an 'overrated' minority view exists"
+          ],
+          "evidence": {
+            "key_facts": [
+              "Future Outlook 4.5/5"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "postman",
+      "name": "Postman",
+      "category": "modern_cloud",
+      "sector": "API development platform",
+      "primary_motion": "PLG API-tooling selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2.5,
+          "label": "PLG API-tooling leader",
+          "rationale": "PLG API-platform leader.",
+          "caveats": [
+            "Thin independent sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "category": "modern_cloud",
+      "sector": "AI coding",
+      "primary_motion": "sales-led (nascent) AI-coding selling",
+      "aliases": [
+        "Anysphere"
+      ],
+      "signal_flags": [
+        "ai_demand_capture",
+        "too_new"
+      ],
+      "eras": [
+        {
+          "start": 2025,
+          "end": null,
+          "tier": 3,
+          "label": "explosive growth, nascent sales org",
+          "rationale": "Sales-led revenue scaled ~100x on explosive product growth, but the sales org is only months old.",
+          "caveats": [
+            "Overwhelmingly demand-capture; nascent org"
+          ],
+          "evidence": {
+            "key_facts": [
+              "$500M to $2B ARR trajectory",
+              "Koala acqui-hire to seed sales"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "glean",
+      "name": "Glean",
+      "category": "modern_cloud",
+      "sector": "Enterprise AI search / assistant",
+      "primary_motion": "enterprise AI selling",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture"
+      ],
+      "eras": [
+        {
+          "start": 2023,
+          "end": null,
+          "tier": 2.5,
+          "label": "fast-growing enterprise AI search",
+          "rationale": "Fast-growing enterprise AI-search org.",
+          "caveats": [
+            "Poor culture rating (3.2); ~42% quota attainment"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 80.36",
+              "PMF 4.3"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "sierra",
+      "name": "Sierra",
+      "category": "modern_cloud",
+      "sector": "AI agents (CX)",
+      "primary_motion": "sales-led enterprise AI-agent selling",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture",
+        "too_new"
+      ],
+      "eras": [
+        {
+          "start": 2024,
+          "end": null,
+          "tier": 2,
+          "label": "sales-led AI-agent org, unproven as academy",
+          "rationale": "Genuinely sales-led; Bret Taylor (ex-Salesforce co-CEO) scaled $0 to $100M ARR in under 21 months.",
+          "caveats": [
+            "Under 3 years old; unproven as a sales academy"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Bret Taylor - co-founder, ex-Salesforce co-CEO"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "harvey",
+      "name": "Harvey",
+      "category": "modern_cloud",
+      "sector": "Legal AI",
+      "primary_motion": "enterprise legal-AI selling",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture",
+        "too_new"
+      ],
+      "eras": [
+        {
+          "start": 2024,
+          "end": null,
+          "tier": 2.5,
+          "label": "building a real enterprise AE org",
+          "rationale": "Building a genuine enterprise AE org (OTE $415K+); quadrupled ARR.",
+          "caveats": [
+            "Early; poaching talent from Glean/Stripe"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "coreweave",
+      "name": "CoreWeave",
+      "category": "modern_cloud",
+      "sector": "AI cloud infrastructure",
+      "primary_motion": "concentrated mega-deal capture",
+      "aliases": [],
+      "signal_flags": [
+        "not_a_sales_signal"
+      ],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "concentrated mega-deals, not a sales machine",
+          "rationale": "Revenue scaled $16M to $5.1B, but roughly 77% came from two customers - concentrated mega-deal capture rather than a repeatable sales machine.",
+          "caveats": [
+            "Do not treat as a sales-machine signal"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "servicetitan",
+      "name": "ServiceTitan",
+      "category": "modern_cloud",
+      "sector": "Trades vertical SaaS",
+      "primary_motion": "intense SDR/AE vertical selling",
+      "aliases": [],
+      "signal_flags": [
+        "toxic_but_successful",
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 1.5,
+          "label": "famous intense trades-vertical org",
+          "rationale": "Famous, intense SDR/AE org for the trades vertical; IPO 2024.",
+          "caveats": [
+            "'Churn and burn,' recycled leads, strict PIP culture"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 83.24",
+              "IPO 2024"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum tier '1/2' encoded as 1.5."
+    },
+    {
+      "id": "motive",
+      "name": "Motive",
+      "category": "modern_cloud",
+      "sector": "Fleet / IoT physical ops",
+      "primary_motion": "field/IoT selling",
+      "aliases": [
+        "KeepTruckin"
+      ],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 2,
+          "label": "strong fleet/IoT org",
+          "rationale": "Strong fleet-management/IoT sales org; direct Samsara rival.",
+          "evidence": {
+            "key_facts": [
+              "RepVue 86.76",
+              "PMF 4.4"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "klaviyo",
+      "name": "Klaviyo",
+      "category": "modern_cloud",
+      "sector": "Martech / B2C CRM",
+      "primary_motion": "SMB/mid-market martech selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "strong martech PMF org",
+          "rationale": "Strong product-market fit in B2C martech; IPO 2023.",
+          "caveats": [
+            "~40% quota attainment; 'play the CRM' reviews; compensation below market"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.56",
+              "PMF 4.6"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "attentive",
+      "name": "Attentive",
+      "category": "modern_cloud",
+      "sector": "SMS marketing",
+      "primary_motion": "aggressive outbound martech selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "outbound_academy"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2022,
+          "tier": 2,
+          "label": "aggressive outbound hypergrowth",
+          "rationale": "Aggressive outbound hypergrowth in SMS marketing during the window.",
+          "caveats": [
+            "Post-2022 slowdown"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "podium",
+      "name": "Podium",
+      "category": "modern_cloud",
+      "sector": "SMB SaaS (Utah)",
+      "primary_motion": "Silicon Slopes outbound SDR/AE selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "silicon_slopes_school"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "Silicon Slopes outbound academy era",
+          "rationale": "A Silicon Slopes outbound academy during the window.",
+          "caveats": [
+            "RepVue 76.20 and culture 2.6 now - current sentiment is weak"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "qualtrics",
+      "name": "Qualtrics",
+      "category": "modern_cloud",
+      "sector": "Experience management (Utah)",
+      "primary_motion": "enterprise XM selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "silicon_slopes_school"
+      ],
+      "eras": [
+        {
+          "start": 2012,
+          "end": 2021,
+          "tier": 1,
+          "label": "major Utah sales academy",
+          "rationale": "A major Utah sales academy in its era; $8B SAP acquisition.",
+          "caveats": [
+            "RepVue 76.69 now; post-SAP/Silver Lake decline - respect the era boundary"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block; elite era 2012-2021."
+    },
+    {
+      "id": "divvy",
+      "name": "Divvy",
+      "category": "modern_cloud",
+      "sector": "Fintech (Utah)",
+      "primary_motion": "Silicon Slopes fintech selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "silicon_slopes_school"
+      ],
+      "eras": [
+        {
+          "start": 2017,
+          "end": 2021,
+          "tier": 2,
+          "label": "Silicon Slopes fintech era",
+          "rationale": "A Silicon Slopes fintech org; acquired by Bill.com.",
+          "caveats": [
+            "Absorbed post-acquisition"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "lucid",
+      "name": "Lucid Software",
+      "category": "modern_cloud",
+      "sector": "SaaS (Utah)",
+      "primary_motion": "Silicon Slopes SaaS selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "silicon_slopes_school"
+      ],
+      "eras": [
+        {
+          "start": 2016,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "Silicon Slopes training ground",
+          "rationale": "A Silicon Slopes training-ground SaaS org during the window."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "weave",
+      "name": "Weave",
+      "category": "modern_cloud",
+      "sector": "SMB SaaS (Utah)",
+      "primary_motion": "Silicon Slopes SMB selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded",
+        "silicon_slopes_school"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2021,
+          "tier": 3,
+          "label": "Silicon Slopes SMB org",
+          "rationale": "A Silicon Slopes SMB SaaS org during the window."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "category": "modern_cloud",
+      "sector": "Productivity / collaboration",
+      "primary_motion": "PLG-overlay productivity selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2022,
+          "end": null,
+          "tier": 2,
+          "label": "strong PLG productivity org",
+          "rationale": "Strong PLG productivity org with a large bottom-up base.",
+          "caveats": [
+            "PLG demand-capture - score for self-sourced pipeline, not inbound harvesting"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 87.57",
+              "AI-impact 4.8"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "airtable",
+      "name": "Airtable",
+      "category": "modern_cloud",
+      "sector": "No-code / database",
+      "primary_motion": "PLG-overlay no-code selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": 2022,
+          "tier": 3,
+          "label": "peak-then-RIF PLG org",
+          "rationale": "Peaked then executed a late-2022 reduction in force.",
+          "caveats": [
+            "Quota attainment ~23-35%; late-2022 RIF"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "miro",
+      "name": "Miro",
+      "category": "modern_cloud",
+      "sector": "Visual collaboration / whiteboarding",
+      "primary_motion": "PLG-overlay collaboration selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": 2022,
+          "tier": 2.5,
+          "label": "PLG whiteboarding growth era",
+          "rationale": "PLG whiteboarding growth during the window.",
+          "caveats": [
+            "Shifted toward an internal growth motion afterward"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 79.55"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "category": "modern_cloud",
+      "sector": "Design (PLG)",
+      "primary_motion": "PLG-overlay design selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2023,
+          "end": null,
+          "tier": 2.5,
+          "label": "strong-brand PLG design org",
+          "rationale": "Strong brand and PMF with an Australian GTM base.",
+          "caveats": [
+            "~32% quota attainment; demand-capture"
+          ],
+          "evidence": {
+            "key_facts": [
+              "PMF 4.2"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "asana",
+      "name": "Asana",
+      "category": "modern_cloud",
+      "sector": "Work management",
+      "primary_motion": "PLG-overlay work-management selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "no clearly identified elite era",
+          "rationale": "Work-management vendor without a clearly documented elite sales era.",
+          "caveats": [
+            "Chronic sales struggles; ~44% quota attainment"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.10"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "monday_com",
+      "name": "monday.com",
+      "category": "modern_cloud",
+      "sector": "Work management (Israel)",
+      "primary_motion": "disciplined Israeli-GTM work-management selling",
+      "aliases": [],
+      "signal_flags": [
+        "israeli_gtm_school"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "disciplined Israeli-GTM work-management org",
+          "rationale": "Disciplined Israeli-GTM work-management org on the strong end of Tier 2.",
+          "evidence": {
+            "key_facts": [
+              "RepVue 83.71",
+              "~57% quota attainment"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "clickup",
+      "name": "ClickUp",
+      "category": "modern_cloud",
+      "sector": "Work management",
+      "primary_motion": "PLG-overlay work-management selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": null,
+          "tier": 2.5,
+          "label": "fast-growing but chaotic work-mgmt org",
+          "rationale": "Fast-growing work-management org.",
+          "caveats": [
+            "~41% quota attainment; chaotic reputation"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 82.65"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "loom",
+      "name": "Loom",
+      "category": "modern_cloud",
+      "sector": "Async video (PLG)",
+      "primary_motion": "PLG-first, minimal true sales motion",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "not_a_sales_signal"
+      ],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "PLG-first, minimal sales motion",
+          "rationale": "PLG-first tool with a minimal true sales motion."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Split from the addendum's grouped 'Loom / Calendly' row."
+    },
+    {
+      "id": "calendly",
+      "name": "Calendly",
+      "category": "modern_cloud",
+      "sector": "Scheduling (PLG)",
+      "primary_motion": "PLG-first, minimal true sales motion",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "not_a_sales_signal"
+      ],
+      "eras": [
+        {
+          "start": null,
+          "end": null,
+          "tier": 3,
+          "label": "PLG-first, minimal sales motion",
+          "rationale": "PLG-first tool with a minimal true sales motion."
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Split from the addendum's grouped 'Loom / Calendly' row."
+    },
+    {
+      "id": "clari",
+      "name": "Clari",
+      "category": "modern_cloud",
+      "sector": "Revenue operations",
+      "primary_motion": "enterprise revops selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2022,
+          "tier": 2.5,
+          "label": "revops category leader era",
+          "rationale": "Revenue-operations category leader during the window.",
+          "caveats": [
+            "Now PE-owned; culture described as 'drained'; Salesloft merger"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 83.49"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "apollo_io",
+      "name": "Apollo.io",
+      "category": "modern_cloud",
+      "sector": "Sales platform / data",
+      "primary_motion": "PLG-overlay sales-platform selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 2,
+          "label": "fast-growing PLG sales platform",
+          "rationale": "Fast-growing PLG sales-intelligence platform.",
+          "caveats": [
+            "Largely PLG demand-capture"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 85.64",
+              "PMF 4.4"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "clay",
+      "name": "Clay",
+      "category": "modern_cloud",
+      "sector": "GTM tooling / data enrichment",
+      "primary_motion": "inbound-led GTM-tooling selling",
+      "aliases": [],
+      "signal_flags": [
+        "ai_demand_capture"
+      ],
+      "eras": [
+        {
+          "start": 2023,
+          "end": null,
+          "tier": 2,
+          "label": "explosive inbound-led GTM-tooling org",
+          "rationale": "Scaled $1M to $100M ARR in roughly two years (2025 valuation $3.1B) - but explicitly runs 'no cold outbound' (an inbound org).",
+          "caveats": [
+            "Explicitly no cold outbound - weak signal for outbound skill-building"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "zoominfo",
+      "name": "ZoomInfo",
+      "category": "modern_cloud",
+      "sector": "B2B data / GTM",
+      "primary_motion": "outbound data-platform selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "scaled outbound GTM-data org",
+          "rationale": "Scaled outbound GTM-data org during the window.",
+          "caveats": [
+            "Post-2022 decline; 2026 compensation cuts; competitive pressure from Clay"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "outreach",
+      "name": "Outreach",
+      "category": "modern_cloud",
+      "sector": "Sales engagement",
+      "primary_motion": "outbound sales-engagement selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "sales-engagement category leader era",
+          "rationale": "Sales-engagement category leader during the window.",
+          "caveats": [
+            "2024 layoffs (~9%); founder exit"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "salesloft",
+      "name": "Salesloft",
+      "category": "modern_cloud",
+      "sector": "Sales engagement",
+      "primary_motion": "outbound sales-engagement selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2021,
+          "tier": 3,
+          "label": "sales-engagement category leader era",
+          "rationale": "Sales-engagement category leader during the window.",
+          "caveats": [
+            "RepVue 78.79; ~26% quota attainment; founder exit; Clari merger"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "adyen",
+      "name": "Adyen",
+      "category": "modern_cloud",
+      "sector": "Payments (Netherlands)",
+      "primary_motion": "enterprise relationship-led payments selling",
+      "aliases": [],
+      "signal_flags": [
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": null,
+          "tier": 2,
+          "label": "high-efficiency enterprise payments org",
+          "rationale": "Enterprise discipline and very high sales efficiency.",
+          "caveats": [
+            "Largely inbound/relationship-driven; thin sourced sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "plaid",
+      "name": "Plaid",
+      "category": "modern_cloud",
+      "sector": "Fintech infrastructure",
+      "primary_motion": "developer-led fintech-infra selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "top-rated developer-led fintech-infra org",
+          "rationale": "Developer-led fintech-infrastructure org with the highest RepVue score in this cohort.",
+          "caveats": [
+            "Developer-led demand-capture"
+          ],
+          "evidence": {
+            "key_facts": [
+              "RepVue 90.49 (highest in the modern cohort)",
+              "~55% quota attainment"
+            ]
+          }
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "marqeta",
+      "name": "Marqeta",
+      "category": "modern_cloud",
+      "sector": "Card issuing / payments",
+      "primary_motion": "enterprise fintech selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "enterprise card-issuing era",
+          "rationale": "Enterprise fintech card-issuing org during the window.",
+          "caveats": [
+            "Post-IPO customer-concentration risk"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "bill_com",
+      "name": "BILL (Bill.com)",
+      "category": "modern_cloud",
+      "sector": "SMB fintech",
+      "primary_motion": "SMB fintech selling",
+      "aliases": [
+        "Bill.com"
+      ],
+      "signal_flags": [
+        "era_bounded",
+        "thin_data_provisional"
+      ],
+      "eras": [
+        {
+          "start": 2019,
+          "end": 2021,
+          "tier": 2,
+          "label": "SMB fintech hypergrowth era",
+          "rationale": "SMB fintech hypergrowth during the window.",
+          "caveats": [
+            "Thin sourced sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "melio",
+      "name": "Melio",
+      "category": "modern_cloud",
+      "sector": "SMB payments fintech",
+      "primary_motion": "fintech selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 3,
+          "label": "fast-growing early fintech",
+          "rationale": "Fast-growing but early SMB-payments fintech.",
+          "caveats": [
+            "Early-stage; limited sourced sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Split from the addendum's grouped 'Melio / Airwallex' row."
+    },
+    {
+      "id": "airwallex",
+      "name": "Airwallex",
+      "category": "modern_cloud",
+      "sector": "Cross-border payments fintech",
+      "primary_motion": "international fintech selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2021,
+          "end": null,
+          "tier": 3,
+          "label": "fast-growing international fintech",
+          "rationale": "Fast-growing international cross-border-payments fintech.",
+          "caveats": [
+            "Early/international; limited sourced sales-org data"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Split from the addendum's grouped 'Melio / Airwallex' row."
+    },
+    {
+      "id": "checkout_com",
+      "name": "Checkout.com",
+      "category": "modern_cloud",
+      "sector": "Payments",
+      "primary_motion": "enterprise payments selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2020,
+          "end": 2021,
+          "tier": 3,
+          "label": "peak-valuation payments era",
+          "rationale": "Payments org during its peak-valuation window.",
+          "caveats": [
+            "Valuation collapse from ~$40B to ~$11B afterward"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "category": "modern_cloud",
+      "sector": "Cloud / security / edge",
+      "primary_motion": "developer-to-enterprise infra selling",
+      "aliases": [],
+      "signal_flags": [],
+      "eras": [
+        {
+          "start": 2019,
+          "end": null,
+          "tier": 2,
+          "label": "founding-CRO-built infra org",
+          "rationale": "Founding CRO Chris Merritt scaled the org from $0 to $1B.",
+          "caveats": [
+            "RepVue 79.28 and culture 2.7; softer current sentiment"
+          ]
+        }
+      ],
+      "notable_leaders": [
+        "Chris Merritt - founding CRO"
+      ],
+      "sources": [
+        "modern_addendum"
+      ]
+    },
+    {
+      "id": "twilio",
+      "name": "Twilio",
+      "category": "modern_cloud",
+      "sector": "CPaaS / communications APIs",
+      "primary_motion": "developer-to-enterprise API selling",
+      "aliases": [],
+      "signal_flags": [
+        "plg_overlay",
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2016,
+          "end": 2021,
+          "tier": 2.5,
+          "label": "developer-to-enterprise CPaaS era",
+          "rationale": "Developer-to-enterprise CPaaS growth during the window.",
+          "caveats": [
+            "Post-2022 decline and layoffs"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "fastly",
+      "name": "Fastly",
+      "category": "modern_cloud",
+      "sector": "CDN / edge compute",
+      "primary_motion": "developer-led edge selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2020,
+          "tier": 3,
+          "label": "volatile edge/CDN era",
+          "rationale": "Edge/CDN org during a volatile window.",
+          "caveats": [
+            "Volatility and caveats around and after the window"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block."
+    },
+    {
+      "id": "hashicorp",
+      "name": "HashiCorp",
+      "category": "modern_cloud",
+      "sector": "Cloud infrastructure automation",
+      "primary_motion": "product-led enterprise infra selling",
+      "aliases": [],
+      "signal_flags": [
+        "era_bounded"
+      ],
+      "eras": [
+        {
+          "start": 2018,
+          "end": 2022,
+          "tier": 2,
+          "label": "product-led enterprise infra era",
+          "rationale": "Product-led enterprise-infrastructure org during the window.",
+          "caveats": [
+            "IBM acquisition ($6.4B, 2024); Future Outlook 2.7"
+          ]
+        }
+      ],
+      "notable_leaders": [],
+      "sources": [
+        "modern_addendum"
+      ],
+      "reconciliation_note": "Addendum post-2022 caveat block; score pre-absorption era."
+    }
+  ],
+  "application_logic": {
+    "overview": "Deterministic pipeline an app should run per resume stint to produce the organization-era component of an AE or sales-leader score. This component is capped (see core_principles.org_points_cap) and must be combined with the individual-evidence rubrics in scoring.ae_rubric / scoring.sales_leader_rubric.",
+    "tier_base_credit_suggestion": {
+      "note": "Synthesis-derived STARTING multipliers mapping a resolved era tier to a fraction of the org-points budget, BEFORE credit adjustments, flag rules and tenure adjustments are applied. These are adjustable defaults, not values taken verbatim from either source.",
+      "by_tier": {
+        "1": 1.0,
+        "1.5": 0.875,
+        "2": 0.8,
+        "2.5": 0.55,
+        "3": 0.35
+      },
+      "gray_or_unmatched": 0.0
+    },
+    "pipeline": [
+      {
+        "step": 1,
+        "name": "normalize_employer",
+        "action": "Map the resume's employer string to an organization id using organizations[].aliases first, then acquisition_and_alias_mappings.",
+        "detail": "If a mapping resolves map_to = null (Zenefits, Meraki, Slack), award ZERO org-era points but record a lineage_marker (see lineages) and, for acquisition strings, decide predecessor-vs-acquirer per the mapping rule. If no id is found, treat as gray (0 credit) - absence is neutral, never a penalty."
+      },
+      {
+        "step": 2,
+        "name": "resolve_era",
+        "action": "Among the org's eras, select the one whose [start, end] window overlaps the stint dates (end = null means present). Compute months_in_era from the overlap.",
+        "detail": "If the stint falls entirely AFTER the elite era on an era_bounded org, apply a heavy discount (treat as gray unless a later era record exists). If dates are unspecified on the resume, flag for candidate validation rather than assuming the best era."
+      },
+      {
+        "step": 3,
+        "name": "select_base_tier",
+        "action": "base_tier = era.tier. If role matches organizations[].role_tier_overrides (e.g., Figma sales_leadership = 1), use the override. Segment-conditional notes in the era rationale (e.g., Stripe enterprise arm, HubSpot enterprise vs velocity) require manual segment confirmation.",
+        "detail": "Split tiers 1.5 and 2.5 already encode 'strong for some segments/roles, weaker for others' - resolve toward the higher tier only with segment/role evidence."
+      },
+      {
+        "step": 4,
+        "name": "base_credit",
+        "action": "Look up tier_base_credit_suggestion.by_tier[base_tier] to get the starting multiplier."
+      },
+      {
+        "step": 5,
+        "name": "apply_flag_rules",
+        "action": "Adjust the multiplier based on organizations[].signal_flags, applied in this order:",
+        "rules": [
+          "negative_signal -> set org-era credit to 0 and surface as a potential NEGATIVE prior (do not award logo credit); attach the negative-signal interview probe.",
+          "not_a_sales_signal -> set org-era credit to 0 (revenue driven by non-repeatable dynamics).",
+          "ai_demand_capture OR plg_overlay -> CAP the effective tier at 2 (multiplier <= 0.8) UNLESS the resume shows self-sourced/outbound pipeline >= 30-40%, net-new logo acquisition, or founding/early-team status (see scoring.plg_ai_rules). Founding/early sales-leadership tenure is exempt from the cap.",
+          "too_new -> cap multiplier at the Tier 2.5-3 range and set a reassessment flag (see meta.maintenance.reassessment_cadence).",
+          "era_bounded -> if the stint is within the elite era, no change; if outside, heavy discount per step 2.",
+          "toxic_but_successful -> no automatic change, but attach the 'what did the rep actually control' interview probe and weight quota-attainment evidence more heavily.",
+          "thin_data_provisional -> do not heavily weight; require candidate validation before treating as a strong positive.",
+          "israeli_gtm_school / silicon_slopes_school / meddic_culture / outbound_academy -> positive lineage/skill markers; do NOT inflate the numeric multiplier, but record as qualitative pedigree and route to matching interview probes."
+        ]
+      },
+      {
+        "step": 6,
+        "name": "apply_credit_adjustments",
+        "action": "Apply the matching rule from scoring.whitelist_credit_adjustments using the role type, exact-era match, and evidence quality to refine the multiplier (e.g., exact Tier 1 era + quota-carrying role + adequate ramp = 100%; acquirer-listed-without-working-in-system = 0-25%; below-median individual evidence overrides the halo to 0)."
+      },
+      {
+        "step": 7,
+        "name": "apply_tenure_adjustment",
+        "action": "Apply scoring.tenure_rules: >=18-24 months in the elite era earns full credit; sub-12-month 'tourist' stints are discounted (25-60%); account for time-at-risk / ramp before crediting quota outcomes."
+      },
+      {
+        "step": 8,
+        "name": "compute_points",
+        "action": "org_era_points = round(budget * final_multiplier), clamped to [0, budget], where budget = core_principles.org_points_cap.ae_points_of_100 (15) for AEs or sales_leader_points_of_100 (10) for leaders.",
+        "detail": "This is the ONLY contribution the whitelist makes. The remaining 85 (AE) or 90 (leader) points come from individual evidence, role difficulty, and skills-transfer per the rubrics. The org-era component can never by itself clear the hiring bar."
+      },
+      {
+        "step": 9,
+        "name": "emit_interview_probes",
+        "action": "Emit verification prompts from scoring.verification_checklist, prioritizing those keyed to the flags and caveats triggered above (PLG/AI -> self-sourced pipeline %; toxic_but_successful/negative_signal -> what the rep controlled; era_bounded -> what changed after the boundary; thin_data_provisional -> corroborating metrics)."
+      }
+    ],
+    "worked_example": {
+      "input": "Resume stint: 'AE, TripActions, 2018-2021, 112% average quota attainment, 60% self-sourced pipeline'. Target role: Enterprise AE.",
+      "trace": [
+        "Step 1: 'TripActions' -> navan (alias/rename).",
+        "Step 2: overlaps navan elite era 2017-2021 (pre-COVID); ~36 months in era (note 2020-2021 travel-shock caveat).",
+        "Step 3: base_tier = 2 (no leadership override for an AE).",
+        "Step 4: base_credit = 0.8.",
+        "Step 5: no capping flags (Navan is not PLG/AI/negative); era is in-window so era_bounded does not discount.",
+        "Step 6: exact Tier 2 era + quota-carrying role + strong self-sourced pipeline -> ~100% of the Tier 2 credit.",
+        "Step 7: 36 months >> 24 -> full tenure credit.",
+        "Step 8: org_era_points ~= round(15 * 0.8) = 12 of 15.",
+        "Step 9: probe the 2020-2021 COVID travel shock ('what changed, how did your number hold?') and verify the 60% self-sourced claim."
+      ],
+      "reminder": "12/15 org-era points is a strong prior, not a hire. The 112% attainment and 60% self-sourced pipeline are scored separately in the AE rubric and are what actually move the decision."
+    }
+  },
+  "data_caveats": {
+    "repvue_scores": "RepVue scores are self-reported, fluctuate monthly, and skew toward disgruntled reviewers. Use as a directional signal, not ground truth.",
+    "arr_and_growth_figures": "Many ARR and 'fastest-to-$100M' figures come from company blogs, VC newsletters (Not Boring, SaaStr, Sacra) and podcasts - self-interested sources. Treat as approximate corroboration, not proof of individual skill.",
+    "thin_data_provisional": "Several orgs (Adyen, Bill.com, Mercury, Personio, Abnormal Security, Arctic Wolf, Postman) had thin independent sales-org data in this pass and are tiered provisionally - see signal_flags.thin_data_provisional.",
+    "ai_cohort_time_sensitivity": "AI-cohort tiers (OpenAI, Anthropic, Cursor, Sierra, Harvey, Glean, Clay) are the most time-sensitive; extreme inbound demand and rapid leadership churn (OpenAI cycled multiple CROs by August 2026) mean these should be re-assessed every 6-12 months.",
+    "scope_of_assessment": "This asset assesses SALES-ORG QUALITY AS A RESUME SIGNAL, not company investment quality, product merit, or stock performance. A great stock (e.g., Palantir) can still be a weak or negative sales-skill signal.",
+    "geographic_and_language_bias": "Underlying evidence has a meaningful US / English-language bias; SEC reporting makes US-listed companies disproportionately easy to validate. Non-US orgs may be under-covered rather than genuinely absent.",
+    "survivorship_bias": "The list over-represents survivors and public companies. Absence from the whitelist is explicitly NEUTRAL, never a penalty (see core_principles).",
+    "biggest_evidence_gaps": "Quota attainment distribution, stage-normalized win rate, median deal size, and internal sales-stack adoption are the least reliably public fields. These are the biggest gaps and should be moved from desk research to candidate self-report and reference validation.",
+    "missing_data_is_not_zero": "Unspecified (U) values are never treated as zero and never silently substituted (e.g., do not fill a missing deal-size with a proxy). Uncertainty routes to validation, not to a numeric penalty."
+  },
+  "watchlist": {
+    "note": "Entities named across the sources but deliberately NOT given tiered org records - either lineage-only nodes or school members lacking individual tier/era evidence. Do not award tier credit for these without further research; use only as qualitative lineage/pedigree markers.",
+    "lineage_only": [
+      {
+        "name": "Zenefits",
+        "reason": "Compliance scandal disqualifies it as a whitelist org, but it is a documented lineage seed (Plank->Rippling, Blond->Brex). See lineages.zenefits_diaspora."
+      },
+      {
+        "name": "Cisco Meraki",
+        "reason": "'A quietly important field-sales academy' that seeded Samsara and Verkada leadership, but not separately tiered. See lineages.meraki_school."
+      },
+      {
+        "name": "Slack",
+        "reason": "Lineage marker for the OpenAI enterprise-sales build (Maggie Hott, Denise Dresser); not separately tiered here."
+      },
+      {
+        "name": "AWS",
+        "reason": "Enterprise-DNA source for Stripe (Mike Clayville); treated as a lineage node in this asset rather than a tiered SaaS org."
+      }
+    ],
+    "school_members_untiered": [
+      {
+        "name": "Domo",
+        "school": "silicon_slopes_utah",
+        "reason": "Named Utah-school member; no individual tier/era in sources."
+      },
+      {
+        "name": "Pluralsight",
+        "school": "silicon_slopes_utah",
+        "reason": "Named Utah-school member; no individual tier/era in sources."
+      },
+      {
+        "name": "MX",
+        "school": "silicon_slopes_utah",
+        "reason": "Named Utah-school member; no individual tier/era in sources."
+      }
+    ],
+    "candidate_additions_for_next_version": "Re-supplying the original High-Quality_Sales_Org_Whitelist.docx may surface additional uniquely-listed orgs (and any classic names the deep report did not separately tier) to promote from this watchlist into full records in v1.1.0."
+  }
+}

@@ -47,6 +47,13 @@ export async function POST(request: NextRequest) {
       user: payload.event?.user,
       channel: payload.event?.channel,
       text: payload.event?.text?.substring(0, 50),
+      hasFiles: !!payload.event?.files,
+      fileCount: payload.event?.files?.length || 0,
+      files: payload.event?.files?.map((f: { name: string; mimetype: string; filetype: string }) => ({
+        name: f.name,
+        mimetype: f.mimetype,
+        filetype: f.filetype,
+      })),
     });
 
     // Use waitUntil to keep the function alive after responding

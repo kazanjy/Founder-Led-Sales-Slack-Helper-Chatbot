@@ -51,8 +51,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
 
-    const imageUrl = `${appUrl}/mikey-avatar.png`;
-
     return {
       title,
       description,
@@ -62,26 +60,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         type: "website",
         url: `${appUrl}/share/${code}`,
         siteName: "Mikey",
-        images: [
-          {
-            url: imageUrl,
-            secureUrl: imageUrl,
-            width: 512,
-            height: 512,
-            type: "image/png",
-            alt: "Mikey - The Founder Led Sales Helper",
-          },
-        ],
       },
       twitter: {
-        card: "summary",
+        card: "summary_large_image",
         title,
         description,
-        images: [imageUrl],
-      },
-      other: {
-        "og:image:url": imageUrl,
-        "og:image:secure_url": imageUrl,
       },
     };
   } catch (error) {
