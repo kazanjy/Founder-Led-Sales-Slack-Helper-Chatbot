@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ChatPromptOverlay from "./ChatPromptOverlay";
 
 interface ChatAboutButtonProps {
   /** Title for the new conversation */
@@ -34,12 +35,64 @@ interface ChatAboutButtonProps {
    * the instruction to act on).
    */
   primeOnly?: boolean;
+  /**
+   * Ask for the question first, in an overlay, instead of opening the
+   * chat straight away.
+   *
+   * Opt-in rather than the default because this component is used in
+   * ten places and only some of them are a "I already know what I want
+   * to ask" moment. Where it is on, Skip still gives the old behaviour.
+   */
+  askForPrompt?: boolean;
 }
 
-export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE", primeOnly = false }: ChatAboutButtonProps) {
+export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE", primeOnly = false, askForPrompt = false }: ChatAboutButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [asking, setAsking] = useState(false);
+
+  /**
+   * Open the chat with a question already asked.
+   *
+   * The prompt goes BEFORE the context, matching the GTM Strategy
+   * Review flow: the ask is what the model should act on, and the
+   * history is the material it acts on. autoSend is what turns this
+   * into an answered question rather than a primed one — the server
+   * creates an empty conversation and the chat page fires the message
+   * on mount.
+   *
+   * Nothing extra is needed to get the sales narrative: runWebAgent
+   * loads it into the system prompt server-side for every chat.
+   */
+  const sendWithPrompt = async (prompt: string) => {
+    setLoading(true);
+    try {
+      const context = await getContext();
+      const message = `${prompt}\n\n---\n\n${context}`;
+      const res = await fetch("/api/conversations/from-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, context: message, mode, autoSend: true }),
+      });
+      const data = await res.json();
+      if (data.conversationId) {
+        sessionStorage.setItem(`autoSend-${data.conversationId}`, message);
+        window.open(`/chat/${data.conversationId}?autoSend=true`, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+    } finally {
+      setLoading(false);
+      setAsking(false);
+    }
+  };
 
   const handleClick = async () => {
+    // With the overlay on, the click opens the question box; the chat
+    // is created by whichever button the founder presses there.
+    if (askForPrompt && !asking) {
+      setAsking(true);
+      return;
+    }
     setLoading(true);
     try {
       const context = await getContext();
@@ -76,6 +129,7 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
       console.error("Failed to create chat:", error);
     } finally {
       setLoading(false);
+      setAsking(false);
     }
   };
 
@@ -85,6 +139,17 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
   const iconSize = compact ? "w-3.5 h-3.5" : "w-4 h-4";
 
   return (
+    <>
+      {askForPrompt && (
+        <ChatPromptOverlay
+          open={asking}
+          subject={title}
+          busy={loading}
+          onSubmit={sendWithPrompt}
+          onSkip={handleClick}
+          onClose={() => setAsking(false)}
+        />
+      )}
     <button
       onClick={handleClick}
       disabled={loading}
@@ -102,5 +167,6 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
       )}
       {label}
     </button>
+    </>
   );
 }

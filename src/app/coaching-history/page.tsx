@@ -1607,6 +1607,9 @@ function CoachingHistoryContent() {
                         getContext={() => buildEnrichedChatContext([selectedSession])}
                         label="Chat About This"
                         compact={headerCompact}
+                        // Asks for the question first. primeOnly still
+                        // describes what Skip does in that overlay.
+                        askForPrompt
                         primeOnly
                         mode="DIRECT"
                       />
