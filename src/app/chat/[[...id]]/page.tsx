@@ -14,6 +14,7 @@ import ProfileCompletionModal from "@/components/ProfileCompletionModal";
 import GetStartedModal from "@/components/GetStartedModal";
 import GoogleConnectionModal from "@/components/GoogleConnectionModal";
 import OnboardingFlow, { OnboardingStep } from "@/components/OnboardingFlow";
+import { createPortal } from "react-dom";
 import IntegrationsRow from "@/components/IntegrationsRow";
 import { VoiceRecordingInput } from "@/components/VoiceRecordingInput";
 import { copyMarkdownAsRichText, copyMessagesAsRichText } from "@/lib/clipboard";
@@ -300,6 +301,17 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [toast, setToast] = useState<{ message: string; position: "left" | "right" | "bottom" } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  /**
+   * Viewport coords for the row kebab menu.
+   *
+   * The menu is portalled to <body> and positioned fixed because the
+   * conversation list is an overflow-y-auto scroller, which clipped the
+   * absolutely-positioned menu at the container's edge — the taller the
+   * menu, the more of it disappeared. Same technique RowActionsMenu
+   * already uses; that component isn't reused here because this menu
+   * has a nested project submenu it has no concept of.
+   */
+  const [menuAnchor, setMenuAnchor] = useState<{ left: number; top: number } | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   // Projects state
@@ -411,6 +423,30 @@ export default function ChatPage() {
   }>({ gtmAssessment: null, salesNarrative: null, icp: null, discoveryQuestions: null, firstCallChecklist: null, preCallPlanning: null, emailSequence: null, linkedInSequence: null, callReview: null, coldCallScript: null, salesDeck: null, salesMetrics: null, socialContent: null, adCreator: null, objectionLibrary: null });
   const { confirm: showConfirm, alert: showAlert, ConfirmModalElement } = useConfirmModal();
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLElement | null>(null);
+
+  // Keep the portalled menu glued to its row: the list scrolls under a
+  // fixed-position element, so without this the menu stays put while
+  // the row it belongs to slides away.
+  useEffect(() => {
+    if (!openMenuId) return;
+    const reposition = () => {
+      const el = menuTriggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const MENU_WIDTH = 160; // w-40
+      setMenuAnchor({
+        left: Math.max(8, Math.min(window.innerWidth - MENU_WIDTH - 8, r.right - MENU_WIDTH)),
+        top: r.bottom + 4,
+      });
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [openMenuId]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -3548,7 +3584,17 @@ export default function ChatPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenMenuId(openMenuId === conv.id ? null : conv.id);
+                      const opening = openMenuId !== conv.id;
+                      if (opening) {
+                        menuTriggerRef.current = e.currentTarget;
+                        const r = e.currentTarget.getBoundingClientRect();
+                        const MENU_WIDTH = 160; // w-40
+                        setMenuAnchor({
+                          left: Math.max(8, Math.min(window.innerWidth - MENU_WIDTH - 8, r.right - MENU_WIDTH)),
+                          top: r.bottom + 4,
+                        });
+                      }
+                      setOpenMenuId(opening ? conv.id : null);
                     }}
                     className={`p-1.5 rounded hover:bg-gray-300 transition-colors ${
                       openMenuId === conv.id ? "bg-gray-300" : "opacity-0 group-hover:opacity-100"
@@ -3562,10 +3608,11 @@ export default function ChatPage() {
                   </button>
 
                   {/* Dropdown menu */}
-                  {openMenuId === conv.id && (
+                  {openMenuId === conv.id && menuAnchor && createPortal(
                     <div
                       ref={menuRef}
-                      className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                      style={{ position: "fixed", left: menuAnchor.left, top: menuAnchor.top }}
+                      className="w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[1000]"
                     >
                       <button
                         onClick={(e) => {
@@ -3753,7 +3800,7 @@ export default function ChatPage() {
                         Delete
                       </button>
                     </div>
-                  )}
+                  , document.body)}
                 </div>
               </div>
             ))
