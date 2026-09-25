@@ -71,7 +71,10 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
       const res = await fetch("/api/conversations/from-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, context: message, mode, autoSend: true }),
+        // titleSeed is the prompt alone — the server names the chat
+        // after the question rather than the asset, so two questions
+        // about one session are tellable apart in the sidebar.
+        body: JSON.stringify({ title, context: message, mode, autoSend: true, titleSeed: prompt }),
       });
       const data = await res.json();
       if (data.conversationId) {
