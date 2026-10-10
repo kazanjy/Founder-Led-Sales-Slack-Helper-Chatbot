@@ -171,6 +171,7 @@ export default function AdminLayout({
     { href: "/admin/workspaces", label: "Workspaces", icon: "🏢" },
     { href: "/admin/channels", label: "Channels", icon: "📣" },
     { href: "/admin/billing", label: "Billing", icon: "💳" },
+    { href: "/admin/llm-spend", label: "LLM Spend", icon: "🔥" },
   ];
 
   const hasResults = searchResults && (searchResults.users.length > 0 || searchResults.accounts.length > 0);

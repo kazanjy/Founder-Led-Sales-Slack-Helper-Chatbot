@@ -1,9 +1,130 @@
 import OpenAI from "openai";
+import {
+  errorKindOf,
+  labelFromStack,
+  recordLlmCall,
+} from "@/lib/llm-meter";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+/**
+ * Meter every chat completion.
+ *
+ * Patched onto the one shared client rather than added at each call
+ * site: there are 112 of them across 77 files, and a wrapper here
+ * cannot be forgotten by the 113th.
+ *
+ * The streaming branch exists because the API sends no usage block for
+ * a stream unless asked. Without stream_options.include_usage the 18
+ * streaming call sites would record zero tokens and read as free.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rawCreate = (openai.chat.completions as any).create.bind(openai.chat.completions);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(openai.chat.completions as any).create = async function meteredCreate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  params: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options?: any
+) {
+  const startedAt = Date.now();
+  // Captured here, where the caller's frames are still on the stack.
+  const label = labelFromStack(new Error().stack);
+  const model: string = params?.model ?? "unknown";
+  const streaming = params?.stream === true;
+
+  // Ask for usage on streams. Merged rather than overwritten so a
+  // caller that sets its own stream_options keeps them.
+  const sendParams = streaming
+    ? { ...params, stream_options: { ...(params.stream_options ?? {}), include_usage: true } }
+    : params;
+
+  try {
+    const result = await rawCreate(sendParams, options);
+
+    if (!streaming) {
+      const u = result?.usage ?? {};
+      await recordLlmCall({
+        label,
+        model,
+        promptTokens: u.prompt_tokens ?? 0,
+        completionTokens: u.completion_tokens ?? 0,
+        cachedTokens: u.prompt_tokens_details?.cached_tokens ?? 0,
+        durationMs: Date.now() - startedAt,
+        streamed: false,
+        ok: true,
+      });
+      return result;
+    }
+
+    // A Proxy rather than a replacement async generator: it forwards
+    // every other property to the real Stream, so .toReadableStream(),
+    // .tee() and the abort controller keep working for any future
+    // caller that wants them.
+    let recorded = false;
+    const record = async (usage: Record<string, number> | undefined) => {
+      if (recorded) return;
+      recorded = true;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const u: any = usage ?? {};
+      await recordLlmCall({
+        label,
+        model,
+        promptTokens: u.prompt_tokens ?? 0,
+        completionTokens: u.completion_tokens ?? 0,
+        cachedTokens: u.prompt_tokens_details?.cached_tokens ?? 0,
+        durationMs: Date.now() - startedAt,
+        streamed: true,
+        ok: true,
+      });
+    };
+
+    return new Proxy(result, {
+      get(target, prop, receiver) {
+        if (prop === Symbol.asyncIterator) {
+          return async function* () {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let lastUsage: any;
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              for await (const chunk of target as any) {
+                // The usage chunk arrives last and carries empty
+                // choices; pass it through regardless so callers that
+                // inspect raw chunks are unaffected.
+                if (chunk?.usage) lastUsage = chunk.usage;
+                yield chunk;
+              }
+            } finally {
+              // finally, not after the loop: a caller that breaks early
+              // still gets whatever usage arrived.
+              await record(lastUsage);
+            }
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+  } catch (err) {
+    // A timeout still bills for input while returning nothing, so a
+    // failure is recorded rather than silently missing.
+    await recordLlmCall({
+      label,
+      model,
+      promptTokens: 0,
+      completionTokens: 0,
+      cachedTokens: 0,
+      durationMs: Date.now() - startedAt,
+      streamed: streaming,
+      ok: false,
+      errorKind: errorKindOf(err),
+    });
+    throw err;
+  }
+};
 
 /**
  * Truncate a string to max length at word boundary

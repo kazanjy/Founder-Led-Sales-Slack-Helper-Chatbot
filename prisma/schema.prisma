@@ -2927,6 +2927,55 @@ model SourcingLead {
   @@map("sourcing_leads")
 }
 
+/// One OpenAI call, metered.
+///
+/// Every call in the app goes through the single client in
+/// lib/openai.ts, so wrapping that one instance records all 112 call
+/// sites without touching any of them.
+///
+/// TOKENS are the durable record; cost is derived. Prices change and
+/// get corrected, so costUsd is stored for cheap aggregation but
+/// priceVersion says which table produced it — recompute from tokens
+/// rather than trusting an old number.
+model LlmCall {
+  id String @id @default(cuid())
+
+  /// Which feature made the call, e.g. "api/deals/[id]/analyze" or
+  /// "lib/coaching/synthesize". Derived from the call stack, so it can
+  /// be "unknown" when the frame is unrecognisable; an explicit label
+  /// passed at the call site always wins.
+  label String
+  model String
+
+  /// Straight from the API's usage block, never estimated.
+  promptTokens     Int @default(0)
+  completionTokens Int @default(0)
+  /// Subset of promptTokens that hit the prompt cache — far cheaper,
+  /// and large for callers that re-send the same context repeatedly.
+  cachedTokens     Int @default(0)
+  totalTokens      Int @default(0)
+
+  costUsd      Float   @default(0)
+  priceVersion String  @default("v1")
+
+  durationMs Int     @default(0)
+  streamed   Boolean @default(false)
+  ok         Boolean @default(true)
+  /// Error class when ok is false — timeouts and failed calls are
+  /// billed for input even though they return nothing.
+  errorKind  String?
+
+  /// Best-effort: unavailable on cron paths that act for many users.
+  userId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([label, createdAt(sort: Desc)])
+  @@index([model, createdAt(sort: Desc)])
+  @@map("llm_calls")
+}
+
 model CandidateAssessment {
   id     String @id @default(cuid())
   userId String
