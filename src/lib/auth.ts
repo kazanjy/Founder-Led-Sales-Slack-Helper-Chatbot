@@ -3,12 +3,27 @@ import { prisma } from "@/lib/db";
 
 export interface AuthUser {
   id: string;
-  slackUserId: string;
+  slackUserId: string | null;
   slackUserName: string | null;
   slackEmail: string | null;
-  workspaceId: string;
+  workspaceId: string | null;
+  accountId: string | null;
   licenseStatus: string;
   trialStartedAt: Date | null;
+  // Google OAuth fields
+  googleId: string | null;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  // Maturity assessment update tracking
+  maturityUpdateInProgress: boolean;
+  maturityUpdateIndex: number | null;
+  maturityUpdateStartedAt: Date | null;
+  // Impersonation tracking
+  isImpersonating: boolean;
+  impersonatingAdminId: string | null;
+  // Custom prompt guidance
+  promptGuidance: string | null;
 }
 
 /**
@@ -44,8 +59,19 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     slackUserName: session.user.slackUserName,
     slackEmail: session.user.slackEmail,
     workspaceId: session.user.workspaceId,
+    accountId: session.user.accountId ?? null,
     licenseStatus: session.user.licenseStatus,
     trialStartedAt: session.user.trialStartedAt,
+    googleId: session.user.googleId,
+    email: session.user.email,
+    name: session.user.name,
+    avatarUrl: session.user.avatarUrl,
+    maturityUpdateInProgress: session.user.maturityUpdateInProgress,
+    maturityUpdateIndex: session.user.maturityUpdateIndex,
+    maturityUpdateStartedAt: session.user.maturityUpdateStartedAt,
+    isImpersonating: !!session.impersonatingAdminId,
+    impersonatingAdminId: session.impersonatingAdminId,
+    promptGuidance: ("promptGuidance" in session.user ? (session.user as { promptGuidance?: string | null }).promptGuidance : null) ?? null,
   };
 }
 

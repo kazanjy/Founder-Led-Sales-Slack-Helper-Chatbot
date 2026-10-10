@@ -14,11 +14,13 @@ export default function UpgradeContent() {
   const canceled = searchParams.get("canceled") === "true";
   const installed = searchParams.get("installed") === "true";
   const workspace = searchParams.get("workspace");
+  const expired = searchParams.get("expired") === "true";
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "annual">("annual");
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user is authenticated
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function UpgradeContent() {
     }
 
     setCheckoutLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -57,11 +60,13 @@ export default function UpgradeContent() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error("No checkout URL returned");
+        console.error("No checkout URL returned:", data);
+        setError(data.error || "Failed to create checkout session. Please try again.");
         setCheckoutLoading(false);
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
+    } catch (err) {
+      console.error("Checkout error:", err);
+      setError("Network error. Please check your connection and try again.");
       setCheckoutLoading(false);
     }
   };
@@ -77,7 +82,7 @@ export default function UpgradeContent() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-500">Loading...</div>
+        <div className="animate-pulse text-gray-500 dark:text-gray-400">Loading...</div>
       </main>
     );
   }
@@ -92,10 +97,10 @@ export default function UpgradeContent() {
             alt="Mikey"
             className="w-24 h-24 mx-auto mb-4 rounded-2xl shadow-lg"
           />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {installed ? "Mikey is installed!" : "Upgrade to Mikey Pro"}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             {installed && workspace
               ? `Successfully added to ${workspace}. `
               : ""}
@@ -111,6 +116,12 @@ export default function UpgradeContent() {
           </div>
         )}
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           {/* Monthly Plan */}
@@ -119,19 +130,19 @@ export default function UpgradeContent() {
             className={`p-6 rounded-xl border-2 text-left transition-all ${
               selectedPlan === "monthly"
                 ? "border-blue-600 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
             }`}
           >
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Monthly</h3>
-                <p className="text-sm text-gray-500">Pay as you go</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Monthly</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pay as you go</p>
               </div>
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   selectedPlan === "monthly"
                     ? "border-blue-600 bg-blue-600"
-                    : "border-gray-300"
+                    : "border-gray-300 dark:border-gray-700"
                 }`}
               >
                 {selectedPlan === "monthly" && (
@@ -150,10 +161,10 @@ export default function UpgradeContent() {
               </div>
             </div>
             <div className="mb-2">
-              <span className="text-3xl font-bold text-gray-900">$99</span>
-              <span className="text-gray-500">/month</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">$99</span>
+              <span className="text-gray-500 dark:text-gray-400">/month</span>
             </div>
-            <p className="text-sm text-gray-500">Cancel anytime</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Cancel anytime</p>
           </button>
 
           {/* Annual Plan */}
@@ -162,7 +173,7 @@ export default function UpgradeContent() {
             className={`p-6 rounded-xl border-2 text-left transition-all relative ${
               selectedPlan === "annual"
                 ? "border-blue-600 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
             }`}
           >
             {/* Save badge */}
@@ -172,14 +183,14 @@ export default function UpgradeContent() {
 
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Annual</h3>
-                <p className="text-sm text-gray-500">Best value</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Annual</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Best value</p>
               </div>
               <div
                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   selectedPlan === "annual"
                     ? "border-blue-600 bg-blue-600"
-                    : "border-gray-300"
+                    : "border-gray-300 dark:border-gray-700"
                 }`}
               >
                 {selectedPlan === "annual" && (
@@ -198,18 +209,18 @@ export default function UpgradeContent() {
               </div>
             </div>
             <div className="mb-2">
-              <span className="text-3xl font-bold text-gray-900">$69</span>
-              <span className="text-gray-500">/month</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">$69</span>
+              <span className="text-gray-500 dark:text-gray-400">/month</span>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Billed annually ($828/year)
             </p>
           </button>
         </div>
 
         {/* What's included */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-          <h3 className="font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
             What&apos;s included:
           </h3>
           <ul className="space-y-3">
@@ -231,33 +242,63 @@ export default function UpgradeContent() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-gray-700">{feature}</span>
+                <span className="text-gray-700 dark:text-gray-200">{feature}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        {/* CTA Buttons */}
-        <div className="space-y-3">
-          <button
-            onClick={handleCheckout}
-            disabled={checkoutLoading}
-            className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors"
-          >
-            {checkoutLoading
-              ? "Redirecting to checkout..."
-              : user
-              ? "Continue to Payment"
-              : "Sign in with Slack to Subscribe"}
-          </button>
-
-          <button
-            onClick={handleSkip}
-            className="w-full py-3 px-6 text-gray-400 hover:text-gray-600 font-medium transition-colors"
-          >
-            Skip for now
-          </button>
-        </div>
+        {/* CTA Buttons — when the user is on TRIAL and there's no
+            ?expired=true flag (first-login welcome flow), demote the
+            payment CTA to a secondary outline button and promote
+            "Continue to Mikey" so the page reads as a soft pitch
+            instead of a paywall. EXPIRED / SUSPENDED / signed-out
+            visitors still see the original blue-primary CTA. */}
+        {(() => {
+          const isFirstLoginTrial =
+            user?.licenseStatus === "TRIAL" && !expired;
+          const payLabel = checkoutLoading
+            ? "Redirecting to checkout..."
+            : user
+            ? "Continue to Payment"
+            : "Sign in with Slack to Subscribe";
+          if (isFirstLoginTrial) {
+            return (
+              <div className="space-y-3">
+                <button
+                  onClick={handleSkip}
+                  className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  Continue to Mikey →
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading}
+                  className="w-full py-3 px-6 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 font-medium rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition-colors"
+                >
+                  {payLabel}
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="space-y-3">
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors"
+              >
+                {payLabel}
+              </button>
+              <button
+                onClick={handleSkip}
+                className="w-full py-3 px-6 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Trust signals */}
         <p className="text-center text-sm text-gray-400 mt-6">

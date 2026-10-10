@@ -1,0 +1,199 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { parseSearchInput } from "@/lib/search/input-parser";
+import { generateSearchPlan } from "@/lib/search/queries";
+import { executeSearchPlan } from "@/lib/search/results";
+import { synthesizeResearchBrief } from "@/lib/search/synthesis";
+import { detectFollowUpContext, buildFollowUpContextBlock } from "@/lib/pre-call/follow-up";
+import type { SearchInput } from "@/lib/search/types";
+
+// Force dynamic — never cache this route
+export const dynamic = "force-dynamic";
+
+// Allow up to 120s for search + AI synthesis
+export const maxDuration = 120;
+
+// POST - Run pre-call research with SSE streaming progress updates
+export async function POST(request: NextRequest) {
+  console.log("[ResearchRun] POST handler called");
+
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { companyName, contactName, contactTitle, contactLinkedIn, contactEmail, freeformText, urls, calendarEvent } = body;
+
+    if (!companyName && !freeformText) {
+      return NextResponse.json(
+        { error: "Company name or freeform text is required" },
+        { status: 400 }
+      );
+    }
+
+    const searchInput: SearchInput = {
+      freeformText,
+      companyName,
+      contactName,
+      contactTitle,
+      contactLinkedIn,
+      urls: urls || [],
+    };
+
+    // Create SSE stream
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        function sendEvent(event: string, data: unknown) {
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+          );
+        }
+
+        try {
+          sendEvent("progress", {
+            stage: "parsing",
+            message: "Analyzing your research request...",
+            progress: 10,
+          });
+
+          const parsedInput = await parseSearchInput(searchInput);
+
+          sendEvent("progress", {
+            stage: "parsing",
+            message: `Researching ${parsedInput.companyName}${parsedInput.contactName ? ` and ${parsedInput.contactName}` : ""}...`,
+            progress: 15,
+          });
+
+          sendEvent("progress", {
+            stage: "planning",
+            message: "Planning search queries...",
+            progress: 20,
+          });
+
+          const plan = generateSearchPlan(parsedInput);
+
+          sendEvent("progress", {
+            stage: "planning",
+            message: `Running ${plan.queries.length} searches and fetching ${plan.directFetches.length} pages...`,
+            progress: 25,
+          });
+
+          const results = await executeSearchPlan(plan, (update) => {
+            sendEvent("progress", update);
+          });
+
+          sendEvent("progress", {
+            stage: "searching",
+            message: `Found ${results.totalResults} results. Generating brief...`,
+            progress: 75,
+          });
+
+          // Check for prior contact (Calendar last 180d) and pull
+          // transcripts from the user's connected recorder when
+          // present. Failures are non-fatal; we always fall back to
+          // first-call mode.
+          sendEvent("progress", {
+            stage: "follow_up",
+            message: "Checking for prior interactions…",
+            progress: 78,
+          });
+          const followUpCtx = await detectFollowUpContext(
+            user.id,
+            parsedInput.companyDomain
+          );
+          if (followUpCtx.isFollowUp) {
+            sendEvent("progress", {
+              stage: "follow_up",
+              message: `Follow-up detected: ${followUpCtx.priorCalendarEvents.length} prior event(s), ${followUpCtx.priorRecordedCalls.length} transcript(s).`,
+              progress: 79,
+            });
+          }
+          const followUpForSynth = {
+            isFollowUp: followUpCtx.isFollowUp,
+            contextBlock: buildFollowUpContextBlock(followUpCtx),
+          };
+
+          const brief = await synthesizeResearchBrief(results, (update) => {
+            if (update.stage === "content_chunk") {
+              sendEvent("content_chunk", { token: update.message });
+            } else {
+              sendEvent("progress", update);
+            }
+          }, user.id, followUpForSynth);
+
+          const research = await prisma.preCallResearch.create({
+            data: {
+              userId: user.id,
+              companyName: parsedInput.companyName,
+              contactName: parsedInput.contactName,
+              contactTitle: parsedInput.contactTitle,
+              contactEmail: contactEmail || null,
+              contactLinkedIn: parsedInput.contactLinkedIn || contactLinkedIn || null,
+              freeformInput: freeformText || companyName,
+              content: brief.content,
+              searchContext: brief.searchContext,
+              sources: brief.sources,
+              source: "web",
+              calendarEvent: calendarEvent || undefined,
+            },
+          });
+
+          // Create a chat conversation so the user can continue discussing
+          const { createResearchConversation } = await import("@/lib/search/research-conversation");
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://askmikey.ai";
+          const reportUrl = `${appUrl}/pre-call-planning/research?id=${research.id}`;
+          const chatConversation = await createResearchConversation({
+            userId: user.id,
+            researchId: research.id,
+            companyName: parsedInput.companyName,
+            contactName: parsedInput.contactName,
+            contactTitle: parsedInput.contactTitle,
+            contactLinkedIn: parsedInput.contactLinkedIn,
+            companyDomain: parsedInput.companyDomain,
+            urls: searchInput.urls,
+            briefContent: brief.content,
+            reportUrl,
+          });
+
+          sendEvent("complete", {
+            id: research.id,
+            companyName: brief.companyName,
+            contactName: brief.contactName,
+            contactTitle: parsedInput.contactTitle,
+            contactEmail: research.contactEmail,
+            contactLinkedIn: research.contactLinkedIn,
+            content: brief.content,
+            sources: brief.sources,
+            createdAt: research.createdAt,
+            conversationId: chatConversation.id,
+          });
+        } catch (error) {
+          console.error("[ResearchRun] Stream error:", error);
+          sendEvent("error", {
+            message: error instanceof Error ? error.message : "Research failed. Please try again.",
+          });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-store",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    console.error("[ResearchRun] Fatal error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to start research" },
+      { status: 500 }
+    );
+  }
+}
