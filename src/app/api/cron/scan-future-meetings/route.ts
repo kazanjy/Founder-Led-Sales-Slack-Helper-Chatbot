@@ -12,6 +12,7 @@ import { sweepLinkedSlackChannels } from "@/lib/deals/slack-channel-sync";
 import { sweepDueDealTasks, detectDealTasks } from "@/lib/deals/task-execution";
 import { runDealAnalysis, DealNotFoundError } from "@/lib/deals/analyze";
 import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
+import { sweepEntryDigests } from "@/lib/deals/entry-digest";
 
 /**
  * GET /api/cron/scan-future-meetings
@@ -39,11 +40,19 @@ import { NO_AUTO_ANALYSIS_STATUSES } from "@/lib/deals/constants";
 
 export const maxDuration = 300;
 
-const REANALYZE_SKIP_HOURS = 12;
+// A calendar-triggered re-analysis is the weakest-evidence analysis we
+// run, so it gets the longest cooldown. Recording-triggered analyses
+// (scan-recordings) keep their shorter window — a transcript landing
+// genuinely changes what's known about a deal.
+const REANALYZE_SKIP_HOURS = 24;
 // Safety valve: a single tick will cascade at most this many
 // analyses. A giant backlog (first run after a long outage) trickles
 // out over subsequent ticks instead of burning one huge OpenAI batch.
 const MAX_REANALYSES_PER_TICK = 10;
+// However quiet a deal's calendar is, it still gets refreshed this
+// often. Without this escape hatch the materiality gate below could
+// keep a busy deal from ever being re-analyzed by this cron.
+const FORCE_REANALYZE_AFTER_DAYS = 7;
 
 export async function GET(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
@@ -81,7 +90,7 @@ export async function GET(request: NextRequest) {
     likelyDeals: number;
     errors: number;
   }> = [];
-  const reanalysisTargets: Array<{ userId: string; dealId: string }> = [];
+  const reanalysisTargets: Array<{ userId: string; dealId: string; added: number }> = [];
 
   for (const u of users) {
     try {
@@ -111,7 +120,7 @@ export async function GET(request: NextRequest) {
         errors: 0,
       });
       for (const d of result.perDeal) {
-        if (d.added > 0) reanalysisTargets.push({ userId: u.id, dealId: d.dealId });
+        if (d.added > 0) reanalysisTargets.push({ userId: u.id, dealId: d.dealId, added: d.added });
       }
     } catch (err) {
       console.error(`[cron scan-future-meetings] user ${u.id} threw:`, err);
@@ -129,7 +138,8 @@ export async function GET(request: NextRequest) {
   if (capped.length > 0) {
     after(async () => {
       const cutoff = new Date(Date.now() - REANALYZE_SKIP_HOURS * 60 * 60 * 1000);
-      for (const { userId, dealId } of capped) {
+      const staleCutoff = new Date(Date.now() - FORCE_REANALYZE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+      for (const { userId, dealId, added } of capped) {
         try {
           const before = await prisma.deal.findUnique({
             where: { id: dealId },
@@ -145,6 +155,32 @@ export async function GET(request: NextRequest) {
           // a won deal's kickoff meeting is not pipeline evidence.
           if (!before || NO_AUTO_ANALYSIS_STATUSES.includes(before.status)) continue;
           if (before.lastAnalyzedAt && before.lastAnalyzedAt > cutoff) {
+            continue;
+          }
+
+          // Is this calendar change worth a full analysis?
+          //
+          // The analyzer branches on whether the deal has ANY upcoming
+          // meeting — an empty calendar on a live deal is called out
+          // as a momentum risk. So a deal going from zero meetings to
+          // one genuinely changes the verdict, while a deal that
+          // already had meetings gaining another usually doesn't: it
+          // moves WHEN things happen, not what is known. The second
+          // case was most of this cron's spend.
+          //
+          // Counting upcoming meetings and comparing with how many we
+          // just added tells us which case this is, without needing
+          // the pre-scan state: if everything upcoming is something we
+          // just added, the calendar was empty before.
+          const upcomingCount = await prisma.dealTimelineEntry.count({
+            where: { dealId, type: "meeting", entryDate: { gt: new Date() } },
+          });
+          const calendarWasEmpty = upcomingCount <= added;
+          const isStale = !before.lastAnalyzedAt || before.lastAnalyzedAt < staleCutoff;
+          if (!calendarWasEmpty && !isStale) {
+            console.log(
+              `[cron scan-future-meetings] skipping re-analysis of ${dealId}: gained ${added} meeting(s) but calendar already had ${upcomingCount - added}`
+            );
             continue;
           }
           const result = await runDealAnalysis(userId, dealId);
@@ -250,6 +286,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Digest a few un-digested call transcripts so re-analyses can read
+  // the digest instead of the full transcript. Runs at the tail: it is
+  // never time-sensitive, and a transcript that waits one more tick
+  // costs nothing. Capped per tick, and a no-op once caught up.
+  let digests = 0;
+  try {
+    const result = await sweepEntryDigests();
+    digests = result.digested;
+  } catch (err) {
+    console.error("[cron scan-future-meetings] digest sweep failed:", err);
+  }
+
   const totalAdded = summary.reduce((n, s) => n + s.added, 0);
   if (totalAdded > 0) {
     console.log(
@@ -266,6 +314,7 @@ export async function GET(request: NextRequest) {
     nudges,
     slackSyncs,
     taskPings,
+    digests,
     summary: summary.filter((s) => s.added > 0 || s.likelyDeals > 0 || s.errors > 0),
   });
 }

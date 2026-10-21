@@ -2721,12 +2721,23 @@ model DealTimelineEntry {
   sourceUrl String?
   metadata  String? @db.Text // JSON: { callType?, participants?, extractedFrom?, imageDescription?, etc. }
 
+  /// One-time structured digest of a call transcript, written by the
+  /// digest sweep. Re-analyses read this instead of re-sending the full
+  /// transcript on every run — an hour-long call is ~100K chars, and a
+  /// deal analyzed ten times was paying for it ten times.
+  /// Null means "not digested yet"; the analyzer falls back to a
+  /// one-line index entry, so an absent digest is never an error.
+  digest    String?   @db.Text
+  digestedAt DateTime?
+
   order     Int      @default(0)
   entryDate DateTime @default(now()) // when this engagement happened
 
   createdAt DateTime @default(now())
 
   @@index([dealId, entryDate(sort: Desc)])
+  // Drives the digest sweep's "call entries not yet digested" lookup.
+  @@index([type, digestedAt])
   @@map("deal_timeline_entries")
 }
 

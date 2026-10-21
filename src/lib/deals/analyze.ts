@@ -178,25 +178,70 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
     }
   }
 
+  const isReanalysis = Boolean(deal.lastAnalysis?.trim());
+
   if (pastEntries.length > 0) {
     sections.push("## Timeline (past)");
-    // ALL call transcripts go in essentially complete — an hour-long
-    // call is ~70-90K chars (~20K tokens), a typical deal carries 2-5
-    // of them, and GPT-5.5's ~1M-token window swallows that with room
-    // to spare (~$0.20-0.75 of input per analysis). Non-call entries
-    // (emails, slack digests, notes) get 20K — enough for a full
-    // channel-sync digest or a long thread. The global budget below is
-    // the real backstop; entries are newest-first so overflow drops
-    // the oldest history.
+    // FIRST analysis of a deal reads everything in full: all call
+    // transcripts essentially complete — an hour-long call is ~70-90K
+    // chars (~20K tokens) — and non-call entries (emails, slack
+    // digests, notes) at 20K. The global budget below is the real
+    // backstop; entries are newest-first so overflow drops the oldest
+    // history.
+    //
+    // A RE-ANALYSIS does not re-read what the last run already read.
+    // The previous analysis is passed in full below and is itself the
+    // record of what those calls established, so re-sending the raw
+    // transcripts bought nothing and cost ~$0.50 a run on a
+    // transcript-heavy deal. Older calls therefore contribute their
+    // one-time digest (see lib/deals/entry-digest), and anything that
+    // landed since the last run is still read verbatim.
+    //
+    // Two deliberate exceptions keep quality intact:
+    //  - The most recent call always goes in verbatim, so the model
+    //    can still quote the latest conversation exactly.
+    //  - Non-call entries (emails, notes) are never reduced. They're
+    //    small, and they're where discovery detail hides.
     const CALL_TYPES = new Set(["call_summary", "call_transcript"]);
+    const mostRecentCallId = pastEntries.find((e) => CALL_TYPES.has(e.type))?.id;
+
     for (const entry of pastEntries) {
       const date = new Date(entry.entryDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      sections.push(`### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`);
-      const cap = CALL_TYPES.has(entry.type) ? 100_000 : 20_000;
-      const content = entry.content.length > cap
-        ? entry.content.substring(0, cap) + "\n\n[...truncated]"
-        : entry.content;
-      sections.push(content);
+      const heading = `### ${date} — ${entry.type}${entry.title ? `: ${entry.title}` : ""}`;
+
+      const isCall = CALL_TYPES.has(entry.type);
+      const isNewSinceLastRun =
+        !isReanalysis ||
+        !deal.lastAnalyzedAt ||
+        new Date(entry.createdAt) > deal.lastAnalyzedAt;
+      const readInFull =
+        isNewSinceLastRun || !isCall || entry.id === mostRecentCallId;
+
+      if (readInFull) {
+        sections.push(heading);
+        const cap = isCall ? 100_000 : 20_000;
+        sections.push(
+          entry.content.length > cap
+            ? entry.content.substring(0, cap) + "\n\n[...truncated]"
+            : entry.content
+        );
+        sections.push("");
+        continue;
+      }
+
+      // Already covered by the previous analysis. Labelled so the
+      // model knows this is compressed history rather than a thin
+      // call, and never silently drops to a bare index without
+      // saying so.
+      sections.push(heading);
+      if (entry.digest) {
+        sections.push(`_(digest of an earlier call — full transcript already reflected in the previous analysis)_`);
+        sections.push(entry.digest);
+      } else {
+        sections.push(
+          `_(earlier call, ${entry.content.length.toLocaleString()} chars — not re-read this run; its findings are carried in the previous analysis below)_`
+        );
+      }
       sections.push("");
     }
   }
@@ -226,8 +271,6 @@ export async function runDealAnalysis(userId: string, dealId: string): Promise<D
   } catch { /* ignore — section falls back to generic dimensions */ }
 
   const dealContext = sections.join("\n") + narrativeContext;
-
-  const isReanalysis = Boolean(deal.lastAnalysis?.trim());
 
   const priorAnalysisBlock = isReanalysis
     // Full previous analysis — the "What's Changed" diff needs the
