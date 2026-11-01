@@ -1026,18 +1026,22 @@ function CoachingHistoryContent() {
             {sessions.length > 0 && (
               <ActionHint
                 align="right"
-                title="Open a chat that already knows everything"
-                body="Loads every coaching session — notes, transcripts, goals, tasks and metrics — into a new conversation, then waits. No question is asked on your behalf."
+                title="Ask a question across every session"
+                body="Asks what you want to know, then opens a chat with every coaching session — notes, transcripts, goals, tasks and metrics — already loaded as the material for the answer."
                 bullets={[
-                  "Use this when you have your own question rather than wanting an opinion.",
                   "Ask about one session or across all of them: “what did we decide about pricing?”, “what have I dropped?”",
-                  "Opens in a new tab with the context already primed.",
+                  "Skip the question to open the chat primed but silent, and ask there instead.",
+                  "Opens in a new tab.",
                 ]}
               >
                 <ChatAboutButton
                   title="Coaching History — All Sessions"
                   getContext={() => buildEnrichedChatContext(sessions)}
                   label="Chat All Sessions"
+                  // Same overlay as the single-session "Chat About
+                  // This". primeOnly still describes what Skip does.
+                  askForPrompt
+                  subject={`all ${sessions.length} of your coaching sessions`}
                   primeOnly
                   mode="DIRECT"
                 />

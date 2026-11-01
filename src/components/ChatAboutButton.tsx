@@ -44,9 +44,16 @@ interface ChatAboutButtonProps {
    * to ask" moment. Where it is on, Skip still gives the old behaviour.
    */
   askForPrompt?: boolean;
+  /**
+   * What the overlay says Mikey will be looking at, when the
+   * conversation title doesn't read well in that sentence. The title
+   * names the chat ("Coaching History — All Sessions"); this names the
+   * material ("all 23 of your coaching sessions"). Defaults to title.
+   */
+  subject?: string;
 }
 
-export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE", primeOnly = false, askForPrompt = false }: ChatAboutButtonProps) {
+export function ChatAboutButton({ title, getContext, label = "Chat About This", compact = false, mode = "CHATBASE", primeOnly = false, askForPrompt = false, subject }: ChatAboutButtonProps) {
   const [loading, setLoading] = useState(false);
   const [asking, setAsking] = useState(false);
 
@@ -146,7 +153,7 @@ export function ChatAboutButton({ title, getContext, label = "Chat About This", 
       {askForPrompt && (
         <ChatPromptOverlay
           open={asking}
-          subject={title}
+          subject={subject ?? title}
           busy={loading}
           onSubmit={sendWithPrompt}
           onSkip={handleClick}
