@@ -8,6 +8,7 @@ import SalesNavBar from "@/components/SalesNavBar";
 import ActionHint from "@/components/ActionHint";
 import { WHAT_NEXT_OUTPUT_CONTRACT } from "@/lib/coaching/what-next-prompt";
 import CoachingFramework from "@/components/CoachingFramework";
+import AnchorLink from "@/components/AnchorLink";
 import { useConfirmModal } from "@/components/useConfirmModal";
 
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
@@ -441,6 +442,42 @@ function CoachingHistoryContent() {
 
   const selectedSession = sessions.find((s) => s.id === selectedId) || null;
   const checkedSessions = sessions.filter((s) => checkedIds.has(s.id));
+
+  // Make a pasted anchor link land where it says it does.
+  //
+  // The browser does its own hash scroll on load, long before the
+  // sessions have been fetched — so the element doesn't exist yet and
+  // nothing happens. We re-try once the selected session has rendered.
+  //
+  // Polled rather than fired once because the target may belong to
+  // CoachingFramework (#metrics, #up-next), which mounts on its own
+  // schedule. Gives up after ~3s so a stale or hand-edited hash doesn't
+  // leave an interval running.
+  const hashScrolledRef = useRef(false);
+  useEffect(() => {
+    if (hashScrolledRef.current) return;
+    if (loading || !selectedSession) return;
+    const id = window.location.hash.slice(1);
+    if (!id) {
+      hashScrolledRef.current = true;
+      return;
+    }
+    let tries = 0;
+    const timer = setInterval(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        hashScrolledRef.current = true;
+      }
+      // Stop on success, or once we've waited long enough that the
+      // section clearly isn't coming.
+      if (el || ++tries >= 10) {
+        hashScrolledRef.current = true;
+        clearInterval(timer);
+      }
+    }, 300);
+    return () => clearInterval(timer);
+  }, [loading, selectedSession]);
 
   const resetForm = () => {
     setFormTitle("");
@@ -1830,8 +1867,9 @@ function CoachingHistoryContent() {
 
                     {/* Notes */}
                     <div className="mb-8">
-                      <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                      <h3 id="notes" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         Notes
+                        <AnchorLink id="notes" label="Notes" />
                       </h3>
                       <div className="prose dark:prose-invert max-w-none prose-sm prose-p:my-2 prose-headings:mt-4 prose-headings:mb-2">
                         <ReactMarkdown
@@ -1850,8 +1888,9 @@ function CoachingHistoryContent() {
                     {selectedSession.transcript && (
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          <h3 id="transcript" className="group scroll-mt-24 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
                             Call Transcript
+                            <AnchorLink id="transcript" label="Call Transcript" />
                           </h3>
                           <button
                             type="button"

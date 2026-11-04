@@ -9,6 +9,7 @@ import remarkGfm from "remark-gfm";
 import { TaskComments } from "@/components/TaskComments";
 import { RowActionsMenu, type RowAction } from "@/components/RowActionsMenu";
 import ReadinessTray from "@/components/ReadinessTray";
+import AnchorLink from "@/components/AnchorLink";
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { usePinnedOrder } from "@/lib/hooks/usePinnedOrder";
 // Copy handlers write BOTH clipboard flavors — text/html (rendered)
@@ -503,39 +504,6 @@ function formatMetricDelta(value: number, format?: string): string {
  * Hidden until the heading is hovered or the link is focused, so it
  * stays out of the way without becoming keyboard-inaccessible.
  */
-function AnchorLink({ id, label }: { id: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <a
-      href={`#${id}`}
-      aria-label={`Copy link to ${label}`}
-      title={`Copy link to ${label}`}
-      onClick={(e) => {
-        e.preventDefault();
-        const { origin, pathname, search } = window.location;
-        window.history.replaceState(null, "", `${pathname}${search}#${id}`);
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-        navigator.clipboard
-          ?.writeText(`${origin}${pathname}${search}#${id}`)
-          .then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1400);
-          })
-          .catch(() => {
-            /* hash + scroll already happened; clipboard is the bonus */
-          });
-      }}
-      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity font-normal normal-case tracking-normal text-gray-400 hover:text-purple-600 dark:hover:text-purple-300"
-    >
-      {copied ? (
-        <span className="text-[11px] text-green-600 dark:text-green-300">Copied</span>
-      ) : (
-        "#"
-      )}
-    </a>
-  );
-}
-
 interface CoachingFrameworkProps {
   sessionId: string;
   sessionStatus: string;
