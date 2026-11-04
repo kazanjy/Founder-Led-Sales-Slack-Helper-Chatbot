@@ -36,13 +36,14 @@ export async function POST(request: NextRequest) {
     let customerId = dbUser?.license?.stripeCustomerId;
 
     if (!customerId) {
-      // Create a new Stripe customer
+      // Create a new Stripe customer (prefer Google fields, fall back to Slack)
       const customer = await stripe.customers.create({
-        email: user.slackEmail || undefined,
-        name: user.slackUserName || undefined,
+        email: user.email || user.slackEmail || undefined,
+        name: user.name || user.slackUserName || undefined,
         metadata: {
           userId: user.id,
-          slackUserId: user.slackUserId,
+          ...(user.slackUserId && { slackUserId: user.slackUserId }),
+          ...(user.googleId && { googleId: user.googleId }),
         },
       });
       customerId = customer.id;

@@ -1,0 +1,202 @@
+import { prisma } from "@/lib/db";
+import type { Deal } from "@prisma/client";
+
+/**
+ * Shared "find or create Potential deal for this domain" used by both
+ * the recorder scanner and the calendar pre-call research cron.
+ * Keeps the dedup contract in one place so neither pipeline spawns a
+ * duplicate Potential when the other has recently done the work.
+ */
+
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com",
+  "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "pm.me",
+  "live.com", "msn.com",
+]);
+
+function normalizeDomain(d: string | null | undefined): string {
+  return (d || "").trim().toLowerCase().replace(/^www\./, "");
+}
+
+function companyNameFromDomain(domain: string): string {
+  const root = domain.split(".")[0] || domain;
+  return root.charAt(0).toUpperCase() + root.slice(1);
+}
+
+export type AutoDetectResult =
+  | { kind: "skipped_internal"; deal: null }
+  | { kind: "skipped_public_domain"; deal: null }
+  | { kind: "attached_existing"; deal: Deal }
+  | { kind: "customer_call"; deal: Deal } // domain belongs to a closed-won account — customer activity, stays off the deals
+  | { kind: "cooldown_hit"; deal: Deal } // existing deal found but recently dismissed/lost
+  | { kind: "created_potential"; deal: Deal };
+
+export async function ensurePotentialDealForDomain(opts: {
+  userId: string;
+  domain: string;
+  companyName?: string;
+  source: "recorder" | "calendar";
+  cooldownDays?: number;
+  selfDomains: Set<string>;
+}): Promise<AutoDetectResult> {
+  const domain = normalizeDomain(opts.domain);
+  if (!domain) return { kind: "skipped_internal", deal: null };
+  if (opts.selfDomains.has(domain)) return { kind: "skipped_internal", deal: null };
+  if (PUBLIC_EMAIL_DOMAINS.has(domain)) return { kind: "skipped_public_domain", deal: null };
+
+  // 1) Look for any active or potential deal already tracking this domain
+  //    (via companyUrl or participant email). If found → attach.
+  //    closed_won is deliberately excluded: those matches are handled
+  //    below as customer calls, and if the account ALSO has a live
+  //    expansion deal, that live deal wins here first.
+  const active = await prisma.deal.findFirst({
+    where: {
+      userId: opts.userId,
+      status: { notIn: ["dismissed", "closed_lost", "closed_won"] },
+      OR: [
+        { companyUrl: { contains: domain, mode: "insensitive" } },
+        { participants: { some: { email: { endsWith: `@${domain}`, mode: "insensitive" } } } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (active) return { kind: "attached_existing", deal: active };
+
+  // 1.5) Closed-won account → this is a CUSTOMER call, not pipeline.
+  //    No new deal, and nothing lands on the won deal either — the
+  //    Customer Success applet owns post-close activity.
+  const won = await findClosedWonDealForDomains(opts.userId, [domain]);
+  if (won) return { kind: "customer_call", deal: won };
+
+  // 2) Cooldown — if we recently created (or the user recently dismissed)
+  //    a deal for this domain, don't spawn another. Prevents the two
+  //    pipelines from fighting and prevents a dismiss-then-recreate loop.
+  const cooldownDays = opts.cooldownDays ?? 30;
+  const cutoff = new Date(Date.now() - cooldownDays * 24 * 60 * 60 * 1000);
+  const recent = await prisma.deal.findFirst({
+    where: {
+      userId: opts.userId,
+      createdAt: { gte: cutoff },
+      OR: [
+        { companyUrl: { contains: domain, mode: "insensitive" } },
+        { participants: { some: { email: { endsWith: `@${domain}`, mode: "insensitive" } } } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (recent) return { kind: "cooldown_hit", deal: recent };
+
+  // 3) Spawn a fresh Potential.
+  const companyName = opts.companyName?.trim() || companyNameFromDomain(domain);
+  const newDeal = await prisma.deal.create({
+    data: {
+      userId: opts.userId,
+      name: `${companyName} — Potential`,
+      companyName,
+      companyUrl: `https://${domain}`,
+      stage: "prospecting",
+      status: "potential",
+      source: opts.source,
+    },
+  });
+  return { kind: "created_potential", deal: newDeal };
+}
+
+/**
+ * Does this user have a closed-won deal for any of these domains?
+ * (companyUrl or participant-email match — same contract as the
+ * attach lookup.) Used by both autopilot passes to keep customer
+ * calls off the pipeline: existing customers never spawn new deals,
+ * and their calls don't attach to the won deal either.
+ */
+export async function findClosedWonDealForDomains(
+  userId: string,
+  domains: string[]
+): Promise<Deal | null> {
+  const cleaned = [...new Set(domains.map(normalizeDomain).filter(Boolean))];
+  if (cleaned.length === 0) return null;
+  return prisma.deal.findFirst({
+    where: {
+      userId,
+      status: "closed_won",
+      OR: cleaned.flatMap((d) => [
+        { companyUrl: { contains: d, mode: "insensitive" as const } },
+        { participants: { some: { email: { endsWith: `@${d}`, mode: "insensitive" as const } } } },
+      ]),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * Resolve the user's own email domains so callers can filter
+ * internal attendees consistently. Returns lowercase, no www.
+ */
+export async function getSelfDomains(userId: string): Promise<Set<string>> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, slackEmail: true, accountId: true },
+  });
+  const set = new Set<string>();
+  const addEmail = (email: string | null | undefined) => {
+    if (!email) return;
+    const at = email.lastIndexOf("@");
+    if (at < 0) return;
+    const d = normalizeDomain(email.slice(at + 1));
+    if (d) set.add(d);
+  };
+  addEmail(user?.email);
+  addEmail(user?.slackEmail);
+  if (user?.accountId) {
+    const account = await prisma.account.findUnique({
+      where: { id: user.accountId },
+      select: { emailDomain: true },
+    });
+    const d = normalizeDomain(account?.emailDomain || null);
+    if (d) set.add(d);
+  }
+  return set;
+}
+
+/**
+ * Returns the lowercased set of email addresses that belong to
+ * "internal" users — i.e., people who are themselves Mikey users
+ * inside the same account as `userId`. Used to make sure seller-side
+ * attendees on a calendar event or call recording don't get added to
+ * the deal's external-stakeholder list.
+ *
+ * Covers two cases the older self-domain check missed:
+ *  - Co-founders / teammates in the same Mikey account, even when
+ *    they don't share the seller's email domain.
+ *  - Sellers whose own email is on a public domain (gmail.com etc.).
+ *    The self-domain check skips public domains entirely so it
+ *    can't filter the seller; matching by exact email handles them.
+ *
+ * Pulls both User.email and User.slackEmail since a teammate may
+ * appear on calendar invites under either.
+ */
+export async function getAccountUserEmails(userId: string): Promise<Set<string>> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, slackEmail: true, accountId: true },
+  });
+  const set = new Set<string>();
+  const add = (email: string | null | undefined) => {
+    if (!email) return;
+    const cleaned = email.trim().toLowerCase();
+    if (cleaned) set.add(cleaned);
+  };
+  add(user?.email);
+  add(user?.slackEmail);
+  if (user?.accountId) {
+    const teammates = await prisma.user.findMany({
+      where: { accountId: user.accountId },
+      select: { email: true, slackEmail: true },
+    });
+    for (const t of teammates) {
+      add(t.email);
+      add(t.slackEmail);
+    }
+  }
+  return set;
+}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PostHogProvider } from "@/components/PostHogProvider";
+import CmdKPalette from "@/components/CmdKPalette";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,9 +14,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mikeybot.io";
+
 export const metadata: Metadata = {
-  title: "Mikey - Founder-Led Sales Bot",
-  description: "Your AI-powered founder-led sales assistant for Slack",
+  title: {
+    default: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    template: "%s - Mikey",
+  },
+  description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+  openGraph: {
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+    type: "website",
+    url: appUrl,
+    siteName: "Mikey",
+    images: [
+      {
+        url: `${appUrl}/mikey-avatar.png`,
+        width: 512,
+        height: 512,
+        type: "image/png",
+        alt: "Mikey",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Mikey - Your AI-Powered Founder-Led Sales Platform",
+    description: "Build your complete sales playbook automatically — narrative, ICP, discovery questions, sales decks, outreach sequences, and more.",
+    images: [`${appUrl}/mikey-avatar.png`],
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +56,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <PostHogProvider>{children}</PostHogProvider>
+        {/* Global Cmd/Ctrl+K palette. Mounted at the root so the
+            shortcut works from every page; lazy-loads /api/deals on
+            first open and silently no-ops for unauthenticated
+            visitors. */}
+        <CmdKPalette />
       </body>
     </html>
   );
